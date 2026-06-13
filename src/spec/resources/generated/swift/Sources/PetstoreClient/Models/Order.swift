@@ -10,75 +10,75 @@ import Foundation
 /// Order is a model class generated from the OpenAPI schema.
 /// Typed enum for Order.status.
 public enum OrderStatusEnum: String, Codable, Sendable, CaseIterable {
-    case placed = "placed"
-    case approved = "approved"
-    case delivered = "delivered"
+  case placed = "placed"
+  case approved = "approved"
+  case delivered = "delivered"
 }
 
 public struct Order: Codable, Sendable, Equatable, Hashable {
-    /// Example: `10`
-    public var id: Int64?
-    /// Example: `198772`
-    public var petId: Int64?
-    /// Example: `7`
-    public var quantity: Int?
-    /// Example: `null`
-    public var shipDate: Date?
-    /// Order Status
-    /// Example: `approved`
-    public var status: OrderStatusEnum?
-    /// Example: `null`
-    public var complete: Bool?
+  /// Example: `10`
+  public var id: Int64?
+  /// Example: `198772`
+  public var petId: Int64?
+  /// Example: `7`
+  public var quantity: Int?
+  /// Example: `null`
+  public var shipDate: Date?
+  /// Order Status
+  /// Example: `approved`
+  public var status: OrderStatusEnum?
+  /// Example: `null`
+  public var complete: Bool?
 
-    enum CodingKeys: String, CodingKey {
-        case id = "id"
-        case petId = "petId"
-        case quantity = "quantity"
-        case shipDate = "shipDate"
-        case status = "status"
-        case complete = "complete"
-    }
+  enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case petId = "petId"
+    case quantity = "quantity"
+    case shipDate = "shipDate"
+    case status = "status"
+    case complete = "complete"
+  }
 
-    /// Creates a new Order instance.
-    public init(
-        id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil,
-        status: OrderStatusEnum? = OrderStatusEnum(rawValue: "placed"), complete: Bool? = nil
-    ) {
-        self.id = id
-        self.petId = petId
-        self.quantity = quantity
-        self.shipDate = shipDate
-        self.status = status
-        self.complete = complete
-    }
+  /// Creates a new Order instance.
+  public init(
+    id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil,
+    status: OrderStatusEnum? = OrderStatusEnum(rawValue: "placed"), complete: Bool? = nil
+  ) {
+    self.id = id
+    self.petId = petId
+    self.quantity = quantity
+    self.shipDate = shipDate
+    self.status = status
+    self.complete = complete
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-    /// — matching the cross-language "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-        self.petId = try container.decodeIfPresent(Int64.self, forKey: .petId)
-        self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
-        self.shipDate = try container.decodeIfPresent(Date.self, forKey: .shipDate)
-        self.status = try container.decodeIfPresent(OrderStatusEnum.self, forKey: .status)
-        self.complete = try container.decodeIfPresent(Bool.self, forKey: .complete)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+    self.petId = try container.decodeIfPresent(Int64.self, forKey: .petId)
+    self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
+    self.shipDate = try container.decodeIfPresent(Date.self, forKey: .shipDate)
+    self.status = try container.decodeIfPresent(OrderStatusEnum.self, forKey: .status)
+    self.complete = try container.decodeIfPresent(Bool.self, forKey: .complete)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(id, forKey: .id)
-        try container.encodeIfPresent(petId, forKey: .petId)
-        try container.encodeIfPresent(quantity, forKey: .quantity)
-        try container.encodeIfPresent(shipDate, forKey: .shipDate)
-        try container.encodeIfPresent(status, forKey: .status)
-        try container.encodeIfPresent(complete, forKey: .complete)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(id, forKey: .id)
+    try container.encodeIfPresent(petId, forKey: .petId)
+    try container.encodeIfPresent(quantity, forKey: .quantity)
+    try container.encodeIfPresent(shipDate, forKey: .shipDate)
+    try container.encodeIfPresent(status, forKey: .status)
+    try container.encodeIfPresent(complete, forKey: .complete)
+  }
 }

@@ -12,114 +12,117 @@ import Testing
 
 @Suite final class HeaderSelectorTests {
 
-    @Test func testIsJsonMime() {
-        let hs = HeaderSelector()
+  @Test func testIsJsonMime() {
+    let hs = HeaderSelector()
 
-        let testCases: [(String, Bool)] = [
-            ("application/json", true),
-            ("application/json; charset=utf-8", true),
-            ("application/vnd.api+json", true),
-            ("application/xml", false),
-            ("text/plain", false),
-            ("", false),
-            ("application/octet-stream", false),
-            ("application/hal+json", true),
-        ]
+    let testCases: [(String, Bool)] = [
+      ("application/json", true),
+      ("application/json; charset=utf-8", true),
+      ("application/vnd.api+json", true),
+      ("application/xml", false),
+      ("text/plain", false),
+      ("", false),
+      ("application/octet-stream", false),
+      ("application/hal+json", true),
+    ]
 
-        for (input, expected) in testCases {
-            #expect(hs.isJsonMime(input) == expected, "IsJsonMime(\(input)) should be \(expected)")
-        }
+    for (input, expected) in testCases {
+      #expect(hs.isJsonMime(input) == expected, "IsJsonMime(\(input)) should be \(expected)")
     }
+  }
 
-    @Test func testIsJsonMimeCaseInsensitive() {
-        let hs = HeaderSelector()
+  @Test func testIsJsonMimeCaseInsensitive() {
+    let hs = HeaderSelector()
 
-        #expect(hs.isJsonMime("APPLICATION/JSON"))
-    }
+    #expect(hs.isJsonMime("APPLICATION/JSON"))
+  }
 
-    @Test func testSelectHeadersWithSingleAccept() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/json"], contentType: "application/json", isMultipart: false)
+  @Test func testSelectHeadersWithSingleAccept() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json"], contentType: "application/json", isMultipart: false)
 
-        #expect(headers["Accept"] == "application/json")
-        #expect(headers["Content-Type"] == "application/json")
-    }
+    #expect(headers["Accept"] == "application/json")
+    #expect(headers["Content-Type"] == "application/json")
+  }
 
-    @Test func testSelectHeadersWithEmptyAccepts() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)
+  @Test func testSelectHeadersWithEmptyAccepts() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)
 
-        #expect(headers["Accept"] == nil)
-    }
+    #expect(headers["Accept"] == nil)
+  }
 
-    @Test func testSelectHeadersMultipartOmitsContentType() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/json"], contentType: "multipart/form-data", isMultipart: true)
+  @Test func testSelectHeadersMultipartOmitsContentType() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json"], contentType: "multipart/form-data", isMultipart: true)
 
-        #expect(headers["Content-Type"] == nil)
-    }
+    #expect(headers["Content-Type"] == nil)
+  }
 
-    @Test func testSelectHeadersDefaultContentType() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: ["application/json"], contentType: "", isMultipart: false)
+  @Test func testSelectHeadersDefaultContentType() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json"], contentType: "", isMultipart: false)
 
-        #expect(headers["Content-Type"] == "application/json")
-    }
+    #expect(headers["Content-Type"] == "application/json")
+  }
 
-    @Test func testSelectHeadersJoinsInDeclarationOrder() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["image/jpeg", "image/png", "application/json"],
-            contentType: "application/json",
-            isMultipart: false
-        )
+  @Test func testSelectHeadersJoinsInDeclarationOrder() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["image/jpeg", "image/png", "application/json"],
+      contentType: "application/json",
+      isMultipart: false
+    )
 
-        #expect(headers["Accept"] == "image/jpeg, image/png, application/json")
-    }
+    #expect(headers["Accept"] == "image/jpeg, image/png, application/json")
+  }
 
-    @Test func testSelectHeadersJoinsWithoutReorderingJson() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/xml", "application/json", "text/plain"],
-            contentType: "application/json",
-            isMultipart: false
-        )
+  @Test func testSelectHeadersJoinsWithoutReorderingJson() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/xml", "application/json", "text/plain"],
+      contentType: "application/json",
+      isMultipart: false
+    )
 
-        #expect(headers["Accept"] == "application/xml, application/json, text/plain")
-    }
+    #expect(headers["Accept"] == "application/xml, application/json, text/plain")
+  }
 
-    @Test func testSelectHeadersSingleElement() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/json"], contentType: "application/json", isMultipart: false)
+  @Test func testSelectHeadersSingleElement() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json"], contentType: "application/json", isMultipart: false)
 
-        #expect(headers["Accept"] == "application/json")
-    }
+    #expect(headers["Accept"] == "application/json")
+  }
 
-    @Test func testSelectHeadersSingleNonJsonAcceptAsIs() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: ["text/html"], contentType: "application/json", isMultipart: false)
+  @Test func testSelectHeadersSingleNonJsonAcceptAsIs() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["text/html"], contentType: "application/json", isMultipart: false)
 
-        #expect(headers["Accept"] == "text/html")
-    }
+    #expect(headers["Accept"] == "text/html")
+  }
 
-    @Test func testSelectHeadersFiltersOutEmptyEntries() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["", "image/png", "", "application/json"],
-            contentType: "application/json",
-            isMultipart: false
-        )
+  @Test func testSelectHeadersFiltersOutEmptyEntries() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["", "image/png", "", "application/json"],
+      contentType: "application/json",
+      isMultipart: false
+    )
 
-        #expect(headers["Accept"] == "image/png, application/json")
-    }
+    #expect(headers["Accept"] == "image/png, application/json")
+  }
 
-    @Test func testSelectHeadersAllEmptyEntriesOmitsAccept() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: ["", ""], contentType: "application/json", isMultipart: false)
+  @Test func testSelectHeadersAllEmptyEntriesOmitsAccept() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["", ""], contentType: "application/json", isMultipart: false)
 
-        #expect(headers["Accept"] == nil)
-    }
+    #expect(headers["Accept"] == nil)
+  }
 }

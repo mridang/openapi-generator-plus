@@ -14,109 +14,110 @@ import Foundation
 /// `additionalProperties` or `freeFormObject` schemas).
 /* @unchecked: AnyCodable wraps `Any` which is intrinsically non-Sendable.
    Caller is responsible for ensuring wrapped value is thread-safe. */
-public struct AnyCodable: Codable, Equatable, Hashable, @unchecked Sendable, CustomStringConvertible {
-    public let value: Any
+public struct AnyCodable: Codable, Equatable, Hashable, @unchecked Sendable, CustomStringConvertible
+{
+  public let value: Any
 
-    public init(_ value: Any?) {
-        self.value = value ?? NSNull()
+  public init(_ value: Any?) {
+    self.value = value ?? NSNull()
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+
+    if container.decodeNil() {
+      self.value = NSNull()
+    } else if let bool = try? container.decode(Bool.self) {
+      self.value = bool
+    } else if let int = try? container.decode(Int.self) {
+      self.value = int
+    } else if let double = try? container.decode(Double.self) {
+      self.value = double
+    } else if let string = try? container.decode(String.self) {
+      self.value = string
+    } else if let array = try? container.decode([AnyCodable].self) {
+      self.value = array.map { $0.value }
+    } else if let dictionary = try? container.decode([String: AnyCodable].self) {
+      self.value = dictionary.mapValues { $0.value }
+    } else {
+      throw DecodingError.dataCorruptedError(
+        in: container,
+        debugDescription: "AnyCodable cannot decode value"
+      )
     }
+  }
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
 
-        if container.decodeNil() {
-            self.value = NSNull()
-        } else if let bool = try? container.decode(Bool.self) {
-            self.value = bool
-        } else if let int = try? container.decode(Int.self) {
-            self.value = int
-        } else if let double = try? container.decode(Double.self) {
-            self.value = double
-        } else if let string = try? container.decode(String.self) {
-            self.value = string
-        } else if let array = try? container.decode([AnyCodable].self) {
-            self.value = array.map { $0.value }
-        } else if let dictionary = try? container.decode([String: AnyCodable].self) {
-            self.value = dictionary.mapValues { $0.value }
-        } else {
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "AnyCodable cannot decode value"
-            )
-        }
+    switch value {
+    case is NSNull:
+      try container.encodeNil()
+    case let bool as Bool:
+      try container.encode(bool)
+    case let int as Int:
+      try container.encode(int)
+    case let double as Double:
+      try container.encode(double)
+    case let string as String:
+      try container.encode(string)
+    case let array as [Any]:
+      try container.encode(array.map { AnyCodable($0) })
+    case let dictionary as [String: Any]:
+      try container.encode(dictionary.mapValues { AnyCodable($0) })
+    default:
+      throw EncodingError.invalidValue(
+        value,
+        EncodingError.Context(
+          codingPath: container.codingPath,
+          debugDescription: "AnyCodable cannot encode value of type \(type(of: value))"
+        )
+      )
     }
+  }
 
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-
-        switch value {
-        case is NSNull:
-            try container.encodeNil()
-        case let bool as Bool:
-            try container.encode(bool)
-        case let int as Int:
-            try container.encode(int)
-        case let double as Double:
-            try container.encode(double)
-        case let string as String:
-            try container.encode(string)
-        case let array as [Any]:
-            try container.encode(array.map { AnyCodable($0) })
-        case let dictionary as [String: Any]:
-            try container.encode(dictionary.mapValues { AnyCodable($0) })
-        default:
-            throw EncodingError.invalidValue(
-                value,
-                EncodingError.Context(
-                    codingPath: container.codingPath,
-                    debugDescription: "AnyCodable cannot encode value of type \(type(of: value))"
-                )
-            )
-        }
+  public static func == (lhs: AnyCodable, rhs: AnyCodable) -> Bool {
+    switch (lhs.value, rhs.value) {
+    case is (NSNull, NSNull):
+      return true
+    case (let lhs as Bool, let rhs as Bool):
+      return lhs == rhs
+    case (let lhs as Int, let rhs as Int):
+      return lhs == rhs
+    case (let lhs as Double, let rhs as Double):
+      return lhs == rhs
+    case (let lhs as String, let rhs as String):
+      return lhs == rhs
+    default:
+      return false
     }
+  }
 
-    public static func == (lhs: AnyCodable, rhs: AnyCodable) -> Bool {
-        switch (lhs.value, rhs.value) {
-        case is (NSNull, NSNull):
-            return true
-        case (let lhs as Bool, let rhs as Bool):
-            return lhs == rhs
-        case (let lhs as Int, let rhs as Int):
-            return lhs == rhs
-        case (let lhs as Double, let rhs as Double):
-            return lhs == rhs
-        case (let lhs as String, let rhs as String):
-            return lhs == rhs
-        default:
-            return false
-        }
+  public func hash(into hasher: inout Hasher) {
+    switch value {
+    case is NSNull:
+      hasher.combine(0)
+    case let bool as Bool:
+      hasher.combine(bool)
+    case let int as Int:
+      hasher.combine(int)
+    case let double as Double:
+      hasher.combine(double)
+    case let string as String:
+      hasher.combine(string)
+    default:
+      hasher.combine(0)
     }
+  }
 
-    public func hash(into hasher: inout Hasher) {
-        switch value {
-        case is NSNull:
-            hasher.combine(0)
-        case let bool as Bool:
-            hasher.combine(bool)
-        case let int as Int:
-            hasher.combine(int)
-        case let double as Double:
-            hasher.combine(double)
-        case let string as String:
-            hasher.combine(string)
-        default:
-            hasher.combine(0)
-        }
+  public var description: String {
+    switch value {
+    case is NSNull:
+      return "null"
+    case let val as CustomStringConvertible:
+      return val.description
+    default:
+      return "\(value)"
     }
-
-    public var description: String {
-        switch value {
-        case is NSNull:
-            return "null"
-        case let val as CustomStringConvertible:
-            return val.description
-        default:
-            return "\(value)"
-        }
-    }
+  }
 }

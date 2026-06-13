@@ -13,320 +13,320 @@ import Foundation
 /// (`catch let error as SerializationError`), matching the public error types
 /// the other SDKs expose. It conforms to `Error` and `LocalizedError`.
 public struct SerializationError: ZitadelError, LocalizedError {
-    public let message: String
-    public let cause: Error?
+  public let message: String
+  public let cause: Error?
 
-    public init(message: String, cause: Error? = nil) {
-        self.message = message
-        self.cause = cause
-    }
+  public init(message: String, cause: Error? = nil) {
+    self.message = message
+    self.cause = cause
+  }
 
-    public var errorDescription: String? {
-        if let cause = cause {
-            return "\(message): \(cause.localizedDescription)"
-        }
-        return message
+  public var errorDescription: String? {
+    if let cause = cause {
+      return "\(message): \(cause.localizedDescription)"
     }
+    return message
+  }
 }
 
 /// ObjectSerializer provides JSON serialization and deserialization using
 /// Foundation's JSONEncoder and JSONDecoder.
 internal enum ObjectSerializer {
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxx"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
+  private static let dateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxx"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    return formatter
+  }()
 
-    private static let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .formatted(dateFormatter)
-        return encoder
-    }()
+  private static let encoder: JSONEncoder = {
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .formatted(dateFormatter)
+    return encoder
+  }()
 
-    private static let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(dateFormatter)
-        return decoder
-    }()
+  private static let decoder: JSONDecoder = {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .formatted(dateFormatter)
+    return decoder
+  }()
 
-    /// Serializes an Encodable object to a JSON string.
-    static func serialize<T: Encodable>(_ object: T) throws -> String {
-        do {
-            let data = try encoder.encode(object)
-            guard let string = String(data: data, encoding: .utf8) else {
-                throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
-            }
-            return string
-        } catch let error as SerializationError {
-            throw error
-        } catch {
-            throw SerializationError(
-                message: "Failed to serialize object to JSON",
-                cause: error
-            )
-        }
+  /// Serializes an Encodable object to a JSON string.
+  static func serialize<T: Encodable>(_ object: T) throws -> String {
+    do {
+      let data = try encoder.encode(object)
+      guard let string = String(data: data, encoding: .utf8) else {
+        throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
+      }
+      return string
+    } catch let error as SerializationError {
+      throw error
+    } catch {
+      throw SerializationError(
+        message: "Failed to serialize object to JSON",
+        cause: error
+      )
     }
+  }
 
-    /// Serializes any value to a JSON string using JSONSerialization.
-    static func serialize(_ object: Any) throws -> String {
-        if let encodable = object as? Encodable {
-            return try serialize(encodable)
-        }
-        do {
-            let data = try JSONSerialization.data(withJSONObject: object)
-            guard let string = String(data: data, encoding: .utf8) else {
-                throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
-            }
-            return string
-        } catch let error as SerializationError {
-            throw error
-        } catch {
-            throw SerializationError(
-                message: "Failed to serialize object to JSON",
-                cause: error
-            )
-        }
+  /// Serializes any value to a JSON string using JSONSerialization.
+  static func serialize(_ object: Any) throws -> String {
+    if let encodable = object as? Encodable {
+      return try serialize(encodable)
     }
-
-    /// Maximum allowed JSON nesting depth. Foundation's JSONDecoder /
-    /// JSONSerialization have no built-in cap and recurse through the
-    /// native call stack, so a malicious 100k-deep payload would
-    /// stack-overflow. Matches the 1000-cap Java/Kotlin Jackson and
-    /// Python json stdlib use; Go uses the same. C# is stricter (64).
-    /// F5 follow-up.
-    static let maxJsonDepth = 1000
-
-    /// Returns the maximum nesting depth of `{`/`[` containers in the
-    /// JSON bytes, ignoring characters inside string literals. Cheap
-    /// pre-flight scan used to refuse a deeply-nested payload before
-    /// invoking JSONDecoder / JSONSerialization.
-    static func jsonMaxDepth(_ data: Data) -> Int {
-        var depth = 0
-        var max = 0
-        var inString = false
-        var escaped = false
-        for b in data {
-            if inString {
-                if escaped {
-                    escaped = false
-                } else if b == 0x5C /* \ */ {
-                    escaped = true
-                } else if b == 0x22 /* " */ {
-                    inString = false
-                }
-                continue
-            }
-            switch b {
-            case 0x22 /* " */:
-                inString = true
-            case 0x7B /* { */, 0x5B /* [ */:
-                depth += 1
-                if depth > max { max = depth }
-            case 0x7D /* } */, 0x5D /* ] */:
-                if depth > 0 { depth -= 1 }
-            default:
-                break
-            }
-        }
-        return max
+    do {
+      let data = try JSONSerialization.data(withJSONObject: object)
+      guard let string = String(data: data, encoding: .utf8) else {
+        throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
+      }
+      return string
+    } catch let error as SerializationError {
+      throw error
+    } catch {
+      throw SerializationError(
+        message: "Failed to serialize object to JSON",
+        cause: error
+      )
     }
+  }
 
-    /// Deserializes JSON data into a Decodable value.
-    /// Returns nil if data is empty.
-    static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
-        if data.isEmpty {
-            return nil
+  /// Maximum allowed JSON nesting depth. Foundation's JSONDecoder /
+  /// JSONSerialization have no built-in cap and recurse through the
+  /// native call stack, so a malicious 100k-deep payload would
+  /// stack-overflow. Matches the 1000-cap Java/Kotlin Jackson and
+  /// Python json stdlib use; Go uses the same. C# is stricter (64).
+  /// F5 follow-up.
+  static let maxJsonDepth = 1000
+
+  /// Returns the maximum nesting depth of `{`/`[` containers in the
+  /// JSON bytes, ignoring characters inside string literals. Cheap
+  /// pre-flight scan used to refuse a deeply-nested payload before
+  /// invoking JSONDecoder / JSONSerialization.
+  static func jsonMaxDepth(_ data: Data) -> Int {
+    var depth = 0
+    var max = 0
+    var inString = false
+    var escaped = false
+    for b in data {
+      if inString {
+        if escaped {
+          escaped = false
+        } else if b == 0x5C /* \ */ {
+          escaped = true
+        } else if b == 0x22 /* " */ {
+          inString = false
         }
-        /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
-           but Windows-generated payloads often include one and Foundation's
-           JSONDecoder rejects it. Strip silently for parity with Java
-           Jackson / C# System.Text.Json which strip transparently. */
-        let stripped: Data =
-            (data.count >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
-            ? data.subdata(in: 3..<data.count)
-            : data
-        let depth = jsonMaxDepth(stripped)
-        if depth > maxJsonDepth {
-            throw SerializationError(
-                message: "JSON nesting depth \(depth) exceeds limit \(maxJsonDepth)"
-            )
-        }
-        do {
-            return try decoder.decode(type, from: stripped)
-        } catch {
-            throw SerializationError(
-                message: "Failed to deserialize JSON",
-                cause: error
-            )
-        }
+        continue
+      }
+      switch b {
+      case 0x22 /* " */:
+        inString = true
+      case 0x7B /* { */, 0x5B /* [ */:
+        depth += 1
+        if depth > max { max = depth }
+      case 0x7D /* } */, 0x5D /* ] */:
+        if depth > 0 { depth -= 1 }
+      default:
+        break
+      }
     }
+    return max
+  }
 
-    /// Deserializes a JSON string into a Decodable value.
-    /// Returns nil if the string is empty.
-    static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T? {
-        if string.isEmpty {
-            return nil
-        }
-        guard let data = string.data(using: .utf8) else {
-            throw SerializationError(message: "Failed to convert string to data")
-        }
-        return try deserialize(data, as: type)
+  /// Deserializes JSON data into a Decodable value.
+  /// Returns nil if data is empty.
+  static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
+    if data.isEmpty {
+      return nil
     }
-
-    /// Converts a single scalar value to its string representation.
-    ///
-    /// This is the canonical type-conversion method used by all parameter
-    /// encoding helpers and by ``ValueSerializer`` for transport formatting.
-    static func stringify(_ value: Any?) -> String {
-        guard let value = value else { return "" }
-
-        switch value {
-        case let boolVal as Bool:
-            return boolVal ? "true" : "false"
-        case let date as Date:
-            return dateFormatter.string(from: date)
-        case let str as String:
-            return str
-        case let int as Int:
-            return "\(int)"
-        case let int32 as Int32:
-            return "\(int32)"
-        case let int64 as Int64:
-            return "\(int64)"
-        case let float as Float:
-            return "\(float)"
-        case let double as Double:
-            return "\(double)"
-        case let desc as CustomStringConvertible:
-            return desc.description
-        default:
-            return "\(value)"
-        }
+    /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+       but Windows-generated payloads often include one and Foundation's
+       JSONDecoder rejects it. Strip silently for parity with Java
+       Jackson / C# System.Text.Json which strip transparently. */
+    let stripped: Data =
+      (data.count >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
+      ? data.subdata(in: 3..<data.count)
+      : data
+    let depth = jsonMaxDepth(stripped)
+    if depth > maxJsonDepth {
+      throw SerializationError(
+        message: "JSON nesting depth \(depth) exceeds limit \(maxJsonDepth)"
+      )
     }
-
-    /// Converts a value to a string suitable for use as a URL path parameter.
-    static func toPathValue(_ value: Any?) -> String {
-        return stringify(value)
+    do {
+      return try decoder.decode(type, from: stripped)
+    } catch {
+      throw SerializationError(
+        message: "Failed to deserialize JSON",
+        cause: error
+      )
     }
+  }
 
-    /// Encodes a ``TimeInterval`` (seconds) as a canonical ISO-8601
-    /// duration literal (e.g. ``PT1H30M``). Used by generated models
-    /// when a property's OpenAPI schema is ``format: duration`` — the
-    /// underlying wire type is a String even though the Swift type is
-    /// TimeInterval. See ``ISO8601Duration.swift`` for the parser.
-    static func encodeDuration(_ interval: TimeInterval) -> String {
-        return formatISO8601Duration(interval)
+  /// Deserializes a JSON string into a Decodable value.
+  /// Returns nil if the string is empty.
+  static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T? {
+    if string.isEmpty {
+      return nil
     }
-
-    /// Decodes an ISO-8601 duration literal into a ``TimeInterval``.
-    /// Throws ``SerializationError`` (wrapping ``ISO8601DurationError``)
-    /// when the literal is malformed, so the call site only needs to
-    /// catch a single error type.
-    static func decodeDuration(_ literal: String) throws -> TimeInterval {
-        do {
-            return try parseISO8601Duration(literal)
-        } catch {
-            throw SerializationError(
-                message: "Failed to decode ISO-8601 duration",
-                cause: error
-            )
-        }
+    guard let data = string.data(using: .utf8) else {
+      throw SerializationError(message: "Failed to convert string to data")
     }
+    return try deserialize(data, as: type)
+  }
 
-    /// Converts a value to a representation suitable for use as a query parameter.
-    /// For collections, joins using the specified collection format delimiter.
-    static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {
-        guard let value = value else { return nil }
+  /// Converts a single scalar value to its string representation.
+  ///
+  /// This is the canonical type-conversion method used by all parameter
+  /// encoding helpers and by ``ValueSerializer`` for transport formatting.
+  static func stringify(_ value: Any?) -> String {
+    guard let value = value else { return "" }
 
-        if let items = value as? [String] {
-            return joinCollection(items, collectionFormat: collectionFormat)
-        }
-        if let items = value as? [Any] {
-            let strItems = items.map { stringify($0) }
-            return joinCollection(strItems, collectionFormat: collectionFormat)
-        }
-        return stringify(value)
+    switch value {
+    case let boolVal as Bool:
+      return boolVal ? "true" : "false"
+    case let date as Date:
+      return dateFormatter.string(from: date)
+    case let str as String:
+      return str
+    case let int as Int:
+      return "\(int)"
+    case let int32 as Int32:
+      return "\(int32)"
+    case let int64 as Int64:
+      return "\(int64)"
+    case let float as Float:
+      return "\(float)"
+    case let double as Double:
+      return "\(double)"
+    case let desc as CustomStringConvertible:
+      return desc.description
+    default:
+      return "\(value)"
     }
+  }
 
-    /// Converts a value to a string suitable for use as an HTTP header value.
-    static func toHeaderValue(_ value: Any?) -> String {
-        guard let value = value else { return "" }
+  /// Converts a value to a string suitable for use as a URL path parameter.
+  static func toPathValue(_ value: Any?) -> String {
+    return stringify(value)
+  }
 
-        if let items = value as? [String] {
-            return items.joined(separator: ",")
-        }
-        if let items = value as? [Any] {
-            return items.map { stringify($0) }.joined(separator: ",")
-        }
-        return stringify(value)
+  /// Encodes a ``TimeInterval`` (seconds) as a canonical ISO-8601
+  /// duration literal (e.g. ``PT1H30M``). Used by generated models
+  /// when a property's OpenAPI schema is ``format: duration`` — the
+  /// underlying wire type is a String even though the Swift type is
+  /// TimeInterval. See ``ISO8601Duration.swift`` for the parser.
+  static func encodeDuration(_ interval: TimeInterval) -> String {
+    return formatISO8601Duration(interval)
+  }
+
+  /// Decodes an ISO-8601 duration literal into a ``TimeInterval``.
+  /// Throws ``SerializationError`` (wrapping ``ISO8601DurationError``)
+  /// when the literal is malformed, so the call site only needs to
+  /// catch a single error type.
+  static func decodeDuration(_ literal: String) throws -> TimeInterval {
+    do {
+      return try parseISO8601Duration(literal)
+    } catch {
+      throw SerializationError(
+        message: "Failed to decode ISO-8601 duration",
+        cause: error
+      )
     }
+  }
 
-    /// Converts a value to a string suitable for use as an HTTP cookie value.
-    /// Cookie values follow the same encoding rules as header values.
-    static func toCookieValue(_ value: Any?) -> String {
-        return toHeaderValue(value)
-    }
+  /// Converts a value to a representation suitable for use as a query parameter.
+  /// For collections, joins using the specified collection format delimiter.
+  static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {
+    guard let value = value else { return nil }
 
-    /// Converts a value to a representation suitable for use as a form parameter.
-    static func toFormValue(_ value: Any?) -> String {
-        return stringify(value)
+    if let items = value as? [String] {
+      return joinCollection(items, collectionFormat: collectionFormat)
     }
+    if let items = value as? [Any] {
+      let strItems = items.map { stringify($0) }
+      return joinCollection(strItems, collectionFormat: collectionFormat)
+    }
+    return stringify(value)
+  }
 
-    /// Attempts to interpret a value as an array, returning each element
-    /// stringified. Returns nil when the value is not an array (so the caller
-    /// can fall back to scalar encoding). Nil array elements are dropped so an
-    /// optional-typed array never emits an empty entry.
-    static func toStringList(_ value: Any?) -> [String]? {
-        if let items = value as? [String] {
-            return items
-        }
-        if let items = value as? [String?] {
-            return items.compactMap { $0 }
-        }
-        if let items = value as? [Any?] {
-            return items.compactMap { $0.map { stringify($0) } }
-        }
-        if let items = value as? [Any] {
-            return items.map { stringify($0) }
-        }
-        return nil
-    }
+  /// Converts a value to a string suitable for use as an HTTP header value.
+  static func toHeaderValue(_ value: Any?) -> String {
+    guard let value = value else { return "" }
 
-    /// Resolve a oneOf schema by attempting deserialization against each candidate.
-    /// Each candidate is a closure that takes parsed JSON (Any) and returns a deserialized value.
-    /// Returns the first successful result, or throws a ``SerializationError`` when no
-    /// candidate matches — a payload satisfying none of the declared variants is a
-    /// contract violation and must fail loudly rather than be silently dropped to nil.
-    static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
-        for candidate in candidates {
-            if let result = try? candidate(json) {
-                return result
-            }
-        }
-        throw SerializationError(message: "No oneOf/anyOf variant matched the JSON")
+    if let items = value as? [String] {
+      return items.joined(separator: ",")
     }
+    if let items = value as? [Any] {
+      return items.map { stringify($0) }.joined(separator: ",")
+    }
+    return stringify(value)
+  }
 
-    /// Resolve an anyOf schema by attempting deserialization against each candidate.
-    /// Returns the first successful result, or throws a ``SerializationError`` when no
-    /// candidate matches.
-    static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
-        return try resolveOneOf(json, candidates: candidates)
-    }
+  /// Converts a value to a string suitable for use as an HTTP cookie value.
+  /// Cookie values follow the same encoding rules as header values.
+  static func toCookieValue(_ value: Any?) -> String {
+    return toHeaderValue(value)
+  }
 
-    private static func joinCollection(_ items: [String], collectionFormat: String) -> Any {
-        switch collectionFormat {
-        case "ssv":
-            return items.joined(separator: " ")
-        case "tsv":
-            return items.joined(separator: "\t")
-        case "pipes":
-            return items.joined(separator: "|")
-        case "multi":
-            return items
-        default:
-            return items.joined(separator: ",")
-        }
+  /// Converts a value to a representation suitable for use as a form parameter.
+  static func toFormValue(_ value: Any?) -> String {
+    return stringify(value)
+  }
+
+  /// Attempts to interpret a value as an array, returning each element
+  /// stringified. Returns nil when the value is not an array (so the caller
+  /// can fall back to scalar encoding). Nil array elements are dropped so an
+  /// optional-typed array never emits an empty entry.
+  static func toStringList(_ value: Any?) -> [String]? {
+    if let items = value as? [String] {
+      return items
     }
+    if let items = value as? [String?] {
+      return items.compactMap { $0 }
+    }
+    if let items = value as? [Any?] {
+      return items.compactMap { $0.map { stringify($0) } }
+    }
+    if let items = value as? [Any] {
+      return items.map { stringify($0) }
+    }
+    return nil
+  }
+
+  /// Resolve a oneOf schema by attempting deserialization against each candidate.
+  /// Each candidate is a closure that takes parsed JSON (Any) and returns a deserialized value.
+  /// Returns the first successful result, or throws a ``SerializationError`` when no
+  /// candidate matches — a payload satisfying none of the declared variants is a
+  /// contract violation and must fail loudly rather than be silently dropped to nil.
+  static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
+    for candidate in candidates {
+      if let result = try? candidate(json) {
+        return result
+      }
+    }
+    throw SerializationError(message: "No oneOf/anyOf variant matched the JSON")
+  }
+
+  /// Resolve an anyOf schema by attempting deserialization against each candidate.
+  /// Returns the first successful result, or throws a ``SerializationError`` when no
+  /// candidate matches.
+  static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
+    return try resolveOneOf(json, candidates: candidates)
+  }
+
+  private static func joinCollection(_ items: [String], collectionFormat: String) -> Any {
+    switch collectionFormat {
+    case "ssv":
+      return items.joined(separator: " ")
+    case "tsv":
+      return items.joined(separator: "\t")
+    case "pipes":
+      return items.joined(separator: "|")
+    case "multi":
+      return items
+    default:
+      return items.joined(separator: ",")
+    }
+  }
 }

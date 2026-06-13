@@ -12,150 +12,150 @@ import Testing
 
 @Suite(.serialized) final class StoreApiTests {
 
-    init() async throws {
-        if chasmUrl.isEmpty {
-            try await setUpContainers()
-        }
+  init() async throws {
+    if chasmUrl.isEmpty {
+      try await setUpContainers()
     }
+  }
 
-    // MARK: - Helpers
+  // MARK: - Helpers
 
-    private func storeApiForIntegration() -> StoreApi {
-        let config = ConfigurationBuilder()
-            .baseURL(chasmUrl)
-            .defaultHeader(name: "Authorization", value: "Bearer test-token")
-            .build()
-        let client = DefaultApiClient()
-        return StoreApi(apiClient: client, config: config)
+  private func storeApiForIntegration() -> StoreApi {
+    let config = ConfigurationBuilder()
+      .baseURL(chasmUrl)
+      .defaultHeader(name: "Authorization", value: "Bearer test-token")
+      .build()
+    let client = DefaultApiClient()
+    return StoreApi(apiClient: client, config: config)
+  }
+
+  // MARK: - Integration Tests
+
+  @Test func testPlaceOrder() async throws {
+    let api = storeApiForIntegration()
+
+    let order = Order()
+
+    let result = try await api.placeOrder(order: order)
+    #expect(result != nil)
+  }
+
+  @Test func testPlaceOrderWithHTTPInfo() async throws {
+    let api = storeApiForIntegration()
+
+    let order = Order()
+
+    let result = try await api.placeOrderWithHTTPInfo(order: order)
+    #expect(result.statusCode >= 200)
+    #expect(result.statusCode < 300)
+    #expect(!(result.rawBody.isEmpty))
+  }
+
+  @Test func testGetOrderById() async throws {
+    let api = storeApiForIntegration()
+
+    let result = try await api.getOrderById(orderId: 1)
+    #expect(result != nil)
+  }
+
+  @Test func testGetOrderByIdWithHTTPInfo() async throws {
+    let api = storeApiForIntegration()
+
+    let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
+    #expect(result.statusCode == 200)
+    #expect(result.headers != nil)
+  }
+
+  @Test func testDeleteOrder() async throws {
+    let api = storeApiForIntegration()
+
+    try await api.deleteOrder(orderId: 1)
+  }
+
+  @Test func testGetInventory() async throws {
+    let api = storeApiForIntegration()
+
+    let result = try await api.getInventory()
+    #expect(result != nil)
+  }
+
+  @Test func testGetInventoryWithHTTPInfo() async throws {
+    let api = storeApiForIntegration()
+
+    let result = try await api.getInventoryWithHTTPInfo()
+    #expect(result.statusCode == 200)
+  }
+
+  // MARK: - Mock Helpers
+
+  private func storeApiForMock(
+    statusCode: Int,
+    body: String,
+    contentType: String = "application/json"
+  ) -> StoreApi {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = statusCode
+    mockClient.responseBody = body
+    mockClient.responseHeaders = ["Content-Type": contentType]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    return StoreApi(apiClient: mockClient, config: config)
+  }
+
+  // MARK: - Mock Tests
+
+  @Test func testGetOrderNotFound() async throws {
+    let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
+    do {
+      _ = try await mockApi.getOrderById(orderId: 99999)
+      Issue.record("Expected error for status 404")
+    } catch {
+      #expect(error != nil)
     }
+  }
 
-    // MARK: - Integration Tests
-
-    @Test func testPlaceOrder() async throws {
-        let api = storeApiForIntegration()
-
-        let order = Order()
-
-        let result = try await api.placeOrder(order: order)
-        #expect(result != nil)
+  @Test func testPlaceOrderServerError() async throws {
+    let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
+    do {
+      _ = try await mockApi.placeOrder(order: Order())
+      Issue.record("Expected error for status 500")
+    } catch {
+      #expect(error != nil)
     }
+  }
 
-    @Test func testPlaceOrderWithHTTPInfo() async throws {
-        let api = storeApiForIntegration()
-
-        let order = Order()
-
-        let result = try await api.placeOrderWithHTTPInfo(order: order)
-        #expect(result.statusCode >= 200)
-        #expect(result.statusCode < 300)
-        #expect(!(result.rawBody.isEmpty))
+  @Test func testDeleteOrderNotFound() async throws {
+    let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
+    do {
+      try await mockApi.deleteOrder(orderId: 99999)
+      Issue.record("Expected error for status 404")
+    } catch {
+      #expect(error != nil)
     }
-
-    @Test func testGetOrderById() async throws {
-        let api = storeApiForIntegration()
-
-        let result = try await api.getOrderById(orderId: 1)
-        #expect(result != nil)
-    }
-
-    @Test func testGetOrderByIdWithHTTPInfo() async throws {
-        let api = storeApiForIntegration()
-
-        let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
-        #expect(result.statusCode == 200)
-        #expect(result.headers != nil)
-    }
-
-    @Test func testDeleteOrder() async throws {
-        let api = storeApiForIntegration()
-
-        try await api.deleteOrder(orderId: 1)
-    }
-
-    @Test func testGetInventory() async throws {
-        let api = storeApiForIntegration()
-
-        let result = try await api.getInventory()
-        #expect(result != nil)
-    }
-
-    @Test func testGetInventoryWithHTTPInfo() async throws {
-        let api = storeApiForIntegration()
-
-        let result = try await api.getInventoryWithHTTPInfo()
-        #expect(result.statusCode == 200)
-    }
-
-    // MARK: - Mock Helpers
-
-    private func storeApiForMock(
-        statusCode: Int,
-        body: String,
-        contentType: String = "application/json"
-    ) -> StoreApi {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = statusCode
-        mockClient.responseBody = body
-        mockClient.responseHeaders = ["Content-Type": contentType]
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        return StoreApi(apiClient: mockClient, config: config)
-    }
-
-    // MARK: - Mock Tests
-
-    @Test func testGetOrderNotFound() async throws {
-        let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
-        do {
-            _ = try await mockApi.getOrderById(orderId: 99999)
-            Issue.record("Expected error for status 404")
-        } catch {
-            #expect(error != nil)
-        }
-    }
-
-    @Test func testPlaceOrderServerError() async throws {
-        let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
-        do {
-            _ = try await mockApi.placeOrder(order: Order())
-            Issue.record("Expected error for status 500")
-        } catch {
-            #expect(error != nil)
-        }
-    }
-
-    @Test func testDeleteOrderNotFound() async throws {
-        let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
-        do {
-            try await mockApi.deleteOrder(orderId: 99999)
-            Issue.record("Expected error for status 404")
-        } catch {
-            #expect(error != nil)
-        }
-    }
+  }
 }
 
 private final class MockApiClient: ApiClient, @unchecked Sendable {
-    var lastMethod: String = ""
-    var lastURL: String = ""
-    var lastHeaders: [String: String] = [:]
-    var lastBody: Data? = nil
-    var responseStatusCode: Int = 200
-    var responseBody: String = "{}"
-    var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+  var lastMethod: String = ""
+  var lastURL: String = ""
+  var lastHeaders: [String: String] = [:]
+  var lastBody: Data? = nil
+  var responseStatusCode: Int = 200
+  var responseBody: String = "{}"
+  var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
-    func sendRequest(
-        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+  func sendRequest(
+    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+  )
+    async throws -> ApiHttpResponse
+  {
+    lastMethod = method
+    lastURL = url
+    lastHeaders = headers
+    lastBody = body as? Data
+    return ApiHttpResponse(
+      statusCode: responseStatusCode,
+      body: responseBody,
+      headers: responseHeaders
     )
-        async throws -> ApiHttpResponse
-    {
-        lastMethod = method
-        lastURL = url
-        lastHeaders = headers
-        lastBody = body as? Data
-        return ApiHttpResponse(
-            statusCode: responseStatusCode,
-            body: responseBody,
-            headers: responseHeaders
-        )
-    }
+  }
 }

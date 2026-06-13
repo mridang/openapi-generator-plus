@@ -22,72 +22,73 @@ import Foundation
 ///     .build()
 /// ```
 public final class Configuration: Sendable {
-    /// The base URL for all API requests. Defaults to the first server URL
-    /// from the OpenAPI specification.
-    public let baseURL: String
+  /// The base URL for all API requests. Defaults to the first server URL
+  /// from the OpenAPI specification.
+  public let baseURL: String
 
-    /// Default headers included in every API request. These headers are
-    /// merged after transport-level headers from TransportOptions but before
-    /// operation-specific headers and authentication headers.
-    public let defaultHeaders: [String: String]
+  /// Default headers included in every API request. These headers are
+  /// merged after transport-level headers from TransportOptions but before
+  /// operation-specific headers and authentication headers.
+  public let defaultHeaders: [String: String]
 
-    fileprivate init(baseURL: String, defaultHeaders: [String: String]) {
-        self.baseURL = baseURL
-        self.defaultHeaders = defaultHeaders
-    }
+  fileprivate init(baseURL: String, defaultHeaders: [String: String]) {
+    self.baseURL = baseURL
+    self.defaultHeaders = defaultHeaders
+  }
 
-    /// Returns a Configuration with default values.
-    public static func `default`() -> Configuration {
-        return ConfigurationBuilder().build()
-    }
+  /// Returns a Configuration with default values.
+  public static func `default`() -> Configuration {
+    return ConfigurationBuilder().build()
+  }
 }
 
 /// ConfigurationBuilder builds immutable ``Configuration`` instances.
 public final class ConfigurationBuilder {
-    private var baseURL: String = "/api/v3"
-    private var defaultHeaders: [String: String] = [:]
+  private var baseURL: String = "/api/v3"
+  private var defaultHeaders: [String: String] = [:]
 
-    /// Creates a new builder for constructing Configuration instances.
-    public init() {}
+  /// Creates a new builder for constructing Configuration instances.
+  public init() {}
 
-    /// Sets the base URL for all API requests.
-    @discardableResult
-    public func baseURL(_ val: String) -> ConfigurationBuilder {
-        self.baseURL = val
-        return self
+  /// Sets the base URL for all API requests.
+  @discardableResult
+  public func baseURL(_ val: String) -> ConfigurationBuilder {
+    self.baseURL = val
+    return self
+  }
+
+  /// Adds a single default header to include in every API request.
+  @discardableResult
+  public func defaultHeader(name: String, value: String) -> ConfigurationBuilder {
+    self.defaultHeaders[name] = value
+    return self
+  }
+
+  /// Adds multiple default headers to include in every API request.
+  @discardableResult
+  public func defaultHeaders(_ headers: [String: String]) -> ConfigurationBuilder {
+    for (k, v) in headers {
+      self.defaultHeaders[k] = v
     }
+    return self
+  }
 
-    /// Adds a single default header to include in every API request.
-    @discardableResult
-    public func defaultHeader(name: String, value: String) -> ConfigurationBuilder {
-        self.defaultHeaders[name] = value
-        return self
-    }
+  /// Sets the base URL from a server configuration with optional variable overrides.
+  ///
+  /// - Throws: ``ServerConfigurationError`` if a variable override is not in the allowed enum values.
+  @discardableResult
+  public func server(_ server: ServerConfiguration, variables: [String: String]? = nil) throws
+    -> ConfigurationBuilder
+  {
+    self.baseURL = try server.url(variables: variables)
+    return self
+  }
 
-    /// Adds multiple default headers to include in every API request.
-    @discardableResult
-    public func defaultHeaders(_ headers: [String: String]) -> ConfigurationBuilder {
-        for (k, v) in headers {
-            self.defaultHeaders[k] = v
-        }
-        return self
-    }
-
-    /// Sets the base URL from a server configuration with optional variable overrides.
-    ///
-    /// - Throws: ``ServerConfigurationError`` if a variable override is not in the allowed enum values.
-    @discardableResult
-    public func server(_ server: ServerConfiguration, variables: [String: String]? = nil) throws -> ConfigurationBuilder
-    {
-        self.baseURL = try server.url(variables: variables)
-        return self
-    }
-
-    /// Creates and returns an immutable Configuration instance.
-    public func build() -> Configuration {
-        return Configuration(
-            baseURL: baseURL,
-            defaultHeaders: defaultHeaders
-        )
-    }
+  /// Creates and returns an immutable Configuration instance.
+  public func build() -> Configuration {
+    return Configuration(
+      baseURL: baseURL,
+      defaultHeaders: defaultHeaders
+    )
+  }
 }

@@ -9,111 +9,113 @@ import Foundation
 
 /// Protocol for per-operation server URLs for getExternalPetInfo.
 public protocol GetExternalPetInfoServer {
-    /// Returns the server URL.
-    func getUrl() -> String
+  /// Returns the server URL.
+  func getUrl() -> String
 }
 
 /// Server variant for GetExternalPetInfoServer.
 public struct GetExternalPetInfoServerServer0: GetExternalPetInfoServer {
 
-    public init() {
-    }
+  public init() {
+  }
 
-    public func getUrl() -> String {
-        return "https://external-api.example.com/v1"
-    }
+  public func getUrl() -> String {
+    return "https://external-api.example.com/v1"
+  }
 }
 
 /// Protocol for per-operation server URLs for getMultiServerPetInfo.
 public protocol GetMultiServerPetInfoServer {
-    /// Returns the server URL.
-    func getUrl() -> String
+  /// Returns the server URL.
+  func getUrl() -> String
 }
 
 /// Valid values for the region server variable in GetMultiServerPetInfoServer.
 public enum GetMultiServerPetInfoServerRegion: String {
-    case US = "us"
-    case EU = "eu"
-    case AP = "ap"
+  case US = "us"
+  case EU = "eu"
+  case AP = "ap"
 }
 
 /// Primary
 public struct GetMultiServerPetInfoServerPrimary: GetMultiServerPetInfoServer {
 
-    public init() {
-    }
+  public init() {
+  }
 
-    public func getUrl() -> String {
-        return "https://primary.example.com/v1"
-    }
+  public func getUrl() -> String {
+    return "https://primary.example.com/v1"
+  }
 }
 
 /// Regional
 public struct GetMultiServerPetInfoServerRegional: GetMultiServerPetInfoServer {
-    public let region: GetMultiServerPetInfoServerRegion
+  public let region: GetMultiServerPetInfoServerRegion
 
-    public init(region: GetMultiServerPetInfoServerRegion) {
-        self.region = region
-    }
+  public init(region: GetMultiServerPetInfoServerRegion) {
+    self.region = region
+  }
 
-    public func getUrl() -> String {
-        var url = "https://{region}.example.com/v1"
-        url = url.replacingOccurrences(of: "{" + "region" + "}", with: region.rawValue)
-        return url
-    }
+  public func getUrl() -> String {
+    var url = "https://{region}.example.com/v1"
+    url = url.replacingOccurrences(of: "{" + "region" + "}", with: region.rawValue)
+    return url
+  }
 }
 
 /// Protocol for per-operation server URLs for getPetById.
 public protocol GetPetByIdServer {
-    /// Returns the server URL.
-    func getUrl() -> String
+  /// Returns the server URL.
+  func getUrl() -> String
 }
 
 /// CDN-backed read endpoint for pet details
 public struct GetPetByIdServerCDNBackedReadEndpointForPetDetails: GetPetByIdServer {
 
-    public init() {
-    }
+  public init() {
+  }
 
-    public func getUrl() -> String {
-        return "https://cdn.petstore.io/v3"
-    }
+  public func getUrl() -> String {
+    return "https://cdn.petstore.io/v3"
+  }
 }
 
 /// Protocol for per-operation server URLs for getStagingPetInfo.
 public protocol GetStagingPetInfoServer {
-    /// Returns the server URL.
-    func getUrl() -> String
+  /// Returns the server URL.
+  func getUrl() -> String
 }
 
 /// Valid values for the environment server variable in GetStagingPetInfoServer.
 public enum GetStagingPetInfoServerEnvironment: String {
-    case STAGING = "staging"
-    case SANDBOX = "sandbox"
+  case STAGING = "staging"
+  case SANDBOX = "sandbox"
 }
 
 /// Valid values for the version server variable in GetStagingPetInfoServer.
 public enum GetStagingPetInfoServerVersion: String {
-    case V2 = "v2"
-    case V3 = "v3"
+  case V2 = "v2"
+  case V3 = "v3"
 }
 
 /// Staging server
 public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
-    public let environment: GetStagingPetInfoServerEnvironment
-    public let version: GetStagingPetInfoServerVersion
+  public let environment: GetStagingPetInfoServerEnvironment
+  public let version: GetStagingPetInfoServerVersion
 
-    public init(environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion) {
-        self.environment = environment
-        self.version = version
-    }
+  public init(
+    environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion
+  ) {
+    self.environment = environment
+    self.version = version
+  }
 
-    public func getUrl() -> String {
-        var url = "https://{environment}.example.com/api/{version}"
-        url = url.replacingOccurrences(of: "{" + "environment" + "}", with: environment.rawValue)
-        url = url.replacingOccurrences(of: "{" + "version" + "}", with: version.rawValue)
-        return url
-    }
+  public func getUrl() -> String {
+    var url = "https://{environment}.example.com/api/{version}"
+    url = url.replacingOccurrences(of: "{" + "environment" + "}", with: environment.rawValue)
+    url = url.replacingOccurrences(of: "{" + "version" + "}", with: version.rawValue)
+    return url
+  }
 }
 
 /// PetApi provides methods for the Pet API group.
@@ -121,1248 +123,1276 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 /// See https://example.com/docs/pets Find out more about pets
 public final class PetApi: BaseApi, @unchecked Sendable {
 
-    /// Add a new pet to the store
-    ///
-    /// - Parameters:
-    ///   - pet: Create a new pet in the store
+  /// Add a new pet to the store
+  ///
+  /// - Parameters:
+  ///   - pet: Create a new pet in the store
 
-    public func addPet(pet: Pet, options: AddPetOptions? = nil) async throws -> Pet {
-        let result = try await addPetWithHTTPInfo(pet: pet, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for addPet",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
+  public func addPet(pet: Pet, options: AddPetOptions? = nil) async throws -> Pet {
+    let result = try await addPetWithHTTPInfo(pet: pet, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for addPet",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the addPet operation and returns the full API result.
+  public func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions? = nil) async throws -> ApiResult<
+    Pet
+  > {
+
+    let path = "/pet"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = pet
+
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: options?.auth
+    )
+
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
+
+  /// Add photos to the pet's gallery
+  /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
+  ///
+  /// - Parameters:
+
+  public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
+    let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for addPetPhotos",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the addPetPhotos operation and returns the full API result.
+  public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws
+    -> ApiResult<[Photo]>
+  {
+
+    var path = "/pet/{petId}/photos"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    /* Form fields are stored as `Any` so array values survive as arrays
+     * (rather than being stringified to a Swift "[a, b]" description) and
+     * can be emitted as repeated keys by the form/multipart encoder.
+     * Optional nil fields are omitted entirely — never sent as an empty
+     * `name=` pair. */
+    var formBody: [String: Any] = [:]
+    formBody["files"] = options.files
+    formBody["metadata"] = options.metadata
+    let requestBody: Any? = formBody
+
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "multipart/form-data",
+      returnType: "[Photo]",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: [Photo].self)
+  }
+
+  /// Record a treatment for a pet
+  ///
+  /// - Parameters:
+
+  public func addPetTreatment(
+    petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
+  ) async throws -> PetTreatment {
+    let result = try await addPetTreatmentWithHTTPInfo(
+      petId: petId, petTreatment: petTreatment, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for addPetTreatment",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the addPetTreatment operation and returns the full API result.
+  public func addPetTreatmentWithHTTPInfo(
+    petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
+  ) async throws -> ApiResult<PetTreatment> {
+
+    var path = "/pet/{petId}/treatment"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = petTreatment
+
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetTreatment",
+      auth: options?.auth
+    )
+
+    return try await invokeAPIForResult(params, as: PetTreatment.self)
+  }
+
+  /// Deletes a pet
+  ///
+  /// - Parameters:
+  ///   - petId: Pet id to delete
+  ///   - apiKey: Session cookie used for authentication
+
+  public func deletePet(petId: Int64, options: DeletePetOptions? = nil) async throws {
+    let result = try await deletePetWithHTTPInfo(petId: petId, options: options)
+    _ = result
+  }
+
+  /// Performs the deletePet operation and returns the full API result.
+  public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions? = nil) async throws
+    -> ApiResult<Void>
+  {
+
+    var path = "/pet/{petId}"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    var headerParams: [String: String] = [:]
+    var cookieParts: [String] = []
+    if let options = options, let val = options.apiKey {
+      cookieParts.append(
+        "api_key=\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
+      )
+    }
+    if !cookieParts.isEmpty {
+      headerParams["Cookie"] = cookieParts.joined(separator: "; ")
+    }
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "DELETE",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "application/json",
+      returnType: "",
+      auth: options?.auth
+    )
+
+    return try await invokeAPIForEmptyResult(params)
+  }
+
+  /// Download a vet document
+  /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
+  ///
+  /// - Parameters:
+
+  public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> Data {
+    let result = try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for downloadPetDocument",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the downloadPetDocument operation and returns the full API result.
+  public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64) async throws
+    -> ApiResult<Data>
+  {
+
+    var path = "/pet/{petId}/documents/{documentId}"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+    path = path.replacingOccurrences(
+      of: "{" + "documentId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("documentId", value: documentId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/octet-stream"],
+      contentType: "application/json",
+      returnType: "Data",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Data.self)
+  }
+
+  /// Finds Pets by status
+  @available(*, deprecated, message: "This operation is deprecated.")
+  /// See https://example.com/docs/filtering Find out more about filtering
+  ///
+  /// - Parameters:
+  ///   - status: Status values that need to be considered for filter
+  ///   - filter: Filter criteria as key-value pairs
+
+  /// ### `status` — Available only
+  /// Show only pets currently in stock
+  /// ```json
+  /// available
+  /// ```
+
+  /// ### `status` — Sold pets
+  /// Show pets that have been sold
+  /// ```json
+  /// sold
+  /// ```
+
+  public func findPetsByStatus(options: FindPetsByStatusOptions? = nil) async throws -> [Pet] {
+    let result = try await findPetsByStatusWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for findPetsByStatus",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the findPetsByStatus operation and returns the full API result.
+  public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil) async throws
+    -> ApiResult<[Pet]>
+  {
+
+    let path = "/pet/findByStatus"
+
+    var queryParams: [String: Any?] = [:]
+    if let options = options {
+      if let val = options.status {
+        queryParams["status"] = ValueSerializer.serializeStyled(
+          "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true)
+      } else {
+        queryParams["status"] = ""
+      }
+    }
+    if let options = options, let val = options.filter {
+      if let dict = (val as Any) as? [String: Any] {
+        for (k, v) in ValueSerializer.serializeDeepObject("filter", value: dict) {
+          queryParams[k] = v
         }
-        return data
+      }
     }
 
-    /// Performs the addPet operation and returns the full API result.
-    public func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions? = nil) async throws -> ApiResult<Pet> {
+    let headerParams: [String: String] = [:]
 
-        let path = "/pet"
+    let requestBody: Any? = nil
 
-        let queryParams: [String: Any?] = [:]
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[Pet]",
+      auth: nil
+    )
 
-        let headerParams: [String: String] = [:]
+    return try await invokeAPIForResult(params, as: [Pet].self)
+  }
 
-        let requestBody: Any? = pet
+  /// Get external pet info
+  ///
+  /// - Parameters:
 
-        let params = InvokeAPIParams(
-            method: "POST",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: options?.auth
-        )
+  public func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil)
+    async throws -> Pet
+  {
+    let result = try await getExternalPetInfoWithHTTPInfo(petId: petId, server: server)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getExternalPetInfo",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
 
-        return try await invokeAPIForResult(params, as: Pet.self)
+  /// Performs the getExternalPetInfo operation and returns the full API result.
+  public func getExternalPetInfoWithHTTPInfo(
+    petId: Int64, server: (any GetExternalPetInfoServer)? = nil
+  ) async throws -> ApiResult<Pet> {
+
+    var path = "/pet/{petId}/external"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+    if let server = server {
+      let serverUrl = server.getUrl()
+      if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+        path = serverUrl + path
+      }
     }
 
-    /// Add photos to the pet's gallery
-    /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
-    ///
-    /// - Parameters:
+    let queryParams: [String: Any?] = [:]
 
-    public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
-        let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for addPetPhotos",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
+
+  /// Get multi-server pet info
+  ///
+  /// - Parameters:
+
+  public func getMultiServerPetInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil)
+    async throws -> Pet
+  {
+    let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: server)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getMultiServerPetInfo",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getMultiServerPetInfo operation and returns the full API result.
+  public func getMultiServerPetInfoWithHTTPInfo(
+    petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil
+  ) async throws -> ApiResult<Pet> {
+
+    var path = "/pet/{petId}/multi"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+    if let server = server {
+      let serverUrl = server.getUrl()
+      if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+        path = serverUrl + path
+      }
     }
 
-    /// Performs the addPetPhotos operation and returns the full API result.
-    public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws -> ApiResult<[Photo]>
-    {
+    let queryParams: [String: Any?] = [:]
 
-        var path = "/pet/{petId}/photos"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
+    let headerParams: [String: String] = [:]
 
-        let queryParams: [String: Any?] = [:]
+    let requestBody: Any? = nil
 
-        let headerParams: [String: String] = [:]
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: nil
+    )
 
-        /* Form fields are stored as `Any` so array values survive as arrays
-         * (rather than being stringified to a Swift "[a, b]" description) and
-         * can be emitted as repeated keys by the form/multipart encoder.
-         * Optional nil fields are omitted entirely — never sent as an empty
-         * `name=` pair. */
-        var formBody: [String: Any] = [:]
-        formBody["files"] = options.files
-        formBody["metadata"] = options.metadata
-        let requestBody: Any? = formBody
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
 
-        let params = InvokeAPIParams(
-            method: "POST",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "multipart/form-data",
-            returnType: "[Photo]",
-            auth: nil
-        )
+  /// Get the pet's profile photo
+  /// Returns the raw image bytes of the pet's current avatar.
+  ///
+  /// - Parameters:
 
-        return try await invokeAPIForResult(params, as: [Photo].self)
+  public func getPetAvatar(petId: Int64) async throws -> Data {
+    let result = try await getPetAvatarWithHTTPInfo(petId: petId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getPetAvatar",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetAvatar operation and returns the full API result.
+  public func getPetAvatarWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
+
+    var path = "/pet/{petId}/avatar"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["image/jpeg", "image/png"],
+      contentType: "application/json",
+      returnType: "Data",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Data.self)
+  }
+
+  /// Get the pet's avatar thumbnail as base64
+  /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
+  ///
+  /// - Parameters:
+
+  public func getPetAvatarThumbnail(petId: Int64) async throws -> Data {
+    let result = try await getPetAvatarThumbnailWithHTTPInfo(petId: petId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getPetAvatarThumbnail",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetAvatarThumbnail operation and returns the full API result.
+  public func getPetAvatarThumbnailWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
+
+    var path = "/pet/{petId}/avatar/thumbnail"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Data",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Data.self)
+  }
+
+  /// Find pet by ID
+  /// Returns a single pet
+  @available(*, deprecated, message: "This operation is deprecated.")
+  ///
+  /// - Parameters:
+  ///   - petId: ID of pet to return
+
+  /// ### `petId` — Small breed ID
+  /// A common small-breed pet identifier
+  /// ```json
+  /// 1
+  /// ```
+
+  /// ### `petId` — Large breed ID
+  /// A common large-breed pet identifier
+  /// ```json
+  /// 42
+  /// ```
+
+  public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil) async throws -> Pet {
+    let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getPetById",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetById operation and returns the full API result.
+  public func getPetByIdWithHTTPInfo(petId: Int64, server: (any GetPetByIdServer)? = nil)
+    async throws -> ApiResult<Pet>
+  {
+
+    var path = "/pet/{petId}"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+    if let server = server {
+      let serverUrl = server.getUrl()
+      if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+        path = serverUrl + path
+      }
     }
 
-    /// Record a treatment for a pet
-    ///
-    /// - Parameters:
+    let queryParams: [String: Any?] = [:]
 
-    public func addPetTreatment(
-        petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
-    ) async throws -> PetTreatment {
-        let result = try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for addPetTreatment",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
+
+  /// Look up a pet by name (simple string path param + required query)
+  ///
+  /// - Parameters:
+
+  public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
+    let result = try await getPetByNameWithHTTPInfo(name: name, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getPetByName",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetByName operation and returns the full API result.
+  public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
+    -> ApiResult<Pet>
+  {
+    guard !name.isEmpty else {
+      throw ApiError(
+        statusCode: 0,
+        message: "Missing required parameter '\(name)' when calling PetApi.getPetByName")
+    }
+    guard !options.category.isEmpty else {
+      throw ApiError(
+        statusCode: 0,
+        message: "Missing required parameter 'options.category' when calling PetApi.getPetByName")
     }
 
-    /// Performs the addPetTreatment operation and returns the full API result.
-    public func addPetTreatmentWithHTTPInfo(
-        petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
-    ) async throws -> ApiResult<PetTreatment> {
+    var path = "/pet/byName/{name}"
+    path = path.replacingOccurrences(
+      of: "{" + "name" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("name", value: name, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
 
-        var path = "/pet/{petId}/treatment"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = petTreatment
-
-        let params = InvokeAPIParams(
-            method: "POST",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "PetTreatment",
-            auth: options?.auth
-        )
-
-        return try await invokeAPIForResult(params, as: PetTreatment.self)
+    var queryParams: [String: Any?] = [:]
+    do {
+      let val = options.category
+      queryParams["category"] = ValueSerializer.serializeStyled(
+        "category", value: val, location: "query", schemaType: "String", collectionFormat: "",
+        style: "form", explode: true)
     }
 
-    /// Deletes a pet
-    ///
-    /// - Parameters:
-    ///   - petId: Pet id to delete
-    ///   - apiKey: Session cookie used for authentication
+    let headerParams: [String: String] = [:]
 
-    public func deletePet(petId: Int64, options: DeletePetOptions? = nil) async throws {
-        let result = try await deletePetWithHTTPInfo(petId: petId, options: options)
-        _ = result
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
+
+  /// Get the pet's passport
+  /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+  ///
+  /// - Parameters:
+
+  public func getPetPassport(petId: Int64) async throws -> PetPassport {
+    let result = try await getPetPassportWithHTTPInfo(petId: petId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getPetPassport",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetPassport operation and returns the full API result.
+  public func getPetPassportWithHTTPInfo(petId: Int64) async throws -> ApiResult<PetPassport> {
+
+    var path = "/pet/{petId}/passport"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetPassport",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: PetPassport.self)
+  }
+
+  /// Get a photo or its metadata
+  /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
+  ///
+  /// - Parameters:
+
+  public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> Data {
+    let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getPetPhoto",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetPhoto operation and returns the full API result.
+  public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64) async throws -> ApiResult<Data>
+  {
+
+    var path = "/pet/{petId}/photos/{photoId}"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+    path = path.replacingOccurrences(
+      of: "{" + "photoId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("photoId", value: photoId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["image/jpeg", "image/png", "application/json"],
+      contentType: "application/json",
+      returnType: "Data",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Data.self)
+  }
+
+  /// Get a tag for a pet
+  ///
+  /// - Parameters:
+
+  public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
+    async throws -> Pet
+  {
+    let result = try await getPetTagWithHTTPInfo(petId: petId, tagName: tagName, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getPetTag",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetTag operation and returns the full API result.
+  public func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
+    async throws -> ApiResult<Pet>
+  {
+    guard !tagName.isEmpty else {
+      throw ApiError(
+        statusCode: 0,
+        message: "Missing required parameter '\(tagName)' when calling PetApi.getPetTag")
     }
 
-    /// Performs the deletePet operation and returns the full API result.
-    public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions? = nil) async throws -> ApiResult<Void> {
+    var path = "/pet/{petId}/tag/{tagName}"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "matrix", explode: false) ?? "")"
+    )
+    path = path.replacingOccurrences(
+      of: "{" + "tagName" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("tagName", value: tagName, location: "path", schemaType: "String", collectionFormat: "", style: "label", explode: false) ?? "")"
+    )
 
-        var path = "/pet/{petId}"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        var headerParams: [String: String] = [:]
-        var cookieParts: [String] = []
-        if let options = options, let val = options.apiKey {
-            cookieParts.append(
-                "api_key=\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
-            )
-        }
-        if !cookieParts.isEmpty {
-            headerParams["Cookie"] = cookieParts.joined(separator: "; ")
-        }
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "DELETE",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: [],
-            contentType: "application/json",
-            returnType: "",
-            auth: options?.auth
-        )
-
-        return try await invokeAPIForEmptyResult(params)
+    var queryParams: [String: Any?] = [:]
+    if let options = options, let val = options.colors {
+      queryParams["colors"] = ValueSerializer.serializeStyled(
+        "colors", value: val, location: "query", schemaType: "[String]", collectionFormat: "pipes",
+        style: "pipeDelimited", explode: false)
+    }
+    if let options = options, let val = options.sizes {
+      queryParams["sizes"] = ValueSerializer.serializeStyled(
+        "sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv",
+        style: "spaceDelimited", explode: false)
+    }
+    if let options = options {
+      if let val = options.filter {
+        queryParams["filter"] = ValueSerializer.serializeStyled(
+          "filter", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true)
+      } else {
+        queryParams["filter"] = ""
+      }
     }
 
-    /// Download a vet document
-    /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-    ///
-    /// - Parameters:
+    let headerParams: [String: String] = [:]
 
-    public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> Data {
-        let result = try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for downloadPetDocument",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
+
+  /// Get staging pet info
+  ///
+  /// - Parameters:
+
+  public func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil)
+    async throws -> Pet
+  {
+    let result = try await getStagingPetInfoWithHTTPInfo(petId: petId, server: server)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getStagingPetInfo",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getStagingPetInfo operation and returns the full API result.
+  public func getStagingPetInfoWithHTTPInfo(
+    petId: Int64, server: (any GetStagingPetInfoServer)? = nil
+  ) async throws -> ApiResult<Pet> {
+
+    var path = "/pet/{petId}/staging"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+    if let server = server {
+      let serverUrl = server.getUrl()
+      if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+        path = serverUrl + path
+      }
     }
 
-    /// Performs the downloadPetDocument operation and returns the full API result.
-    public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64) async throws -> ApiResult<Data> {
+    let queryParams: [String: Any?] = [:]
 
-        var path = "/pet/{petId}/documents/{documentId}"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-        path = path.replacingOccurrences(
-            of: "{" + "documentId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("documentId", value: documentId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
+    let headerParams: [String: String] = [:]
 
-        let queryParams: [String: Any?] = [:]
+    let requestBody: Any? = nil
 
-        let headerParams: [String: String] = [:]
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: nil
+    )
 
-        let requestBody: Any? = nil
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
 
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/octet-stream"],
-            contentType: "application/json",
-            returnType: "Data",
-            auth: nil
-        )
+  /// Set the pet's profile photo
+  /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+  ///
+  /// - Parameters:
 
-        return try await invokeAPIForResult(params, as: Data.self)
+  public func setPetAvatar(petId: Int64, body: Data) async throws {
+    let result = try await setPetAvatarWithHTTPInfo(petId: petId, body: body)
+    _ = result
+  }
+
+  /// Performs the setPetAvatar operation and returns the full API result.
+  public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data) async throws -> ApiResult<Void> {
+
+    var path = "/pet/{petId}/avatar"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = body
+
+    let params = InvokeAPIParams(
+      method: "PUT",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "image/jpeg",
+      returnType: "",
+      auth: nil
+    )
+
+    return try await invokeAPIForEmptyResult(params)
+  }
+
+  /// Set the pet's avatar thumbnail as base64
+  /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+  ///
+  /// - Parameters:
+
+  public func setPetAvatarThumbnail(
+    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
+  ) async throws {
+    let result = try await setPetAvatarThumbnailWithHTTPInfo(
+      petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest)
+    _ = result
+  }
+
+  /// Performs the setPetAvatarThumbnail operation and returns the full API result.
+  public func setPetAvatarThumbnailWithHTTPInfo(
+    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
+  ) async throws -> ApiResult<Void> {
+
+    var path = "/pet/{petId}/avatar/thumbnail"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = setPetAvatarThumbnailRequest
+
+    let params = InvokeAPIParams(
+      method: "PUT",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "application/json",
+      returnType: "",
+      auth: nil
+    )
+
+    return try await invokeAPIForEmptyResult(params)
+  }
+
+  /// Update a pet's notification preferences
+  /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+  ///
+  /// - Parameters:
+
+  public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
+    -> ApiResponse
+  {
+    let result = try await setPetPreferencesWithHTTPInfo(petId: petId, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for setPetPreferences",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the setPetPreferences operation and returns the full API result.
+  public func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions)
+    async throws -> ApiResult<ApiResponse>
+  {
+    guard !options.nickname.isEmpty else {
+      throw ApiError(
+        statusCode: 0,
+        message:
+          "Missing required parameter 'options.nickname' when calling PetApi.setPetPreferences")
     }
 
-    /// Finds Pets by status
-    @available(*, deprecated, message: "This operation is deprecated.")
-    /// See https://example.com/docs/filtering Find out more about filtering
-    ///
-    /// - Parameters:
-    ///   - status: Status values that need to be considered for filter
-    ///   - filter: Filter criteria as key-value pairs
+    var path = "/pet/{petId}/preferences"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
 
-    /// ### `status` — Available only
-    /// Show only pets currently in stock
-    /// ```json
-    /// available
-    /// ```
+    let queryParams: [String: Any?] = [:]
 
-    /// ### `status` — Sold pets
-    /// Show pets that have been sold
-    /// ```json
-    /// sold
-    /// ```
+    let headerParams: [String: String] = [:]
 
-    public func findPetsByStatus(options: FindPetsByStatusOptions? = nil) async throws -> [Pet] {
-        let result = try await findPetsByStatusWithHTTPInfo(options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for findPetsByStatus",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    /* Form fields are stored as `Any` so array values survive as arrays
+     * (rather than being stringified to a Swift "[a, b]" description) and
+     * can be emitted as repeated keys by the form/multipart encoder.
+     * Optional nil fields are omitted entirely — never sent as an empty
+     * `name=` pair. */
+    var formBody: [String: Any] = [:]
+    formBody["nickname"] = options.nickname
+    if let val = options.tags {
+      formBody["tags"] = val
     }
-
-    /// Performs the findPetsByStatus operation and returns the full API result.
-    public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil) async throws -> ApiResult<[Pet]> {
-
-        let path = "/pet/findByStatus"
-
-        var queryParams: [String: Any?] = [:]
-        if let options = options {
-            if let val = options.status {
-                queryParams["status"] = ValueSerializer.serializeStyled(
-                    "status", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form",
-                    explode: true)
-            } else {
-                queryParams["status"] = ""
-            }
-        }
-        if let options = options, let val = options.filter {
-            if let dict = (val as Any) as? [String: Any] {
-                for (k, v) in ValueSerializer.serializeDeepObject("filter", value: dict) {
-                    queryParams[k] = v
-                }
-            }
-        }
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "[Pet]",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: [Pet].self)
+    if let val = options.note {
+      formBody["note"] = val
     }
+    let requestBody: Any? = formBody
 
-    /// Get external pet info
-    ///
-    /// - Parameters:
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/x-www-form-urlencoded",
+      returnType: "ApiResponse",
+      auth: nil
+    )
 
-    public func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil) async throws -> Pet {
-        let result = try await getExternalPetInfoWithHTTPInfo(petId: petId, server: server)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getExternalPetInfo",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    return try await invokeAPIForResult(params, as: ApiResponse.self)
+  }
+
+  /// Update an existing pet
+  ///
+  /// - Parameters:
+  ///   - petId: ID of pet to update
+  ///   - pet: Pet object that needs to be updated
+
+  public func updatePet(petId: Int64, pet: Pet) async throws -> Pet {
+    let result = try await updatePetWithHTTPInfo(petId: petId, pet: pet)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for updatePet",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
     }
+    return data
+  }
 
-    /// Performs the getExternalPetInfo operation and returns the full API result.
-    public func getExternalPetInfoWithHTTPInfo(
-        petId: Int64, server: (any GetExternalPetInfoServer)? = nil
-    ) async throws -> ApiResult<Pet> {
+  /// Performs the updatePet operation and returns the full API result.
+  public func updatePetWithHTTPInfo(petId: Int64, pet: Pet) async throws -> ApiResult<Pet> {
 
-        var path = "/pet/{petId}/external"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-        if let server = server {
-            let serverUrl = server.getUrl()
-            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
-                path = serverUrl + path
-            }
-        }
+    var path = "/pet/{petId}"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
 
-        let queryParams: [String: Any?] = [:]
+    let queryParams: [String: Any?] = [:]
 
-        let headerParams: [String: String] = [:]
+    let headerParams: [String: String] = [:]
 
-        let requestBody: Any? = nil
+    let requestBody: Any? = pet
 
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: nil
-        )
+    let params = InvokeAPIParams(
+      method: "PUT",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: nil
+    )
 
-        return try await invokeAPIForResult(params, as: Pet.self)
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
+
+  /// Upload the pet's adoption certificate
+  /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
+  ///
+  /// - Parameters:
+
+  public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
+    -> ApiResponse
+  {
+    let result = try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for uploadPetCertificate",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
     }
+    return data
+  }
 
-    /// Get multi-server pet info
-    ///
-    /// - Parameters:
+  /// Performs the uploadPetCertificate operation and returns the full API result.
+  public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions)
+    async throws -> ApiResult<ApiResponse>
+  {
 
-    public func getMultiServerPetInfo(
-        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil
-    ) async throws -> Pet {
-        let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: server)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getMultiServerPetInfo",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    var path = "/pet/{petId}/certificate"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    /* Form fields are stored as `Any` so array values survive as arrays
+     * (rather than being stringified to a Swift "[a, b]" description) and
+     * can be emitted as repeated keys by the form/multipart encoder.
+     * Optional nil fields are omitted entirely — never sent as an empty
+     * `name=` pair. */
+    var formBody: [String: Any] = [:]
+    formBody["file"] = options.file
+    let requestBody: Any? = formBody
+
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "multipart/form-data",
+      returnType: "ApiResponse",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: ApiResponse.self)
+  }
+
+  /// Attach a vet document or health record
+  /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
+  ///
+  /// - Parameters:
+
+  public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions) async throws
+    -> ApiResponse
+  {
+    let result = try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for uploadPetDocument",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
     }
+    return data
+  }
 
-    /// Performs the getMultiServerPetInfo operation and returns the full API result.
-    public func getMultiServerPetInfoWithHTTPInfo(
-        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil
-    ) async throws -> ApiResult<Pet> {
+  /// Performs the uploadPetDocument operation and returns the full API result.
+  public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions)
+    async throws -> ApiResult<ApiResponse>
+  {
 
-        var path = "/pet/{petId}/multi"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-        if let server = server {
-            let serverUrl = server.getUrl()
-            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
-                path = serverUrl + path
-            }
-        }
+    var path = "/pet/{petId}/documents"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
 
-        let queryParams: [String: Any?] = [:]
+    let queryParams: [String: Any?] = [:]
 
-        let headerParams: [String: String] = [:]
+    let headerParams: [String: String] = [:]
 
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Pet.self)
+    /* Form fields are stored as `Any` so array values survive as arrays
+     * (rather than being stringified to a Swift "[a, b]" description) and
+     * can be emitted as repeated keys by the form/multipart encoder.
+     * Optional nil fields are omitted entirely — never sent as an empty
+     * `name=` pair. */
+    var formBody: [String: Any] = [:]
+    formBody["file"] = options.file
+    if let val = options.documentType {
+      formBody["documentType"] = val
     }
-
-    /// Get the pet's profile photo
-    /// Returns the raw image bytes of the pet's current avatar.
-    ///
-    /// - Parameters:
-
-    public func getPetAvatar(petId: Int64) async throws -> Data {
-        let result = try await getPetAvatarWithHTTPInfo(petId: petId)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getPetAvatar",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    if let val = options.notes {
+      formBody["notes"] = val
     }
-
-    /// Performs the getPetAvatar operation and returns the full API result.
-    public func getPetAvatarWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
-
-        var path = "/pet/{petId}/avatar"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["image/jpeg", "image/png"],
-            contentType: "application/json",
-            returnType: "Data",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Data.self)
-    }
-
-    /// Get the pet's avatar thumbnail as base64
-    /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-    ///
-    /// - Parameters:
-
-    public func getPetAvatarThumbnail(petId: Int64) async throws -> Data {
-        let result = try await getPetAvatarThumbnailWithHTTPInfo(petId: petId)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getPetAvatarThumbnail",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getPetAvatarThumbnail operation and returns the full API result.
-    public func getPetAvatarThumbnailWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
-
-        var path = "/pet/{petId}/avatar/thumbnail"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Data",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Data.self)
-    }
-
-    /// Find pet by ID
-    /// Returns a single pet
-    @available(*, deprecated, message: "This operation is deprecated.")
-    ///
-    /// - Parameters:
-    ///   - petId: ID of pet to return
-
-    /// ### `petId` — Small breed ID
-    /// A common small-breed pet identifier
-    /// ```json
-    /// 1
-    /// ```
-
-    /// ### `petId` — Large breed ID
-    /// A common large-breed pet identifier
-    /// ```json
-    /// 42
-    /// ```
-
-    public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil) async throws -> Pet {
-        let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getPetById",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getPetById operation and returns the full API result.
-    public func getPetByIdWithHTTPInfo(
-        petId: Int64, server: (any GetPetByIdServer)? = nil
-    ) async throws -> ApiResult<Pet> {
-
-        var path = "/pet/{petId}"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-        if let server = server {
-            let serverUrl = server.getUrl()
-            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
-                path = serverUrl + path
-            }
-        }
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Pet.self)
-    }
-
-    /// Look up a pet by name (simple string path param + required query)
-    ///
-    /// - Parameters:
-
-    public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
-        let result = try await getPetByNameWithHTTPInfo(name: name, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getPetByName",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getPetByName operation and returns the full API result.
-    public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws -> ApiResult<Pet> {
-        guard !name.isEmpty else {
-            throw ApiError(
-                statusCode: 0, message: "Missing required parameter '\(name)' when calling PetApi.getPetByName")
-        }
-        guard !options.category.isEmpty else {
-            throw ApiError(
-                statusCode: 0, message: "Missing required parameter 'options.category' when calling PetApi.getPetByName"
-            )
-        }
-
-        var path = "/pet/byName/{name}"
-        path = path.replacingOccurrences(
-            of: "{" + "name" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("name", value: name, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        var queryParams: [String: Any?] = [:]
-        do {
-            let val = options.category
-            queryParams["category"] = ValueSerializer.serializeStyled(
-                "category", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form",
-                explode: true)
-        }
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Pet.self)
-    }
-
-    /// Get the pet's passport
-    /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-    ///
-    /// - Parameters:
-
-    public func getPetPassport(petId: Int64) async throws -> PetPassport {
-        let result = try await getPetPassportWithHTTPInfo(petId: petId)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getPetPassport",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getPetPassport operation and returns the full API result.
-    public func getPetPassportWithHTTPInfo(petId: Int64) async throws -> ApiResult<PetPassport> {
-
-        var path = "/pet/{petId}/passport"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "PetPassport",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: PetPassport.self)
-    }
-
-    /// Get a photo or its metadata
-    /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-    ///
-    /// - Parameters:
-
-    public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> Data {
-        let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getPetPhoto",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getPetPhoto operation and returns the full API result.
-    public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64) async throws -> ApiResult<Data> {
-
-        var path = "/pet/{petId}/photos/{photoId}"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-        path = path.replacingOccurrences(
-            of: "{" + "photoId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("photoId", value: photoId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["image/jpeg", "image/png", "application/json"],
-            contentType: "application/json",
-            returnType: "Data",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Data.self)
-    }
-
-    /// Get a tag for a pet
-    ///
-    /// - Parameters:
-
-    public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil) async throws -> Pet {
-        let result = try await getPetTagWithHTTPInfo(petId: petId, tagName: tagName, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getPetTag",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getPetTag operation and returns the full API result.
-    public func getPetTagWithHTTPInfo(
-        petId: Int64, tagName: String, options: GetPetTagOptions? = nil
-    ) async throws -> ApiResult<Pet> {
-        guard !tagName.isEmpty else {
-            throw ApiError(
-                statusCode: 0, message: "Missing required parameter '\(tagName)' when calling PetApi.getPetTag")
-        }
-
-        var path = "/pet/{petId}/tag/{tagName}"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "matrix", explode: false) ?? "")"
-        )
-        path = path.replacingOccurrences(
-            of: "{" + "tagName" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("tagName", value: tagName, location: "path", schemaType: "String", collectionFormat: "", style: "label", explode: false) ?? "")"
-        )
-
-        var queryParams: [String: Any?] = [:]
-        if let options = options, let val = options.colors {
-            queryParams["colors"] = ValueSerializer.serializeStyled(
-                "colors", value: val, location: "query", schemaType: "[String]", collectionFormat: "pipes",
-                style: "pipeDelimited", explode: false)
-        }
-        if let options = options, let val = options.sizes {
-            queryParams["sizes"] = ValueSerializer.serializeStyled(
-                "sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv",
-                style: "spaceDelimited", explode: false)
-        }
-        if let options = options {
-            if let val = options.filter {
-                queryParams["filter"] = ValueSerializer.serializeStyled(
-                    "filter", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form",
-                    explode: true)
-            } else {
-                queryParams["filter"] = ""
-            }
-        }
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Pet.self)
-    }
-
-    /// Get staging pet info
-    ///
-    /// - Parameters:
-
-    public func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil) async throws -> Pet {
-        let result = try await getStagingPetInfoWithHTTPInfo(petId: petId, server: server)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getStagingPetInfo",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getStagingPetInfo operation and returns the full API result.
-    public func getStagingPetInfoWithHTTPInfo(
-        petId: Int64, server: (any GetStagingPetInfoServer)? = nil
-    ) async throws -> ApiResult<Pet> {
-
-        var path = "/pet/{petId}/staging"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-        if let server = server {
-            let serverUrl = server.getUrl()
-            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
-                path = serverUrl + path
-            }
-        }
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Pet.self)
-    }
-
-    /// Set the pet's profile photo
-    /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-    ///
-    /// - Parameters:
-
-    public func setPetAvatar(petId: Int64, body: Data) async throws {
-        let result = try await setPetAvatarWithHTTPInfo(petId: petId, body: body)
-        _ = result
-    }
-
-    /// Performs the setPetAvatar operation and returns the full API result.
-    public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data) async throws -> ApiResult<Void> {
-
-        var path = "/pet/{petId}/avatar"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = body
-
-        let params = InvokeAPIParams(
-            method: "PUT",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: [],
-            contentType: "image/jpeg",
-            returnType: "",
-            auth: nil
-        )
-
-        return try await invokeAPIForEmptyResult(params)
-    }
-
-    /// Set the pet's avatar thumbnail as base64
-    /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-    ///
-    /// - Parameters:
-
-    public func setPetAvatarThumbnail(
-        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
-    ) async throws {
-        let result = try await setPetAvatarThumbnailWithHTTPInfo(
-            petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest)
-        _ = result
-    }
-
-    /// Performs the setPetAvatarThumbnail operation and returns the full API result.
-    public func setPetAvatarThumbnailWithHTTPInfo(
-        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
-    ) async throws -> ApiResult<Void> {
-
-        var path = "/pet/{petId}/avatar/thumbnail"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = setPetAvatarThumbnailRequest
-
-        let params = InvokeAPIParams(
-            method: "PUT",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: [],
-            contentType: "application/json",
-            returnType: "",
-            auth: nil
-        )
-
-        return try await invokeAPIForEmptyResult(params)
-    }
-
-    /// Update a pet's notification preferences
-    /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
-    ///
-    /// - Parameters:
-
-    public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws -> ApiResponse {
-        let result = try await setPetPreferencesWithHTTPInfo(petId: petId, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for setPetPreferences",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the setPetPreferences operation and returns the full API result.
-    public func setPetPreferencesWithHTTPInfo(
-        petId: Int64, options: SetPetPreferencesOptions
-    ) async throws -> ApiResult<ApiResponse> {
-        guard !options.nickname.isEmpty else {
-            throw ApiError(
-                statusCode: 0,
-                message: "Missing required parameter 'options.nickname' when calling PetApi.setPetPreferences")
-        }
-
-        var path = "/pet/{petId}/preferences"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        /* Form fields are stored as `Any` so array values survive as arrays
-         * (rather than being stringified to a Swift "[a, b]" description) and
-         * can be emitted as repeated keys by the form/multipart encoder.
-         * Optional nil fields are omitted entirely — never sent as an empty
-         * `name=` pair. */
-        var formBody: [String: Any] = [:]
-        formBody["nickname"] = options.nickname
-        if let val = options.tags {
-            formBody["tags"] = val
-        }
-        if let val = options.note {
-            formBody["note"] = val
-        }
-        let requestBody: Any? = formBody
-
-        let params = InvokeAPIParams(
-            method: "POST",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/x-www-form-urlencoded",
-            returnType: "ApiResponse",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: ApiResponse.self)
-    }
-
-    /// Update an existing pet
-    ///
-    /// - Parameters:
-    ///   - petId: ID of pet to update
-    ///   - pet: Pet object that needs to be updated
-
-    public func updatePet(petId: Int64, pet: Pet) async throws -> Pet {
-        let result = try await updatePetWithHTTPInfo(petId: petId, pet: pet)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for updatePet",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the updatePet operation and returns the full API result.
-    public func updatePetWithHTTPInfo(petId: Int64, pet: Pet) async throws -> ApiResult<Pet> {
-
-        var path = "/pet/{petId}"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = pet
-
-        let params = InvokeAPIParams(
-            method: "PUT",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Pet",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Pet.self)
-    }
-
-    /// Upload the pet's adoption certificate
-    /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
-    ///
-    /// - Parameters:
-
-    public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws -> ApiResponse {
-        let result = try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for uploadPetCertificate",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the uploadPetCertificate operation and returns the full API result.
-    public func uploadPetCertificateWithHTTPInfo(
-        petId: Int64, options: UploadPetCertificateOptions
-    ) async throws -> ApiResult<ApiResponse> {
-
-        var path = "/pet/{petId}/certificate"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        /* Form fields are stored as `Any` so array values survive as arrays
-         * (rather than being stringified to a Swift "[a, b]" description) and
-         * can be emitted as repeated keys by the form/multipart encoder.
-         * Optional nil fields are omitted entirely — never sent as an empty
-         * `name=` pair. */
-        var formBody: [String: Any] = [:]
-        formBody["file"] = options.file
-        let requestBody: Any? = formBody
-
-        let params = InvokeAPIParams(
-            method: "POST",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "multipart/form-data",
-            returnType: "ApiResponse",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: ApiResponse.self)
-    }
-
-    /// Attach a vet document or health record
-    /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
-    ///
-    /// - Parameters:
-
-    public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions) async throws -> ApiResponse {
-        let result = try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for uploadPetDocument",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the uploadPetDocument operation and returns the full API result.
-    public func uploadPetDocumentWithHTTPInfo(
-        petId: Int64, options: UploadPetDocumentOptions
-    ) async throws -> ApiResult<ApiResponse> {
-
-        var path = "/pet/{petId}/documents"
-        path = path.replacingOccurrences(
-            of: "{" + "petId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        /* Form fields are stored as `Any` so array values survive as arrays
-         * (rather than being stringified to a Swift "[a, b]" description) and
-         * can be emitted as repeated keys by the form/multipart encoder.
-         * Optional nil fields are omitted entirely — never sent as an empty
-         * `name=` pair. */
-        var formBody: [String: Any] = [:]
-        formBody["file"] = options.file
-        if let val = options.documentType {
-            formBody["documentType"] = val
-        }
-        if let val = options.notes {
-            formBody["notes"] = val
-        }
-        let requestBody: Any? = formBody
-
-        let params = InvokeAPIParams(
-            method: "POST",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "multipart/form-data",
-            returnType: "ApiResponse",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: ApiResponse.self)
-    }
+    let requestBody: Any? = formBody
+
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "multipart/form-data",
+      returnType: "ApiResponse",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: ApiResponse.self)
+  }
 }

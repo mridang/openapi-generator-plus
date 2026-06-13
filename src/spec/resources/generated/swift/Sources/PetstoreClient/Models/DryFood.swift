@@ -9,41 +9,41 @@ import Foundation
 
 /// DryFood is a model class generated from the OpenAPI schema.
 public struct DryFood: Codable, Sendable, Equatable, Hashable {
-    /// Example: `null`
-    public var foodType: String
-    /// Example: `null`
-    public var weightKg: Double
+  /// Example: `null`
+  public var foodType: String
+  /// Example: `null`
+  public var weightKg: Double
 
-    enum CodingKeys: String, CodingKey {
-        case foodType = "foodType"
-        case weightKg = "weightKg"
-    }
+  enum CodingKeys: String, CodingKey {
+    case foodType = "foodType"
+    case weightKg = "weightKg"
+  }
 
-    /// Creates a new DryFood instance.
-    public init(foodType: String = "dry", weightKg: Double) {
-        self.foodType = foodType
-        self.weightKg = weightKg
-    }
+  /// Creates a new DryFood instance.
+  public init(foodType: String = "dry", weightKg: Double) {
+    self.foodType = foodType
+    self.weightKg = weightKg
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-    /// — matching the cross-language "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.foodType = try container.decode(String.self, forKey: .foodType)
-        self.weightKg = try container.decode(Double.self, forKey: .weightKg)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.foodType = try container.decode(String.self, forKey: .foodType)
+    self.weightKg = try container.decode(Double.self, forKey: .weightKg)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(foodType, forKey: .foodType)
-        try container.encode(weightKg, forKey: .weightKg)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(foodType, forKey: .foodType)
+    try container.encode(weightKg, forKey: .weightKg)
+  }
 }

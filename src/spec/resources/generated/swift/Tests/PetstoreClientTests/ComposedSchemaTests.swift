@@ -12,181 +12,182 @@ import Testing
 
 @Suite final class ComposedSchemaTests {
 
-    // MARK: - oneOf with discriminator: PetFood
+  // MARK: - oneOf with discriminator: PetFood
 
-    @Test func testPetFoodDeserializeDryFood() throws {
-        let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
+  @Test func testPetFoodDeserializeDryFood() throws {
+    let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
 
-        let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
-        let val = food.value()
-        #expect(val != nil)
-        #expect(val is DryFood)
+    let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
+    let val = food.value()
+    #expect(val != nil)
+    #expect(val is DryFood)
+  }
+
+  @Test func testPetFoodDeserializeWetFood() throws {
+    let jsonData = Data("{\"foodType\":\"wet\",\"volumeMl\":400}".utf8)
+
+    let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
+    let val = food.value()
+    #expect(val != nil)
+    #expect(val is WetFood)
+  }
+
+  @Test func testPetFoodDeserializeUnknownDiscriminator() throws {
+    let jsonData = Data("{\"foodType\":\"raw\",\"calories\":300}".utf8)
+
+    #expect(throws: (any Error).self) { try JSONDecoder().decode(PetFood.self, from: jsonData) }
+  }
+
+  // MARK: - Gap 4.7 — Discriminator non-listed $ref throws DecodingError
+
+  /// An unknown discriminator value that is not in the listed mapping
+  /// must throw `DecodingError.dataCorrupted` — not fall through to a
+  /// catch-all anyOf-style match nor silently return nil. The message
+  /// must surface the offending discriminator value for diagnostics.
+  @Test func testPetFoodUnknownDiscriminatorThrowsDecodingError() {
+    let jsonData = Data("{\"foodType\":\"unknown\",\"weightKg\":1.0}".utf8)
+    do {
+      _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
+      Issue.record("expected DecodingError for unknown discriminator")
+    } catch let DecodingError.dataCorrupted(ctx) {
+      #expect(
+        ctx.debugDescription.contains("unknown"),
+        "error must mention offending discriminator value: \(ctx.debugDescription)")
+    } catch {
+      Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
     }
+  }
 
-    @Test func testPetFoodDeserializeWetFood() throws {
-        let jsonData = Data("{\"foodType\":\"wet\",\"volumeMl\":400}".utf8)
-
-        let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
-        let val = food.value()
-        #expect(val != nil)
-        #expect(val is WetFood)
+  @Test func testPetFoodMissingDiscriminatorThrows() {
+    // Payload missing the foodType key entirely must also fail loudly,
+    // since the wrapper cannot route to any listed subtype.
+    let jsonData = Data("{\"weightKg\":2.0}".utf8)
+    #expect(throws: (any Error).self) {
+      try JSONDecoder().decode(PetFood.self, from: jsonData)
     }
+  }
 
-    @Test func testPetFoodDeserializeUnknownDiscriminator() throws {
-        let jsonData = Data("{\"foodType\":\"raw\",\"calories\":300}".utf8)
-
-        #expect(throws: (any Error).self) { try JSONDecoder().decode(PetFood.self, from: jsonData) }
+  /// The wrapper must NOT silently route a non-listed discriminator
+  /// to whichever subtype happens to structurally fit. Even when the
+  /// payload otherwise matches `DryFood` field-for-field, an
+  /// unrecognised `foodType` must abort decoding.
+  @Test func testPetFoodNonListedDiscriminatorWithMatchingShapeThrows() {
+    // Same shape as a valid DryFood payload, but the discriminator
+    // value is not in the listed mapping ("dry"/"wet").
+    let jsonData = Data("{\"foodType\":\"frozen\",\"weightKg\":3.0}".utf8)
+    do {
+      _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
+      Issue.record("expected DecodingError for non-listed discriminator")
+    } catch let DecodingError.dataCorrupted(ctx) {
+      #expect(
+        ctx.debugDescription.contains("frozen"),
+        "error must surface offending value: \(ctx.debugDescription)")
+    } catch {
+      Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
     }
+  }
 
-    // MARK: - Gap 4.7 — Discriminator non-listed $ref throws DecodingError
-
-    /// An unknown discriminator value that is not in the listed mapping
-    /// must throw `DecodingError.dataCorrupted` — not fall through to a
-    /// catch-all anyOf-style match nor silently return nil. The message
-    /// must surface the offending discriminator value for diagnostics.
-    @Test func testPetFoodUnknownDiscriminatorThrowsDecodingError() {
-        let jsonData = Data("{\"foodType\":\"unknown\",\"weightKg\":1.0}".utf8)
-        do {
-            _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
-            Issue.record("expected DecodingError for unknown discriminator")
-        } catch let DecodingError.dataCorrupted(ctx) {
-            #expect(
-                ctx.debugDescription.contains("unknown"),
-                "error must mention offending discriminator value: \(ctx.debugDescription)")
-        } catch {
-            Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
-        }
+  @Test func testPetFoodEmptyDiscriminatorThrows() {
+    // An empty discriminator value matches no listed subtype and must
+    // fail decoding rather than route to a structurally-fitting variant.
+    let jsonData = Data("{\"foodType\":\"\",\"weightKg\":2.5}".utf8)
+    #expect(throws: (any Error).self) {
+      try JSONDecoder().decode(PetFood.self, from: jsonData)
     }
+  }
 
-    @Test func testPetFoodMissingDiscriminatorThrows() {
-        // Payload missing the foodType key entirely must also fail loudly,
-        // since the wrapper cannot route to any listed subtype.
-        let jsonData = Data("{\"weightKg\":2.0}".utf8)
-        #expect(throws: (any Error).self) {
-            try JSONDecoder().decode(PetFood.self, from: jsonData)
-        }
+  @Test func testPetFoodSerializeDryFood() throws {
+    let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
+    let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
+
+    let data = try JSONEncoder().encode(food)
+    let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    #expect(parsed?["foodType"] as? String == "dry")
+  }
+
+  // MARK: - anyOf without discriminator: PetTreatment
+
+  @Test func testPetTreatmentDeserializeMedication() throws {
+    // Medication schema has fields: drugName (required), dosage (optional)
+    let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
+
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+    let val = treatment.value()
+    #expect(val != nil)
+  }
+
+  @Test func testPetTreatmentDeserializeSurgery() throws {
+    let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
+
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+    let val = treatment.value()
+    #expect(val != nil)
+  }
+
+  @Test func testPetTreatmentNoMatchThrows() {
+    // oneof-nondiscriminator-no-match-silent: a payload matching neither
+    // Medication nor Surgery must surface as a decoding error rather than
+    // a silently-empty union.
+    let jsonData = Data("{\"unrelatedKey\":\"value\",\"anotherUnknown\":123}".utf8)
+    #expect(throws: (any Error).self) {
+      try JSONDecoder().decode(PetTreatment.self, from: jsonData)
     }
+  }
 
-    /// The wrapper must NOT silently route a non-listed discriminator
-    /// to whichever subtype happens to structurally fit. Even when the
-    /// payload otherwise matches `DryFood` field-for-field, an
-    /// unrecognised `foodType` must abort decoding.
-    @Test func testPetFoodNonListedDiscriminatorWithMatchingShapeThrows() {
-        // Same shape as a valid DryFood payload, but the discriminator
-        // value is not in the listed mapping ("dry"/"wet").
-        let jsonData = Data("{\"foodType\":\"frozen\",\"weightKg\":3.0}".utf8)
-        do {
-            _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
-            Issue.record("expected DecodingError for non-listed discriminator")
-        } catch let DecodingError.dataCorrupted(ctx) {
-            #expect(
-                ctx.debugDescription.contains("frozen"),
-                "error must surface offending value: \(ctx.debugDescription)")
-        } catch {
-            Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
-        }
-    }
+  @Test func testPetTreatmentSerializeRoundTrip() throws {
+    // Medication schema has fields: drugName (required), dosage (optional)
+    let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
-    @Test func testPetFoodEmptyDiscriminatorThrows() {
-        // An empty discriminator value matches no listed subtype and must
-        // fail decoding rather than route to a structurally-fitting variant.
-        let jsonData = Data("{\"foodType\":\"\",\"weightKg\":2.5}".utf8)
-        #expect(throws: (any Error).self) {
-            try JSONDecoder().decode(PetFood.self, from: jsonData)
-        }
-    }
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
 
-    @Test func testPetFoodSerializeDryFood() throws {
-        let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
-        let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
+    let data = try JSONEncoder().encode(treatment)
+    #expect(!(data.isEmpty))
+  }
 
-        let data = try JSONEncoder().encode(food)
-        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        #expect(parsed?["foodType"] as? String == "dry")
-    }
+  // MARK: - allOf: PetWithOwner extends Pet fields
 
-    // MARK: - anyOf without discriminator: PetTreatment
+  @Test func testPetWithOwnerDeserialize() throws {
+    let jsonData = Data(
+      """
+      {
+          "name": "Fido",
+          "photoUrls": ["http://example.com/fido.jpg"],
+          "ownerName": "John Doe",
+          "ownerEmail": "john@example.com"
+      }
+      """.utf8)
 
-    @Test func testPetTreatmentDeserializeMedication() throws {
-        // Medication schema has fields: drugName (required), dosage (optional)
-        let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
+    let petWithOwner = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
+    #expect(petWithOwner != nil)
+  }
 
-        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-        let val = treatment.value()
-        #expect(val != nil)
-    }
+  @Test func testPetWithOwnerSerialize() throws {
+    let pet = PetWithOwner(
+      name: "Fido", photoUrls: ["http://example.com/fido.jpg"], ownerName: "John Doe")
 
-    @Test func testPetTreatmentDeserializeSurgery() throws {
-        let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
+    let data = try JSONEncoder().encode(pet)
+    #expect(!(data.isEmpty))
 
-        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-        let val = treatment.value()
-        #expect(val != nil)
-    }
+    let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    #expect(parsed?["name"] as? String == "Fido")
+    #expect(parsed?["ownerName"] as? String == "John Doe")
+  }
 
-    @Test func testPetTreatmentNoMatchThrows() {
-        // oneof-nondiscriminator-no-match-silent: a payload matching neither
-        // Medication nor Surgery must surface as a decoding error rather than
-        // a silently-empty union.
-        let jsonData = Data("{\"unrelatedKey\":\"value\",\"anotherUnknown\":123}".utf8)
-        #expect(throws: (any Error).self) {
-            try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-        }
-    }
+  @Test func testPetWithOwnerRoundTrip() throws {
+    let jsonData = Data(
+      """
+      {
+          "name": "Buddy",
+          "photoUrls": ["http://example.com/buddy.jpg"],
+          "ownerName": "Jane Smith"
+      }
+      """.utf8)
 
-    @Test func testPetTreatmentSerializeRoundTrip() throws {
-        // Medication schema has fields: drugName (required), dosage (optional)
-        let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
+    let pet = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
 
-        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+    let data = try JSONEncoder().encode(pet)
 
-        let data = try JSONEncoder().encode(treatment)
-        #expect(!(data.isEmpty))
-    }
-
-    // MARK: - allOf: PetWithOwner extends Pet fields
-
-    @Test func testPetWithOwnerDeserialize() throws {
-        let jsonData = Data(
-            """
-            {
-                "name": "Fido",
-                "photoUrls": ["http://example.com/fido.jpg"],
-                "ownerName": "John Doe",
-                "ownerEmail": "john@example.com"
-            }
-            """.utf8)
-
-        let petWithOwner = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
-        #expect(petWithOwner != nil)
-    }
-
-    @Test func testPetWithOwnerSerialize() throws {
-        let pet = PetWithOwner(name: "Fido", photoUrls: ["http://example.com/fido.jpg"], ownerName: "John Doe")
-
-        let data = try JSONEncoder().encode(pet)
-        #expect(!(data.isEmpty))
-
-        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        #expect(parsed?["name"] as? String == "Fido")
-        #expect(parsed?["ownerName"] as? String == "John Doe")
-    }
-
-    @Test func testPetWithOwnerRoundTrip() throws {
-        let jsonData = Data(
-            """
-            {
-                "name": "Buddy",
-                "photoUrls": ["http://example.com/buddy.jpg"],
-                "ownerName": "Jane Smith"
-            }
-            """.utf8)
-
-        let pet = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
-
-        let data = try JSONEncoder().encode(pet)
-
-        let restored = try JSONDecoder().decode(PetWithOwner.self, from: data)
-        #expect(restored != nil)
-    }
+    let restored = try JSONDecoder().decode(PetWithOwner.self, from: data)
+    #expect(restored != nil)
+  }
 }

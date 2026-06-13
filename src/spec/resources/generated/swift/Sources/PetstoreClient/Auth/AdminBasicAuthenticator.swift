@@ -8,7 +8,7 @@
 import Foundation
 
 public final class AdminBasicAuthenticator: BasicAuthenticator, @unchecked Sendable {
-    override public init(host: String, username: String, password: String) {
-        super.init(host: host, username: username, password: password)
-    }
+  override public init(host: String, username: String, password: String) {
+    super.init(host: host, username: username, password: password)
+  }
 }

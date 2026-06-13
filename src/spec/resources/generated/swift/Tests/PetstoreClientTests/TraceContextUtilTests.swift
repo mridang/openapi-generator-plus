@@ -12,96 +12,98 @@ import Testing
 
 @Suite final class TraceContextUtilTests {
 
-    @Test func testInjectTraceContextNoOpWithoutTracer() {
-        var headers: [String: String] = [
-            "X-Existing": "value"
-        ]
+  @Test func testInjectTraceContextNoOpWithoutTracer() {
+    var headers: [String: String] = [
+      "X-Existing": "value"
+    ]
 
-        // InjectTraceContext should be a no-op when tracing is not configured.
-        // It should not modify existing headers.
-        TraceContextUtil.injectTraceContext(headers: &headers)
+    // InjectTraceContext should be a no-op when tracing is not configured.
+    // It should not modify existing headers.
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        #expect(headers["X-Existing"] == "value")
-    }
+    #expect(headers["X-Existing"] == "value")
+  }
 
-    @Test func testInjectTraceContextEmptyHeadersDoNotCauseException() {
-        var headers: [String: String] = [:]
+  @Test func testInjectTraceContextEmptyHeadersDoNotCauseException() {
+    var headers: [String: String] = [:]
 
-        // Should not crash with empty headers dictionary
-        TraceContextUtil.injectTraceContext(headers: &headers)
-    }
+    // Should not crash with empty headers dictionary
+    TraceContextUtil.injectTraceContext(headers: &headers)
+  }
 
-    @Test func testInjectTraceContextDoesNotInjectTraceparentWithoutOTel() {
-        var headers: [String: String] = [:]
+  @Test func testInjectTraceContextDoesNotInjectTraceparentWithoutOTel() {
+    var headers: [String: String] = [:]
 
-        TraceContextUtil.injectTraceContext(headers: &headers)
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        #expect(headers["traceparent"] == nil)
-    }
+    #expect(headers["traceparent"] == nil)
+  }
 
-    @Test func testInjectTraceContextDoesNotInjectTracestateWithoutOTel() {
-        var headers: [String: String] = [:]
+  @Test func testInjectTraceContextDoesNotInjectTracestateWithoutOTel() {
+    var headers: [String: String] = [:]
 
-        TraceContextUtil.injectTraceContext(headers: &headers)
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        #expect(headers["tracestate"] == nil)
-    }
+    #expect(headers["tracestate"] == nil)
+  }
 
-    @Test func testInjectTraceContextPreservesAuthorizationHeader() {
-        var headers: [String: String] = ["Authorization": "Bearer token123"]
+  @Test func testInjectTraceContextPreservesAuthorizationHeader() {
+    var headers: [String: String] = ["Authorization": "Bearer token123"]
 
-        TraceContextUtil.injectTraceContext(headers: &headers)
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        #expect(headers["Authorization"] == "Bearer token123")
-    }
+    #expect(headers["Authorization"] == "Bearer token123")
+  }
 
-    @Test func testInjectTraceContextPreservesContentTypeHeader() {
-        var headers: [String: String] = ["Content-Type": "application/json"]
+  @Test func testInjectTraceContextPreservesContentTypeHeader() {
+    var headers: [String: String] = ["Content-Type": "application/json"]
 
-        TraceContextUtil.injectTraceContext(headers: &headers)
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        #expect(headers["Content-Type"] == "application/json")
-    }
+    #expect(headers["Content-Type"] == "application/json")
+  }
 
-    @Test func testInjectTraceContextPreservesXRequestIdHeader() {
-        var headers: [String: String] = ["X-Request-ID": "req-12345"]
+  @Test func testInjectTraceContextPreservesXRequestIdHeader() {
+    var headers: [String: String] = ["X-Request-ID": "req-12345"]
 
-        TraceContextUtil.injectTraceContext(headers: &headers)
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        #expect(headers["X-Request-ID"] == "req-12345")
-    }
+    #expect(headers["X-Request-ID"] == "req-12345")
+  }
 
-    @Test func testInjectTraceContextPreservesAllExistingHeaders() {
-        var headers: [String: String] = [
-            "Authorization": "Bearer token",
-            "Content-Type": "application/json",
-            "X-Request-ID": "abc-123",
-        ]
+  @Test func testInjectTraceContextPreservesAllExistingHeaders() {
+    var headers: [String: String] = [
+      "Authorization": "Bearer token",
+      "Content-Type": "application/json",
+      "X-Request-ID": "abc-123",
+    ]
 
-        TraceContextUtil.injectTraceContext(headers: &headers)
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        #expect(headers["Authorization"] == "Bearer token")
-        #expect(headers["Content-Type"] == "application/json")
-        #expect(headers["X-Request-ID"] == "abc-123")
-    }
+    #expect(headers["Authorization"] == "Bearer token")
+    #expect(headers["Content-Type"] == "application/json")
+    #expect(headers["X-Request-ID"] == "abc-123")
+  }
 
-    // .NET-specific scenario: Swift has no ambient tracer like .NET Activity.Current;
-    // injecting a real active span requires a fully configured OpenTelemetry SDK.
-    @Test(.disabled("no ambient tracer; active-span injection requires a configured OpenTelemetry SDK"))
-    func testInjectsTraceparentWhenSpanActive() {}
+  // .NET-specific scenario: Swift has no ambient tracer like .NET Activity.Current;
+  // injecting a real active span requires a fully configured OpenTelemetry SDK.
+  @Test(
+    .disabled("no ambient tracer; active-span injection requires a configured OpenTelemetry SDK"))
+  func testInjectsTraceparentWhenSpanActive() {}
 
-    // .NET-specific scenario: setting tracestate on an active span requires a fully
-    // configured OpenTelemetry SDK, which is out of scope for this unit test.
-    @Test(.disabled("no ambient tracer; tracestate-present requires a configured OpenTelemetry SDK"))
-    func testIncludesTracestateWhenPresent() {}
+  // .NET-specific scenario: setting tracestate on an active span requires a fully
+  // configured OpenTelemetry SDK, which is out of scope for this unit test.
+  @Test(.disabled("no ambient tracer; tracestate-present requires a configured OpenTelemetry SDK"))
+  func testIncludesTracestateWhenPresent() {}
 
-    // .NET-specific scenario: exercising an empty tracestate on an active span
-    // requires a fully configured OpenTelemetry SDK, which is out of scope here.
-    @Test(.disabled("no ambient tracer; empty-tracestate requires a configured OpenTelemetry SDK"))
-    func testOmitsTracestateWhenEmpty() {}
+  // .NET-specific scenario: exercising an empty tracestate on an active span
+  // requires a fully configured OpenTelemetry SDK, which is out of scope here.
+  @Test(.disabled("no ambient tracer; empty-tracestate requires a configured OpenTelemetry SDK"))
+  func testOmitsTracestateWhenEmpty() {}
 
-    // .NET-specific scenario: verifying the recorded trace-flags byte requires a
-    // fully configured OpenTelemetry SDK with an active span.
-    @Test(.disabled("no ambient tracer; trace-flags formatting requires a configured OpenTelemetry SDK"))
-    func testFormatsTraceFlagsCorrectly() {}
+  // .NET-specific scenario: verifying the recorded trace-flags byte requires a
+  // fully configured OpenTelemetry SDK with an active span.
+  @Test(
+    .disabled("no ambient tracer; trace-flags formatting requires a configured OpenTelemetry SDK"))
+  func testFormatsTraceFlagsCorrectly() {}
 }

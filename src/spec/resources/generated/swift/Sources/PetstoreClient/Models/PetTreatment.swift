@@ -9,46 +9,46 @@ import Foundation
 
 /// PetTreatment A treatment that can match a medication, a surgery, or both
 public struct PetTreatment: Codable, @unchecked Sendable {
-    private let _value: Any
+  private let _value: Any
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let data = try container.decode(AnyCodable.self)
-        let rawData = try JSONEncoder().encode(data)
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let data = try container.decode(AnyCodable.self)
+    let rawData = try JSONEncoder().encode(data)
 
-        /* Try each anyOf type */
-        if let v = try? JSONDecoder().decode(Medication.self, from: rawData) {
-            self._value = v
-            return
-        }
-        if let v = try? JSONDecoder().decode(Surgery.self, from: rawData) {
-            self._value = v
-            return
-        }
-        throw DecodingError.dataCorrupted(
-            DecodingError.Context(
-                codingPath: decoder.codingPath,
-                debugDescription: "Data does not match any anyOf schemas for PetTreatment"
-            )
-        )
+    /* Try each anyOf type */
+    if let v = try? JSONDecoder().decode(Medication.self, from: rawData) {
+      self._value = v
+      return
     }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        if let encodable = _value as? Encodable {
-            try encodable.encode(to: encoder)
-        } else {
-            try container.encodeNil()
-        }
+    if let v = try? JSONDecoder().decode(Surgery.self, from: rawData) {
+      self._value = v
+      return
     }
+    throw DecodingError.dataCorrupted(
+      DecodingError.Context(
+        codingPath: decoder.codingPath,
+        debugDescription: "Data does not match any anyOf schemas for PetTreatment"
+      )
+    )
+  }
 
-    /// Returns the underlying value of the union type.
-    public func value() -> Any {
-        return _value
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    if let encodable = _value as? Encodable {
+      try encodable.encode(to: encoder)
+    } else {
+      try container.encodeNil()
     }
+  }
 
-    /// Returns the underlying value cast to the specified type.
-    public func value<T>(as type: T.Type) -> T? {
-        return _value as? T
-    }
+  /// Returns the underlying value of the union type.
+  public func value() -> Any {
+    return _value
+  }
+
+  /// Returns the underlying value cast to the specified type.
+  public func value<T>(as type: T.Type) -> T? {
+    return _value as? T
+  }
 }

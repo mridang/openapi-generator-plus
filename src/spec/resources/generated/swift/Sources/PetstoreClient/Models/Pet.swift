@@ -11,118 +11,119 @@ import Foundation
 /// See https://example.com/docs/pet Learn more about the Pet model
 /// Typed enum for Pet.status.
 public enum PetStatusEnum: String, Codable, Sendable, CaseIterable {
-    case available = "available"
-    case pending = "pending"
-    case sold = "sold"
+  case available = "available"
+  case pending = "pending"
+  case sold = "sold"
 }
 
 public struct Pet: Codable, Sendable, Equatable, Hashable {
-    /// Example: `10`
-    public var id: Int64?
-    /// Example: `doggie`
-    public var name: String
-    /// Example: `null`
-    public var category: Category?
-    /// Example: `null`
-    public var photoUrls: Set<String>
-    /// Example: `null`
-    public var tags: [Tag]?
-    /// pet status in the store
-    /// Example: `null`
-    @available(*, deprecated, message: "This property is deprecated.")
-    public var status: PetStatusEnum?
-    /// Example: `null`
-    public var location: [AnyCodable]?
-    /// Absolute URL to the pet's public profile page
-    /// Example: `https://example.com/pets/fido`
-    public var homepageUrl: String?
-    /// Optionally-relative thumbnail location
-    /// Example: `/assets/thumb-fido.png`
-    public var thumbnailRef: String?
-    /// RFC 6570 template for related-resource links
-    /// Example: `https://example.com/pets/{id}/photos{?size}`
-    public var linkTemplate: String?
-    /// Contact email for the pet's owner
-    /// Example: `owner@example.com`
-    public var ownerEmail: String?
-    /// Pet weight in kilograms (decimal precision)
-    /// Example: `12.345`
-    public var weightKg: Double?
+  /// Example: `10`
+  public var id: Int64?
+  /// Example: `doggie`
+  public var name: String
+  /// Example: `null`
+  public var category: Category?
+  /// Example: `null`
+  public var photoUrls: Set<String>
+  /// Example: `null`
+  public var tags: [Tag]?
+  /// pet status in the store
+  /// Example: `null`
+  @available(*, deprecated, message: "This property is deprecated.")
+  public var status: PetStatusEnum?
+  /// Example: `null`
+  public var location: [AnyCodable]?
+  /// Absolute URL to the pet's public profile page
+  /// Example: `https://example.com/pets/fido`
+  public var homepageUrl: String?
+  /// Optionally-relative thumbnail location
+  /// Example: `/assets/thumb-fido.png`
+  public var thumbnailRef: String?
+  /// RFC 6570 template for related-resource links
+  /// Example: `https://example.com/pets/{id}/photos{?size}`
+  public var linkTemplate: String?
+  /// Contact email for the pet's owner
+  /// Example: `owner@example.com`
+  public var ownerEmail: String?
+  /// Pet weight in kilograms (decimal precision)
+  /// Example: `12.345`
+  public var weightKg: Double?
 
-    enum CodingKeys: String, CodingKey {
-        case id = "id"
-        case name = "name"
-        case category = "category"
-        case photoUrls = "photoUrls"
-        case tags = "tags"
-        case status = "status"
-        case location = "location"
-        case homepageUrl = "homepageUrl"
-        case thumbnailRef = "thumbnailRef"
-        case linkTemplate = "linkTemplate"
-        case ownerEmail = "ownerEmail"
-        case weightKg = "weightKg"
-    }
+  enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case name = "name"
+    case category = "category"
+    case photoUrls = "photoUrls"
+    case tags = "tags"
+    case status = "status"
+    case location = "location"
+    case homepageUrl = "homepageUrl"
+    case thumbnailRef = "thumbnailRef"
+    case linkTemplate = "linkTemplate"
+    case ownerEmail = "ownerEmail"
+    case weightKg = "weightKg"
+  }
 
-    /// Creates a new Pet instance.
-    public init(
-        name: String, photoUrls: Set<String>, id: Int64? = nil, category: Category? = nil, tags: [Tag]? = nil,
-        status: PetStatusEnum? = nil, location: [AnyCodable]? = nil, homepageUrl: String? = nil,
-        thumbnailRef: String? = nil, linkTemplate: String? = nil, ownerEmail: String? = nil, weightKg: Double? = nil
-    ) {
-        self.name = name
-        self.photoUrls = photoUrls
-        self.id = id
-        self.category = category
-        self.tags = tags
-        self.status = status
-        self.location = location
-        self.homepageUrl = homepageUrl
-        self.thumbnailRef = thumbnailRef
-        self.linkTemplate = linkTemplate
-        self.ownerEmail = ownerEmail
-        self.weightKg = weightKg
-    }
+  /// Creates a new Pet instance.
+  public init(
+    name: String, photoUrls: Set<String>, id: Int64? = nil, category: Category? = nil,
+    tags: [Tag]? = nil, status: PetStatusEnum? = nil, location: [AnyCodable]? = nil,
+    homepageUrl: String? = nil, thumbnailRef: String? = nil, linkTemplate: String? = nil,
+    ownerEmail: String? = nil, weightKg: Double? = nil
+  ) {
+    self.name = name
+    self.photoUrls = photoUrls
+    self.id = id
+    self.category = category
+    self.tags = tags
+    self.status = status
+    self.location = location
+    self.homepageUrl = homepageUrl
+    self.thumbnailRef = thumbnailRef
+    self.linkTemplate = linkTemplate
+    self.ownerEmail = ownerEmail
+    self.weightKg = weightKg
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-    /// — matching the cross-language "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-        self.name = try container.decode(String.self, forKey: .name)
-        self.category = try container.decodeIfPresent(Category.self, forKey: .category)
-        self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
-        self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
-        self.status = try container.decodeIfPresent(PetStatusEnum.self, forKey: .status)
-        self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
-        self.homepageUrl = try container.decodeIfPresent(String.self, forKey: .homepageUrl)
-        self.thumbnailRef = try container.decodeIfPresent(String.self, forKey: .thumbnailRef)
-        self.linkTemplate = try container.decodeIfPresent(String.self, forKey: .linkTemplate)
-        self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
-        self.weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+    self.name = try container.decode(String.self, forKey: .name)
+    self.category = try container.decodeIfPresent(Category.self, forKey: .category)
+    self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
+    self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
+    self.status = try container.decodeIfPresent(PetStatusEnum.self, forKey: .status)
+    self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
+    self.homepageUrl = try container.decodeIfPresent(String.self, forKey: .homepageUrl)
+    self.thumbnailRef = try container.decodeIfPresent(String.self, forKey: .thumbnailRef)
+    self.linkTemplate = try container.decodeIfPresent(String.self, forKey: .linkTemplate)
+    self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
+    self.weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(id, forKey: .id)
-        try container.encode(name, forKey: .name)
-        try container.encodeIfPresent(category, forKey: .category)
-        try container.encode(photoUrls, forKey: .photoUrls)
-        try container.encodeIfPresent(tags, forKey: .tags)
-        try container.encodeIfPresent(status, forKey: .status)
-        try container.encodeIfPresent(location, forKey: .location)
-        try container.encodeIfPresent(homepageUrl, forKey: .homepageUrl)
-        try container.encodeIfPresent(thumbnailRef, forKey: .thumbnailRef)
-        try container.encodeIfPresent(linkTemplate, forKey: .linkTemplate)
-        try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
-        try container.encodeIfPresent(weightKg, forKey: .weightKg)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(id, forKey: .id)
+    try container.encode(name, forKey: .name)
+    try container.encodeIfPresent(category, forKey: .category)
+    try container.encode(photoUrls, forKey: .photoUrls)
+    try container.encodeIfPresent(tags, forKey: .tags)
+    try container.encodeIfPresent(status, forKey: .status)
+    try container.encodeIfPresent(location, forKey: .location)
+    try container.encodeIfPresent(homepageUrl, forKey: .homepageUrl)
+    try container.encodeIfPresent(thumbnailRef, forKey: .thumbnailRef)
+    try container.encodeIfPresent(linkTemplate, forKey: .linkTemplate)
+    try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
+    try container.encodeIfPresent(weightKg, forKey: .weightKg)
+  }
 }

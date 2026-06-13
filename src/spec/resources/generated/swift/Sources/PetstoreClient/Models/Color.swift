@@ -9,7 +9,7 @@ import Foundation
 
 /// Color is an enumeration of allowed values.
 public enum Color: String, Codable, Sendable, CaseIterable {
-    case red = "red"
-    case green = "green"
-    case blue = "blue"
+  case red = "red"
+  case green = "green"
+  case blue = "blue"
 }

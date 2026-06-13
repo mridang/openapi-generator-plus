@@ -12,147 +12,148 @@ import Testing
 
 @Suite final class OAuth2PasswordAuthenticatorTests {
 
-    // MARK: - Mock ApiClient
+  // MARK: - Mock ApiClient
 
-    private final class MockApiClient: ApiClient, @unchecked Sendable {
-        var responses: [ApiHttpResponse] = []
-        var lastMethod: String = ""
-        var lastURL: String = ""
-        var lastHeaders: [String: String] = [:]
-        var lastBody: Data? = nil
+  private final class MockApiClient: ApiClient, @unchecked Sendable {
+    var responses: [ApiHttpResponse] = []
+    var lastMethod: String = ""
+    var lastURL: String = ""
+    var lastHeaders: [String: String] = [:]
+    var lastBody: Data? = nil
 
-        func sendRequest(
-            method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-        ) async throws -> ApiHttpResponse {
-            lastMethod = method
-            lastURL = url
-            lastHeaders = headers
-            lastBody = body as? Data
-            return responses.removeFirst()
-        }
+    func sendRequest(
+      method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+    ) async throws -> ApiHttpResponse {
+      lastMethod = method
+      lastURL = url
+      lastHeaders = headers
+      lastBody = body as? Data
+      return responses.removeFirst()
     }
+  }
 
-    private func makeResponse(body: String, statusCode: Int = 200) -> ApiHttpResponse {
-        return ApiHttpResponse(statusCode: statusCode, body: body, headers: [:])
-    }
+  private func makeResponse(body: String, statusCode: Int = 200) -> ApiHttpResponse {
+    return ApiHttpResponse(statusCode: statusCode, body: body, headers: [:])
+  }
 
-    private func createAuthenticator() -> OAuth2PasswordAuthenticator {
-        return OAuth2PasswordAuthenticator(
-            host: "https://api.example.com",
-            clientID: "my-client-id",
-            clientSecret: "my-client-secret",
-            tokenURL: "https://auth.example.com/token",
-            username: "testuser",
-            password: "testpass",
-            scopes: ["read", "write"]
-        )
-    }
+  private func createAuthenticator() -> OAuth2PasswordAuthenticator {
+    return OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      scopes: ["read", "write"]
+    )
+  }
 
-    // MARK: - Tests
+  // MARK: - Tests
 
-    @Test func testSendsPasswordGrantType() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+  @Test func testSendsPasswordGrantType() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
-        let auth = createAuthenticator()
-        auth.setApiClient(client)
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
 
-        _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
 
-        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-        #expect(bodyString.contains("grant_type=password"))
-    }
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(bodyString.contains("grant_type=password"))
+  }
 
-    @Test func testSendsUsernameAndPassword() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+  @Test func testSendsUsernameAndPassword() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
-        let auth = createAuthenticator()
-        auth.setApiClient(client)
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
 
-        _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
 
-        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-        #expect(bodyString.contains("username=testuser"))
-        #expect(bodyString.contains("password=testpass"))
-    }
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(bodyString.contains("username=testuser"))
+    #expect(bodyString.contains("password=testpass"))
+  }
 
-    @Test func testSendsClientIdAndSecret() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+  @Test func testSendsClientIdAndSecret() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
-        let auth = createAuthenticator()
-        auth.setApiClient(client)
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
 
-        _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
 
-        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-        #expect(bodyString.contains("client_id=my-client-id"))
-        #expect(bodyString.contains("client_secret=my-client-secret"))
-    }
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(bodyString.contains("client_id=my-client-id"))
+    #expect(bodyString.contains("client_secret=my-client-secret"))
+  }
 
-    @Test func testReturnsAuthorizationBearerHeader() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok-pwd\",\"expires_in\":3600}"))
+  @Test func testReturnsAuthorizationBearerHeader() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok-pwd\",\"expires_in\":3600}"))
 
-        let auth = createAuthenticator()
-        auth.setApiClient(client)
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
 
-        let headers = try await auth.authHeaders()
+    let headers = try await auth.authHeaders()
 
-        #expect(headers["Authorization"] == "Bearer tok-pwd")
-    }
+    #expect(headers["Authorization"] == "Bearer tok-pwd")
+  }
 
-    @Test func testUsesRefreshTokenOnSubsequentCalls() async throws {
-        let client = MockApiClient()
-        client.responses.append(
-            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+  @Test func testUsesRefreshTokenOnSubsequentCalls() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
-        let auth = createAuthenticator()
-        auth.setApiClient(client)
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
 
-        _ = try await auth.authHeaders()
-        _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
 
-        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-        #expect(bodyString.contains("grant_type=refresh_token"))
-        #expect(bodyString.contains("refresh_token=ref1"))
-    }
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(bodyString.contains("grant_type=refresh_token"))
+    #expect(bodyString.contains("refresh_token=ref1"))
+  }
 
-    @Test func testGetHostReturnsConfiguredHost() {
-        let auth = createAuthenticator()
+  @Test func testGetHostReturnsConfiguredHost() {
+    let auth = createAuthenticator()
 
-        #expect(auth.host() == "https://api.example.com")
-    }
+    #expect(auth.host() == "https://api.example.com")
+  }
 
-    @Test func testBasicAuthUrlEncodesClientIdAndSecret() async throws {
-        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
-        // client_id and client_secret MUST be application/x-www-form-
-        // urlencoded BEFORE being joined with ':' and base64-encoded.
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
+  @Test func testBasicAuthUrlEncodesClientIdAndSecret() async throws {
+    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    // client_id and client_secret MUST be application/x-www-form-
+    // urlencoded BEFORE being joined with ':' and base64-encoded.
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
 
-        let auth = OAuth2PasswordAuthenticator(
-            host: "https://api.example.com",
-            clientID: "id+with/special",
-            clientSecret: "secret&with=stuff",
-            tokenURL: "https://auth.example.com/token",
-            username: "testuser",
-            password: "testpass",
-            scopes: ["read"],
-            clientAuthMethod: .basic
-        )
-        auth.setApiClient(client)
+    let auth = OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "id+with/special",
+      clientSecret: "secret&with=stuff",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      scopes: ["read"],
+      clientAuthMethod: .basic
+    )
+    auth.setApiClient(client)
 
-        _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
 
-        let authHeader = client.lastHeaders["Authorization"] ?? ""
-        #expect(authHeader.hasPrefix("Basic "))
-        let b64 = String(authHeader.dropFirst("Basic ".count))
-        let decodedData = Data(base64Encoded: b64) ?? Data()
-        let decoded = String(data: decodedData, encoding: .utf8) ?? ""
-        // Expected: form-urlencoded id ':' form-urlencoded secret
-        #expect(decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff")
-    }
+    let authHeader = client.lastHeaders["Authorization"] ?? ""
+    #expect(authHeader.hasPrefix("Basic "))
+    let b64 = String(authHeader.dropFirst("Basic ".count))
+    let decodedData = Data(base64Encoded: b64) ?? Data()
+    let decoded = String(data: decodedData, encoding: .utf8) ?? ""
+    // Expected: form-urlencoded id ':' form-urlencoded secret
+    #expect(decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff")
+  }
 }

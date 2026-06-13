@@ -12,56 +12,57 @@ import Testing
 
 @Suite final class ClientTests {
 
-    private let authenticator = BearerAuthenticator(host: "/api/v3", token: "test-token")
+  private let authenticator = BearerAuthenticator(host: "/api/v3", token: "test-token")
 
-    @Test func testConstructWithAuthenticatorOnly() throws {
-        _ = try Client(authenticator: authenticator)
-    }
+  @Test func testConstructWithAuthenticatorOnly() throws {
+    _ = try Client(authenticator: authenticator)
+  }
 
-    @Test func testConstructWithAuthenticatorAndNilTransportOptions() throws {
-        _ = try Client(authenticator: authenticator, transportOptions: nil)
-    }
+  @Test func testConstructWithAuthenticatorAndNilTransportOptions() throws {
+    _ = try Client(authenticator: authenticator, transportOptions: nil)
+  }
 
-    @Test func testConstructWithAuthenticatorAndTransportOptions() throws {
-        let transport = TransportOptionsBuilder().build()
+  @Test func testConstructWithAuthenticatorAndTransportOptions() throws {
+    let transport = TransportOptionsBuilder().build()
 
-        _ = try Client(authenticator: authenticator, transportOptions: transport)
-    }
+    _ = try Client(authenticator: authenticator, transportOptions: transport)
+  }
 
-    @Test func testApiKeyQueryAcceptsNonAscii() {
-        // RFC 7230 §3.2.6 — ApiKeyAuthenticator's HEADER location must
-        // reject anything outside printable ASCII + TAB. That path uses
-        // preconditionFailure which traps the process and cannot be
-        // caught from Swift Testing without third-party trap helpers, so
-        // this test exercises the safe non-header path which must NOT
-        // validate (it goes through URL-encoding downstream).
-        let auth = ApiKeyAuthenticator(host: "/api/v3", keyParamName: "api_key", apiKey: "kéy", location: .query)
-        #expect(auth.queryParams() == ["api_key": "kéy"])
-    }
+  @Test func testApiKeyQueryAcceptsNonAscii() {
+    // RFC 7230 §3.2.6 — ApiKeyAuthenticator's HEADER location must
+    // reject anything outside printable ASCII + TAB. That path uses
+    // preconditionFailure which traps the process and cannot be
+    // caught from Swift Testing without third-party trap helpers, so
+    // this test exercises the safe non-header path which must NOT
+    // validate (it goes through URL-encoding downstream).
+    let auth = ApiKeyAuthenticator(
+      host: "/api/v3", keyParamName: "api_key", apiKey: "kéy", location: .query)
+    #expect(auth.queryParams() == ["api_key": "kéy"])
+  }
 
-    // bearer-no-empty-token-guard (F-A6-G1): the Bearer authenticator must
-    // reject an empty or whitespace-only token at construction (it would
-    // otherwise emit the literal header `Authorization: Bearer ` and send the
-    // request effectively unauthenticated), mirroring the api-key
-    // authenticator's existing empty-value guard. The guard itself uses
-    // `preconditionFailure` (programmer error), which traps the process and —
-    // per the same limitation noted on `testApiKeyQueryAcceptsNonAscii` —
-    // cannot be caught from Swift Testing without trap helpers. This test
-    // pins the boundary that MUST still succeed: a non-empty token whose only
-    // whitespace is internal/leading is accepted and emitted verbatim, so the
-    // guard's `trimmingCharacters(...).isEmpty` check is asserted to be a
-    // whitespace-ONLY rejection and not an over-eager "contains whitespace"
-    // rejection that would break legitimate tokens.
-    @Test func testBearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
-        let auth = BearerAuthenticator(host: "/api/v3", token: "abc.def-123")
-        let headers = try await auth.authHeaders()
-        #expect(headers["Authorization"] == "Bearer abc.def-123")
-    }
+  // bearer-no-empty-token-guard (F-A6-G1): the Bearer authenticator must
+  // reject an empty or whitespace-only token at construction (it would
+  // otherwise emit the literal header `Authorization: Bearer ` and send the
+  // request effectively unauthenticated), mirroring the api-key
+  // authenticator's existing empty-value guard. The guard itself uses
+  // `preconditionFailure` (programmer error), which traps the process and —
+  // per the same limitation noted on `testApiKeyQueryAcceptsNonAscii` —
+  // cannot be caught from Swift Testing without trap helpers. This test
+  // pins the boundary that MUST still succeed: a non-empty token whose only
+  // whitespace is internal/leading is accepted and emitted verbatim, so the
+  // guard's `trimmingCharacters(...).isEmpty` check is asserted to be a
+  // whitespace-ONLY rejection and not an over-eager "contains whitespace"
+  // rejection that would break legitimate tokens.
+  @Test func testBearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
+    let auth = BearerAuthenticator(host: "/api/v3", token: "abc.def-123")
+    let headers = try await auth.authHeaders()
+    #expect(headers["Authorization"] == "Bearer abc.def-123")
+  }
 
-    @Test func testApiGroupsAreAccessible() throws {
-        let client = try Client(authenticator: authenticator)
+  @Test func testApiGroupsAreAccessible() throws {
+    let client = try Client(authenticator: authenticator)
 
-        #expect(client.pet != nil)
-        #expect(client.store != nil)
-    }
+    #expect(client.pet != nil)
+    #expect(client.store != nil)
+  }
 }

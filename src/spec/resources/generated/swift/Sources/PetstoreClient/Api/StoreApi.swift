@@ -11,177 +11,177 @@ import Foundation
 /// Access to Petstore orders
 public final class StoreApi: BaseApi, @unchecked Sendable {
 
-    /// Delete purchase order by ID
-    ///
-    /// - Parameters:
-    ///   - orderId: ID of the order to delete
+  /// Delete purchase order by ID
+  ///
+  /// - Parameters:
+  ///   - orderId: ID of the order to delete
 
-    public func deleteOrder(orderId: Int64) async throws {
-        let result = try await deleteOrderWithHTTPInfo(orderId: orderId)
-        _ = result
+  public func deleteOrder(orderId: Int64) async throws {
+    let result = try await deleteOrderWithHTTPInfo(orderId: orderId)
+    _ = result
+  }
+
+  /// Performs the deleteOrder operation and returns the full API result.
+  public func deleteOrderWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Void> {
+
+    var path = "/store/order/{orderId}"
+    path = path.replacingOccurrences(
+      of: "{" + "orderId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "DELETE",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "application/json",
+      returnType: "",
+      auth: nil
+    )
+
+    return try await invokeAPIForEmptyResult(params)
+  }
+
+  /// Returns pet inventories by status
+
+  public func getInventory() async throws -> [String: Int] {
+    let result = try await getInventoryWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getInventory",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
     }
+    return data
+  }
 
-    /// Performs the deleteOrder operation and returns the full API result.
-    public func deleteOrderWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Void> {
+  /// Performs the getInventory operation and returns the full API result.
+  public func getInventoryWithHTTPInfo() async throws -> ApiResult<[String: Int]> {
 
-        var path = "/store/order/{orderId}"
-        path = path.replacingOccurrences(
-            of: "{" + "orderId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
+    let path = "/store/inventory"
 
-        let queryParams: [String: Any?] = [:]
+    let queryParams: [String: Any?] = [:]
 
-        let headerParams: [String: String] = [:]
+    let headerParams: [String: String] = [:]
 
-        let requestBody: Any? = nil
+    let requestBody: Any? = nil
 
-        let params = InvokeAPIParams(
-            method: "DELETE",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: [],
-            contentType: "application/json",
-            returnType: "",
-            auth: nil
-        )
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[String: Int]",
+      auth: nil
+    )
 
-        return try await invokeAPIForEmptyResult(params)
+    return try await invokeAPIForResult(params, as: [String: Int].self)
+  }
+
+  /// Find purchase order by ID
+  ///
+  /// - Parameters:
+  ///   - orderId: ID of order to return
+
+  public func getOrderById(orderId: Int64) async throws -> Order {
+    let result = try await getOrderByIdWithHTTPInfo(orderId: orderId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getOrderById",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
     }
+    return data
+  }
 
-    /// Returns pet inventories by status
+  /// Performs the getOrderById operation and returns the full API result.
+  public func getOrderByIdWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Order> {
 
-    public func getInventory() async throws -> [String: Int] {
-        let result = try await getInventoryWithHTTPInfo()
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getInventory",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
+    var path = "/store/order/{orderId}"
+    path = path.replacingOccurrences(
+      of: "{" + "orderId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Order",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Order.self)
+  }
+
+  /// Place an order for a pet
+  ///
+  /// - Parameters:
+
+  public func placeOrder(order: Order?) async throws -> Order {
+    let result = try await placeOrderWithHTTPInfo(order: order)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for placeOrder",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
     }
+    return data
+  }
 
-    /// Performs the getInventory operation and returns the full API result.
-    public func getInventoryWithHTTPInfo() async throws -> ApiResult<[String: Int]> {
+  /// Performs the placeOrder operation and returns the full API result.
+  public func placeOrderWithHTTPInfo(order: Order?) async throws -> ApiResult<Order> {
 
-        let path = "/store/inventory"
+    let path = "/store/order"
 
-        let queryParams: [String: Any?] = [:]
+    let queryParams: [String: Any?] = [:]
 
-        let headerParams: [String: String] = [:]
+    let headerParams: [String: String] = [:]
 
-        let requestBody: Any? = nil
+    let requestBody: Any? = order
 
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "[String: Int]",
-            auth: nil
-        )
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Order",
+      auth: nil
+    )
 
-        return try await invokeAPIForResult(params, as: [String: Int].self)
-    }
-
-    /// Find purchase order by ID
-    ///
-    /// - Parameters:
-    ///   - orderId: ID of order to return
-
-    public func getOrderById(orderId: Int64) async throws -> Order {
-        let result = try await getOrderByIdWithHTTPInfo(orderId: orderId)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for getOrderById",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the getOrderById operation and returns the full API result.
-    public func getOrderByIdWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Order> {
-
-        var path = "/store/order/{orderId}"
-        path = path.replacingOccurrences(
-            of: "{" + "orderId" + "}",
-            with:
-                "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
-        )
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = nil
-
-        let params = InvokeAPIParams(
-            method: "GET",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Order",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Order.self)
-    }
-
-    /// Place an order for a pet
-    ///
-    /// - Parameters:
-
-    public func placeOrder(order: Order?) async throws -> Order {
-        let result = try await placeOrderWithHTTPInfo(order: order)
-        guard let data = result.data else {
-            throw ApiError(
-                statusCode: result.statusCode,
-                message: "Server returned no body for placeOrder",
-                responseBody: result.rawBody,
-                responseHeaders: result.headers
-            )
-        }
-        return data
-    }
-
-    /// Performs the placeOrder operation and returns the full API result.
-    public func placeOrderWithHTTPInfo(order: Order?) async throws -> ApiResult<Order> {
-
-        let path = "/store/order"
-
-        let queryParams: [String: Any?] = [:]
-
-        let headerParams: [String: String] = [:]
-
-        let requestBody: Any? = order
-
-        let params = InvokeAPIParams(
-            method: "POST",
-            path: path,
-            queryParams: queryParams,
-            headerParams: headerParams,
-            body: requestBody,
-            accepts: ["application/json"],
-            contentType: "application/json",
-            returnType: "Order",
-            auth: nil
-        )
-
-        return try await invokeAPIForResult(params, as: Order.self)
-    }
+    return try await invokeAPIForResult(params, as: Order.self)
+  }
 }
