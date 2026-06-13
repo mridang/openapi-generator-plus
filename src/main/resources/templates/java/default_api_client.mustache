@@ -63,15 +63,39 @@ public final class DefaultApiClient implements ApiClient {
 
     private static final ObjectMapper MULTIPART_MAPPER = ObjectSerializer.createDefaultObjectMapper();
 
+    /*
+     * Intentional all-trusting trust manager. Installed ONLY when the caller
+     * explicitly opts out of TLS verification via TransportOptions#verifySsl
+     * (false) — the documented curl -k equivalent used against local/dev
+     * Zitadel stacks with self-signed certificates. SpotBugs/find-sec-bugs
+     * correctly flags this as a MITM risk in general, but here it is a
+     * deliberate, opt-in feature mirrored across all 12 SDKs, so the warning
+     * is suppressed on the empty trust-check methods rather than removed.
+     */
     private static final X509TrustManager TRUST_ALL_MANAGER =
             new X509TrustManager() {
                 @Override
+                @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+                        value = "WEAK_TRUST_MANAGER",
+                        justification =
+                                "Opt-in insecure TLS (verifySsl=false): trust-all is a"
+                                        + " documented curl -k equivalent for dev stacks.")
                 public void checkClientTrusted(X509Certificate[] chain, String authType) {}
 
                 @Override
+                @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+                        value = "WEAK_TRUST_MANAGER",
+                        justification =
+                                "Opt-in insecure TLS (verifySsl=false): trust-all is a"
+                                        + " documented curl -k equivalent for dev stacks.")
                 public void checkServerTrusted(X509Certificate[] chain, String authType) {}
 
                 @Override
+                @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+                        value = "WEAK_TRUST_MANAGER",
+                        justification =
+                                "Opt-in insecure TLS (verifySsl=false): trust-all is a"
+                                        + " documented curl -k equivalent for dev stacks.")
                 public X509Certificate[] getAcceptedIssuers() {
                     return new X509Certificate[0];
                 }
@@ -220,6 +244,12 @@ public final class DefaultApiClient implements ApiClient {
      * @return an {@link SSLContext} trusting only the given CA certificate
      * @throws ApiException if the certificate cannot be read or parsed
      */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "PATH_TRAVERSAL_IN",
+            justification =
+                    "The CA certificate path is supplied by the SDK caller via"
+                            + " TransportOptions#caCertPath as a deliberate TLS-pinning"
+                            + " opt-in, not by remote/untrusted input.")
     private static SSLContext buildPinnedSslContext(String caCertPath) {
         try {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
@@ -350,6 +380,12 @@ public final class DefaultApiClient implements ApiClient {
      * and the first 3xx is surfaced to the caller as-is.
      */
     @Override
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification =
+                    "Case-insensitive comparisons here operate on ASCII HTTP tokens"
+                            + " (header names, methods, schemes), not user identity"
+                            + " strings, so Unicode case-folding ambiguities do not apply.")
     public ApiHttpResponse sendRequest(
             String method,
             String url,
@@ -590,6 +626,11 @@ public final class DefaultApiClient implements ApiClient {
      * and sensitive headers are not stripped on a redirect that only adds
      * the implicit default port.
      */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification =
+                    "Case-insensitive comparison of ASCII URI scheme tokens, not user"
+                            + " identity strings; Unicode case-folding does not apply.")
     private static int effectivePort(URI uri) {
         int port = uri.getPort();
         if (port != -1) {
@@ -608,6 +649,11 @@ public final class DefaultApiClient implements ApiClient {
      * are normalised to scheme defaults so {@code https://host/x} and
      * {@code https://host:443/x} compare equal.
      */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification =
+                    "Case-insensitive comparison of ASCII URI scheme tokens, not user"
+                            + " identity strings; Unicode case-folding does not apply.")
     private static boolean sameOrigin(URI originalUri, URI redirectUri) {
         return redirectUri.getHost() != null
                 && redirectUri.getScheme() != null
@@ -626,6 +672,11 @@ public final class DefaultApiClient implements ApiClient {
      * HTTP, the response is 307 or 308, and there is a non-empty body to
      * leak.
      */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification =
+                    "Case-insensitive comparison of ASCII URI scheme tokens, not user"
+                            + " identity strings; Unicode case-folding does not apply.")
     static boolean shouldRefuseHttpsToHttpBodyReplay(
             URI originalUri, URI redirectUri, int statusCode, boolean hasBody) {
         if (!hasBody) {
@@ -666,6 +717,11 @@ public final class DefaultApiClient implements ApiClient {
         }
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification =
+                    "Case folding of ASCII media-type tokens for content sniffing, not"
+                            + " user identity strings; Unicode case-folding does not apply.")
     private static boolean isTextContentType(String contentType) {
         int semi = contentType.indexOf(';');
         String mediaType = (semi >= 0 ? contentType.substring(0, semi) : contentType).trim().toLowerCase(Locale.ROOT);
@@ -693,6 +749,11 @@ public final class DefaultApiClient implements ApiClient {
      * @param encoding the Content-Encoding header value
      * @return the decompressed body bytes
      */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification =
+                    "Case folding of ASCII Content-Encoding tokens, not user identity"
+                            + " strings; Unicode case-folding does not apply.")
     private static byte[] decompressBody(byte[] data, String encoding) throws IOException {
         if (data.length == 0) {
             return new byte[0];
