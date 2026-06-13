@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -48,23 +50,25 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
     # repr=False so the client secret is never leaked through the dataclass's
     # auto-generated repr/str (e.g. logging, f-strings, %r).
     client_secret: str = field(repr=False)
-    token_url: str = ''
-    username: str = ''
+    token_url: str = ""
+    username: str = ""
     # repr=False so the resource owner password is never leaked through repr/str.
-    password: str = field(default='', repr=False)
+    password: str = field(default="", repr=False)
     scopes: Sequence[str] = ()
     refresh_url: Optional[str] = None
     client_auth_method: ClientAuthMethod = ClientAuthMethod.BODY
     # init=False, compare=False: the token cache is internal runtime state, not
     # part of the authenticator's configured identity. default_factory creates a
     # fresh manager per instance.
-    _token_manager: OAuth2TokenManager = field(init=False, repr=False, compare=False, default_factory=OAuth2TokenManager)
+    _token_manager: OAuth2TokenManager = field(
+        init=False, repr=False, compare=False, default_factory=OAuth2TokenManager
+    )
 
     def __post_init__(self) -> None:
         # Normalise scopes to a tuple so the frozen instance holds an immutable
         # sequence. object.__setattr__ is required to assign on a frozen
         # dataclass.
-        object.__setattr__(self, 'scopes', tuple(self.scopes))
+        object.__setattr__(self, "scopes", tuple(self.scopes))
 
     @property
     def _refresh_url(self) -> str:
@@ -99,26 +103,32 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
             # separately before joining with ':' and base64-encoding.
             from urllib.parse import quote
 
-            encoded_id = quote(self.client_id, safe='')
-            encoded_secret = quote(self.client_secret, safe='')
-            credentials = base64.b64encode(f'{encoded_id}:{encoded_secret}'.encode('utf-8')).decode('ascii')
-            extra_headers = {'Authorization': f'Basic {credentials}'}
+            encoded_id = quote(self.client_id, safe="")
+            encoded_secret = quote(self.client_secret, safe="")
+            credentials = base64.b64encode(
+                f"{encoded_id}:{encoded_secret}".encode("utf-8")
+            ).decode("ascii")
+            extra_headers = {"Authorization": f"Basic {credentials}"}
         if self._token_manager.refresh_token:
             params = {
-                'grant_type': 'refresh_token',
-                'refresh_token': self._token_manager.refresh_token,
+                "grant_type": "refresh_token",
+                "refresh_token": self._token_manager.refresh_token,
             }
-            token = self._token_manager.get_access_token(self._refresh_url, params, extra_headers)
+            token = self._token_manager.get_access_token(
+                self._refresh_url, params, extra_headers
+            )
         else:
             params = {
-                'grant_type': 'password',
-                'username': self.username,
-                'password': self.password,
+                "grant_type": "password",
+                "username": self.username,
+                "password": self.password,
             }
             if self.client_auth_method == ClientAuthMethod.BODY:
-                params['client_id'] = self.client_id
-                params['client_secret'] = self.client_secret
+                params["client_id"] = self.client_id
+                params["client_secret"] = self.client_secret
             if self.scopes:
-                params['scope'] = ' '.join(self.scopes)
-            token = self._token_manager.get_access_token(self.token_url, params, extra_headers)
-        return {'Authorization': f'Bearer {token}'}
+                params["scope"] = " ".join(self.scopes)
+            token = self._token_manager.get_access_token(
+                self.token_url, params, extra_headers
+            )
+        return {"Authorization": f"Bearer {token}"}

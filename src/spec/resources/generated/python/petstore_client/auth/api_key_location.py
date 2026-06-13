@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -11,6 +13,6 @@ from enum import Enum
 class ApiKeyLocation(Enum):
     """Location where the API key should be sent."""
 
-    HEADER = 'header'
-    QUERY = 'query'
-    COOKIE = 'cookie'
+    HEADER = "header"
+    QUERY = "query"
+    COOKIE = "cookie"

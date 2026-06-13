@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -35,7 +37,7 @@ from petstore_client.errors import ZitadelException
 
 import petstore_client.models
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 # Module-level TypeAdapter cache for Item 10. TypeAdapter compiles a
 # validator + serializer for a generic type once; reusing the instance
@@ -95,31 +97,31 @@ class ObjectSerializer:
     _PRIMITIVE_TYPES = (float, bool, bytes, str, int)
 
     _NATIVE_TYPES_MAPPING: ClassVar[dict[str, type]] = {
-        'int': int,
-        'long': int,
-        'float': float,
-        'str': str,
-        'bool': bool,
-        'bytes': bytes,
-        'date': datetime.date,
-        'datetime': datetime.datetime,
+        "int": int,
+        "long": int,
+        "float": float,
+        "str": str,
+        "bool": bool,
+        "bytes": bytes,
+        "date": datetime.date,
+        "datetime": datetime.datetime,
         # Item 5 — pydantic AwareDatetime resolves to the stdlib datetime
         # at runtime; pydantic enforces the tz-awareness invariant during
         # model validation, not in this hand-rolled fallback path.
-        'AwareDatetime': datetime.datetime,
-        'datetime.time': datetime.time,
-        'datetime.timedelta': datetime.timedelta,
-        'decimal': decimal.Decimal,
-        'uuid.UUID': uuid.UUID,
-        'object': object,
+        "AwareDatetime": datetime.datetime,
+        "datetime.time": datetime.time,
+        "datetime.timedelta": datetime.timedelta,
+        "decimal": decimal.Decimal,
+        "uuid.UUID": uuid.UUID,
+        "object": object,
         # Item 8 — pydantic StrictXxx aliases resolve to their stdlib
         # primitives for the top-level _deserialize() fallback path.
         # Strictness is enforced by per-field StrictXxx annotations on
         # generated models, not by this map.
-        'StrictInt': int,
-        'StrictFloat': float,
-        'StrictBool': bool,
-        'StrictStr': str,
+        "StrictInt": int,
+        "StrictFloat": float,
+        "StrictBool": bool,
+        "StrictStr": str,
     }
 
     def __init__(self) -> None:
@@ -136,7 +138,7 @@ class ObjectSerializer:
         """
         try:
             if isinstance(obj, BaseModel):
-                if hasattr(obj, 'actual_instance'):
+                if hasattr(obj, "actual_instance"):
                     return self.serialize(obj.actual_instance)
                 return obj.model_dump_json(by_alias=True, exclude_none=True)
             return json.dumps(
@@ -146,26 +148,30 @@ class ObjectSerializer:
                 allow_nan=False,
             )
         except Exception as e:
-            raise SerializationError(f'Failed to serialize object to JSON: {e}', e)
+            raise SerializationError(f"Failed to serialize object to JSON: {e}", e)
 
     @staticmethod
     def _reject_nonfinite_constant(name: str) -> Any:
         # Raised when json.loads encounters NaN/Infinity/-Infinity literals.
         # The default parse_constant accepts them silently; we reject so
         # non-spec-compliant JSON from a misbehaving server fails loudly.
-        raise SerializationError(f"Non-finite JSON number '{name}' is forbidden by RFC 8259", None)
+        raise SerializationError(
+            f"Non-finite JSON number '{name}' is forbidden by RFC 8259", None
+        )
 
-    def deserialize(self, json_string: Optional[str], target_type: Union[str, Type[T]]) -> Optional[T]:
+    def deserialize(
+        self, json_string: Optional[str], target_type: Union[str, Type[T]]
+    ) -> Optional[T]:
         """Deserialize a JSON string to an object of the specified type."""
         try:
-            if json_string is None or json_string == '':
+            if json_string is None or json_string == "":
                 return None
 
             # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
             # but Windows-generated payloads often include one and Python's
             # json.loads rejects it. Strip silently for parity with Java
             # Jackson / C# System.Text.Json which strip transparently.
-            if json_string.startswith('﻿'):
+            if json_string.startswith("﻿"):
                 json_string = json_string[1:]
 
             data = json.loads(
@@ -176,12 +182,16 @@ class ObjectSerializer:
             # to the declared Optional[T] for callers without an inline override.
             return cast(Optional[T], self._deserialize(data, target_type))
         except json.JSONDecodeError as e:
-            raise SerializationError(f'Failed to parse JSON: {e}', e)
+            raise SerializationError(f"Failed to parse JSON: {e}", e)
         except Exception as e:
-            raise SerializationError(f'Failed to deserialize JSON to {target_type}: {e}', e)
+            raise SerializationError(
+                f"Failed to deserialize JSON to {target_type}: {e}", e
+            )
 
     @classmethod
-    def _sanitize_for_serialization(cls, obj: Any, _visited: Optional[set[int]] = None) -> Any:
+    def _sanitize_for_serialization(
+        cls, obj: Any, _visited: Optional[set[int]] = None
+    ) -> Any:
         """Convert an object to a JSON-safe dict/list/primitive.
 
         For Pydantic models, delegates to model_dump().
@@ -196,39 +206,48 @@ class ObjectSerializer:
         elif isinstance(obj, SecretStr):
             return obj.get_secret_value()
         elif isinstance(obj, bytes):
-            return base64.b64encode(obj).decode('ascii')
+            return base64.b64encode(obj).decode("ascii")
         elif isinstance(obj, cls._PRIMITIVE_TYPES):
             return obj
         elif isinstance(obj, datetime.datetime):
             dt = obj if obj.tzinfo is not None else obj.replace(tzinfo=timezone.utc)
-            return dt.isoformat(timespec='seconds')
+            return dt.isoformat(timespec="seconds")
         elif isinstance(obj, datetime.timedelta):
             # Must precede the datetime.date branch only because timedelta
             # is not a date subclass; ordered alongside the other temporal
             # types for readability.
             return _format_timedelta_protobuf(obj)
         elif isinstance(obj, datetime.time):
-            return obj.isoformat(timespec='seconds')
+            return obj.isoformat(timespec="seconds")
         elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
             return str(obj)
         elif isinstance(obj, uuid.UUID):
             return str(obj)
-        elif isinstance(obj, (list, tuple, dict)) or hasattr(obj, '__dict__'):
+        elif isinstance(obj, (list, tuple, dict)) or hasattr(obj, "__dict__"):
             if _visited is None:
                 _visited = set()
             obj_id = id(obj)
             if obj_id in _visited:
-                raise SerializationError('Circular reference detected during serialization')
+                raise SerializationError(
+                    "Circular reference detected during serialization"
+                )
             _visited.add(obj_id)
             try:
                 if isinstance(obj, list):
-                    return [cls._sanitize_for_serialization(item, _visited) for item in obj]
+                    return [
+                        cls._sanitize_for_serialization(item, _visited) for item in obj
+                    ]
                 elif isinstance(obj, tuple):
-                    return tuple(cls._sanitize_for_serialization(item, _visited) for item in obj)
+                    return tuple(
+                        cls._sanitize_for_serialization(item, _visited) for item in obj
+                    )
                 elif isinstance(obj, dict):
-                    return {key: cls._sanitize_for_serialization(val, _visited) for key, val in obj.items()}
+                    return {
+                        key: cls._sanitize_for_serialization(val, _visited)
+                        for key, val in obj.items()
+                    }
                 else:
                     return str(obj)
             finally:
@@ -244,7 +263,7 @@ class ObjectSerializer:
         Used by the Item 10 TypeAdapter fast path for ``List[T]`` /
         ``Dict[str, T]`` collections.
         """
-        if name.startswith('List[') or name.startswith('Dict['):
+        if name.startswith("List[") or name.startswith("Dict["):
             return None
         if name in self._NATIVE_TYPES_MAPPING:
             return self._NATIVE_TYPES_MAPPING[name]
@@ -262,9 +281,9 @@ class ObjectSerializer:
             return None
 
         if isinstance(klass, str):
-            if klass.startswith('List['):
-                m = re.match(r'List\[(.*)]', klass)
-                assert m is not None, 'Malformed List type definition'
+            if klass.startswith("List["):
+                m = re.match(r"List\[(.*)]", klass)
+                assert m is not None, "Malformed List type definition"
                 sub_kls = m.group(1)
                 inner = self._resolve_klass_name(sub_kls)
                 # Item 10 — pydantic TypeAdapter handles list-of-model
@@ -275,9 +294,9 @@ class ObjectSerializer:
                     return _list_adapter(inner).validate_python(data)
                 return [self._deserialize(item, sub_kls) for item in data]
 
-            if klass.startswith('Dict['):
-                m = re.match(r'Dict\[([^,]*), (.*)]', klass)
-                assert m is not None, 'Malformed Dict type definition'
+            if klass.startswith("Dict["):
+                m = re.match(r"Dict\[([^,]*), (.*)]", klass)
+                assert m is not None, "Malformed Dict type definition"
                 sub_kls = m.group(2)
                 inner = self._resolve_klass_name(sub_kls)
                 if inner is not None:
@@ -290,7 +309,7 @@ class ObjectSerializer:
                 klass = getattr(petstore_client.models, klass)
 
         if isinstance(klass, type) and issubclass(klass, BaseModel):
-            if hasattr(klass, 'any_of_schemas') or hasattr(klass, 'one_of_schemas'):
+            if hasattr(klass, "any_of_schemas") or hasattr(klass, "one_of_schemas"):
                 return self._deserialize_composed(data, klass)
             return klass.model_validate(data)
         elif klass is bytes:
@@ -338,8 +357,12 @@ class ObjectSerializer:
         discriminator values raise ValueError (matches the other SDKs)
         instead of silently wrapping the raw dict in `actual_instance`.
         """
-        schemas: set[str] = getattr(klass, 'any_of_schemas', None) or getattr(klass, 'one_of_schemas', None) or set()
-        if hasattr(klass, 'get_discriminator_value') and isinstance(data, dict):
+        schemas: set[str] = (
+            getattr(klass, "any_of_schemas", None)
+            or getattr(klass, "one_of_schemas", None)
+            or set()
+        )
+        if hasattr(klass, "get_discriminator_value") and isinstance(data, dict):
             mapped = klass.get_discriminator_value(data)
             if mapped:
                 instance = self._deserialize(data, mapped)
@@ -367,18 +390,22 @@ class ObjectSerializer:
             The string representation of the value.
         """
         if value is None:
-            return ''
+            return ""
         if isinstance(value, bool):
-            return 'true' if value else 'false'
+            return "true" if value else "false"
         if isinstance(value, Enum):
             return str(value.value)
         if isinstance(value, datetime.datetime):
-            dt = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
-            return dt.isoformat(timespec='seconds')
+            dt = (
+                value
+                if value.tzinfo is not None
+                else value.replace(tzinfo=timezone.utc)
+            )
+            return dt.isoformat(timespec="seconds")
         if isinstance(value, datetime.timedelta):
             return _format_timedelta_protobuf(value)
         if isinstance(value, datetime.time):
-            return value.isoformat(timespec='seconds')
+            return value.isoformat(timespec="seconds")
         if isinstance(value, datetime.date):
             return value.isoformat()
         if isinstance(value, uuid.UUID):
@@ -404,25 +431,25 @@ class ObjectSerializer:
             # csv/ssv/tsv/pipes joins. For the ``multi`` style, elements are
             # returned as a list and ``None`` is preserved as ``''`` so that
             # the slot is not dropped by downstream encoders.
-            items = ['' if v is None else cls.stringify(v) for v in value]
-            if collection_format == 'multi':
+            items = ["" if v is None else cls.stringify(v) for v in value]
+            if collection_format == "multi":
                 return items
-            if collection_format == 'ssv':
-                return ' '.join(items)
-            if collection_format == 'tsv':
-                return '\t'.join(items)
-            if collection_format == 'pipes':
-                return '|'.join(items)
-            return ','.join(items)
+            if collection_format == "ssv":
+                return " ".join(items)
+            if collection_format == "tsv":
+                return "\t".join(items)
+            if collection_format == "pipes":
+                return "|".join(items)
+            return ",".join(items)
         return cls.stringify(value)
 
     @classmethod
     def to_header_value(cls, value: Any) -> str:
         """Convert a value to a string suitable for use as an HTTP header value."""
         if value is None:
-            return ''
+            return ""
         if isinstance(value, list):
-            return ','.join(cls.stringify(v) for v in value)
+            return ",".join(cls.stringify(v) for v in value)
         return cls.stringify(value)
 
     @classmethod
@@ -437,10 +464,12 @@ class ObjectSerializer:
     def to_form_value(cls, value: Any) -> Any:
         """Convert a value to a representation suitable for use as a form parameter."""
         if value is None:
-            return ''
+            return ""
         return cls.stringify(value)
 
-    def _resolve_one_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
+    def _resolve_one_of(
+        self, json_string: str, candidates: list[Callable[[str], Any]]
+    ) -> Any:
         """Resolve a oneOf schema by trying each candidate deserializer in order.
 
         Args:
@@ -462,9 +491,11 @@ class ObjectSerializer:
                     return result
             except Exception:
                 continue
-        raise SerializationError('No oneOf/anyOf variant matched the JSON')
+        raise SerializationError("No oneOf/anyOf variant matched the JSON")
 
-    def _resolve_any_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
+    def _resolve_any_of(
+        self, json_string: str, candidates: list[Callable[[str], Any]]
+    ) -> Any:
         """Resolve an anyOf schema by trying each candidate deserializer in order.
 
         Delegates to _resolve_one_of.

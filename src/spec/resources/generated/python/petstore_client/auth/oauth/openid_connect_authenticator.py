@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -17,7 +19,7 @@ from .oauth2_token_manager import OAuth2TokenError
 
 # RFC 8414 recommended default max-age for OIDC discovery documents.
 _DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
-_MAX_AGE_PATTERN = re.compile(r'max-age=(\d+)', re.IGNORECASE)
+_MAX_AGE_PATTERN = re.compile(r"max-age=(\d+)", re.IGNORECASE)
 
 
 def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
@@ -29,7 +31,7 @@ def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
     if not headers:
         return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
     for key, value in headers.items():
-        if key.lower() == 'cache-control':
+        if key.lower() == "cache-control":
             match = _MAX_AGE_PATTERN.search(value)
             if match:
                 try:
@@ -108,24 +110,39 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         if self._delegate is not None and time.monotonic() < self._discovery_expiry:
             return self._delegate
         if self._api_client is None:
-            raise RuntimeError('ApiClient has not been injected. Ensure the Client constructor calls set_api_client() on HttpAwareAuthenticator before making API requests.')
-        headers: Dict[str, str] = {'Accept': 'application/json'}
-        response = self._api_client.send_request('GET', self._openid_connect_url, headers, None)
+            raise RuntimeError(
+                "ApiClient has not been injected. "
+                "Ensure the Client constructor calls set_api_client() "
+                "on HttpAwareAuthenticator before making API requests."
+            )
+        headers: Dict[str, str] = {"Accept": "application/json"}
+        response = self._api_client.send_request(
+            "GET", self._openid_connect_url, headers, None
+        )
         # Guard the HTTP status before parsing: a 500-HTML error page would
         # otherwise surface as a confusing "invalid JSON" error instead of
         # the real discovery failure.
         if response.status_code < 200 or response.status_code >= 300:
-            raise OAuth2TokenError(f'OpenID Connect discovery request to {self._openid_connect_url} failed with HTTP status {response.status_code}')
+            raise OAuth2TokenError(
+                f"OpenID Connect discovery request to {self._openid_connect_url} "
+                f"failed with HTTP status {response.status_code}"
+            )
         discovery = json.loads(response.body)
         # Validate the endpoints are present and non-empty before building the
         # delegate. A missing/blank endpoint would otherwise raise a KeyError
         # or silently produce a delegate with empty endpoint URLs.
-        authorization_endpoint = discovery.get('authorization_endpoint')
+        authorization_endpoint = discovery.get("authorization_endpoint")
         if not authorization_endpoint:
-            raise OAuth2TokenError("OpenID Connect discovery document is missing a non-empty 'authorization_endpoint'")
-        token_endpoint = discovery.get('token_endpoint')
+            raise OAuth2TokenError(
+                "OpenID Connect discovery document is missing a non-empty "
+                "'authorization_endpoint'"
+            )
+        token_endpoint = discovery.get("token_endpoint")
         if not token_endpoint:
-            raise OAuth2TokenError("OpenID Connect discovery document is missing a non-empty 'token_endpoint'")
+            raise OAuth2TokenError(
+                "OpenID Connect discovery document is missing a non-empty "
+                "'token_endpoint'"
+            )
         self._delegate = OAuth2AuthorizationCodeAuthenticator(
             self._host,
             self._client_id,
@@ -136,7 +153,9 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             self._scopes,
         )
         self._delegate.set_api_client(self._api_client)
-        self._discovery_expiry = time.monotonic() + _parse_max_age(getattr(response, 'headers', None))
+        self._discovery_expiry = time.monotonic() + _parse_max_age(
+            getattr(response, "headers", None)
+        )
         return self._delegate
 
     def build_authorization_url(self, state: Optional[str] = None) -> str:

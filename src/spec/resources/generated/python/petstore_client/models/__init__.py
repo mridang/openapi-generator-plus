@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -21,9 +23,15 @@ from petstore_client.models.pet_treatment import PetTreatment as PetTreatment
 from petstore_client.models.pet_with_owner import PetWithOwner as PetWithOwner
 from petstore_client.models.photo import Photo as Photo
 from petstore_client.models.photo_metadata import PhotoMetadata as PhotoMetadata
-from petstore_client.models.photo_metadata_location import PhotoMetadataLocation as PhotoMetadataLocation
-from petstore_client.models.set_pet_avatar_request import SetPetAvatarRequest as SetPetAvatarRequest
-from petstore_client.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest
+from petstore_client.models.photo_metadata_location import (
+    PhotoMetadataLocation as PhotoMetadataLocation,
+)
+from petstore_client.models.set_pet_avatar_request import (
+    SetPetAvatarRequest as SetPetAvatarRequest,
+)
+from petstore_client.models.set_pet_avatar_thumbnail_request import (
+    SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
+)
 from petstore_client.models.strict_tag import StrictTag as StrictTag
 from petstore_client.models.surgery import Surgery as Surgery
 from petstore_client.models.tag import Tag as Tag

@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -7,15 +9,17 @@
 
 from urllib.parse import urlparse, parse_qs
 
-from petstore_client.auth.oauth.oauth2_implicit_authenticator import OAuth2ImplicitAuthenticator
+from petstore_client.auth.oauth.oauth2_implicit_authenticator import (
+    OAuth2ImplicitAuthenticator,
+)
 
 
 def _create_authenticator() -> OAuth2ImplicitAuthenticator:
     return OAuth2ImplicitAuthenticator(
-        host='https://api.example.com',
-        client_id='my_implicit_client_id',
-        authorization_url='https://auth.example.com/authorize',
-        scopes=['read', 'write'],
+        host="https://api.example.com",
+        client_id="my_implicit_client_id",
+        authorization_url="https://auth.example.com/authorize",
+        scopes=["read", "write"],
     )
 
 
@@ -27,10 +31,10 @@ class TestOAuth2ImplicitAuthenticator:
         parsed = urlparse(url)
         params = parse_qs(parsed.query)
 
-        assert parsed.scheme == 'https'
-        assert parsed.netloc == 'auth.example.com'
-        assert parsed.path == '/authorize'
-        assert params['response_type'] == ['token']
+        assert parsed.scheme == "https"
+        assert parsed.netloc == "auth.example.com"
+        assert parsed.path == "/authorize"
+        assert params["response_type"] == ["token"]
 
     def test_builds_authorization_url_with_client_id(self) -> None:
         auth = _create_authenticator()
@@ -39,7 +43,7 @@ class TestOAuth2ImplicitAuthenticator:
         parsed = urlparse(url)
         params = parse_qs(parsed.query)
 
-        assert params['client_id'] == ['my_implicit_client_id']
+        assert params["client_id"] == ["my_implicit_client_id"]
 
     def test_builds_authorization_url_with_scopes(self) -> None:
         auth = _create_authenticator()
@@ -48,35 +52,35 @@ class TestOAuth2ImplicitAuthenticator:
         parsed = urlparse(url)
         params = parse_qs(parsed.query)
 
-        assert params['scope'] == ['read write']
+        assert params["scope"] == ["read write"]
 
     def test_builds_authorization_url_with_state(self) -> None:
         auth = _create_authenticator()
 
-        url = auth.build_authorization_url(state='my-state')
+        url = auth.build_authorization_url(state="my-state")
         parsed = urlparse(url)
         params = parse_qs(parsed.query)
 
-        assert params['state'] == ['my-state']
+        assert params["state"] == ["my-state"]
 
     def test_get_auth_headers_returns_bearer_after_set_access_token(self) -> None:
         auth = _create_authenticator()
-        auth.set_access_token('implicit-tok')
+        auth.set_access_token("implicit-tok")
 
         headers = auth.get_auth_headers()
 
-        assert headers['Authorization'] == 'Bearer implicit-tok'
+        assert headers["Authorization"] == "Bearer implicit-tok"
 
     def test_throws_when_access_token_not_set(self) -> None:
         auth = _create_authenticator()
 
         try:
             auth.get_auth_headers()
-            assert False, 'Expected RuntimeError'
+            assert False, "Expected RuntimeError"
         except RuntimeError:
             pass
 
     def test_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()
 
-        assert auth.get_host() == 'https://api.example.com'
+        assert auth.get_host() == "https://api.example.com"

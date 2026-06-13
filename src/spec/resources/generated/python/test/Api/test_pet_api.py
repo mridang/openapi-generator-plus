@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 """Integration tests for the Pet API endpoints."""
 
 import pytest
@@ -8,18 +10,26 @@ from petstore_client.api.pet_api import PetApi
 from petstore_client.api.options.add_pet_options import AddPetOptions
 from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
 from petstore_client.api.options.delete_pet_options import DeletePetOptions
-from petstore_client.api.options.find_pets_by_status_options import FindPetsByStatusOptions
+from petstore_client.api.options.find_pets_by_status_options import (
+    FindPetsByStatusOptions,
+)
 from petstore_client.api.options.get_pet_by_name_options import GetPetByNameOptions
 from petstore_client.api.options.get_pet_tag_options import GetPetTagOptions
-from petstore_client.api.options.upload_pet_certificate_options import UploadPetCertificateOptions
-from petstore_client.api.options.upload_pet_document_options import UploadPetDocumentOptions
+from petstore_client.api.options.upload_pet_certificate_options import (
+    UploadPetCertificateOptions,
+)
+from petstore_client.api.options.upload_pet_document_options import (
+    UploadPetDocumentOptions,
+)
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.configuration import Configuration
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet, PetStatusEnum
 from petstore_client.models.pet_passport import PetPassport
 from petstore_client.models.photo_metadata import PhotoMetadata
-from petstore_client.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest
+from petstore_client.models.set_pet_avatar_thumbnail_request import (
+    SetPetAvatarThumbnailRequest,
+)
 
 
 class TestPetApi:
@@ -27,12 +37,22 @@ class TestPetApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
+        config = (
+            Configuration.builder()
+            .base_url(api_base_url)
+            .default_header("Authorization", "Bearer test-token")
+            .build()
+        )
         self.api = PetApi(config=config)
-        self.auth = BearerAuthenticator(api_base_url, 'test-token')
+        self.auth = BearerAuthenticator(api_base_url, "test-token")
 
     async def test_add_pet(self) -> None:
-        pet = Pet(id=12345, name='TestDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
+        pet = Pet(
+            id=12345,
+            name="TestDog",
+            photoUrls={"http://example.com/photo.jpg"},
+            status=PetStatusEnum.AVAILABLE,
+        )
 
         result = await self.api.add_pet(pet, AddPetOptions(auth=self.auth))
 
@@ -40,7 +60,9 @@ class TestPetApi:
         assert result.name is not None
 
     async def test_find_pets_by_status(self) -> None:
-        result = await self.api.find_pets_by_status(FindPetsByStatusOptions(status='available'))
+        result = await self.api.find_pets_by_status(
+            FindPetsByStatusOptions(status="available")
+        )
 
         assert isinstance(result, list)
         assert len(result) > 0
@@ -54,7 +76,12 @@ class TestPetApi:
         assert result.name is not None
 
     async def test_update_pet(self) -> None:
-        pet = Pet(id=1, name='UpdatedDog', photoUrls={'http://example.com/updated.jpg'}, status=PetStatusEnum.PENDING)
+        pet = Pet(
+            id=1,
+            name="UpdatedDog",
+            photoUrls={"http://example.com/updated.jpg"},
+            status=PetStatusEnum.PENDING,
+        )
 
         result = await self.api.update_pet(1, pet)
 
@@ -66,7 +93,7 @@ class TestPetApi:
         assert True
 
     async def test_set_pet_avatar(self) -> None:
-        await self.api.set_pet_avatar(1, b'\xff\xd8\xff')
+        await self.api.set_pet_avatar(1, b"\xff\xd8\xff")
 
         assert True
 
@@ -81,28 +108,39 @@ class TestPetApi:
         assert result is not None
 
     async def test_set_pet_avatar_thumbnail(self) -> None:
-        request = SetPetAvatarThumbnailRequest(actual_instance=b'\x89PNG')
+        request = SetPetAvatarThumbnailRequest(actual_instance=b"\x89PNG")
 
         await self.api.set_pet_avatar_thumbnail(1, request)
 
         assert True
 
     async def test_upload_pet_certificate(self) -> None:
-        result = await self.api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'cert-data'))
+        result = await self.api.upload_pet_certificate(
+            1, UploadPetCertificateOptions(file=b"cert-data")
+        )
 
         assert result is not None
         assert isinstance(result, ApiResponse)
 
     async def test_upload_pet_document(self) -> None:
-        result = await self.api.upload_pet_document(1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup'))
+        result = await self.api.upload_pet_document(
+            1,
+            UploadPetDocumentOptions(
+                file=b"doc-data",
+                document_type="vaccination_record",
+                notes="Annual checkup",
+            ),
+        )
 
         assert result is not None
         assert isinstance(result, ApiResponse)
 
     async def test_add_pet_photos(self) -> None:
-        metadata = PhotoMetadata(caption='Test photo', isPrimary=True)
+        metadata = PhotoMetadata(caption="Test photo", isPrimary=True)
 
-        result = await self.api.add_pet_photos(1, AddPetPhotosOptions(files=[b'photo1'], metadata=metadata))
+        result = await self.api.add_pet_photos(
+            1, AddPetPhotosOptions(files=[b"photo1"], metadata=metadata)
+        )
 
         assert result is not None
         assert isinstance(result, list)
@@ -124,41 +162,45 @@ class TestPetApi:
         assert isinstance(result, PetPassport)
 
     async def test_get_pet_tag_styled_params(self) -> None:
-        result = await self.api.get_pet_tag(5, 'cute', GetPetTagOptions(colors=['blue', 'black'], sizes=['S', 'M']))
+        result = await self.api.get_pet_tag(
+            5, "cute", GetPetTagOptions(colors=["blue", "black"], sizes=["S", "M"])
+        )
 
         assert result is not None
 
-    @pytest.mark.skip(reason='Per-operation server points to external URL')
+    @pytest.mark.skip(reason="Per-operation server points to external URL")
     async def test_get_external_pet_info_uses_per_operation_server(self) -> None:
         result = await self.api.get_external_pet_info(1)
 
         assert result is not None
 
 
-def _create_mock_server(status: int, content_type: str, body: str) -> tuple[PetApi, HTTPServer]:
+def _create_mock_server(
+    status: int, content_type: str, body: str
+) -> tuple[PetApi, HTTPServer]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             self.send_response(status)
-            self.send_header('Content-Type', content_type)
+            self.send_header("Content-Type", content_type)
             self.end_headers()
-            self.wfile.write(body.encode('utf-8'))
+            self.wfile.write(body.encode("utf-8"))
 
         def do_POST(self) -> None:
             self.send_response(status)
-            self.send_header('Content-Type', content_type)
+            self.send_header("Content-Type", content_type)
             self.end_headers()
-            self.wfile.write(body.encode('utf-8'))
+            self.wfile.write(body.encode("utf-8"))
 
         def log_message(self, format: str, *args: object) -> None:
             pass
 
-    server = HTTPServer(('127.0.0.1', 0), Handler)
+    server = HTTPServer(("127.0.0.1", 0), Handler)
     port = server.server_address[1]
     thread = threading.Thread(target=server.handle_request)
     thread.daemon = True
     thread.start()
 
-    config = Configuration.builder().base_url(f'http://127.0.0.1:{port}').build()
+    config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
     api = PetApi(config=config)
     return api, server
 
@@ -167,12 +209,16 @@ class TestPetApiErrorHandling:
     """Test suite for PetApi error handling."""
 
     async def test_error_handling_not_found(self) -> None:
-        api, server = _create_mock_server(404, 'application/json', '{"message":"Pet not found"}')
+        api, server = _create_mock_server(
+            404, "application/json", '{"message":"Pet not found"}'
+        )
         with pytest.raises(Exception):
             await api.get_pet_by_id(99999)
 
     async def test_error_handling_server_error(self) -> None:
-        api, server = _create_mock_server(500, 'application/json', '{"message":"Internal server error"}')
+        api, server = _create_mock_server(
+            500, "application/json", '{"message":"Internal server error"}'
+        )
         with pytest.raises(Exception):
             await api.get_pet_by_id(1)
 
@@ -182,7 +228,7 @@ class TestPetApiErrorHandling:
         # crash under -O (the convenience method contract).
         from petstore_client.errors import ApiException
 
-        api, server = _create_mock_server(200, 'application/json', '')
+        api, server = _create_mock_server(200, "application/json", "")
         with pytest.raises(ApiException):
             await api.get_pet_by_id(1)
 
@@ -190,18 +236,28 @@ class TestPetApiErrorHandling:
         # Parity with go/rust/swift/elixir: a required STRING parameter must
         # reject the empty string the same way it rejects None, so the caller
         # gets a clear error instead of silently sending an empty value.
-        api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
-        with pytest.raises(ValueError, match="Missing the required parameter 'category'"):
-            await api.get_pet_by_name('Fido', GetPetByNameOptions(category=''))
+        api = PetApi(
+            config=Configuration.builder().base_url("http://localhost").build()
+        )
+        with pytest.raises(
+            ValueError, match="Missing the required parameter 'category'"
+        ):
+            await api.get_pet_by_name("Fido", GetPetByNameOptions(category=""))
 
     async def test_download_binary_mock(self) -> None:
-        api, server = _create_mock_server(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
+        api, server = _create_mock_server(
+            200, "application/octet-stream", "FAKE_BINARY_DATA"
+        )
         result = await api.get_pet_avatar(1)
         assert result is not None
 
     async def test_upload_multipart_mock(self) -> None:
-        api, server = _create_mock_server(200, 'application/json', '{"code":200,"type":"","message":"success"}')
-        result = await api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'fake-cert-data'))
+        api, server = _create_mock_server(
+            200, "application/json", '{"code":200,"type":"","message":"success"}'
+        )
+        result = await api.upload_pet_certificate(
+            1, UploadPetCertificateOptions(file=b"fake-cert-data")
+        )
         assert result is not None
 
     async def test_add_pet_per_call_auth_override(self) -> None:
@@ -216,28 +272,33 @@ class TestPetApiErrorHandling:
                 for key, value in self.headers.items():
                     captured[key] = value
                 self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
 
             def log_message(self, format: str, *args: object) -> None:
                 pass
 
-        server = HTTPServer(('127.0.0.1', 0), Handler)
+        server = HTTPServer(("127.0.0.1", 0), Handler)
         port = server.server_address[1]
         thread = threading.Thread(target=server.handle_request)
         thread.daemon = True
         thread.start()
 
-        base_url = f'http://127.0.0.1:{port}'
-        config = Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer default-token').build()
+        base_url = f"http://127.0.0.1:{port}"
+        config = (
+            Configuration.builder()
+            .base_url(base_url)
+            .default_header("Authorization", "Bearer default-token")
+            .build()
+        )
         api = PetApi(config=config)
-        per_call_auth = BearerAuthenticator(base_url, 'per-call-token')
+        per_call_auth = BearerAuthenticator(base_url, "per-call-token")
 
-        pet = Pet(id=1, name='OverrideDog', photoUrls={'http://example.com/p.jpg'})
+        pet = Pet(id=1, name="OverrideDog", photoUrls={"http://example.com/p.jpg"})
         await api.add_pet(pet, AddPetOptions(auth=per_call_auth))
 
-        assert captured.get('Authorization') == 'Bearer per-call-token'
+        assert captured.get("Authorization") == "Bearer per-call-token"
 
     async def test_auth_in_options_is_applied(self) -> None:
         # Regression: the per-operation authenticator now lives on the Options
@@ -250,28 +311,33 @@ class TestPetApiErrorHandling:
                 for key, value in self.headers.items():
                     captured[key] = value
                 self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
 
             def log_message(self, format: str, *args: object) -> None:
                 pass
 
-        server = HTTPServer(('127.0.0.1', 0), Handler)
+        server = HTTPServer(("127.0.0.1", 0), Handler)
         port = server.server_address[1]
         thread = threading.Thread(target=server.handle_request)
         thread.daemon = True
         thread.start()
 
-        base_url = f'http://127.0.0.1:{port}'
-        config = Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer default-token').build()
+        base_url = f"http://127.0.0.1:{port}"
+        config = (
+            Configuration.builder()
+            .base_url(base_url)
+            .default_header("Authorization", "Bearer default-token")
+            .build()
+        )
         api = PetApi(config=config)
-        options_auth = BearerAuthenticator(base_url, 'options-token')
+        options_auth = BearerAuthenticator(base_url, "options-token")
 
-        pet = Pet(id=2, name='OptionsAuthDog', photoUrls={'http://example.com/o.jpg'})
+        pet = Pet(id=2, name="OptionsAuthDog", photoUrls={"http://example.com/o.jpg"})
         await api.add_pet(pet, AddPetOptions(auth=options_auth))
 
-        assert captured.get('Authorization') == 'Bearer options-token'
+        assert captured.get("Authorization") == "Bearer options-token"
 
     async def test_auth_omitted_uses_configuration_credentials(self) -> None:
         # Regression: when no authenticator is supplied (Options omitted, or an
@@ -284,27 +350,32 @@ class TestPetApiErrorHandling:
                 for key, value in self.headers.items():
                     captured[key] = value
                 self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
 
             def log_message(self, format: str, *args: object) -> None:
                 pass
 
-        server = HTTPServer(('127.0.0.1', 0), Handler)
+        server = HTTPServer(("127.0.0.1", 0), Handler)
         port = server.server_address[1]
         thread = threading.Thread(target=server.handle_request)
         thread.daemon = True
         thread.start()
 
-        base_url = f'http://127.0.0.1:{port}'
-        config = Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer config-default-token').build()
+        base_url = f"http://127.0.0.1:{port}"
+        config = (
+            Configuration.builder()
+            .base_url(base_url)
+            .default_header("Authorization", "Bearer config-default-token")
+            .build()
+        )
         api = PetApi(config=config)
 
-        pet = Pet(id=3, name='NoAuthDog', photoUrls={'http://example.com/n.jpg'})
+        pet = Pet(id=3, name="NoAuthDog", photoUrls={"http://example.com/n.jpg"})
         await api.add_pet(pet)
 
-        assert captured.get('Authorization') == 'Bearer config-default-token'
+        assert captured.get("Authorization") == "Bearer config-default-token"
 
     def test_unsecured_op_options_has_no_auth_field(self) -> None:
         # Regression: get_pet_by_id is an unsecured operation, so it must not
@@ -313,7 +384,7 @@ class TestPetApiErrorHandling:
         import importlib
 
         with pytest.raises(ModuleNotFoundError):
-            importlib.import_module('petstore_client.api.options.get_pet_by_id_options')
+            importlib.import_module("petstore_client.api.options.get_pet_by_id_options")
 
 
 class TestPetApiWithHttpInfo:
@@ -321,9 +392,14 @@ class TestPetApiWithHttpInfo:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
+        config = (
+            Configuration.builder()
+            .base_url(api_base_url)
+            .default_header("Authorization", "Bearer test-token")
+            .build()
+        )
         self.api = PetApi(config=config)
-        self.auth = BearerAuthenticator(api_base_url, 'test-token')
+        self.auth = BearerAuthenticator(api_base_url, "test-token")
 
     async def test_get_pet_by_id_with_http_info(self) -> None:
         result = await self.api.get_pet_by_id_with_http_info(1)
@@ -334,16 +410,28 @@ class TestPetApiWithHttpInfo:
         assert result.raw_body is not None
 
     async def test_add_pet_with_http_info(self) -> None:
-        pet = Pet(id=99, name='HttpInfoDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
+        pet = Pet(
+            id=99,
+            name="HttpInfoDog",
+            photoUrls={"http://example.com/photo.jpg"},
+            status=PetStatusEnum.AVAILABLE,
+        )
 
-        result = await self.api.add_pet_with_http_info(pet, AddPetOptions(auth=self.auth))
+        result = await self.api.add_pet_with_http_info(
+            pet, AddPetOptions(auth=self.auth)
+        )
 
         assert result is not None
         assert 200 <= result.status_code < 300
         assert result.data is not None
 
     async def test_update_pet_with_http_info(self) -> None:
-        pet = Pet(id=1, name='UpdatedDog', photoUrls={'http://example.com/updated.jpg'}, status=PetStatusEnum.PENDING)
+        pet = Pet(
+            id=1,
+            name="UpdatedDog",
+            photoUrls={"http://example.com/updated.jpg"},
+            status=PetStatusEnum.PENDING,
+        )
 
         result = await self.api.update_pet_with_http_info(1, pet)
 
@@ -351,13 +439,17 @@ class TestPetApiWithHttpInfo:
         assert 200 <= result.status_code < 300
 
     async def test_delete_pet_with_http_info(self) -> None:
-        result = await self.api.delete_pet_with_http_info(1, DeletePetOptions(auth=self.auth))
+        result = await self.api.delete_pet_with_http_info(
+            1, DeletePetOptions(auth=self.auth)
+        )
 
         assert result is not None
         assert 200 <= result.status_code < 300
 
     async def test_find_pets_by_status_with_http_info(self) -> None:
-        result = await self.api.find_pets_by_status_with_http_info(FindPetsByStatusOptions(status='available'))
+        result = await self.api.find_pets_by_status_with_http_info(
+            FindPetsByStatusOptions(status="available")
+        )
 
         assert result is not None
         assert result.status_code == 200

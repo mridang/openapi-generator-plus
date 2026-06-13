@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -10,8 +12,8 @@ from typing import List
 from petstore_client.server_configuration import ServerConfiguration, ServerVariable
 
 SERVER_0: ServerConfiguration = ServerConfiguration(
-    url_template='/api/v3',
-    description='Relative URL (no variables)',
+    url_template="/api/v3",
+    description="Relative URL (no variables)",
     variables={},
 )
 """Server 0: /api/v3
@@ -20,18 +22,18 @@ Relative URL (no variables)
 """
 
 SERVER_1: ServerConfiguration = ServerConfiguration(
-    url_template='https://{environment}.example.com/api/{version}',
-    description='Main API server with variables',
+    url_template="https://{environment}.example.com/api/{version}",
+    description="Main API server with variables",
     variables={
-        'environment': ServerVariable(
-            default_value='api',
-            description='API environment',
-            enum_values=['api', 'staging', 'sandbox'],
+        "environment": ServerVariable(
+            default_value="api",
+            description="API environment",
+            enum_values=["api", "staging", "sandbox"],
         ),
-        'version': ServerVariable(
-            default_value='v3',
-            description='API version',
-            enum_values=['v2', 'v3'],
+        "version": ServerVariable(
+            default_value="v3",
+            description="API version",
+            enum_values=["v2", "v3"],
         ),
     },
 )

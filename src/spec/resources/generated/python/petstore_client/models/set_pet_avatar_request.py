@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,8 +21,8 @@ class SetPetAvatarRequest(BaseModel):
     SetPetAvatarRequest
     """
 
-    data: bytes = Field(alias='data', description='Base64-encoded image data')
-    mime_type: StrictStr = Field(alias='mimeType')
+    data: bytes = Field(alias="data", description="Base64-encoded image data")
+    mime_type: StrictStr = Field(alias="mimeType")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

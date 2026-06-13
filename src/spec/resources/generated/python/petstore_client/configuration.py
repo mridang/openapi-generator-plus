@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -32,13 +34,15 @@ class Configuration:
             .build()
     """
 
-    base_url: str = '/api/v3'
+    base_url: str = "/api/v3"
     """The base URL for all API requests.
 
     Defaults to the first server URL from the OpenAPI specification.
     """
 
-    default_headers: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    default_headers: Mapping[str, str] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     """Default headers included in every API request.
 
     These headers are merged after transport-level headers from
@@ -46,14 +50,16 @@ class Configuration:
     and authentication headers.
     """
 
-    _default: ClassVar[Optional['Configuration']] = None
+    _default: ClassVar[Optional["Configuration"]] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.default_headers, MappingProxyType):
-            object.__setattr__(self, 'default_headers', MappingProxyType(dict(self.default_headers)))
+            object.__setattr__(
+                self, "default_headers", MappingProxyType(dict(self.default_headers))
+            )
 
     @classmethod
-    def get_default(cls) -> 'Configuration':
+    def get_default(cls) -> "Configuration":
         """Return the default configuration instance, creating it lazily if needed."""
         if cls._default is None:
             cls._default = cls()
@@ -65,7 +71,7 @@ class Configuration:
         cls._default = configuration
 
     @classmethod
-    def builder(cls) -> 'ConfigurationBuilder':
+    def builder(cls) -> "ConfigurationBuilder":
         """Create a new builder for constructing Configuration instances."""
         return ConfigurationBuilder()
 
@@ -82,10 +88,10 @@ class ConfigurationBuilder:
     """
 
     def __init__(self) -> None:
-        self._base_url: str = '/api/v3'
+        self._base_url: str = "/api/v3"
         self._default_headers: Dict[str, str] = {}
 
-    def base_url(self, base_url: str) -> 'ConfigurationBuilder':
+    def base_url(self, base_url: str) -> "ConfigurationBuilder":
         """Set the base URL for all API requests.
 
         Args:
@@ -97,7 +103,7 @@ class ConfigurationBuilder:
         self._base_url = base_url
         return self
 
-    def default_header(self, name: str, value: str) -> 'ConfigurationBuilder':
+    def default_header(self, name: str, value: str) -> "ConfigurationBuilder":
         """Add a single default header to include in every API request.
 
         Args:
@@ -110,7 +116,11 @@ class ConfigurationBuilder:
         self._default_headers[name] = value
         return self
 
-    def server(self, server_config: ServerConfiguration, variables: Optional[Dict[str, str]] = None) -> 'ConfigurationBuilder':
+    def server(
+        self,
+        server_config: ServerConfiguration,
+        variables: Optional[Dict[str, str]] = None,
+    ) -> "ConfigurationBuilder":
         """Set the base URL by resolving a server configuration with optional variable overrides.
 
         Calls :meth:`ServerConfiguration.get_url` to resolve the URL template
@@ -133,7 +143,7 @@ class ConfigurationBuilder:
         self._base_url = server_config.get_url(variables)
         return self
 
-    def default_headers(self, headers: Dict[str, str]) -> 'ConfigurationBuilder':
+    def default_headers(self, headers: Dict[str, str]) -> "ConfigurationBuilder":
         """Add multiple default headers to include in every API request.
 
         Args:

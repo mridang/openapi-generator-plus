@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,9 +21,9 @@ class ApiResponse(BaseModel):
     ApiResponse
     """
 
-    code: Optional[StrictInt] = Field(default=None, alias='code')
-    type: Optional[StrictStr] = Field(default=None, alias='type')
-    message: Optional[StrictStr] = Field(default=None, alias='message')
+    code: Optional[StrictInt] = Field(default=None, alias="code")
+    type: Optional[StrictStr] = Field(default=None, alias="type")
+    message: Optional[StrictStr] = Field(default=None, alias="message")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

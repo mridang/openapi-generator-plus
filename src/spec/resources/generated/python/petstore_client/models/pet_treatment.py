@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -18,7 +20,7 @@ class PetTreatment(BaseModel):
     """
 
     actual_instance: Optional[Union[Medication, Surgery]] = None
-    any_of_schemas: ClassVar[Set[str]] = {'Medication', 'Surgery'}
+    any_of_schemas: ClassVar[Set[str]] = {"Medication", "Surgery"}
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like
@@ -34,14 +36,18 @@ class PetTreatment(BaseModel):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
             if len(args) > 1:
-                raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
+                raise ValueError(
+                    "If a position argument is used, only 1 is allowed to set `actual_instance`"
+                )
             if kwargs:
-                raise ValueError('If a position argument is used, keyword arguments cannot be used.')
+                raise ValueError(
+                    "If a position argument is used, keyword arguments cannot be used."
+                )
             super().__init__(actual_instance=args[0])
         else:
             super().__init__(**kwargs)
 
-    @field_validator('actual_instance')
+    @field_validator("actual_instance")
     def actual_instance_must_validate_anyof(cls, v: Any) -> Any:
         if v is None:
             return v
@@ -51,7 +57,9 @@ class PetTreatment(BaseModel):
         if isinstance(v, Surgery):
             match += 1
         if match == 0:
-            raise ValueError('No match found when setting `actual_instance` in PetTreatment with anyOf schemas: Medication, Surgery')
+            raise ValueError(
+                "No match found when setting `actual_instance` in PetTreatment with anyOf schemas: Medication, Surgery"
+            )
         return v
 
 

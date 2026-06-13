@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -81,19 +83,19 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
             The authorization URL.
         """
         params = {
-            'response_type': 'code',
-            'client_id': self._client_id,
-            'redirect_uri': self._redirect_uri,
+            "response_type": "code",
+            "client_id": self._client_id,
+            "redirect_uri": self._redirect_uri,
         }
         if self._scopes:
-            params['scope'] = ' '.join(self._scopes)
+            params["scope"] = " ".join(self._scopes)
         if state:
-            params['state'] = state
+            params["state"] = state
         # RFC 6749 §3.1: the authorization endpoint URI MAY already include
         # a query component. Use '&' as the separator when one is already
         # present so existing params are preserved, '?' otherwise.
-        separator = '&' if '?' in self._authorization_url else '?'
-        return f'{self._authorization_url}{separator}{urlencode(params)}'
+        separator = "&" if "?" in self._authorization_url else "?"
+        return f"{self._authorization_url}{separator}{urlencode(params)}"
 
     def exchange_code(self, code: str) -> None:
         """Exchange an authorization code for an access token.
@@ -105,13 +107,13 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
             ValueError: If ``code`` is empty or whitespace-only.
         """
         if not code or not code.strip():
-            raise ValueError('Authorization code must not be empty')
+            raise ValueError("Authorization code must not be empty")
         params = {
-            'grant_type': 'authorization_code',
-            'code': code,
-            'client_id': self._client_id,
-            'client_secret': self._client_secret,
-            'redirect_uri': self._redirect_uri,
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": self._client_id,
+            "client_secret": self._client_secret,
+            "redirect_uri": self._redirect_uri,
         }
         self._token_manager.get_access_token(self._token_url, params)
         self._token_exchanged = True
@@ -130,10 +132,10 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
             Dict with the Authorization header.
         """
         if not self._token_exchanged:
-            raise RuntimeError('Must call exchange_code() before making API requests')
+            raise RuntimeError("Must call exchange_code() before making API requests")
         params = {
-            'grant_type': 'refresh_token',
-            'refresh_token': self._token_manager.refresh_token or '',
+            "grant_type": "refresh_token",
+            "refresh_token": self._token_manager.refresh_token or "",
         }
         token = self._token_manager.get_access_token(self._refresh_url, params)
-        return {'Authorization': f'Bearer {token}'}
+        return {"Authorization": f"Bearer {token}"}

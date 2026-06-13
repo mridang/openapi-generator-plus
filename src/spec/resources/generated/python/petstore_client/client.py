@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -74,7 +76,7 @@ class Client:
         host: str,
         access_token: str,
         transport_options: Optional[TransportOptions] = None,
-    ) -> 'Client':
+    ) -> "Client":
         """Creates a client authenticated with a static Bearer token.
 
         Args:

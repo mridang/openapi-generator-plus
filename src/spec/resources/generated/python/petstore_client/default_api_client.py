@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -13,7 +15,12 @@ import re
 import ssl
 import uuid
 import zlib
-from urllib.parse import quote as _url_quote, unquote as _url_unquote, urlsplit, urlunsplit
+from urllib.parse import (
+    quote as _url_quote,
+    unquote as _url_unquote,
+    urlsplit,
+    urlunsplit,
+)
 
 import urllib3
 
@@ -49,12 +56,12 @@ def _supported_encodings() -> str:
     Returns:
         Supported encoding names for the Accept-Encoding header.
     """
-    encodings = ['gzip', 'deflate']
+    encodings = ["gzip", "deflate"]
     if _brotli is not None:
-        encodings.append('br')
+        encodings.append("br")
     if _zstandard is not None:
-        encodings.append('zstd')
-    return ', '.join(encodings)
+        encodings.append("zstd")
+    return ", ".join(encodings)
 
 
 _CHARSET_RE = re.compile(r'charset\s*=\s*"?([^";\s]+)"?', re.IGNORECASE)
@@ -79,11 +86,11 @@ def _decode_with_charset(data: bytes, content_type: str) -> str:
     Falls back to UTF-8 when the charset is missing or unknown. Uses
     ``errors='replace'`` so malformed bytes never raise.
     """
-    charset = _charset_from_content_type(content_type) or 'utf-8'
+    charset = _charset_from_content_type(content_type) or "utf-8"
     try:
-        return data.decode(charset, errors='replace')
+        return data.decode(charset, errors="replace")
     except LookupError:
-        return data.decode('utf-8', errors='replace')
+        return data.decode("utf-8", errors="replace")
 
 
 def _sanitize_multipart_filename(filename: str) -> Tuple[str, Optional[str]]:
@@ -96,19 +103,21 @@ def _sanitize_multipart_filename(filename: str) -> Tuple[str, Optional[str]]:
 
     Raises ``ValueError`` if the filename contains CR, LF, or NUL.
     """
-    if any(ch in filename for ch in ('\r', '\n', '\x00')):
-        raise ValueError('Multipart filename must not contain CR, LF, or NUL characters')
+    if any(ch in filename for ch in ("\r", "\n", "\x00")):
+        raise ValueError(
+            "Multipart filename must not contain CR, LF, or NUL characters"
+        )
     try:
-        filename.encode('ascii')
+        filename.encode("ascii")
         is_ascii = True
     except UnicodeEncodeError:
         is_ascii = False
     if is_ascii:
-        escaped = filename.replace('\\', '\\\\').replace('"', '\\"')
+        escaped = filename.replace("\\", "\\\\").replace('"', '\\"')
         return escaped, None
-    ascii_fallback = filename.encode('ascii', errors='replace').decode('ascii')
-    ascii_fallback = ascii_fallback.replace('\\', '\\\\').replace('"', '\\"')
-    rfc5987 = "UTF-8''" + _url_quote(filename, safe='')
+    ascii_fallback = filename.encode("ascii", errors="replace").decode("ascii")
+    ascii_fallback = ascii_fallback.replace("\\", "\\\\").replace('"', '\\"')
+    rfc5987 = "UTF-8''" + _url_quote(filename, safe="")
     return ascii_fallback, rfc5987
 
 
@@ -124,35 +133,37 @@ def _sanitize_multipart_field_name(name: str) -> str:
 
     Raises ``ValueError`` if the name contains CR, LF, or NUL.
     """
-    if any(ch in name for ch in ('\r', '\n', '\x00')):
-        raise ValueError('Multipart field name must not contain CR, LF, or NUL characters')
-    return name.replace('\\', '\\\\').replace('"', '\\"')
+    if any(ch in name for ch in ("\r", "\n", "\x00")):
+        raise ValueError(
+            "Multipart field name must not contain CR, LF, or NUL characters"
+        )
+    return name.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _guess_content_type(filename: Optional[str]) -> str:
     """Guess a Content-Type from a filename, defaulting to octet-stream."""
     if not filename:
-        return 'application/octet-stream'
+        return "application/octet-stream"
     guessed, _ = mimetypes.guess_type(filename)
-    return guessed or 'application/octet-stream'
+    return guessed or "application/octet-stream"
 
 
 def _is_text_content_type(content_type: str) -> bool:
     """Return True if the content type represents text that can be decoded as UTF-8."""
-    media_type = content_type.split(';')[0].strip().lower()
+    media_type = content_type.split(";")[0].strip().lower()
     if not media_type:
         return True
-    if media_type.startswith('text/'):
+    if media_type.startswith("text/"):
         return True
     return (
         media_type
         in (
-            'application/json',
-            'application/xml',
-            'application/javascript',
+            "application/json",
+            "application/xml",
+            "application/javascript",
         )
-        or media_type.endswith('+json')
-        or media_type.endswith('+xml')
+        or media_type.endswith("+json")
+        or media_type.endswith("+xml")
     )
 
 
@@ -199,7 +210,7 @@ class DefaultApiClient:
 
             # --- TLS / SSL ---
             if not transport_options.verify_ssl:
-                kwargs['cert_reqs'] = 'CERT_NONE'
+                kwargs["cert_reqs"] = "CERT_NONE"
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             elif transport_options.ca_cert_path:
                 # Gap T4: fail fast on a user-supplied CA cert that cannot be
@@ -211,9 +222,14 @@ class DefaultApiClient:
                     ctx = ssl.create_default_context()
                     ctx.load_verify_locations(cafile=transport_options.ca_cert_path)
                 except (OSError, ssl.SSLError) as e:
-                    raise ApiException(message=(f'failed to load CA certificate from {transport_options.ca_cert_path!r}: {e}')) from e
-                kwargs['ca_certs'] = transport_options.ca_cert_path
-                kwargs['cert_reqs'] = 'CERT_REQUIRED'
+                    raise ApiException(
+                        message=(
+                            "failed to load CA certificate from "
+                            f"{transport_options.ca_cert_path!r}: {e}"
+                        )
+                    ) from e
+                kwargs["ca_certs"] = transport_options.ca_cert_path
+                kwargs["cert_reqs"] = "CERT_REQUIRED"
 
             # --- Proxy ---
             if transport_options.proxy:
@@ -229,14 +245,20 @@ class DefaultApiClient:
                 parsed_proxy = urlsplit(transport_options.proxy)
                 if parsed_proxy.username is not None:
                     user = _url_unquote(parsed_proxy.username)
-                    pwd = _url_unquote(parsed_proxy.password or '')
+                    pwd = _url_unquote(parsed_proxy.password or "")
                     # Build the header manually rather than via
                     # ``urllib3.util.make_headers`` (which is untyped and trips
                     # mypy's no-untyped-call in strict mode). Same wire result:
                     # ``Proxy-Authorization: Basic base64(user:pass)``.
-                    _proxy_token = base64.b64encode(f'{user}:{pwd}'.encode('utf-8')).decode('ascii')
-                    kwargs['proxy_headers'] = {'proxy-authorization': f'Basic {_proxy_token}'}
-                self._pool_manager = urllib3.ProxyManager(transport_options.proxy, **kwargs)
+                    _proxy_token = base64.b64encode(
+                        f"{user}:{pwd}".encode("utf-8")
+                    ).decode("ascii")
+                    kwargs["proxy_headers"] = {
+                        "proxy-authorization": f"Basic {_proxy_token}"
+                    }
+                self._pool_manager = urllib3.ProxyManager(
+                    transport_options.proxy, **kwargs
+                )
             else:
                 self._pool_manager = urllib3.PoolManager(**kwargs)
 
@@ -252,7 +274,7 @@ class DefaultApiClient:
         if self._pool_manager is not None:
             self._pool_manager.clear()
 
-    def __enter__(self) -> 'DefaultApiClient':
+    def __enter__(self) -> "DefaultApiClient":
         return self
 
     def __exit__(
@@ -297,45 +319,53 @@ class DefaultApiClient:
         # a foreign urllib3 exception (or silently succeeding against a
         # cleared pool), matching the closed-flag guard the other SDKs use.
         if self._closed:
-            raise ApiException(message='ApiClient has been closed and can no longer be used')
+            raise ApiException(
+                message="ApiClient has been closed and can no longer be used"
+            )
 
         # --- Merge headers: transport defaults < caller headers < injected ---
         merged_headers: Dict[str, str] = dict(self._transport_options.default_headers)
         merged_headers.update(headers)
 
-        if self._transport_options.user_agent is not None and 'User-Agent' not in merged_headers:
-            merged_headers['User-Agent'] = self._transport_options.user_agent
+        if (
+            self._transport_options.user_agent is not None
+            and "User-Agent" not in merged_headers
+        ):
+            merged_headers["User-Agent"] = self._transport_options.user_agent
 
-        if self._transport_options.inject_request_id and 'X-Request-ID' not in merged_headers:
-            merged_headers['X-Request-ID'] = str(uuid.uuid4())
+        if (
+            self._transport_options.inject_request_id
+            and "X-Request-ID" not in merged_headers
+        ):
+            merged_headers["X-Request-ID"] = str(uuid.uuid4())
 
-        merged_headers.setdefault('Accept-Encoding', _supported_encodings())
+        merged_headers.setdefault("Accept-Encoding", _supported_encodings())
 
         if isinstance(body, dict):
             boundary = str(uuid.uuid4())
-            merged_headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
+            merged_headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
             encoded_body = self._build_multipart_body(body, boundary)
         elif isinstance(body, bytes):
             encoded_body = body
         elif isinstance(body, str):
-            encoded_body = body.encode('utf-8')
+            encoded_body = body.encode("utf-8")
         else:
             encoded_body = None
-            merged_headers.pop('Content-Type', None)
+            merged_headers.pop("Content-Type", None)
 
         # Some servers / WAFs treat POST/PUT/PATCH with no body and
         # no Content-Length as malformed (411 Length Required) or
         # behave inconsistently. Emit an explicit `Content-Length: 0`
         # on body-bearing verbs when the body is None, matching
         # Kotlin's `ByteArray(0)` and the other 11 SDKs.
-        if encoded_body is None and method.upper() in ('POST', 'PUT', 'PATCH'):
-            merged_headers.setdefault('Content-Length', '0')
+        if encoded_body is None and method.upper() in ("POST", "PUT", "PATCH"):
+            merged_headers.setdefault("Content-Length", "0")
 
         # --- Timeout ---
         request_kwargs: Dict[str, Any] = {}
         if self._transport_options.timeout is not None:
             timeout_seconds = self._transport_options.timeout / 1000.0
-            request_kwargs['timeout'] = urllib3.Timeout(total=timeout_seconds)
+            request_kwargs["timeout"] = urllib3.Timeout(total=timeout_seconds)
 
         # --- Redirects ---
         # Gap BH / Bucket 4.1: urllib3's built-in redirect handling (via
@@ -355,8 +385,8 @@ class DefaultApiClient:
         # We disable urllib3's redirect handling entirely and run the
         # loop manually, mirroring the canonical Rust / Java / Kotlin
         # implementations.
-        request_kwargs['redirect'] = False
-        request_kwargs['retries'] = urllib3.Retry(
+        request_kwargs["redirect"] = False
+        request_kwargs["retries"] = urllib3.Retry(
             total=0,
             redirect=0,
             status=0,
@@ -407,7 +437,7 @@ class DefaultApiClient:
             # gzip.BadGzipFile / zlib.error / OSError to the caller. The
             # decode is part of the transport phase, so it belongs under the
             # same error contract as the body read above.
-            content_encoding = (response.headers.get('content-encoding') or '').lower()
+            content_encoding = (response.headers.get("content-encoding") or "").lower()
             try:
                 decompressed = self._decompress_body(raw_data, content_encoding)
             except ApiException:
@@ -417,17 +447,23 @@ class DefaultApiClient:
                 # zstandard.ZstdError are all direct/indirect subclasses of
                 # Exception with no shared codec base, so they are caught here
                 # as a group and re-raised as the SDK's uniform ApiException.
-                raise ApiException(message=f'failed to decompress response body (content-encoding={content_encoding!r}): {e}') from e
+                raise ApiException(
+                    message=f"failed to decompress response body (content-encoding={content_encoding!r}): {e}"
+                ) from e
         except urllib3.exceptions.HTTPError as e:
             raise ApiException(message=str(e)) from e
 
-        content_type = response.headers.get('content-type') or ''
+        content_type = response.headers.get("content-type") or ""
         # Empty bodies flow through the same content-type decode path as the
         # other 11 SDKs rather than short-circuiting to ''. For an empty body
         # _decode_with_charset returns '' and base64-encoding empty bytes also
         # returns '', so the observable output is identical -- this keeps the
         # decode path structurally uniform across all transports.
-        response_body = _decode_with_charset(decompressed, content_type) if _is_text_content_type(content_type) else base64.b64encode(decompressed).decode('ascii')
+        response_body = (
+            _decode_with_charset(decompressed, content_type)
+            if _is_text_content_type(content_type)
+            else base64.b64encode(decompressed).decode("ascii")
+        )
         # Gap BE+BF: response header keys are normalised to lowercase so
         # callers can look them up consistently regardless of the casing the
         # server used (HTTP header names are case-insensitive per RFC 7230
@@ -441,10 +477,16 @@ class DefaultApiClient:
         response_headers: Dict[str, str] = {}
         if response.headers:
             for name in set(response.headers.keys()):
-                values = response.headers.getlist(name) if hasattr(response.headers, 'getlist') else [response.headers[name]]
-                response_headers[name.lower()] = ', '.join(values)
+                values = (
+                    response.headers.getlist(name)
+                    if hasattr(response.headers, "getlist")
+                    else [response.headers[name]]
+                )
+                response_headers[name.lower()] = ", ".join(values)
 
-        return ApiHttpResponse(status_code=response.status, body=response_body, headers=response_headers)
+        return ApiHttpResponse(
+            status_code=response.status, body=response_body, headers=response_headers
+        )
 
     # Sensitive headers that MUST be stripped on a cross-origin redirect
     # to avoid leaking bearer tokens / cookies / proxy credentials to an
@@ -456,17 +498,17 @@ class DefaultApiClient:
     # a cross-origin hop, matching the canonical SDKs.
     _SENSITIVE_HEADERS: FrozenSet[str] = frozenset(
         [
-            'authorization',
-            'cookie',
-            'proxy-authorization',
-            'x-api-key',
-            'x-internal-key',
+            "authorization",
+            "cookie",
+            "proxy-authorization",
+            "x-api-key",
+            "x-internal-key",
         ]
     )
 
     # Body-related headers that must be cleared when the follow-up has
     # no body (303 coercion, or 301/302 demotion of POST -> GET).
-    _BODY_HEADERS: FrozenSet[str] = frozenset(['content-type', 'content-length'])
+    _BODY_HEADERS: FrozenSet[str] = frozenset(["content-type", "content-length"])
 
     _REDIRECT_STATUSES: FrozenSet[int] = frozenset([301, 302, 303, 307, 308])
 
@@ -501,7 +543,11 @@ class DefaultApiClient:
         method semantics rather than security and mirror the existing
         Java / Kotlin behaviour.
         """
-        max_redirects = self._transport_options.max_redirects if self._transport_options.max_redirects is not None else 20
+        max_redirects = (
+            self._transport_options.max_redirects
+            if self._transport_options.max_redirects is not None
+            else 20
+        )
         redirects_remaining = max_redirects
         current_url = initial_url
         current_method = initial_method
@@ -512,13 +558,17 @@ class DefaultApiClient:
         # of the redirect chain so subsequent unrelated requests are
         # unaffected.
         original_proxy_headers: Optional[Dict[str, str]] = None
-        proxy_headers_attr = getattr(self._pool_manager, 'proxy_headers', None)
+        proxy_headers_attr = getattr(self._pool_manager, "proxy_headers", None)
         if isinstance(proxy_headers_attr, dict):
             original_proxy_headers = dict(proxy_headers_attr)
 
         try:
-            while response.status in self._REDIRECT_STATUSES and redirects_remaining > 0:
-                location = response.headers.get('location') if response.headers else None
+            while (
+                response.status in self._REDIRECT_STATUSES and redirects_remaining > 0
+            ):
+                location = (
+                    response.headers.get("location") if response.headers else None
+                )
                 if not location:
                     break
 
@@ -526,9 +576,11 @@ class DefaultApiClient:
 
                 # Guard 1: scheme allowlist.
                 parsed_next = urlsplit(next_url)
-                scheme = (parsed_next.scheme or '').lower()
-                if scheme not in ('http', 'https'):
-                    raise ApiException(message=f'Refusing to follow redirect to non-HTTP(S) URL: {next_url}')
+                scheme = (parsed_next.scheme or "").lower()
+                if scheme not in ("http", "https"):
+                    raise ApiException(
+                        message=f"Refusing to follow redirect to non-HTTP(S) URL: {next_url}"
+                    )
 
                 same_origin = self._same_origin(current_url, next_url)
 
@@ -542,8 +594,17 @@ class DefaultApiClient:
                 # 307 / 308 (body preserved) and on 301 / 302 of a body-
                 # bearing non-idempotent method that the matrix expects
                 # to replay.
-                if current_body is not None and self._is_https_to_http_downgrade(current_url, next_url) and response.status in (307, 308):
-                    raise ApiException(message=(f'Refusing to replay request body across HTTPS -> HTTP downgrade redirect ({response.status}) to {next_url}'))
+                if (
+                    current_body is not None
+                    and self._is_https_to_http_downgrade(current_url, next_url)
+                    and response.status in (307, 308)
+                ):
+                    raise ApiException(
+                        message=(
+                            f"Refusing to replay request body across HTTPS -> HTTP "
+                            f"downgrade redirect ({response.status}) to {next_url}"
+                        )
+                    )
 
                 # Pick follow-up method/body per RFC 7231 section 6.4 / RFC 7538.
                 status_code = response.status
@@ -551,13 +612,13 @@ class DefaultApiClient:
                     next_method = current_method
                     next_body = current_body
                 elif status_code == 303:
-                    next_method = 'GET'
+                    next_method = "GET"
                     next_body = None
-                elif current_method.upper() in ('GET', 'HEAD'):
+                elif current_method.upper() in ("GET", "HEAD"):
                     next_method = current_method
                     next_body = current_body
                 else:
-                    next_method = 'GET'
+                    next_method = "GET"
                     next_body = None
 
                 next_headers: Dict[str, str] = dict(current_headers)
@@ -574,7 +635,7 @@ class DefaultApiClient:
                     # cannot reach.
                     if isinstance(proxy_headers_attr, dict):
                         for key in list(proxy_headers_attr.keys()):
-                            if key.lower() == 'proxy-authorization':
+                            if key.lower() == "proxy-authorization":
                                 del proxy_headers_attr[key]
 
                 # Drop body-bearing headers when the follow-up carries
@@ -613,7 +674,9 @@ class DefaultApiClient:
             # configuration. Without this, a cross-origin redirect would
             # permanently strip Proxy-Authorization for the lifetime of
             # the pool manager.
-            if original_proxy_headers is not None and isinstance(proxy_headers_attr, dict):
+            if original_proxy_headers is not None and isinstance(
+                proxy_headers_attr, dict
+            ):
                 proxy_headers_attr.clear()
                 proxy_headers_attr.update(original_proxy_headers)
 
@@ -622,8 +685,14 @@ class DefaultApiClient:
         # response. We only got here with a redirect status still set (and a
         # Location to follow) when the loop ran out of budget -- the
         # no-Location case breaks out and is a legitimate terminal 3xx.
-        if response.status in self._REDIRECT_STATUSES and response.headers and response.headers.get('location'):
-            raise ApiException(message=f'Too many redirects (exceeded max_redirects={max_redirects})')
+        if (
+            response.status in self._REDIRECT_STATUSES
+            and response.headers
+            and response.headers.get("location")
+        ):
+            raise ApiException(
+                message=f"Too many redirects (exceeded max_redirects={max_redirects})"
+            )
 
         return response
 
@@ -641,7 +710,7 @@ class DefaultApiClient:
         if parsed_location.scheme:
             return location
         parsed_base = urlsplit(base_url)
-        if location.startswith('//'):
+        if location.startswith("//"):
             # Protocol-relative: inherit the base scheme.
             return urlunsplit(
                 (
@@ -652,7 +721,7 @@ class DefaultApiClient:
                     parsed_location.fragment,
                 )
             )
-        if location.startswith('/'):
+        if location.startswith("/"):
             return urlunsplit(
                 (
                     parsed_base.scheme,
@@ -663,8 +732,8 @@ class DefaultApiClient:
                 )
             )
         # Relative path: resolve against the base path's parent.
-        base_path = parsed_base.path or '/'
-        parent = base_path.rsplit('/', 1)[0] + '/'
+        base_path = parsed_base.path or "/"
+        parent = base_path.rsplit("/", 1)[0] + "/"
         return urlunsplit(
             (
                 parsed_base.scheme,
@@ -683,7 +752,9 @@ class DefaultApiClient:
         """
         original = urlsplit(original_url)
         redirect = urlsplit(redirect_url)
-        return (original.scheme or '').lower() == 'https' and (redirect.scheme or '').lower() == 'http'
+        return (original.scheme or "").lower() == "https" and (
+            redirect.scheme or ""
+        ).lower() == "http"
 
     @staticmethod
     def _effective_port(scheme: str, port: Optional[int]) -> int:
@@ -695,7 +766,7 @@ class DefaultApiClient:
         """
         if port is not None:
             return port
-        return 443 if scheme.lower() == 'https' else 80
+        return 443 if scheme.lower() == "https" else 80
 
     @classmethod
     def _same_origin(cls, original_url: str, redirect_url: str) -> bool:
@@ -718,7 +789,9 @@ class DefaultApiClient:
             return False
         if original.hostname.lower() != redirect.hostname.lower():
             return False
-        return cls._effective_port(original.scheme, original.port) == cls._effective_port(redirect.scheme, redirect.port)
+        return cls._effective_port(
+            original.scheme, original.port
+        ) == cls._effective_port(redirect.scheme, redirect.port)
 
     def _build_multipart_body(self, form_parts: Dict[str, Any], boundary: str) -> bytes:
         """Build a multipart/form-data body from a dict of form parts.
@@ -741,8 +814,8 @@ class DefaultApiClient:
                     parts.append(self._multipart_part(name, item, boundary))
             else:
                 parts.append(self._multipart_part(name, value, boundary))
-        parts.append(f'--{boundary}--\r\n'.encode('utf-8'))
-        return b''.join(parts)
+        parts.append(f"--{boundary}--\r\n".encode("utf-8"))
+        return b"".join(parts)
 
     @staticmethod
     def _build_disposition(name: str, filename: Optional[str]) -> str:
@@ -756,7 +829,7 @@ class DefaultApiClient:
             ascii_fallback, rfc5987 = _sanitize_multipart_filename(filename)
             disposition += f'; filename="{ascii_fallback}"'
             if rfc5987 is not None:
-                disposition += f'; filename*={rfc5987}'
+                disposition += f"; filename*={rfc5987}"
         return disposition
 
     @classmethod
@@ -784,58 +857,89 @@ class DefaultApiClient:
         if isinstance(value, tuple) and len(value) == 2:
             filename, content = value
             if isinstance(content, str):
-                raise TypeError(f'multipart part {name!r}: str content with explicit filename is not supported; pass bytes for binary data')
-            if hasattr(content, 'read'):
+                raise TypeError(
+                    f"multipart part {name!r}: str content with explicit filename is not supported; "
+                    f"pass bytes for binary data"
+                )
+            if hasattr(content, "read"):
                 try:
                     read_data = content.read()
                 finally:
-                    if hasattr(content, 'close'):
+                    if hasattr(content, "close"):
                         content.close()
                 if isinstance(read_data, str):
-                    raise TypeError(f'multipart part {name!r}: file opened in text mode; open with mode="rb"')
+                    raise TypeError(
+                        f'multipart part {name!r}: file opened in text mode; open with mode="rb"'
+                    )
                 if not isinstance(read_data, bytes):
-                    raise TypeError(f'multipart part {name!r}: file-like object did not return bytes from read()')
+                    raise TypeError(
+                        f"multipart part {name!r}: file-like object did not return bytes from read()"
+                    )
                 file_data: bytes = read_data
             elif isinstance(content, bytes):
                 file_data = content
             else:
-                raise TypeError(f'multipart part {name!r}: tuple content must be bytes or a binary file-like object')
+                raise TypeError(
+                    f"multipart part {name!r}: tuple content must be bytes or a binary file-like object"
+                )
             disposition = cls._build_disposition(name, filename)
             content_type = _guess_content_type(filename)
-            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: {content_type}\r\n\r\n'
-            return header.encode('utf-8') + file_data + b'\r\n'
+            header = (
+                f"--{boundary}\r\n"
+                f"Content-Disposition: {disposition}\r\n"
+                f"Content-Type: {content_type}\r\n\r\n"
+            )
+            return header.encode("utf-8") + file_data + b"\r\n"
 
-        if hasattr(value, 'read'):
-            filename = getattr(value, 'name', None)
+        if hasattr(value, "read"):
+            filename = getattr(value, "name", None)
             try:
                 raw_data = value.read()
             finally:
-                if hasattr(value, 'close'):
+                if hasattr(value, "close"):
                     value.close()
             if isinstance(raw_data, str):
                 # File was opened in text mode; refuse rather than silently
                 # round-tripping arbitrary bytes through UTF-8.
-                raise TypeError(f'multipart part {name!r}: file opened in text mode; open with mode="rb"')
+                raise TypeError(
+                    f'multipart part {name!r}: file opened in text mode; open with mode="rb"'
+                )
             if not isinstance(raw_data, bytes):
-                raise TypeError(f'multipart part {name!r}: file-like object did not return bytes from read()')
+                raise TypeError(
+                    f"multipart part {name!r}: file-like object did not return bytes from read()"
+                )
             raw_bytes: bytes = raw_data
             disposition = cls._build_disposition(name, filename)
             content_type = _guess_content_type(filename)
-            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: {content_type}\r\n\r\n'
-            return header.encode('utf-8') + raw_bytes + b'\r\n'
+            header = (
+                f"--{boundary}\r\n"
+                f"Content-Disposition: {disposition}\r\n"
+                f"Content-Type: {content_type}\r\n\r\n"
+            )
+            return header.encode("utf-8") + raw_bytes + b"\r\n"
         elif isinstance(value, bytes):
             disposition = cls._build_disposition(name, None)
-            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: application/octet-stream\r\n\r\n'
-            return header.encode('utf-8') + value + b'\r\n'
-        elif hasattr(value, 'model_dump_json'):
+            header = (
+                f"--{boundary}\r\n"
+                f"Content-Disposition: {disposition}\r\n"
+                f"Content-Type: application/octet-stream\r\n\r\n"
+            )
+            return header.encode("utf-8") + value + b"\r\n"
+        elif hasattr(value, "model_dump_json"):
             json_str: str = value.model_dump_json(by_alias=True, exclude_none=True)
             disposition = cls._build_disposition(name, None)
-            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: application/json\r\n\r\n'
-            return header.encode('utf-8') + json_str.encode('utf-8') + b'\r\n'
+            header = (
+                f"--{boundary}\r\n"
+                f"Content-Disposition: {disposition}\r\n"
+                f"Content-Type: application/json\r\n\r\n"
+            )
+            return header.encode("utf-8") + json_str.encode("utf-8") + b"\r\n"
         else:
             disposition = cls._build_disposition(name, None)
-            part = f'--{boundary}\r\nContent-Disposition: {disposition}\r\n\r\n{value}\r\n'
-            return part.encode('utf-8')
+            part = (
+                f"--{boundary}\r\nContent-Disposition: {disposition}\r\n\r\n{value}\r\n"
+            )
+            return part.encode("utf-8")
 
     @staticmethod
     def _decompress_body(data: bytes, encoding: str) -> bytes:
@@ -853,14 +957,16 @@ class DefaultApiClient:
         """
         if not data:
             return data
-        if encoding in ('gzip', 'x-gzip'):
+        if encoding in ("gzip", "x-gzip"):
             return gzip.decompress(data)
-        if encoding == 'deflate':
+        if encoding == "deflate":
             return zlib.decompress(data)
-        if encoding == 'br' and _brotli is not None:
+        if encoding == "br" and _brotli is not None:
             br_result: bytes = _brotli.decompress(data)
             return br_result
-        if encoding == 'zstd' and _zstandard is not None:
-            zstd_result: bytes = _zstandard.ZstdDecompressor().decompress(data, max_output_size=len(data) * 16)
+        if encoding == "zstd" and _zstandard is not None:
+            zstd_result: bytes = _zstandard.ZstdDecompressor().decompress(
+                data, max_output_size=len(data) * 16
+            )
             return zstd_result
         return data

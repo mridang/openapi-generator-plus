@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,11 +21,21 @@ class PetPassport(BaseModel):
     PetPassport
     """
 
-    pet: Optional[Pet] = Field(default=None, alias='pet')
-    thumbnail: Optional[bytes] = Field(default=None, alias='thumbnail', description='Base64-encoded primary thumbnail')
-    scans: Optional[List[bytes]] = Field(default=None, alias='scans', description='Base64-encoded scans of each passport page')
-    issued_at: Optional[AwareDatetime] = Field(default=None, alias='issuedAt')
-    biometric_chip: Optional[StrictStr] = Field(default=None, alias='biometricChip', description='Embedded chip data (OAS 3.1 contentEncoding form)')
+    pet: Optional[Pet] = Field(default=None, alias="pet")
+    thumbnail: Optional[bytes] = Field(
+        default=None, alias="thumbnail", description="Base64-encoded primary thumbnail"
+    )
+    scans: Optional[List[bytes]] = Field(
+        default=None,
+        alias="scans",
+        description="Base64-encoded scans of each passport page",
+    )
+    issued_at: Optional[AwareDatetime] = Field(default=None, alias="issuedAt")
+    biometric_chip: Optional[StrictStr] = Field(
+        default=None,
+        alias="biometricChip",
+        description="Embedded chip data (OAS 3.1 contentEncoding form)",
+    )
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

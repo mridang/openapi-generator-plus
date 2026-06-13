@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -10,4 +12,6 @@ from .oauth2_implicit_authenticator import OAuth2ImplicitAuthenticator
 
 class BrowserAuthImplicitAuthenticator(OAuth2ImplicitAuthenticator):
     def __init__(self, host: str, client_id: str):
-        super().__init__(host, client_id, 'https://auth.example.com/authorize', ['read'])
+        super().__init__(
+            host, client_id, "https://auth.example.com/authorize", ["read"]
+        )

@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -28,11 +30,21 @@ class ApiKeyAuthenticator(BaseAuthenticator):
         # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
         # printable-ASCII rule still applies to HEADER values.
         if not self.api_key or not self.api_key.strip():
-            raise ValueError(f"API key value for '{self.key_param_name}' must not be empty")
-        if any(c in ('\r', '\n', '\x00') for c in self.api_key):
-            raise ValueError(f"API key value for '{self.key_param_name}' contains forbidden control characters (CR/LF/NUL)")
-        if self.location == ApiKeyLocation.HEADER and any(c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in self.api_key):
-            raise ValueError(f"API key for header '{self.key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)")
+            raise ValueError(
+                f"API key value for '{self.key_param_name}' must not be empty"
+            )
+        if any(c in ("\r", "\n", "\x00") for c in self.api_key):
+            raise ValueError(
+                f"API key value for '{self.key_param_name}' contains "
+                f"forbidden control characters (CR/LF/NUL)"
+            )
+        if self.location == ApiKeyLocation.HEADER and any(
+            c != "\t" and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in self.api_key
+        ):
+            raise ValueError(
+                f"API key for header '{self.key_param_name}' must contain "
+                f"only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
 
     def get_host(self) -> str:
         return self.host

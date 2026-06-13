@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -51,7 +53,7 @@ class StoreApi(BaseApi):
     async def delete_order_with_http_info(
         self,
         order_id: StrictInt,
-    ) -> 'ApiResult[None]':
+    ) -> "ApiResult[None]":
         """Delete purchase order by ID (with HTTP info)
         :param order_id: ID of the order to delete (required)
 
@@ -61,20 +63,27 @@ class StoreApi(BaseApi):
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
 
-        path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'StrictInt', None, 'simple', False)))
+        path = "/store/order/{orderId}"
+        path = path.replace(
+            "{" + "orderId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "orderId", order_id, "path", "StrictInt", None, "simple", False
+                )
+            ),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
 
         return await self._invoke_api_for_result(
-            'DELETE',
+            "DELETE",
             path,
             query_params,
             header_params,
             body,
             [],
-            'application/json',
+            "application/json",
             None,
             None,
         )
@@ -96,7 +105,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message='Expected a response body but the server returned none',
+                message="Expected a response body but the server returned none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -104,26 +113,26 @@ class StoreApi(BaseApi):
 
     async def get_inventory_with_http_info(
         self,
-    ) -> 'ApiResult[Dict[str, StrictInt]]':
+    ) -> "ApiResult[Dict[str, StrictInt]]":
         """Returns pet inventories by status (with HTTP info)
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
-        path = '/store/inventory'
+        path = "/store/inventory"
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
 
         return await self._invoke_api_for_result(
-            'GET',
+            "GET",
             path,
             query_params,
             header_params,
             body,
-            ['application/json'],
-            'application/json',
-            'Dict[str, StrictInt]',
+            ["application/json"],
+            "application/json",
+            "Dict[str, StrictInt]",
             None,
         )
 
@@ -149,7 +158,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message='Expected a response body but the server returned none',
+                message="Expected a response body but the server returned none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -158,7 +167,7 @@ class StoreApi(BaseApi):
     async def get_order_by_id_with_http_info(
         self,
         order_id: StrictInt,
-    ) -> 'ApiResult[Order]':
+    ) -> "ApiResult[Order]":
         """Find purchase order by ID (with HTTP info)
         :param order_id: ID of order to return (required)
 
@@ -168,21 +177,28 @@ class StoreApi(BaseApi):
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
 
-        path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'StrictInt', None, 'simple', False)))
+        path = "/store/order/{orderId}"
+        path = path.replace(
+            "{" + "orderId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "orderId", order_id, "path", "StrictInt", None, "simple", False
+                )
+            ),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
 
         return await self._invoke_api_for_result(
-            'GET',
+            "GET",
             path,
             query_params,
             header_params,
             body,
-            ['application/json'],
-            'application/json',
-            'Order',
+            ["application/json"],
+            "application/json",
+            "Order",
             None,
         )
 
@@ -205,7 +221,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message='Expected a response body but the server returned none',
+                message="Expected a response body but the server returned none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -214,26 +230,26 @@ class StoreApi(BaseApi):
     async def place_order_with_http_info(
         self,
         order: Optional[Order] = None,
-    ) -> 'ApiResult[Order]':
+    ) -> "ApiResult[Order]":
         """Place an order for a pet (with HTTP info)
         :param order:  (optional)
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
-        path = '/store/order'
+        path = "/store/order"
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = order
 
         return await self._invoke_api_for_result(
-            'POST',
+            "POST",
             path,
             query_params,
             header_params,
             body,
-            ['application/json'],
-            'application/json',
-            'Order',
+            ["application/json"],
+            "application/json",
+            "Order",
             None,
         )

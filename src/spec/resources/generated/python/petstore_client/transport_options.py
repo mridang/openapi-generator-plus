@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -75,7 +77,7 @@ class TransportOptions:
     uses the HTTP client's built-in default.
     """
 
-    user_agent: Optional[str] = 'petstore_client/1.0.0 (python)'
+    user_agent: Optional[str] = "petstore_client/1.0.0 (python)"
     """Custom ``User-Agent`` header value.
 
     When set, this value is sent as the ``User-Agent`` header on every
@@ -83,7 +85,9 @@ class TransportOptions:
     no custom user agent is injected.
     """
 
-    default_headers: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    default_headers: Mapping[str, str] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     """Transport-level default headers included in every request.
 
     These headers have the *lowest* priority: API-level headers from
@@ -102,10 +106,12 @@ class TransportOptions:
     def __post_init__(self) -> None:
         """Ensure default_headers is always an immutable MappingProxyType."""
         if not isinstance(self.default_headers, MappingProxyType):
-            object.__setattr__(self, 'default_headers', MappingProxyType(dict(self.default_headers)))
+            object.__setattr__(
+                self, "default_headers", MappingProxyType(dict(self.default_headers))
+            )
 
     @classmethod
-    def builder(cls) -> 'TransportOptionsBuilder':
+    def builder(cls) -> "TransportOptionsBuilder":
         """Create a new builder for constructing TransportOptions instances.
 
         Returns:
@@ -140,11 +146,11 @@ class TransportOptionsBuilder:
         self._timeout: Optional[int] = 10000
         self._follow_redirects: bool = True
         self._max_redirects: Optional[int] = None
-        self._user_agent: Optional[str] = 'petstore_client/1.0.0 (python)'
+        self._user_agent: Optional[str] = "petstore_client/1.0.0 (python)"
         self._default_headers: Dict[str, str] = {}
         self._inject_request_id: bool = False
 
-    def verify_ssl(self, verify_ssl: bool) -> 'TransportOptionsBuilder':
+    def verify_ssl(self, verify_ssl: bool) -> "TransportOptionsBuilder":
         """Enable or disable TLS certificate verification.
 
         Args:
@@ -156,7 +162,7 @@ class TransportOptionsBuilder:
         self._verify_ssl = verify_ssl
         return self
 
-    def ca_cert_path(self, ca_cert_path: Optional[str]) -> 'TransportOptionsBuilder':
+    def ca_cert_path(self, ca_cert_path: Optional[str]) -> "TransportOptionsBuilder":
         """Set the path to a custom CA certificate bundle.
 
         Args:
@@ -168,7 +174,7 @@ class TransportOptionsBuilder:
         self._ca_cert_path = ca_cert_path
         return self
 
-    def proxy(self, proxy: Optional[str]) -> 'TransportOptionsBuilder':
+    def proxy(self, proxy: Optional[str]) -> "TransportOptionsBuilder":
         """Set the HTTP/HTTPS proxy URL.
 
         Args:
@@ -184,14 +190,16 @@ class TransportOptionsBuilder:
             from urllib.parse import urlparse
 
             parsed = urlparse(proxy)
-            if parsed.scheme not in ('http', 'https'):
-                raise ValueError(f'Invalid proxy URL (must use http or https scheme): {proxy}')
+            if parsed.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid proxy URL (must use http or https scheme): {proxy}"
+                )
             if not parsed.hostname:
-                raise ValueError(f'Invalid proxy URL (missing host): {proxy}')
+                raise ValueError(f"Invalid proxy URL (missing host): {proxy}")
         self._proxy = proxy
         return self
 
-    def timeout(self, timeout: Optional[int]) -> 'TransportOptionsBuilder':
+    def timeout(self, timeout: Optional[int]) -> "TransportOptionsBuilder":
         """Set the end-to-end request timeout in milliseconds.
 
         Args:
@@ -203,7 +211,7 @@ class TransportOptionsBuilder:
         self._timeout = timeout
         return self
 
-    def follow_redirects(self, follow_redirects: bool) -> 'TransportOptionsBuilder':
+    def follow_redirects(self, follow_redirects: bool) -> "TransportOptionsBuilder":
         """Enable or disable automatic redirect following.
 
         Args:
@@ -215,7 +223,7 @@ class TransportOptionsBuilder:
         self._follow_redirects = follow_redirects
         return self
 
-    def max_redirects(self, max_redirects: Optional[int]) -> 'TransportOptionsBuilder':
+    def max_redirects(self, max_redirects: Optional[int]) -> "TransportOptionsBuilder":
         """Set the maximum number of redirects to follow.
 
         Args:
@@ -227,7 +235,7 @@ class TransportOptionsBuilder:
         self._max_redirects = max_redirects
         return self
 
-    def user_agent(self, user_agent: Optional[str]) -> 'TransportOptionsBuilder':
+    def user_agent(self, user_agent: Optional[str]) -> "TransportOptionsBuilder":
         """Set a custom User-Agent header value.
 
         Args:
@@ -239,7 +247,7 @@ class TransportOptionsBuilder:
         self._user_agent = user_agent
         return self
 
-    def default_header(self, name: str, value: str) -> 'TransportOptionsBuilder':
+    def default_header(self, name: str, value: str) -> "TransportOptionsBuilder":
         """Add a single transport-level default header.
 
         Args:
@@ -252,7 +260,7 @@ class TransportOptionsBuilder:
         self._default_headers[name] = value
         return self
 
-    def default_headers(self, headers: Dict[str, str]) -> 'TransportOptionsBuilder':
+    def default_headers(self, headers: Dict[str, str]) -> "TransportOptionsBuilder":
         """Add multiple transport-level default headers.
 
         Args:
@@ -264,7 +272,7 @@ class TransportOptionsBuilder:
         self._default_headers.update(headers)
         return self
 
-    def inject_request_id(self, inject_request_id: bool) -> 'TransportOptionsBuilder':
+    def inject_request_id(self, inject_request_id: bool) -> "TransportOptionsBuilder":
         """Enable or disable automatic ``X-Request-ID`` header injection.
 
         Args:

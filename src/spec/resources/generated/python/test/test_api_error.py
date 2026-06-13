@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 import pytest
 
 from petstore_client.errors import (
@@ -15,17 +17,17 @@ class TestApiErrorShape:
     def test_exposes_status_message_body_headers_error_body(self) -> None:
         err = ApiException(
             status_code=404,
-            message='not found',
-            response_headers={'content-type': 'application/json'},
+            message="not found",
+            response_headers={"content-type": "application/json"},
             response_body='{"id":7,"name":"missing"}',
             error_body=None,
         )
 
         assert err.status_code == 404
-        assert err.message == 'not found'
+        assert err.message == "not found"
         assert err.response_body == '{"id":7,"name":"missing"}'
         assert err.response_headers is not None
-        assert err.response_headers['content-type'] == 'application/json'
+        assert err.response_headers["content-type"] == "application/json"
         assert err.error_body is None
 
     def test_none_headers_and_body_mark_transport_no_response(self) -> None:
@@ -34,7 +36,7 @@ class TestApiErrorShape:
         # be encoded.
         err = ApiException(
             status_code=0,
-            message='connection reset',
+            message="connection reset",
             response_headers=None,
             response_body=None,
         )
@@ -43,16 +45,16 @@ class TestApiErrorShape:
         assert err.response_body is None
 
     def test_is_an_exception_subclass(self) -> None:
-        err = ApiException(status_code=500, message='boom')
+        err = ApiException(status_code=500, message="boom")
 
         assert isinstance(err, Exception)
-        assert str(err) != ''
+        assert str(err) != ""
 
 
 class TestExceptionHierarchy:
     def test_typed_error_inherits_through_to_branded_root(self) -> None:
         # BadRequest -> ClientException -> ApiException -> ZitadelException
-        err = BadRequestException(message='bad request')
+        err = BadRequestException(message="bad request")
 
         assert isinstance(err, ClientException)
         assert isinstance(err, ApiException)
@@ -62,7 +64,7 @@ class TestExceptionHierarchy:
         assert issubclass(ApiException, ZitadelException)
 
     def test_serialization_error_inherits_from_branded_root(self) -> None:
-        err = SerializationError('boom')
+        err = SerializationError("boom")
 
         assert isinstance(err, ZitadelException)
         assert issubclass(SerializationError, ZitadelException)
@@ -77,8 +79,8 @@ class TestApiErrorImmutability:
     def test_fields_are_read_only(self) -> None:
         err = ApiException(
             status_code=404,
-            message='not found',
-            response_headers={'content-type': 'application/json'},
+            message="not found",
+            response_headers={"content-type": "application/json"},
             response_body='{"id":7}',
             error_body=None,
         )
@@ -88,40 +90,40 @@ class TestApiErrorImmutability:
         with pytest.raises(AttributeError):
             err.status_code = 500  # type: ignore[misc]
         with pytest.raises(AttributeError):
-            err.message = 'tampered'  # type: ignore[misc]
+            err.message = "tampered"  # type: ignore[misc]
         with pytest.raises(AttributeError):
-            err.response_body = 'tampered'  # type: ignore[misc]
+            err.response_body = "tampered"  # type: ignore[misc]
 
         assert err.status_code == 404
-        assert err.message == 'not found'
+        assert err.message == "not found"
 
 
 class TestApiErrorTypedBody:
     def test_get_typed_error_body_deserializes_body(self) -> None:
         err = ApiException(
             status_code=400,
-            message='bad request',
+            message="bad request",
             response_body='{"id":42,"name":"Dogs"}',
         )
 
         typed = err.get_typed_error_body(Category)
         assert isinstance(typed, Category)
         assert typed.id == 42
-        assert typed.name == 'Dogs'
+        assert typed.name == "Dogs"
 
     def test_get_typed_error_body_returns_none_when_no_body(self) -> None:
-        err = ApiException(status_code=500, message='oops', response_body=None)
+        err = ApiException(status_code=500, message="oops", response_body=None)
 
         assert err.get_typed_error_body(Category) is None
 
     def test_get_typed_error_body_ignores_extraneous_fields(self) -> None:
         err = ApiException(
             status_code=422,
-            message='unprocessable',
+            message="unprocessable",
             response_body='{"id":1,"name":"Cat","extra":"drop-me"}',
         )
 
         typed = err.get_typed_error_body(Category)
         assert isinstance(typed, Category)
         assert typed.id == 1
-        assert typed.name == 'Cat'
+        assert typed.name == "Cat"

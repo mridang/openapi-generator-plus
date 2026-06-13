@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,10 +21,10 @@ class Photo(BaseModel):
     Photo
     """
 
-    id: Optional[StrictInt] = Field(default=None, alias='id')
-    caption: Optional[StrictStr] = Field(default=None, alias='caption')
-    is_primary: Optional[StrictBool] = Field(default=None, alias='isPrimary')
-    url: Optional[StrictStr] = Field(default=None, alias='url')
+    id: Optional[StrictInt] = Field(default=None, alias="id")
+    caption: Optional[StrictStr] = Field(default=None, alias="caption")
+    is_primary: Optional[StrictBool] = Field(default=None, alias="isPrimary")
+    url: Optional[StrictStr] = Field(default=None, alias="url")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

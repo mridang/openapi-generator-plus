@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,8 +21,8 @@ class StrictTag(BaseModel):
     StrictTag
     """
 
-    id: Optional[StrictInt] = Field(default=None, alias='id')
-    name: Optional[StrictStr] = Field(default=None, alias='name')
+    id: Optional[StrictInt] = Field(default=None, alias="id")
+    name: Optional[StrictStr] = Field(default=None, alias="name")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
@@ -33,7 +35,7 @@ class StrictTag(BaseModel):
         # Item 9 — OAS 3.1 unevaluatedProperties:false → pydantic native
         # rejection of extra JSON keys (replaces the hand-rolled
         # _reject_unknown_keys model_validator).
-        extra='forbid',
+        extra="forbid",
     )
 
 

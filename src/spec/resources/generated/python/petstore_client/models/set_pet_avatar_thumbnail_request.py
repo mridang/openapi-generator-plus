@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -31,7 +33,7 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     # which gives us the same explicit-error guarantee as the native form
     # without needing a template-level overhaul of the child models.
     actual_instance: Optional[Union[List[bytes], bytes]] = None
-    one_of_schemas: ClassVar[Set[str]] = {'List[bytes]', 'bytes'}
+    one_of_schemas: ClassVar[Set[str]] = {"List[bytes]", "bytes"}
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like
@@ -47,14 +49,18 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
             if len(args) > 1:
-                raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
+                raise ValueError(
+                    "If a position argument is used, only 1 is allowed to set `actual_instance`"
+                )
             if kwargs:
-                raise ValueError('If a position argument is used, keyword arguments cannot be used.')
+                raise ValueError(
+                    "If a position argument is used, keyword arguments cannot be used."
+                )
             super().__init__(actual_instance=args[0])
         else:
             super().__init__(**kwargs)
 
-    @field_validator('actual_instance')
+    @field_validator("actual_instance")
     def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
         instance = SetPetAvatarThumbnailRequest.model_construct()
         error_messages = []
@@ -74,7 +80,10 @@ class SetPetAvatarThumbnailRequest(BaseModel):
             return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
-        raise ValueError('No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: ' + ', '.join(error_messages))
+        raise ValueError(
+            "No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: "
+            + ", ".join(error_messages)
+        )
 
 
 SetPetAvatarThumbnailRequest.model_rebuild(raise_errors=False)

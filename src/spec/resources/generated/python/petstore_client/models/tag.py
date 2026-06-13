@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -22,8 +24,8 @@ class Tag(BaseModel):
         This schema is deprecated.
     """
 
-    id: Optional[StrictInt] = Field(default=None, alias='id')
-    name: Optional[StrictStr] = Field(default=None, alias='name')
+    id: Optional[StrictInt] = Field(default=None, alias="id")
+    name: Optional[StrictStr] = Field(default=None, alias="name")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

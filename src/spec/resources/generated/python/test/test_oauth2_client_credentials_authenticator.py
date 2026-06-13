@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -13,32 +15,36 @@ from unittest.mock import MagicMock
 import pytest
 
 from petstore_client.auth.oauth.client_auth_method import ClientAuthMethod
-from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuthenticator
+from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import (
+    OAuth2ClientCredentialsAuthenticator,
+)
 from petstore_client.api_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OAuth2ClientCredentialsAuthenticator:
     return OAuth2ClientCredentialsAuthenticator(
-        host='https://api.example.com',
-        client_id='my_client_id',
-        client_secret='my_client_secret',
-        token_url='https://auth.example.com/token',
-        scopes=['read', 'write'],
+        host="https://api.example.com",
+        client_id="my_client_id",
+        client_secret="my_client_secret",
+        token_url="https://auth.example.com/token",
+        scopes=["read", "write"],
     )
 
 
-def _create_authenticator_with_mock() -> tuple[OAuth2ClientCredentialsAuthenticator, MagicMock]:
+def _create_authenticator_with_mock() -> tuple[
+    OAuth2ClientCredentialsAuthenticator, MagicMock
+]:
     auth = _create_authenticator()
     mock_client = MagicMock()
     mock_client.send_request.return_value = ApiHttpResponse(
         status_code=200,
         body=json.dumps(
             {
-                'access_token': 'tok1',
-                'expires_in': 3600,
+                "access_token": "tok1",
+                "expires_in": 3600,
             }
         ),
-        headers={'content-type': 'application/json'},
+        headers={"content-type": "application/json"},
     )
     auth.set_api_client(mock_client)
     return auth, mock_client
@@ -52,7 +58,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
 
         call_args = mock_client.send_request.call_args
         body = call_args[0][3]
-        assert 'grant_type=client_credentials' in body
+        assert "grant_type=client_credentials" in body
 
     def test_sends_client_id_and_secret(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
@@ -61,8 +67,8 @@ class TestOAuth2ClientCredentialsAuthenticator:
 
         call_args = mock_client.send_request.call_args
         body = call_args[0][3]
-        assert 'client_id=my_client_id' in body
-        assert 'client_secret=my_client_secret' in body
+        assert "client_id=my_client_id" in body
+        assert "client_secret=my_client_secret" in body
 
     def test_sends_scopes(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
@@ -71,7 +77,11 @@ class TestOAuth2ClientCredentialsAuthenticator:
 
         call_args = mock_client.send_request.call_args
         body = call_args[0][3]
-        assert 'scope=read+write' in body or 'scope=read%20write' in body or 'scope=read write' in body
+        assert (
+            "scope=read+write" in body
+            or "scope=read%20write" in body
+            or "scope=read write" in body
+        )
 
     def test_returns_authorization_bearer_header(self) -> None:
         auth = _create_authenticator()
@@ -80,17 +90,17 @@ class TestOAuth2ClientCredentialsAuthenticator:
             status_code=200,
             body=json.dumps(
                 {
-                    'access_token': 'tok-abc',
-                    'expires_in': 3600,
+                    "access_token": "tok-abc",
+                    "expires_in": 3600,
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
 
         headers = auth.get_auth_headers()
 
-        assert headers['Authorization'] == 'Bearer tok-abc'
+        assert headers["Authorization"] == "Bearer tok-abc"
 
     def test_sends_request_to_token_url(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
@@ -98,12 +108,12 @@ class TestOAuth2ClientCredentialsAuthenticator:
         auth.get_auth_headers()
 
         call_args = mock_client.send_request.call_args
-        assert call_args[0][1] == 'https://auth.example.com/token'
+        assert call_args[0][1] == "https://auth.example.com/token"
 
     def test_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()
 
-        assert auth.get_host() == 'https://api.example.com'
+        assert auth.get_host() == "https://api.example.com"
 
     def test_token_fetch_error_is_surfaced_not_swallowed(self) -> None:
         # oauth-cc-authheaders-error-swallow: a failed client-credentials token
@@ -114,8 +124,8 @@ class TestOAuth2ClientCredentialsAuthenticator:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=401,
-            body=json.dumps({'error': 'invalid_client'}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"error": "invalid_client"}),
+            headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
 
@@ -131,8 +141,8 @@ class TestOAuth2ClientCredentialsAuthenticator:
         headers1 = auth.get_auth_headers()
         headers2 = auth.get_auth_headers()
 
-        assert headers1['Authorization'] == 'Bearer tok1'
-        assert headers2['Authorization'] == 'Bearer tok1'
+        assert headers1["Authorization"] == "Bearer tok1"
+        assert headers2["Authorization"] == "Bearer tok1"
         assert mock_client.send_request.call_count == 1
 
     def test_basic_auth_url_encodes_client_id_and_secret(self) -> None:
@@ -140,18 +150,18 @@ class TestOAuth2ClientCredentialsAuthenticator:
         # client_id and client_secret MUST be application/x-www-form-
         # urlencoded BEFORE being joined with ':' and base64-encoded.
         auth = OAuth2ClientCredentialsAuthenticator(
-            host='https://api.example.com',
-            client_id='id+with/special',
-            client_secret='secret&with=stuff',
-            token_url='https://auth.example.com/token',
-            scopes=['read'],
+            host="https://api.example.com",
+            client_id="id+with/special",
+            client_secret="secret&with=stuff",
+            token_url="https://auth.example.com/token",
+            scopes=["read"],
             client_auth_method=ClientAuthMethod.BASIC,
         )
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'access_token': 'at', 'expires_in': 3600}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"access_token": "at", "expires_in": 3600}),
+            headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
 
@@ -159,10 +169,10 @@ class TestOAuth2ClientCredentialsAuthenticator:
 
         call_args = mock_client.send_request.call_args
         headers = call_args[0][2]
-        auth_header = headers['Authorization']
-        assert auth_header.startswith('Basic ')
-        decoded = base64.b64decode(auth_header[len('Basic ') :]).decode('utf-8')
-        assert decoded == 'id%2Bwith%2Fspecial:secret%26with%3Dstuff'
+        auth_header = headers["Authorization"]
+        assert auth_header.startswith("Basic ")
+        decoded = base64.b64decode(auth_header[len("Basic ") :]).decode("utf-8")
+        assert decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
 
 
 class TestOAuth2ClientCredentialsImmutability:
@@ -170,8 +180,8 @@ class TestOAuth2ClientCredentialsImmutability:
         auth = _create_authenticator()
 
         with pytest.raises(dataclasses.FrozenInstanceError):
-            auth.client_secret = 'rotated'  # type: ignore[misc]
+            auth.client_secret = "rotated"  # type: ignore[misc]
         with pytest.raises(dataclasses.FrozenInstanceError):
-            auth.client_id = 'other'  # type: ignore[misc]
+            auth.client_id = "other"  # type: ignore[misc]
         with pytest.raises(dataclasses.FrozenInstanceError):
-            auth.token_url = 'https://evil.example.com/token'  # type: ignore[misc]
+            auth.token_url = "https://evil.example.com/token"  # type: ignore[misc]

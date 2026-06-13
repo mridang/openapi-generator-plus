@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -18,9 +20,9 @@ from enum import Enum
 class OrderStatusEnum(str, Enum):
     """Order - status"""
 
-    PLACED = 'placed'
-    APPROVED = 'approved'
-    DELIVERED = 'delivered'
+    PLACED = "placed"
+    APPROVED = "approved"
+    DELIVERED = "delivered"
 
 
 class Order(BaseModel):
@@ -28,12 +30,14 @@ class Order(BaseModel):
     Order
     """
 
-    id: Optional[StrictInt] = Field(default=None, alias='id')
-    pet_id: Optional[StrictInt] = Field(default=None, alias='petId')
-    quantity: Optional[StrictInt] = Field(default=None, alias='quantity')
-    ship_date: Optional[AwareDatetime] = Field(default=None, alias='shipDate')
-    status: Optional[OrderStatusEnum] = Field(default=OrderStatusEnum.PLACED, alias='status', description='Order Status')
-    complete: Optional[StrictBool] = Field(default=None, alias='complete')
+    id: Optional[StrictInt] = Field(default=None, alias="id")
+    pet_id: Optional[StrictInt] = Field(default=None, alias="petId")
+    quantity: Optional[StrictInt] = Field(default=None, alias="quantity")
+    ship_date: Optional[AwareDatetime] = Field(default=None, alias="shipDate")
+    status: Optional[OrderStatusEnum] = Field(
+        default=OrderStatusEnum.PLACED, alias="status", description="Order Status"
+    )
+    complete: Optional[StrictBool] = Field(default=None, alias="complete")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

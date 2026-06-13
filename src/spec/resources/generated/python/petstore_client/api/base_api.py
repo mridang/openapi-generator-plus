@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -29,9 +31,11 @@ from ..errors.unprocessable_entity_exception import UnprocessableEntityException
 from ..errors.internal_server_error_exception import InternalServerErrorException
 from ..auth.authenticator import Authenticator
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-_COOKIE_NAME_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
+_COOKIE_NAME_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~"
+)
 
 
 def _is_valid_cookie_name(name: str) -> bool:
@@ -45,7 +49,13 @@ def _is_valid_cookie_value(value: str) -> bool:
     """RFC 6265 cookie-value validation (cookie-octet*)."""
     for c in value:
         code = ord(c)
-        if not (code == 0x21 or 0x23 <= code <= 0x2B or 0x2D <= code <= 0x3A or 0x3C <= code <= 0x5B or 0x5D <= code <= 0x7E):
+        if not (
+            code == 0x21
+            or 0x23 <= code <= 0x2B
+            or 0x2D <= code <= 0x3A
+            or 0x3C <= code <= 0x5B
+            or 0x5D <= code <= 0x7E
+        ):
             return False
     return True
 
@@ -99,7 +109,7 @@ class BaseApi:
         content_type: Optional[str],
         return_type: Optional[str],
         auth: Optional[Authenticator] = None,
-    ) -> 'ApiResult[Any]':
+    ) -> "ApiResult[Any]":
         """Invoke an API operation and return the full result.
 
         Args:
@@ -120,14 +130,18 @@ class BaseApi:
         Raises:
             ApiException: If the API call fails.
         """
-        if path.startswith('http://') or path.startswith('https://'):
+        if path.startswith("http://") or path.startswith("https://"):
             url = path
         else:
             # Strip trailing slash from baseUrl when path starts with `/`
             # so baseUrl='https://x/' + path='/y' produces 'https://x/y',
             # not 'https://x//y' which most servers route to 404. Matches
             # Java/C#/Go/Swift/Dart/Kotlin which collapse via URI parsers.
-            url = self._config.base_url.rstrip('/') + path if path.startswith('/') else self._config.base_url + path
+            url = (
+                self._config.base_url.rstrip("/") + path
+                if path.startswith("/")
+                else self._config.base_url + path
+            )
 
         effective_auth = auth if auth is not None else self._authenticator
 
@@ -140,13 +154,17 @@ class BaseApi:
                 normalized: dict[str, str | list[str]] = {}
                 for k, v in filtered.items():
                     if isinstance(v, list):
-                        normalized[k] = [self._object_serializer.stringify(item) for item in v]
+                        normalized[k] = [
+                            self._object_serializer.stringify(item) for item in v
+                        ]
                     else:
                         normalized[k] = self._object_serializer.stringify(v)
-                url += '?' + urlencode(normalized, doseq=True)
+                url += "?" + urlencode(normalized, doseq=True)
 
-        is_multipart = content_type == 'multipart/form-data'
-        headers = self._header_selector.select_headers(accepts, content_type or '', is_multipart)
+        is_multipart = content_type == "multipart/form-data"
+        headers = self._header_selector.select_headers(
+            accepts, content_type or "", is_multipart
+        )
         headers.update(self._config.default_headers)
         if header_params:
             headers.update(header_params)
@@ -163,31 +181,38 @@ class BaseApi:
                     name = str(k)
                     value = str(v)
                     if not _is_valid_cookie_name(name):
-                        raise ValueError(f"Cookie name '{name}' contains characters forbidden by RFC 6265")
+                        raise ValueError(
+                            f"Cookie name '{name}' contains characters forbidden by RFC 6265"
+                        )
                     if not _is_valid_cookie_value(value):
-                        raise ValueError(f"Cookie value for '{name}' contains characters forbidden by RFC 6265")
-                    cookie_parts.append(f'{name}={value}')
-                cookie_str = '; '.join(cookie_parts)
-                existing = headers.get('Cookie', '')
+                        raise ValueError(
+                            f"Cookie value for '{name}' contains characters forbidden by RFC 6265"
+                        )
+                    cookie_parts.append(f"{name}={value}")
+                cookie_str = "; ".join(cookie_parts)
+                existing = headers.get("Cookie", "")
                 if existing:
-                    headers['Cookie'] = existing + '; ' + cookie_str
+                    headers["Cookie"] = existing + "; " + cookie_str
                 else:
-                    headers['Cookie'] = cookie_str
+                    headers["Cookie"] = cookie_str
         inject_trace_context(headers)
 
         # Remove Content-Type when there is no body (semantically wrong to send it)
         if body is None:
-            headers.pop('Content-Type', None)
+            headers.pop("Content-Type", None)
 
         serialized_body = None
         if body is not None:
-            if content_type == 'multipart/form-data':
+            if content_type == "multipart/form-data":
                 serialized_body = body
-            elif content_type is not None and (content_type.startswith('image/') or content_type == 'application/octet-stream'):
+            elif content_type is not None and (
+                content_type.startswith("image/")
+                or content_type == "application/octet-stream"
+            ):
                 serialized_body = body
-            elif content_type == 'text/plain':
+            elif content_type == "text/plain":
                 serialized_body = str(body)
-            elif content_type == 'application/x-www-form-urlencoded':
+            elif content_type == "application/x-www-form-urlencoded":
                 # Build a (key, value) pair list so array values become
                 # repeated keys (`tags=a&tags=b`) rather than a single
                 # `tags=['a', 'b']` Python-repr. Each scalar is stringified
@@ -205,30 +230,38 @@ class BaseApi:
                         for form_item in form_value:
                             if form_item is None:
                                 continue
-                            form_pairs.append((form_key, self._object_serializer.stringify(form_item)))
+                            form_pairs.append(
+                                (form_key, self._object_serializer.stringify(form_item))
+                            )
                     else:
-                        form_pairs.append((form_key, self._object_serializer.stringify(form_value)))
+                        form_pairs.append(
+                            (form_key, self._object_serializer.stringify(form_value))
+                        )
                 serialized_body = urlencode(form_pairs, doseq=True)
             else:
                 serialized_body = self._object_serializer.serialize(body)
 
-        response = await asyncio.to_thread(self._api_client.send_request, method, url, headers, serialized_body)
+        response = await asyncio.to_thread(
+            self._api_client.send_request, method, url, headers, serialized_body
+        )
 
         if response.status_code < 200 or response.status_code >= 300:
             self._throw_api_exception(response)
 
         data: Any = None
         if return_type is not None and response.body:
-            resp_content_type = ''
+            resp_content_type = ""
             for k, v in response.headers.items():
-                if k.lower() == 'content-type':
-                    resp_content_type = v.split(';')[0].strip()
+                if k.lower() == "content-type":
+                    resp_content_type = v.split(";")[0].strip()
                     break
-            if resp_content_type and not self._header_selector.is_json_mime(resp_content_type):
-                if return_type == 'bytes':
+            if resp_content_type and not self._header_selector.is_json_mime(
+                resp_content_type
+            ):
+                if return_type == "bytes":
                     import base64
 
-                    data = base64.b64decode(response.body) if response.body else b''
+                    data = base64.b64decode(response.body) if response.body else b""
                 else:
                     data = response.body
             else:
@@ -286,7 +319,7 @@ class BaseApi:
         return result.data
 
     @staticmethod
-    def _throw_api_exception(response: 'ApiHttpResponse') -> None:
+    def _throw_api_exception(response: "ApiHttpResponse") -> None:
         """Throw the appropriate exception subclass for the given error response.
 
         Attempts to parse the response body as JSON so that structured error
@@ -296,7 +329,7 @@ class BaseApi:
         import json as _json
 
         code = response.status_code
-        message = f'API returned status code {code}'
+        message = f"API returned status code {code}"
         body = response.body
         # Pass response headers through unconditionally. An empty header map is
         # a real (if unusual) error response, distinct from "no response" --
@@ -313,20 +346,73 @@ class BaseApi:
 
         if 400 <= code < 500:
             if code == 400:
-                raise BadRequestException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise BadRequestException(
+                    message=message,
+                    response_body=body,
+                    response_headers=headers,
+                    error_body=error_body,
+                )
             if code == 401:
-                raise UnauthorizedException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnauthorizedException(
+                    message=message,
+                    response_body=body,
+                    response_headers=headers,
+                    error_body=error_body,
+                )
             if code == 403:
-                raise ForbiddenException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ForbiddenException(
+                    message=message,
+                    response_body=body,
+                    response_headers=headers,
+                    error_body=error_body,
+                )
             if code == 404:
-                raise NotFoundException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise NotFoundException(
+                    message=message,
+                    response_body=body,
+                    response_headers=headers,
+                    error_body=error_body,
+                )
             if code == 409:
-                raise ConflictException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ConflictException(
+                    message=message,
+                    response_body=body,
+                    response_headers=headers,
+                    error_body=error_body,
+                )
             if code == 422:
-                raise UnprocessableEntityException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ClientException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnprocessableEntityException(
+                    message=message,
+                    response_body=body,
+                    response_headers=headers,
+                    error_body=error_body,
+                )
+            raise ClientException(
+                status_code=code,
+                message=message,
+                response_body=body,
+                response_headers=headers,
+                error_body=error_body,
+            )
         if code >= 500:
             if code == 500:
-                raise InternalServerErrorException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ServerException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
-        raise ApiException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise InternalServerErrorException(
+                    message=message,
+                    response_body=body,
+                    response_headers=headers,
+                    error_body=error_body,
+                )
+            raise ServerException(
+                status_code=code,
+                message=message,
+                response_body=body,
+                response_headers=headers,
+                error_body=error_body,
+            )
+        raise ApiException(
+            status_code=code,
+            message=message,
+            response_body=body,
+            response_headers=headers,
+            error_body=error_body,
+        )

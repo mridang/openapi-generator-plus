@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -7,7 +9,7 @@
 
 from typing import Any, Optional, Type, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ZitadelException(Exception):
@@ -89,12 +91,14 @@ class ApiException(ZitadelException):
 
     def __str__(self) -> str:
         """Custom error messages for exception"""
-        error_message = '({0})\nReason: {1}\n'.format(self.status_code, self.message)
+        error_message = "({0})\nReason: {1}\n".format(self.status_code, self.message)
         if self.response_headers:
-            error_message += 'HTTP response headers: {0}\n'.format(self.response_headers)
+            error_message += "HTTP response headers: {0}\n".format(
+                self.response_headers
+            )
 
         if self.response_body:
-            error_message += 'HTTP response body: {0}\n'.format(self.response_body)
+            error_message += "HTTP response body: {0}\n".format(self.response_body)
 
         return error_message
 
@@ -107,20 +111,24 @@ from petstore_client.errors.unauthorized_exception import UnauthorizedException
 from petstore_client.errors.forbidden_exception import ForbiddenException
 from petstore_client.errors.not_found_exception import NotFoundException
 from petstore_client.errors.conflict_exception import ConflictException
-from petstore_client.errors.unprocessable_entity_exception import UnprocessableEntityException
-from petstore_client.errors.internal_server_error_exception import InternalServerErrorException
+from petstore_client.errors.unprocessable_entity_exception import (
+    UnprocessableEntityException,
+)
+from petstore_client.errors.internal_server_error_exception import (
+    InternalServerErrorException,
+)
 
 __all__ = [
-    'ZitadelException',
-    'OpenApiException',
-    'ApiException',
-    'ClientException',
-    'ServerException',
-    'BadRequestException',
-    'UnauthorizedException',
-    'ForbiddenException',
-    'NotFoundException',
-    'ConflictException',
-    'UnprocessableEntityException',
-    'InternalServerErrorException',
+    "ZitadelException",
+    "OpenApiException",
+    "ApiException",
+    "ClientException",
+    "ServerException",
+    "BadRequestException",
+    "UnauthorizedException",
+    "ForbiddenException",
+    "NotFoundException",
+    "ConflictException",
+    "UnprocessableEntityException",
+    "InternalServerErrorException",
 ]

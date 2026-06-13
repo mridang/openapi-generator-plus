@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -16,5 +18,5 @@ class ClientAuthMethod(str, Enum):
     Authorization header (BASIC).
     """
 
-    BODY = 'body'
-    BASIC = 'basic'
+    BODY = "body"
+    BASIC = "basic"

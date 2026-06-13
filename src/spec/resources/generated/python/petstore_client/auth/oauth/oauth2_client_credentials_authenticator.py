@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -44,19 +46,21 @@ class OAuth2ClientCredentialsAuthenticator(HttpAwareAuthenticator):
     # repr=False so the client secret is never leaked through the dataclass's
     # auto-generated repr/str (e.g. logging, f-strings, %r).
     client_secret: str = field(repr=False)
-    token_url: str = ''
+    token_url: str = ""
     scopes: Sequence[str] = ()
     client_auth_method: ClientAuthMethod = ClientAuthMethod.BODY
     # init=False, compare=False: the token cache is internal runtime state, not
     # part of the authenticator's configured identity. default_factory creates a
     # fresh manager per instance.
-    _token_manager: OAuth2TokenManager = field(init=False, repr=False, compare=False, default_factory=OAuth2TokenManager)
+    _token_manager: OAuth2TokenManager = field(
+        init=False, repr=False, compare=False, default_factory=OAuth2TokenManager
+    )
 
     def __post_init__(self) -> None:
         # Normalise scopes to a tuple so the frozen instance holds an immutable
         # sequence. object.__setattr__ is required to assign on a frozen
         # dataclass.
-        object.__setattr__(self, 'scopes', tuple(self.scopes))
+        object.__setattr__(self, "scopes", tuple(self.scopes))
 
     def set_api_client(self, api_client: ApiClient) -> None:
         """Inject the shared API client for making token requests.
@@ -80,7 +84,7 @@ class OAuth2ClientCredentialsAuthenticator(HttpAwareAuthenticator):
             Dict with the Authorization header.
         """
         params: Dict[str, str] = {
-            'grant_type': 'client_credentials',
+            "grant_type": "client_credentials",
         }
         extra_headers: Optional[Dict[str, str]] = None
         if self.client_auth_method == ClientAuthMethod.BASIC:
@@ -88,14 +92,18 @@ class OAuth2ClientCredentialsAuthenticator(HttpAwareAuthenticator):
             # separately before joining with ':' and base64-encoding.
             from urllib.parse import quote
 
-            encoded_id = quote(self.client_id, safe='')
-            encoded_secret = quote(self.client_secret, safe='')
-            credentials = base64.b64encode(f'{encoded_id}:{encoded_secret}'.encode('utf-8')).decode('ascii')
-            extra_headers = {'Authorization': f'Basic {credentials}'}
+            encoded_id = quote(self.client_id, safe="")
+            encoded_secret = quote(self.client_secret, safe="")
+            credentials = base64.b64encode(
+                f"{encoded_id}:{encoded_secret}".encode("utf-8")
+            ).decode("ascii")
+            extra_headers = {"Authorization": f"Basic {credentials}"}
         else:
-            params['client_id'] = self.client_id
-            params['client_secret'] = self.client_secret
+            params["client_id"] = self.client_id
+            params["client_secret"] = self.client_secret
         if self.scopes:
-            params['scope'] = ' '.join(self.scopes)
-        token = self._token_manager.get_access_token(self.token_url, params, extra_headers)
-        return {'Authorization': f'Bearer {token}'}
+            params["scope"] = " ".join(self.scopes)
+        token = self._token_manager.get_access_token(
+            self.token_url, params, extra_headers
+        )
+        return {"Authorization": f"Bearer {token}"}

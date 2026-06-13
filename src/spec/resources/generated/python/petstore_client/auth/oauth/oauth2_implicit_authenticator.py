@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -28,7 +30,9 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
     4. Use the authenticator normally.
     """
 
-    def __init__(self, host: str, client_id: str, authorization_url: str, scopes: Sequence[str]) -> None:
+    def __init__(
+        self, host: str, client_id: str, authorization_url: str, scopes: Sequence[str]
+    ) -> None:
         """Create a new implicit flow authenticator.
 
         Args:
@@ -64,17 +68,17 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
         Returns:
             The authorization URL.
         """
-        params: Dict[str, str] = {'response_type': 'token'}
-        params['client_id'] = self._client_id
+        params: Dict[str, str] = {"response_type": "token"}
+        params["client_id"] = self._client_id
         if self._scopes:
-            params['scope'] = ' '.join(self._scopes)
+            params["scope"] = " ".join(self._scopes)
         if state:
-            params['state'] = state
+            params["state"] = state
         # RFC 6749 §3.1: the authorization endpoint URI MAY already include
         # a query component. Use '&' as the separator when one is already
         # present so existing params are preserved, '?' otherwise.
-        separator = '&' if '?' in self._authorization_url else '?'
-        return f'{self._authorization_url}{separator}{urlencode(params)}'
+        separator = "&" if "?" in self._authorization_url else "?"
+        return f"{self._authorization_url}{separator}{urlencode(params)}"
 
     def set_access_token(self, token: str) -> None:
         """Set the access token obtained from the authorization redirect fragment.
@@ -87,8 +91,10 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
                 §3.2.6 printable-ASCII + HTAB. Mirrors the BearerAuthenticator
                 check so a CR/LF cannot inject extra HTTP headers (F-A5-04).
         """
-        if any(c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in token):
-            raise ValueError('Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)')
+        if any(c != "\t" and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in token):
+            raise ValueError(
+                "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
         self._access_token = token
 
     def get_host(self) -> str:
@@ -105,5 +111,7 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
             Dict with the Authorization header.
         """
         if self._access_token is None:
-            raise RuntimeError('Must call set_access_token() before making API requests')
-        return {'Authorization': f'Bearer {self._access_token}'}
+            raise RuntimeError(
+                "Must call set_access_token() before making API requests"
+            )
+        return {"Authorization": f"Bearer {self._access_token}"}

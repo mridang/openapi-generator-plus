@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,10 +21,10 @@ class PhotoMetadata(BaseModel):
     PhotoMetadata
     """
 
-    caption: Optional[StrictStr] = Field(default=None, alias='caption')
-    is_primary: Optional[StrictBool] = Field(default=None, alias='isPrimary')
-    taken_at: Optional[AwareDatetime] = Field(default=None, alias='takenAt')
-    location: Optional[PhotoMetadataLocation] = Field(default=None, alias='location')
+    caption: Optional[StrictStr] = Field(default=None, alias="caption")
+    is_primary: Optional[StrictBool] = Field(default=None, alias="isPrimary")
+    taken_at: Optional[AwareDatetime] = Field(default=None, alias="takenAt")
+    location: Optional[PhotoMetadataLocation] = Field(default=None, alias="location")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -35,28 +37,28 @@ class ValueSerializer:
             The serialized string, a list of strings (for 'multi' format), or None.
         """
         if value is None:
-            if location == 'query':
+            if location == "query":
                 return None
-            return ''
+            return ""
 
         if isinstance(value, list):
-            if location == 'query':
-                if collection_format == 'multi':
+            if location == "query":
+                if collection_format == "multi":
                     return [ObjectSerializer.stringify(v) for v in value]
-                elif collection_format == 'ssv':
-                    return ' '.join(ObjectSerializer.stringify(v) for v in value)
-                elif collection_format == 'tsv':
-                    return '\t'.join(ObjectSerializer.stringify(v) for v in value)
-                elif collection_format == 'pipes':
-                    return '|'.join(ObjectSerializer.stringify(v) for v in value)
+                elif collection_format == "ssv":
+                    return " ".join(ObjectSerializer.stringify(v) for v in value)
+                elif collection_format == "tsv":
+                    return "\t".join(ObjectSerializer.stringify(v) for v in value)
+                elif collection_format == "pipes":
+                    return "|".join(ObjectSerializer.stringify(v) for v in value)
                 else:
-                    return ','.join(ObjectSerializer.stringify(v) for v in value)
-            if location == 'header':
-                return ','.join(ObjectSerializer.stringify(v) for v in value)
+                    return ",".join(ObjectSerializer.stringify(v) for v in value)
+            if location == "header":
+                return ",".join(ObjectSerializer.stringify(v) for v in value)
 
         str_val = ObjectSerializer.stringify(value)
 
-        if location == 'path':
+        if location == "path":
             return cls.encode_path_segment(str_val)
 
         return str_val
@@ -112,71 +114,76 @@ class ValueSerializer:
         # surfacing the bug at the call site. The required-non-null check
         # lives in the operation method; here we catch the empty-string
         # case that slips through it.
-        if location == 'path' and isinstance(value, str) and value == '':
+        if location == "path" and isinstance(value, str) and value == "":
             raise ValueError(f"Path parameter '{param_name}' must not be empty")
 
-        if style is None or style == '':
+        if style is None or style == "":
             return cls.serialize(value, location, schema_type, collection_format)
 
         if value is None:
-            if location == 'query':
+            if location == "query":
                 return None
-            return ''
+            return ""
 
         # For path styles, percent-encode each individual item BEFORE applying
         # the structural separators (";", "=", ".", ",") that the style defines.
         # This ensures reserved characters inside the value are escaped while
         # the style's structural punctuation remains literal.
-        if location == 'path':
+        if location == "path":
             if isinstance(value, list):
-                items = [cls.encode_path_segment(ObjectSerializer.stringify(v)) for v in value]
+                items = [
+                    cls.encode_path_segment(ObjectSerializer.stringify(v))
+                    for v in value
+                ]
             else:
-                encoded_scalar = cls.encode_path_segment(ObjectSerializer.stringify(value))
+                encoded_scalar = cls.encode_path_segment(
+                    ObjectSerializer.stringify(value)
+                )
         else:
             if isinstance(value, list):
                 items = [ObjectSerializer.stringify(v) for v in value]
 
-        if style == 'matrix':
+        if style == "matrix":
             if isinstance(value, list):
                 if explode:
-                    return ''.join(f';{param_name}={item}' for item in items)
+                    return "".join(f";{param_name}={item}" for item in items)
                 else:
-                    return f';{param_name}={",".join(items)}'
-            if location == 'path':
-                return f';{param_name}={encoded_scalar}'
-            return f';{param_name}={ObjectSerializer.stringify(value)}'
+                    return f";{param_name}={','.join(items)}"
+            if location == "path":
+                return f";{param_name}={encoded_scalar}"
+            return f";{param_name}={ObjectSerializer.stringify(value)}"
 
-        if style == 'label':
+        if style == "label":
             if isinstance(value, list):
                 if explode:
-                    return '.' + '.'.join(items)
+                    return "." + ".".join(items)
                 else:
-                    return '.' + ','.join(items)
-            if location == 'path':
-                return f'.{encoded_scalar}'
-            return f'.{ObjectSerializer.stringify(value)}'
+                    return "." + ",".join(items)
+            if location == "path":
+                return f".{encoded_scalar}"
+            return f".{ObjectSerializer.stringify(value)}"
 
-        if style == 'spaceDelimited':
+        if style == "spaceDelimited":
             if isinstance(value, list):
-                return ' '.join(items)
+                return " ".join(items)
             return ObjectSerializer.stringify(value)
 
-        if style == 'pipeDelimited':
+        if style == "pipeDelimited":
             if isinstance(value, list):
-                return '|'.join(items)
+                return "|".join(items)
             return ObjectSerializer.stringify(value)
 
-        if style == 'form':
+        if style == "form":
             if isinstance(value, list):
                 if explode:
                     return items
-                return ','.join(items)
+                return ",".join(items)
             return ObjectSerializer.stringify(value)
 
-        if style == 'simple':
+        if style == "simple":
             if isinstance(value, list):
-                return ','.join(items)
-            if location == 'path':
+                return ",".join(items)
+            if location == "path":
                 return encoded_scalar
             return ObjectSerializer.stringify(value)
 
@@ -204,5 +211,5 @@ class ValueSerializer:
         if value is None:
             return result
         for key, val in value.items():
-            result[f'{param_name}[{key}]'] = ObjectSerializer.stringify(val)
+            result[f"{param_name}[{key}]"] = ObjectSerializer.stringify(val)
         return result

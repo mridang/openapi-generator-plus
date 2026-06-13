@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -15,7 +17,7 @@ from pydantic import BeforeValidator, PlainSerializer
 # with an optional fractional part of up to nine digits, suffixed with 's'
 # (e.g. "3600s", "3600.000000001s", "-1.5s"). Zitadel's server validates
 # google.protobuf.Duration with exactly this grammar.
-_DURATION_RE = re.compile(r'-?\d+(\.\d{1,9})?s')
+_DURATION_RE = re.compile(r"-?\d+(\.\d{1,9})?s")
 
 
 def _format_timedelta_protobuf(value: datetime.timedelta) -> str:
@@ -29,21 +31,23 @@ def _format_timedelta_protobuf(value: datetime.timedelta) -> str:
     so the whole-second and microsecond split is derived from a single signed
     microsecond total to keep the sign coherent.
     """
-    total_micros = value.days * 86400 * 1_000_000 + value.seconds * 1_000_000 + value.microseconds
-    sign = '-' if total_micros < 0 else ''
+    total_micros = (
+        value.days * 86400 * 1_000_000 + value.seconds * 1_000_000 + value.microseconds
+    )
+    sign = "-" if total_micros < 0 else ""
     total_micros = abs(total_micros)
     secs, micros = divmod(total_micros, 1_000_000)
     nanos = micros * 1000
     if nanos == 0:
-        return f'{sign}{secs}s'
+        return f"{sign}{secs}s"
     # Zero-pad to nine digits, then trim trailing zeros down to the nearest
     # 3/6/9-digit boundary so every significant nanosecond digit survives.
-    frac = f'{nanos:09d}'
-    if frac.endswith('000000'):
+    frac = f"{nanos:09d}"
+    if frac.endswith("000000"):
         frac = frac[:3]
-    elif frac.endswith('000'):
+    elif frac.endswith("000"):
         frac = frac[:6]
-    return f'{sign}{secs}.{frac}s'
+    return f"{sign}{secs}.{frac}s"
 
 
 def _parse_timedelta_protobuf(value: datetime.timedelta | str) -> datetime.timedelta:
@@ -58,16 +62,16 @@ def _parse_timedelta_protobuf(value: datetime.timedelta | str) -> datetime.timed
     if isinstance(value, datetime.timedelta):
         return value
     if not _DURATION_RE.fullmatch(value):
-        raise ValueError(f'Could not parse {value!r} as a protobuf-JSON duration')
+        raise ValueError(f"Could not parse {value!r} as a protobuf-JSON duration")
     body = value[:-1]
-    sign = -1 if body.startswith('-') else 1
-    body = body.lstrip('-')
-    if '.' in body:
-        secs_str, frac_str = body.split('.', 1)
+    sign = -1 if body.startswith("-") else 1
+    body = body.lstrip("-")
+    if "." in body:
+        secs_str, frac_str = body.split(".", 1)
     else:
-        secs_str, frac_str = body, ''
+        secs_str, frac_str = body, ""
     secs = int(secs_str)
-    nanos = int(frac_str.ljust(9, '0')) if frac_str else 0
+    nanos = int(frac_str.ljust(9, "0")) if frac_str else 0
     micros = nanos // 1000
     return sign * datetime.timedelta(seconds=secs, microseconds=micros)
 
@@ -82,5 +86,5 @@ def _parse_timedelta_protobuf(value: datetime.timedelta | str) -> datetime.timed
 ProtobufDuration = Annotated[
     datetime.timedelta,
     BeforeValidator(_parse_timedelta_protobuf),
-    PlainSerializer(_format_timedelta_protobuf, return_type=str, when_used='json'),
+    PlainSerializer(_format_timedelta_protobuf, return_type=str, when_used="json"),
 ]

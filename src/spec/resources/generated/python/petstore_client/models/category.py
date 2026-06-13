@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,14 +21,14 @@ class Category(BaseModel):
     Category
     """
 
-    id: Optional[StrictInt] = Field(default=None, alias='id')
+    id: Optional[StrictInt] = Field(default=None, alias="id")
     # Small breed
     # Toy or small breed dogs
     # >>> Chihuahua
     # Large breed
     # Working or guard breed dogs
     # >>> GreatDane
-    name: Optional[StrictStr] = Field(default=None, alias='name')
+    name: Optional[StrictStr] = Field(default=None, alias="name")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

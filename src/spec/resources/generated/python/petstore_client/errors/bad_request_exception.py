@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -20,4 +22,10 @@ class BadRequestException(ClientException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        super().__init__(status_code=400, message=message, response_headers=response_headers, response_body=response_body, error_body=error_body)
+        super().__init__(
+            status_code=400,
+            message=message,
+            response_headers=response_headers,
+            response_body=response_body,
+            error_body=error_body,
+        )

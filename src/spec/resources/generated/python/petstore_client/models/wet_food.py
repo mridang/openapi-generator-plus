@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,8 +21,8 @@ class WetFood(BaseModel):
     WetFood
     """
 
-    food_type: StrictStr = Field(alias='foodType', default='wet')
-    volume_ml: StrictInt = Field(alias='volumeMl')
+    food_type: StrictStr = Field(alias="foodType", default="wet")
+    volume_ml: StrictInt = Field(alias="volumeMl")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

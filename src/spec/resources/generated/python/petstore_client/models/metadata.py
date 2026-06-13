@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,10 +21,10 @@ class Metadata(BaseModel):
     Metadata
     """
 
-    created_at: Optional[AwareDatetime] = Field(default=None, alias='createdAt')
+    created_at: Optional[AwareDatetime] = Field(default=None, alias="createdAt")
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def _capture_additional_properties(cls, values: Any) -> Any:
         """Collect JSON keys not declared as fields into additional_properties.
@@ -42,18 +44,18 @@ class Metadata(BaseModel):
             known.add(fname)
             if finfo.alias is not None:
                 known.add(finfo.alias)
-        extras: Dict[str, Any] = values.get('additional_properties') or {}
+        extras: Dict[str, Any] = values.get("additional_properties") or {}
         if not isinstance(extras, dict):
             extras = {}
         merged: Dict[str, Any] = {}
         for key, value in values.items():
-            if key == 'additional_properties':
+            if key == "additional_properties":
                 continue
             if key in known:
                 merged[key] = value
             else:
                 extras[key] = value
-        merged['additional_properties'] = extras
+        merged["additional_properties"] = extras
         return merged
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the

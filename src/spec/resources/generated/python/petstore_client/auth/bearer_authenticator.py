@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -26,13 +28,15 @@ class BearerAuthenticator(BaseAuthenticator):
         # bare ``Authorization: Bearer `` header, matching the api-key
         # authenticator's own empty guard.
         if not self.token or not self.token.strip():
-            raise ValueError('Bearer token must not be empty')
+            raise ValueError("Bearer token must not be empty")
         # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         # Reject anything outside printable ASCII + TAB so callers see a
         # clear error rather than HTTP header injection from CR/LF or
         # silently-mangled non-ASCII bytes.
-        if any(c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in self.token):
-            raise ValueError('Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)')
+        if any(c != "\t" and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in self.token):
+            raise ValueError(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
 
     def get_host(self) -> str:
         return self.host
@@ -42,6 +46,6 @@ class BearerAuthenticator(BaseAuthenticator):
         # from env files are commonly stored already-prefixed; emitting
         # "Bearer Bearer xyz" would otherwise silently break auth.
         value = self.token
-        if len(value) >= 7 and value[:7].lower() == 'bearer ':
+        if len(value) >= 7 and value[:7].lower() == "bearer ":
             value = value[7:]
-        return {'Authorization': f'Bearer {value}'}
+        return {"Authorization": f"Bearer {value}"}

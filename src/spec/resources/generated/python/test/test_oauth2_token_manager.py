@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -29,22 +31,22 @@ class TestOAuth2TokenManager:
             status_code=200,
             body=json.dumps(
                 {
-                    'access_token': 'my_access_token',
-                    'expires_in': 3600,
+                    "access_token": "my_access_token",
+                    "expires_in": 3600,
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
         token = manager.get_access_token(
-            'https://auth.example.com/token',
+            "https://auth.example.com/token",
             {
-                'grant_type': 'client_credentials',
+                "grant_type": "client_credentials",
             },
         )
 
-        assert token == 'my_access_token'
+        assert token == "my_access_token"
 
     def test_stores_refresh_token(self) -> None:
         manager = OAuth2TokenManager()
@@ -53,24 +55,24 @@ class TestOAuth2TokenManager:
             status_code=200,
             body=json.dumps(
                 {
-                    'access_token': 'access123',
-                    'refresh_token': 'refresh456',
-                    'expires_in': 3600,
+                    "access_token": "access123",
+                    "refresh_token": "refresh456",
+                    "expires_in": 3600,
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
         manager.get_access_token(
-            'https://auth.example.com/token',
+            "https://auth.example.com/token",
             {
-                'grant_type': 'authorization_code',
-                'code': 'authcode',
+                "grant_type": "authorization_code",
+                "code": "authcode",
             },
         )
 
-        assert manager.refresh_token == 'refresh456'
+        assert manager.refresh_token == "refresh456"
 
     def test_returns_cached_token_when_not_expired(self) -> None:
         manager = OAuth2TokenManager()
@@ -79,20 +81,20 @@ class TestOAuth2TokenManager:
             status_code=200,
             body=json.dumps(
                 {
-                    'access_token': 'tok1',
-                    'expires_in': 3600,
+                    "access_token": "tok1",
+                    "expires_in": 3600,
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
-        second = manager.get_access_token('https://auth.example.com/token', params)
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
+        second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == 'tok1'
-        assert second == 'tok1'
+        assert first == "tok1"
+        assert second == "tok1"
         assert mock_client.send_request.call_count == 1
 
     def test_refetches_token_when_expired(self) -> None:
@@ -105,45 +107,47 @@ class TestOAuth2TokenManager:
                 status_code=200,
                 body=json.dumps(
                     {
-                        'access_token': 'token_first',
-                        'expires_in': 0,
+                        "access_token": "token_first",
+                        "expires_in": 0,
                     }
                 ),
-                headers={'content-type': 'application/json'},
+                headers={"content-type": "application/json"},
             ),
             ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
-                        'access_token': 'token_second',
-                        'expires_in': 3600,
+                        "access_token": "token_second",
+                        "expires_in": 3600,
                     }
                 ),
-                headers={'content-type': 'application/json'},
+                headers={"content-type": "application/json"},
             ),
         ]
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first_token = manager.get_access_token('https://auth.example.com/token', params)
-        assert first_token == 'token_first'
+        params = {"grant_type": "client_credentials"}
+        first_token = manager.get_access_token("https://auth.example.com/token", params)
+        assert first_token == "token_first"
 
         # Token should be expired (expires_in=0 minus 30s buffer means it's already expired)
-        second_token = manager.get_access_token('https://auth.example.com/token', params)
-        assert second_token == 'token_second'
+        second_token = manager.get_access_token(
+            "https://auth.example.com/token", params
+        )
+        assert second_token == "token_second"
         assert mock_client.send_request.call_count == 2
 
     def test_set_access_token_bypasses_endpoint(self) -> None:
         manager = OAuth2TokenManager()
-        manager.set_access_token('manual-token')
+        manager.set_access_token("manual-token")
 
         # No API client needed since token is set manually
         token = manager.get_access_token(
-            'https://auth.example.com/token',
-            {'grant_type': 'client_credentials'},
+            "https://auth.example.com/token",
+            {"grant_type": "client_credentials"},
         )
 
-        assert token == 'manual-token'
+        assert token == "manual-token"
 
     def test_invalidate_access_token_forces_refetch(self) -> None:
         manager = OAuth2TokenManager()
@@ -153,32 +157,32 @@ class TestOAuth2TokenManager:
                 status_code=200,
                 body=json.dumps(
                     {
-                        'access_token': 'tok1',
-                        'expires_in': 3600,
+                        "access_token": "tok1",
+                        "expires_in": 3600,
                     }
                 ),
-                headers={'content-type': 'application/json'},
+                headers={"content-type": "application/json"},
             ),
             ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
-                        'access_token': 'tok2',
-                        'expires_in': 3600,
+                        "access_token": "tok2",
+                        "expires_in": 3600,
                     }
                 ),
-                headers={'content-type': 'application/json'},
+                headers={"content-type": "application/json"},
             ),
         ]
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
         manager.invalidate_access_token()
-        second = manager.get_access_token('https://auth.example.com/token', params)
+        second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == 'tok1'
-        assert second == 'tok2'
+        assert first == "tok1"
+        assert second == "tok2"
         assert mock_client.send_request.call_count == 2
 
     def test_throws_when_no_api_client_injected(self) -> None:
@@ -186,10 +190,10 @@ class TestOAuth2TokenManager:
 
         try:
             manager.get_access_token(
-                'https://auth.example.com/token',
-                {'grant_type': 'client_credentials'},
+                "https://auth.example.com/token",
+                {"grant_type": "client_credentials"},
             )
-            assert False, 'Expected RuntimeError'
+            assert False, "Expected RuntimeError"
         except RuntimeError:
             pass
 
@@ -207,8 +211,8 @@ class TestOAuth2TokenManager:
             time.sleep(0.05)
             return ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({'access_token': 'shared-tok', 'expires_in': 3600}),
-                headers={'content-type': 'application/json'},
+                body=json.dumps({"access_token": "shared-tok", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
             )
 
         manager = OAuth2TokenManager()
@@ -216,11 +220,13 @@ class TestOAuth2TokenManager:
         mock_client.send_request.side_effect = slow_send_request
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        tokens: list[str] = [''] * 10
+        params = {"grant_type": "client_credentials"}
+        tokens: list[str] = [""] * 10
 
         def worker(idx: int) -> None:
-            tokens[idx] = manager.get_access_token('https://auth.example.com/token', params)
+            tokens[idx] = manager.get_access_token(
+                "https://auth.example.com/token", params
+            )
 
         threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
         for thread in threads:
@@ -228,8 +234,13 @@ class TestOAuth2TokenManager:
         for thread in threads:
             thread.join()
 
-        assert network_calls[0] == 1, 'single-flight refresh must coalesce concurrent callers into one token request'
-        assert all(token == 'shared-tok' for token in tokens), 'all callers must observe the same token'
+        assert network_calls[0] == 1, (
+            "single-flight refresh must coalesce concurrent callers into one "
+            "token request"
+        )
+        assert all(token == "shared-tok" for token in tokens), (
+            "all callers must observe the same token"
+        )
 
     def test_expires_in_short_lived_token_does_not_storm(self) -> None:
         # Gap CM: a short-lived token (expires_in < 30s safety buffer) must
@@ -239,17 +250,17 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'access_token': 'short', 'expires_in': 10}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"access_token": "short", "expires_in": 10}),
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
         token = manager.get_access_token(
-            'https://auth.example.com/token',
-            {'grant_type': 'client_credentials'},
+            "https://auth.example.com/token",
+            {"grant_type": "client_credentials"},
         )
 
-        assert token == 'short'
+        assert token == "short"
         assert mock_client.send_request.call_count == 1
 
     def test_expires_in_long_lived_token_applies_full_buffer(self) -> None:
@@ -259,17 +270,17 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'access_token': 'long', 'expires_in': 3600}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"access_token": "long", "expires_in": 3600}),
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
-        second = manager.get_access_token('https://auth.example.com/token', params)
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
+        second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == 'long'
-        assert second == 'long'
+        assert first == "long"
+        assert second == "long"
         assert mock_client.send_request.call_count == 1
 
     def test_expires_in_exactly_buffer_returns_zero_buffer(self) -> None:
@@ -280,23 +291,23 @@ class TestOAuth2TokenManager:
         mock_client.send_request.side_effect = [
             ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({'access_token': 'edge1', 'expires_in': 30}),
-                headers={'content-type': 'application/json'},
+                body=json.dumps({"access_token": "edge1", "expires_in": 30}),
+                headers={"content-type": "application/json"},
             ),
             ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({'access_token': 'edge2', 'expires_in': 30}),
-                headers={'content-type': 'application/json'},
+                body=json.dumps({"access_token": "edge2", "expires_in": 30}),
+                headers={"content-type": "application/json"},
             ),
         ]
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
-        second = manager.get_access_token('https://auth.example.com/token', params)
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
+        second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == 'edge1'
-        assert second == 'edge2'
+        assert first == "edge1"
+        assert second == "edge2"
         assert mock_client.send_request.call_count == 2
 
     def test_refresh_token_empty_string_preserves_existing(self) -> None:
@@ -309,35 +320,37 @@ class TestOAuth2TokenManager:
                 status_code=200,
                 body=json.dumps(
                     {
-                        'access_token': 'old_access',
-                        'refresh_token': 'old_refresh',
-                        'expires_in': 1,
+                        "access_token": "old_access",
+                        "refresh_token": "old_refresh",
+                        "expires_in": 1,
                     }
                 ),
-                headers={'content-type': 'application/json'},
+                headers={"content-type": "application/json"},
             ),
             ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
-                        'access_token': 'new_access',
-                        'expires_in': 3600,
-                        'refresh_token': '',
+                        "access_token": "new_access",
+                        "expires_in": 3600,
+                        "refresh_token": "",
                     }
                 ),
-                headers={'content-type': 'application/json'},
+                headers={"content-type": "application/json"},
             ),
         ]
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'authorization_code'}
-        manager.get_access_token('https://auth.example.com/token', params)
-        assert manager.refresh_token == 'old_refresh'
+        params = {"grant_type": "authorization_code"}
+        manager.get_access_token("https://auth.example.com/token", params)
+        assert manager.refresh_token == "old_refresh"
 
         # Second call refreshes (access expired); empty refresh_token in
         # response must not overwrite cached refresh_token.
-        manager.get_access_token('https://auth.example.com/token', params)
-        assert manager.refresh_token == 'old_refresh', 'empty refresh_token in refresh response must not overwrite cached refresh_token'
+        manager.get_access_token("https://auth.example.com/token", params)
+        assert manager.refresh_token == "old_refresh", (
+            "empty refresh_token in refresh response must not overwrite cached refresh_token"
+        )
 
     def test_expires_in_as_json_string_is_accepted(self) -> None:
         # D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
@@ -347,17 +360,17 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'access_token': 'str-tok', 'expires_in': '3600'}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"access_token": "str-tok", "expires_in": "3600"}),
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
-        second = manager.get_access_token('https://auth.example.com/token', params)
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
+        second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == 'str-tok'
-        assert second == 'str-tok'
+        assert first == "str-tok"
+        assert second == "str-tok"
         assert mock_client.send_request.call_count == 1
 
     def test_expires_in_as_float_is_floored(self) -> None:
@@ -367,17 +380,17 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'access_token': 'flt-tok', 'expires_in': 3600.5}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"access_token": "flt-tok", "expires_in": 3600.5}),
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
-        second = manager.get_access_token('https://auth.example.com/token', params)
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
+        second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == 'flt-tok'
-        assert second == 'flt-tok'
+        assert first == "flt-tok"
+        assert second == "flt-tok"
         assert mock_client.send_request.call_count == 1
 
     def test_expires_in_negative_skips_caching(self) -> None:
@@ -388,23 +401,23 @@ class TestOAuth2TokenManager:
         mock_client.send_request.side_effect = [
             ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({'access_token': 'neg1', 'expires_in': -1}),
-                headers={'content-type': 'application/json'},
+                body=json.dumps({"access_token": "neg1", "expires_in": -1}),
+                headers={"content-type": "application/json"},
             ),
             ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({'access_token': 'neg2', 'expires_in': 3600}),
-                headers={'content-type': 'application/json'},
+                body=json.dumps({"access_token": "neg2", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
             ),
         ]
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
-        second = manager.get_access_token('https://auth.example.com/token', params)
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
+        second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == 'neg1'
-        assert second == 'neg2'
+        assert first == "neg1"
+        assert second == "neg2"
         assert mock_client.send_request.call_count == 2
 
     def test_throws_when_token_request_fails(self) -> None:
@@ -412,17 +425,17 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=401,
-            body=json.dumps({'error': 'invalid_client'}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"error": "invalid_client"}),
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
         try:
             manager.get_access_token(
-                'https://auth.example.com/token',
-                {'grant_type': 'client_credentials'},
+                "https://auth.example.com/token",
+                {"grant_type": "client_credentials"},
             )
-            assert False, 'Expected ZitadelException'
+            assert False, "Expected ZitadelException"
         except ZitadelException:
             pass
 
@@ -433,17 +446,17 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'refresh_token': 'x'}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"refresh_token": "x"}),
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
         try:
             manager.get_access_token(
-                'https://auth.example.com/token',
-                {'grant_type': 'client_credentials'},
+                "https://auth.example.com/token",
+                {"grant_type": "client_credentials"},
             )
-            assert False, 'Expected OAuth2TokenError'
+            assert False, "Expected OAuth2TokenError"
         except OAuth2TokenError:
             pass
 
@@ -456,26 +469,26 @@ class TestOAuth2TokenManager:
             status_code=400,
             body=json.dumps(
                 {
-                    'error': 'invalid_grant',
-                    'error_description': 'refresh token expired',
-                    'error_uri': 'https://docs.example.com/errors/invalid_grant',
+                    "error": "invalid_grant",
+                    "error_description": "refresh token expired",
+                    "error_uri": "https://docs.example.com/errors/invalid_grant",
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
         try:
             manager.get_access_token(
-                'https://auth.example.com/token',
-                {'grant_type': 'client_credentials'},
+                "https://auth.example.com/token",
+                {"grant_type": "client_credentials"},
             )
-            assert False, 'Expected OAuth2ServerError'
+            assert False, "Expected OAuth2ServerError"
         except OAuth2ServerError as err:
             assert err.status_code == 400
-            assert err.code == 'invalid_grant'
-            assert err.description == 'refresh token expired'
-            assert err.uri == 'https://docs.example.com/errors/invalid_grant'
+            assert err.code == "invalid_grant"
+            assert err.description == "refresh token expired"
+            assert err.uri == "https://docs.example.com/errors/invalid_grant"
 
     def test_token_post_uses_no_redirect(self) -> None:
         """3.2: the OAuth2 token POST must be issued with ``no_redirect=True``
@@ -487,20 +500,22 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'access_token': 't', 'expires_in': 3600}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"access_token": "t", "expires_in": 3600}),
+            headers={"content-type": "application/json"},
         )
         manager.set_api_client(mock_client)
 
         manager.get_access_token(
-            'https://auth.example.com/token',
-            {'grant_type': 'client_credentials'},
+            "https://auth.example.com/token",
+            {"grant_type": "client_credentials"},
         )
 
         # ``send_request`` was called with no_redirect=True. Accept either
         # positional or kwarg form so we're not coupled to the call style.
         call = mock_client.send_request.call_args
-        assert call.kwargs.get('no_redirect') is True, f'OAuth2 token POST must pass no_redirect=True; got call={call!r}'
+        assert call.kwargs.get("no_redirect") is True, (
+            f"OAuth2 token POST must pass no_redirect=True; got call={call!r}"
+        )
 
     def test_token_endpoint_redirect_is_rejected(self) -> None:
         """3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
@@ -512,17 +527,17 @@ class TestOAuth2TokenManager:
             mock_client = MagicMock()
             mock_client.send_request.return_value = ApiHttpResponse(
                 status_code=status,
-                body='',
-                headers={'location': 'https://attacker.example/steal'},
+                body="",
+                headers={"location": "https://attacker.example/steal"},
             )
             manager.set_api_client(mock_client)
 
             try:
                 manager.get_access_token(
-                    'https://auth.example.com/token',
-                    {'grant_type': 'client_credentials', 'client_secret': 'topsecret'},
+                    "https://auth.example.com/token",
+                    {"grant_type": "client_credentials", "client_secret": "topsecret"},
                 )
-                assert False, f'Expected OAuth2TokenError for status {status}'
+                assert False, f"Expected OAuth2TokenError for status {status}"
             except OAuth2TokenError:
                 pass
 
@@ -533,15 +548,17 @@ class TestOAuth2TokenManager:
         network_calls = [0]
         call_lock = threading.Lock()
 
-        def numbering_send_request(*_args: object, **_kwargs: object) -> ApiHttpResponse:
+        def numbering_send_request(
+            *_args: object, **_kwargs: object
+        ) -> ApiHttpResponse:
             with call_lock:
                 network_calls[0] += 1
                 n = network_calls[0]
             time.sleep(0.05)
             return ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({'access_token': f'tok{n}', 'expires_in': 3600}),
-                headers={'content-type': 'application/json'},
+                body=json.dumps({"access_token": f"tok{n}", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
             )
 
         manager = OAuth2TokenManager()
@@ -549,17 +566,19 @@ class TestOAuth2TokenManager:
         mock_client.send_request.side_effect = numbering_send_request
         manager.set_api_client(mock_client)
 
-        params = {'grant_type': 'client_credentials'}
-        first = manager.get_access_token('https://auth.example.com/token', params)
-        assert first == 'tok1'
+        params = {"grant_type": "client_credentials"}
+        first = manager.get_access_token("https://auth.example.com/token", params)
+        assert first == "tok1"
         assert network_calls[0] == 1
 
         manager.invalidate_access_token()
 
-        tokens: list[str] = [''] * 10
+        tokens: list[str] = [""] * 10
 
         def worker(idx: int) -> None:
-            tokens[idx] = manager.get_access_token('https://auth.example.com/token', params)
+            tokens[idx] = manager.get_access_token(
+                "https://auth.example.com/token", params
+            )
 
         threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
         for thread in threads:
@@ -567,10 +586,17 @@ class TestOAuth2TokenManager:
         for thread in threads:
             thread.join()
 
-        assert network_calls[0] == 2, 'invalidate + concurrent callers must produce one refetch'
-        assert all(token == 'tok2' for token in tokens), 'all callers must observe the refreshed token'
+        assert network_calls[0] == 2, (
+            "invalidate + concurrent callers must produce one refetch"
+        )
+        assert all(token == "tok2" for token in tokens), (
+            "all callers must observe the refreshed token"
+        )
 
-    @pytest.mark.skip(reason='Python OAuth2TokenManager redirect-refusal error does not surface the Location header')
+    @pytest.mark.skip(
+        reason="Python OAuth2TokenManager redirect-refusal error does not surface "
+        "the Location header"
+    )
     def test_redirect_refusal_error_includes_location(self) -> None:
         # Gap 3.2: the redirect-refusal error should name the offending Location
         # for diagnostics. The Python SDK's OAuth2TokenError message embeds only
@@ -579,16 +605,16 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=307,
-            body='',
-            headers={'location': 'https://attacker.example/steal'},
+            body="",
+            headers={"location": "https://attacker.example/steal"},
         )
         manager.set_api_client(mock_client)
 
         try:
             manager.get_access_token(
-                'https://auth.example.com/token',
-                {'grant_type': 'client_credentials'},
+                "https://auth.example.com/token",
+                {"grant_type": "client_credentials"},
             )
-            assert False, 'Expected OAuth2TokenError'
+            assert False, "Expected OAuth2TokenError"
         except OAuth2TokenError as err:
-            assert 'attacker.example' in str(err)
+            assert "attacker.example" in str(err)

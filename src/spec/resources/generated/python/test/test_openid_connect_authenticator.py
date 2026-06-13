@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -10,23 +12,27 @@ import pytest
 from unittest.mock import MagicMock
 from urllib.parse import urlparse, parse_qs
 
-from petstore_client.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
+from petstore_client.auth.oauth.openid_connect_authenticator import (
+    OpenIdConnectAuthenticator,
+)
 from petstore_client.auth.oauth.oauth2_token_manager import OAuth2TokenError
 from petstore_client.api_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OpenIdConnectAuthenticator:
     return OpenIdConnectAuthenticator(
-        host='https://api.example.com',
-        openid_connect_url='https://auth.example.com/.well-known/openid-configuration',
-        client_id='oidc_client',
-        client_secret='oidc_secret',
-        redirect_uri='https://app.example.com/callback',
-        scopes=['openid', 'profile'],
+        host="https://api.example.com",
+        openid_connect_url="https://auth.example.com/.well-known/openid-configuration",
+        client_id="oidc_client",
+        client_secret="oidc_secret",
+        redirect_uri="https://app.example.com/callback",
+        scopes=["openid", "profile"],
     )
 
 
-def _create_authenticator_with_discovery() -> tuple[OpenIdConnectAuthenticator, MagicMock]:
+def _create_authenticator_with_discovery() -> tuple[
+    OpenIdConnectAuthenticator, MagicMock
+]:
     """Helper that creates an authenticator and mocks the discovery endpoint."""
     auth = _create_authenticator()
     mock_client = MagicMock()
@@ -34,12 +40,12 @@ def _create_authenticator_with_discovery() -> tuple[OpenIdConnectAuthenticator, 
         status_code=200,
         body=json.dumps(
             {
-                'authorization_endpoint': 'https://auth.example.com/authorize',
-                'token_endpoint': 'https://auth.example.com/token',
-                'issuer': 'https://auth.example.com',
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+                "issuer": "https://auth.example.com",
             }
         ),
-        headers={'content-type': 'application/json'},
+        headers={"content-type": "application/json"},
     )
     mock_client.send_request.return_value = discovery_response
     auth.set_api_client(mock_client)
@@ -54,11 +60,11 @@ class TestOpenIdConnectAuthenticator:
         parsed = urlparse(url)
         params = parse_qs(parsed.query)
 
-        assert parsed.netloc == 'auth.example.com'
-        assert parsed.path == '/authorize'
-        assert params['client_id'] == ['oidc_client']
-        assert params['response_type'] == ['code']
-        assert params['scope'] == ['openid profile']
+        assert parsed.netloc == "auth.example.com"
+        assert parsed.path == "/authorize"
+        assert params["client_id"] == ["oidc_client"]
+        assert params["response_type"] == ["code"]
+        assert params["scope"] == ["openid profile"]
 
     def test_fetches_discovery_document(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
@@ -66,8 +72,11 @@ class TestOpenIdConnectAuthenticator:
         auth.build_authorization_url()
 
         call_args = mock_client.send_request.call_args
-        assert call_args[0][0] == 'GET'
-        assert call_args[0][1] == 'https://auth.example.com/.well-known/openid-configuration'
+        assert call_args[0][0] == "GET"
+        assert (
+            call_args[0][1]
+            == "https://auth.example.com/.well-known/openid-configuration"
+        )
 
     def test_obtains_token_after_code_exchange(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
@@ -80,21 +89,21 @@ class TestOpenIdConnectAuthenticator:
             status_code=200,
             body=json.dumps(
                 {
-                    'access_token': 'oidc_access_token',
-                    'expires_in': 3600,
+                    "access_token": "oidc_access_token",
+                    "expires_in": 3600,
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
 
-        auth.exchange_code('oidc_code')
+        auth.exchange_code("oidc_code")
 
         token_call = mock_client.send_request.call_args
-        assert token_call[0][0] == 'POST'
-        assert token_call[0][1] == 'https://auth.example.com/token'
+        assert token_call[0][0] == "POST"
+        assert token_call[0][1] == "https://auth.example.com/token"
         body = token_call[0][3]
-        assert 'grant_type=authorization_code' in body
-        assert 'code=oidc_code' in body
+        assert "grant_type=authorization_code" in body
+        assert "code=oidc_code" in body
 
     def test_get_auth_headers_returns_bearer_after_exchange(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
@@ -107,31 +116,31 @@ class TestOpenIdConnectAuthenticator:
             status_code=200,
             body=json.dumps(
                 {
-                    'access_token': 'oidc-tok',
-                    'expires_in': 3600,
+                    "access_token": "oidc-tok",
+                    "expires_in": 3600,
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
 
-        auth.exchange_code('oidc-code')
+        auth.exchange_code("oidc-code")
         headers = auth.get_auth_headers()
 
-        assert headers['Authorization'] == 'Bearer oidc-tok'
+        assert headers["Authorization"] == "Bearer oidc-tok"
 
     def test_throws_when_no_api_client_injected(self) -> None:
         auth = _create_authenticator()
 
         try:
             auth.build_authorization_url()
-            assert False, 'Expected RuntimeError'
+            assert False, "Expected RuntimeError"
         except RuntimeError:
             pass
 
     def test_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()
 
-        assert auth.get_host() == 'https://api.example.com'
+        assert auth.get_host() == "https://api.example.com"
 
     def test_discovery_non_2xx_status_raises(self) -> None:
         # A 500-HTML error page must surface as a typed OAuth error, not a
@@ -140,8 +149,8 @@ class TestOpenIdConnectAuthenticator:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=500,
-            body='<html>Internal Server Error</html>',
-            headers={'content-type': 'text/html'},
+            body="<html>Internal Server Error</html>",
+            headers={"content-type": "text/html"},
         )
         auth.set_api_client(mock_client)
         with pytest.raises(OAuth2TokenError):
@@ -152,8 +161,8 @@ class TestOpenIdConnectAuthenticator:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
-            body=json.dumps({'token_endpoint': 'https://auth.example.com/token'}),
-            headers={'content-type': 'application/json'},
+            body=json.dumps({"token_endpoint": "https://auth.example.com/token"}),
+            headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
         with pytest.raises(OAuth2TokenError):
@@ -176,11 +185,11 @@ class TestOpenIdConnectAuthenticator:
             status_code=200,
             body=json.dumps(
                 {
-                    'authorization_endpoint': 'https://auth.example.com/authorize',
-                    'token_endpoint': '',
+                    "authorization_endpoint": "https://auth.example.com/authorize",
+                    "token_endpoint": "",
                 }
             ),
-            headers={'content-type': 'application/json'},
+            headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
         with pytest.raises(OAuth2TokenError):

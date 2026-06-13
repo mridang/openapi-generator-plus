@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -18,9 +20,9 @@ from enum import Enum
 class PetWithOwnerStatusEnum(str, Enum):
     """PetWithOwner - status"""
 
-    AVAILABLE = 'available'
-    PENDING = 'pending'
-    SOLD = 'sold'
+    AVAILABLE = "available"
+    PENDING = "pending"
+    SOLD = "sold"
 
 
 class PetWithOwner(BaseModel):
@@ -28,22 +30,40 @@ class PetWithOwner(BaseModel):
     A pet record extended with owner information
     """
 
-    id: Optional[StrictInt] = Field(default=None, alias='id')
-    name: StrictStr = Field(alias='name')
-    category: Optional[Category] = Field(default=None, alias='category')
-    photo_urls: Set[StrictStr] = Field(alias='photoUrls')
-    tags: Optional[List[Tag]] = Field(default=None, alias='tags')
+    id: Optional[StrictInt] = Field(default=None, alias="id")
+    name: StrictStr = Field(alias="name")
+    category: Optional[Category] = Field(default=None, alias="category")
+    photo_urls: Set[StrictStr] = Field(alias="photoUrls")
+    tags: Optional[List[Tag]] = Field(default=None, alias="tags")
     # .. deprecated:: This property is deprecated.
-    status: Optional[PetWithOwnerStatusEnum] = Field(default=None, alias='status', description='pet status in the store')
-    location: Optional[List[object]] = Field(default=None, alias='location')
-    homepage_url: Optional[HttpUrl] = Field(default=None, alias='homepageUrl', description="Absolute URL to the pet's public profile page")
-    thumbnail_ref: Optional[StrictStr] = Field(default=None, alias='thumbnailRef', description='Optionally-relative thumbnail location')
-    link_template: Optional[StrictStr] = Field(default=None, alias='linkTemplate', description='RFC 6570 template for related-resource links')
-    owner_email: Optional[EmailStr] = Field(default=None, alias='ownerEmail')
-    weight_kg: Optional[Decimal] = Field(default=None, alias='weightKg', description='Pet weight in kilograms (decimal precision)')
-    owner_name: StrictStr = Field(alias='ownerName')
+    status: Optional[PetWithOwnerStatusEnum] = Field(
+        default=None, alias="status", description="pet status in the store"
+    )
+    location: Optional[List[object]] = Field(default=None, alias="location")
+    homepage_url: Optional[HttpUrl] = Field(
+        default=None,
+        alias="homepageUrl",
+        description="Absolute URL to the pet's public profile page",
+    )
+    thumbnail_ref: Optional[StrictStr] = Field(
+        default=None,
+        alias="thumbnailRef",
+        description="Optionally-relative thumbnail location",
+    )
+    link_template: Optional[StrictStr] = Field(
+        default=None,
+        alias="linkTemplate",
+        description="RFC 6570 template for related-resource links",
+    )
+    owner_email: Optional[EmailStr] = Field(default=None, alias="ownerEmail")
+    weight_kg: Optional[Decimal] = Field(
+        default=None,
+        alias="weightKg",
+        description="Pet weight in kilograms (decimal precision)",
+    )
+    owner_name: StrictStr = Field(alias="ownerName")
 
-    @field_validator('status')
+    @field_validator("status")
     def status_warn_deprecated(cls, value: Any) -> Any:
         """Emits a DeprecationWarning when the deprecated field `status` is set."""
         if value is not None:

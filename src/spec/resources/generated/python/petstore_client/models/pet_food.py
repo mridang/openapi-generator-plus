@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -31,7 +33,7 @@ class PetFood(BaseModel):
     # which gives us the same explicit-error guarantee as the native form
     # without needing a template-level overhaul of the child models.
     actual_instance: Optional[Union[DryFood, WetFood]] = None
-    one_of_schemas: ClassVar[Set[str]] = {'DryFood', 'WetFood'}
+    one_of_schemas: ClassVar[Set[str]] = {"DryFood", "WetFood"}
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like
@@ -45,11 +47,11 @@ class PetFood(BaseModel):
     )
 
     discriminator_value_class_map: ClassVar[Dict[str, str]] = {
-        'dry': 'DryFood',
-        'wet': 'WetFood',
+        "dry": "DryFood",
+        "wet": "WetFood",
     }
 
-    _discriminator_property_name: ClassVar[str] = 'foodType'
+    _discriminator_property_name: ClassVar[str] = "foodType"
 
     @classmethod
     def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
@@ -63,22 +65,34 @@ class PetFood(BaseModel):
         Python now matches.
         """
         if cls._discriminator_property_name not in obj:
-            raise ValueError(f"Missing discriminator field '{cls._discriminator_property_name}' in PetFood payload")
+            raise ValueError(
+                f"Missing discriminator field '{cls._discriminator_property_name}' "
+                f"in PetFood payload"
+            )
         discriminator_value = obj[cls._discriminator_property_name]
         if discriminator_value:
             mapped = cls.discriminator_value_class_map.get(discriminator_value)
             if mapped is None:
-                raise ValueError(f"Unknown discriminator value '{discriminator_value}' for PetFood")
+                raise ValueError(
+                    f"Unknown discriminator value '{discriminator_value}' for PetFood"
+                )
             return mapped
         else:
-            raise ValueError(f"Empty discriminator value for '{cls._discriminator_property_name}' in PetFood payload")
+            raise ValueError(
+                f"Empty discriminator value for '{cls._discriminator_property_name}' "
+                f"in PetFood payload"
+            )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
             if len(args) > 1:
-                raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
+                raise ValueError(
+                    "If a position argument is used, only 1 is allowed to set `actual_instance`"
+                )
             if kwargs:
-                raise ValueError('If a position argument is used, keyword arguments cannot be used.')
+                raise ValueError(
+                    "If a position argument is used, keyword arguments cannot be used."
+                )
             super().__init__(actual_instance=args[0])
         else:
             super().__init__(**kwargs)

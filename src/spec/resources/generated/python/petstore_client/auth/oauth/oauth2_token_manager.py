@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -72,17 +74,20 @@ class OAuth2TokenManager:
                 fetch fails.
         """
         with self._lock:
-            if self._access_token and (self._token_expiry is None or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)):
+            if self._access_token and (
+                self._token_expiry is None
+                or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
+            ):
                 return self._access_token
             if self._refresh_token:
                 refresh_params: Dict[str, str] = {
-                    'grant_type': 'refresh_token',
-                    'refresh_token': self._refresh_token,
+                    "grant_type": "refresh_token",
+                    "refresh_token": self._refresh_token,
                 }
-                if 'client_id' in params:
-                    refresh_params['client_id'] = params['client_id']
-                if 'client_secret' in params:
-                    refresh_params['client_secret'] = params['client_secret']
+                if "client_id" in params:
+                    refresh_params["client_id"] = params["client_id"]
+                if "client_secret" in params:
+                    refresh_params["client_secret"] = params["client_secret"]
                 try:
                     self._fetch_token(token_url, refresh_params, extra_headers)
                     if self._access_token is not None:
@@ -93,7 +98,7 @@ class OAuth2TokenManager:
                     pass
             self._fetch_token(token_url, params, extra_headers)
             if self._access_token is None:
-                raise RuntimeError('Token fetch did not return an access token')
+                raise RuntimeError("Token fetch did not return an access token")
             return self._access_token
 
     def invalidate_access_token(self) -> None:
@@ -134,15 +139,19 @@ class OAuth2TokenManager:
                 request fails.
         """
         if self._api_client is None:
-            raise RuntimeError('ApiClient has not been injected. Ensure the Client constructor calls set_api_client() on HttpAwareAuthenticator before making API requests.')
+            raise RuntimeError(
+                "ApiClient has not been injected. "
+                "Ensure the Client constructor calls set_api_client() "
+                "on HttpAwareAuthenticator before making API requests."
+            )
 
         from urllib.parse import urlencode
 
         body = urlencode(params)
 
         headers: Dict[str, str] = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
         }
         if extra_headers:
             headers.update(extra_headers)
@@ -153,7 +162,9 @@ class OAuth2TokenManager:
         # attacker-controlled endpoint. RFC 6749 §3.2 forbids token-endpoint
         # redirection chains in any case, but we enforce it on the client
         # side for defence in depth.
-        response = self._api_client.send_request('POST', token_url, headers, body, no_redirect=True)
+        response = self._api_client.send_request(
+            "POST", token_url, headers, body, no_redirect=True
+        )
         if 300 <= response.status_code < 400:
             # RFC 6749 §3.2 forbids redirects at the token endpoint. With
             # no_redirect=True the transport surfaces the 3xx verbatim
@@ -161,7 +172,11 @@ class OAuth2TokenManager:
             # all 3xx explicitly so the caller fails closed instead of
             # leaking the client_secret / refresh_token to the redirect
             # target.
-            raise OAuth2TokenError(f'Refusing to follow {response.status_code} redirect on OAuth2 token endpoint {token_url}; token POSTs carry credentials and must not be replayed.')
+            raise OAuth2TokenError(
+                f"Refusing to follow {response.status_code} redirect on OAuth2 "
+                f"token endpoint {token_url}; token POSTs carry credentials and "
+                "must not be replayed."
+            )
         if response.status_code < 200 or response.status_code >= 300:
             # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
             # `error` (required), `error_description`, `error_uri`. Parse
@@ -171,20 +186,20 @@ class OAuth2TokenManager:
             raise self._parse_oauth2_server_error(response.status_code, response.body)
 
         token_data = json.loads(response.body)
-        access_token = token_data.get('access_token')
+        access_token = token_data.get("access_token")
         if not isinstance(access_token, str) or not access_token:
-            raise OAuth2TokenError('Token response missing or empty access_token field')
+            raise OAuth2TokenError("Token response missing or empty access_token field")
         self._access_token = access_token
-        if token_data.get('refresh_token'):
-            self._refresh_token = token_data['refresh_token']
-        if 'expires_in' in token_data and token_data['expires_in'] is not None:
+        if token_data.get("refresh_token"):
+            self._refresh_token = token_data["refresh_token"]
+        if "expires_in" in token_data and token_data["expires_in"] is not None:
             # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
             # providers (Salesforce, some Apigee deployments) send a quoted
             # string and others send a JSON float. Accept ints, floor floats,
             # parse digit strings; on anything unparseable or non-positive,
             # mark the token as immediately stale so the next call refetches
             # (preferable to caching a token of unknown lifetime forever).
-            expires_in = self._parse_expires_in(token_data['expires_in'])
+            expires_in = self._parse_expires_in(token_data["expires_in"])
             if expires_in > 0:
                 buffer_secs = min(expires_in, 30)
                 self._token_expiry = time.time() + expires_in - buffer_secs
@@ -192,7 +207,7 @@ class OAuth2TokenManager:
                 self._token_expiry = time.time()
 
     @staticmethod
-    def _parse_oauth2_server_error(status_code: int, body: str) -> 'OAuth2ServerError':
+    def _parse_oauth2_server_error(status_code: int, body: str) -> "OAuth2ServerError":
         """Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
         :class:`OAuth2ServerError`. Falls back to a generic error using the
         raw body when the body is not a valid OAuth2 error object."""
@@ -201,10 +216,10 @@ class OAuth2TokenManager:
         except ValueError:
             return OAuth2ServerError(status_code, None, None, None, body)
         if isinstance(parsed, dict):
-            code = parsed.get('error')
+            code = parsed.get("error")
             if isinstance(code, str) and code:
-                description = parsed.get('error_description')
-                uri = parsed.get('error_uri')
+                description = parsed.get("error_description")
+                uri = parsed.get("error_uri")
                 return OAuth2ServerError(
                     status_code,
                     code,
@@ -288,11 +303,11 @@ class OAuth2ServerError(ZitadelException):
         raw_body: str,
     ) -> None:
         if code is None:
-            message = f'Token request failed with status {status_code}: {raw_body}'
+            message = f"Token request failed with status {status_code}: {raw_body}"
         elif description is not None:
-            message = f'Token request failed with status {status_code}: {code} -- {description}'
+            message = f"Token request failed with status {status_code}: {code} -- {description}"
         else:
-            message = f'Token request failed with status {status_code}: {code}'
+            message = f"Token request failed with status {status_code}: {code}"
         super().__init__(message)
         # Stored privately and exposed via read-only @property getters so a
         # caught error's fields cannot be reassigned after construction.

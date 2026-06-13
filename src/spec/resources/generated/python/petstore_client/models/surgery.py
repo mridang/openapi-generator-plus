@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,8 +21,8 @@ class Surgery(BaseModel):
     Surgery
     """
 
-    procedure_name: StrictStr = Field(alias='procedureName')
-    duration_minutes: Optional[StrictInt] = Field(default=None, alias='durationMinutes')
+    procedure_name: StrictStr = Field(alias="procedureName")
+    duration_minutes: Optional[StrictInt] = Field(default=None, alias="durationMinutes")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

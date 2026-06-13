@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -15,56 +17,66 @@ from petstore_client.auth.api_key_location import ApiKeyLocation
 
 class TestBasicAuthenticator:
     def test_valid_credentials_produce_basic_header(self) -> None:
-        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        auth = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
         headers = auth.get_auth_headers()
-        assert headers['Authorization'] == 'Basic YWxpY2U6czNjcmV0'
+        assert headers["Authorization"] == "Basic YWxpY2U6czNjcmV0"
 
     def test_rejects_username_with_crlf_at_construction(self) -> None:
         with pytest.raises(ValueError):
-            BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
+            BasicAuthenticator(
+                host="https://api.example.com", username="alice\r\n", password="s3cret"
+            )
 
     def test_rejects_password_with_nul_at_construction(self) -> None:
         with pytest.raises(ValueError):
-            BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')
+            BasicAuthenticator(
+                host="https://api.example.com", username="alice", password="s3c\x00ret"
+            )
 
     def test_rejects_username_with_colon_at_construction(self) -> None:
         with pytest.raises(ValueError):
-            BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cret')
+            BasicAuthenticator(
+                host="https://api.example.com", username="ali:ce", password="s3cret"
+            )
 
     def test_password_is_not_leaked_in_repr(self) -> None:
         # The default repr/str must never expose the secret.
-        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
-        assert 's3cret' not in repr(auth)
-        assert 's3cret' not in str(auth)
-        assert 'https://api.example.com' in repr(auth)
+        auth = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
+        assert "s3cret" not in repr(auth)
+        assert "s3cret" not in str(auth)
+        assert "https://api.example.com" in repr(auth)
 
 
 class TestBearerAuthenticator:
     def test_valid_token_produces_bearer_header(self) -> None:
-        auth = BearerAuthenticator(host='https://api.example.com', token='abc123')
-        assert auth.get_auth_headers()['Authorization'] == 'Bearer abc123'
+        auth = BearerAuthenticator(host="https://api.example.com", token="abc123")
+        assert auth.get_auth_headers()["Authorization"] == "Bearer abc123"
 
     def test_rejects_empty_token(self) -> None:
         with pytest.raises(ValueError):
-            BearerAuthenticator(host='https://api.example.com', token='')
+            BearerAuthenticator(host="https://api.example.com", token="")
 
     def test_rejects_whitespace_only_token(self) -> None:
         with pytest.raises(ValueError):
-            BearerAuthenticator(host='https://api.example.com', token='   ')
+            BearerAuthenticator(host="https://api.example.com", token="   ")
 
     def test_token_is_not_leaked_in_repr(self) -> None:
-        auth = BearerAuthenticator(host='https://api.example.com', token='supersecret')
-        assert 'supersecret' not in repr(auth)
-        assert 'supersecret' not in str(auth)
+        auth = BearerAuthenticator(host="https://api.example.com", token="supersecret")
+        assert "supersecret" not in repr(auth)
+        assert "supersecret" not in str(auth)
 
 
 class TestApiKeyAuthenticatorRedaction:
     def test_api_key_is_not_leaked_in_repr(self) -> None:
         auth = ApiKeyAuthenticator(
-            host='https://api.example.com',
-            key_param_name='X-API-Key',
-            api_key='topsecretkey',
+            host="https://api.example.com",
+            key_param_name="X-API-Key",
+            api_key="topsecretkey",
             location=ApiKeyLocation.HEADER,
         )
-        assert 'topsecretkey' not in repr(auth)
-        assert 'topsecretkey' not in str(auth)
+        assert "topsecretkey" not in repr(auth)
+        assert "topsecretkey" not in str(auth)

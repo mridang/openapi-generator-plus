@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -29,16 +31,22 @@ class BasicAuthenticator(BaseAuthenticator):
         # separator) and neither user-id nor password may carry CR/LF/NUL
         # (header-injection / smuggling vectors common when credentials
         # are read from .env files or interactive prompts).
-        if any(c in ('\r', '\n', '\x00') for c in self.username):
-            raise ValueError('Basic auth username must not contain CR, LF, or NUL characters')
-        if ':' in self.username:
+        if any(c in ("\r", "\n", "\x00") for c in self.username):
+            raise ValueError(
+                "Basic auth username must not contain CR, LF, or NUL characters"
+            )
+        if ":" in self.username:
             raise ValueError("Basic auth username must not contain ':' (RFC 7617 §2)")
-        if any(c in ('\r', '\n', '\x00') for c in self.password):
-            raise ValueError('Basic auth password must not contain CR, LF, or NUL characters')
+        if any(c in ("\r", "\n", "\x00") for c in self.password):
+            raise ValueError(
+                "Basic auth password must not contain CR, LF, or NUL characters"
+            )
 
     def get_host(self) -> str:
         return self.host
 
     def get_auth_headers(self) -> Dict[str, str]:
-        credentials = base64.b64encode(f'{self.username}:{self.password}'.encode('utf-8')).decode('utf-8')
-        return {'Authorization': f'Basic {credentials}'}
+        credentials = base64.b64encode(
+            f"{self.username}:{self.password}".encode("utf-8")
+        ).decode("utf-8")
+        return {"Authorization": f"Basic {credentials}"}

@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -12,9 +14,13 @@ from typing import Dict, List, Optional
 class HeaderSelector:
     """HeaderSelector"""
 
-    _JSON_MIME_PATTERN = re.compile(r'^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)', re.IGNORECASE)
+    _JSON_MIME_PATTERN = re.compile(
+        r"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)", re.IGNORECASE
+    )
 
-    def select_headers(self, accept: List[str], content_type: str, is_multipart: bool) -> Dict[str, str]:
+    def select_headers(
+        self, accept: List[str], content_type: str, is_multipart: bool
+    ) -> Dict[str, str]:
         """Select headers for an API request.
 
         :param accept: list of acceptable MIME types for the response
@@ -26,12 +32,12 @@ class HeaderSelector:
 
         accept_header = self._select_accept_header(accept)
         if accept_header is not None:
-            headers['Accept'] = accept_header
+            headers["Accept"] = accept_header
 
         if not is_multipart:
             if not content_type:
-                content_type = 'application/json'
-            headers['Content-Type'] = content_type
+                content_type = "application/json"
+            headers["Content-Type"] = content_type
 
         return headers
 
@@ -53,7 +59,7 @@ class HeaderSelector:
         if not filtered_accept:
             return None
 
-        return ', '.join(filtered_accept)
+        return ", ".join(filtered_accept)
 
     def is_json_mime(self, search_string: str) -> bool:
         """Detects whether a string contains a valid JSON mime type.

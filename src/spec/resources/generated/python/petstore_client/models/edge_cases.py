@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -20,16 +22,26 @@ class EdgeCases(BaseModel):
     Edge-case property shapes mirrored from real protobuf-derived specs.
     """
 
-    free_form_any: Optional[object] = Field(default=None, alias='freeFormAny')
-    favorite_color: Optional[Color] = Field(default=None, alias='favoriteColor')
-    permissions_note: Optional[StrictStr] = Field(default=None, alias='permissionsNote', description='Required permission is "user.grant.write" for <admin> & owner roles (don\'t skip it)')
-    and_: Optional[StrictBool] = Field(default=None, alias='and')
-    or_: Optional[StrictBool] = Field(default=None, alias='or')
-    not_: Optional[StrictBool] = Field(default=None, alias='not')
-    class_: Optional[StrictStr] = Field(default=None, alias='class')
-    return_: Optional[StrictStr] = Field(default=None, alias='return')
-    retry_after: Optional[ProtobufDuration] = Field(default=None, alias='retryAfter', description='Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")')
-    expires_at: Optional[AwareDatetime] = Field(default=None, alias='expiresAt', description='Absolute expiry instant')
+    free_form_any: Optional[object] = Field(default=None, alias="freeFormAny")
+    favorite_color: Optional[Color] = Field(default=None, alias="favoriteColor")
+    permissions_note: Optional[StrictStr] = Field(
+        default=None,
+        alias="permissionsNote",
+        description='Required permission is "user.grant.write" for <admin> & owner roles (don\'t skip it)',
+    )
+    and_: Optional[StrictBool] = Field(default=None, alias="and")
+    or_: Optional[StrictBool] = Field(default=None, alias="or")
+    not_: Optional[StrictBool] = Field(default=None, alias="not")
+    class_: Optional[StrictStr] = Field(default=None, alias="class")
+    return_: Optional[StrictStr] = Field(default=None, alias="return")
+    retry_after: Optional[ProtobufDuration] = Field(
+        default=None,
+        alias="retryAfter",
+        description='Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")',
+    )
+    expires_at: Optional[AwareDatetime] = Field(
+        default=None, alias="expiresAt", description="Absolute expiry instant"
+    )
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
