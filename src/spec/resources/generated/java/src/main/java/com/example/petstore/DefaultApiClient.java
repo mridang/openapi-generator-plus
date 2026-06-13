@@ -523,19 +523,13 @@ public final class DefaultApiClient implements ApiClient {
 
           Map<String, String> redirectHeaders = new HashMap<>(currentHeaders);
           if (!sameOrigin) {
-            redirectHeaders
-                .keySet()
-                .removeIf(k -> sensitiveHeaders.contains(k.toLowerCase(Locale.ROOT)));
+            redirectHeaders.keySet().removeIf(k -> isSensitiveHeader(sensitiveHeaders, k));
           }
           if (nextBody == HttpRequest.BodyPublishers.noBody()
               || ((statusCode == 303 || statusCode == 301 || statusCode == 302)
                   && !"GET".equalsIgnoreCase(currentMethod)
                   && !"HEAD".equalsIgnoreCase(currentMethod))) {
-            redirectHeaders
-                .keySet()
-                .removeIf(
-                    k ->
-                        "content-type".equalsIgnoreCase(k) || "content-length".equalsIgnoreCase(k));
+            redirectHeaders.keySet().removeIf(DefaultApiClient::isEntityHeader);
           }
 
           HttpRequest.Builder redirectBuilder =
@@ -609,6 +603,35 @@ public final class DefaultApiClient implements ApiClient {
         || statusCode == 303
         || statusCode == 307
         || statusCode == 308;
+  }
+
+  /**
+   * Whether a header name is in the case-insensitive sensitive-header set that must be stripped on
+   * a cross-origin redirect. Extracted from the redirect {@code removeIf} lambda so the ASCII case
+   * folding sits in a named, annotated method rather than a synthetic lambda.
+   */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "IMPROPER_UNICODE",
+      justification =
+          "Case folding of ASCII HTTP header names, not user identity"
+              + " strings; Unicode case-folding does not apply.")
+  private static boolean isSensitiveHeader(Set<String> sensitiveHeaders, String name) {
+    return sensitiveHeaders.contains(name.toLowerCase(Locale.ROOT));
+  }
+
+  /**
+   * Whether a header name is an entity header ({@code Content-Type} / {@code Content-Length}) that
+   * must be dropped when a redirect changes the request to a bodyless GET. Extracted from the
+   * redirect {@code removeIf} lambda so the ASCII case comparison sits in a named, annotated method
+   * rather than a synthetic lambda.
+   */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "IMPROPER_UNICODE",
+      justification =
+          "Case-insensitive comparison of ASCII HTTP header names, not user"
+              + " identity strings; Unicode case-folding does not apply.")
+  private static boolean isEntityHeader(String name) {
+    return "content-type".equalsIgnoreCase(name) || "content-length".equalsIgnoreCase(name);
   }
 
   /**
