@@ -1,3 +1,5 @@
+@file:Suppress("detekt:all")
+
 package com.example.petstore.auth
 
 class ApiKeyQueryAuthenticator : ApiKeyAuthenticator {

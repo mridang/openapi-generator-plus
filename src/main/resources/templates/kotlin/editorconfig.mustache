@@ -9,16 +9,10 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 
 [*.kt]
-indent_size = 4
-ktlint_standard_no-wildcard-imports = disabled
-ktlint_standard_backing-property-naming = disabled
-# Generated KDoc + per-example trailing comments coexist on constructor
-# value parameters; both rules object but the layout is intentional.
-ktlint_standard_no-consecutive-comments = disabled
-ktlint_standard_value-parameter-comment = disabled
+ktlint_code_style = ktlint_official
 
 [*.kts]
-indent_size = 4
+ktlint_code_style = ktlint_official
 
 [Makefile]
 indent_style = tab

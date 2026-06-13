@@ -1,3 +1,5 @@
+@file:Suppress("detekt:all")
+
 package com.example.petstore.auth.oauth
 
 class UserAuthAuthorizationCodeAuthenticator : OAuth2AuthorizationCodeAuthenticator {

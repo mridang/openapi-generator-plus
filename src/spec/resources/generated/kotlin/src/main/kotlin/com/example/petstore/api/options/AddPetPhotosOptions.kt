@@ -1,3 +1,5 @@
+@file:Suppress("detekt:all")
+
 package com.example.petstore.api.options
 
 import com.example.petstore.models.PhotoMetadata
