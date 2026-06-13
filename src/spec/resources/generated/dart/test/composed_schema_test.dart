@@ -37,20 +37,14 @@ void main() {
       // bubble a generic ArgumentError.
       final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
 
-      expect(
-        () => PetFood.fromJson(json),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => PetFood.fromJson(json), throwsA(isA<SerializationError>()));
     });
 
     test('PetFood missing discriminator throws SerializationError', () {
       // No foodType key at all — disc is null, still not a listed value.
       final json = <String, dynamic>{'calories': 300};
 
-      expect(
-        () => PetFood.fromJson(json),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => PetFood.fromJson(json), throwsA(isA<SerializationError>()));
     });
 
     test('PetFood empty discriminator throws SerializationError', () {
@@ -58,10 +52,7 @@ void main() {
       // surface as a SerializationError, not route to a fitting variant.
       final json = <String, dynamic>{'foodType': '', 'weightKg': 2.5};
 
-      expect(
-        () => PetFood.fromJson(json),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => PetFood.fromJson(json), throwsA(isA<SerializationError>()));
     });
 
     test('PetFood unknown discriminator error names the offending value', () {

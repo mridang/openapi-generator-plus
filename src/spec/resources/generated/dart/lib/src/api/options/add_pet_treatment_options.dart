@@ -1,3 +1,4 @@
+// ignore_for_file: unused_import
 import 'dart:typed_data';
 
 import '../../auth/authenticator.dart';
@@ -6,7 +7,5 @@ import '../../auth/authenticator.dart';
 class AddPetTreatmentOptions {
   final Authenticator? auth;
 
-  const AddPetTreatmentOptions({
-    this.auth,
-  });
+  const AddPetTreatmentOptions({this.auth});
 }

@@ -64,9 +64,7 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
 
   /// Asynchronously retrieves auth headers with a valid access token.
   Future<Map<String, String>> authHeadersAsync() async {
-    final params = <String, String>{
-      'grant_type': 'client_credentials',
-    };
+    final params = <String, String>{'grant_type': 'client_credentials'};
     final extraHeaders = <String, String>{};
     if (_clientAuthMethod == ClientAuthMethod.basic) {
       /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret

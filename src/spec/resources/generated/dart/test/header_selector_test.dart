@@ -115,11 +115,7 @@ void main() {
     test('selectHeaders default Content-Type', () {
       final hs = HeaderSelector();
 
-      final headers = hs.selectHeaders(
-        ['application/json'],
-        '',
-        false,
-      );
+      final headers = hs.selectHeaders(['application/json'], '', false);
 
       expect(headers['Content-Type'], equals('application/json'));
     });

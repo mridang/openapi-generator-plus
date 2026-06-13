@@ -64,10 +64,7 @@ void main() {
     test('throws when access token not set', () {
       final auth = _createAuthenticator();
 
-      expect(
-        () => auth.authHeaders(),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => auth.authHeaders(), throwsA(isA<StateError>()));
     });
 
     test('getHost returns configured host', () {

@@ -13,11 +13,9 @@ class BearerAuthenticator extends BaseAuthenticator {
   final String _token;
 
   /// Creates a new Bearer authenticator.
-  BearerAuthenticator({
-    required String host,
-    required String token,
-  }) : _host = host,
-       _token = token {
+  BearerAuthenticator({required String host, required String token})
+    : _host = host,
+      _token = token {
     /* Cross-cutting `bearer-no-empty-token-guard`: reject an empty or
      * whitespace-only token up front. Otherwise the authenticator would
      * emit a bare `Authorization: Bearer ` header — an unauthenticated

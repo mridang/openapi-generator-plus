@@ -104,12 +104,9 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       );
     }
 
-    final response = await client.sendRequest(
-      'GET',
-      _openIdConnectUrl,
-      {'Accept': 'application/json'},
-      null,
-    );
+    final response = await client.sendRequest('GET', _openIdConnectUrl, {
+      'Accept': 'application/json',
+    }, null);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError(
@@ -133,9 +130,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       );
     }
     if (tokenEndpoint.isEmpty) {
-      throw StateError(
-        'OIDC discovery document is missing token_endpoint',
-      );
+      throw StateError('OIDC discovery document is missing token_endpoint');
     }
 
     _delegate = OAuth2AuthorizationCodeAuthenticator(

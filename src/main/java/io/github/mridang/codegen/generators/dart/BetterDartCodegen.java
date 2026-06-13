@@ -218,9 +218,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
-        // Note: 'dart fix --apply' was removed — it conflicted with very_good_analysis
-        // by emitting invalid 'final var x' when both prefer_final_locals and
-        // omit_local_variable_types fire on the same line. dart format is sufficient.
+        // Only 'dart format .' runs here. Lint findings inherent to generated
+        // code are handled by file-level '// ignore_for_file:' directives in the
+        // templates, not by a codegen-time 'dart fix' pass.
         return new String[] {"dart pub get", "dart format ."};
     }
 

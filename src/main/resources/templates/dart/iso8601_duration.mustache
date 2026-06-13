@@ -19,6 +19,7 @@
 ///     on both parse and format (Dart's `Duration` precision).
 ///   * Negative durations parse and format with a leading `-`
 ///     (e.g. `-PT1H`), matching ISO-8601 §4.4.5 sign convention.
+library;
 
 /// Format for [parseIso8601Duration] errors. The message names the
 /// offending input so call sites can surface useful diagnostics.
@@ -126,7 +127,9 @@ Duration parseIso8601Duration(String input) {
 /// `PT0S` for [Duration.zero] rather than the ambiguous bare `P`.
 /// Negative durations are emitted with a leading `-`.
 String formatIso8601Duration(Duration duration) {
-  if (duration == Duration.zero) return 'PT0S';
+  if (duration == Duration.zero) {
+    return 'PT0S';
+  }
 
   final negative = duration.isNegative;
   final abs = negative ? -duration : duration;
@@ -142,15 +145,23 @@ String formatIso8601Duration(Duration duration) {
   final micros = rem - seconds * Duration.microsecondsPerSecond;
 
   final buf = StringBuffer();
-  if (negative) buf.write('-');
+  if (negative) {
+    buf.write('-');
+  }
   buf.write('P');
-  if (days != 0) buf..write(days)..write('D');
+  if (days != 0) {
+    buf..write(days)..write('D');
+  }
 
   final hasTime = hours != 0 || minutes != 0 || seconds != 0 || micros != 0;
   if (hasTime) {
     buf.write('T');
-    if (hours != 0) buf..write(hours)..write('H');
-    if (minutes != 0) buf..write(minutes)..write('M');
+    if (hours != 0) {
+      buf..write(hours)..write('H');
+    }
+    if (minutes != 0) {
+      buf..write(minutes)..write('M');
+    }
     if (seconds != 0 || micros != 0) {
       buf.write(seconds);
       if (micros != 0) {

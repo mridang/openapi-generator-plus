@@ -134,10 +134,7 @@ void main() {
     test('merges headers from defaultHeaders call', () {
       final opts = TransportOptionsBuilder()
           .defaultHeader('X-First', 'one')
-          .defaultHeaders({
-            'X-Second': 'two',
-            'X-Third': 'three',
-          })
+          .defaultHeaders({'X-Second': 'two', 'X-Third': 'three'})
           .build();
 
       expect(opts.defaultHeaders.length, equals(3));

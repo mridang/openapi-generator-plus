@@ -1,3 +1,4 @@
+// ignore_for_file: unused_import
 import 'dart:typed_data';
 
 /// SetPetPreferencesOptions holds optional parameters for the setPetPreferences operation.

@@ -267,10 +267,7 @@ void main() {
     // DeserializationErrorWrappingTests
 
     test('truncated JSON throws SerializationError not raw parse error', () {
-      expect(
-        () => deserializeRaw('{'),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => deserializeRaw('{'), throwsA(isA<SerializationError>()));
     });
 
     test('incomplete JSON object throws SerializationError', () {
@@ -412,10 +409,7 @@ void main() {
         // 'name' omitted entirely
         'photoUrls': <String>['http://x/y.jpg'],
       };
-      expect(
-        () => Pet.fromJson(input),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
     });
 
     test('fromJson throws when a required field is explicitly null', () {
@@ -424,10 +418,7 @@ void main() {
         'name': null,
         'photoUrls': <String>['http://x/y.jpg'],
       };
-      expect(
-        () => Pet.fromJson(input),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
     });
 
     test('fromJson throws when a required array field is absent', () {
@@ -436,10 +427,7 @@ void main() {
         'name': 'Fido',
         // 'photoUrls' omitted entirely
       };
-      expect(
-        () => Pet.fromJson(input),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
     });
 
     test('fromJson throws when a required array field is explicitly null', () {
@@ -448,10 +436,7 @@ void main() {
         'name': 'Fido',
         'photoUrls': null,
       };
-      expect(
-        () => Pet.fromJson(input),
-        throwsA(isA<SerializationError>()),
-      );
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
     });
 
     test('fromJson succeeds when all required fields are present', () {
@@ -498,9 +483,7 @@ void main() {
       };
 
       final wire = tags.map((k, v) => MapEntry(k, v.toJson()));
-      final restored = wire.map(
-        (k, v) => MapEntry(k, Tag.fromJson(v)),
-      );
+      final restored = wire.map((k, v) => MapEntry(k, Tag.fromJson(v)));
 
       expect(restored['a'], equals(tags['a']));
       expect(restored['b'], equals(tags['b']));
@@ -626,9 +609,7 @@ void main() {
           equals('PT0.5S'),
         );
         expect(
-          formatIso8601Duration(
-            const Duration(seconds: 1, microseconds: 1),
-          ),
+          formatIso8601Duration(const Duration(seconds: 1, microseconds: 1)),
           equals('PT1.000001S'),
         );
       },
@@ -669,10 +650,7 @@ void main() {
     });
 
     test('validatePartialTime accepts fractional seconds', () {
-      expect(
-        validatePartialTime('14:30:00.123'),
-        equals('14:30:00.123'),
-      );
+      expect(validatePartialTime('14:30:00.123'), equals('14:30:00.123'));
     });
 
     test('validatePartialTime rejects malformed input', () {
@@ -704,10 +682,7 @@ void main() {
     test('resolveOneOf returns first matching variant', () {
       final result = resolveOneOf<String>(
         <String, dynamic>{'k': 'v'},
-        [
-          (j) => throw const SerializationError('first miss'),
-          (j) => 'matched',
-        ],
+        [(j) => throw const SerializationError('first miss'), (j) => 'matched'],
       );
       expect(result, equals('matched'));
     });

@@ -1,3 +1,4 @@
+// ignore_for_file: unused_import
 import 'dart:typed_data';
 
 /// FindPetsByStatusOptions holds optional parameters for the findPetsByStatus operation.
@@ -8,8 +9,5 @@ class FindPetsByStatusOptions {
   /// Filter criteria as key-value pairs
   final Map<String, String>? filter;
 
-  const FindPetsByStatusOptions({
-    this.status,
-    this.filter,
-  });
+  const FindPetsByStatusOptions({this.status, this.filter});
 }

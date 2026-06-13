@@ -100,12 +100,7 @@ void main() {
       final transport = TransportOptionsBuilder().timeout(1000).build();
       final client = DefaultApiClient(transportOptions: transport);
       expect(
-        () => client.sendRequest(
-          'GET',
-          '$chasmHttpUrl/test/slow',
-          {},
-          null,
-        ),
+        () => client.sendRequest('GET', '$chasmHttpUrl/test/slow', {}, null),
         throwsA(isA<ApiError>()),
       );
     });
@@ -321,16 +316,10 @@ void main() {
     // the non-binary branch.
     test('multipart_field_name_with_crlf_rejected_on_string_value', () async {
       final client = DefaultApiClient();
-      final badField = <String, Object?>{
-        'name\r\nInjected: yes': 'value',
-      };
+      final badField = <String, Object?>{'name\r\nInjected: yes': 'value'};
       expect(
-        () => client.sendRequest(
-          'POST',
-          '$chasmHttpUrl/test/echo',
-          {},
-          badField,
-        ),
+        () =>
+            client.sendRequest('POST', '$chasmHttpUrl/test/echo', {}, badField),
         throwsArgumentError,
       );
     });

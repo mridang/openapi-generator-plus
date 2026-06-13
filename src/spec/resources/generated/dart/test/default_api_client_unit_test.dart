@@ -552,17 +552,13 @@ void main() {
 
         try {
           final client = DefaultApiClient();
-          await client.sendRequest(
-            'GET',
-            'http://localhost:${source.port}/start',
-            {
-              'Authorization': 'Bearer secret',
-              'Cookie': 'session=abc',
-              'Proxy-Authorization': 'Basic zzz',
-              'X-Trace': 'keep',
-            },
-            null,
-          );
+          await client
+              .sendRequest('GET', 'http://localhost:${source.port}/start', {
+                'Authorization': 'Bearer secret',
+                'Cookie': 'session=abc',
+                'Proxy-Authorization': 'Basic zzz',
+                'X-Trace': 'keep',
+              }, null);
           expect(
             targetAuthorization,
             isNull,
@@ -598,10 +594,7 @@ void main() {
     test(
       'strips spec-declared API-key header on cross-origin redirect',
       () async {
-        final apiKeyHeader = <String>[
-          'X-API-Key',
-          'X-Internal-Key',
-        ].first;
+        final apiKeyHeader = <String>['X-API-Key', 'X-Internal-Key'].first;
 
         String? targetApiKey;
         final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

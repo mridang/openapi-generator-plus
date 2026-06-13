@@ -55,7 +55,4 @@ final server1 = ServerConfiguration(
 );
 
 /// All server configurations in declaration order.
-final allServers = <ServerConfiguration>[
-  server0,
-  server1,
-];
+final allServers = <ServerConfiguration>[server0, server1];

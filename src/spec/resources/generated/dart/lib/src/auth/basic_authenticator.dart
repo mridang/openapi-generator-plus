@@ -65,8 +65,6 @@ class BasicAuthenticator extends BaseAuthenticator {
   Map<String, String> authHeaders() {
     final authHeader =
         'Basic ${base64Encode(utf8.encode('$_username:$_password'))}';
-    return {
-      'Authorization': authHeader,
-    };
+    return {'Authorization': authHeader};
   }
 }

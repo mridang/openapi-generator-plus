@@ -200,9 +200,7 @@ void main() {
 
       await api.setPetAvatarThumbnail(
         1,
-        SetPetAvatarThumbnailRequest.value(
-          Uint8List.fromList(<int>[1, 2, 3]),
-        ),
+        SetPetAvatarThumbnailRequest.value(Uint8List.fromList(<int>[1, 2, 3])),
       );
     });
 
@@ -345,10 +343,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await expectLater(
-          api.getPetById(1, null),
-          throwsA(isA<ApiError>()),
-        );
+        await expectLater(api.getPetById(1, null), throwsA(isA<ApiError>()));
       } finally {
         await server.close();
       }

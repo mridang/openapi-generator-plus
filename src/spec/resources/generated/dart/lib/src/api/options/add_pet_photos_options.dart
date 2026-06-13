@@ -1,3 +1,4 @@
+// ignore_for_file: unused_import
 import 'dart:typed_data';
 
 import '../../models/photo_metadata.dart';
@@ -8,8 +9,5 @@ class AddPetPhotosOptions {
 
   final PhotoMetadata metadata;
 
-  const AddPetPhotosOptions({
-    required this.files,
-    required this.metadata,
-  });
+  const AddPetPhotosOptions({required this.files, required this.metadata});
 }
