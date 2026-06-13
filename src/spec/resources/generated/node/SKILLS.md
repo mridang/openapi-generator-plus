@@ -13,9 +13,9 @@ If using locally, add it as a file dependency in your `package.json`.
 ## Quick Start
 
 ```typescript
-import { Client } from './src/client';
+import { Client } from "./src/client";
 
-const client = Client.withToken('https://api.example.com', 'your-token');
+const client = Client.withToken("https://api.example.com", "your-token");
 ```
 
 ## Authentication
@@ -25,33 +25,40 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```typescript
-import { BearerAuthenticator } from './src/auth/bearer-authenticator';
-import { Client } from './src/client';
+import { BearerAuthenticator } from "./src/auth/bearer-authenticator";
+import { Client } from "./src/client";
 
-const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
+const authenticator = new BearerAuthenticator(
+  "https://api.example.com",
+  "your-token",
+);
 const client = new Client(authenticator);
 ```
 
 ### Basic Auth
 
 ```typescript
-import { BasicAuthenticator } from './src/auth/basic-authenticator';
+import { BasicAuthenticator } from "./src/auth/basic-authenticator";
 
-const authenticator = new BasicAuthenticator('https://api.example.com', 'username', 'password');
+const authenticator = new BasicAuthenticator(
+  "https://api.example.com",
+  "username",
+  "password",
+);
 const client = new Client(authenticator);
 ```
 
 ### API Key
 
 ```typescript
-import { ApiKeyAuthenticator } from './src/auth/api-key-authenticator';
-import { ApiKeyLocation } from './src/auth/api-key-location';
+import { ApiKeyAuthenticator } from "./src/auth/api-key-authenticator";
+import { ApiKeyLocation } from "./src/auth/api-key-location";
 
 const authenticator = new ApiKeyAuthenticator(
-  'https://api.example.com',
-  'key-name',
-  'key-value',
-  ApiKeyLocation.Header
+  "https://api.example.com",
+  "key-name",
+  "key-value",
+  ApiKeyLocation.Header,
 );
 const client = new Client(authenticator);
 ```
@@ -59,13 +66,13 @@ const client = new Client(authenticator);
 ### OAuth2 Client Credentials
 
 ```typescript
-import { OAuth2ClientCredentialsAuthenticator } from './src/auth/oauth/oauth2-client-credentials-authenticator';
+import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token'
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/token",
 );
 const client = new Client(authenticator);
 ```
@@ -73,15 +80,15 @@ const client = new Client(authenticator);
 ### OAuth2 Authorization Code
 
 ```typescript
-import { OAuth2AuthCodeAuthenticator } from './src/auth/oauth/oauth2-auth-code-authenticator';
+import { OAuth2AuthCodeAuthenticator } from "./src/auth/oauth/oauth2-auth-code-authenticator";
 
 const authenticator = new OAuth2AuthCodeAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token',
-  'authorization-code',
-  'https://app.example.com/callback'
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/token",
+  "authorization-code",
+  "https://app.example.com/callback",
 );
 const client = new Client(authenticator);
 ```
@@ -89,15 +96,15 @@ const client = new Client(authenticator);
 ### OAuth2 Password
 
 ```typescript
-import { OAuth2PasswordAuthenticator } from './src/auth/oauth/oauth2-password-authenticator';
+import { OAuth2PasswordAuthenticator } from "./src/auth/oauth/oauth2-password-authenticator";
 
 const authenticator = new OAuth2PasswordAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token',
-  'username',
-  'password'
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/token",
+  "username",
+  "password",
 );
 const client = new Client(authenticator);
 ```
@@ -107,22 +114,25 @@ const client = new Client(authenticator);
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```typescript
-import { OAuth2ImplicitAuthenticator } from './src/auth/oauth/oauth2-implicit-authenticator';
+import { OAuth2ImplicitAuthenticator } from "./src/auth/oauth/oauth2-implicit-authenticator";
 
-const authenticator = new OAuth2ImplicitAuthenticator('https://api.example.com', 'your-access-token');
+const authenticator = new OAuth2ImplicitAuthenticator(
+  "https://api.example.com",
+  "your-access-token",
+);
 const client = new Client(authenticator);
 ```
 
 ### OpenID Connect
 
 ```typescript
-import { OpenIdConnectAuthenticator } from './src/auth/oauth/openid-connect-authenticator';
+import { OpenIdConnectAuthenticator } from "./src/auth/oauth/openid-connect-authenticator";
 
 const authenticator = new OpenIdConnectAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/.well-known/openid-configuration'
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/.well-known/openid-configuration",
 );
 const client = new Client(authenticator);
 ```
@@ -151,16 +161,16 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 Override the default if your authorization server only accepts one form:
 
 ```typescript
-import { ClientAuthMethod } from './src/auth/oauth/client-auth-method';
-import { OAuth2ClientCredentialsAuthenticator } from './src/auth/oauth/oauth2-client-credentials-authenticator';
+import { ClientAuthMethod } from "./src/auth/oauth/client-auth-method";
+import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token',
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/token",
   [],
-  ClientAuthMethod.Basic
+  ClientAuthMethod.Basic,
 );
 ```
 
@@ -169,9 +179,9 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` static property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` array. Pass the desired server's URL to the client:
 
 ```typescript
-import { Servers } from './src/servers';
+import { Servers } from "./src/servers";
 
-const client = Client.withToken(Servers.SERVER_0.url(), 'your-token');
+const client = Client.withToken(Servers.SERVER_0.url(), "your-token");
 ```
 
 ## Testing
@@ -181,11 +191,11 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 ```typescript
 const fake = {
   async getAuthHeaders(_req: RequestContext): Promise<Record<string, string>> {
-    return { Authorization: 'Bearer test-token' };
+    return { Authorization: "Bearer test-token" };
   },
   getHost(): string {
-    return 'https://api.example.com';
-  }
+    return "https://api.example.com";
+  },
 };
 
 const client = new Client(fake);
@@ -207,9 +217,9 @@ All API errors extend `ApiError`. The error hierarchy is:
     - `InternalServerError` (500)
 
 ```typescript
-import { NotFoundError } from './src/errors/not-found-error';
-import { ClientError } from './src/errors/client-error';
-import { ServerError } from './src/errors/server-error';
+import { NotFoundError } from "./src/errors/not-found-error";
+import { ClientError } from "./src/errors/client-error";
+import { ServerError } from "./src/errors/server-error";
 
 try {
   const result = await client.petApi.getPetById(petId);
@@ -229,9 +239,12 @@ try {
 ### Custom Transport Options
 
 ```typescript
-import { TransportOptions } from './src/transport-options';
+import { TransportOptions } from "./src/transport-options";
 
-const transport = TransportOptions.builder().proxy('http://proxy:3128').timeout(5000).build();
+const transport = TransportOptions.builder()
+  .proxy("http://proxy:3128")
+  .timeout(5000)
+  .build();
 
 const client = new Client(authenticator, transport);
 ```
@@ -247,11 +260,11 @@ All API methods return `Promise` values and should be used with `await`.
 Models are generated as TypeScript classes in the `src/models/` directory.
 
 ```typescript
-import { Pet } from './src/models/pet';
+import { Pet } from "./src/models/pet";
 
 const pet = new Pet();
-pet.name = 'Fido';
-pet.status = 'available';
+pet.name = "Fido";
+pet.status = "available";
 ```
 
 ## Binary / File Uploads

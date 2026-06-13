@@ -10,119 +10,126 @@ import {
   SerializationError,
   DeserializationError,
   durationToProtoJson,
-  durationFromProtoJson
-} from '../src/object-serializer.js';
-import { ZitadelError } from '../src/errors/index.js';
-import { Category, DryFood, WetFood, PetPassport, Pet, PetStatusEnum } from '../src/models/index.js';
-import { uuid, isUuid } from '../src/brand.js';
-import { Temporal } from 'temporal-polyfill';
+  durationFromProtoJson,
+} from "../src/object-serializer.js";
+import { ZitadelError } from "../src/errors/index.js";
+import {
+  Category,
+  DryFood,
+  WetFood,
+  PetPassport,
+  Pet,
+  PetStatusEnum,
+} from "../src/models/index.js";
+import { uuid, isUuid } from "../src/brand.js";
+import { Temporal } from "temporal-polyfill";
 
-describe('ObjectSerializer', () => {
-  describe('unified exception hierarchy', () => {
+describe("ObjectSerializer", () => {
+  describe("unified exception hierarchy", () => {
     // SerializationError and its DeserializationError subclass must extend
     // the branded ZitadelError root so callers can catch every SDK-originated
     // error — transport and serde alike — with a single `instanceof
     // ZitadelError` check.
-    test('SerializationError extends ZitadelError and Error', () => {
-      const err = new SerializationError('boom');
+    test("SerializationError extends ZitadelError and Error", () => {
+      const err = new SerializationError("boom");
       expect(err).toBeInstanceOf(ZitadelError);
       expect(err).toBeInstanceOf(Error);
-      expect(err.name).toBe('SerializationError');
+      expect(err.name).toBe("SerializationError");
     });
 
-    test('DeserializationError extends SerializationError and ZitadelError', () => {
-      const err = new DeserializationError('boom');
+    test("DeserializationError extends SerializationError and ZitadelError", () => {
+      const err = new DeserializationError("boom");
       expect(err).toBeInstanceOf(SerializationError);
       expect(err).toBeInstanceOf(ZitadelError);
       expect(err).toBeInstanceOf(Error);
-      expect(err.name).toBe('DeserializationError');
+      expect(err.name).toBe("DeserializationError");
     });
   });
 
-  describe('DateTimeOffsetPreservationTests', () => {
-    test('UTC datetime serializes containing date-time and offset', () => {
+  describe("DateTimeOffsetPreservationTests", () => {
+    test("UTC datetime serializes containing date-time and offset", () => {
       // Create a date at UTC midnight to test UTC offset
-      const date = new Date('2024-01-01T12:30:45.000Z');
+      const date = new Date("2024-01-01T12:30:45.000Z");
       const result = ObjectSerializer.stringify(date);
-      expect(result).toContain('2024-01-01');
-      expect(result).toContain('12:30:45');
+      expect(result).toContain("2024-01-01");
+      expect(result).toContain("12:30:45");
     });
 
-    test('datetime preserves local timezone offset', () => {
-      const date = new Date('2024-01-01T12:30:45.000Z');
+    test("datetime preserves local timezone offset", () => {
+      const date = new Date("2024-01-01T12:30:45.000Z");
       const result = ObjectSerializer.stringify(date);
       // Result should end with an offset like +HH:MM or -HH:MM
       expect(result).toMatch(/[+-]\d{2}:\d{2}$/);
     });
 
-    test('subseconds are dropped from serialized datetime', () => {
-      const date = new Date('2024-01-01T12:30:45.123Z');
+    test("subseconds are dropped from serialized datetime", () => {
+      const date = new Date("2024-01-01T12:30:45.123Z");
       const result = ObjectSerializer.stringify(date);
-      expect(result).not.toContain('.123');
+      expect(result).not.toContain(".123");
     });
 
-    test('serialized datetime does not contain milliseconds', () => {
-      const date = new Date('2024-01-01T00:00:00.000Z');
+    test("serialized datetime does not contain milliseconds", () => {
+      const date = new Date("2024-01-01T00:00:00.000Z");
       const result = ObjectSerializer.stringify(date);
       // Should not contain decimal fractions
       expect(result).not.toMatch(/\.\d+/);
     });
 
-    test('serialized datetime string ends with an offset', () => {
-      const date = new Date('2024-01-01T12:30:45.000Z');
+    test("serialized datetime string ends with an offset", () => {
+      const date = new Date("2024-01-01T12:30:45.000Z");
       const result = ObjectSerializer.stringify(date);
       expect(result).toMatch(/[+-]\d{2}:\d{2}$|Z$/);
     });
 
-    test('date formatted as ISO 8601 date-time contains T separator', () => {
-      const date = new Date('2024-01-01T00:00:00.000Z');
+    test("date formatted as ISO 8601 date-time contains T separator", () => {
+      const date = new Date("2024-01-01T00:00:00.000Z");
       const result = ObjectSerializer.stringify(date);
-      expect(result).toContain('T');
+      expect(result).toContain("T");
     });
 
-    test('round-trip: serialize a date and reparse yields equivalent time', () => {
-      const original = new Date('2024-06-15T10:30:00.000Z');
+    test("round-trip: serialize a date and reparse yields equivalent time", () => {
+      const original = new Date("2024-06-15T10:30:00.000Z");
       const serialized = ObjectSerializer.stringify(original);
       const parsed = new Date(serialized);
       expect(parsed.getTime()).toBe(original.getTime());
     });
   });
 
-  describe('NonAsciiSerializationTests', () => {
-    test('accented character serializes without unicode escape', () => {
-      const result = ObjectSerializer.serialize('café');
-      expect(result).toContain('é');
+  describe("NonAsciiSerializationTests", () => {
+    test("accented character serializes without unicode escape", () => {
+      const result = ObjectSerializer.serialize("café");
+      expect(result).toContain("é");
     });
 
-    test('CJK characters serialize without unicode escape', () => {
-      const result = ObjectSerializer.serialize('日本');
-      expect(result).toContain('日本');
+    test("CJK characters serialize without unicode escape", () => {
+      const result = ObjectSerializer.serialize("日本");
+      expect(result).toContain("日本");
     });
 
-    test('tab character is properly escaped in JSON', () => {
-      const result = ObjectSerializer.serialize('a\tb');
-      expect(result).toContain('\\t');
+    test("tab character is properly escaped in JSON", () => {
+      const result = ObjectSerializer.serialize("a\tb");
+      expect(result).toContain("\\t");
     });
   });
 
-  describe('DeserializationErrorWrappingTests', () => {
-    test('truncated JSON throws SerializationError not raw parse error', () => {
+  describe("DeserializationErrorWrappingTests", () => {
+    test("truncated JSON throws SerializationError not raw parse error", () => {
       expect(() => {
-        JSON.parse('{');
+        JSON.parse("{");
       }).toThrow();
     });
 
-    test('serialize throws SerializationError on circular reference', () => {
+    test("serialize throws SerializationError on circular reference", () => {
       const a: Record<string, unknown> = {};
-      a['self'] = a;
+      a["self"] = a;
       expect(() => ObjectSerializer.serialize(a)).toThrow();
     });
 
-    test('thrown error has a message referencing the original failure', () => {
+    test("thrown error has a message referencing the original failure", () => {
       let caughtError: unknown = null;
       try {
         const a: Record<string, unknown> = {};
-        a['self'] = a;
+        a["self"] = a;
         ObjectSerializer.serialize(a);
       } catch (e) {
         caughtError = e;
@@ -132,266 +139,292 @@ describe('ObjectSerializer', () => {
     });
   });
 
-  describe('toPathValue', () => {
-    test('returns empty string for null', () => {
-      expect(ObjectSerializer.toPathValue(null)).toBe('');
+  describe("toPathValue", () => {
+    test("returns empty string for null", () => {
+      expect(ObjectSerializer.toPathValue(null)).toBe("");
     });
 
-    test('returns the string for a string value', () => {
-      expect(ObjectSerializer.toPathValue('hello')).toBe('hello');
+    test("returns the string for a string value", () => {
+      expect(ObjectSerializer.toPathValue("hello")).toBe("hello");
     });
 
-    test('converts integer to string', () => {
-      expect(ObjectSerializer.toPathValue(42)).toBe('42');
+    test("converts integer to string", () => {
+      expect(ObjectSerializer.toPathValue(42)).toBe("42");
     });
 
     test('converts true to "true"', () => {
-      expect(ObjectSerializer.toPathValue(true)).toBe('true');
+      expect(ObjectSerializer.toPathValue(true)).toBe("true");
     });
 
     test('converts false to "false"', () => {
-      expect(ObjectSerializer.toPathValue(false)).toBe('false');
+      expect(ObjectSerializer.toPathValue(false)).toBe("false");
     });
   });
 
-  describe('toQueryValue', () => {
-    test('returns undefined for null', () => {
+  describe("toQueryValue", () => {
+    test("returns undefined for null", () => {
       expect(ObjectSerializer.toQueryValue(null)).toBeUndefined();
     });
 
-    test('returns the string for a string value', () => {
-      expect(ObjectSerializer.toQueryValue('hello')).toBe('hello');
+    test("returns the string for a string value", () => {
+      expect(ObjectSerializer.toQueryValue("hello")).toBe("hello");
     });
 
-    test('converts integer to string', () => {
-      expect(ObjectSerializer.toQueryValue(42)).toBe('42');
-    });
-
-    test('converts true to "true"', () => {
-      expect(ObjectSerializer.toQueryValue(true)).toBe('true');
-    });
-
-    test('converts false to "false"', () => {
-      expect(ObjectSerializer.toQueryValue(false)).toBe('false');
-    });
-
-    test('joins array with comma by default', () => {
-      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'])).toBe('a,b,c');
-    });
-
-    test('joins array with comma for csv', () => {
-      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'csv')).toBe('a,b,c');
-    });
-
-    test('joins array with space for ssv', () => {
-      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'ssv')).toBe('a b c');
-    });
-
-    test('joins array with tab for tsv', () => {
-      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'tsv')).toBe('a\tb\tc');
-    });
-
-    test('joins array with pipe for pipes', () => {
-      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'pipes')).toBe('a|b|c');
-    });
-
-    test('returns array as-is for multi', () => {
-      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'multi')).toEqual(['a', 'b', 'c']);
-    });
-  });
-
-  describe('toHeaderValue', () => {
-    test('returns empty string for null', () => {
-      expect(ObjectSerializer.toHeaderValue(null)).toBe('');
-    });
-
-    test('returns the string for a string value', () => {
-      expect(ObjectSerializer.toHeaderValue('hello')).toBe('hello');
-    });
-
-    test('converts integer to string', () => {
-      expect(ObjectSerializer.toHeaderValue(42)).toBe('42');
-    });
-
-    test('joins array with comma', () => {
-      expect(ObjectSerializer.toHeaderValue(['a', 'b', 'c'])).toBe('a,b,c');
-    });
-  });
-
-  describe('toFormValue', () => {
-    test('returns empty string for null', () => {
-      expect(ObjectSerializer.toFormValue(null)).toBe('');
-    });
-
-    test('returns the string for a string value', () => {
-      expect(ObjectSerializer.toFormValue('hello')).toBe('hello');
-    });
-
-    test('converts integer to string', () => {
-      expect(ObjectSerializer.toFormValue(42)).toBe('42');
+    test("converts integer to string", () => {
+      expect(ObjectSerializer.toQueryValue(42)).toBe("42");
     });
 
     test('converts true to "true"', () => {
-      expect(ObjectSerializer.toFormValue(true)).toBe('true');
+      expect(ObjectSerializer.toQueryValue(true)).toBe("true");
     });
 
     test('converts false to "false"', () => {
-      expect(ObjectSerializer.toFormValue(false)).toBe('false');
+      expect(ObjectSerializer.toQueryValue(false)).toBe("false");
+    });
+
+    test("joins array with comma by default", () => {
+      expect(ObjectSerializer.toQueryValue(["a", "b", "c"])).toBe("a,b,c");
+    });
+
+    test("joins array with comma for csv", () => {
+      expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "csv")).toBe(
+        "a,b,c",
+      );
+    });
+
+    test("joins array with space for ssv", () => {
+      expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "ssv")).toBe(
+        "a b c",
+      );
+    });
+
+    test("joins array with tab for tsv", () => {
+      expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "tsv")).toBe(
+        "a\tb\tc",
+      );
+    });
+
+    test("joins array with pipe for pipes", () => {
+      expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "pipes")).toBe(
+        "a|b|c",
+      );
+    });
+
+    test("returns array as-is for multi", () => {
+      expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "multi")).toEqual([
+        "a",
+        "b",
+        "c",
+      ]);
     });
   });
 
-  describe('toCookieValue', () => {
-    test('returns empty string for null', () => {
-      expect(ObjectSerializer.toCookieValue(null)).toBe('');
+  describe("toHeaderValue", () => {
+    test("returns empty string for null", () => {
+      expect(ObjectSerializer.toHeaderValue(null)).toBe("");
     });
 
-    test('returns the string for a string value', () => {
-      expect(ObjectSerializer.toCookieValue('hello')).toBe('hello');
+    test("returns the string for a string value", () => {
+      expect(ObjectSerializer.toHeaderValue("hello")).toBe("hello");
     });
 
-    test('converts integer to string', () => {
-      expect(ObjectSerializer.toCookieValue(42)).toBe('42');
+    test("converts integer to string", () => {
+      expect(ObjectSerializer.toHeaderValue(42)).toBe("42");
+    });
+
+    test("joins array with comma", () => {
+      expect(ObjectSerializer.toHeaderValue(["a", "b", "c"])).toBe("a,b,c");
     });
   });
 
-  describe('stringify', () => {
-    test('null returns empty string', () => {
-      expect(ObjectSerializer.stringify(null)).toBe('');
+  describe("toFormValue", () => {
+    test("returns empty string for null", () => {
+      expect(ObjectSerializer.toFormValue(null)).toBe("");
     });
 
-    test('undefined returns empty string', () => {
-      expect(ObjectSerializer.stringify(undefined)).toBe('');
+    test("returns the string for a string value", () => {
+      expect(ObjectSerializer.toFormValue("hello")).toBe("hello");
+    });
+
+    test("converts integer to string", () => {
+      expect(ObjectSerializer.toFormValue(42)).toBe("42");
+    });
+
+    test('converts true to "true"', () => {
+      expect(ObjectSerializer.toFormValue(true)).toBe("true");
+    });
+
+    test('converts false to "false"', () => {
+      expect(ObjectSerializer.toFormValue(false)).toBe("false");
+    });
+  });
+
+  describe("toCookieValue", () => {
+    test("returns empty string for null", () => {
+      expect(ObjectSerializer.toCookieValue(null)).toBe("");
+    });
+
+    test("returns the string for a string value", () => {
+      expect(ObjectSerializer.toCookieValue("hello")).toBe("hello");
+    });
+
+    test("converts integer to string", () => {
+      expect(ObjectSerializer.toCookieValue(42)).toBe("42");
+    });
+  });
+
+  describe("stringify", () => {
+    test("null returns empty string", () => {
+      expect(ObjectSerializer.stringify(null)).toBe("");
+    });
+
+    test("undefined returns empty string", () => {
+      expect(ObjectSerializer.stringify(undefined)).toBe("");
     });
 
     test('boolean true returns "true"', () => {
-      expect(ObjectSerializer.stringify(true)).toBe('true');
+      expect(ObjectSerializer.stringify(true)).toBe("true");
     });
 
     test('boolean false returns "false"', () => {
-      expect(ObjectSerializer.stringify(false)).toBe('false');
+      expect(ObjectSerializer.stringify(false)).toBe("false");
     });
 
-    test('integer returns string representation', () => {
-      expect(ObjectSerializer.stringify(42)).toBe('42');
+    test("integer returns string representation", () => {
+      expect(ObjectSerializer.stringify(42)).toBe("42");
     });
 
-    test('date-time returns ISO 8601 string', () => {
-      const date = new Date('2024-01-15T10:30:00.000Z');
-      expect(ObjectSerializer.stringify(date)).toBe('2024-01-15T10:30:00+00:00');
+    test("date-time returns ISO 8601 string", () => {
+      const date = new Date("2024-01-15T10:30:00.000Z");
+      expect(ObjectSerializer.stringify(date)).toBe(
+        "2024-01-15T10:30:00+00:00",
+      );
     });
 
-    test('plain string passes through unchanged', () => {
-      expect(ObjectSerializer.stringify('hello')).toBe('hello');
+    test("plain string passes through unchanged", () => {
+      expect(ObjectSerializer.stringify("hello")).toBe("hello");
     });
 
-    test('float returns string representation', () => {
-      expect(ObjectSerializer.stringify(3.14)).toBe('3.14');
+    test("float returns string representation", () => {
+      expect(ObjectSerializer.stringify(3.14)).toBe("3.14");
     });
   });
 
-  describe('serialize', () => {
-    test('serializes a model to JSON string', () => {
+  describe("serialize", () => {
+    test("serializes a model to JSON string", () => {
       const category = new Category();
       category.id = 1;
-      category.name = 'Dogs';
+      category.name = "Dogs";
       const result = ObjectSerializer.serialize(category);
-      expect(typeof result).toBe('string');
+      expect(typeof result).toBe("string");
       const parsed = JSON.parse(result);
       expect(parsed.id).toBe(1);
-      expect(parsed.name).toBe('Dogs');
+      expect(parsed.name).toBe("Dogs");
     });
 
-    test('handles null', () => {
+    test("handles null", () => {
       const result = ObjectSerializer.serialize(null);
-      expect(result).toBe('null');
+      expect(result).toBe("null");
     });
 
-    test('handles undefined', () => {
+    test("handles undefined", () => {
       const result = ObjectSerializer.serialize(undefined);
-      expect(result).toBe('null');
+      expect(result).toBe("null");
     });
 
-    test('excludes null-valued properties from serialized output', () => {
-      const pet: Record<string, unknown> = { name: 'Fido', status: null };
+    test("excludes null-valued properties from serialized output", () => {
+      const pet: Record<string, unknown> = { name: "Fido", status: null };
       const result = ObjectSerializer.serialize(pet);
       const parsed = JSON.parse(result);
-      expect(parsed).toHaveProperty('name', 'Fido');
-      expect(parsed).not.toHaveProperty('status');
+      expect(parsed).toHaveProperty("name", "Fido");
+      expect(parsed).not.toHaveProperty("status");
     });
 
-    test('includes fields explicitly set to default values', () => {
+    test("includes fields explicitly set to default values", () => {
       const category = new Category();
       category.id = 0;
-      category.name = '';
+      category.name = "";
       const result = ObjectSerializer.serialize(category);
       const parsed = JSON.parse(result);
-      expect(parsed).toHaveProperty('id', 0);
-      expect(parsed).toHaveProperty('name', '');
+      expect(parsed).toHaveProperty("id", 0);
+      expect(parsed).toHaveProperty("name", "");
     });
   });
 
-  describe('deserialize', () => {
-    test('deserializes JSON to typed model', () => {
-      const json = { id: 1, name: 'Dogs' };
+  describe("deserialize", () => {
+    test("deserializes JSON to typed model", () => {
+      const json = { id: 1, name: "Dogs" };
       const category = ObjectSerializer.deserialize(json, Category);
       expect(category).toBeDefined();
       expect(category!.id).toBe(1);
-      expect(category!.name).toBe('Dogs');
+      expect(category!.name).toBe("Dogs");
     });
 
-    test('accepts a valid enum value on a model property', () => {
-      const json = { name: 'Fido', photoUrls: [], status: 'available' };
+    test("accepts a valid enum value on a model property", () => {
+      const json = { name: "Fido", photoUrls: [], status: "available" };
       const pet = ObjectSerializer.deserialize(json, Pet);
       expect(pet!.status).toBe(PetStatusEnum.Available);
     });
 
-    test('throws on an unknown enum wire value instead of silently keeping it', () => {
+    test("throws on an unknown enum wire value instead of silently keeping it", () => {
       // enum-unknown-value-silent-vs-throw: an out-of-spec enum value (e.g.
       // status:"banana") must surface as a deserialize error rather than
       // being stored verbatim on the typed field (type confusion).
-      const json = { name: 'Fido', photoUrls: [], status: 'banana' };
+      const json = { name: "Fido", photoUrls: [], status: "banana" };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
     });
 
-    test('deserializing a complete object still succeeds (no regression)', () => {
+    test("deserializing a complete object still succeeds (no regression)", () => {
       // Divergence #10 control: the strict required-field guard must not
       // affect a payload that supplies every required field. Pet requires
       // name + photoUrls; both are present here.
-      const json = { id: 5, name: 'Rex', photoUrls: ['http://example.com/rex.jpg'] };
+      const json = {
+        id: 5,
+        name: "Rex",
+        photoUrls: ["http://example.com/rex.jpg"],
+      };
       const pet = ObjectSerializer.deserialize(json, Pet);
       expect(pet).toBeDefined();
-      expect(pet!.name).toBe('Rex');
+      expect(pet!.name).toBe("Rex");
     });
 
-    test('throws when a required field is ABSENT from the payload', () => {
+    test("throws when a required field is ABSENT from the payload", () => {
       // Divergence #10: a required, non-nullable field missing from the wire
       // payload must hard-fail with the SDK serialization error rather than
       // silently building a partial object. Pet requires `name`; it is
       // omitted here while the other required field (photoUrls) is present.
-      const json = { id: 5, photoUrls: ['http://example.com/rex.jpg'] };
-      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+      const json = { id: 5, photoUrls: ["http://example.com/rex.jpg"] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        SerializationError,
+      );
     });
 
-    test('throws when a required field is explicitly NULL in the payload', () => {
+    test("throws when a required field is explicitly NULL in the payload", () => {
       // Divergence #10: a required, non-nullable field present but explicitly
       // null on the wire is just as invalid as an absent one and must
       // hard-fail rather than store null on a non-null-typed field.
-      const json = { id: 5, name: null, photoUrls: ['http://example.com/rex.jpg'] };
-      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+      const json = {
+        id: 5,
+        name: null,
+        photoUrls: ["http://example.com/rex.jpg"],
+      };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        SerializationError,
+      );
     });
   });
 
-  describe('SerializeDiscardsNullFields', () => {
-    test('null field is absent from JSON output', () => {
-      const obj: Record<string, unknown> = { keep: 'yes', drop: null };
+  describe("SerializeDiscardsNullFields", () => {
+    test("null field is absent from JSON output", () => {
+      const obj: Record<string, unknown> = { keep: "yes", drop: null };
       const json = ObjectSerializer.serialize(obj);
       const parsed = JSON.parse(json);
-      expect(parsed).toHaveProperty('keep', 'yes');
-      expect(parsed).not.toHaveProperty('drop');
-      expect(json).not.toContain('null');
+      expect(parsed).toHaveProperty("keep", "yes");
+      expect(parsed).not.toHaveProperty("drop");
+      expect(json).not.toContain("null");
     });
 
-    test('nested null field inside an object is omitted', () => {
+    test("nested null field inside an object is omitted", () => {
       const obj = { outer: { keep: 1, drop: null } };
       const json = ObjectSerializer.serialize(obj);
       const parsed = JSON.parse(json);
@@ -399,149 +432,181 @@ describe('ObjectSerializer', () => {
     });
   });
 
-  describe('DeserializeDiscardsExtraneousFields', () => {
-    test('unknown JSON keys do not appear on the deserialized instance', () => {
+  describe("DeserializeDiscardsExtraneousFields", () => {
+    test("unknown JSON keys do not appear on the deserialized instance", () => {
       const json: Record<string, unknown> = {
         id: 7,
-        name: 'Cats',
-        unknownField: 'should-be-dropped',
-        anotherExtra: 99
+        name: "Cats",
+        unknownField: "should-be-dropped",
+        anotherExtra: 99,
       };
       const category = ObjectSerializer.deserialize(json, Category);
       expect(category).toBeDefined();
       expect(category!.id).toBe(7);
-      expect(category!.name).toBe('Cats');
-      expect(category as unknown as Record<string, unknown>).not.toHaveProperty('unknownField');
-      expect(category as unknown as Record<string, unknown>).not.toHaveProperty('anotherExtra');
+      expect(category!.name).toBe("Cats");
+      expect(category as unknown as Record<string, unknown>).not.toHaveProperty(
+        "unknownField",
+      );
+      expect(category as unknown as Record<string, unknown>).not.toHaveProperty(
+        "anotherExtra",
+      );
     });
   });
 
-  describe('ByteArrayBufferRoundTrip (2.1)', () => {
+  describe("ByteArrayBufferRoundTrip (2.1)", () => {
     // 2.1 — `format: byte` values round-trip Buffer <-> base64 string at
     // the serde boundary. The model holds Buffer; the wire holds base64.
 
-    test('serialize: Buffer field encodes to base64 in the wire payload', () => {
+    test("serialize: Buffer field encodes to base64 in the wire payload", () => {
       const passport = new PetPassport({
-        thumbnail: Buffer.from('hello-world', 'utf-8') as unknown as PetPassport['thumbnail']
+        thumbnail: Buffer.from(
+          "hello-world",
+          "utf-8",
+        ) as unknown as PetPassport["thumbnail"],
       });
       const json = ObjectSerializer.serialize(passport);
       const parsed = JSON.parse(json) as Record<string, unknown>;
-      expect(parsed['thumbnail']).toBe(Buffer.from('hello-world', 'utf-8').toString('base64'));
+      expect(parsed["thumbnail"]).toBe(
+        Buffer.from("hello-world", "utf-8").toString("base64"),
+      );
     });
 
-    test('deserialize: base64 string on the wire decodes to a Buffer field', () => {
-      const wire = { thumbnail: Buffer.from('round-trip', 'utf-8').toString('base64') };
+    test("deserialize: base64 string on the wire decodes to a Buffer field", () => {
+      const wire = {
+        thumbnail: Buffer.from("round-trip", "utf-8").toString("base64"),
+      };
       const passport = ObjectSerializer.deserialize(wire, PetPassport);
       expect(passport).toBeDefined();
       expect(Buffer.isBuffer((passport as PetPassport).thumbnail)).toBe(true);
-      expect(((passport as PetPassport).thumbnail as unknown as Buffer).toString('utf-8')).toBe('round-trip');
+      expect(
+        ((passport as PetPassport).thumbnail as unknown as Buffer).toString(
+          "utf-8",
+        ),
+      ).toBe("round-trip");
     });
 
-    test('round-trip: serialize then deserialize preserves the Buffer bytes', () => {
+    test("round-trip: serialize then deserialize preserves the Buffer bytes", () => {
       const original = Buffer.from([0x00, 0x01, 0xff, 0xee, 0xab]);
-      const passport = new PetPassport({ thumbnail: original as unknown as PetPassport['thumbnail'] });
+      const passport = new PetPassport({
+        thumbnail: original as unknown as PetPassport["thumbnail"],
+      });
       const json = ObjectSerializer.serialize(passport);
-      const restored = ObjectSerializer.deserialize(JSON.parse(json), PetPassport);
+      const restored = ObjectSerializer.deserialize(
+        JSON.parse(json),
+        PetPassport,
+      );
       expect(restored).toBeDefined();
-      expect(Buffer.compare((restored as PetPassport).thumbnail as unknown as Buffer, original)).toBe(0);
+      expect(
+        Buffer.compare(
+          (restored as PetPassport).thumbnail as unknown as Buffer,
+          original,
+        ),
+      ).toBe(0);
     });
 
-    test('constructor: a non-Buffer/non-string thumbnail is rejected with TypeError', () => {
-      expect(() => new PetPassport({ thumbnail: 42 as unknown as PetPassport['thumbnail'] })).toThrow(TypeError);
+    test("constructor: a non-Buffer/non-string thumbnail is rejected with TypeError", () => {
+      expect(
+        () =>
+          new PetPassport({
+            thumbnail: 42 as unknown as PetPassport["thumbnail"],
+          }),
+      ).toThrow(TypeError);
     });
   });
 
-  describe('UuidBrandedTypeValidation (2.2)', () => {
+  describe("UuidBrandedTypeValidation (2.2)", () => {
     // 2.2 — `format: uuid` produces a branded `UUID = string & {...}`.
     // The brand exists only at the type level; runtime validation happens
     // through `uuid()` / `isUuid()` exported from src/brand.ts.
 
-    test('uuid(): accepts a canonical 8-4-4-4-12 hex UUID', () => {
-      const v = '550e8400-e29b-41d4-a716-446655440000';
+    test("uuid(): accepts a canonical 8-4-4-4-12 hex UUID", () => {
+      const v = "550e8400-e29b-41d4-a716-446655440000";
       expect(() => uuid(v)).not.toThrow();
       expect(uuid(v)).toBe(v);
     });
 
-    test('uuid(): rejects an arbitrary free-form string', () => {
-      expect(() => uuid('not-a-uuid')).toThrow(TypeError);
+    test("uuid(): rejects an arbitrary free-form string", () => {
+      expect(() => uuid("not-a-uuid")).toThrow(TypeError);
     });
 
-    test('uuid(): rejects a string with the wrong segment lengths', () => {
-      expect(() => uuid('550e8400-e29b-41d4-a716-44665544000')).toThrow(TypeError);
+    test("uuid(): rejects a string with the wrong segment lengths", () => {
+      expect(() => uuid("550e8400-e29b-41d4-a716-44665544000")).toThrow(
+        TypeError,
+      );
     });
 
-    test('isUuid(): narrows a valid string to UUID', () => {
-      expect(isUuid('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
-      expect(isUuid('not-a-uuid')).toBe(false);
+    test("isUuid(): narrows a valid string to UUID", () => {
+      expect(isUuid("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
+      expect(isUuid("not-a-uuid")).toBe(false);
       expect(isUuid(42)).toBe(false);
     });
   });
 
-  describe('MapOfModelDeepDeserialise (4.6)', () => {
+  describe("MapOfModelDeepDeserialise (4.6)", () => {
     // 4.6 — When a field is typed `Record<string, Foo>`, the helper must
     // return Foo instances, not raw JSON values. The dedicated
     // `deserializeMap` helper walks the entries.
 
-    test('deserializeMap returns model instances for each value', () => {
+    test("deserializeMap returns model instances for each value", () => {
       const wire = {
-        dogs: { id: 1, name: 'Dogs' },
-        cats: { id: 2, name: 'Cats' }
+        dogs: { id: 1, name: "Dogs" },
+        cats: { id: 2, name: "Cats" },
       };
       const out = ObjectSerializer.deserializeMap(wire, Category);
-      expect(Object.keys(out).sort()).toEqual(['cats', 'dogs']);
-      expect(out['dogs']).toBeInstanceOf(Category);
-      expect(out['dogs']!.id).toBe(1);
-      expect(out['cats']!.name).toBe('Cats');
+      expect(Object.keys(out).sort()).toEqual(["cats", "dogs"]);
+      expect(out["dogs"]).toBeInstanceOf(Category);
+      expect(out["dogs"]!.id).toBe(1);
+      expect(out["cats"]!.name).toBe("Cats");
     });
 
-    test('deserializeMap of an empty object yields an empty record', () => {
+    test("deserializeMap of an empty object yields an empty record", () => {
       expect(ObjectSerializer.deserializeMap({}, Category)).toEqual({});
     });
 
-    test('deserializeMap rejects an array (must be an object)', () => {
+    test("deserializeMap rejects an array (must be an object)", () => {
       expect(() => ObjectSerializer.deserializeMap([], Category)).toThrow();
     });
 
-    test('deserializeMap of null returns an empty record (lenient null)', () => {
+    test("deserializeMap of null returns an empty record (lenient null)", () => {
       expect(ObjectSerializer.deserializeMap(null, Category)).toEqual({});
     });
   });
 
-  describe('DiscriminatorAutoInjectionTests', () => {
-    test('dry subtype serialization includes discriminator without caller setting it', () => {
+  describe("DiscriminatorAutoInjectionTests", () => {
+    test("dry subtype serialization includes discriminator without caller setting it", () => {
       const dry = new DryFood({ weightKg: 2.5 });
       const json = ObjectSerializer.serialize(dry);
       const parsed = JSON.parse(json);
-      expect(parsed.foodType).toBe('dry');
+      expect(parsed.foodType).toBe("dry");
       expect(parsed.weightKg).toBe(2.5);
     });
 
-    test('wet subtype defaults discriminator to its mapping name', () => {
+    test("wet subtype defaults discriminator to its mapping name", () => {
       const wet = new WetFood({ volumeMl: 350 });
       const json = ObjectSerializer.serialize(wet);
       const parsed = JSON.parse(json);
-      expect(parsed.foodType).toBe('wet');
+      expect(parsed.foodType).toBe("wet");
       expect(parsed.volumeMl).toBe(350);
     });
 
-    test('caller-supplied discriminator overrides the default', () => {
-      const dry = new DryFood({ foodType: 'custom', weightKg: 1 });
+    test("caller-supplied discriminator overrides the default", () => {
+      const dry = new DryFood({ foodType: "custom", weightKg: 1 });
       const json = ObjectSerializer.serialize(dry);
       const parsed = JSON.parse(json);
-      expect(parsed.foodType).toBe('custom');
+      expect(parsed.foodType).toBe("custom");
     });
 
-    test('deserialize discriminator-tagged JSON returns subtype instance', () => {
-      const dryJson = { foodType: 'dry', weightKg: 2.5 };
+    test("deserialize discriminator-tagged JSON returns subtype instance", () => {
+      const dryJson = { foodType: "dry", weightKg: 2.5 };
       const dry = ObjectSerializer.deserialize(dryJson, DryFood);
       expect(dry).toBeDefined();
       expect(dry).toBeInstanceOf(DryFood);
-      expect(dry!.foodType).toBe('dry');
+      expect(dry!.foodType).toBe("dry");
       expect(dry!.weightKg).toBe(2.5);
     });
   });
 
-  describe('TemporalRoundTrip (4.8)', () => {
+  describe("TemporalRoundTrip (4.8)", () => {
     // 4.8 — `format: time` maps to Temporal.PlainTime, round-tripping
     // through its ISO 8601 canonical string. `format: duration` maps to
     // Temporal.Duration but round-trips through the protobuf-JSON wire
@@ -550,44 +615,48 @@ describe('ObjectSerializer', () => {
     // round-trip is covered by the model-level constructor + @Transform
     // decorators emitted by model.mustache.
 
-    describe('Temporal.PlainTime', () => {
-      test('stringify: PlainTime emits canonical HH:MM:SS', () => {
-        const t = Temporal.PlainTime.from('14:30:00');
-        expect(ObjectSerializer.stringify(t)).toBe('14:30:00');
+    describe("Temporal.PlainTime", () => {
+      test("stringify: PlainTime emits canonical HH:MM:SS", () => {
+        const t = Temporal.PlainTime.from("14:30:00");
+        expect(ObjectSerializer.stringify(t)).toBe("14:30:00");
       });
 
-      test('stringify: PlainTime preserves sub-second precision', () => {
-        const t = Temporal.PlainTime.from('09:15:30.250');
-        expect(ObjectSerializer.stringify(t)).toBe('09:15:30.25');
+      test("stringify: PlainTime preserves sub-second precision", () => {
+        const t = Temporal.PlainTime.from("09:15:30.250");
+        expect(ObjectSerializer.stringify(t)).toBe("09:15:30.25");
       });
 
-      test('toQueryValue: PlainTime serialises to its ISO string', () => {
-        const t = Temporal.PlainTime.from('06:00:00');
-        expect(ObjectSerializer.toQueryValue(t)).toBe('06:00:00');
+      test("toQueryValue: PlainTime serialises to its ISO string", () => {
+        const t = Temporal.PlainTime.from("06:00:00");
+        expect(ObjectSerializer.toQueryValue(t)).toBe("06:00:00");
       });
 
-      test('toHeaderValue: PlainTime serialises to its ISO string', () => {
-        const t = Temporal.PlainTime.from('23:59:59');
-        expect(ObjectSerializer.toHeaderValue(t)).toBe('23:59:59');
+      test("toHeaderValue: PlainTime serialises to its ISO string", () => {
+        const t = Temporal.PlainTime.from("23:59:59");
+        expect(ObjectSerializer.toHeaderValue(t)).toBe("23:59:59");
       });
 
-      test('toPathValue: PlainTime serialises to its ISO string', () => {
-        const t = Temporal.PlainTime.from('00:00:00');
-        expect(ObjectSerializer.toPathValue(t)).toBe('00:00:00');
+      test("toPathValue: PlainTime serialises to its ISO string", () => {
+        const t = Temporal.PlainTime.from("00:00:00");
+        expect(ObjectSerializer.toPathValue(t)).toBe("00:00:00");
       });
 
-      test('serialize: PlainTime in a plain object becomes a JSON string', () => {
-        const json = ObjectSerializer.serialize({ openAt: Temporal.PlainTime.from('08:00:00') });
-        expect(JSON.parse(json)).toEqual({ openAt: '08:00:00' });
+      test("serialize: PlainTime in a plain object becomes a JSON string", () => {
+        const json = ObjectSerializer.serialize({
+          openAt: Temporal.PlainTime.from("08:00:00"),
+        });
+        expect(JSON.parse(json)).toEqual({ openAt: "08:00:00" });
       });
 
-      test('Temporal.PlainTime.from: rejects a malformed time string', () => {
-        expect(() => Temporal.PlainTime.from('25:99:99')).toThrow();
+      test("Temporal.PlainTime.from: rejects a malformed time string", () => {
+        expect(() => Temporal.PlainTime.from("25:99:99")).toThrow();
       });
 
-      test('round-trip: stringify then PlainTime.from yields an equal value', () => {
-        const original = Temporal.PlainTime.from('11:22:33');
-        const restored = Temporal.PlainTime.from(ObjectSerializer.stringify(original));
+      test("round-trip: stringify then PlainTime.from yields an equal value", () => {
+        const original = Temporal.PlainTime.from("11:22:33");
+        const restored = Temporal.PlainTime.from(
+          ObjectSerializer.stringify(original),
+        );
         expect(restored.equals(original)).toBe(true);
       });
     });
@@ -598,174 +667,223 @@ describe('ObjectSerializer', () => {
     // ISO-8601 ("PT1H"). Empirically confirmed against the live Zitadel
     // server: "3600s" -> 201, "3600.000000001s" -> 201, "PT1H" -> 400,
     // 3600 -> 400.
-    describe('Temporal.Duration (protobuf-JSON)', () => {
+    describe("Temporal.Duration (protobuf-JSON)", () => {
       test('stringify: whole-second duration emits "<secs>s"', () => {
         const d = Temporal.Duration.from({ minutes: 15 });
-        expect(ObjectSerializer.stringify(d)).toBe('900s');
+        expect(ObjectSerializer.stringify(d)).toBe("900s");
       });
 
-      test('stringify: composite hours/minutes/seconds collapses to seconds', () => {
-        const d = Temporal.Duration.from('PT2H30M15S');
-        expect(ObjectSerializer.stringify(d)).toBe('9015s');
+      test("stringify: composite hours/minutes/seconds collapses to seconds", () => {
+        const d = Temporal.Duration.from("PT2H30M15S");
+        expect(ObjectSerializer.stringify(d)).toBe("9015s");
       });
 
-      test('stringify: day-level duration collapses to seconds', () => {
-        const d = Temporal.Duration.from('P3D');
-        expect(ObjectSerializer.stringify(d)).toBe('259200s');
+      test("stringify: day-level duration collapses to seconds", () => {
+        const d = Temporal.Duration.from("P3D");
+        expect(ObjectSerializer.stringify(d)).toBe("259200s");
       });
 
       test('stringify: 1h is "3600s"', () => {
-        expect(ObjectSerializer.stringify(Temporal.Duration.from('PT1H'))).toBe('3600s');
+        expect(ObjectSerializer.stringify(Temporal.Duration.from("PT1H"))).toBe(
+          "3600s",
+        );
       });
 
-      test('toQueryValue: Duration serialises to protobuf-JSON', () => {
-        const d = Temporal.Duration.from('PT45S');
-        expect(ObjectSerializer.toQueryValue(d)).toBe('45s');
+      test("toQueryValue: Duration serialises to protobuf-JSON", () => {
+        const d = Temporal.Duration.from("PT45S");
+        expect(ObjectSerializer.toQueryValue(d)).toBe("45s");
       });
 
-      test('toHeaderValue: Duration serialises to protobuf-JSON', () => {
-        const d = Temporal.Duration.from('PT1H');
-        expect(ObjectSerializer.toHeaderValue(d)).toBe('3600s');
+      test("toHeaderValue: Duration serialises to protobuf-JSON", () => {
+        const d = Temporal.Duration.from("PT1H");
+        expect(ObjectSerializer.toHeaderValue(d)).toBe("3600s");
       });
 
-      test('serialize: Duration in a plain object becomes a protobuf-JSON string', () => {
-        const json = ObjectSerializer.serialize({ ttl: Temporal.Duration.from('PT5M') });
-        expect(JSON.parse(json)).toEqual({ ttl: '300s' });
+      test("serialize: Duration in a plain object becomes a protobuf-JSON string", () => {
+        const json = ObjectSerializer.serialize({
+          ttl: Temporal.Duration.from("PT5M"),
+        });
+        expect(JSON.parse(json)).toEqual({ ttl: "300s" });
       });
 
-      describe('durationToProtoJson', () => {
-        test('zero', () => {
-          expect(durationToProtoJson(Temporal.Duration.from({ seconds: 0 }))).toBe('0s');
+      describe("durationToProtoJson", () => {
+        test("zero", () => {
+          expect(
+            durationToProtoJson(Temporal.Duration.from({ seconds: 0 })),
+          ).toBe("0s");
         });
 
-        test('one nanosecond -> 9-digit fraction', () => {
-          expect(durationToProtoJson(Temporal.Duration.from({ seconds: 3600, nanoseconds: 1 }))).toBe(
-            '3600.000000001s'
+        test("one nanosecond -> 9-digit fraction", () => {
+          expect(
+            durationToProtoJson(
+              Temporal.Duration.from({ seconds: 3600, nanoseconds: 1 }),
+            ),
+          ).toBe("3600.000000001s");
+        });
+
+        test("millisecond fraction trims to 3 digits", () => {
+          expect(
+            durationToProtoJson(
+              Temporal.Duration.from({ seconds: 1, milliseconds: 500 }),
+            ),
+          ).toBe("1.500s");
+        });
+
+        test("microsecond fraction trims to 6 digits", () => {
+          expect(
+            durationToProtoJson(
+              Temporal.Duration.from({ seconds: 1, microseconds: 250 }),
+            ),
+          ).toBe("1.000250s");
+        });
+
+        test("negative duration carries the sign", () => {
+          expect(
+            durationToProtoJson(Temporal.Duration.from({ seconds: -90 })),
+          ).toBe("-90s");
+        });
+
+        test("negative fractional duration", () => {
+          expect(
+            durationToProtoJson(
+              Temporal.Duration.from({ seconds: -1, milliseconds: -500 }),
+            ),
+          ).toBe("-1.500s");
+        });
+      });
+
+      describe("durationFromProtoJson", () => {
+        test("parses whole seconds", () => {
+          expect(
+            durationFromProtoJson("3600s").total({ unit: "seconds" }),
+          ).toBe(3600);
+        });
+
+        test("parses fractional seconds down to the nanosecond", () => {
+          const d = durationFromProtoJson("3600.000000001s");
+          expect(d.total({ unit: "nanoseconds" })).toBe(3600000000001);
+        });
+
+        test("parses negative durations", () => {
+          expect(durationFromProtoJson("-90s").total({ unit: "seconds" })).toBe(
+            -90,
           );
         });
 
-        test('millisecond fraction trims to 3 digits', () => {
-          expect(durationToProtoJson(Temporal.Duration.from({ seconds: 1, milliseconds: 500 }))).toBe('1.500s');
-        });
-
-        test('microsecond fraction trims to 6 digits', () => {
-          expect(durationToProtoJson(Temporal.Duration.from({ seconds: 1, microseconds: 250 }))).toBe('1.000250s');
-        });
-
-        test('negative duration carries the sign', () => {
-          expect(durationToProtoJson(Temporal.Duration.from({ seconds: -90 }))).toBe('-90s');
-        });
-
-        test('negative fractional duration', () => {
-          expect(durationToProtoJson(Temporal.Duration.from({ seconds: -1, milliseconds: -500 }))).toBe('-1.500s');
-        });
-      });
-
-      describe('durationFromProtoJson', () => {
-        test('parses whole seconds', () => {
-          expect(durationFromProtoJson('3600s').total({ unit: 'seconds' })).toBe(3600);
-        });
-
-        test('parses fractional seconds down to the nanosecond', () => {
-          const d = durationFromProtoJson('3600.000000001s');
-          expect(d.total({ unit: 'nanoseconds' })).toBe(3600000000001);
-        });
-
-        test('parses negative durations', () => {
-          expect(durationFromProtoJson('-90s').total({ unit: 'seconds' })).toBe(-90);
-        });
-
-        test('rejects ISO-8601 (PT1H)', () => {
-          expect(() => durationFromProtoJson('PT1H')).toThrow(SerializationError);
+        test("rejects ISO-8601 (PT1H)", () => {
+          expect(() => durationFromProtoJson("PT1H")).toThrow(
+            SerializationError,
+          );
         });
 
         test('rejects a bare number with no "s" suffix', () => {
-          expect(() => durationFromProtoJson('3600')).toThrow(SerializationError);
+          expect(() => durationFromProtoJson("3600")).toThrow(
+            SerializationError,
+          );
         });
 
-        test('rejects more than 9 fractional digits', () => {
-          expect(() => durationFromProtoJson('1.0000000001s')).toThrow(SerializationError);
+        test("rejects more than 9 fractional digits", () => {
+          expect(() => durationFromProtoJson("1.0000000001s")).toThrow(
+            SerializationError,
+          );
         });
       });
 
-      test('round-trip: stringify then durationFromProtoJson is lossless', () => {
-        const original = Temporal.Duration.from('PT1H30M');
-        const restored = durationFromProtoJson(ObjectSerializer.stringify(original));
-        expect(restored.total({ unit: 'seconds' })).toBe(original.total({ unit: 'seconds' }));
+      test("round-trip: stringify then durationFromProtoJson is lossless", () => {
+        const original = Temporal.Duration.from("PT1H30M");
+        const restored = durationFromProtoJson(
+          ObjectSerializer.stringify(original),
+        );
+        expect(restored.total({ unit: "seconds" })).toBe(
+          original.total({ unit: "seconds" }),
+        );
       });
 
-      test('round-trip: sub-second precision survives stringify -> parse', () => {
-        const original = Temporal.Duration.from({ seconds: 42, nanoseconds: 123456789 });
-        const restored = durationFromProtoJson(ObjectSerializer.stringify(original));
-        expect(restored.total({ unit: 'nanoseconds' })).toBe(original.total({ unit: 'nanoseconds' }));
+      test("round-trip: sub-second precision survives stringify -> parse", () => {
+        const original = Temporal.Duration.from({
+          seconds: 42,
+          nanoseconds: 123456789,
+        });
+        const restored = durationFromProtoJson(
+          ObjectSerializer.stringify(original),
+        );
+        expect(restored.total({ unit: "nanoseconds" })).toBe(
+          original.total({ unit: "nanoseconds" }),
+        );
       });
     });
   });
 
-  describe('oneOf/anyOf no-match', () => {
-    test('resolveOneOf returns the first matching variant', () => {
-      const result = ObjectSerializer.resolveOneOf<string>('payload', [
+  describe("oneOf/anyOf no-match", () => {
+    test("resolveOneOf returns the first matching variant", () => {
+      const result = ObjectSerializer.resolveOneOf<string>("payload", [
         () => {
-          throw new Error('variant A does not match');
+          throw new Error("variant A does not match");
         },
-        (json) => 'matched:' + json
+        (json) => "matched:" + json,
       ]);
-      expect(result).toBe('matched:payload');
+      expect(result).toBe("matched:payload");
     });
 
-    test('resolveOneOf throws when no variant matches', () => {
+    test("resolveOneOf throws when no variant matches", () => {
       // A payload matching none of the declared variants is a contract
       // violation and must fail loudly rather than be silently returned as null.
       expect(() =>
         ObjectSerializer.resolveOneOf<string>('{"unexpected":true}', [
           () => {
-            throw new Error('variant A does not match');
+            throw new Error("variant A does not match");
           },
           () => {
-            throw new Error('variant B does not match');
-          }
-        ])
+            throw new Error("variant B does not match");
+          },
+        ]),
       ).toThrow(SerializationError);
     });
 
-    test('resolveAnyOf throws when no variant matches', () => {
-      expect(() => ObjectSerializer.resolveAnyOf<string>('{}', [() => null])).toThrow(SerializationError);
+    test("resolveAnyOf throws when no variant matches", () => {
+      expect(() =>
+        ObjectSerializer.resolveAnyOf<string>("{}", [() => null]),
+      ).toThrow(SerializationError);
     });
   });
 
-  describe('Canonical behavior #6 — unknown enum value on deserialize throws', () => {
+  describe("Canonical behavior #6 — unknown enum value on deserialize throws", () => {
     // Deserializing a payload whose enum field carries an out-of-schema
     // value must raise the SDK's (de)serialization error, never silently
     // pass the unknown value through or coerce it to a default/unknown
     // member. ObjectSerializer.deserialize routes plainToInstance output
     // back through the model constructor, where the enum membership check
     // fires.
-    test('out-of-schema enum value raises SerializationError', () => {
+    test("out-of-schema enum value raises SerializationError", () => {
       const wire = {
         id: 1,
-        name: 'Rex',
-        photoUrls: ['http://example.com/p.jpg'],
-        status: 'galloping'
+        name: "Rex",
+        photoUrls: ["http://example.com/p.jpg"],
+        status: "galloping",
       };
-      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(SerializationError);
+      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(
+        SerializationError,
+      );
     });
 
-    test('error message names the offending enum value', () => {
+    test("error message names the offending enum value", () => {
       const wire = {
         id: 1,
-        name: 'Rex',
-        photoUrls: ['http://example.com/p.jpg'],
-        status: 'galloping'
+        name: "Rex",
+        photoUrls: ["http://example.com/p.jpg"],
+        status: "galloping",
       };
-      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(/galloping/);
+      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(
+        /galloping/,
+      );
     });
 
-    test('an in-schema enum value still deserializes cleanly', () => {
+    test("an in-schema enum value still deserializes cleanly", () => {
       const wire = {
         id: 1,
-        name: 'Rex',
-        photoUrls: ['http://example.com/p.jpg'],
-        status: PetStatusEnum.Available
+        name: "Rex",
+        photoUrls: ["http://example.com/p.jpg"],
+        status: PetStatusEnum.Available,
       };
       const pet = ObjectSerializer.deserialize(wire, Pet);
       expect(pet?.status).toBe(PetStatusEnum.Available);
@@ -773,55 +891,64 @@ describe('ObjectSerializer', () => {
   });
 });
 
-describe('model value-equality', () => {
+describe("model value-equality", () => {
   // node-model-equality: generated models expose a value-based equals(),
   // matching the value-equality the other SDKs provide.
-  test('structurally identical scalar models are equal', () => {
-    const a = new Category({ id: 1, name: 'Dogs' });
-    const b = new Category({ id: 1, name: 'Dogs' });
+  test("structurally identical scalar models are equal", () => {
+    const a = new Category({ id: 1, name: "Dogs" });
+    const b = new Category({ id: 1, name: "Dogs" });
     expect(a.equals(b)).toBe(true);
     expect(b.equals(a)).toBe(true);
   });
 
-  test('a model is equal to itself', () => {
-    const a = new Category({ id: 1, name: 'Dogs' });
+  test("a model is equal to itself", () => {
+    const a = new Category({ id: 1, name: "Dogs" });
     expect(a.equals(a)).toBe(true);
   });
 
-  test('models differing in a single field are not equal', () => {
-    const a = new Category({ id: 1, name: 'Dogs' });
-    const b = new Category({ id: 1, name: 'Cats' });
+  test("models differing in a single field are not equal", () => {
+    const a = new Category({ id: 1, name: "Dogs" });
+    const b = new Category({ id: 1, name: "Cats" });
     expect(a.equals(b)).toBe(false);
     expect(b.equals(a)).toBe(false);
   });
 
-  test('a model is never equal to a non-model value', () => {
-    const a = new Category({ id: 1, name: 'Dogs' });
+  test("a model is never equal to a non-model value", () => {
+    const a = new Category({ id: 1, name: "Dogs" });
     expect(a.equals(null)).toBe(false);
     expect(a.equals(undefined)).toBe(false);
-    expect(a.equals({ id: 1, name: 'Dogs' })).toBe(false);
+    expect(a.equals({ id: 1, name: "Dogs" })).toBe(false);
   });
 
-  test('deep equality compares nested models and collections structurally', () => {
+  test("deep equality compares nested models and collections structurally", () => {
     const a = new Pet({
       id: 7,
-      name: 'Rex',
-      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
-      category: new Category({ id: 1, name: 'Dogs' })
+      name: "Rex",
+      photoUrls: new Set([
+        "http://example.com/a.jpg",
+        "http://example.com/b.jpg",
+      ]),
+      category: new Category({ id: 1, name: "Dogs" }),
     });
     const b = new Pet({
       id: 7,
-      name: 'Rex',
-      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
-      category: new Category({ id: 1, name: 'Dogs' })
+      name: "Rex",
+      photoUrls: new Set([
+        "http://example.com/a.jpg",
+        "http://example.com/b.jpg",
+      ]),
+      category: new Category({ id: 1, name: "Dogs" }),
     });
     expect(a.equals(b)).toBe(true);
 
     const c = new Pet({
       id: 7,
-      name: 'Rex',
-      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
-      category: new Category({ id: 2, name: 'Cats' })
+      name: "Rex",
+      photoUrls: new Set([
+        "http://example.com/a.jpg",
+        "http://example.com/b.jpg",
+      ]),
+      category: new Category({ id: 2, name: "Cats" }),
     });
     expect(a.equals(c)).toBe(false);
   });

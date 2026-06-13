@@ -18,11 +18,11 @@
  * Client entry point and per-group API classes (+ their Options, server, and
  * inline-enum types, re-exported transitively through the api barrel).
  */
-export { Client } from './client.js';
-export * from './api/index.js';
+export { Client } from "./client.js";
+export * from "./api/index.js";
 
 /* Model types. */
-export * from './models/index.js';
+export * from "./models/index.js";
 
 /*
  * Transport-level DTOs and the pluggable HTTP client seam.
@@ -34,40 +34,49 @@ export * from './models/index.js';
  * happens to be named `ApiResponse` (the model wins via the `./models` star
  * export).
  */
-export type { ApiClient, SendRequestOptions } from './api-client.js';
-export type { ApiResult } from './api-result.js';
-export { DefaultApiClient } from './default-api-client.js';
+export type { ApiClient, SendRequestOptions } from "./api-client.js";
+export type { ApiResult } from "./api-result.js";
+export { DefaultApiClient } from "./default-api-client.js";
 
 /* Configuration and transport tuning. */
-export { Configuration, ConfigurationBuilder } from './configuration.js';
-export { TransportOptions, TransportOptionsBuilder } from './transport-options.js';
-export { ServerConfiguration, ServerVariable } from './server-configuration.js';
+export { Configuration, ConfigurationBuilder } from "./configuration.js";
+export {
+  TransportOptions,
+  TransportOptionsBuilder,
+} from "./transport-options.js";
+export { ServerConfiguration, ServerVariable } from "./server-configuration.js";
 
 /* Branded scalar types and their constructors. */
-export { isUuid, uuid, URI, Email, Decimal } from './brand.js';
-export type { UUID } from './brand.js';
+export { isUuid, uuid, URI, Email, Decimal } from "./brand.js";
+export type { UUID } from "./brand.js";
 
 /* Error hierarchy. */
-export { ZitadelError } from './errors/zitadel-error.js';
-export { ApiError } from './api-error.js';
-export * from './errors/index.js';
-export { SerializationError, DeserializationError } from './object-serializer.js';
+export { ZitadelError } from "./errors/zitadel-error.js";
+export { ApiError } from "./api-error.js";
+export * from "./errors/index.js";
+export {
+  SerializationError,
+  DeserializationError,
+} from "./object-serializer.js";
 
 /*
  * Authentication: the interface, the HTTP-aware extension, and every
  * concrete authenticator the spec's security schemes require.
  */
-export type { Authenticator } from './auth/authenticator.js';
-export type { HttpAwareAuthenticator } from './auth/http-aware-authenticator.js';
-export { isHttpAwareAuthenticator } from './auth/http-aware-authenticator.js';
-export { BasicAuthenticator } from './auth/basic-authenticator.js';
-export { BearerAuthenticator } from './auth/bearer-authenticator.js';
-export { ApiKeyAuthenticator } from './auth/api-key-authenticator.js';
-export { ApiKeyLocation } from './auth/api-key-location.js';
-export { OAuth2ClientCredentialsAuthenticator } from './auth/oauth/oauth2-client-credentials-authenticator.js';
-export { OAuth2PasswordAuthenticator } from './auth/oauth/oauth2-password-authenticator.js';
-export { OAuth2AuthorizationCodeAuthenticator } from './auth/oauth/oauth2-auth-code-authenticator.js';
-export { OAuth2ImplicitAuthenticator } from './auth/oauth/oauth2-implicit-authenticator.js';
-export { OpenIdConnectAuthenticator } from './auth/oauth/openid-connect-authenticator.js';
-export { ClientAuthMethod } from './auth/oauth/client-auth-method.js';
-export { OAuth2TokenError, OAuth2ServerError } from './auth/oauth/oauth2-token-manager.js';
+export type { Authenticator } from "./auth/authenticator.js";
+export type { HttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
+export { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
+export { BasicAuthenticator } from "./auth/basic-authenticator.js";
+export { BearerAuthenticator } from "./auth/bearer-authenticator.js";
+export { ApiKeyAuthenticator } from "./auth/api-key-authenticator.js";
+export { ApiKeyLocation } from "./auth/api-key-location.js";
+export { OAuth2ClientCredentialsAuthenticator } from "./auth/oauth/oauth2-client-credentials-authenticator.js";
+export { OAuth2PasswordAuthenticator } from "./auth/oauth/oauth2-password-authenticator.js";
+export { OAuth2AuthorizationCodeAuthenticator } from "./auth/oauth/oauth2-auth-code-authenticator.js";
+export { OAuth2ImplicitAuthenticator } from "./auth/oauth/oauth2-implicit-authenticator.js";
+export { OpenIdConnectAuthenticator } from "./auth/oauth/openid-connect-authenticator.js";
+export { ClientAuthMethod } from "./auth/oauth/client-auth-method.js";
+export {
+  OAuth2TokenError,
+  OAuth2ServerError,
+} from "./auth/oauth/oauth2-token-manager.js";

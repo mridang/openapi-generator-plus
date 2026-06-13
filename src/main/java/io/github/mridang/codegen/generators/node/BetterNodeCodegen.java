@@ -1,7 +1,6 @@
 package io.github.mridang.codegen.generators.node;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
-import io.github.mridang.codegen.generators.AbstractBetterCodegen.FileContentFixup;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
@@ -17,7 +16,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
@@ -800,25 +798,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         importMap.put("className", className);
         importMap.put("path", path);
         return importMap;
-    }
-
-    /**
-     * Pattern matching block-comment lines of the form
-     * {@literal /*} eslint-disable {@literal *}{@literal /} (including the trailing
-     * newline) — a Mustache artefact emitted in every generated TS file that
-     * conflicts with the project's own eslint configuration.
-     */
-    private static final Pattern ESLINT_DISABLE_PATTERN =
-            Pattern.compile("^/\\*\\s*eslint-disable\\s*\\*/\\s*\\R", Pattern.MULTILINE);
-
-    /**
-     * Declares the regex-based fixup for {@code .ts} files: strip eslint-disable
-     * block-comment lines. Trailing-blank-line trimming is handled universally
-     * by the base class.
-     */
-    @Override
-    protected List<FileContentFixup> getFileContentFixups() {
-        return List.of(new FileContentFixup(".ts", ESLINT_DISABLE_PATTERN, ""));
     }
 
     /** {@inheritDoc} */

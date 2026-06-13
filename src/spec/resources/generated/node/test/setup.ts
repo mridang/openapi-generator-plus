@@ -1,6 +1,6 @@
-import * as fs from 'node:fs';
+import * as fs from "node:fs";
 
-const config = JSON.parse(fs.readFileSync('/tmp/chasm-config.json', 'utf8'));
+const config = JSON.parse(fs.readFileSync("/tmp/chasm-config.json", "utf8"));
 process.env.API_BASE_URL = config.baseUrl;
 process.env.CHASM_HTTP_URL = config.chasmHttpUrl;
 process.env.CHASM_HTTPS_URL = config.chasmHttpsUrl;

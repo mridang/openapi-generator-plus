@@ -1,4 +1,4 @@
-import type { Authenticator } from '../../auth/authenticator.js';
+import type { Authenticator } from "../../auth/authenticator.js";
 
 /**
  * Options for the deletePet operation.

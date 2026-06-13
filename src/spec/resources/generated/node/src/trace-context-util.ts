@@ -17,13 +17,15 @@
  *
  * @param headers - mutable record of request headers
  */
-export async function injectTraceContext(headers: Record<string, string>): Promise<void> {
+export async function injectTraceContext(
+  headers: Record<string, string>,
+): Promise<void> {
   try {
     /*
      * Static specifier (not a variable) so no-unsanitized/method is satisfied;
      * the import is still optional at runtime via the surrounding try/catch.
      */
-    const otel = await (import('@opentelemetry/api') as Promise<{
+    const otel = await (import("@opentelemetry/api") as Promise<{
       propagation: { inject: (ctx: unknown, carrier: unknown) => void };
       context: { active: () => unknown };
     }>);

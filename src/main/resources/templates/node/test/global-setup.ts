@@ -23,7 +23,6 @@ async function startWithRetry<T extends StartedTestContainer>(
       return await start();
     } catch (err) {
       lastErr = err;
-      // eslint-disable-next-line no-console
       console.warn(`${label} container start attempt ${attempt}/${attempts} failed: ${String(err)}`);
       await new Promise(resolve => setTimeout(resolve, 3000));
     }

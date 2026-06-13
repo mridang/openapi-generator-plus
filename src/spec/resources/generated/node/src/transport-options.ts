@@ -101,7 +101,7 @@ export class TransportOptionsBuilder {
   private _timeout: number | null = 10000;
   private _followRedirects: boolean = true;
   private _maxRedirects: number | null = null;
-  private _userAgent: string | null = 'openapi-typescript-client/1.0.0 (node)';
+  private _userAgent: string | null = "openapi-typescript-client/1.0.0 (node)";
   private _defaultHeaders: Record<string, string> = {};
   private _injectRequestId: boolean = false;
 
@@ -136,8 +136,10 @@ export class TransportOptionsBuilder {
   proxy(proxy: string | null): this {
     if (proxy != null) {
       const parsed = new URL(proxy);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        throw new Error(`Invalid proxy URL (must use http or https scheme): ${proxy}`);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error(
+          `Invalid proxy URL (must use http or https scheme): ${proxy}`,
+        );
       }
       if (!parsed.hostname) {
         throw new Error(`Invalid proxy URL (missing host): ${proxy}`);
@@ -240,7 +242,7 @@ export class TransportOptionsBuilder {
       maxRedirects: this._maxRedirects,
       userAgent: this._userAgent,
       defaultHeaders: { ...this._defaultHeaders },
-      injectRequestId: this._injectRequestId
+      injectRequestId: this._injectRequestId,
     });
   }
 }

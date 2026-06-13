@@ -33,7 +33,11 @@ export class ServerVariable {
    * @param description human-readable description of the variable, or null
    * @param enumValues allowed values, or an empty array if any value is accepted
    */
-  constructor(defaultValue: string, description: string | null, enumValues: string[]) {
+  constructor(
+    defaultValue: string,
+    description: string | null,
+    enumValues: string[],
+  ) {
     this.defaultValue = defaultValue;
     this.description = description;
     this.enumValues = Object.freeze([...enumValues]);
@@ -69,7 +73,11 @@ export class ServerConfiguration {
    * @param description human-readable description of this server, or null
    * @param variables map of variable names to their definitions
    */
-  constructor(urlTemplate: string, description: string | null, variables: Record<string, ServerVariable>) {
+  constructor(
+    urlTemplate: string,
+    description: string | null,
+    variables: Record<string, ServerVariable>,
+  ) {
     this.urlTemplate = urlTemplate;
     this.description = description;
     this.variables = Object.freeze({ ...variables });
@@ -91,9 +99,12 @@ export class ServerConfiguration {
     for (const [varName, variable] of Object.entries(this.variables)) {
       const value = overrides[varName] ?? variable.defaultValue;
 
-      if (variable.enumValues.length > 0 && !variable.enumValues.includes(value)) {
+      if (
+        variable.enumValues.length > 0 &&
+        !variable.enumValues.includes(value)
+      ) {
         throw new Error(
-          `Invalid value '${value}' for server variable '${varName}'. Allowed values: ${variable.enumValues.join(', ')}`
+          `Invalid value '${value}' for server variable '${varName}'. Allowed values: ${variable.enumValues.join(", ")}`,
         );
       }
 
