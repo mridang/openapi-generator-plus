@@ -1,2 +1,7 @@
+# Clippy configuration.
+#
+# Only the MSRV is pinned so Clippy aligns its suggestions with the toolchain
+# the crate actually supports (it will not propose APIs newer than rust-version).
+# This is a correctness alignment, not a lint relaxation: every default Clippy
+# lint stays at its default level and `cargo clippy -- -D warnings` enforces it.
 msrv = "1.85"
-avoid-breaking-exported-api = false

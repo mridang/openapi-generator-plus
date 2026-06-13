@@ -1,5 +1,6 @@
-edition = "2024"
-max_width = 100
-newline_style = "Unix"
-use_field_init_shorthand = true
-use_try_shorthand = true
+# Default rustfmt configuration.
+#
+# Generated code is formatted by `cargo fmt` during generation, so the output is
+# rustfmt-clean by construction. No custom options are set: the project uses
+# stock rustfmt defaults so callers get the same formatting the wider Rust
+# ecosystem expects.

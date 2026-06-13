@@ -34,6 +34,11 @@
 // `ptr_arg`: signatures mirror the spec's parameter types.
 // `too_many_arguments`/`type_complexity`: operation signatures and result types
 //   are dictated by the OpenAPI document, not chosen by the generator.
+// `upper_case_acronyms`: enum variants are emitted verbatim from spec enum
+//   strings (e.g. `US`, `EU`, `SANDBOX`, `STAGING`). Clippy prefers
+//   `CamelCase`, but callers expect the literal naming from the OpenAPI
+//   document.
+#![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::new_without_default)]
 #![allow(clippy::manual_range_contains)]
 #![allow(clippy::useless_format)]
