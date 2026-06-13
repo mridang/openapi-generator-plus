@@ -658,6 +658,12 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         keepStringForUriSubformats(property, "String");
+        // OpenAPI Generator 7.12 has no isDuration flag on CodegenProperty, so
+        // surface format:duration to the model template under a plain flag. The
+        // template uses it to apply @Contextual, routing the java.time.Duration
+        // property through the protobuf-JSON DurationSerializer registered in the
+        // SerializersModule.
+        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
     }
 
     /**

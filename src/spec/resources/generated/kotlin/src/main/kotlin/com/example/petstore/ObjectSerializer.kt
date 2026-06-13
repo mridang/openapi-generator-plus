@@ -31,6 +31,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 import kotlinx.serialization.serializer
 import java.math.BigDecimal
+import java.time.Duration
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -467,6 +468,76 @@ internal class ObjectSerializer(
             override fun deserialize(decoder: Decoder): Url = Url(decoder.decodeString())
         }
 
+        /* OpenAPI `format: duration` is wire-encoded as a protobuf-JSON
+         * google.protobuf.Duration: a decimal second count suffixed with
+         * `s` (e.g. "3600s", "3.000000001s", "-1.5s") — NOT ISO-8601.
+         * Zitadel's server validates exactly this grammar
+         * (`-?\d+(\.\d{1,9})?s`). The fractional part is emitted with 3, 6,
+         * or 9 digits (the smallest grouping that preserves every non-zero
+         * nanosecond digit). java.time.Duration carries nanosecond precision,
+         * so the full range round-trips without loss. */
+        private object DurationSerializer : KSerializer<Duration> {
+            override val descriptor = PrimitiveSerialDescriptor("Duration", PrimitiveKind.STRING)
+
+            private val durationRegex = Regex("-?\\d+(\\.\\d{1,9})?s")
+
+            override fun serialize(
+                encoder: Encoder,
+                value: Duration,
+            ) = encoder.encodeString(format(value))
+
+            override fun deserialize(decoder: Decoder): Duration = parse(decoder.decodeString())
+
+            private fun format(value: Duration): String {
+                // Derive whole seconds and a non-negative nanosecond remainder
+                // from a single signed total so the sign stays coherent (mirrors
+                // the protobuf-JSON encoders in the other SDKs).
+                val totalNanos = value.toNanos()
+                val sign = if (totalNanos < 0) "-" else ""
+                val absNanos = Math.abs(totalNanos)
+                val secs = absNanos / 1_000_000_000L
+                val nanos = absNanos % 1_000_000_000L
+                if (nanos == 0L) {
+                    return "$sign${secs}s"
+                }
+                // Zero-pad to nine digits, then trim trailing zeros down to the
+                // nearest 3/6/9-digit boundary so every significant digit
+                // survives.
+                var frac = nanos.toString().padStart(9, '0')
+                frac =
+                    when {
+                        frac.endsWith("000000") -> frac.substring(0, 3)
+                        frac.endsWith("000") -> frac.substring(0, 6)
+                        else -> frac
+                    }
+                return "$sign$secs.${frac}s"
+            }
+
+            private fun parse(value: String): Duration {
+                if (!durationRegex.matches(value)) {
+                    throw kotlinx.serialization.SerializationException(
+                        "Could not parse '$value' as a protobuf-JSON duration",
+                    )
+                }
+                var body = value.dropLast(1) // strip trailing 's'
+                val sign = if (body.startsWith("-")) -1L else 1L
+                body = body.trimStart('-')
+                val secsStr: String
+                val fracStr: String
+                val dot = body.indexOf('.')
+                if (dot >= 0) {
+                    secsStr = body.substring(0, dot)
+                    fracStr = body.substring(dot + 1)
+                } else {
+                    secsStr = body
+                    fracStr = ""
+                }
+                val secs = secsStr.toLong()
+                val nanos = if (fracStr.isEmpty()) 0L else fracStr.padEnd(9, '0').toLong()
+                return Duration.ofSeconds(sign * secs, sign * nanos)
+            }
+        }
+
         /* Gap AZ: contextual serializer for raw `Any` so properties
          * generated from OAS 3.1 prefixItems (downgraded to
          * `items: {}` by NormalizePrefixItemsRule) compile and
@@ -548,6 +619,7 @@ internal class ObjectSerializer(
                         contextual(BigDecimalSerializer)
                         contextual(UuidSerializer)
                         contextual(KtorUrlSerializer)
+                        contextual(DurationSerializer)
                         contextual(Any::class, AnySerializer)
                     }
             }

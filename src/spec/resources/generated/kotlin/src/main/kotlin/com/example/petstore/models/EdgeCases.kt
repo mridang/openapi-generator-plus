@@ -59,6 +59,7 @@ data class EdgeCases(
      * Example: `null`
      */
     @SerialName("retryAfter")
+    @Contextual
     val retryAfter: Duration? = null,
     /**
      * Absolute expiry instant
