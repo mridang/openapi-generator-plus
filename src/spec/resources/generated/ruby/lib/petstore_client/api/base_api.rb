@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -83,7 +84,6 @@ module PetstoreClient
             unless value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
               raise ArgumentError, "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
             end
-
             "#{name}=#{value}"
           end.join('; ')
           existing = headers['Cookie']

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -67,13 +68,13 @@ module PetstoreClient
           # SDKs already strict; we promote the other 7 here).
           if discriminator_value.nil?
             raise PetstoreClient::SerializationError,
-              "Missing discriminator '#{openapi_discriminator_name}' for PetFood"
+                  "Missing discriminator '#{openapi_discriminator_name}' for PetFood"
           end
 
           klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
           unless klass_name
             raise PetstoreClient::SerializationError,
-              "Unknown discriminator value for PetFood: '#{discriminator_value}'"
+                  "Unknown discriminator value for PetFood: '#{discriminator_value}'"
           end
 
           PetstoreClient::ObjectSerializer.convert_to_type(data, klass_name.to_s)

@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# rubocop:disable all
 
 require 'json'
 require 'test_helper'
@@ -268,13 +269,13 @@ describe PetstoreClient::DefaultApiClient do
       client = PetstoreClient::DefaultApiClient.new(transport)
       boundary = 'test-boundary'
       multipart_body = "--#{boundary}\r\n" \
-                       "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
-                       "hello\r\n" \
-                       "--#{boundary}\r\n" \
-                       "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
-                       "Content-Type: application/octet-stream\r\n\r\n" \
-                       "file-content-bytes\r\n" \
-                       "--#{boundary}--\r\n"
+        "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
+        "hello\r\n" \
+        "--#{boundary}\r\n" \
+        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
+        "Content-Type: application/octet-stream\r\n\r\n" \
+        "file-content-bytes\r\n" \
+        "--#{boundary}--\r\n"
       headers = { 'Content-Type' => "multipart/form-data; boundary=#{boundary}" }
       # chasm echoes the replayed request after the 307; we verify the
       # method stayed POST and the multipart body was carried through.

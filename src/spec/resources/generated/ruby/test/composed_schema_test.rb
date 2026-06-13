@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# rubocop:disable all
 
 require 'test_helper'
 require 'json'
@@ -49,7 +50,7 @@ describe 'Composed Schema' do
       # so callers can diagnose server/spec drift.
       json = '{"foodType":"raw","calories":300}'
       err = _ { PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood') }
-        .must_raise PetstoreClient::SerializationError
+            .must_raise PetstoreClient::SerializationError
       _(err.message).must_include('raw')
     end
 

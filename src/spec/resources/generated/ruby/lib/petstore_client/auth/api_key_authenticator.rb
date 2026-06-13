@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -63,16 +64,16 @@ module PetstoreClient
       def validate_api_key!(key_param_name, api_key, location)
         if api_key.nil? || api_key.empty? || api_key.strip.empty?
           raise ArgumentError,
-            "API key value for '#{key_param_name}' must not be empty"
+                "API key value for '#{key_param_name}' must not be empty"
         end
         if api_key.match?(/[\r\n\x00]/)
           raise ArgumentError,
-            "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
+                "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
         end
         return unless location == ApiKeyLocation::HEADER && api_key.match?(/[^\t\x20-\x7E]/)
 
         raise ArgumentError,
-          "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+              "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
       end
     end
   end

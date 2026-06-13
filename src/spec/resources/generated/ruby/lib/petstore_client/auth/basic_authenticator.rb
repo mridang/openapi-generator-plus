@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -28,15 +29,15 @@ module PetstoreClient
         # are read from .env files or interactive prompts).
         if username.match?(/[\r\n\x00]/)
           raise ArgumentError,
-            'Basic auth username must not contain CR, LF, or NUL characters'
+                'Basic auth username must not contain CR, LF, or NUL characters'
         end
         if username.include?(':')
           raise ArgumentError,
-            "Basic auth username must not contain ':' (RFC 7617 §2)"
+                "Basic auth username must not contain ':' (RFC 7617 §2)"
         end
         if password.match?(/[\r\n\x00]/)
           raise ArgumentError,
-            'Basic auth password must not contain CR, LF, or NUL characters'
+                'Basic auth password must not contain CR, LF, or NUL characters'
         end
         @host = host
         @username = username

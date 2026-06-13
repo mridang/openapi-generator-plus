@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# rubocop:disable all
 
 require 'test_helper'
 require 'petstore_client/header_selector'

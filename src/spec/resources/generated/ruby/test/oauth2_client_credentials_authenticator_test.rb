@@ -1,5 +1,7 @@
 # frozen_string_literal: true
+# rubocop:disable all
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #

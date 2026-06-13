@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -56,7 +57,9 @@ module PetstoreClient
       # array-typed property. Consumed by PetstoreClient::ObjectSerializer
       # on the (de)serialize path.
       # @type var openapi_formats: Hash[Symbol, String]
-      openapi_formats = {}
+      openapi_formats = {
+        
+      }
       OPENAPI_FORMATS = openapi_formats.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
@@ -73,7 +76,7 @@ module PetstoreClient
         skey = key.to_s
         if !JSON_KEY_MAP.key?(skey) && !ATTRIBUTE_MAP.key?(key.to_sym)
           raise ArgumentError,
-            "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
+                "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
         end
         JSON_KEY_MAP[skey] || key.to_sym
       end

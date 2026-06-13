@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -134,7 +135,6 @@ module PetstoreClient
           if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
             raise PetstoreClient::ApiError, "OIDC discovery document is missing 'token_endpoint'"
           end
-
           @delegate = OAuth2AuthorizationCodeAuthenticator.new(
             @host, @client_id, @client_secret,
             authorization_endpoint,

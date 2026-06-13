@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -52,7 +53,7 @@ module PetstoreClient
     # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
     # leak the API key to a different host. Entries are already lowercase
     # so the cross-origin filter can compare case-insensitively.
-    EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
+    EXTRA_SENSITIVE_HEADER_NAMES = %w[ x-api-key x-internal-key].freeze
 
     # Create a client with default transport settings.
     #
@@ -304,7 +305,7 @@ module PetstoreClient
         OpenSSL::X509::Certificate.new(pem)
       rescue OpenSSL::X509::CertificateError => e
         raise ApiError,
-          %(failed to parse CA certificate from "#{ca_cert_path}": no PEM blocks found or unparseable: #{e.message})
+              %(failed to parse CA certificate from "#{ca_cert_path}": no PEM blocks found or unparseable: #{e.message})
       end
     end
 
@@ -496,7 +497,7 @@ module PetstoreClient
       str = name.to_s
       if str.match?(/[\r\n\0]/)
         raise ArgumentError,
-          "multipart field name must not contain CR, LF, or NUL bytes: #{str.inspect}"
+              "multipart field name must not contain CR, LF, or NUL bytes: #{str.inspect}"
       end
       str.gsub(/([\\"])/) { |c| "\\#{c}" }
     end
@@ -516,7 +517,7 @@ module PetstoreClient
       fname = filename.to_s
       if fname.match?(/[\r\n\0]/)
         raise ArgumentError,
-          "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
+              "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
       end
 
       ascii_safe = fname.dup.force_encoding(Encoding::UTF_8)

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -145,7 +146,7 @@ module PetstoreClient
           # client credentials / refresh_token to the redirect target.
           if (300..399).cover?(status)
             raise OAuth2TokenError, "Refusing to follow #{status} redirect on " \
-                                    "OAuth2 token endpoint; token POSTs carry credentials and must not be replayed."
+              "OAuth2 token endpoint; token POSTs carry credentials and must not be replayed."
           end
           # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
           # `error` (required), `error_description`, `error_uri`. Parse them
