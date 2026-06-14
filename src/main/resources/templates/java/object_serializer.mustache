@@ -127,7 +127,7 @@ public final class ObjectSerializer {
             return "";
         }
         if (value instanceof Boolean b) {
-            return b ? "true" : "false";
+            return b.toString();
         }
         if (value instanceof java.time.LocalDate ld) {
             return DateTimeFormatter.ISO_LOCAL_DATE.format(ld);
