@@ -58,6 +58,10 @@ public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
 /// See {{url}} {{description}}
 {{/tagExternalDocs}}
 public final class {{classname}}: BaseApi, @unchecked Sendable {
+    /// Creates a new `{{classname}}`.
+    public override init(apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil) {
+        super.init(apiClient: apiClient, config: config, authenticator: authenticator)
+    }
 {{#operation}}
 
 {{#summary}}

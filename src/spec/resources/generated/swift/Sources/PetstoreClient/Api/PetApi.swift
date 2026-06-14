@@ -122,6 +122,12 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 /// Everything about your Pets
 /// See https://example.com/docs/pets Find out more about pets
 public final class PetApi: BaseApi, @unchecked Sendable {
+  /// Creates a new `PetApi`.
+  public override init(
+    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
+  ) {
+    super.init(apiClient: apiClient, config: config, authenticator: authenticator)
+  }
 
   /// Add a new pet to the store
   ///

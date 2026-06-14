@@ -51,7 +51,7 @@ export abstract class BaseApi {
    *   When omitted the {@link Configuration.getDefault default configuration} is used.
    * @param authenticator optional authenticator applied to all requests unless overridden per-call.
    */
-  constructor(
+  protected constructor(
     apiClient?: ApiClient,
     config?: Configuration,
     authenticator?: Authenticator | null,

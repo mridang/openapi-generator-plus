@@ -14,8 +14,9 @@ public class BaseApi: @unchecked Sendable {
   let headerSelector: HeaderSelector
   let authenticator: Authenticator?
 
-  /// Creates a new BaseApi instance.
-  public init(
+  /// Creates a new BaseApi instance. Internal: consumers construct the
+  /// concrete `*API` subclasses, which expose their own public initializer.
+  init(
     apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
   ) {
     self.apiClient = apiClient ?? DefaultApiClient()

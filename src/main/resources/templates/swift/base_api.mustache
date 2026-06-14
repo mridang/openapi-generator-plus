@@ -8,8 +8,9 @@ public class BaseApi: @unchecked Sendable {
     let headerSelector: HeaderSelector
     let authenticator: Authenticator?
 
-    /// Creates a new BaseApi instance.
-    public init(apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil) {
+    /// Creates a new BaseApi instance. Internal: consumers construct the
+    /// concrete `*API` subclasses, which expose their own public initializer.
+    init(apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil) {
         {{! DefaultApiClient() (no transport options) configures no custom CA certificate, so its non-throwing convenience initializer is used here. }}
         self.apiClient = apiClient ?? DefaultApiClient()
         self.config = config ?? Configuration.default()
