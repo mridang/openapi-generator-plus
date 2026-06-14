@@ -274,7 +274,7 @@ module PetstoreClient
       conn = @connection
       @connection = nil
       @closed = true
-      conn&.close if conn.respond_to?(:close)
+      conn.close if conn.respond_to?(:close)
     end
 
     # Returns the list of supported content encodings.
