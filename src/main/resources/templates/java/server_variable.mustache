@@ -37,7 +37,7 @@ public final class ServerVariable {
         this.defaultValue = defaultValue;
         this.description  = description;
         this.enumValues   = enumValues != null
-                ? Collections.unmodifiableList(List.copyOf(enumValues))
+                ? List.copyOf(enumValues)
                 : Collections.emptyList();
     }
 

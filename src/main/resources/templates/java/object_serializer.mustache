@@ -321,7 +321,7 @@ public final class ObjectSerializer {
            ObjectMapper: the setter-style mutators (setSerializationInclusion,
            configure(MapperFeature, ...)) are deprecated in current Jackson, so
            the builder is the supported path for these settings. */
-        JsonMapper mapper = JsonMapper.builder()
+        return JsonMapper.builder()
                 .visibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
                 .visibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
                 .visibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
@@ -355,7 +355,6 @@ public final class ObjectSerializer {
                 {{/openApiNullable}}
                 .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
                 .build();
-        return mapper;
     }
 
     /**
@@ -429,6 +428,7 @@ public final class ObjectSerializer {
      */
     public static class SerializationException extends ZitadelException {
 
+        @java.io.Serial
         private static final long serialVersionUID = 1L;
 
         /**

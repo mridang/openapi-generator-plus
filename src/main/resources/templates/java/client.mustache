@@ -104,10 +104,9 @@ public final class {{clientClassName}} {
             String host,
             String accessToken,
             @javax.annotation.Nullable TransportOptions transportOptions) {
-        {{clientClassName}} client = (transportOptions != null)
+        return (transportOptions != null)
                 ? new {{clientClassName}}(new BearerAuthenticator(host, accessToken), transportOptions)
                 : new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
-        return client;
     }
 
     /**

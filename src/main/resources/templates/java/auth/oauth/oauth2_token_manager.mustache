@@ -301,6 +301,7 @@ public class OAuth2TokenManager {
      * client-side retry.
      */
     public static class OAuth2TokenError extends ZitadelException {
+        @java.io.Serial
         private static final long serialVersionUID = 1L;
 
         /**
@@ -323,6 +324,7 @@ public class OAuth2TokenManager {
      * OAuth2 error object.
      */
     public static class OAuth2ServerError extends ZitadelException {
+        @java.io.Serial
         private static final long serialVersionUID = 1L;
 
         /** The HTTP status code of the error response. */
