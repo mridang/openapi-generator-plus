@@ -9,7 +9,7 @@ description = "{{#appDescription}}{{appDescription}}{{/appDescription}}{{^appDes
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "brotli", "gzip", "deflate", "zstd", "multipart", "http2", "charset", "rustls-tls-native-roots"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "deflate", "zstd", "multipart", "http2", "charset", "rustls-tls-native-roots"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 base64 = "0.22"
 uuid = { version = "1", features = ["serde", "v4"] }

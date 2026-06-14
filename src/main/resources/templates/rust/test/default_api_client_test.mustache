@@ -384,20 +384,6 @@ async fn test_default_api_client_decompresses_gzip_response() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_decompresses_brotli_response() {
-    let chasm_url = testcontainers_helper::chasm_http_url();
-    let client = DefaultApiClient::new(None);
-    let mut headers = HashMap::new();
-    headers.insert("Accept-Encoding".to_string(), "br".to_string());
-    let resp = client
-        .send_request("GET", &format!("{}/test/compressed/br", chasm_url), &headers, None)
-        .await
-        .expect("unexpected error");
-    assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("userId"), "expected decompressed body, got: {}", resp.body());
-}
-
-#[tokio::test]
 async fn test_default_api_client_decompresses_zstd_response() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let client = DefaultApiClient::new(None);

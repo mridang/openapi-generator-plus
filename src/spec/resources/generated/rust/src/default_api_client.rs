@@ -173,7 +173,7 @@ impl ApiClient for DefaultApiClient {
             if !merged.contains_key("Accept-Encoding") {
                 merged.insert(
                     "Accept-Encoding".to_string(),
-                    "br, gzip, deflate, zstd".to_string(),
+                    "gzip, deflate, zstd".to_string(),
                 );
             }
             if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
@@ -438,10 +438,13 @@ fn build_http_client(opts: &TransportOptions) -> Client {
 
     // F-W5-5: reqwest only decompresses response bodies when the relevant
     // decompression features are explicitly enabled on the builder.
-    // Without these calls, the client advertises gzip/brotli/deflate/zstd
+    // Without these calls, the client advertises gzip/deflate/zstd
     // in Accept-Encoding but returns the raw compressed bytes to the caller,
     // corrupting any server response that picks one of those encodings.
-    builder = builder.gzip(true).brotli(true).deflate(true).zstd(true);
+    // Brotli is intentionally omitted: reqwest's `brotli` feature pulls
+    // `brotli` 8.x, which fails to compile against the current
+    // `brotli-decompressor` (incompatible `alloc-no-stdlib` versions).
+    builder = builder.gzip(true).deflate(true).zstd(true);
 
     // Gap AM: `verify_ssl=false` must skip BOTH the certificate-chain check
     // and the hostname check, matching `curl -k` and the other SDKs. reqwest
