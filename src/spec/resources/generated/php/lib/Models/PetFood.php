@@ -62,7 +62,7 @@ class PetFood
         $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
         if ($class === null) {
             throw new \InvalidArgumentException(
-                "Unknown discriminator value '{$discValue}' for " . self::class
+                "Unknown discriminator value '$discValue' for " . self::class
             );
         }
         return new self(\PetstoreClient\ObjectSerializer::deserialize($data, $class));

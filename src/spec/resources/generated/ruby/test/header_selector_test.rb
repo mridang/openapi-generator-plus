@@ -126,7 +126,7 @@ describe PetstoreClient::HeaderSelector do
 
     it 'joins media types in declaration order' do
       headers = @header_selector.select_headers(
-        ['image/jpeg', 'image/png', 'application/json'],
+        %w[image/jpeg image/png application/json],
         'application/json',
         false
       )
@@ -135,7 +135,7 @@ describe PetstoreClient::HeaderSelector do
 
     it 'does not reorder or prioritize JSON types' do
       headers = @header_selector.select_headers(
-        ['text/html', 'application/vnd.api+json', 'application/json'],
+        %w[text/html application/vnd.api+json application/json],
         'application/json',
         false
       )
@@ -174,12 +174,12 @@ describe PetstoreClient::HeaderSelector do
     end
 
     it 'joins media types in declaration order with ", "' do
-      result = @header_selector.send(:select_accept_header, ['image/jpeg', 'image/png', 'application/json'])
+      result = @header_selector.send(:select_accept_header, %w[image/jpeg image/png application/json])
       _(result).must_equal('image/jpeg, image/png, application/json')
     end
 
     it 'does not reorder or apply quality weights' do
-      result = @header_selector.send(:select_accept_header, ['text/html', 'text/plain'])
+      result = @header_selector.send(:select_accept_header, %w[text/html text/plain])
       _(result).must_equal('text/html, text/plain')
     end
   end

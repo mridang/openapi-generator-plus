@@ -410,7 +410,7 @@ describe {{moduleName}}::ValueSerializer do
       # Gap W1 regression: every per-item path value in a styled array
       # must be percent-encoded BEFORE being joined with the structural
       # separator. Otherwise '/', '?', '#', space leak into the URL.
-      items = ['a/b', 'c']
+      items = %w[a/b c]
       _({{moduleName}}::ValueSerializer.serialize_styled('name', items, :path, 'array', nil, 'simple', false))
         .must_equal('a%2Fb,c')
       _({{moduleName}}::ValueSerializer.serialize_styled('name', items, :path, 'array', nil, 'label', true))

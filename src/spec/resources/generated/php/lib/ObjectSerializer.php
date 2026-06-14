@@ -888,7 +888,7 @@ class ObjectSerializer
     {
         $sign = $interval->invert === 1 ? '-' : '';
 
-        $seconds = (((($interval->d * 24) + $interval->h) * 60) + $interval->i) * 60
+        $seconds = ((($interval->d * 24 + $interval->h) * 60) + $interval->i) * 60
             + $interval->s;
         /* ->f is fractional seconds in the range [0, 1); scale to nanos and
          * round to the nearest whole nanosecond. */

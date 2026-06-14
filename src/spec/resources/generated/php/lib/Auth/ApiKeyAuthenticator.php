@@ -31,12 +31,12 @@ class ApiKeyAuthenticator extends BaseAuthenticator
          * printable-ASCII rule still applies to HEADER values. */
         if ($apiKey === '' || trim($apiKey) === '') {
             throw new \InvalidArgumentException(
-                "API key value for '{$keyParamName}' must not be empty"
+                "API key value for '$keyParamName' must not be empty"
             );
         }
         if (preg_match('/[\r\n\x00]/', $apiKey) === 1) {
             throw new \InvalidArgumentException(
-                "API key value for '{$keyParamName}' contains forbidden control characters (CR/LF/NUL)"
+                "API key value for '$keyParamName' contains forbidden control characters (CR/LF/NUL)"
             );
         }
         if (
@@ -44,7 +44,7 @@ class ApiKeyAuthenticator extends BaseAuthenticator
             && preg_match('/[^\t\x20-\x7E]/', $apiKey) === 1
         ) {
             throw new \InvalidArgumentException(
-                "API key for header '{$keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                "API key for header '$keyParamName' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
             );
         }
         $this->host = $host;

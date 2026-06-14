@@ -236,22 +236,23 @@ class ObjectSerializer:
             _visited.add(obj_id)
             try:
                 if isinstance(obj, list):
-                    return [
+                    sanitized: Any = [
                         cls._sanitize_for_serialization(item, _visited) for item in obj
                     ]
                 elif isinstance(obj, tuple):
-                    return tuple(
+                    sanitized = tuple(
                         cls._sanitize_for_serialization(item, _visited) for item in obj
                     )
                 elif isinstance(obj, dict):
-                    return {
+                    sanitized = {
                         key: cls._sanitize_for_serialization(val, _visited)
                         for key, val in obj.items()
                     }
                 else:
-                    return str(obj)
+                    sanitized = str(obj)
             finally:
                 _visited.discard(obj_id)
+            return sanitized
         else:
             return str(obj)
 

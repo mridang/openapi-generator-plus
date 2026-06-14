@@ -341,7 +341,7 @@ class DefaultApiClient implements ApiClient
                          * attack vector. Refuse loudly instead of silently
                          * returning the 3xx, matching the throwing SDKs. */
                         throw new ApiException(
-                            "Redirect to unsupported scheme '{$scheme}' in Location: {$nextUrl}"
+                            "Redirect to unsupported scheme '$scheme' in Location: $nextUrl"
                         );
                     }
                     $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
@@ -369,7 +369,7 @@ class DefaultApiClient implements ApiClient
                          * the 3xx so the caller sees the refused downgrade,
                          * matching the SDKs that throw on a refused replay. */
                         throw new ApiException(
-                            "Refusing to replay request body across HTTPS->HTTP downgrade redirect to {$nextUrl}"
+                            "Refusing to replay request body across HTTPS->HTTP downgrade redirect to $nextUrl"
                         );
                     }
 
@@ -424,7 +424,7 @@ class DefaultApiClient implements ApiClient
                  * response — matching the throwing SDKs. */
                 if ($hops >= $maxRedirects && self::isRedirectStatus($response->getStatusCode())) {
                     throw new ApiException(
-                        "Too many redirects (exceeded maxRedirects={$maxRedirects})"
+                        "Too many redirects (exceeded maxRedirects=$maxRedirects)"
                     );
                 }
             }

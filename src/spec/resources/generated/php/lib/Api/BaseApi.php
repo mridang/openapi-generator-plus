@@ -132,12 +132,12 @@ class BaseApi
                 foreach ($cookies as $k => $v) {
                     if (preg_match('/\A[A-Za-z0-9!#$%&\'*+\-.^_`|~]+\z/', $k) !== 1) {
                         throw new \InvalidArgumentException(
-                            "Cookie name '{$k}' contains characters forbidden by RFC 6265"
+                            "Cookie name '$k' contains characters forbidden by RFC 6265"
                         );
                     }
                     if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $v) !== 1) {
                         throw new \InvalidArgumentException(
-                            "Cookie value for '{$k}' contains characters forbidden by RFC 6265"
+                            "Cookie value for '$k' contains characters forbidden by RFC 6265"
                         );
                     }
                     $cookieParts[] = $k . '=' . $v;

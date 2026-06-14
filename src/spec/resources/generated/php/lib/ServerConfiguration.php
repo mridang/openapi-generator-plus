@@ -62,7 +62,7 @@ final class ServerConfiguration
 
             if ($variable->enumValues !== [] && !in_array($value, $variable->enumValues, true)) {
                 throw new \InvalidArgumentException(
-                    "Invalid value '{$value}' for server variable '{$varName}'"
+                    "Invalid value '$value' for server variable '$varName'"
                     . ". Allowed values: " . implode(', ', $variable->enumValues)
                 );
             }

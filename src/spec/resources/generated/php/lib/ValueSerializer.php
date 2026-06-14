@@ -146,7 +146,7 @@ final class ValueSerializer
          * case that slips through it. */
         if ($location === 'path' && is_string($value) && $value === '') {
             throw new \InvalidArgumentException(
-                "Path parameter '{$paramName}' must not be empty"
+                "Path parameter '$paramName' must not be empty"
             );
         }
 
