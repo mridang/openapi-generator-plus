@@ -8,6 +8,7 @@
         "ext-curl": "*",
         "ext-json": "*",
         "ext-mbstring": "*",
+        "ext-uri": "*",
         "ext-zlib": "*",
         "symfony/http-client": "^6.0|^7.0",
         "symfony/mime": "^6.0|^7.0",
