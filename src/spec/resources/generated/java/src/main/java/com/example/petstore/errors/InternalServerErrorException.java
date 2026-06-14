@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 
 /** Exception for HTTP 500 Internal Server Error. */
 public class InternalServerErrorException extends ServerException {
-  private static final long serialVersionUID = 1L;
+  @java.io.Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception.

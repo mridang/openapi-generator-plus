@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 
 /** Exception for HTTP 401 Unauthorized. */
 public class UnauthorizedException extends ClientException {
-  private static final long serialVersionUID = 1L;
+  @java.io.Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception.

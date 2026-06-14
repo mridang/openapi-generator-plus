@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 
 /** Exception for HTTP 5xx server errors. */
 public class ServerException extends ApiException {
-  private static final long serialVersionUID = 1L;
+  @java.io.Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception.

@@ -318,41 +318,38 @@ public final class ObjectSerializer {
     ObjectMapper: the setter-style mutators (setSerializationInclusion,
     configure(MapperFeature, ...)) are deprecated in current Jackson, so
     the builder is the supported path for these settings. */
-    JsonMapper mapper =
-        JsonMapper.builder()
-            .visibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
-            .visibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
-            .visibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
-            .defaultPropertyInclusion(
-                JsonInclude.Value.construct(
-                    JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS))
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            /* An empty/propertyless object body (e.g. a request that takes
-            an empty object) must serialize to "{}" rather than throwing.
-            Without this, Jackson raises InvalidDefinitionException for a
-            bean with no discoverable properties. */
-            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-            .enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            /* Strict scalar typing: a quoted number ("42") for an int field
-            or a numeric (1) for a boolean field must fail, not be
-            silently coerced. Matches the other SDKs, which reject
-            wrong-typed primitives. */
-            .configure(MapperFeature.ALLOW_COERCION_OF_SCALARS, false)
-            /* Strict discriminator resolution: an unknown/invalid oneOf
-            subtype must fail loudly rather than deserialize to null,
-            matching the other 11 SDKs. */
-            .configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true)
-            .enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING)
-            .addModule(new JavaTimeModule())
-            /* Registered after JavaTimeModule so it overrides that module's
-            Duration handling: Zitadel (and protobuf-JSON generally)
-            requires google.protobuf.Duration's decimal-seconds string
-            form ("3600s"), not JavaTimeModule's numeric/ISO-8601 form. */
-            .addModule(durationModule())
-            .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
-            .build();
-    return mapper;
+    return JsonMapper.builder()
+        .visibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+        .visibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
+        .visibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
+        .defaultPropertyInclusion(
+            JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS))
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+        /* An empty/propertyless object body (e.g. a request that takes
+        an empty object) must serialize to "{}" rather than throwing.
+        Without this, Jackson raises InvalidDefinitionException for a
+        bean with no discoverable properties. */
+        .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+        .enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        /* Strict scalar typing: a quoted number ("42") for an int field
+        or a numeric (1) for a boolean field must fail, not be
+        silently coerced. Matches the other SDKs, which reject
+        wrong-typed primitives. */
+        .configure(MapperFeature.ALLOW_COERCION_OF_SCALARS, false)
+        /* Strict discriminator resolution: an unknown/invalid oneOf
+        subtype must fail loudly rather than deserialize to null,
+        matching the other 11 SDKs. */
+        .configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true)
+        .enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING)
+        .addModule(new JavaTimeModule())
+        /* Registered after JavaTimeModule so it overrides that module's
+        Duration handling: Zitadel (and protobuf-JSON generally)
+        requires google.protobuf.Duration's decimal-seconds string
+        form ("3600s"), not JavaTimeModule's numeric/ISO-8601 form. */
+        .addModule(durationModule())
+        .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
+        .build();
   }
 
   /**
@@ -428,7 +425,7 @@ public final class ObjectSerializer {
   /** Exception raised when serialization or deserialization fails. */
   public static class SerializationException extends ZitadelException {
 
-    private static final long serialVersionUID = 1L;
+    @java.io.Serial private static final long serialVersionUID = 1L;
 
     /**
      * Creates an exception with a detail message and cause.

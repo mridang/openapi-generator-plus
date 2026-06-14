@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 
 /** Exception thrown when an API call fails. */
 public class ApiException extends ZitadelException {
-  private static final long serialVersionUID = 1L;
+  @java.io.Serial private static final long serialVersionUID = 1L;
 
   /** The HTTP status code. */
   private final int statusCode;

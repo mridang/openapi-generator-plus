@@ -94,11 +94,9 @@ public final class Client {
       String host,
       String accessToken,
       @javax.annotation.Nullable TransportOptions transportOptions) {
-    Client client =
-        (transportOptions != null)
-            ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
-            : new Client(new BearerAuthenticator(host, accessToken));
-    return client;
+    return (transportOptions != null)
+        ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
+        : new Client(new BearerAuthenticator(host, accessToken));
   }
 
   /**

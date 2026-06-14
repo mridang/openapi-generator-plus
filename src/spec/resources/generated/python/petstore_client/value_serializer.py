@@ -129,6 +129,8 @@ class ValueSerializer:
         # the structural separators (";", "=", ".", ",") that the style defines.
         # This ensures reserved characters inside the value are escaped while
         # the style's structural punctuation remains literal.
+        items: List[str] = []
+        encoded_scalar = ""
         if location == "path":
             if isinstance(value, list):
                 items = [

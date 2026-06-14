@@ -46,7 +46,7 @@ import java.util.Map;
 public final class Servers {
 
   /**
-   * Server 0: /api/v3
+   * Server 0: {@code /api/v3}
    *
    * <p>Relative URL (no variables)
    */
@@ -54,7 +54,7 @@ public final class Servers {
       new ServerConfiguration("/api/v3", "Relative URL (no variables)", Map.of());
 
   /**
-   * Server 1: https://{environment}.example.com/api/{version}
+   * Server 1: {@code https://{environment}.example.com/api/{version}}
    *
    * <p>Main API server with variables
    */

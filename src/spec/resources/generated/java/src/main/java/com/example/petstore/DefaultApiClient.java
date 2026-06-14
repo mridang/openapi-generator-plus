@@ -88,6 +88,14 @@ public final class DefaultApiClient implements ApiClient {
   private static final ObjectMapper MULTIPART_MAPPER = ObjectSerializer.createDefaultObjectMapper();
 
   /*
+   * Shared empty-body publisher. HttpRequest.BodyPublishers.noBody() returns a
+   * fresh instance on every call, so the redirect logic must compare against
+   * this single reference — comparing two independent noBody() results with
+   * == / != is always true/false regardless of intent.
+   */
+  private static final HttpRequest.BodyPublisher NO_BODY = HttpRequest.BodyPublishers.noBody();
+
+  /*
    * Intentional all-trusting trust manager. Installed ONLY when the caller
    * explicitly opts out of TLS verification via TransportOptions#verifySsl
    * (false) — the documented curl -k equivalent used against local/dev
@@ -402,7 +410,7 @@ public final class DefaultApiClient implements ApiClient {
        * Content-Length on those verbs. Content-Length is a JDK
        * restricted header so we cannot (and need not) set it
        * manually via builder.header(). */
-      bodyPublisher = HttpRequest.BodyPublishers.noBody();
+      bodyPublisher = NO_BODY;
     } else if (body instanceof Map<?, ?> formMap) {
       String boundary = UUID.randomUUID().toString();
       mergedHeaders.put("Content-Type", "multipart/form-data; boundary=" + boundary);
@@ -447,7 +455,6 @@ public final class DefaultApiClient implements ApiClient {
         int redirectsRemaining =
             transportOptions.getMaxRedirects() != null ? transportOptions.getMaxRedirects() : 20;
         URI originalUri = URI.create(url);
-        Set<String> sensitiveHeaders = SENSITIVE_HEADER_NAMES;
         String currentMethod = method;
         HttpRequest.BodyPublisher currentBody = bodyPublisher;
         Map<String, String> currentHeaders = new HashMap<>(mergedHeaders);
@@ -463,9 +470,8 @@ public final class DefaultApiClient implements ApiClient {
            * misconfigured server could otherwise steer the client at
            * a local-file or scripting URL. */
           String redirectScheme = redirectUri.getScheme();
-          if (redirectScheme == null
-              || (!"http".equalsIgnoreCase(redirectScheme)
-                  && !"https".equalsIgnoreCase(redirectScheme))) {
+          if (!"http".equalsIgnoreCase(redirectScheme)
+              && !"https".equalsIgnoreCase(redirectScheme)) {
             throw new ApiException(
                 "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri);
           }
@@ -481,10 +487,7 @@ public final class DefaultApiClient implements ApiClient {
            * request. 303 always coerces to GET and 301/302 historically
            * drop the body for non-GET/HEAD, so those cases are safe. */
           if (shouldRefuseHttpsToHttpBodyReplay(
-              originalUri,
-              redirectUri,
-              response.statusCode(),
-              currentBody != HttpRequest.BodyPublishers.noBody())) {
+              originalUri, redirectUri, response.statusCode(), currentBody != NO_BODY)) {
             throw new ApiException(
                 "Refusing to replay request body across HTTPS->HTTP redirect: " + redirectUri);
           }
@@ -502,21 +505,21 @@ public final class DefaultApiClient implements ApiClient {
             nextBody = currentBody;
           } else if (statusCode == 303) {
             nextMethod = "GET";
-            nextBody = HttpRequest.BodyPublishers.noBody();
+            nextBody = NO_BODY;
           } else if ("GET".equalsIgnoreCase(currentMethod)
               || "HEAD".equalsIgnoreCase(currentMethod)) {
             nextMethod = currentMethod;
             nextBody = currentBody;
           } else {
             nextMethod = "GET";
-            nextBody = HttpRequest.BodyPublishers.noBody();
+            nextBody = NO_BODY;
           }
 
           Map<String, String> redirectHeaders = new HashMap<>(currentHeaders);
           if (!sameOrigin) {
-            redirectHeaders.keySet().removeIf(k -> isSensitiveHeader(sensitiveHeaders, k));
+            redirectHeaders.keySet().removeIf(k -> isSensitiveHeader(SENSITIVE_HEADER_NAMES, k));
           }
-          if (nextBody == HttpRequest.BodyPublishers.noBody()
+          if (nextBody == NO_BODY
               || ((statusCode == 303 || statusCode == 301 || statusCode == 302)
                   && !"GET".equalsIgnoreCase(currentMethod)
                   && !"HEAD".equalsIgnoreCase(currentMethod))) {
@@ -763,7 +766,10 @@ public final class DefaultApiClient implements ApiClient {
     try {
       Class<?> zstdClass = Class.forName("com.github.luben.zstd.Zstd");
       long originalSize =
-          (long) zstdClass.getMethod("decompressedSize", byte[].class).invoke(null, data);
+          (long)
+              zstdClass
+                  .getMethod("decompressedSize", byte[].class)
+                  .invoke(null, new Object[] {data});
       int size = originalSize > 0 ? (int) originalSize : data.length * 4;
       return (byte[])
           zstdClass.getMethod("decompress", byte[].class, int.class).invoke(null, data, size);

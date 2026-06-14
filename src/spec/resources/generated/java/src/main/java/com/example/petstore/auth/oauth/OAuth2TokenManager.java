@@ -319,7 +319,7 @@ public class OAuth2TokenManager {
    * malformed-server-response bug needs operator attention rather than a client-side retry.
    */
   public static class OAuth2TokenError extends ZitadelException {
-    private static final long serialVersionUID = 1L;
+    @java.io.Serial private static final long serialVersionUID = 1L;
 
     /**
      * Creates a token error with the given detail message.
@@ -339,7 +339,7 @@ public class OAuth2TokenManager {
    * not a well-formed OAuth2 error object.
    */
   public static class OAuth2ServerError extends ZitadelException {
-    private static final long serialVersionUID = 1L;
+    @java.io.Serial private static final long serialVersionUID = 1L;
 
     /** The HTTP status code of the error response. */
     private final int statusCode;

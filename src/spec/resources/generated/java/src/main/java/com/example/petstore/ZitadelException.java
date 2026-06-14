@@ -19,7 +19,7 @@ package com.example.petstore;
  * UnauthorizedException → ClientException → ApiException → ZitadelException → RuntimeException}.
  */
 public class ZitadelException extends RuntimeException {
-  private static final long serialVersionUID = 1L;
+  @java.io.Serial private static final long serialVersionUID = 1L;
 
   /**
    * Construct an exception with a detail message.

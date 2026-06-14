@@ -246,8 +246,7 @@ public final class TransportOptions {
           throw new IllegalArgumentException("Invalid proxy URL: " + proxy, e);
         }
         String scheme = uri.getScheme();
-        if (scheme == null
-            || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
           throw new IllegalArgumentException(
               "Invalid proxy URL (must use http or https scheme): " + proxy);
         }
