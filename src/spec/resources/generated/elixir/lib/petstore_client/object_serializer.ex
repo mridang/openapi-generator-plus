@@ -189,11 +189,11 @@ defmodule PetstoreClient.ObjectSerializer do
   end
 
   def stringify(%Date{} = d), do: Date.to_iso8601(d)
-  # 4.8: ISO-8601 wire formatting for format:time (HH:MM:SS) and
-  # format:duration (PnYnMnDTnHnMnS). Both round-trip through the matching
-  # `convert_to_type/2` clauses below.
+  # 4.8: ISO-8601 wire formatting for format:time (HH:MM:SS); protobuf-JSON
+  # wire formatting for format:duration ("<seconds>s"). Both round-trip
+  # through the matching `convert_to_type/2` clauses below.
   def stringify(%Time{} = t), do: t |> Time.truncate(:second) |> Time.to_iso8601()
-  def stringify(%Duration{} = d), do: Duration.to_iso8601(d)
+  def stringify(%Duration{} = d), do: format_protobuf_duration(d)
 
   def stringify(value), do: to_string(value)
 
@@ -273,11 +273,12 @@ defmodule PetstoreClient.ObjectSerializer do
   def sanitize_for_serialization(%NaiveDateTime{} = dt),
     do: dt |> NaiveDateTime.truncate(:second) |> NaiveDateTime.to_iso8601()
 
-  # 4.8: serialize stdlib Time / Duration as ISO-8601 strings on the wire.
+  # 4.8: serialize stdlib Time as an ISO-8601 string and Duration as a
+  # protobuf-JSON "<seconds>s" string on the wire.
   def sanitize_for_serialization(%Time{} = t),
     do: t |> Time.truncate(:second) |> Time.to_iso8601()
 
-  def sanitize_for_serialization(%Duration{} = d), do: Duration.to_iso8601(d)
+  def sanitize_for_serialization(%Duration{} = d), do: format_protobuf_duration(d)
 
   def sanitize_for_serialization(%{__struct__: _module, actual_instance: inner}) do
     sanitize_for_serialization(inner)
@@ -419,11 +420,12 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  # 4.8: format:duration — ISO-8601 PnYnMnDTnHnMnS decoded to stdlib
-  # `Duration.t()` (Elixir 1.17+). Stdlib floor is enforced via mix.exs
-  # `elixir: "~> 1.19"`. Falls back to the raw payload on parse failure.
+  # 4.8: format:duration — google.protobuf.Duration protobuf-JSON
+  # ("<seconds>s") decoded to stdlib `Duration.t()` (Elixir 1.17+). Stdlib
+  # floor is enforced via mix.exs `elixir: "~> 1.19"`. Falls back to the raw
+  # payload on parse failure.
   def convert_to_type(data, type) when type in ["Duration", "Duration.t()"] do
-    case Duration.from_iso8601(to_string(data)) do
+    case parse_protobuf_duration(to_string(data)) do
       {:ok, d} -> d
       _ -> data
     end
@@ -676,6 +678,92 @@ defmodule PetstoreClient.ObjectSerializer do
     end
 
     :ok
+  end
+
+  @doc """
+  Format a `Duration.t()` as a `google.protobuf.Duration` protobuf-JSON
+  string.
+
+  Emits a decimal second count suffixed with `s`. Fractional seconds, when
+  present, use 3, 6, or 9 digits — the smallest grouping that preserves every
+  non-zero microsecond digit (e.g. `"3600s"`, `"1.500s"`,
+  `"-1.500000s"`). The duration is reduced to a signed total of microseconds
+  so the sign stays coherent across mixed-sign components; `Duration`'s
+  resolution caps fractional precision at microseconds.
+  """
+  @spec format_protobuf_duration(Duration.t()) :: String.t()
+  def format_protobuf_duration(%Duration{} = duration) do
+    total_micros = duration_to_microseconds(duration)
+    sign = if total_micros < 0, do: "-", else: ""
+    abs_micros = abs(total_micros)
+    secs = div(abs_micros, 1_000_000)
+    micros = rem(abs_micros, 1_000_000)
+
+    if micros == 0 do
+      "#{sign}#{secs}s"
+    else
+      nanos = micros * 1000
+      frac = String.pad_leading(Integer.to_string(nanos), 9, "0")
+      kept = duration_fraction_digits(frac)
+      "#{sign}#{secs}.#{String.slice(frac, 0, kept)}s"
+    end
+  end
+
+  @doc """
+  Parse a `google.protobuf.Duration` protobuf-JSON string into a
+  `Duration.t()`.
+
+  Accepts the grammar `-?\\d+(\\.\\d{1,9})?s`. The fractional part is
+  right-padded to nine digits to recover nanoseconds; sub-microsecond digits
+  are truncated to fit `Duration`'s microsecond resolution. Returns
+  `{:ok, Duration.t()}` on success or `:error` on malformed input.
+  """
+  @spec parse_protobuf_duration(String.t()) :: {:ok, Duration.t()} | :error
+  def parse_protobuf_duration(text) do
+    case Regex.run(~r/^(-?)(\d+)(?:\.(\d{1,9}))?s$/, text) do
+      [_, sign, secs_str, frac_str] ->
+        build_protobuf_duration(sign, secs_str, frac_str)
+
+      [_, sign, secs_str] ->
+        build_protobuf_duration(sign, secs_str, "")
+
+      _ ->
+        :error
+    end
+  end
+
+  defp build_protobuf_duration(sign, secs_str, frac_str) do
+    secs = String.to_integer(secs_str)
+
+    micros =
+      case frac_str do
+        "" -> 0
+        _ -> div(String.to_integer(String.pad_trailing(frac_str, 9, "0")), 1000)
+      end
+
+    total_micros = secs * 1_000_000 + micros
+    total_micros = if sign == "-", do: -total_micros, else: total_micros
+
+    {:ok,
+     %Duration{
+       second: div(total_micros, 1_000_000),
+       microsecond: {rem(total_micros, 1_000_000), 6}
+     }}
+  end
+
+  defp duration_to_microseconds(%Duration{} = d) do
+    {micros, _precision} = d.microsecond
+
+    (d.year * 31_556_952 + d.month * 2_629_746 + d.week * 604_800 + d.day * 86_400 +
+       d.hour * 3600 + d.minute * 60 + d.second) * 1_000_000 + micros
+  end
+
+  defp duration_fraction_digits(frac) do
+    cond do
+      String.ends_with?(frac, "000000") -> 3
+      String.ends_with?(frac, "000") -> 6
+      true -> 9
+    end
   end
 
   defp resolve_model_module(type_name) do

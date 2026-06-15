@@ -7,8 +7,8 @@
 
 import Foundation
 
-/// ISO8601DurationError signals an invalid ISO-8601 duration literal.
-public struct ISO8601DurationError: ZitadelError, LocalizedError {
+/// ProtobufDurationError signals an invalid protobuf-JSON duration literal.
+public struct ProtobufDurationError: ZitadelError, LocalizedError {
   public let message: String
 
   public init(_ message: String) {
@@ -20,158 +20,82 @@ public struct ISO8601DurationError: ZitadelError, LocalizedError {
   }
 }
 
-/// Parses an ISO-8601 duration literal (e.g. `P1DT2H30M`, `PT15.5S`,
-/// `-PT5M`) into a ``TimeInterval`` (seconds, possibly fractional).
+/// Parses a protobuf-JSON duration literal into a ``TimeInterval``
+/// (seconds, possibly fractional).
 ///
-/// Supports the `PnYnMnWnDTnHnMnS` form. Year and month components are
-/// resolved using the Gregorian calendar's average length (365.2425 days
-/// / 30.436875 days) because a calendar-relative anchor is unavailable
-/// at the wire-format boundary. Weeks expand to 7 days. A leading `-`
-/// negates the result; a `+` is accepted and ignored.
+/// Accepts the `google.protobuf.Duration` JSON grammar
+/// `-?\d+(\.\d{1,9})?s`, i.e. a decimal second count suffixed with
+/// `s` and an optional fractional part of up to nine digits
+/// (nanoseconds). Examples: `3600s`, `1.5s`, `3600.000000001s`,
+/// `-1.500s`. The fractional part is right-padded to nine digits to
+/// recover nanoseconds, and the sign is applied to the whole value.
 ///
-/// Throws ``ISO8601DurationError`` for malformed input.
-public func parseISO8601Duration(_ input: String) throws -> TimeInterval {
-  if input.isEmpty {
-    throw ISO8601DurationError("empty duration literal")
+/// Throws ``ProtobufDurationError`` for malformed input.
+public func parseProtobufDuration(_ input: String) throws -> TimeInterval {
+  let pattern = "^-?[0-9]+(\\.[0-9]{1,9})?s$"
+  guard input.range(of: pattern, options: .regularExpression) != nil else {
+    throw ProtobufDurationError("invalid protobuf duration: \(input)")
   }
-  var s = Substring(input)
-  var sign: Double = 1
-  if s.first == "-" {
-    sign = -1
-    s = s.dropFirst()
-  } else if s.first == "+" {
-    s = s.dropFirst()
-  }
-  guard s.first == "P" else {
-    throw ISO8601DurationError("ISO-8601 duration must start with 'P': \(input)")
-  }
-  s = s.dropFirst()
-  if s.isEmpty {
-    throw ISO8601DurationError("duration has no components: \(input)")
+  var body = Substring(input.dropLast())
+  let negative = body.first == "-"
+  if negative {
+    body = body.dropFirst()
   }
 
-  let secondsPerYear: Double = 365.2425 * 86_400
-  let secondsPerMonth: Double = 30.436875 * 86_400
-  let secondsPerWeek: Double = 7 * 86_400
-  let secondsPerDay: Double = 86_400
-  let secondsPerHour: Double = 3_600
-  let secondsPerMinute: Double = 60
-
-  var total: Double = 0
-  var inTime = false
-  var sawAnyComponent = false
-  var numberBuffer = ""
-
-  func consumeNumber() throws -> Double {
-    if numberBuffer.isEmpty {
-      throw ISO8601DurationError("missing numeric value before designator: \(input)")
-    }
-    guard let value = Double(numberBuffer) else {
-      throw ISO8601DurationError("invalid numeric value '\(numberBuffer)' in: \(input)")
-    }
-    numberBuffer = ""
-    return value
+  let secsStr: Substring
+  var nanos: Double = 0
+  if let dot = body.firstIndex(of: ".") {
+    secsStr = body[body.startIndex..<dot]
+    let fracStr = String(body[body.index(after: dot)...])
+    let padded = (fracStr + "000000000").prefix(9)
+    nanos = Double(padded) ?? 0
+  } else {
+    secsStr = body
   }
 
-  for ch in s {
-    if ch == "T" {
-      if inTime {
-        throw ISO8601DurationError("duplicate 'T' separator in: \(input)")
-      }
-      if !numberBuffer.isEmpty {
-        throw ISO8601DurationError("orphan number before 'T' in: \(input)")
-      }
-      inTime = true
-      continue
-    }
-    if ch.isNumber || ch == "." || ch == "," {
-      numberBuffer.append(ch == "," ? "." : ch)
-      continue
-    }
-    let value = try consumeNumber()
-    sawAnyComponent = true
-    if inTime {
-      switch ch {
-      case "H": total += value * secondsPerHour
-      case "M": total += value * secondsPerMinute
-      case "S": total += value
-      default:
-        throw ISO8601DurationError("unexpected time designator '\(ch)' in: \(input)")
-      }
-    } else {
-      switch ch {
-      case "Y": total += value * secondsPerYear
-      case "M": total += value * secondsPerMonth
-      case "W": total += value * secondsPerWeek
-      case "D": total += value * secondsPerDay
-      default:
-        throw ISO8601DurationError("unexpected date designator '\(ch)' in: \(input)")
-      }
-    }
+  guard let secs = Double(secsStr) else {
+    throw ProtobufDurationError("invalid protobuf duration: \(input)")
   }
-  if !numberBuffer.isEmpty {
-    throw ISO8601DurationError("trailing number without designator in: \(input)")
-  }
-  if !sawAnyComponent {
-    throw ISO8601DurationError("duration has no components: \(input)")
-  }
-  return sign * total
+  let total = secs + nanos / 1_000_000_000
+  return negative ? -total : total
 }
 
-/// Formats a ``TimeInterval`` (seconds) as a canonical ISO-8601 duration
-/// literal. Uses the `PnDTnHnMnS` form — years/months are not emitted
-/// because they have no fixed second-count, so a round-trip through
-/// ``parseISO8601Duration`` would not be lossless. Fractional seconds
-/// are preserved with up to nine decimal places (trailing zeros
-/// trimmed). Negative intervals get a leading `-`. Zero returns `PT0S`.
-public func formatISO8601Duration(_ interval: TimeInterval) -> String {
-  if interval == 0 {
-    return "PT0S"
-  }
+/// Formats a ``TimeInterval`` (seconds) as a canonical protobuf-JSON
+/// duration literal.
+///
+/// Follows the `google.protobuf.Duration` JSON mapping: a decimal
+/// second count suffixed with `s`. Fractional seconds, when present,
+/// are emitted with 3, 6, or 9 digits — the smallest of those that
+/// preserves every non-zero nanosecond digit (e.g. `3600s`,
+/// `1.500s`, `3600.000000001s`). Negative intervals get a leading
+/// `-`. The value is decomposed into whole seconds and an absolute
+/// nanosecond remainder so the sign stays coherent.
+public func formatProtobufDuration(_ interval: TimeInterval) -> String {
   let negative = interval < 0
-  var remaining = abs(interval)
-
-  let secondsPerDay: Double = 86_400
-  let secondsPerHour: Double = 3_600
-  let secondsPerMinute: Double = 60
-
-  let days = floor(remaining / secondsPerDay)
-  remaining -= days * secondsPerDay
-  let hours = floor(remaining / secondsPerHour)
-  remaining -= hours * secondsPerHour
-  let minutes = floor(remaining / secondsPerMinute)
-  remaining -= minutes * secondsPerMinute
-  let seconds = remaining
-
-  var out = negative ? "-P" : "P"
-  if days > 0 {
-    out += "\(Int(days))D"
+  let sign = negative ? "-" : ""
+  let absInterval = abs(interval)
+  let secs = absInterval.rounded(.towardZero)
+  var nanos = Int(((absInterval - secs) * 1_000_000_000).rounded())
+  var wholeSecs = Int(secs)
+  if nanos >= 1_000_000_000 {
+    wholeSecs += 1
+    nanos -= 1_000_000_000
   }
-  var timeBody = ""
-  if hours > 0 {
-    timeBody += "\(Int(hours))H"
+  if nanos == 0 {
+    return "\(sign)\(wholeSecs)s"
   }
-  if minutes > 0 {
-    timeBody += "\(Int(minutes))M"
+  var frac = String(format: "%09d", nanos)
+  var len = 9
+  while len > 3 && frac[frac.index(frac.startIndex, offsetBy: len - 1)] == "0" {
+    len -= 1
   }
-  if seconds > 0 {
-    if seconds.truncatingRemainder(dividingBy: 1) == 0 {
-      timeBody += "\(Int(seconds))S"
-    } else {
-      var literal = String(format: "%.9f", seconds)
-      while literal.hasSuffix("0") {
-        literal.removeLast()
-      }
-      if literal.hasSuffix(".") {
-        literal.removeLast()
-      }
-      timeBody += "\(literal)S"
-    }
+  if len <= 3 {
+    len = 3
+  } else if len <= 6 {
+    len = 6
+  } else {
+    len = 9
   }
-  if !timeBody.isEmpty {
-    out += "T" + timeBody
-  } else if days == 0 {
-    out += "T0S"
-  }
-  return out
+  frac = String(frac.prefix(len))
+  return "\(sign)\(wholeSecs).\(frac)s"
 }

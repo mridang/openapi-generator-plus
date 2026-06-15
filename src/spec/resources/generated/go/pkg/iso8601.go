@@ -11,166 +11,102 @@ package petstore
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
 // 4.8: helpers for OAS `format: time` and `format: duration`. Go's stdlib
-// has no civil-time type and `time.Duration` does not JSON-encode as
-// ISO-8601 by default (it serialises as int64 nanoseconds). Rather than
-// pulling in a 3rd-party parser like sosodev/duration or the heavyweight
-// cloud.google.com/go/civil dep, we ship a small stdlib-only parser /
-// formatter for the canonical PnDTnHnMnS form and a partial-time
-// HH:MM:SS[.fff] formatter for `format: time`.
+// has no civil-time type and `time.Duration` does not JSON-encode as a
+// protobuf-JSON duration by default (it serialises as int64 nanoseconds).
+// Rather than pulling in the heavyweight cloud.google.com/go/civil dep,
+// we ship stdlib-only conversion helpers and a partial-time HH:MM:SS[.fff]
+// formatter for `format: time`.
 //
 // Wire-format note: both formats are surfaced as `string` in generated
 // models so they round-trip through encoding/json unchanged. Callers can
-// convert to/from `time.Duration` via MarshalDurationISO8601 /
-// UnmarshalDurationISO8601, and to/from `time.Time` (using only the
+// convert to/from `time.Duration` via MarshalDurationProtoJSON /
+// UnmarshalDurationProtoJSON, and to/from `time.Time` (using only the
 // time-of-day component) via FormatTimeOfDay / ParseTimeOfDay.
 
-// MarshalDurationISO8601 formats a time.Duration as a canonical ISO-8601
-// duration string (e.g. PT1H30M, PT45S, P0D for zero). The output uses
-// only the time portion (PnDTnHnMnS with the date portion expressed as
-// whole days), because time.Duration has no concept of months or years.
-// Negative durations are prefixed with a leading "-" per the ISO-8601
-// extended form supported by RFC 3339 §6.
-func MarshalDurationISO8601(d time.Duration) string {
-	if d == 0 {
-		return "PT0S"
-	}
-	neg := d < 0
-	if neg {
-		d = -d
-	}
-	days := int64(d / (24 * time.Hour))
-	d -= time.Duration(days) * 24 * time.Hour
-	hours := int64(d / time.Hour)
-	d -= time.Duration(hours) * time.Hour
-	mins := int64(d / time.Minute)
-	d -= time.Duration(mins) * time.Minute
-	secs := d.Seconds()
+// protoDurationPattern is the google.protobuf.Duration JSON grammar: an
+// optional sign, an integer second count, an optional fractional part of
+// up to nine digits, and a trailing "s".
+var protoDurationPattern = regexp.MustCompile(`^-?\d+(\.\d{1,9})?s$`)
 
-	var b strings.Builder
-	if neg {
-		b.WriteByte('-')
+// MarshalDurationProtoJSON formats a time.Duration as a protobuf-JSON
+// google.protobuf.Duration string: a decimal number of seconds suffixed
+// with "s", e.g. "3600s", "1.5s", or "3600.000000001s". Zitadel's API
+// (and any google.protobuf.Duration field) rejects ISO-8601 durations
+// like "PT1H"; this is the only accepted shape.
+//
+// The fractional part is trimmed to 3, 6, or 9 digits (the smallest width
+// that preserves every non-zero nanosecond), matching the protobuf JSON
+// encoder. Negative durations carry a leading "-".
+func MarshalDurationProtoJSON(d time.Duration) string {
+	totalNanos := int64(d)
+	sign := ""
+	if totalNanos < 0 {
+		sign = "-"
+		totalNanos = -totalNanos
 	}
-	b.WriteByte('P')
-	if days > 0 {
-		fmt.Fprintf(&b, "%dD", days)
+	secs := totalNanos / int64(time.Second)
+	nanos := totalNanos % int64(time.Second)
+	if nanos == 0 {
+		return fmt.Sprintf("%s%ds", sign, secs)
 	}
-	if hours > 0 || mins > 0 || secs > 0 {
-		b.WriteByte('T')
-		if hours > 0 {
-			fmt.Fprintf(&b, "%dH", hours)
-		}
-		if mins > 0 {
-			fmt.Fprintf(&b, "%dM", mins)
-		}
-		if secs > 0 {
-			// Drop trailing zeros so 1.0s -> "1S" not "1.000000S".
-			s := strconv.FormatFloat(secs, 'f', -1, 64)
-			fmt.Fprintf(&b, "%sS", s)
-		}
+	frac := fmt.Sprintf("%09d", nanos)
+	if strings.HasSuffix(frac, "000000") {
+		frac = frac[:3]
+	} else if strings.HasSuffix(frac, "000") {
+		frac = frac[:6]
 	}
-	return b.String()
+	return fmt.Sprintf("%s%d.%ss", sign, secs, frac)
 }
 
-// UnmarshalDurationISO8601 parses a canonical ISO-8601 duration string
-// (e.g. PT1H30M, P1DT2H, -PT5M) and returns the corresponding
-// time.Duration. Year and month designators (Y, M before T) are rejected
-// because they have no fixed length in time.Duration nanoseconds; callers
-// who need calendar arithmetic should use a higher-level library.
-func UnmarshalDurationISO8601(s string) (time.Duration, error) {
-	if s == "" {
-		return 0, fmt.Errorf("ISO-8601 duration: empty string")
+// UnmarshalDurationProtoJSON parses a protobuf-JSON google.protobuf.Duration
+// string (see MarshalDurationProtoJSON) and returns the corresponding
+// time.Duration. The accepted grammar is -?\d+(\.\d{1,9})?s; anything else
+// (an ISO-8601 "PT1H", a bare number, or a fractional part wider than nine
+// digits) is rejected. time.Duration resolution is nanoseconds, so the
+// full nine fractional digits are preserved.
+func UnmarshalDurationProtoJSON(s string) (time.Duration, error) {
+	if !protoDurationPattern.MatchString(s) {
+		return 0, fmt.Errorf(
+			"protobuf-JSON duration: %q is not a decimal number of seconds suffixed with \"s\" (e.g. \"3600s\")",
+			s,
+		)
 	}
 	neg := false
-	if s[0] == '-' {
+	body := s[:len(s)-1]
+	if body[0] == '-' {
 		neg = true
-		s = s[1:]
-	} else if s[0] == '+' {
-		s = s[1:]
+		body = body[1:]
 	}
-	if len(s) == 0 || s[0] != 'P' {
-		return 0, fmt.Errorf("ISO-8601 duration: must start with P, got %q", s)
+	secsStr := body
+	fracStr := ""
+	if dot := strings.IndexByte(body, '.'); dot >= 0 {
+		secsStr = body[:dot]
+		fracStr = body[dot+1:]
 	}
-	s = s[1:]
-
-	var total time.Duration
-	inTime := false
-	processedAny := false
-	var num strings.Builder
-
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c == 'T' {
-			if num.Len() > 0 {
-				return 0, fmt.Errorf("ISO-8601 duration: unexpected number before T in %q", s)
-			}
-			inTime = true
-			continue
-		}
-		if (c >= '0' && c <= '9') || c == '.' || c == ',' {
-			if c == ',' {
-				c = '.'
-			}
-			num.WriteByte(c)
-			continue
-		}
-		// Designator.
-		raw := num.String()
-		num.Reset()
-		if raw == "" {
-			return 0, fmt.Errorf("ISO-8601 duration: designator %c without value in %q", c, s)
-		}
-		processedAny = true
-		val, err := strconv.ParseFloat(raw, 64)
+	secs, err := strconv.ParseInt(secsStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("protobuf-JSON duration: bad seconds %q: %w", secsStr, err)
+	}
+	var nanos int64
+	if fracStr != "" {
+		padded := fracStr + strings.Repeat("0", 9-len(fracStr))
+		nanos, err = strconv.ParseInt(padded, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("ISO-8601 duration: bad number %q: %w", raw, err)
-		}
-		switch c {
-		case 'Y', 'M':
-			if !inTime {
-				// Year/month not supported because their nanosecond length
-				// depends on the anchor date; consumers needing calendar
-				// arithmetic should compose with time.AddDate.
-				if c == 'Y' {
-					return 0, fmt.Errorf("ISO-8601 duration: year designator not supported")
-				}
-				return 0, fmt.Errorf("ISO-8601 duration: month designator not supported")
-			}
-			// inTime: M means minutes.
-			total += time.Duration(val * float64(time.Minute))
-		case 'W':
-			total += time.Duration(val * float64(7*24*time.Hour))
-		case 'D':
-			total += time.Duration(val * float64(24*time.Hour))
-		case 'H':
-			if !inTime {
-				return 0, fmt.Errorf("ISO-8601 duration: H designator must follow T in %q", s)
-			}
-			total += time.Duration(val * float64(time.Hour))
-		case 'S':
-			if !inTime {
-				return 0, fmt.Errorf("ISO-8601 duration: S designator must follow T in %q", s)
-			}
-			total += time.Duration(val * float64(time.Second))
-		default:
-			return 0, fmt.Errorf("ISO-8601 duration: unknown designator %c in %q", c, s)
+			return 0, fmt.Errorf("protobuf-JSON duration: bad fraction %q: %w", fracStr, err)
 		}
 	}
-	if num.Len() > 0 {
-		return 0, fmt.Errorf("ISO-8601 duration: trailing number without designator in %q", s)
-	}
-	if !processedAny {
-		return 0, fmt.Errorf("ISO-8601 duration: no designators in %q", s)
-	}
+	total := secs*int64(time.Second) + nanos
 	if neg {
 		total = -total
 	}
-	return total, nil
+	return time.Duration(total), nil
 }
 
 // FormatTimeOfDay returns the HH:MM:SS portion of a time.Time, matching
