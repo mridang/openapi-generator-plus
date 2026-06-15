@@ -486,15 +486,15 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "format: duration round-tripping" do
-    test "stringify emits canonical ISO-8601 for a Duration" do
+    test "stringify emits canonical protobuf duration for a Duration" do
       d = Duration.new!(hour: 1, minute: 30)
-      assert PetstoreClient.ObjectSerializer.stringify(d) == "PT1H30M"
+      assert PetstoreClient.ObjectSerializer.stringify(d) == "5400s"
     end
 
     test "serialize emits the canonical duration string inside a map" do
       d = Duration.new!(minute: 5)
       json = PetstoreClient.ObjectSerializer.serialize(%{"ttl" => d})
-      assert Jason.decode!(json)["ttl"] == "PT5M"
+      assert Jason.decode!(json)["ttl"] == "300s"
     end
   end
 

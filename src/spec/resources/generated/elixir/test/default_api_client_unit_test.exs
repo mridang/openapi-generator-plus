@@ -734,16 +734,16 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   end
 
   describe "4.8 format: duration" do
-    test "stringify/1 emits ISO-8601 for Duration.t()" do
+    test "stringify/1 emits protobuf duration for Duration.t()" do
       d = Duration.new!(hour: 1, minute: 30)
-      iso = PetstoreClient.ObjectSerializer.stringify(d)
-      assert is_binary(iso)
-      assert String.starts_with?(iso, "PT") or String.starts_with?(iso, "P")
+      pb = PetstoreClient.ObjectSerializer.stringify(d)
+      assert is_binary(pb)
+      assert pb == "5400s"
     end
 
-    test "convert_to_type parses ISO-8601 to Duration.t() under typespec key" do
-      result = PetstoreClient.ObjectSerializer.convert_to_type("PT1H30M", "Duration.t()")
-      assert %Duration{} = result
+    test "convert_to_type parses protobuf duration to Duration.t() under typespec key" do
+      result = PetstoreClient.ObjectSerializer.convert_to_type("5400s", "Duration.t()")
+      assert %Duration{second: 5400} = result
     end
 
     test "round-trip via sanitize_for_serialization" do

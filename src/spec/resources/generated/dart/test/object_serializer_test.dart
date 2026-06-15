@@ -616,7 +616,7 @@ void main() {
         );
         expect(
           formatProtobufDuration(const Duration(seconds: 1, microseconds: 1)),
-          equals('1.000001000s'),
+          equals('1.000001s'),
         );
       },
     );

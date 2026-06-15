@@ -505,35 +505,35 @@ import Testing
     #expect(decoded?.id == nil)
   }
 
-  // MARK: - ISO-8601 Duration (format:duration)
+  // MARK: - protobuf duration (format:duration)
 
-  @Test func testDurationParseHoursAndMinutes() throws {
-    let value = try ObjectSerializer.decodeDuration("PT1H30M")
+  @Test func testDurationParseWholeSeconds() throws {
+    let value = try ObjectSerializer.decodeDuration("5400s")
     #expect(value == 5_400)
   }
 
-  @Test func testDurationParseDaysHoursMinutesSeconds() throws {
-    let value = try ObjectSerializer.decodeDuration("P1DT2H3M4S")
+  @Test func testDurationParseLargeWholeSeconds() throws {
+    let value = try ObjectSerializer.decodeDuration("93784s")
     #expect(value == 86_400 + 7_200 + 180 + 4)
   }
 
   @Test func testDurationParseFractionalSeconds() throws {
-    let value = try ObjectSerializer.decodeDuration("PT15.5S")
+    let value = try ObjectSerializer.decodeDuration("15.500s")
     #expect(value == 15.5)
   }
 
-  @Test func testDurationParseCommaDecimalSeparator() throws {
-    let value = try ObjectSerializer.decodeDuration("PT15,25S")
+  @Test func testDurationParseFractionalNanoPadding() throws {
+    let value = try ObjectSerializer.decodeDuration("15.25s")
     #expect(value == 15.25)
   }
 
-  @Test func testDurationParseWeeks() throws {
-    let value = try ObjectSerializer.decodeDuration("P2W")
-    #expect(value == 14 * 86_400)
+  @Test func testDurationParseZero() throws {
+    let value = try ObjectSerializer.decodeDuration("0s")
+    #expect(value == 0)
   }
 
   @Test func testDurationParseNegative() throws {
-    let value = try ObjectSerializer.decodeDuration("-PT5M")
+    let value = try ObjectSerializer.decodeDuration("-300s")
     #expect(value == -300)
   }
 
@@ -543,43 +543,43 @@ import Testing
     }
   }
 
-  @Test func testDurationParseRejectsMissingP() {
+  @Test func testDurationParseRejectsMissingSuffix() {
     #expect(throws: (any Error).self) {
-      try ObjectSerializer.decodeDuration("T1H")
+      try ObjectSerializer.decodeDuration("3600")
     }
   }
 
-  @Test func testDurationParseRejectsNoComponents() {
+  @Test func testDurationParseRejectsIso8601() {
     #expect(throws: (any Error).self) {
-      try ObjectSerializer.decodeDuration("P")
+      try ObjectSerializer.decodeDuration("PT1H30M")
     }
   }
 
-  @Test func testDurationParseRejectsUnknownDesignator() {
+  @Test func testDurationParseRejectsUnitDesignators() {
     #expect(throws: (any Error).self) {
-      try ObjectSerializer.decodeDuration("P1X")
+      try ObjectSerializer.decodeDuration("P2D")
     }
   }
 
   @Test func testDurationFormatZero() {
-    #expect(ObjectSerializer.encodeDuration(0) == "PT0S")
+    #expect(ObjectSerializer.encodeDuration(0) == "0s")
   }
 
-  @Test func testDurationFormatHoursMinutesSeconds() {
-    #expect(ObjectSerializer.encodeDuration(3_725) == "PT1H2M5S")
+  @Test func testDurationFormatWholeSeconds() {
+    #expect(ObjectSerializer.encodeDuration(3_725) == "3725s")
   }
 
-  @Test func testDurationFormatDays() {
-    #expect(ObjectSerializer.encodeDuration(2 * 86_400) == "P2D")
+  @Test func testDurationFormatLargeWholeSeconds() {
+    #expect(ObjectSerializer.encodeDuration(2 * 86_400) == "172800s")
   }
 
   @Test func testDurationFormatNegative() {
-    #expect(ObjectSerializer.encodeDuration(-300) == "-PT5M")
+    #expect(ObjectSerializer.encodeDuration(-300) == "-300s")
   }
 
   @Test func testDurationFormatFractionalSeconds() {
     let out = ObjectSerializer.encodeDuration(1.5)
-    #expect(out == "PT1.5S")
+    #expect(out == "1.500s")
   }
 
   @Test func testDurationRoundTrip() throws {
