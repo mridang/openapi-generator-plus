@@ -84,12 +84,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         // dependency surface for any non-UI consumer. Keep `time` as
         // `String`; the generated object_serializer.dart ships a
         // regex-validated guard (HH:MM:SS(.fff)?) callers may use.
-        // 4.8: format:duration → ISO-8601 duration (e.g. "P1DT2H").
-        // Dart's stdlib `Duration` does NOT round-trip through JSON
-        // as ISO-8601 (its toString() prints "HH:MM:SS.mmmmmm"), so
-        // the generated iso8601_duration.dart helper provides
-        // parseIso8601Duration / formatIso8601Duration to bridge the
-        // wire format and `Duration`. No 3rd-party dep required.
+        // 4.8: format:duration → google.protobuf.Duration protobuf-JSON
+        // ("<seconds>s", e.g. "3600s", "1.5s"). Dart's stdlib `Duration`
+        // does NOT round-trip through that form (its toString() prints
+        // "HH:MM:SS.mmmmmm"), so the generated iso8601_duration.dart helper
+        // provides parseProtobufDuration / formatProtobufDuration to bridge
+        // the wire format and `Duration`. No 3rd-party dep required.
         typeMapping.put("time", "String");
         typeMapping.put("duration", "Duration");
         typeMapping.put("array", "List");

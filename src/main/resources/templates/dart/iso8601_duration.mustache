@@ -1,29 +1,25 @@
 {{>api_info}}
-/// ISO-8601 duration helpers.
+/// protobuf-JSON duration helpers.
 ///
-/// Dart's stdlib `Duration` does not round-trip through JSON as
-/// ISO-8601 — its `toString()` emits `HH:MM:SS.mmmmmm` rather than
-/// the `PnYnMnDTnHnMnS` form that OpenAPI `format: duration` (and
-/// RFC 3339 appendix A) require. These helpers bridge between the
-/// two without pulling in a 3rd-party parser.
+/// OpenAPI `format: duration` fields are carried on the wire as
+/// `google.protobuf.Duration` JSON: a decimal second count suffixed
+/// with `s` (e.g. `3600s`, `1.5s`, `3600.000000001s`). Dart's stdlib
+/// `Duration` does not round-trip through that form — its `toString()`
+/// emits `HH:MM:SS.mmmmmm` — so these helpers bridge between the two
+/// without pulling in a 3rd-party parser.
 ///
 /// Coverage scope:
-///   * Years and months are accepted on parse and folded into days
-///     (1Y → 365d, 1M → 30d) as a pragmatic approximation. The
-///     formatter never emits Y or M components, since `Duration`
-///     stores only microseconds and the back-conversion would be
-///     ambiguous.
-///   * Weeks (`PnW`) are accepted on parse (1W → 7d). The formatter
-///     never emits W.
-///   * Fractional seconds are preserved to microsecond resolution
-///     on both parse and format (Dart's `Duration` precision).
-///   * Negative durations parse and format with a leading `-`
-///     (e.g. `-PT1H`), matching ISO-8601 §4.4.5 sign convention.
+///   * Fractional seconds are accepted to nanosecond resolution on
+///     parse but stored at `Duration`'s microsecond precision; digits
+///     below 1µs are truncated.
+///   * The formatter emits 3, 6, or 9 fractional digits, the smallest
+///     grouping that preserves every non-zero microsecond digit.
+///   * Negative durations parse and format with a leading `-`.
 library;
 
-/// Format for [parseIso8601Duration] errors. The message names the
+/// Format for [parseProtobufDuration] errors. The message names the
 /// offending input so call sites can surface useful diagnostics.
-class Iso8601DurationFormatException implements FormatException {
+class ProtobufDurationFormatException implements FormatException {
   @override
   final String message;
   @override
@@ -31,87 +27,56 @@ class Iso8601DurationFormatException implements FormatException {
   @override
   final int? offset;
 
-  const Iso8601DurationFormatException(this.message, [this.source])
+  const ProtobufDurationFormatException(this.message, [this.source])
       : offset = null;
 
   @override
   String toString() {
     if (source != null) {
-      return 'Iso8601DurationFormatException: $message (input: $source)';
+      return 'ProtobufDurationFormatException: $message (input: $source)';
     }
-    return 'Iso8601DurationFormatException: $message';
+    return 'ProtobufDurationFormatException: $message';
   }
 }
 
-/// Regex matching the ISO-8601 duration grammar we accept.
+/// Regex matching the `google.protobuf.Duration` JSON grammar.
 ///
-/// Groups: 1=sign, 2=years, 3=months, 4=weeks, 5=days,
-///         6=hours, 7=minutes, 8=seconds (incl. fraction).
-final RegExp _iso8601DurationPattern = RegExp(
-  r'^(-)?P'
-  r'(?:(\d+)Y)?'
-  r'(?:(\d+)M)?'
-  r'(?:(\d+)W)?'
-  r'(?:(\d+)D)?'
-  r'(?:T'
-  r'(?:(\d+)H)?'
-  r'(?:(\d+)M)?'
-  r'(?:(\d+(?:\.\d+)?)S)?'
-  r')?$',
+/// Groups: 1=sign, 2=whole seconds, 3=fractional digits.
+final RegExp _protobufDurationPattern = RegExp(
+  r'^(-)?(\d+)(?:\.(\d{1,9}))?s$',
 );
 
-/// Parses an ISO-8601 duration string into a [Duration].
+/// Parses a protobuf-JSON duration string into a [Duration].
 ///
-/// Throws [Iso8601DurationFormatException] for malformed input or
-/// for the degenerate `P` / `PT` strings that match the grammar but
-/// carry no components.
-Duration parseIso8601Duration(String input) {
+/// Accepts the `google.protobuf.Duration` JSON form
+/// `-?\d+(\.\d{1,9})?s`. The fractional part is right-padded to nine
+/// digits to recover nanoseconds; sub-microsecond digits are truncated
+/// to fit [Duration]'s resolution. Throws
+/// [ProtobufDurationFormatException] for malformed input.
+Duration parseProtobufDuration(String input) {
   if (input.isEmpty) {
-    throw Iso8601DurationFormatException('empty duration string', input);
+    throw ProtobufDurationFormatException('empty duration string', input);
   }
-  final match = _iso8601DurationPattern.firstMatch(input);
+  final match = _protobufDurationPattern.firstMatch(input);
   if (match == null) {
-    throw Iso8601DurationFormatException('not an ISO-8601 duration', input);
-  }
-  final hasAnyComponent = List<int>.generate(7, (i) => i + 2)
-      .any((g) => match.group(g) != null);
-  if (!hasAnyComponent) {
-    throw Iso8601DurationFormatException(
-      'duration has no components',
+    throw ProtobufDurationFormatException(
+      'not a protobuf-JSON duration',
       input,
     );
   }
 
   final negative = match.group(1) == '-';
-  final years = int.parse(match.group(2) ?? '0');
-  final months = int.parse(match.group(3) ?? '0');
-  final weeks = int.parse(match.group(4) ?? '0');
-  final days = int.parse(match.group(5) ?? '0');
-  final hours = int.parse(match.group(6) ?? '0');
-  final minutes = int.parse(match.group(7) ?? '0');
-  final secondsStr = match.group(8);
+  final wholeSeconds = int.parse(match.group(2)!);
+  final fracStr = match.group(3);
 
-  int wholeSeconds = 0;
   int microseconds = 0;
-  if (secondsStr != null) {
-    final dot = secondsStr.indexOf('.');
-    if (dot < 0) {
-      wholeSeconds = int.parse(secondsStr);
-    } else {
-      wholeSeconds = int.parse(secondsStr.substring(0, dot));
-      final fracStr = secondsStr.substring(dot + 1);
-      final normalised = fracStr.length >= 6
-          ? fracStr.substring(0, 6)
-          : fracStr.padRight(6, '0');
-      microseconds = int.parse(normalised);
-    }
+  if (fracStr != null) {
+    final nanosStr = fracStr.padRight(9, '0');
+    final nanos = int.parse(nanosStr);
+    microseconds = nanos ~/ 1000;
   }
 
-  final totalDays = years * 365 + months * 30 + weeks * 7 + days;
   var duration = Duration(
-    days: totalDays,
-    hours: hours,
-    minutes: minutes,
     seconds: wholeSeconds,
     microseconds: microseconds,
   );
@@ -121,61 +86,41 @@ Duration parseIso8601Duration(String input) {
   return duration;
 }
 
-/// Formats a [Duration] as an ISO-8601 duration string.
+/// Formats a [Duration] as a protobuf-JSON duration string.
 ///
-/// Always uses days/hours/minutes/seconds (no Y/M/W); produces
-/// `PT0S` for [Duration.zero] rather than the ambiguous bare `P`.
-/// Negative durations are emitted with a leading `-`.
-String formatIso8601Duration(Duration duration) {
-  if (duration == Duration.zero) {
-    return 'PT0S';
-  }
-
+/// Emits a decimal second count suffixed with `s`. Fractional seconds,
+/// when present, use 3, 6, or 9 digits — the smallest grouping that
+/// preserves every non-zero microsecond digit (e.g. `3600s`,
+/// `1.500s`). Negative durations are emitted with a leading `-`.
+String formatProtobufDuration(Duration duration) {
   final negative = duration.isNegative;
   final abs = negative ? -duration : duration;
 
   final totalMicros = abs.inMicroseconds;
-  final days = totalMicros ~/ Duration.microsecondsPerDay;
-  var rem = totalMicros - days * Duration.microsecondsPerDay;
-  final hours = rem ~/ Duration.microsecondsPerHour;
-  rem -= hours * Duration.microsecondsPerHour;
-  final minutes = rem ~/ Duration.microsecondsPerMinute;
-  rem -= minutes * Duration.microsecondsPerMinute;
-  final seconds = rem ~/ Duration.microsecondsPerSecond;
-  final micros = rem - seconds * Duration.microsecondsPerSecond;
+  final seconds = totalMicros ~/ Duration.microsecondsPerSecond;
+  final micros = totalMicros - seconds * Duration.microsecondsPerSecond;
 
   final buf = StringBuffer();
   if (negative) {
     buf.write('-');
   }
-  buf.write('P');
-  if (days != 0) {
-    buf..write(days)..write('D');
+  buf.write(seconds);
+  if (micros != 0) {
+    var frac = (micros * 1000).toString().padLeft(9, '0');
+    var len = 9;
+    while (len > 3 && frac[len - 1] == '0') {
+      len--;
+    }
+    if (len <= 3) {
+      len = 3;
+    } else if (len <= 6) {
+      len = 6;
+    } else {
+      len = 9;
+    }
+    buf..write('.')..write(frac.substring(0, len));
   }
-
-  final hasTime = hours != 0 || minutes != 0 || seconds != 0 || micros != 0;
-  if (hasTime) {
-    buf.write('T');
-    if (hours != 0) {
-      buf..write(hours)..write('H');
-    }
-    if (minutes != 0) {
-      buf..write(minutes)..write('M');
-    }
-    if (seconds != 0 || micros != 0) {
-      buf.write(seconds);
-      if (micros != 0) {
-        final frac = micros.toString().padLeft(6, '0').replaceFirst(
-              RegExp(r'0+$'),
-              '',
-            );
-        buf..write('.')..write(frac);
-      }
-      buf.write('S');
-    }
-  } else if (days == 0) {
-    buf.write('T0S');
-  }
+  buf.write('s');
   return buf.toString();
 }
 

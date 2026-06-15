@@ -77,8 +77,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "Date.t()");
         typeMapping.put("DateTime", "DateTime.t()");
         // 4.8: format:time -> Elixir stdlib Time.t() (ISO-8601 HH:MM:SS[.fff]).
-        // format:duration -> Elixir 1.17+ stdlib Duration.t() (ISO-8601
-        // PnYnMnDTnHnMnS). Both are round-tripped through ObjectSerializer's
+        // format:duration -> Elixir 1.17+ stdlib Duration.t(), carried on the
+        // wire as google.protobuf.Duration protobuf-JSON ("<seconds>s", e.g.
+        // "3600s", "1.5s"). Both are round-tripped through ObjectSerializer's
         // dedicated convert_to_type clauses. mix.exs targets ~> 1.18, so
         // Duration is always available; the older 1.16/Timex.Duration
         // fallback isn't shipped here because the supported floor is 1.18.

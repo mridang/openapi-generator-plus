@@ -77,10 +77,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         // type (Date is an instant, not a wall-clock HH:MM:SS), so `time`
         // stays a String validated at the call site. `duration` maps to
         // TimeInterval (alias for Double seconds) — Swift's stdlib-native
-        // duration scalar. DateComponents could model it structurally but
-        // has no ISO-8601 parser; the generated ISO8601Duration.swift file
-        // ships parseISO8601Duration / formatISO8601Duration helpers for
-        // converting between TimeInterval and the canonical PnDTnHnMnS form.
+        // duration scalar. The wire format is google.protobuf.Duration's
+        // protobuf-JSON form ("<seconds>s", e.g. "3600s", "1.5s"); the
+        // generated ISO8601Duration.swift file ships parseProtobufDuration /
+        // formatProtobufDuration helpers to convert between TimeInterval and
+        // that decimal-seconds string.
         typeMapping.put("time", "String");
         typeMapping.put("duration", "TimeInterval");
         typeMapping.put("array", "Array");

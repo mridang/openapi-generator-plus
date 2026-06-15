@@ -5,9 +5,9 @@ import 'errors/zitadel_exception.dart';
 import 'iso8601_duration.dart';
 export 'iso8601_duration.dart'
     show
-        Iso8601DurationFormatException,
-        formatIso8601Duration,
-        parseIso8601Duration,
+        ProtobufDurationFormatException,
+        formatProtobufDuration,
+        parseProtobufDuration,
         validatePartialTime;
 
 /// Canonical RFC 4122 UUID shape. Case-insensitive; matches all variants
@@ -214,9 +214,7 @@ String stringify(Object? value) {
 
   if (value is bool) return value ? 'true' : 'false';
   if (value is DateTime) return _formatDateTimeOffset(value);
-  /* OpenAPI `format: duration` round-trips as ISO-8601 (`PnDTnHnMnS`),
-     NOT Dart's default `Duration.toString()` form. */
-  if (value is Duration) return formatIso8601Duration(value);
+  if (value is Duration) return formatProtobufDuration(value);
   if (value is String) return value;
   if (value is int) return value.toString();
   if (value is double) return value.toString();

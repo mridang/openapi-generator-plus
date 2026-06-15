@@ -389,7 +389,7 @@ class {{classname}} {
       {{name}}: UuidValue.fromString(json['{{baseName}}'] as String),
 {{/isUuid}}
 {{#isDuration}}
-      {{name}}: parseIso8601Duration(json['{{baseName}}'] as String),
+      {{name}}: parseProtobufDuration(json['{{baseName}}'] as String),
 {{/isDuration}}
 {{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
@@ -455,7 +455,7 @@ class {{classname}} {
       {{name}}: json['{{baseName}}'] != null ? UuidValue.fromString(json['{{baseName}}'] as String) : null,
 {{/isUuid}}
 {{#isDuration}}
-      {{name}}: json['{{baseName}}'] != null ? parseIso8601Duration(json['{{baseName}}'] as String) : null,
+      {{name}}: json['{{baseName}}'] != null ? parseProtobufDuration(json['{{baseName}}'] as String) : null,
 {{/isDuration}}
 {{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
 {{#defaultValue}}
@@ -536,7 +536,7 @@ class {{classname}} {
     json['{{baseName}}'] = {{name}}.toString();
 {{/isUuid}}
 {{#isDuration}}
-    json['{{baseName}}'] = formatIso8601Duration({{name}});
+    json['{{baseName}}'] = formatProtobufDuration({{name}});
 {{/isDuration}}
 {{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
     json['{{baseName}}'] = {{name}};
@@ -591,7 +591,7 @@ class {{classname}} {
       json['{{baseName}}'] = {{name}}?.toString();
 {{/isUuid}}
 {{#isDuration}}
-      json['{{baseName}}'] = formatIso8601Duration({{name}}!);
+      json['{{baseName}}'] = formatProtobufDuration({{name}}!);
 {{/isDuration}}
 {{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
       json['{{baseName}}'] = {{name}};

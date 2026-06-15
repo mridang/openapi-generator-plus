@@ -204,25 +204,25 @@ internal enum ObjectSerializer {
         return stringify(value)
     }
 
-    /// Encodes a ``TimeInterval`` (seconds) as a canonical ISO-8601
-    /// duration literal (e.g. ``PT1H30M``). Used by generated models
-    /// when a property's OpenAPI schema is ``format: duration`` — the
-    /// underlying wire type is a String even though the Swift type is
-    /// TimeInterval. See ``ISO8601Duration.swift`` for the parser.
+    /// Encodes a ``TimeInterval`` (seconds) as a canonical protobuf-JSON
+    /// duration literal (e.g. ``3600s``, ``1.500s``). Used by generated
+    /// models when a property's OpenAPI schema is ``format: duration`` —
+    /// the underlying wire type is a String even though the Swift type is
+    /// TimeInterval. See ``ISO8601Duration.swift`` for the formatter.
     static func encodeDuration(_ interval: TimeInterval) -> String {
-        return formatISO8601Duration(interval)
+        return formatProtobufDuration(interval)
     }
 
-    /// Decodes an ISO-8601 duration literal into a ``TimeInterval``.
-    /// Throws ``SerializationError`` (wrapping ``ISO8601DurationError``)
+    /// Decodes a protobuf-JSON duration literal into a ``TimeInterval``.
+    /// Throws ``SerializationError`` (wrapping ``ProtobufDurationError``)
     /// when the literal is malformed, so the call site only needs to
     /// catch a single error type.
     static func decodeDuration(_ literal: String) throws -> TimeInterval {
         do {
-            return try parseISO8601Duration(literal)
+            return try parseProtobufDuration(literal)
         } catch {
             throw SerializationError(
-                message: "Failed to decode ISO-8601 duration",
+                message: "Failed to decode protobuf duration",
                 cause: error
             )
         }
