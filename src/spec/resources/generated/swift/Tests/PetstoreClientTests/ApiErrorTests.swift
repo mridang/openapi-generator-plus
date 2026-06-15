@@ -117,7 +117,7 @@ import Testing
     // with ZitadelError, so a single `as? ZitadelError` catch covers the
     // entire surface the SDK can throw.
     let errors: [any Error] = [
-      ISO8601DurationError("not a duration"),
+      ProtobufDurationError("not a duration"),
       TransportOptionsError.invalidProxyURL("://bad"),
       ServerConfigurationError.invalidVariableValue(
         variable: "region",

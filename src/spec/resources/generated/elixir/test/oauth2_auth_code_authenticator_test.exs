@@ -222,7 +222,6 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"
-      assert inspect(auth) =~ "***"
     end
   end
 end

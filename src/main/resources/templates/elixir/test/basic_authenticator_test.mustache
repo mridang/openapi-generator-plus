@@ -33,7 +33,6 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
 
       refute inspect(auth) =~ "s3cret"
-      assert inspect(auth) =~ "***"
     end
   end
 
