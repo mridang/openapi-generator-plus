@@ -1,0 +1,123 @@
+{{>api_info}}
+
+// Gap 4.8: serde helper for round-tripping `chrono::Duration` as a
+// protobuf-JSON `google.protobuf.Duration` string (e.g. `3600s`, `1.5s`,
+// `3600.000000001s`). chrono's own serde impl encodes `Duration` as
+// integer milliseconds, not a string, so it cannot satisfy a
+// google.protobuf.Duration field. Zitadel's API (and any
+// google.protobuf.Duration field) rejects ISO-8601 durations like `PT1H`,
+// so this module hand-rolls the protobuf-JSON grammar against the stdlib
+// + chrono rather than adding an ISO-8601 crate.
+
+use chrono::Duration;
+use serde::{Deserialize, Deserializer, Serializer, de};
+
+const NANOS_PER_SECOND: i64 = 1_000_000_000;
+
+/// Format a `chrono::Duration` as a protobuf-JSON duration string.
+///
+/// google.protobuf.Duration is serialised as a decimal second count with
+/// an `s` suffix (e.g. `3600s` or `3600.000000001s`). Sub-second precision
+/// is expressed as 3, 6, or 9 fractional digits (the smallest grouping
+/// that preserves every non-zero nanosecond). Negative durations carry a
+/// leading `-`.
+pub fn format(d: &Duration) -> String {
+    let total_nanos = d.num_nanoseconds().unwrap_or_else(|| {
+        // chrono::Duration overflows num_nanoseconds() only beyond ~292
+        // years; fall back to second precision in that regime.
+        d.num_seconds() * NANOS_PER_SECOND
+    });
+    let sign = if total_nanos < 0 { "-" } else { "" };
+    let abs = total_nanos.unsigned_abs();
+    let secs = abs / NANOS_PER_SECOND as u64;
+    let nanos = abs % NANOS_PER_SECOND as u64;
+    if nanos == 0 {
+        return format!("{sign}{secs}s");
+    }
+    let frac = format!("{nanos:09}");
+    let trimmed = if let Some(stripped) = frac.strip_suffix("000000") {
+        stripped
+    } else if let Some(stripped) = frac.strip_suffix("000") {
+        stripped
+    } else {
+        &frac
+    };
+    format!("{sign}{secs}.{trimmed}s")
+}
+
+/// Parse a protobuf-JSON duration string into `chrono::Duration`.
+///
+/// Accepts the google.protobuf.Duration grammar `-?\d+(\.\d{1,9})?s`. Any
+/// other shape (an ISO-8601 `PT1H`, a bare number, or a fractional part
+/// wider than nine digits) is rejected.
+pub fn parse(s: &str) -> Result<Duration, String> {
+    let body = s
+        .strip_suffix('s')
+        .ok_or_else(|| format!("protobuf-JSON duration: missing 's' suffix in {s:?}"))?;
+    let (neg, body) = match body.strip_prefix('-') {
+        Some(rest) => (true, rest),
+        None => (false, body),
+    };
+    let (secs_str, frac_str) = match body.split_once('.') {
+        Some((secs, frac)) => (secs, frac),
+        None => (body, ""),
+    };
+    if secs_str.is_empty() || !secs_str.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(format!("protobuf-JSON duration: bad seconds in {s:?}"));
+    }
+    if frac_str.len() > 9 || (body.contains('.') && frac_str.is_empty())
+        || !frac_str.bytes().all(|b| b.is_ascii_digit())
+    {
+        return Err(format!("protobuf-JSON duration: bad fraction in {s:?}"));
+    }
+    let secs: i64 = secs_str
+        .parse()
+        .map_err(|_| format!("protobuf-JSON duration: bad seconds in {s:?}"))?;
+    let nanos: i64 = if frac_str.is_empty() {
+        0
+    } else {
+        let padded = format!("{frac_str:0<9}");
+        padded
+            .parse()
+            .map_err(|_| format!("protobuf-JSON duration: bad fraction in {s:?}"))?
+    };
+    let total = secs * NANOS_PER_SECOND + nanos;
+    let total = if neg { -total } else { total };
+    Ok(Duration::nanoseconds(total))
+}
+
+/// `#[serde(with = "crate::proto_duration")]` entry point.
+pub fn serialize<S: Serializer>(d: &Duration, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&format(d))
+}
+
+/// `#[serde(with = "crate::proto_duration")]` entry point.
+pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Duration, D::Error> {
+    let raw = String::deserialize(d)?;
+    parse(&raw).map_err(de::Error::custom)
+}
+
+/// `Option<chrono::Duration>` variant.
+pub mod option {
+    use super::*;
+
+    pub fn serialize<S: Serializer>(
+        d: &Option<Duration>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        match d {
+            Some(v) => s.serialize_str(&super::format(v)),
+            None => s.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<Option<Duration>, D::Error> {
+        let raw: Option<String> = Option::deserialize(d)?;
+        match raw {
+            Some(s) => super::parse(&s).map(Some).map_err(de::Error::custom),
+            None => Ok(None),
+        }
+    }
+}

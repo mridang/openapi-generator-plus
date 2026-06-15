@@ -76,11 +76,13 @@ pub mod errors;
 // Internal content-negotiation helper used by `base_api`; not part of the
 // public surface.
 pub(crate) mod header_selector;
-pub mod iso8601_duration;
 // SDK-owned public wrapper for free-form ("any") JSON values. Keeps the inner
 // `serde_json::Value` private so serde_json never leaks into the public API.
 pub mod json_value;
 pub mod models;
+// Serde helper that (de)serialises `format: duration` fields as protobuf-JSON
+// `google.protobuf.Duration` strings ("<seconds>s", e.g. "3600s").
+pub mod proto_duration;
 // Internal (de)serialization helpers used by the generated API modules. These
 // traffic in `serde_json` types and must not appear in the public API.
 pub(crate) mod object_serializer;

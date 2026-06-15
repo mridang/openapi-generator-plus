@@ -95,11 +95,11 @@ pub struct {{classname}} {
 {{/isDiscriminator}}
 {{^isDiscriminator}}
 {{#required}}
-    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::iso8601_duration"{{/isArray}}{{/isDuration}})]
+    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::proto_duration"{{/isArray}}{{/isDuration}})]
     pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
-    #[serde(rename = "{{baseName}}", skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::iso8601_duration::option"{{/isArray}}{{/isDuration}})]
+    #[serde(rename = "{{baseName}}", skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::proto_duration::option"{{/isArray}}{{/isDuration}})]
     pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
 {{/required}}
 {{/isDiscriminator}}

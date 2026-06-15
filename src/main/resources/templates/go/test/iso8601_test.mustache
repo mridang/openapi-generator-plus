@@ -8,82 +8,66 @@ import (
 	"{{packageName}}/pkg"
 )
 
-// 4.8: format:duration ↔ time.Duration round-trip helpers.
+// 4.8: format:duration ↔ time.Duration protobuf-JSON round-trip helpers.
 
-func TestMarshalDurationISO8601_Zero(t *testing.T) {
+func TestMarshalDurationProtoJSON_Zero(t *testing.T) {
 	t.Parallel()
-	if got := {{packageName}}.MarshalDurationISO8601(0); got != "PT0S" {
-		t.Errorf("expected PT0S, got %q", got)
+	if got := {{packageName}}.MarshalDurationProtoJSON(0); got != "0s" {
+		t.Errorf("expected 0s, got %q", got)
 	}
 }
 
-func TestMarshalDurationISO8601_HoursMinutes(t *testing.T) {
+func TestMarshalDurationProtoJSON_HoursMinutes(t *testing.T) {
 	t.Parallel()
 	d := time.Hour + 30*time.Minute
-	if got := {{packageName}}.MarshalDurationISO8601(d); got != "PT1H30M" {
-		t.Errorf("expected PT1H30M, got %q", got)
+	if got := {{packageName}}.MarshalDurationProtoJSON(d); got != "5400s" {
+		t.Errorf("expected 5400s, got %q", got)
 	}
 }
 
-func TestMarshalDurationISO8601_DaysAndTime(t *testing.T) {
+func TestMarshalDurationProtoJSON_SecondsOnly(t *testing.T) {
 	t.Parallel()
-	d := 2*24*time.Hour + 3*time.Hour
-	if got := {{packageName}}.MarshalDurationISO8601(d); got != "P2DT3H" {
-		t.Errorf("expected P2DT3H, got %q", got)
+	if got := {{packageName}}.MarshalDurationProtoJSON(45 * time.Second); got != "45s" {
+		t.Errorf("expected 45s, got %q", got)
 	}
 }
 
-func TestMarshalDurationISO8601_SecondsOnly(t *testing.T) {
+func TestMarshalDurationProtoJSON_FractionalSeconds(t *testing.T) {
 	t.Parallel()
-	if got := {{packageName}}.MarshalDurationISO8601(45 * time.Second); got != "PT45S" {
-		t.Errorf("expected PT45S, got %q", got)
+	if got := {{packageName}}.MarshalDurationProtoJSON(1500 * time.Millisecond); got != "1.500s" {
+		t.Errorf("expected 1.500s, got %q", got)
 	}
 }
 
-func TestMarshalDurationISO8601_Negative(t *testing.T) {
+func TestMarshalDurationProtoJSON_Nanos(t *testing.T) {
 	t.Parallel()
-	if got := {{packageName}}.MarshalDurationISO8601(-(time.Hour + time.Minute)); got != "-PT1H1M" {
-		t.Errorf("expected -PT1H1M, got %q", got)
+	d := 3600*time.Second + time.Nanosecond
+	if got := {{packageName}}.MarshalDurationProtoJSON(d); got != "3600.000000001s" {
+		t.Errorf("expected 3600.000000001s, got %q", got)
 	}
 }
 
-func TestUnmarshalDurationISO8601_HoursMinutes(t *testing.T) {
+func TestMarshalDurationProtoJSON_Negative(t *testing.T) {
 	t.Parallel()
-	got, err := {{packageName}}.UnmarshalDurationISO8601("PT1H30M")
+	if got := {{packageName}}.MarshalDurationProtoJSON(-(time.Hour + time.Minute)); got != "-3660s" {
+		t.Errorf("expected -3660s, got %q", got)
+	}
+}
+
+func TestUnmarshalDurationProtoJSON_Seconds(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationProtoJSON("3600s")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != time.Hour+30*time.Minute {
-		t.Errorf("expected 1h30m, got %v", got)
+	if got != time.Hour {
+		t.Errorf("expected 1h, got %v", got)
 	}
 }
 
-func TestUnmarshalDurationISO8601_DaysHours(t *testing.T) {
+func TestUnmarshalDurationProtoJSON_FractionalSeconds(t *testing.T) {
 	t.Parallel()
-	got, err := {{packageName}}.UnmarshalDurationISO8601("P1DT2H")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	want := 24*time.Hour + 2*time.Hour
-	if got != want {
-		t.Errorf("expected %v, got %v", want, got)
-	}
-}
-
-func TestUnmarshalDurationISO8601_Weeks(t *testing.T) {
-	t.Parallel()
-	got, err := {{packageName}}.UnmarshalDurationISO8601("P1W")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != 7*24*time.Hour {
-		t.Errorf("expected 7d, got %v", got)
-	}
-}
-
-func TestUnmarshalDurationISO8601_FractionalSeconds(t *testing.T) {
-	t.Parallel()
-	got, err := {{packageName}}.UnmarshalDurationISO8601("PT1.5S")
+	got, err := {{packageName}}.UnmarshalDurationProtoJSON("1.5s")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,9 +76,20 @@ func TestUnmarshalDurationISO8601_FractionalSeconds(t *testing.T) {
 	}
 }
 
-func TestUnmarshalDurationISO8601_Negative(t *testing.T) {
+func TestUnmarshalDurationProtoJSON_Nanos(t *testing.T) {
 	t.Parallel()
-	got, err := {{packageName}}.UnmarshalDurationISO8601("-PT5M")
+	got, err := {{packageName}}.UnmarshalDurationProtoJSON("3600.000000001s")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != 3600*time.Second+time.Nanosecond {
+		t.Errorf("expected 3600s+1ns, got %v", got)
+	}
+}
+
+func TestUnmarshalDurationProtoJSON_Negative(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationProtoJSON("-300s")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -103,25 +98,18 @@ func TestUnmarshalDurationISO8601_Negative(t *testing.T) {
 	}
 }
 
-func TestUnmarshalDurationISO8601_RejectsYears(t *testing.T) {
+func TestUnmarshalDurationProtoJSON_RejectsISO8601(t *testing.T) {
 	t.Parallel()
-	if _, err := {{packageName}}.UnmarshalDurationISO8601("P1Y"); err == nil {
-		t.Fatal("expected error for year designator")
+	if _, err := {{packageName}}.UnmarshalDurationProtoJSON("PT1H"); err == nil {
+		t.Fatal("expected error for ISO-8601 duration")
 	}
 }
 
-func TestUnmarshalDurationISO8601_RejectsMonths(t *testing.T) {
+func TestUnmarshalDurationProtoJSON_RejectsMalformed(t *testing.T) {
 	t.Parallel()
-	if _, err := {{packageName}}.UnmarshalDurationISO8601("P1M"); err == nil {
-		t.Fatal("expected error for month designator")
-	}
-}
-
-func TestUnmarshalDurationISO8601_RejectsMalformed(t *testing.T) {
-	t.Parallel()
-	cases := []string{"", "1H", "PTH", "P", "PXY"}
+	cases := []string{"", "3600", "s", "1.2345678901s", "1,5s", "PT1H"}
 	for _, c := range cases {
-		if _, err := {{packageName}}.UnmarshalDurationISO8601(c); err == nil {
+		if _, err := {{packageName}}.UnmarshalDurationProtoJSON(c); err == nil {
 			t.Errorf("expected error for %q", c)
 		}
 	}
@@ -135,10 +123,12 @@ func TestDuration_RoundTrip(t *testing.T) {
 		90 * time.Minute,
 		25 * time.Hour,
 		-3 * time.Hour,
+		1500 * time.Millisecond,
+		3600*time.Second + time.Nanosecond,
 	}
 	for _, orig := range originals {
-		wire := {{packageName}}.MarshalDurationISO8601(orig)
-		got, err := {{packageName}}.UnmarshalDurationISO8601(wire)
+		wire := {{packageName}}.MarshalDurationProtoJSON(orig)
+		got, err := {{packageName}}.UnmarshalDurationProtoJSON(wire)
 		if err != nil {
 			t.Errorf("round-trip parse failed for %v (%q): %v", orig, wire, err)
 			continue

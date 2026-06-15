@@ -88,13 +88,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("DateTime", "time.Time");
         // 4.8: format:time and format:duration. Go's stdlib has no
         // civil-time type and time.Duration's default JSON encoding is
-        // int64 nanoseconds, not ISO-8601. cloud.google.com/go/civil
-        // would supply civil.Time but drags in a 100MB+ dep tree just
-        // for a struct, so both formats map to string on the wire. The
-        // generated iso8601.go file ships MarshalDurationISO8601 /
-        // UnmarshalDurationISO8601 helpers so callers can convert
-        // between time.Duration and the canonical PnDTnHnMnS form
-        // without reaching for a 3rd-party parser.
+        // int64 nanoseconds, not the protobuf-JSON duration shape.
+        // cloud.google.com/go/civil would supply civil.Time but drags in
+        // a 100MB+ dep tree just for a struct, so both formats map to
+        // string on the wire. The generated iso8601.go file ships
+        // MarshalDurationProtoJSON / UnmarshalDurationProtoJSON helpers so
+        // callers can convert between time.Duration and the
+        // google.protobuf.Duration form ("<seconds>s", e.g. "3600s")
+        // that Zitadel's API requires, without reaching for a 3rd-party
+        // parser.
         typeMapping.put("time", "string");
         typeMapping.put("duration", "string");
         typeMapping.put("array", "[]");

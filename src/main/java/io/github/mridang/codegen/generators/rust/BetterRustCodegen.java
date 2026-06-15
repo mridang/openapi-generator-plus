@@ -91,10 +91,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // out of the box (via the `serde` feature already enabled on
         // chrono). `format: duration` maps to `chrono::Duration`; chrono's
         // built-in serde impl writes Durations as integer milliseconds —
-        // not ISO-8601 — so the generated model template applies
-        // `#[serde(with = "crate::iso8601_duration")]` to fields whose
-        // {{isDuration}} is truthy, routing them through the hand-rolled
-        // helper in src/iso8601_duration.rs.
+        // not the protobuf-JSON duration shape — so the generated model
+        // template applies `#[serde(with = "crate::proto_duration")]` to
+        // fields whose {{isDuration}} is truthy, routing them through the
+        // hand-rolled helper in src/proto_duration.rs that emits the
+        // google.protobuf.Duration form ("<seconds>s", e.g. "3600s")
+        // Zitadel's API requires.
         typeMapping.put("time", "chrono::NaiveTime");
         typeMapping.put("duration", "chrono::Duration");
         typeMapping.put("array", "Vec");
@@ -469,7 +471,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec(
                         "models/base64_serde.mustache", "src/models", "base64_serde.rs"),
                 new SupportingFileSpec(
-                        "iso8601_duration.mustache", "src", "iso8601_duration.rs"),
+                        "proto_duration.mustache", "src", "proto_duration.rs"),
                 new SupportingFileSpec("json_value.mustache", "src", "json_value.rs"),
                 new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
                 new SupportingFileSpec(
