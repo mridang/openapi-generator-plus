@@ -76,11 +76,12 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         typeMapping.put("DateTime", "DateTimeOffset");
         typeMapping.put("date-time", "DateTimeOffset");
         // 4.8: format:time → TimeOnly (.NET 6+), format:duration → TimeSpan
-        // (rendered/parsed as ISO-8601 by Iso8601DurationConverter in
+        // (rendered/parsed as protobuf-JSON by ProtobufDurationConverter in
         // ObjectSerializer). TimeSpan's default JSON form is the .NET
-        // "[d.]hh:mm:ss[.fff]" string, which would break interop with
-        // every other language SDK that round-trips PT1H30M-style ISO
-        // strings — hence the custom converter.
+        // "[d.]hh:mm:ss[.fff]" string, which protobuf/gRPC-gateway backends
+        // such as Zitadel reject with 400; the converter instead emits the
+        // google.protobuf.Duration string form ("3600s", "1.5s"), matching
+        // the wire format every other language SDK produces.
         typeMapping.put("time", "TimeOnly");
         typeMapping.put("duration", "TimeSpan");
         typeMapping.put("UUID", "Guid");
