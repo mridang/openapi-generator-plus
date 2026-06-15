@@ -480,7 +480,7 @@ class ObjectSerializer
             return null;
         }
 
-        if ($class === 'Symfony\Component\Uid\Uuid' || $class === 'Symfony\\Component\\Uid\\Uuid') {
+        if ($class === 'Symfony\Component\Uid\Uuid') {
             if (is_string($data)) {
                 $decoded = json_decode($data, true);
                 if (is_string($decoded)) {
