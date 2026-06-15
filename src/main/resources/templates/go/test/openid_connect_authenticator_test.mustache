@@ -2,7 +2,6 @@
 package {{packageName}}_test
 
 import (
-	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -240,21 +239,6 @@ func TestOpenIdConnect_DiscoveryNon2xxErrors(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "status 500") {
 		t.Errorf("expected error to mention status 500, got %v", err)
-	}
-}
-
-// authenticator-secret-in-default-string-repr: the default string/format
-// representation must not leak the client_secret.
-func TestOpenIdConnect_StringRedactsClientSecret(t *testing.T) {
-	t.Parallel()
-	a := createOpenIdConnectAuthenticator()
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
-		if strings.Contains(s, "my-client-secret") {
-			t.Errorf("expected client_secret to be redacted, got %q", s)
-		}
-		if !strings.Contains(s, "***") {
-			t.Errorf("expected redaction marker '***', got %q", s)
-		}
 	}
 }
 

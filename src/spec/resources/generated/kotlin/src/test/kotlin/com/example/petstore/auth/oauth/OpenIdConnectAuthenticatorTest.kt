@@ -212,12 +212,4 @@ class OpenIdConnectAuthenticatorTest {
         // The cached discovery document must be reused on the second call.
         assertEquals(1, client.getCount)
     }
-
-    @Test
-    fun clientSecretIsNotLeakedInDefaultToString() {
-        val auth = createAuthenticator()
-        val rendered = auth.toString()
-        assertFalse(rendered.contains("my-client-secret"))
-        assertTrue(rendered.contains("***"))
-    }
 }

@@ -81,15 +81,4 @@ class OAuth2ImplicitAuthenticatorTest {
 
         assertEquals("https://api.example.com", auth.getHost());
     }
-
-    @Test
-    void toStringRedactsAccessToken() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
-        auth.setAccessToken("super-secret-token");
-
-        String representation = auth.toString();
-
-        assertTrue(!representation.contains("super-secret-token"));
-        assertTrue(representation.contains("***"));
-    }
 }

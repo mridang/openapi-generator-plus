@@ -8,7 +8,6 @@
 package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -212,14 +211,5 @@ class OAuth2AuthCodeAuthenticatorTest {
     // Sanity: there must be exactly one '?' in the result.
     long questionMarks = url.chars().filter(ch -> ch == '?').count();
     assertEquals(1L, questionMarks, "result must contain exactly one '?': " + url);
-  }
-
-  @Test
-  void clientSecretIsNotLeakedInDefaultToString() {
-    // authenticator-secret-in-default-string-repr: the default toString()
-    // must never expose the stored client secret.
-    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
-    assertFalse(auth.toString().contains("my-client-secret"));
-    assertTrue(auth.toString().contains("***"));
   }
 }

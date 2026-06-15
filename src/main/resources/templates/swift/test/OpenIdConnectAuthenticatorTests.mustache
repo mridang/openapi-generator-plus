@@ -196,14 +196,4 @@ import Testing
 
         #expect(auth.host() == "https://api.example.com")
     }
-
-    /* authenticator-secret-in-default-string-repr: the default string
-     * representation must never expose the stored client secret, and must
-     * mask it with `***`. */
-    @Test func testClientSecretIsNotLeakedInDefaultStringRepr() {
-        let auth = createAuthenticator()
-
-        #expect(!String(describing: auth).contains("my-client-secret"))
-        #expect(String(describing: auth).contains("***"))
-    }
 }

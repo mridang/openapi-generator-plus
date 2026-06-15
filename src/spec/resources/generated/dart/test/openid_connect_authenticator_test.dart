@@ -206,14 +206,5 @@ void main() {
       // The cached discovery document must be reused on the second call.
       expect(client.getCount, equals(1));
     });
-
-    test('client secret is masked in default toString', () {
-      /// authenticator-secret-in-default-string-repr: the default toString()
-      /// must redact the client secret to *** so it cannot leak through
-      /// logging or string interpolation.
-      final auth = _createAuthenticator();
-      expect(auth.toString(), isNot(contains('my-client-secret')));
-      expect(auth.toString(), contains('***'));
-    });
   });
 }

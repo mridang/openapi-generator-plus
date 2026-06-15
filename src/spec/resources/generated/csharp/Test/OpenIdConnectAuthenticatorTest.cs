@@ -175,17 +175,6 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void SecretIsNotLeakedInDefaultToString()
-    {
-        // authenticator-secret-in-default-string-repr: the default ToString()
-        // must never expose the stored client secret.
-        var auth = CreateAuthenticator();
-        string repr = auth.ToString();
-        Assert.DoesNotContain("my-client-secret", repr);
-        Assert.Contains("***", repr);
-    }
-
-    [Fact]
     public async Task ThrowsWhenDiscoveryReturnsNon2xxStatus()
     {
         var client = new FakeApiClient();

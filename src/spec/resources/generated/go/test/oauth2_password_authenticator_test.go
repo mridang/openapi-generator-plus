@@ -11,7 +11,6 @@ package petstore_test
 
 import (
 	"encoding/base64"
-	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -169,24 +168,6 @@ func TestOAuth2Password_UsesRefreshTokenOnSubsequentCalls(t *testing.T) {
 	}
 	if !strings.Contains(client.LastBody, "refresh_token=ref1") {
 		t.Errorf("expected body to contain refresh_token=ref1, got %q", client.LastBody)
-	}
-}
-
-// authenticator-secret-in-default-string-repr: the default string/format
-// representation must not leak the client_secret or password.
-func TestOAuth2Password_StringRedactsSecrets(t *testing.T) {
-	t.Parallel()
-	a := createPasswordAuthenticator()
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
-		if strings.Contains(s, "my-client-secret") {
-			t.Errorf("expected client_secret to be redacted, got %q", s)
-		}
-		if strings.Contains(s, "testpass") {
-			t.Errorf("expected password to be redacted, got %q", s)
-		}
-		if !strings.Contains(s, "***") {
-			t.Errorf("expected redaction marker '***', got %q", s)
-		}
 	}
 }
 

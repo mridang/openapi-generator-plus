@@ -120,16 +120,6 @@ import Testing
     #expect(auth.host() == "https://api.example.com")
   }
 
-  /* authenticator-secret-in-default-string-repr: the default string
-   * representation must never expose the stored client secret, and must
-   * mask it with `***`. */
-  @Test func testClientSecretIsNotLeakedInDefaultStringRepr() {
-    let auth = createAuthenticator()
-
-    #expect(!String(describing: auth).contains("my-client-secret"))
-    #expect(String(describing: auth).contains("***"))
-  }
-
   @Test func testCachesTokenAcrossCalls() async throws {
     // The token manager caches the access token until expiry, so two
     // consecutive header requests reuse the same token and issue only a

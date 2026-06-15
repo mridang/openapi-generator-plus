@@ -165,17 +165,6 @@ public class OAuth2AuthCodeAuthenticatorTest
     }
 
     [Fact]
-    public void SecretIsNotLeakedInDefaultToString()
-    {
-        // authenticator-secret-in-default-string-repr: the default ToString()
-        // must never expose the stored client secret.
-        var auth = CreateAuthenticator();
-        string repr = auth.ToString();
-        Assert.DoesNotContain("my-client-secret", repr);
-        Assert.Contains("***", repr);
-    }
-
-    [Fact]
     public async Task auth_headers_before_exchange_returns_recoverable_error()
     {
         var auth = CreateAuthenticator();

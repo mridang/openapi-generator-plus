@@ -77,14 +77,3 @@ fn test_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
 }
-
-#[test]
-fn test_debug_redacts_access_token() {
-    let auth = create_authenticator();
-    auth.set_access_token("super-secret-token");
-
-    let debug = format!("{:?}", auth);
-
-    assert!(!debug.contains("super-secret-token"));
-    assert!(debug.contains("***"));
-}

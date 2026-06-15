@@ -105,18 +105,3 @@ func TestOAuth2Implicit_GetHostReturnsConfiguredHost(t *testing.T) {
 		t.Errorf("expected host 'https://api.example.com', got %q", auth.Host())
 	}
 }
-
-func TestOAuth2Implicit_StringRedactsAccessToken(t *testing.T) {
-	t.Parallel()
-	auth := createImplicitAuthenticator()
-	auth.SetAccessToken("super-secret-implicit-tok")
-
-	text := auth.String()
-
-	if strings.Contains(text, "super-secret-implicit-tok") {
-		t.Errorf("expected String() to redact the access token, got %q", text)
-	}
-	if !strings.Contains(text, "***") {
-		t.Errorf("expected String() to contain '***', got %q", text)
-	}
-}

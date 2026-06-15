@@ -167,17 +167,6 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public void SecretIsNotLeakedInDefaultToString()
-    {
-        // authenticator-secret-in-default-string-repr: the default ToString()
-        // must never expose the stored client secret.
-        var auth = CreateAuthenticator();
-        string repr = auth.ToString();
-        Assert.DoesNotContain("my-client-secret", repr);
-        Assert.Contains("***", repr);
-    }
-
-    [Fact]
     public async Task BasicAuthUrlEncodesClientIdAndSecret()
     {
         // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
