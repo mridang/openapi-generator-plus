@@ -15,7 +15,7 @@ module PetstoreClient
     # StoreApi provides methods for the Store API group.
     # Access to Petstore orders
     class StoreApi < BaseApi
-      def initialize(api_client = nil, config = PetstoreClient::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::PetstoreClient::Configuration.default, authenticator = nil)
         super
       end
 
@@ -70,7 +70,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -117,7 +117,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -165,7 +165,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,

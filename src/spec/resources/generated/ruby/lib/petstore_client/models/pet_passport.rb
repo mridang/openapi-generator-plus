@@ -60,7 +60,7 @@ module PetstoreClient
       # differs from their Ruby surface (`byte` → base64-decoded binary
       # String, `uuid` → RFC 4122 validated String). The `byte[]` /
       # `uuid[]` variants apply the same transform to every item of an
-      # array-typed property. Consumed by PetstoreClient::ObjectSerializer
+      # array-typed property. Consumed by ::PetstoreClient::ObjectSerializer
       # on the (de)serialize path.
       # @type var openapi_formats: Hash[Symbol, String]
       openapi_formats = {

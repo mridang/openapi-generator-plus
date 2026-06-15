@@ -51,7 +51,7 @@ module PetstoreClient
           openapi_any_of.each do |klass_name|
             next if klass_name == :AnyType
 
-            result = PetstoreClient::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+            result = ::PetstoreClient::ObjectSerializer.convert_to_type(data, klass_name.to_s)
             return result unless result.nil?
           rescue StandardError
             next

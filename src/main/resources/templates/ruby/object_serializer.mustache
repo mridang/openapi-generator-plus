@@ -302,7 +302,7 @@ module {{moduleName}}
         end
       else
         klass = begin
-          {{moduleName}}::Models.const_get(return_type)
+          ::{{moduleName}}::Models.const_get(return_type)
         rescue NameError
           {{moduleName}}.const_get(return_type)
         end

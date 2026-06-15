@@ -98,13 +98,13 @@ module PetstoreClient
         # recommended default of 86400 seconds when absent.
         #
         # @return [OAuth2AuthorizationCodeAuthenticator]
-        # @raise [PetstoreClient::ApiError] if the API client has not been injected
+        # @raise [::PetstoreClient::ApiError] if the API client has not been injected
         def resolve_delegate
           return @delegate if @delegate && Time.now < @discovery_expiry
 
           client = @api_client
           if client.nil?
-            raise PetstoreClient::ApiError, 'ApiClient has not been injected. ' \
+            raise ::PetstoreClient::ApiError, 'ApiClient has not been injected. ' \
                                             'Ensure the Client constructor calls api_client= ' \
                                             'on HttpAwareAuthenticator before making API requests.'
           end
@@ -116,7 +116,7 @@ module PetstoreClient
           # "invalid JSON" error. Surface the real failure instead.
           status = response.status_code.to_i
           if status < 200 || status >= 300
-            raise PetstoreClient::ApiError.new(
+            raise ::PetstoreClient::ApiError.new(
               message: "OIDC discovery request to #{@openid_connect_url} failed",
               status_code: response.status_code,
               response_headers: response.headers,
@@ -130,10 +130,10 @@ module PetstoreClient
           # endpoints: building a delegate with nil/empty endpoint URLs would
           # otherwise NPE far away at the first authorize/token call.
           if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
-            raise PetstoreClient::ApiError, "OIDC discovery document is missing 'authorization_endpoint'"
+            raise ::PetstoreClient::ApiError, "OIDC discovery document is missing 'authorization_endpoint'"
           end
           if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
-            raise PetstoreClient::ApiError, "OIDC discovery document is missing 'token_endpoint'"
+            raise ::PetstoreClient::ApiError, "OIDC discovery document is missing 'token_endpoint'"
           end
           @delegate = OAuth2AuthorizationCodeAuthenticator.new(
             @host, @client_id, @client_secret,

@@ -10,7 +10,7 @@
 module PetstoreClient
   module Errors
     # Exception for HTTP 4xx client errors.
-    class ClientError < PetstoreClient::ApiError
+    class ClientError < ::PetstoreClient::ApiError
     end
   end
 end

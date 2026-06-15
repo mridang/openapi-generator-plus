@@ -340,10 +340,10 @@ module PetstoreClient
         def parse_expires_in: (untyped) -> Integer
       end
 
-      class OAuth2TokenError < PetstoreClient::ApiError
+      class OAuth2TokenError < ::PetstoreClient::ApiError
       end
 
-      class OAuth2ServerError < PetstoreClient::ApiError
+      class OAuth2ServerError < ::PetstoreClient::ApiError
         attr_reader status_code: Integer?
         attr_reader code: String?
         attr_reader description: String?

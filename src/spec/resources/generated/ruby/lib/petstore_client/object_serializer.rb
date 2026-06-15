@@ -308,7 +308,7 @@ module PetstoreClient
         end
       else
         klass = begin
-          PetstoreClient::Models.const_get(return_type)
+          ::PetstoreClient::Models.const_get(return_type)
         rescue NameError
           PetstoreClient.const_get(return_type)
         end

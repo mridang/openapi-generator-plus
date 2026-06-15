@@ -15,13 +15,13 @@ module PetstoreClient
   # +servers+ array. Use these constants with
   # {Configuration::Builder#base_url} to select a server:
   #
-  #     config = PetstoreClient::Configuration.builder
-  #       .base_url(PetstoreClient::Servers::SERVER_0.url)
+  #     config = ::PetstoreClient::Configuration.builder
+  #       .base_url(::PetstoreClient::Servers::SERVER_0.url)
   #       .build
   #
   # For servers with variables, pass overrides:
   #
-  #     url = PetstoreClient::Servers::SERVER_1.url('environment' => 'staging')
+  #     url = ::PetstoreClient::Servers::SERVER_1.url('environment' => 'staging')
   module Servers
     # Server 0: +/api/v3+
     #

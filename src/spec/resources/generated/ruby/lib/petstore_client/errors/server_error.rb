@@ -10,7 +10,7 @@
 module PetstoreClient
   module Errors
     # Exception for HTTP 5xx server errors.
-    class ServerError < PetstoreClient::ApiError
+    class ServerError < ::PetstoreClient::ApiError
     end
   end
 end

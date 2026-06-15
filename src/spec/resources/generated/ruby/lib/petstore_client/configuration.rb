@@ -17,7 +17,7 @@ module PetstoreClient
   #
   # This class is immutable. Use {Configuration.builder} to create instances:
   #
-  #     config = PetstoreClient::Configuration.builder
+  #     config = ::PetstoreClient::Configuration.builder
   #       .base_url('https://api.example.com')
   #       .default_header('Authorization', 'Bearer token')
   #       .build

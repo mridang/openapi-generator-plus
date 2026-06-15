@@ -18,19 +18,19 @@ module PetstoreClient
   # use the same transport configuration as regular API calls.
   #
   # @example Default transport
-  #   client = PetstoreClient::Client.new(authenticator)
+  #   client = ::PetstoreClient::Client.new(authenticator)
   #
   # @example Custom transport (proxy, timeouts, etc.)
-  #   transport = PetstoreClient::TransportOptions.builder
+  #   transport = ::PetstoreClient::TransportOptions.builder
   #     .proxy('http://proxy:3128')
   #     .timeout(5000)
   #     .build
-  #   client = PetstoreClient::Client.new(authenticator, transport)
+  #   client = ::PetstoreClient::Client.new(authenticator, transport)
   class Client
-    # @return [PetstoreClient::Api::PetApi]
+    # @return [::PetstoreClient::Api::PetApi]
     attr_reader :pet
 
-    # @return [PetstoreClient::Api::StoreApi]
+    # @return [::PetstoreClient::Api::StoreApi]
     attr_reader :store
 
     # Creates a new client with the given authenticator and optional transport options.

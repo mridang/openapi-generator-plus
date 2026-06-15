@@ -360,10 +360,10 @@ module {{moduleName}}
         def parse_expires_in: (untyped) -> Integer
       end
 
-      class OAuth2TokenError < {{moduleName}}::ApiError
+      class OAuth2TokenError < ::{{moduleName}}::ApiError
       end
 
-      class OAuth2ServerError < {{moduleName}}::ApiError
+      class OAuth2ServerError < ::{{moduleName}}::ApiError
         attr_reader status_code: Integer?
         attr_reader code: String?
         attr_reader description: String?
@@ -377,7 +377,7 @@ module {{moduleName}}
 {{/hasAnyOAuth2}}
   end
 
-  class Client
+  class {{clientClassName}}
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -386,8 +386,8 @@ module {{moduleName}}
 {{/apis}}
 {{/apiInfo}}
     def initialize: (Auth::Authenticator, ?TransportOptions?) -> void
-    def self.with_token: (String, String) -> Client
-    def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> Client
+    def self.with_token: (String, String) -> {{clientClassName}}
+    def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> {{clientClassName}}
   end
 
   module Models

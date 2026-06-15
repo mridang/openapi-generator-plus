@@ -14,7 +14,7 @@ require 'petstore_client/version'
 
 Gem::Specification.new do |s|
   s.name        = 'petstore_client'
-  s.version     = PetstoreClient::VERSION
+  s.version     = ::PetstoreClient::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ['OpenAPI-Generator']
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'

@@ -9,13 +9,13 @@ module {{moduleName}}
   # +servers+ array. Use these constants with
   # {Configuration::Builder#base_url} to select a server:
   #
-  #     config = {{moduleName}}::Configuration.builder
-  #       .base_url({{moduleName}}::Servers::SERVER_0.url)
+  #     config = ::{{moduleName}}::Configuration.builder
+  #       .base_url(::{{moduleName}}::Servers::SERVER_0.url)
   #       .build
   #
   # For servers with variables, pass overrides:
   #
-  #     url = {{moduleName}}::Servers::SERVER_1.url('environment' => 'staging')
+  #     url = ::{{moduleName}}::Servers::SERVER_1.url('environment' => 'staging')
   module Servers
 {{#serverConfigs}}
     # Server {{serverIndex}}: +{{serverUrl}}+{{#serverDescription}}

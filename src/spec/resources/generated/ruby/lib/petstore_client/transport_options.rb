@@ -18,7 +18,7 @@ module PetstoreClient
   #
   # This class is immutable and thread-safe. Use {TransportOptions.builder} to create instances:
   #
-  #     transport = PetstoreClient::TransportOptions.builder
+  #     transport = ::PetstoreClient::TransportOptions.builder
   #       .verify_ssl(false)
   #       .proxy('http://proxy.example.com:8080')
   #       .timeout(5000)

@@ -116,7 +116,7 @@ module PetstoreClient
     # Everything about your Pets
     # @see https://example.com/docs/pets Find out more about pets
     class PetApi < BaseApi
-      def initialize(api_client = nil, config = PetstoreClient::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::PetstoreClient::Configuration.default, authenticator = nil)
         super
       end
 
@@ -140,7 +140,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -205,7 +205,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -279,7 +279,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -388,7 +388,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -445,7 +445,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -466,10 +466,10 @@ module PetstoreClient
             query_params['status'] = ''
           else
             query_params['status'] =
-              PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
+              ::PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
           end
         end
-        query_params.merge!(PetstoreClient::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.nil? || options.filter.nil?
+        query_params.merge!(::PetstoreClient::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.nil? || options.filter.nil?
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
@@ -501,7 +501,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -558,7 +558,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -616,7 +616,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -670,7 +670,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -731,7 +731,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -805,7 +805,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -844,7 +844,7 @@ module PetstoreClient
         query_params = {}
         unless options.nil? || options.category.nil?
           query_params['category'] =
-            PetstoreClient::ValueSerializer.serialize_styled('category', options.category, :query, 'String', nil, 'form', true)
+            ::PetstoreClient::ValueSerializer.serialize_styled('category', options.category, :query, 'String', nil, 'form', true)
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
@@ -878,7 +878,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -938,7 +938,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -1010,7 +1010,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -1045,18 +1045,18 @@ module PetstoreClient
         query_params = {}
         unless options.nil? || options.colors.nil?
           query_params['colors'] =
-            PetstoreClient::ValueSerializer.serialize_styled('colors', options.colors, :query, 'Array<String>', :pipes, 'pipeDelimited', false)
+            ::PetstoreClient::ValueSerializer.serialize_styled('colors', options.colors, :query, 'Array<String>', :pipes, 'pipeDelimited', false)
         end
         unless options.nil? || options.sizes.nil?
           query_params['sizes'] =
-            PetstoreClient::ValueSerializer.serialize_styled('sizes', options.sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false)
+            ::PetstoreClient::ValueSerializer.serialize_styled('sizes', options.sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false)
         end
         unless options.nil?
           if options.filter.nil?
             query_params['filter'] = ''
           else
             query_params['filter'] =
-              PetstoreClient::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true)
+              ::PetstoreClient::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true)
           end
         end
         # @type var header_params: Hash[String, String]
@@ -1090,7 +1090,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -1262,7 +1262,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -1335,7 +1335,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -1401,7 +1401,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,
@@ -1469,7 +1469,7 @@ module PetstoreClient
         # loudly as a typed ApiError instead of handing back a silent nil,
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
-          raise PetstoreClient::ApiError.new(
+          raise ::PetstoreClient::ApiError.new(
             message: 'Expected a non-empty response body but the server returned no decodable content',
             status_code: result.status_code,
             response_headers: result.headers,

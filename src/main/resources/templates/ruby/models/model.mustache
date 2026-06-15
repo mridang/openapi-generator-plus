@@ -116,7 +116,7 @@ module {{moduleName}}
           # Go / Rust / Python which throw on union no-match (5 of 12
           # SDKs already strict; we promote the other 7 here).
           if discriminator_value.nil?
-            raise {{moduleName}}::SerializationError,
+            raise ::{{moduleName}}::SerializationError,
                   "Missing discriminator '#{openapi_discriminator_name}' for {{classname}}"
           end
         {{#mappedModels}}
@@ -124,22 +124,22 @@ module {{moduleName}}
 
           klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
           unless klass_name
-            raise {{moduleName}}::SerializationError,
+            raise ::{{moduleName}}::SerializationError,
                   "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
           end
 
-          {{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+          ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
         {{/-first}}
         {{/mappedModels}}
         {{^mappedModels}}
-          {{moduleName}}::ObjectSerializer.convert_to_type(data, discriminator_value.to_s)
+          ::{{moduleName}}::ObjectSerializer.convert_to_type(data, discriminator_value.to_s)
         {{/mappedModels}}
         {{/discriminator}}
         {{^discriminator}}
           openapi_one_of.each do |klass_name|
             next if klass_name == :AnyType
 
-            result = {{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+            result = ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
             return result unless result.nil?
           rescue StandardError
             next
@@ -193,7 +193,7 @@ module {{moduleName}}
           openapi_any_of.each do |klass_name|
             next if klass_name == :AnyType
 
-            result = {{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+            result = ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
             return result unless result.nil?
           rescue StandardError
             next
@@ -247,7 +247,7 @@ module {{moduleName}}
       # differs from their Ruby surface (`byte` → base64-decoded binary
       # String, `uuid` → RFC 4122 validated String). The `byte[]` /
       # `uuid[]` variants apply the same transform to every item of an
-      # array-typed property. Consumed by {{moduleName}}::ObjectSerializer
+      # array-typed property. Consumed by ::{{moduleName}}::ObjectSerializer
       # on the (de)serialize path.
       # @type var openapi_formats: Hash[Symbol, String]
       openapi_formats = {

@@ -30,10 +30,10 @@ module PetstoreClient
       #
       # @param api_client [ApiClient, nil] the HTTP transport client
       # @param config [Configuration] API-level configuration (base URL and default headers)
-      def initialize(api_client = nil, config = PetstoreClient::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::PetstoreClient::Configuration.default, authenticator = nil)
         @config = config
-        @api_client = api_client || PetstoreClient::DefaultApiClient.new
-        @header_selector = PetstoreClient::HeaderSelector.new
+        @api_client = api_client || ::PetstoreClient::DefaultApiClient.new
+        @header_selector = ::PetstoreClient::HeaderSelector.new
         @authenticator = authenticator
       end
 
@@ -89,7 +89,7 @@ module PetstoreClient
           existing = headers['Cookie']
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end
-        PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+        ::PetstoreClient::TraceContextUtil.inject_trace_context(headers)
         serialized_body = serialize_body(body, content_type)
         headers.delete('Content-Type') if serialized_body.nil?
         response = @api_client.send_request(method, url, headers, serialized_body)
@@ -115,13 +115,13 @@ module PetstoreClient
                                end
                    StringIO.new(raw_bytes)
                  elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
-                   PetstoreClient::ObjectSerializer.deserialize(response.body, return_type)
+                   ::PetstoreClient::ObjectSerializer.deserialize(response.body, return_type)
                  else
                    response.body
                  end
         end
 
-        PetstoreClient::ApiResult.new(
+        ::PetstoreClient::ApiResult.new(
           status_code: response.status_code,
           data: data,
           raw_body: response.body,
@@ -162,22 +162,22 @@ module PetstoreClient
 
         if code >= 400 && code < 500
           raise case code
-                when 400 then PetstoreClient::Errors::BadRequestError.new(**err_opts)
-                when 401 then PetstoreClient::Errors::UnauthorizedError.new(**err_opts)
-                when 403 then PetstoreClient::Errors::ForbiddenError.new(**err_opts)
-                when 404 then PetstoreClient::Errors::NotFoundError.new(**err_opts)
-                when 409 then PetstoreClient::Errors::ConflictError.new(**err_opts)
-                when 422 then PetstoreClient::Errors::UnprocessableEntityError.new(**err_opts)
-                else PetstoreClient::Errors::ClientError.new(status_code: code, **err_opts)
+                when 400 then ::PetstoreClient::Errors::BadRequestError.new(**err_opts)
+                when 401 then ::PetstoreClient::Errors::UnauthorizedError.new(**err_opts)
+                when 403 then ::PetstoreClient::Errors::ForbiddenError.new(**err_opts)
+                when 404 then ::PetstoreClient::Errors::NotFoundError.new(**err_opts)
+                when 409 then ::PetstoreClient::Errors::ConflictError.new(**err_opts)
+                when 422 then ::PetstoreClient::Errors::UnprocessableEntityError.new(**err_opts)
+                else ::PetstoreClient::Errors::ClientError.new(status_code: code, **err_opts)
                 end
         end
         if code >= 500
           raise case code
-                when 500 then PetstoreClient::Errors::InternalServerError.new(**err_opts)
-                else PetstoreClient::Errors::ServerError.new(status_code: code, **err_opts)
+                when 500 then ::PetstoreClient::Errors::InternalServerError.new(**err_opts)
+                else ::PetstoreClient::Errors::ServerError.new(status_code: code, **err_opts)
                 end
         end
-        raise PetstoreClient::ApiError.new(status_code: code, **err_opts)
+        raise ::PetstoreClient::ApiError.new(status_code: code, **err_opts)
       end
 
       def build_query_string(query_params)
@@ -187,10 +187,10 @@ module PetstoreClient
             next [] if v.empty?
 
             v.map do |val|
-              "#{encoded_key}=#{CGI.escape(PetstoreClient::ObjectSerializer.to_query_value(val))}"
+              "#{encoded_key}=#{CGI.escape(::PetstoreClient::ObjectSerializer.to_query_value(val))}"
             end
           else
-            encoded_val = CGI.escape(PetstoreClient::ObjectSerializer.to_query_value(v))
+            encoded_val = CGI.escape(::PetstoreClient::ObjectSerializer.to_query_value(v))
             "#{encoded_key}=#{encoded_val}"
           end
         end
@@ -210,7 +210,7 @@ module PetstoreClient
         elsif content_type == 'application/x-www-form-urlencoded'
           URI.encode_www_form(body)
         else
-          PetstoreClient::ObjectSerializer.serialize(body)
+          ::PetstoreClient::ObjectSerializer.serialize(body)
         end
       end
 

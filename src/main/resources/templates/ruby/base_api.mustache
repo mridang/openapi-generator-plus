@@ -24,10 +24,10 @@ module {{moduleName}}
       #
       # @param api_client [ApiClient, nil] the HTTP transport client
       # @param config [Configuration] API-level configuration (base URL and default headers)
-      def initialize(api_client = nil, config = {{moduleName}}::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default, authenticator = nil)
         @config = config
-        @api_client = api_client || {{moduleName}}::DefaultApiClient.new
-        @header_selector = {{moduleName}}::HeaderSelector.new
+        @api_client = api_client || ::{{moduleName}}::DefaultApiClient.new
+        @header_selector = ::{{moduleName}}::HeaderSelector.new
         @authenticator = authenticator
       end
 
@@ -83,7 +83,7 @@ module {{moduleName}}
           existing = headers['Cookie']
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end
-        {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
+        ::{{moduleName}}::TraceContextUtil.inject_trace_context(headers)
         serialized_body = serialize_body(body, content_type)
         headers.delete('Content-Type') if serialized_body.nil?
         response = @api_client.send_request(method, url, headers, serialized_body)
@@ -109,13 +109,13 @@ module {{moduleName}}
                                end
                    StringIO.new(raw_bytes)
                  elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
-                   {{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
+                   ::{{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
                  else
                    response.body
                  end
         end
 
-        {{moduleName}}::ApiResult.new(
+        ::{{moduleName}}::ApiResult.new(
           status_code: response.status_code,
           data: data,
           raw_body: response.body,
@@ -156,22 +156,22 @@ module {{moduleName}}
 
         if code >= 400 && code < 500
           raise case code
-                when 400 then {{moduleName}}::Errors::BadRequestError.new(**err_opts)
-                when 401 then {{moduleName}}::Errors::UnauthorizedError.new(**err_opts)
-                when 403 then {{moduleName}}::Errors::ForbiddenError.new(**err_opts)
-                when 404 then {{moduleName}}::Errors::NotFoundError.new(**err_opts)
-                when 409 then {{moduleName}}::Errors::ConflictError.new(**err_opts)
-                when 422 then {{moduleName}}::Errors::UnprocessableEntityError.new(**err_opts)
-                else {{moduleName}}::Errors::ClientError.new(status_code: code, **err_opts)
+                when 400 then ::{{moduleName}}::Errors::BadRequestError.new(**err_opts)
+                when 401 then ::{{moduleName}}::Errors::UnauthorizedError.new(**err_opts)
+                when 403 then ::{{moduleName}}::Errors::ForbiddenError.new(**err_opts)
+                when 404 then ::{{moduleName}}::Errors::NotFoundError.new(**err_opts)
+                when 409 then ::{{moduleName}}::Errors::ConflictError.new(**err_opts)
+                when 422 then ::{{moduleName}}::Errors::UnprocessableEntityError.new(**err_opts)
+                else ::{{moduleName}}::Errors::ClientError.new(status_code: code, **err_opts)
                 end
         end
         if code >= 500
           raise case code
-                when 500 then {{moduleName}}::Errors::InternalServerError.new(**err_opts)
-                else {{moduleName}}::Errors::ServerError.new(status_code: code, **err_opts)
+                when 500 then ::{{moduleName}}::Errors::InternalServerError.new(**err_opts)
+                else ::{{moduleName}}::Errors::ServerError.new(status_code: code, **err_opts)
                 end
         end
-        raise {{moduleName}}::ApiError.new(status_code: code, **err_opts)
+        raise ::{{moduleName}}::ApiError.new(status_code: code, **err_opts)
       end
 
       def build_query_string(query_params)
@@ -181,10 +181,10 @@ module {{moduleName}}
             next [] if v.empty?
 
             v.map do |val|
-              "#{encoded_key}=#{CGI.escape({{moduleName}}::ObjectSerializer.to_query_value(val))}"
+              "#{encoded_key}=#{CGI.escape(::{{moduleName}}::ObjectSerializer.to_query_value(val))}"
             end
           else
-            encoded_val = CGI.escape({{moduleName}}::ObjectSerializer.to_query_value(v))
+            encoded_val = CGI.escape(::{{moduleName}}::ObjectSerializer.to_query_value(v))
             "#{encoded_key}=#{encoded_val}"
           end
         end
@@ -204,7 +204,7 @@ module {{moduleName}}
         elsif content_type == 'application/x-www-form-urlencoded'
           URI.encode_www_form(body)
         else
-          {{moduleName}}::ObjectSerializer.serialize(body)
+          ::{{moduleName}}::ObjectSerializer.serialize(body)
         end
       end
 
