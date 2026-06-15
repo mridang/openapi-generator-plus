@@ -91,4 +91,18 @@ public class OAuth2ImplicitAuthenticatorTest
 
         Assert.Equal("https://api.example.com", auth.GetHost());
     }
+
+    /// <summary>
+    /// ToString() must redact the access token: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        auth.SetAccessToken("implicit-tok");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("implicit-tok", repr);
+        Assert.Contains("***", repr);
+    }
 }

@@ -198,3 +198,24 @@ test('client credentials token fetch error is surfaced not swallowed', function 
     expect(fn (): mixed => $authenticator->getAuthHeaders())
         ->toThrow(\RuntimeException::class);
 });
+
+/**
+ * Asserts that the client secret never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = new OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        []
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-client-secret');
+    expect($printR)->toContain('***');
+}

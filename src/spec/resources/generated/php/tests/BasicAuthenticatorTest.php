@@ -57,5 +57,20 @@ test('password is masked in var_dump and print_r output', function (): void {
     // Username is non-secret and should still be visible for debugging.
     expect($printR)->toContain('alice');
 });
+/**
+ * Asserts that the password never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->not->toContain('s3cret');
+    expect($printR)->toContain('***');
+}
+
 // NOTE: this file is not currently wired into phpunit.xml's testsuites; the
 // executed coverage for __debugInfo masking lives in tests/Api/PetApiTest.php.

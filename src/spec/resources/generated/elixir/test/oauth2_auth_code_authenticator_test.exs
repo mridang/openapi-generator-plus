@@ -217,5 +217,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(url, "response_type=code")
       assert length(String.split(url, "?")) - 1 == 1
     end
+
+    test "redacts the secret" do
+      auth = create_authenticator()
+
+      refute inspect(auth) =~ "my-client-secret"
+      assert inspect(auth) =~ "***"
+    end
   end
 end

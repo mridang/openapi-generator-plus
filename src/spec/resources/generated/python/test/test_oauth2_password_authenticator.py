@@ -173,6 +173,14 @@ class TestOAuth2PasswordAuthenticator:
         decoded = base64.b64decode(auth_header[len("Basic ") :]).decode("utf-8")
         assert decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
 
+    def test_redacts_secret(self) -> None:
+        """The repr masks both client_secret and password and leaks neither."""
+        auth = _create_authenticator()
+        rendered = repr(auth)
+        assert "my_client_secret" not in rendered
+        assert "testpass" not in rendered
+        assert "***" in rendered
+
 
 class TestOAuth2PasswordImmutability:
     def test_credentials_cannot_be_reassigned(self) -> None:

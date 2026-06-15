@@ -54,4 +54,17 @@ public class BasicAuthenticatorTest
         var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
         Assert.DoesNotContain("s3cret", auth.ToString());
     }
+
+    /// <summary>
+    /// ToString() must redact the password: the raw secret must be absent and
+    /// the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("s3cret", repr);
+        Assert.Contains("***", repr);
+    }
 }

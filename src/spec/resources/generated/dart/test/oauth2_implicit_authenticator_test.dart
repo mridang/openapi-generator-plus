@@ -72,5 +72,13 @@ void main() {
 
       expect(auth.host(), equals('https://api.example.com'));
     });
+
+    test('redacts the secret in toString', () {
+      final auth = _createAuthenticator();
+      auth.setAccessToken('implicit-tok');
+
+      expect(auth.toString(), isNot(contains('implicit-tok')));
+      expect(auth.toString(), contains('***'));
+    });
   });
 }

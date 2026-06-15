@@ -138,6 +138,15 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(util.inspect(authenticator)).toContain("***");
   });
 
+  it("redacts the secret in inspect and JSON output", () => {
+    expect(util.inspect(authenticator)).not.toContain("my-client-secret");
+    expect(util.inspect(authenticator)).not.toContain("testpass");
+    expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
+    expect(JSON.stringify(authenticator)).not.toContain("testpass");
+    expect(util.inspect(authenticator)).toContain("***");
+    expect(JSON.stringify(authenticator)).toContain("***");
+  });
+
   test("basic auth url-encodes client id and secret", async () => {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-

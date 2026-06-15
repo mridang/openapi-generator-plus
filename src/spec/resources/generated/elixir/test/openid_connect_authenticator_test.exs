@@ -250,6 +250,13 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                "https://api.example.com"
     end
 
+    test "redacts the secret" do
+      auth = create_authenticator()
+
+      refute inspect(auth) =~ "my-client-secret"
+      assert inspect(auth) =~ "***"
+    end
+
     # The discovery document must be cached: a second build should reuse it
     # rather than issue a second GET to the discovery endpoint.
     #

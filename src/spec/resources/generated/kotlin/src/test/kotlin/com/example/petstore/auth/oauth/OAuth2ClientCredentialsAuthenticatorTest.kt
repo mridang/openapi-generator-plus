@@ -206,4 +206,12 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         // Expected: form-urlencoded id ':' form-urlencoded secret
         assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded)
     }
+
+    @Test
+    fun redactsSecret() {
+        val auth = createAuthenticator()
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("my-client-secret"))
+        assertTrue(rendered.contains("***"))
+    }
 }

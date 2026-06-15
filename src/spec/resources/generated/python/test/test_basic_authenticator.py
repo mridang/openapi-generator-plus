@@ -50,6 +50,15 @@ class TestBasicAuthenticator:
         assert "s3cret" not in str(auth)
         assert "https://api.example.com" in repr(auth)
 
+    def test_redacts_secret(self) -> None:
+        """The repr masks the password as ``***`` and never leaks its value."""
+        auth = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
+        rendered = repr(auth)
+        assert "s3cret" not in rendered
+        assert "***" in rendered
+
 
 class TestBearerAuthenticator:
     def test_valid_token_produces_bearer_header(self) -> None:

@@ -199,4 +199,12 @@ class OAuth2AuthCodeAuthenticatorTest {
         assertTrue(url.contains("response_type=code"), "response_type must be appended: $url")
         assertEquals(1, url.count { it == '?' }, "result must contain exactly one '?': $url")
     }
+
+    @Test
+    fun redactsSecret() {
+        val auth = createAuthenticator()
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("my-client-secret"))
+        assertTrue(rendered.contains("***"))
+    }
 }

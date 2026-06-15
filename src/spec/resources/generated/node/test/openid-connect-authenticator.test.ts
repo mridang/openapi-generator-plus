@@ -63,6 +63,13 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(util.inspect(authenticator)).toContain("***");
   });
 
+  it("redacts the secret in inspect and JSON output", () => {
+    expect(util.inspect(authenticator)).not.toContain("my-client-secret");
+    expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
+    expect(util.inspect(authenticator)).toContain("***");
+    expect(JSON.stringify(authenticator)).toContain("***");
+  });
+
   test("builds authorization URL from discovery", async () => {
     mockClient.responses = [
       {

@@ -48,9 +48,7 @@ func TestBasicAuthenticator_RejectsUsernameWithColon(t *testing.T) {
 	_ = auth.NewBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
 }
 
-// authenticator-secret-in-default-string-repr: the default string/format
-// representation must not leak the password.
-func TestBasicAuthenticator_StringRedactsPassword(t *testing.T) {
+func TestBasicRedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3cret")
 	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {

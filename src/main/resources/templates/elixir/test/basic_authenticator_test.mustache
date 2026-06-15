@@ -28,6 +28,13 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
         BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret")
       end
     end
+
+    test "redacts the secret" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
+
+      refute inspect(auth) =~ "s3cret"
+      assert inspect(auth) =~ "***"
+    end
   end
 
   # bearer-no-empty-token-guard: an empty/whitespace Bearer token must be

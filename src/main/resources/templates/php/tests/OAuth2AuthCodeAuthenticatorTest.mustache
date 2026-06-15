@@ -239,3 +239,26 @@ test('authorize url with existing query string uses ampersand separator', functi
     expect($url)->toContain('response_type=code');
     expect(substr_count($url, '?'))->toBe(1);
 });
+
+/**
+ * Asserts that the client secret never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-client-secret');
+    expect($printR)->toContain('***');
+}

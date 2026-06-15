@@ -8,6 +8,7 @@
 package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,6 +18,7 @@ import com.example.petstore.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({
@@ -225,5 +227,18 @@ class OAuth2ClientCredentialsAuthenticatorTest {
             java.nio.charset.StandardCharsets.UTF_8);
     // Expected: form-urlencoded id ':' form-urlencoded secret
     assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
+  }
+
+  /**
+   * The default {@code toString()} must mask the stored client secret: the secret value must be
+   * absent and a {@code ***} redaction marker present.
+   */
+  @Test
+  @DisplayName("toString() redacts the client secret and shows ***")
+  void redactsSecret() {
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    String repr = auth.toString();
+    assertFalse(repr.contains("my-client-secret"));
+    assertTrue(repr.contains("***"));
   }
 }

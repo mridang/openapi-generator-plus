@@ -164,4 +164,20 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(secret_auth.to_s).wont_include 'super_secret_value'
     _(secret_auth.to_s).wont_include 'super_secret_value'
   end
+
+  def test_redacts_secret
+    auth = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'leaky_client_secret',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://app.example.com/callback',
+      %w[read write]
+    )
+    _(auth.inspect).wont_include 'leaky_client_secret'
+    _(auth.inspect).must_include '***'
+    _(auth.to_s).wont_include 'leaky_client_secret'
+    _(auth.to_s).must_include '***'
+  end
 end

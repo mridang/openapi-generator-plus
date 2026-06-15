@@ -76,4 +76,12 @@ import Testing
 
         #expect(auth.host() == "https://api.example.com")
     }
+
+    @Test func redactsSecret() async {
+        let auth = createAuthenticator()
+        auth.setAccessToken("implicit-tok")
+        let description = String(describing: auth)
+        #expect(!description.contains("implicit-tok"))
+        #expect(description.contains("***"))
+    }
 }

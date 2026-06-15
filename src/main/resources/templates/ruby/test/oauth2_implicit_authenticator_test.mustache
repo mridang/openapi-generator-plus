@@ -55,4 +55,18 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
   it 'getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
+
+  def test_redacts_secret
+    auth = {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'https://auth.example.com/authorize',
+      %w[read write]
+    )
+    auth.access_token = 'super_secret_token'
+    _(auth.inspect).wont_include 'super_secret_token'
+    _(auth.inspect).must_include '***'
+    _(auth.to_s).wont_include 'super_secret_token'
+    _(auth.to_s).must_include '***'
+  end
 end

@@ -11,6 +11,7 @@ package petstore_test
 
 import (
 	"encoding/base64"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -232,6 +233,19 @@ func TestOAuth2ClientCredentials_GetHostReturnsConfiguredHost(t *testing.T) {
 
 	if authObj.Host() != "https://api.example.com" {
 		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+func TestOAuth2ClientCredentialsRedactsSecret(t *testing.T) {
+	t.Parallel()
+	authObj := createClientCredentialsAuthenticator()
+	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%s", authObj)} {
+		if strings.Contains(s, "my-client-secret") {
+			t.Errorf("expected client secret to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
 	}
 }
 

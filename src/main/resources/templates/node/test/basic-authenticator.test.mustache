@@ -36,4 +36,12 @@ describe('BasicAuthenticator', () => {
     expect(JSON.stringify(auth)).not.toContain('s3cret');
     expect(util.inspect(auth)).toContain('***');
   });
+
+  it("redacts the secret in inspect and JSON output", () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(util.inspect(auth)).not.toContain('s3cret');
+    expect(JSON.stringify(auth)).not.toContain('s3cret');
+    expect(util.inspect(auth)).toContain('***');
+    expect(JSON.stringify(auth)).toContain('***');
+  });
 });

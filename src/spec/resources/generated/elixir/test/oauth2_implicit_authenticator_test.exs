@@ -82,5 +82,18 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.host(auth) ==
                "https://api.example.com"
     end
+
+    test "redacts the secret" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(
+          auth,
+          "implicit-tok"
+        )
+
+      refute inspect(auth) =~ "implicit-tok"
+      assert inspect(auth) =~ "***"
+    end
   end
 end

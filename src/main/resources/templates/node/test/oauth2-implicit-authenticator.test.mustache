@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import * as util from 'node:util';
 import { OAuth2ImplicitAuthenticator } from '../src/auth/oauth/oauth2-implicit-authenticator{{importFileExtension}}';
 
 describe('OAuth2ImplicitAuthenticator', () => {
@@ -49,5 +50,13 @@ describe('OAuth2ImplicitAuthenticator', () => {
 
   test('getHost returns configured host', () => {
     expect(authenticator.getHost()).toBe('https://api.example.com');
+  });
+
+  it("redacts the secret in inspect and JSON output", () => {
+    authenticator.setAccessToken('implicit-tok');
+    expect(util.inspect(authenticator)).not.toContain('implicit-tok');
+    expect(JSON.stringify(authenticator)).not.toContain('implicit-tok');
+    expect(util.inspect(authenticator)).toContain('***');
+    expect(JSON.stringify(authenticator)).toContain('***');
   });
 });

@@ -206,5 +206,12 @@ void main() {
       // The cached discovery document must be reused on the second call.
       expect(client.getCount, equals(1));
     });
+
+    test('redacts the secret in toString', () {
+      final auth = _createAuthenticator();
+
+      expect(auth.toString(), isNot(contains('my-client-secret')));
+      expect(auth.toString(), contains('***'));
+    });
   });
 }

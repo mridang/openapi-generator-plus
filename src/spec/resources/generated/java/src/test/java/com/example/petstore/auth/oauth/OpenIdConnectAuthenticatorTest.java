@@ -8,6 +8,7 @@
 package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,6 +18,7 @@ import com.example.petstore.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({
@@ -222,5 +224,18 @@ class OpenIdConnectAuthenticatorTest {
 
     // The cached discovery document must be reused on the second call.
     assertEquals(1, getCalls.get());
+  }
+
+  /**
+   * The default {@code toString()} must mask the stored client secret: the secret value must be
+   * absent and a {@code ***} redaction marker present.
+   */
+  @Test
+  @DisplayName("toString() redacts the client secret and shows ***")
+  void redactsSecret() {
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    String repr = auth.toString();
+    assertFalse(repr.contains("my-client-secret"));
+    assertTrue(repr.contains("***"));
   }
 }

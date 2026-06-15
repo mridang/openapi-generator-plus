@@ -158,5 +158,20 @@ void main() {
       // Expected: form-urlencoded id ':' form-urlencoded secret
       expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
     });
+
+    test('redacts the secret in toString', () {
+      final auth = OAuth2PasswordAuthenticator(
+        host: 'https://api.example.com',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        tokenUrl: 'https://auth.example.com/token',
+        username: 'testuser',
+        password: 'testpass',
+        scopes: ['read', 'write'],
+      );
+      expect(auth.toString(), isNot(contains('my-client-secret')));
+      expect(auth.toString(), isNot(contains('testpass')));
+      expect(auth.toString(), contains('***'));
+    });
   });
 }

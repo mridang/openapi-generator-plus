@@ -149,6 +149,13 @@ class TestOAuth2AuthorizationCodeAuthenticator:
 
         assert auth.get_host() == "https://api.example.com"
 
+    def test_redacts_secret(self) -> None:
+        """The repr masks the client_secret as ``***`` and never leaks it."""
+        auth = _create_authenticator()
+        rendered = repr(auth)
+        assert "my_secret" not in rendered
+        assert "***" in rendered
+
     def test_auth_headers_before_exchange_returns_recoverable_error(self) -> None:
         auth = _create_authenticator()
 

@@ -245,3 +245,25 @@ test('oidc throws when discovery omits token_endpoint', function (): void {
     expect(fn () => $authenticator->buildAuthorizationUrl())
         ->toThrow(\RuntimeException::class, 'OIDC discovery document is missing token_endpoint');
 });
+
+/**
+ * Asserts that the client secret never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-client-secret');
+    expect($printR)->toContain('***');
+}

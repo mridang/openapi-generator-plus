@@ -276,3 +276,11 @@ async fn test_basic_auth_url_encodes_client_id_and_secret() {
     // Expected: form-urlencoded id ':' form-urlencoded secret
     assert_eq!("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
 }
+
+#[test]
+fn redacts_secret() {
+    let auth = create_authenticator();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("my-client-secret"));
+    assert!(debug.contains("***"));
+}

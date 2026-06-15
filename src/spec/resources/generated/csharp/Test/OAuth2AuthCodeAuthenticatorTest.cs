@@ -199,4 +199,17 @@ public class OAuth2AuthCodeAuthenticatorTest
         Assert.Contains("response_type=code", url);
         Assert.Equal(1, url.Split('?').Length - 1);
     }
+
+    /// <summary>
+    /// ToString() must redact the client secret: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        string repr = auth.ToString();
+        Assert.DoesNotContain("my-client-secret", repr);
+        Assert.Contains("***", repr);
+    }
 }

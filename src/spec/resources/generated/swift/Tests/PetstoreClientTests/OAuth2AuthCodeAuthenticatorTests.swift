@@ -195,4 +195,11 @@ import Testing
     #expect(url.contains("response_type=code"))
     #expect(url.filter { $0 == "?" }.count == 1)
   }
+
+  @Test func redactsSecret() async {
+    let auth = createAuthenticator()
+    let description = String(describing: auth)
+    #expect(!description.contains("my-client-secret"))
+    #expect(description.contains("***"))
+  }
 }

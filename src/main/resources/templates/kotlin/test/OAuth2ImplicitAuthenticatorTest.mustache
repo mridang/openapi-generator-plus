@@ -81,4 +81,13 @@ class OAuth2ImplicitAuthenticatorTest {
 
         assertEquals("https://api.example.com", auth.getHost())
     }
+
+    @Test
+    fun redactsSecret() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("implicit-tok")
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("implicit-tok"))
+        assertTrue(rendered.contains("***"))
+    }
 }

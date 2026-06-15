@@ -33,6 +33,17 @@ import Testing
         #expect(!String(describing: auth).contains("s3cret"))
     }
 
+    @Test func redactsSecret() async {
+        let auth = BasicAuthenticator(
+            host: "https://api.example.com",
+            username: "alice",
+            password: "s3cret"
+        )
+        let description = String(describing: auth)
+        #expect(!description.contains("s3cret"))
+        #expect(description.contains("***"))
+    }
+
     /* CR/LF in the username trips preconditionFailure in init, which traps the
      * process and cannot be caught under Swift Testing; disabled so the
      * scenario count matches the other SDKs. */

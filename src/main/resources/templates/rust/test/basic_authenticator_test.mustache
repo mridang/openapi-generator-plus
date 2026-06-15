@@ -50,3 +50,11 @@ async fn test_password_is_not_leaked_in_default_repr() {
 async fn test_malformed_credentials_panic_not_silent_drop() {
     let _ = BasicAuthenticator::new("https://api.example.com", "al\nice", "s3cret");
 }
+
+#[test]
+fn redacts_secret() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret");
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("s3cret"));
+    assert!(debug.contains("***"));
+}

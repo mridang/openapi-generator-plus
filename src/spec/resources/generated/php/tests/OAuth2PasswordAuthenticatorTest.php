@@ -195,3 +195,27 @@ test('password basic auth url encodes client id and secret', function (): void {
     $decoded = base64_decode(substr($authHeader, strlen('Basic ')));
     expect($decoded)->toBe('id%2Bwith%2Fspecial:secret%26with%3Dstuff');
 });
+
+/**
+ * Asserts that neither the client secret nor the resource owner password
+ * leaks through print_r()'s use of __debugInfo(): both literal secrets are
+ * absent and the masked '***' placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-client-secret');
+    expect($printR)->not->toContain('testpass');
+    expect($printR)->toContain('***');
+}

@@ -3,11 +3,13 @@
 package {{invokerPackage}}.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 {{>models/checkstyle_suppressions}}
@@ -80,5 +82,20 @@ class OAuth2ImplicitAuthenticatorTest {
         OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
         assertEquals("https://api.example.com", auth.getHost());
+    }
+
+    /**
+     * The default {@code toString()} must mask the stored access token: once an
+     * access token has been set, its value must be absent from the string and a
+     * {@code ***} redaction marker present.
+     */
+    @Test
+    @DisplayName("toString() redacts the access token and shows ***")
+    void redactsSecret() {
+        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+        auth.setAccessToken("implicit-tok");
+        String repr = auth.toString();
+        assertFalse(repr.contains("implicit-tok"));
+        assertTrue(repr.contains("***"));
     }
 }

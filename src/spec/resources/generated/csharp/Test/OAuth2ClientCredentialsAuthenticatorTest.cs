@@ -196,4 +196,17 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         // Expected: form-urlencoded id ':' form-urlencoded secret
         Assert.Equal("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
     }
+
+    /// <summary>
+    /// ToString() must redact the client secret: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        string repr = auth.ToString();
+        Assert.DoesNotContain("my-client-secret", repr);
+        Assert.Contains("***", repr);
+    }
 }

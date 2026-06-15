@@ -10,8 +10,10 @@ package com.example.petstore.auth;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({
@@ -65,5 +67,18 @@ class BasicAuthenticatorTest {
     // must never expose the stored password.
     BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
     assertFalse(auth.toString().contains("s3cret"));
+  }
+
+  /**
+   * The default {@code toString()} must mask the stored password: the secret value must be absent
+   * and a redaction marker present.
+   */
+  @Test
+  @DisplayName("toString() redacts the password")
+  void redactsSecret() {
+    BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+    String repr = auth.toString();
+    assertFalse(repr.contains("s3cret"));
+    assertTrue(repr.contains("***"));
   }
 }

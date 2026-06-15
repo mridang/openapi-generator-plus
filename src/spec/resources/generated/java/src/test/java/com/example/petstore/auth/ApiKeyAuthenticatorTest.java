@@ -8,11 +8,13 @@
 package com.example.petstore.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({
@@ -119,5 +121,20 @@ class ApiKeyAuthenticatorTest {
         () ->
             new ApiKeyAuthenticator(
                 "https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.HEADER));
+  }
+
+  /**
+   * The default {@code toString()} must mask the stored API key: the secret value must be absent
+   * and a {@code ***} redaction marker present.
+   */
+  @Test
+  @DisplayName("toString() redacts the API key and shows ***")
+  void redactsSecret() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER);
+    String repr = auth.toString();
+    assertFalse(repr.contains("abc123"));
+    assertTrue(repr.contains("***"));
   }
 }

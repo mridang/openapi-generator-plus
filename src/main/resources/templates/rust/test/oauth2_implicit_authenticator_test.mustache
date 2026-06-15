@@ -72,3 +72,12 @@ fn test_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
 }
+
+#[test]
+fn redacts_secret() {
+    let auth = create_authenticator();
+    auth.set_access_token("implicit-tok");
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("implicit-tok"));
+    assert!(debug.contains("***"));
+}

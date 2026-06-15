@@ -8,6 +8,7 @@
 package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,6 +18,7 @@ import com.example.petstore.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({
@@ -211,5 +213,18 @@ class OAuth2AuthCodeAuthenticatorTest {
     // Sanity: there must be exactly one '?' in the result.
     long questionMarks = url.chars().filter(ch -> ch == '?').count();
     assertEquals(1L, questionMarks, "result must contain exactly one '?': " + url);
+  }
+
+  /**
+   * The default {@code toString()} must mask the stored client secret: the secret value must be
+   * absent and a {@code ***} redaction marker present.
+   */
+  @Test
+  @DisplayName("toString() redacts the client secret and shows ***")
+  void redactsSecret() {
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    String repr = auth.toString();
+    assertFalse(repr.contains("my-client-secret"));
+    assertTrue(repr.contains("***"));
   }
 }

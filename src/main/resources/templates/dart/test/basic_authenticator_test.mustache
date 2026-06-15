@@ -58,6 +58,16 @@ void main() {
       );
       expect(auth.toString(), isNot(contains('s3cret')));
     });
+
+    test('redacts the secret in toString', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: 's3cret',
+      );
+      expect(auth.toString(), isNot(contains('s3cret')));
+      expect(auth.toString(), contains('***'));
+    });
   });
 }
 {{/generateTests}}

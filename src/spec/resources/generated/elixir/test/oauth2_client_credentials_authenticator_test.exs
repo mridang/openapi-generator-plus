@@ -269,5 +269,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       # Expected: form-urlencoded id ':' form-urlencoded secret
       assert decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
     end
+
+    test "redacts the secret" do
+      auth = create_authenticator()
+
+      refute inspect(auth) =~ "my-client-secret"
+      assert inspect(auth) =~ "***"
+    end
   end
 end

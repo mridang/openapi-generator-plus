@@ -122,6 +122,13 @@ class TestOpenIdConnectAuthenticator:
 
         assert auth.get_host() == 'https://api.example.com'
 
+    def test_redacts_secret(self) -> None:
+        """The repr masks the client_secret as ``***`` and never leaks it."""
+        auth = _create_authenticator()
+        rendered = repr(auth)
+        assert 'oidc_secret' not in rendered
+        assert '***' in rendered
+
     def test_discovery_non_2xx_status_raises(self) -> None:
         # A 500-HTML error page must surface as a typed OAuth error, not a
         # confusing "invalid JSON" from json.loads.

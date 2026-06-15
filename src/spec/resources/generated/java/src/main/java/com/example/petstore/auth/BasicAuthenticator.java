@@ -77,6 +77,6 @@ public final class BasicAuthenticator extends BaseAuthenticator {
    */
   @Override
   public String toString() {
-    return "BasicAuthenticator{username=" + username + ", password=<redacted>}";
+    return getClass().getSimpleName() + "(username=" + username + ", password=***)";
   }
 }

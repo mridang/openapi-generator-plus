@@ -202,6 +202,19 @@ public class OpenIdConnectAuthenticatorTest
         Assert.Equal(1, client.GetRequestCount);
     }
 
+    /// <summary>
+    /// ToString() must redact the client secret: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        string repr = auth.ToString();
+        Assert.DoesNotContain("my-client-secret", repr);
+        Assert.Contains("***", repr);
+    }
+
     private sealed class CountingApiClient : IApiClient
     {
         private readonly Queue<ApiHttpResponse> _responses = new();

@@ -75,3 +75,11 @@ class TestOAuth2ImplicitAuthenticator:
         auth = _create_authenticator()
 
         assert auth.get_host() == 'https://api.example.com'
+
+    def test_redacts_secret(self) -> None:
+        """The repr masks the access token as ``***`` once set and never leaks it."""
+        auth = _create_authenticator()
+        auth.set_access_token('implicit-tok')
+        rendered = repr(auth)
+        assert 'implicit-tok' not in rendered
+        assert '***' in rendered

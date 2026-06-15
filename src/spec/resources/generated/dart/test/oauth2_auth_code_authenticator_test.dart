@@ -189,5 +189,12 @@ void main() {
       expect(url, contains('response_type=code'));
       expect('?'.allMatches(url).length, equals(1));
     });
+
+    test('redacts the secret in toString', () {
+      final auth = _createAuthenticator();
+
+      expect(auth.toString(), isNot(contains('my-client-secret')));
+      expect(auth.toString(), contains('***'));
+    });
   });
 }

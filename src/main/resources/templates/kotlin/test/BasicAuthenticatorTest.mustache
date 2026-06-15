@@ -44,4 +44,12 @@ class BasicAuthenticatorTest {
         val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
         assertFalse(auth.toString().contains("s3cret"))
     }
+
+    @Test
+    fun redactsSecret() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("s3cret"))
+        assertTrue(rendered.contains("***"))
+    }
 }

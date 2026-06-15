@@ -79,3 +79,19 @@ test('get host returns configured host', function (): void {
 
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
+
+/**
+ * Asserts that the access token never leaks through print_r()'s use of
+ * __debugInfo(): once set, the literal token is absent and the masked
+ * '***' placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+    $authenticator->setAccessToken('my-access-token');
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-access-token');
+    expect($printR)->toContain('***');
+}

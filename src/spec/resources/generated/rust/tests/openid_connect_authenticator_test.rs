@@ -308,3 +308,11 @@ fn test_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
 }
+
+#[test]
+fn redacts_secret() {
+    let auth = create_authenticator();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("my-client-secret"));
+    assert!(debug.contains("***"));
+}

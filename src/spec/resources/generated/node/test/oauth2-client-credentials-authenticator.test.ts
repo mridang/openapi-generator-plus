@@ -111,6 +111,13 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
     expect(util.inspect(authenticator)).toContain("***");
   });
 
+  it("redacts the secret in inspect and JSON output", () => {
+    expect(util.inspect(authenticator)).not.toContain("my-client-secret");
+    expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
+    expect(util.inspect(authenticator)).toContain("***");
+    expect(JSON.stringify(authenticator)).toContain("***");
+  });
+
   test("token fetch error is surfaced not swallowed", async () => {
     // oauth-cc-authheaders-error-swallow: a failed client-credentials token
     // exchange must surface to the caller as a thrown error — NOT be

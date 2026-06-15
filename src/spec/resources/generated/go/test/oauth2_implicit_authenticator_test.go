@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -95,6 +96,20 @@ func TestOAuth2Implicit_ThrowsWhenAccessTokenNotSet(t *testing.T) {
 	}()
 
 	auth.AuthHeaders()
+}
+
+func TestOAuth2ImplicitRedactsSecret(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	auth.SetAccessToken("implicit-tok")
+	for _, s := range []string{auth.String(), fmt.Sprintf("%v", auth), fmt.Sprintf("%+v", auth), fmt.Sprintf("%s", auth)} {
+		if strings.Contains(s, "implicit-tok") {
+			t.Errorf("expected access token to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
 }
 
 func TestOAuth2Implicit_GetHostReturnsConfiguredHost(t *testing.T) {

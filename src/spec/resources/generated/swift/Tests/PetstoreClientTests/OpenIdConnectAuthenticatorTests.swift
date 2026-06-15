@@ -211,4 +211,11 @@ import Testing
 
     #expect(auth.host() == "https://api.example.com")
   }
+
+  @Test func redactsSecret() async {
+    let auth = createAuthenticator()
+    let description = String(describing: auth)
+    #expect(!description.contains("my-client-secret"))
+    #expect(description.contains("***"))
+  }
 }

@@ -8,9 +8,12 @@
 package com.example.petstore.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({
@@ -75,5 +78,18 @@ class BearerAuthenticatorTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> new BearerAuthenticator("https://api.example.com", "   "));
+  }
+
+  /**
+   * The default {@code toString()} must mask the stored token: the secret value must be absent and
+   * a {@code ***} redaction marker present.
+   */
+  @Test
+  @DisplayName("toString() redacts the token and shows ***")
+  void redactsSecret() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "xyz");
+    String repr = auth.toString();
+    assertFalse(repr.contains("token=xyz"));
+    assertTrue(repr.contains("***"));
   }
 }
