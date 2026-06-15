@@ -11,6 +11,7 @@ package petstore_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -233,6 +234,21 @@ func TestOAuth2AuthCode_auth_headers_before_exchange_returns_recoverable_error(t
 	// Caller continues normally after catching -- no process crash.
 	if authObj.Host() != "https://api.example.com" {
 		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+// authenticator-secret-in-default-string-repr: the default string/format
+// representation must not leak the client_secret.
+func TestOAuth2AuthCode_StringRedactsClientSecret(t *testing.T) {
+	t.Parallel()
+	a := createAuthCodeAuthenticator()
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+		if strings.Contains(s, "my-client-secret") {
+			t.Errorf("expected client_secret to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
 	}
 }
 

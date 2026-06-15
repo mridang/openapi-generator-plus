@@ -136,4 +136,26 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   private static String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
+
+  /**
+   * Returns a string representation that redacts the access token so the credential never leaks
+   * into logs or stack traces (matching the other SDKs). Non-secret fields stay visible.
+   *
+   * @return a redacted string representation
+   */
+  @Override
+  public String toString() {
+    return getClass().getSimpleName()
+        + "(host="
+        + host
+        + ", clientId="
+        + clientId
+        + ", authorizationUrl="
+        + authorizationUrl
+        + ", scopes="
+        + scopes
+        + ", accessToken="
+        + (accessToken == null ? "null" : "***")
+        + ")";
+  }
 }

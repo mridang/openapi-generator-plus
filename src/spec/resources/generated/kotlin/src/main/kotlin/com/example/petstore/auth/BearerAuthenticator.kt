@@ -52,4 +52,10 @@ open class BearerAuthenticator(
             }
         return mapOf("Authorization" to "Bearer $stripped")
     }
+
+    /**
+     * Redacts the bearer token so it never leaks through the default
+     * string representation (logs, stack traces, debuggers).
+     */
+    override fun toString(): String = "${this::class.simpleName}(host=$host, token=***)"
 }

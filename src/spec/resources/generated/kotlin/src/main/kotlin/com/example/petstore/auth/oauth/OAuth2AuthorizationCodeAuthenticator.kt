@@ -107,4 +107,13 @@ open class OAuth2AuthorizationCodeAuthenticator(
     }
 
     private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+
+    /**
+     * Redacts the client secret so it never leaks through the default
+     * string representation (logs, stack traces, debuggers).
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, clientId=$clientId, clientSecret=***, " +
+            "authorizationUrl=$authorizationUrl, tokenUrl=$tokenUrl, redirectUri=$redirectUri, " +
+            "scopes=$scopes, refreshUrl=$refreshUrl)"
 }

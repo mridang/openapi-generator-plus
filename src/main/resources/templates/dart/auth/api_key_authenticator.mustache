@@ -80,4 +80,10 @@ class ApiKeyAuthenticator extends BaseAuthenticator {
     }
     return {};
   }
+
+  /// Redacts the API key so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, keyParamName: $_keyParamName, apiKey: ***, location: ${_location.name})';
 }

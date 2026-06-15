@@ -81,6 +81,25 @@ impl OAuth2PasswordAuthenticator {
     }
 }
 
+/// Redacts the client secret and the resource owner password so neither leaks
+/// through `{:?}` (Debug) formatting, stack traces, or error logs. All other
+/// fields are shown normally; the secrets are masked as `***`.
+impl std::fmt::Debug for OAuth2PasswordAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OAuth2PasswordAuthenticator")
+            .field("host", &self.host)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"***")
+            .field("token_url", &self.token_url)
+            .field("refresh_url", &self.refresh_url)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .field("scopes", &self.scopes)
+            .field("client_auth_method", &self.client_auth_method)
+            .finish()
+    }
+}
+
 impl Authenticator for OAuth2PasswordAuthenticator {
     fn host(&self) -> &str {
         &self.host

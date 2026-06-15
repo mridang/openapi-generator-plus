@@ -185,4 +185,13 @@ public class OAuth2AuthorizationCodeAuthenticator
             .ConfigureAwait(false);
         return new() { ["Authorization"] = "Bearer " + token };
     }
+
+    /// <summary>
+    /// Returns a string representation with the client secret redacted so the
+    /// credential never leaks into logs, stack traces, or debugger output.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, ClientSecret=***)";
+    }
 }

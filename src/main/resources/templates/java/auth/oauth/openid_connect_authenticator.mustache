@@ -187,4 +187,20 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     public Map<String, String> getAuthHeaders() {
         return getDelegate().getAuthHeaders();
     }
+
+    /**
+     * Returns a string representation that redacts the client secret so
+     * credentials never leak into logs or stack traces (matching the other
+     * SDKs).
+     *
+     * @return a redacted string representation
+     */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(host=" + host
+                + ", openIdConnectUrl=" + openIdConnectUrl
+                + ", clientId=" + clientId
+                + ", clientSecret=***, redirectUri=" + redirectUri
+                + ", scopes=" + scopes + ")";
+    }
 }

@@ -280,3 +280,11 @@ async fn test_authorize_url_with_existing_query_string_uses_amp_separator() {
         url
     );
 }
+
+#[test]
+fn test_debug_redacts_client_secret() {
+    let auth = create_authenticator();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("my-client-secret"));
+    assert!(debug.contains("***"));
+}

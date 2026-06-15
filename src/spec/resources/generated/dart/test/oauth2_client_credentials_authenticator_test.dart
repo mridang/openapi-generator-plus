@@ -182,5 +182,14 @@ void main() {
       // Expected: form-urlencoded id ':' form-urlencoded secret
       expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
     });
+
+    test('client secret is masked in default toString', () {
+      /// authenticator-secret-in-default-string-repr: the default toString()
+      /// must redact the client secret to *** so it cannot leak through
+      /// logging or string interpolation.
+      final auth = _createAuthenticator();
+      expect(auth.toString(), isNot(contains('my-client-secret')));
+      expect(auth.toString(), contains('***'));
+    });
   });
 }

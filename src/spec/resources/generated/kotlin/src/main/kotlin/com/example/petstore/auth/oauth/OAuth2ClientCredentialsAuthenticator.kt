@@ -61,4 +61,12 @@ open class OAuth2ClientCredentialsAuthenticator(
         val token = tokenManager.getAccessToken(tokenUrl, params, extraHeaders)
         return mapOf("Authorization" to "Bearer $token")
     }
+
+    /**
+     * Redacts the client secret so it never leaks through the default
+     * string representation (logs, stack traces, debuggers).
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, clientId=$clientId, clientSecret=***, " +
+            "tokenUrl=$tokenUrl, scopes=$scopes, clientAuthMethod=$clientAuthMethod)"
 }

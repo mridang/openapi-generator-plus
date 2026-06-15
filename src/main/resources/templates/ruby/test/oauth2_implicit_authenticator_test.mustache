@@ -55,4 +55,11 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
   it 'getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
+
+  it 'inspect redacts access token' do
+    auth.access_token = 'super_secret_implicit_tok'
+    text = auth.inspect
+    _(text).wont_include 'super_secret_implicit_tok'
+    _(text).must_include '***'
+  end
 end

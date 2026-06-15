@@ -93,4 +93,12 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
     }
     return {'Authorization': 'Bearer $_accessToken'};
   }
+
+  /// Redacts the access token so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, clientId: $_clientId, '
+      'authorizationUrl: $_authorizationUrl, scopes: $_scopes, '
+      'accessToken: ${_accessToken.isEmpty ? 'null' : '***'})';
 }

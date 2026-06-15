@@ -86,4 +86,14 @@ open class OAuth2PasswordAuthenticator(
         val token = tokenManager.getAccessToken(endpoint, params, extraHeaders)
         return mapOf("Authorization" to "Bearer $token")
     }
+
+    /**
+     * Redacts the client secret and the resource owner password so neither
+     * leaks through the default string representation (logs, stack traces,
+     * debuggers).
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, clientId=$clientId, clientSecret=***, " +
+            "tokenUrl=$tokenUrl, refreshUrl=$refreshUrl, username=$username, password=***, " +
+            "scopes=$scopes, clientAuthMethod=$clientAuthMethod)"
 }

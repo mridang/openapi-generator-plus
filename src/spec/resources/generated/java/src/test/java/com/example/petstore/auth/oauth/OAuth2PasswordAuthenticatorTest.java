@@ -8,6 +8,7 @@
 package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -206,5 +207,15 @@ class OAuth2PasswordAuthenticatorTest {
             java.nio.charset.StandardCharsets.UTF_8);
     // Expected: form-urlencoded id ':' form-urlencoded secret
     assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
+  }
+
+  @Test
+  void secretsAreNotLeakedInDefaultToString() {
+    // authenticator-secret-in-default-string-repr: the default toString()
+    // must never expose the stored client secret or resource owner password.
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
+    assertFalse(auth.toString().contains("my-client-secret"));
+    assertFalse(auth.toString().contains("testpass"));
+    assertTrue(auth.toString().contains("***"));
   }
 }

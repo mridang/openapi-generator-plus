@@ -89,3 +89,19 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
         return ["Authorization": "Bearer \(accessToken)"]
     }
 }
+
+extension OAuth2ImplicitAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+    /// A description that redacts the access token so it never leaks through
+    /// string interpolation, logging, or debugging output. The token is
+    /// masked as `***` once set and shown as `nil` before the redirect.
+    public var description: String {
+        let accessToken = self.accessToken.isEmpty ? "nil" : "***"
+        return "\(type(of: self))(host: \(_host), clientID: \(clientID), authorizationURL: \(authorizationURL), scopes: \(scopes), accessToken: \(accessToken))"
+    }
+
+    /// A debug description that redacts the access token so it never leaks
+    /// through string interpolation, logging, or debugging output.
+    public var debugDescription: String {
+        description
+    }
+}

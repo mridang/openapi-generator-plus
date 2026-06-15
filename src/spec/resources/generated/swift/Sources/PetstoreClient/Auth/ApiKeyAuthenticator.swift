@@ -87,3 +87,17 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     return [:]
   }
 }
+
+extension ApiKeyAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+  /// A description that redacts the API key so it never leaks through string
+  /// interpolation, logging, or debugging output.
+  public var description: String {
+    "\(type(of: self))(host: \(_host), keyParamName: \(keyParamName), apiKey: ***, location: \(location))"
+  }
+
+  /// A debug description that redacts the API key so it never leaks through
+  /// string interpolation, logging, or debugging output.
+  public var debugDescription: String {
+    description
+  }
+}

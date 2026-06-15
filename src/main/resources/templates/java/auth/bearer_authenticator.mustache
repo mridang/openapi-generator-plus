@@ -71,4 +71,15 @@ public final class BearerAuthenticator extends BaseAuthenticator {
         }
         return Collections.singletonMap("Authorization", "Bearer " + value);
     }
+
+    /**
+     * Returns a string representation that redacts the token so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
+     */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(host=" + host + ", token=***)";
+    }
 }

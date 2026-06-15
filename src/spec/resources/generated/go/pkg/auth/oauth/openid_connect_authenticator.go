@@ -84,6 +84,12 @@ func (a *OpenIdConnectAuthenticator) Host() string {
 	return a.host
 }
 
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the client_secret. authenticator-secret-in-default-string-repr.
+func (a *OpenIdConnectAuthenticator) String() string {
+	return fmt.Sprintf("OpenIdConnectAuthenticator{host: %q, openIDConnectURL: %q, clientID: %q, clientSecret: ***, redirectURI: %q}", a.host, a.openIDConnectURL, a.clientID, a.redirectURI)
+}
+
 // SetApiClient injects the shared API client for making discovery and token requests.
 func (a *OpenIdConnectAuthenticator) SetApiClient(client auth.ApiClient) {
 	a.mu.Lock()

@@ -46,6 +46,18 @@ impl BearerAuthenticator {
     }
 }
 
+/// Redacts the bearer token so it never leaks through `{:?}` (Debug)
+/// formatting, stack traces, or error logs. The host is shown normally; the
+/// token is masked as `***`.
+impl std::fmt::Debug for BearerAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BearerAuthenticator")
+            .field("host", &self.host)
+            .field("token", &"***")
+            .finish()
+    }
+}
+
 impl Authenticator for BearerAuthenticator {
     fn host(&self) -> &str {
         &self.host

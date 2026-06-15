@@ -11,6 +11,7 @@ package oauth
 
 import (
 	"encoding/base64"
+	"fmt"
 	"log"
 	"net/url"
 	"strings"
@@ -69,6 +70,12 @@ func (a *OAuth2PasswordAuthenticator) WithClientAuthMethod(method ClientAuthMeth
 // Host returns the API base URL.
 func (a *OAuth2PasswordAuthenticator) Host() string {
 	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the client_secret or password. authenticator-secret-in-default-string-repr.
+func (a *OAuth2PasswordAuthenticator) String() string {
+	return fmt.Sprintf("OAuth2PasswordAuthenticator{host: %q, clientID: %q, clientSecret: ***, username: %q, password: ***}", a.host, a.clientID, a.username)
 }
 
 // SetApiClient injects the shared API client for making token requests.

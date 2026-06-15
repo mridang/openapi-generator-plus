@@ -62,3 +62,17 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
     return ["Authorization": "Bearer \(value)"]
   }
 }
+
+extension BearerAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+  /// A description that redacts the bearer token so it never leaks through
+  /// string interpolation, logging, or debugging output.
+  public var description: String {
+    "\(type(of: self))(host: \(_host), token: ***)"
+  }
+
+  /// A debug description that redacts the bearer token so it never leaks
+  /// through string interpolation, logging, or debugging output.
+  public var debugDescription: String {
+    description
+  }
+}

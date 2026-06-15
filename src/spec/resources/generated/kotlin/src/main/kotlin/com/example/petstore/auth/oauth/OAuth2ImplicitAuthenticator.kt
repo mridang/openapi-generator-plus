@@ -94,4 +94,14 @@ open class OAuth2ImplicitAuthenticator(
     }
 
     private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+
+    /**
+     * Redacts the access token so it never leaks through the default string
+     * representation (logs, stack traces, debuggers). Non-secret fields stay
+     * visible.
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, clientId=$clientId, " +
+            "authorizationUrl=$authorizationUrl, scopes=$scopes, " +
+            "accessToken=${if (accessToken == null) "null" else "***"})"
 }

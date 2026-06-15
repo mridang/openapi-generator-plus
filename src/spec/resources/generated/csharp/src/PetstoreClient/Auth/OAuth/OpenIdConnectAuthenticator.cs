@@ -204,4 +204,13 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
         OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
         return await d.GetAuthHeadersAsync().ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Returns a string representation with the client secret redacted so the
+    /// credential never leaks into logs, stack traces, or debugger output.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(Host={_host}, OpenIdConnectUrl={_openIdConnectUrl}, ClientId={_clientId}, ClientSecret=***)";
+    }
 }

@@ -141,4 +141,22 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAware
 
         return ['Authorization' => 'Bearer ' . $this->accessToken];
     }
+
+    /**
+     * Masks the access token so it never leaks through var_dump() / print_r() /
+     * debug_zval_dump() / stack traces / error logs. The token reads as `***`
+     * once set and stays null before the authorization redirect.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'host' => $this->host,
+            'clientId' => $this->clientId,
+            'authorizationUrl' => $this->authorizationUrl,
+            'scopes' => $this->scopes,
+            'accessToken' => $this->accessToken === null ? null : '***',
+        ];
+    }
 }

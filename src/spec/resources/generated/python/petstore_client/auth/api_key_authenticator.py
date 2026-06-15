@@ -63,3 +63,15 @@ class ApiKeyAuthenticator(BaseAuthenticator):
         if self.location == ApiKeyLocation.COOKIE:
             return {self.key_param_name: self.api_key}
         return {}
+
+    def __repr__(self) -> str:
+        """Redacts the API key so it never leaks into logs or tracebacks.
+
+        The API key is shown as the literal ``***`` while non-sensitive
+        fields remain visible to keep the representation useful for debugging.
+        """
+        return (
+            f"{type(self).__name__}(host={self.host!r}, "
+            f"key_param_name={self.key_param_name!r}, api_key='***', "
+            f"location={self.location!r})"
+        )

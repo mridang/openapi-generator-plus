@@ -147,4 +147,22 @@ export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   getCookieParams(): Record<string, string> {
     return {};
   }
+
+  /* Redact the access token from the default string/inspect representation so
+   * `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
+   * exfiltrate the live access token into application logs. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    const accessToken = this.accessToken === null ? 'null' : '***';
+    return `OAuth2ImplicitAuthenticator(host=${this.host}, clientId=${this.clientId}, authorizationUrl=${this.authorizationUrl}, scopes=[${this.scopes.join(', ')}], accessToken=${accessToken})`;
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      host: this.host,
+      clientId: this.clientId,
+      authorizationUrl: this.authorizationUrl,
+      scopes: [...this.scopes],
+      accessToken: this.accessToken === null ? null : '***',
+    };
+  }
 }

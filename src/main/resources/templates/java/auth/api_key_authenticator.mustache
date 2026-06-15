@@ -102,4 +102,17 @@ public final class ApiKeyAuthenticator extends BaseAuthenticator {
         }
         return Collections.singletonMap(keyParamName, apiKey);
     }
+
+    /**
+     * Returns a string representation that redacts the API key so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
+     */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(host=" + host
+                + ", keyParamName=" + keyParamName
+                + ", apiKey=***, location=" + location + ")";
+    }
 }

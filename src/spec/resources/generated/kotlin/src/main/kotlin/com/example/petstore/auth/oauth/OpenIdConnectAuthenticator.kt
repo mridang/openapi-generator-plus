@@ -145,4 +145,12 @@ open class OpenIdConnectAuthenticator(
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> = resolveDelegate().getAuthHeaders()
+
+    /**
+     * Redacts the client secret so it never leaks through the default
+     * string representation (logs, stack traces, debuggers).
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, discoveryUrl=$discoveryUrl, clientId=$clientId, " +
+            "clientSecret=***, redirectUri=$redirectUri, scopes=$scopes)"
 }

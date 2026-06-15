@@ -63,4 +63,10 @@ class BasicAuthenticator extends BaseAuthenticator {
       'Authorization': authHeader,
     };
   }
+
+  /// Redacts the password so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, username: $_username, password: ***)';
 }

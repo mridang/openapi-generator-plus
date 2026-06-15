@@ -56,3 +56,17 @@ public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
         return ["Authorization": "Basic \(encoded)"]
     }
 }
+
+extension BasicAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+    /// A description that redacts the password so it never leaks through
+    /// string interpolation, logging, or debugging output.
+    public var description: String {
+        "\(type(of: self))(host: \(_host), username: \(username), password: ***)"
+    }
+
+    /// A debug description that redacts the password so it never leaks through
+    /// string interpolation, logging, or debugging output.
+    public var debugDescription: String {
+        description
+    }
+}

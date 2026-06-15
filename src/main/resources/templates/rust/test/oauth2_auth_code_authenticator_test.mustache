@@ -238,3 +238,11 @@ async fn test_authorize_url_with_existing_query_string_uses_amp_separator() {
     assert!(url.contains("response_type=code"), "response_type param must be appended: {}", url);
     assert_eq!(1, url.matches('?').count(), "result must contain exactly one '?': {}", url);
 }
+
+#[test]
+fn test_debug_redacts_client_secret() {
+    let auth = create_authenticator();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("my-client-secret"));
+    assert!(debug.contains("***"));
+}

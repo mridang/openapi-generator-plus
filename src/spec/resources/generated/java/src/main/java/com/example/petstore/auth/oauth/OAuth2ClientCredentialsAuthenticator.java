@@ -128,4 +128,26 @@ public class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
     String token = tokenManager.getAccessToken(tokenUrl, params, extraHeaders);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }
+
+  /**
+   * Returns a string representation that redacts the client secret so credentials never leak into
+   * logs or stack traces (matching the other SDKs).
+   *
+   * @return a redacted string representation
+   */
+  @Override
+  public String toString() {
+    return getClass().getSimpleName()
+        + "(host="
+        + host
+        + ", clientId="
+        + clientId
+        + ", clientSecret=***, tokenUrl="
+        + tokenUrl
+        + ", scopes="
+        + scopes
+        + ", clientAuthMethod="
+        + clientAuthMethod
+        + ")";
+  }
 }

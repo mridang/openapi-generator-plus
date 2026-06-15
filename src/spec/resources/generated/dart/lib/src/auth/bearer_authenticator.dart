@@ -49,4 +49,9 @@ class BearerAuthenticator extends BaseAuthenticator {
     }
     return {'Authorization': 'Bearer $value'};
   }
+
+  /// Redacts the bearer token so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() => '$runtimeType(host: $_host, token: ***)';
 }

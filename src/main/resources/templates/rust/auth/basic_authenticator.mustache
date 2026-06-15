@@ -108,6 +108,19 @@ impl BasicAuthenticator {
     }
 }
 
+/// Redacts the password so it never leaks through `{:?}` (Debug) formatting,
+/// stack traces, or error logs. The host and username are shown normally; the
+/// password is masked as `***`.
+impl std::fmt::Debug for BasicAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BasicAuthenticator")
+            .field("host", &self.host)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .finish()
+    }
+}
+
 impl Authenticator for BasicAuthenticator {
     fn host(&self) -> &str {
         &self.host

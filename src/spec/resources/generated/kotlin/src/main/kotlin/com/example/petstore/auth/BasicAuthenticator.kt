@@ -49,4 +49,10 @@ open class BasicAuthenticator(
         val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
         return mapOf("Authorization" to "Basic $credentials")
     }
+
+    /**
+     * Redacts the password so it never leaks through the default string
+     * representation (logs, stack traces, debuggers).
+     */
+    override fun toString(): String = "${this::class.simpleName}(host=$host, username=$username, password=***)"
 }

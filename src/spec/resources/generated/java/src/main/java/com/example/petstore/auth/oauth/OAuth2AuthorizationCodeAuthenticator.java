@@ -189,4 +189,30 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
   private static String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
+
+  /**
+   * Returns a string representation that redacts the client secret so credentials never leak into
+   * logs or stack traces (matching the other SDKs).
+   *
+   * @return a redacted string representation
+   */
+  @Override
+  public String toString() {
+    return getClass().getSimpleName()
+        + "(host="
+        + host
+        + ", clientId="
+        + clientId
+        + ", clientSecret=***, authorizationUrl="
+        + authorizationUrl
+        + ", tokenUrl="
+        + tokenUrl
+        + ", refreshUrl="
+        + refreshUrl
+        + ", redirectUri="
+        + redirectUri
+        + ", scopes="
+        + scopes
+        + ")";
+  }
 }

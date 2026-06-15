@@ -188,3 +188,16 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             Dict with the Authorization header.
         """
         return self._get_delegate().get_auth_headers()
+
+    def __repr__(self) -> str:
+        """Redacts the client secret so it never leaks into logs or tracebacks.
+
+        The client secret is shown as the literal ``***`` while non-sensitive
+        fields remain visible to keep the representation useful for debugging.
+        """
+        return (
+            f"{type(self).__name__}(host={self._host!r}, "
+            f"openid_connect_url={self._openid_connect_url!r}, "
+            f"client_id={self._client_id!r}, client_secret='***', "
+            f"redirect_uri={self._redirect_uri!r}, scopes={self._scopes!r})"
+        )

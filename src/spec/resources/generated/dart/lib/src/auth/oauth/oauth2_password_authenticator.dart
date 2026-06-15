@@ -115,4 +115,13 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
     );
     return {'Authorization': 'Bearer $token'};
   }
+
+  /// Redacts the client secret and the resource owner password so neither
+  /// leaks through logging, string interpolation, or `toString()`. Non-secret
+  /// fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, clientId: $_clientId, clientSecret: ***, '
+      'tokenUrl: $_tokenUrl, refreshUrl: $_refreshUrl, username: $_username, '
+      'password: ***, scopes: $_scopes, clientAuthMethod: ${_clientAuthMethod.name})';
 }

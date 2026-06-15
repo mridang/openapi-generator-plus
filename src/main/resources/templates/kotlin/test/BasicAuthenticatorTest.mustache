@@ -43,5 +43,6 @@ class BasicAuthenticatorTest {
     fun passwordIsNotLeakedInDefaultToString() {
         val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
         assertFalse(auth.toString().contains("s3cret"))
+        assertTrue(auth.toString().contains("***"))
     }
 }

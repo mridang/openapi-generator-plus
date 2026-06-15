@@ -187,3 +187,10 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert "audience=api" in url, f"existing query param must be preserved: {url}"
         assert "response_type=code" in url, f"response_type must be appended: {url}"
         assert url.count("?") == 1, f"result must contain exactly one '?': {url}"
+
+    def test_client_secret_is_not_leaked_in_repr(self) -> None:
+        auth = _create_authenticator()
+        rendered = repr(auth)
+        assert "my_secret" not in rendered
+        assert "***" in rendered
+        assert "my_client_id" in rendered

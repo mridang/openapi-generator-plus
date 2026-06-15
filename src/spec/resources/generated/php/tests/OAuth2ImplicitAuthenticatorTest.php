@@ -79,3 +79,13 @@ test('get host returns configured host', function (): void {
 
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
+
+test('debug info redacts access token', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $authenticator->setAccessToken('super-secret-implicit-tok');
+    $dump = print_r($authenticator, true);
+
+    expect($dump)->not->toContain('super-secret-implicit-tok');
+    expect($dump)->toContain('***');
+});

@@ -3,6 +3,7 @@ package oauth
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"strings"
@@ -64,6 +65,12 @@ func NewOAuth2AuthorizationCodeAuthenticator(host, clientID, clientSecret, autho
 // Host returns the API base URL.
 func (a *OAuth2AuthorizationCodeAuthenticator) Host() string {
 	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the client_secret. authenticator-secret-in-default-string-repr.
+func (a *OAuth2AuthorizationCodeAuthenticator) String() string {
+	return fmt.Sprintf("OAuth2AuthorizationCodeAuthenticator{host: %q, clientID: %q, clientSecret: ***, authorizationURL: %q, tokenURL: %q, redirectURI: %q}", a.host, a.clientID, a.authorizationURL, a.tokenURL, a.redirectURI)
 }
 
 // SetApiClient injects the shared API client for making token requests.

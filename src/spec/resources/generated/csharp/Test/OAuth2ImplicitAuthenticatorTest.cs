@@ -98,4 +98,16 @@ public class OAuth2ImplicitAuthenticatorTest
 
         Assert.Equal("https://api.example.com", auth.GetHost());
     }
+
+    [Fact]
+    public void ToStringRedactsAccessToken()
+    {
+        var auth = CreateAuthenticator();
+        auth.SetAccessToken("super-secret-token");
+
+        string representation = auth.ToString();
+
+        Assert.DoesNotContain("super-secret-token", representation, StringComparison.Ordinal);
+        Assert.Contains("***", representation, StringComparison.Ordinal);
+    }
 }

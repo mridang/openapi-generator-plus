@@ -31,6 +31,9 @@ import Testing
             password: "s3cret"
         )
         #expect(!String(describing: auth).contains("s3cret"))
+        #expect(String(describing: auth).contains("***"))
+        #expect(!"\(auth)".contains("s3cret"))
+        #expect("\(auth)".contains("***"))
     }
 
     /* CR/LF in the username trips preconditionFailure in init, which traps the

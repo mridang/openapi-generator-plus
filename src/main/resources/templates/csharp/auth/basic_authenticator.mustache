@@ -75,4 +75,13 @@ public class BasicAuthenticator : BaseAuthenticator
             "Basic " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(credentials));
         return new() { ["Authorization"] = authHeader };
     }
+
+    /// <summary>
+    /// Returns a string representation with the password redacted so the
+    /// credential never leaks into logs, stack traces, or debugger output.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(Host={_host}, Username={_username}, Password=***)";
+    }
 }

@@ -85,4 +85,15 @@ class OAuth2ImplicitAuthenticatorTest {
 
         assertEquals("https://api.example.com", auth.getHost())
     }
+
+    @Test
+    fun toStringRedactsAccessToken() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("super-secret-token")
+
+        val representation = auth.toString()
+
+        assertFalse(representation.contains("super-secret-token"))
+        assertTrue(representation.contains("***"))
+    }
 }

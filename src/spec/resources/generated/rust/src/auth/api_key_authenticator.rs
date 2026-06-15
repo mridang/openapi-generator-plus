@@ -66,6 +66,20 @@ impl ApiKeyAuthenticator {
     }
 }
 
+/// Redacts the API key so it never leaks through `{:?}` (Debug) formatting,
+/// stack traces, or error logs. The host, parameter name, and location are
+/// shown normally; the API key is masked as `***`.
+impl std::fmt::Debug for ApiKeyAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ApiKeyAuthenticator")
+            .field("host", &self.host)
+            .field("key_param_name", &self.key_param_name)
+            .field("api_key", &"***")
+            .field("location", &self.location)
+            .finish()
+    }
+}
+
 impl Authenticator for ApiKeyAuthenticator {
     fn host(&self) -> &str {
         &self.host

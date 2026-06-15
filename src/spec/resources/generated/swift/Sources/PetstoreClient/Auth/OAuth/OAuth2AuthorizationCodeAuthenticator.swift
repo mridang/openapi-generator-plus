@@ -156,3 +156,19 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
     return (try? await authHeadersOrThrow()) ?? [:]
   }
 }
+
+extension OAuth2AuthorizationCodeAuthenticator: CustomStringConvertible,
+  CustomDebugStringConvertible
+{
+  /// A description that redacts the client secret so it never leaks through
+  /// string interpolation, logging, or debugging output.
+  public var description: String {
+    "\(type(of: self))(host: \(_host), clientID: \(clientID), clientSecret: ***, authorizationURL: \(authorizationURL), tokenURL: \(tokenURL), refreshURL: \(refreshURL), redirectURI: \(redirectURI), scopes: \(scopes), tokenExchanged: \(tokenExchanged))"
+  }
+
+  /// A debug description that redacts the client secret so it never leaks
+  /// through string interpolation, logging, or debugging output.
+  public var debugDescription: String {
+    description
+  }
+}

@@ -102,6 +102,22 @@ func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string
 	return a.authorizationURL + separator + params.Encode()
 }
 
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the access token. authenticator-secret-in-default-string-repr:
+// without this, fmt.Printf("%+v", auth) would reflect and print the unexported
+// accessToken field into application logs. The token reads as *** once set and
+// stays empty before the authorization redirect.
+func (a *OAuth2ImplicitAuthenticator) String() string {
+	token := ""
+	if a.accessToken != "" {
+		token = "***"
+	}
+	return fmt.Sprintf(
+		"OAuth2ImplicitAuthenticator{host: %q, clientID: %q, authorizationURL: %q, scopes: %q, accessToken: %s}",
+		a.host, a.clientID, a.authorizationURL, a.scopes, token,
+	)
+}
+
 // AuthHeaders returns the Bearer authentication header.
 func (a *OAuth2ImplicitAuthenticator) AuthHeaders() map[string]string {
 	if a.accessToken == "" {

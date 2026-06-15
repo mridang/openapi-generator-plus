@@ -67,4 +67,10 @@ class BasicAuthenticator extends BaseAuthenticator {
         'Basic ${base64Encode(utf8.encode('$_username:$_password'))}';
     return {'Authorization': authHeader};
   }
+
+  /// Redacts the password so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, username: $_username, password: ***)';
 }

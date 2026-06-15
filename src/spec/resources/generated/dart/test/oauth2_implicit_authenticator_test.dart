@@ -72,5 +72,15 @@ void main() {
 
       expect(auth.host(), equals('https://api.example.com'));
     });
+
+    test('toString redacts access token', () {
+      final auth = _createAuthenticator();
+      auth.setAccessToken('super-secret-token');
+
+      final representation = auth.toString();
+
+      expect(representation, isNot(contains('super-secret-token')));
+      expect(representation, contains('***'));
+    });
   });
 }

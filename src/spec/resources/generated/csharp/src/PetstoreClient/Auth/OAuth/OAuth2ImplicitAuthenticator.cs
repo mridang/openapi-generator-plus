@@ -123,4 +123,17 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
             )
             : new() { ["Authorization"] = "Bearer " + _accessToken };
     }
+
+    /// <summary>
+    /// Returns a string representation with the access token redacted so the
+    /// credential never leaks into logs, stack traces, or debugger output.
+    /// Non-secret fields stay visible.
+    /// </summary>
+    public override string ToString()
+    {
+        string token = _accessToken is null ? "null" : "***";
+        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, "
+            + $"AuthorizationUrl={_authorizationUrl}, Scopes=[{string.Join(", ", _scopes)}], "
+            + $"AccessToken={token})";
+    }
 }

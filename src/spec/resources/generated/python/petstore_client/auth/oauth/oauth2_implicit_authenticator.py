@@ -115,3 +115,18 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
                 "Must call set_access_token() before making API requests"
             )
         return {"Authorization": f"Bearer {self._access_token}"}
+
+    def __repr__(self) -> str:
+        """Redacts the access token so it never leaks into logs or tracebacks.
+
+        The token is shown as the literal ``***`` once set (``None`` before
+        the redirect) while non-sensitive fields remain visible to keep the
+        representation useful for debugging.
+        """
+        token = "***" if self._access_token is not None else None
+        return (
+            f"{type(self).__name__}(host={self._host!r}, "
+            f"client_id={self._client_id!r}, "
+            f"authorization_url={self._authorization_url!r}, "
+            f"scopes={self._scopes!r}, access_token={token!r})"
+        )

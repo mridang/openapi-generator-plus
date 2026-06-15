@@ -93,6 +93,18 @@ module PetstoreClient
           "#{@authorization_url}#{separator}#{URI.encode_www_form(params)}"
         end
 
+        # Redact the access token from the default object representation so
+        # logging or inspecting an authenticator never leaks the credential.
+        # The token reads as "***" once set and nil before the redirect.
+        def inspect
+          token = @access_token.nil? ? 'nil' : '"***"'
+          "#<#{self.class.name} host=#{@host.inspect} " \
+            "client_id=#{@client_id.inspect} " \
+            "authorization_url=#{@authorization_url.inspect} " \
+            "scopes=#{@scopes.inspect} access_token=#{token}>"
+        end
+        alias to_s inspect
+
         # @return [Hash{String => String}]
         def auth_headers
           raise ::PetstoreClient::ApiError, 'Must set access_token before making API requests' if @access_token.nil?

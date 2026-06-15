@@ -31,15 +31,15 @@ async fn test_rejects_username_with_colon_at_construction() {
     let _ = BasicAuthenticator::new("https://api.example.com", "ali:ce", "s3cret");
 }
 
-/// authenticator-secret-in-default-string-repr: BasicAuthenticator derives
-/// neither Debug nor Display, so it has no default string representation that
-/// could leak the password (and none that a test could format). The secret is
-/// structurally unprintable rather than redacted; recorded as a feature gap
-/// and ignored so the scenario count matches.
-#[ignore = "no Debug/Display impl: secret is unprintable, nothing to assert against"]
+/// authenticator-secret-in-default-string-repr: BasicAuthenticator has a manual
+/// Debug impl that redacts the password as `***`. Formatting it with `{:?}`
+/// must never leak the secret.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_password_is_not_leaked_in_default_repr() {
-    let _auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret");
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret");
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("s3cret"));
+    assert!(debug.contains("***"));
 }
 
 /// basic-auth-rust-silent-drop: malformed credentials must FAIL CLOSED

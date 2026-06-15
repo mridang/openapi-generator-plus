@@ -98,6 +98,24 @@ impl OAuth2ImplicitAuthenticator {
     }
 }
 
+/// Redacts the access token so it never leaks through `{:?}` (Debug)
+/// formatting, stack traces, or error logs. The host, client id,
+/// authorization URL, and scopes are shown normally; the access token is
+/// masked as `***` when set and `None` before the redirect.
+impl std::fmt::Debug for OAuth2ImplicitAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token = self.access_token.lock().unwrap();
+        let access_token: Option<&str> = if token.is_empty() { None } else { Some("***") };
+        f.debug_struct("OAuth2ImplicitAuthenticator")
+            .field("host", &self.host)
+            .field("client_id", &self.client_id)
+            .field("authorization_url", &self.authorization_url)
+            .field("scopes", &self.scopes)
+            .field("access_token", &access_token)
+            .finish()
+    }
+}
+
 impl Authenticator for OAuth2ImplicitAuthenticator {
     fn host(&self) -> &str {
         &self.host

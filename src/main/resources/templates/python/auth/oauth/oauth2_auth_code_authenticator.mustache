@@ -132,3 +132,17 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         }
         token = self._token_manager.get_access_token(self._refresh_url, params)
         return {'Authorization': f'Bearer {token}'}
+
+    def __repr__(self) -> str:
+        """Redacts the client secret so it never leaks into logs or tracebacks.
+
+        The client secret is shown as the literal ``***`` while non-sensitive
+        fields remain visible to keep the representation useful for debugging.
+        """
+        return (
+            f"{type(self).__name__}(host={self._host!r}, "
+            f"client_id={self._client_id!r}, client_secret='***', "
+            f"authorization_url={self._authorization_url!r}, "
+            f"token_url={self._token_url!r}, "
+            f"redirect_uri={self._redirect_uri!r}, scopes={self._scopes!r})"
+        )

@@ -127,4 +127,13 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
     final token = await _tokenManager.getAccessToken(_refreshUrl, params);
     return {'Authorization': 'Bearer $token'};
   }
+
+  /// Redacts the client secret so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, clientId: $_clientId, clientSecret: ***, '
+      'authorizationUrl: $_authorizationUrl, tokenUrl: $_tokenUrl, '
+      'refreshUrl: $_refreshUrl, redirectUri: $_redirectUri, scopes: $_scopes, '
+      'tokenExchanged: $_tokenExchanged)';
 }

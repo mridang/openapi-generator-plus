@@ -48,15 +48,17 @@ void main() {
       );
     });
 
-    test('password is not leaked in default toString', () {
-      // authenticator-secret-in-default-string-repr: the default toString()
-      // must never expose the stored password.
+    test('password is masked in default toString', () {
+      /// authenticator-secret-in-default-string-repr: the default toString()
+      /// must redact the stored password to *** so it cannot leak through
+      /// logging or string interpolation.
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',
         username: 'alice',
         password: 's3cret',
       );
       expect(auth.toString(), isNot(contains('s3cret')));
+      expect(auth.toString(), contains('***'));
     });
   });
 }

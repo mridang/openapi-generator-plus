@@ -90,4 +90,12 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
     );
     return {'Authorization': 'Bearer $token'};
   }
+
+  /// Redacts the client secret so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, clientId: $_clientId, clientSecret: ***, '
+      'tokenUrl: $_tokenUrl, scopes: $_scopes, '
+      'clientAuthMethod: ${_clientAuthMethod.name})';
 }

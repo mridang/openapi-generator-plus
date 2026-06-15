@@ -207,4 +207,30 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     String token = tokenManager.getAccessToken(endpoint, params, extraHeaders);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }
+
+  /**
+   * Returns a string representation that redacts the client secret and the resource owner password
+   * so credentials never leak into logs or stack traces (matching the other SDKs).
+   *
+   * @return a redacted string representation
+   */
+  @Override
+  public String toString() {
+    return getClass().getSimpleName()
+        + "(host="
+        + host
+        + ", clientId="
+        + clientId
+        + ", clientSecret=***, tokenUrl="
+        + tokenUrl
+        + ", refreshUrl="
+        + refreshUrl
+        + ", username="
+        + username
+        + ", password=***, scopes="
+        + scopes
+        + ", clientAuthMethod="
+        + clientAuthMethod
+        + ")";
+  }
 }

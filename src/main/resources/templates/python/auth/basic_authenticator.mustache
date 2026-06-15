@@ -45,3 +45,14 @@ class BasicAuthenticator(BaseAuthenticator):
             f'{self.username}:{self.password}'.encode('utf-8')
         ).decode('utf-8')
         return {'Authorization': f'Basic {credentials}'}
+
+    def __repr__(self) -> str:
+        """Redacts the password so it never leaks into logs or tracebacks.
+
+        The password is shown as the literal ``***`` while non-sensitive
+        fields remain visible to keep the representation useful for debugging.
+        """
+        return (
+            f"{type(self).__name__}(host={self.host!r}, "
+            f"username={self.username!r}, password='***')"
+        )

@@ -167,4 +167,12 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     }
     return _defaultDiscoveryMaxAgeSeconds;
   }
+
+  /// Redacts the client secret so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, openIdConnectUrl: $_openIdConnectUrl, '
+      'clientId: $_clientId, clientSecret: ***, redirectUri: $_redirectUri, '
+      'scopes: $_scopes)';
 }

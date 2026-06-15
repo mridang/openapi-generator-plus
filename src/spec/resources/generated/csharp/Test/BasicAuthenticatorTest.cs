@@ -53,5 +53,6 @@ public class BasicAuthenticatorTest
         // must never expose the stored password.
         var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
         Assert.DoesNotContain("s3cret", auth.ToString());
+        Assert.Contains("***", auth.ToString());
     }
 }

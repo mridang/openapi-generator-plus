@@ -169,3 +169,17 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
         return defaultMaxAge
     }
 }
+
+extension OpenIdConnectAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+    /// A description that redacts the client secret so it never leaks through
+    /// string interpolation, logging, or debugging output.
+    public var description: String {
+        "\(type(of: self))(host: \(_host), openIDConnectURL: \(openIDConnectURL), clientID: \(clientID), clientSecret: ***, redirectURI: \(redirectURI), scopes: \(scopes))"
+    }
+
+    /// A debug description that redacts the client secret so it never leaks
+    /// through string interpolation, logging, or debugging output.
+    public var debugDescription: String {
+        description
+    }
+}

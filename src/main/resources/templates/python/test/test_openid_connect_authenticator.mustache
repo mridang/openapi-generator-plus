@@ -172,3 +172,10 @@ class TestOpenIdConnectAuthenticator:
         auth.set_api_client(mock_client)
         with pytest.raises(OAuth2TokenError):
             auth.build_authorization_url()
+
+    def test_client_secret_is_not_leaked_in_repr(self) -> None:
+        auth = _create_authenticator()
+        rendered = repr(auth)
+        assert 'oidc_secret' not in rendered
+        assert '***' in rendered
+        assert 'oidc_client' in rendered

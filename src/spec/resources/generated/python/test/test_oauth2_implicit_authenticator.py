@@ -84,3 +84,12 @@ class TestOAuth2ImplicitAuthenticator:
         auth = _create_authenticator()
 
         assert auth.get_host() == "https://api.example.com"
+
+    def test_repr_redacts_access_token(self) -> None:
+        auth = _create_authenticator()
+        auth.set_access_token("super-secret-implicit-tok")
+
+        text = repr(auth)
+
+        assert "super-secret-implicit-tok" not in text
+        assert "***" in text

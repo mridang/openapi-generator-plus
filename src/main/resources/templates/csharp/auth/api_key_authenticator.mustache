@@ -92,4 +92,13 @@ public class ApiKeyAuthenticator : BaseAuthenticator
         }
         return new() { [_keyParamName] = _apiKey };
     }
+
+    /// <summary>
+    /// Returns a string representation with the API key redacted so the
+    /// credential never leaks into logs, stack traces, or debugger output.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(Host={_host}, KeyParamName={_keyParamName}, ApiKey=***, Location={_location})";
+    }
 }
