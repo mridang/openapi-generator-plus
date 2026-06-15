@@ -60,14 +60,9 @@ fn test_transport_options_max_redirects_defaults_to_none() {
 }
 
 #[test]
-fn test_transport_options_user_agent_defaults_to_none() {
-    /* Gap (nullable User-Agent): the default User-Agent is `None` so the
-     * transport omits the header entirely unless the caller sets one. */
+fn test_transport_options_user_agent_defaults_to_branded_value() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(
-        opts.user_agent().is_none(),
-        "expected user_agent to default to None"
-    );
+    assert_eq!(opts.user_agent(), Some("petstore/1.0.0 (rust)"));
 }
 
 #[test]

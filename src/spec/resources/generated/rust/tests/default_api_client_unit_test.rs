@@ -103,9 +103,7 @@ async fn test_default_api_client_injects_custom_user_agent() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_omits_user_agent_when_not_set() {
-    /* Gap (nullable User-Agent): with the default `None` User-Agent the
-     * transport injects no User-Agent header and the request still succeeds. */
+async fn test_default_api_client_succeeds_without_transport_options() {
     let base_url = start_echo_server();
 
     let client = DefaultApiClient::new(None);

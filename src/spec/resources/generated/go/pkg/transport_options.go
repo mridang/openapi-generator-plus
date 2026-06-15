@@ -120,13 +120,15 @@ type TransportOptionsBuilder struct {
 //
 // The default request timeout is 10 seconds (10000 ms). Use Timeout(0) for no
 // timeout or pass an explicit positive value to override. The User-Agent header
-// is unset by default; call UserAgent to set one.
+// defaults to "petstore/1.0.0 (go)"; call UserAgent to override it or pass nil
+// to omit it.
 func NewTransportOptionsBuilder() *TransportOptionsBuilder {
 	defaultTimeout := 10000
+	defaultUserAgent := "petstore/1.0.0 (go)"
 	return &TransportOptionsBuilder{
 		verifySsl:       true,
 		followRedirects: true,
-		userAgent:       nil,
+		userAgent:       &defaultUserAgent,
 		defaultHeaders:  make(map[string]string),
 		timeout:         &defaultTimeout,
 	}

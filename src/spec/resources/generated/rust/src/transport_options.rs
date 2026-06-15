@@ -135,11 +135,7 @@ impl TransportOptionsBuilder {
             timeout: Some(10_000),
             follow_redirects: true,
             max_redirects: None,
-            // Default `None`: no User-Agent header is injected by the transport
-            // unless the caller sets one explicitly, so the header can be
-            // omitted entirely. Matches the other SDKs that allow a null/absent
-            // User-Agent.
-            user_agent: None,
+            user_agent: Some("petstore/1.0.0 (rust)".to_string()),
             default_headers: HashMap::new(),
             inject_request_id: false,
         }

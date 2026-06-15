@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "petstore-client",
   "version": "1.0.0",
   "description": "A simplified Pet Store API for integration testing.",
   "license": "MIT",

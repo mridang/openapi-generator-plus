@@ -13,6 +13,6 @@ class GenerateNodeClientTest {
   @ResourceLock(value = "generated-node", mode = ResourceAccessMode.READ_WRITE)
   void generate() throws IOException {
     Path outputDir = Path.of("src/spec/resources/generated/node").toAbsolutePath();
-    ClientGenerator.generateClient("node-plus", Map.of(), outputDir);
+    ClientGenerator.generateClient("node-plus", Map.of("npmName", "petstore-client"), outputDir);
   }
 }

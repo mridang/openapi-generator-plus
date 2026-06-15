@@ -58,24 +58,27 @@ func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultsToNil(t *testing.T) {
+func TestTransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
 	t.Parallel()
 	// userAgent is a nullable *string (parity with Java @Nullable String, C#
-	// string?). The default builder leaves it unset (nil) so the User-Agent
-	// header can be omitted entirely rather than always forced.
+	// string?). The default builder injects the branded "<pkg>/<ver> (go)"
+	// value so requests are attributable; callers can pass nil to omit it.
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
-	if opts.UserAgent() != nil {
-		t.Errorf("expected UserAgent to default to nil/unset, got %q", *opts.UserAgent())
+	if opts.UserAgent() == nil {
+		t.Fatal("expected UserAgent to default to the branded value, got nil")
+	}
+	if *opts.UserAgent() != "{{userAgentDefault}}" {
+		t.Errorf("expected UserAgent %q, got %q", "{{userAgentDefault}}", *opts.UserAgent())
 	}
 }
 
-func TestTransportOptions_UserAgentCanBeLeftUnsetThenSet(t *testing.T) {
+func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 	t.Parallel()
-	// Left unset, UserAgent stays nil; once set via the nullable setter it is
-	// applied and read back through the pointer.
-	unset := {{packageName}}.NewTransportOptionsBuilder().Build()
-	if unset.UserAgent() != nil {
-		t.Errorf("expected UserAgent to be nil when left unset, got %q", *unset.UserAgent())
+	// The default carries the branded value; once set via the nullable setter
+	// it is applied and read back through the pointer.
+	preset := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if preset.UserAgent() == nil || *preset.UserAgent() != "{{userAgentDefault}}" {
+		t.Errorf("expected branded default UserAgent, got %v", preset.UserAgent())
 	}
 
 	ua := "MyApp/1.0"

@@ -325,8 +325,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         super.processOpts();
         final String packageVersion = getPropertyOrDefault("packageVersion", "1.0.0");
         additionalProperties.put("packageVersion", packageVersion);
+        final String npmName = getPropertyOrDefault("npmName", "openapi-typescript-client");
         additionalProperties.put(
-                "userAgentDefault", "openapi-typescript-client/" + packageVersion + " (node)");
+                "userAgentDefault", npmName + "/" + packageVersion + " (node)");
 
         // Only set apiPackage default when the caller did not override it.
         if (this.apiPackage == null || this.apiPackage.isEmpty() || "openapitools".equals(this.apiPackage)) {
