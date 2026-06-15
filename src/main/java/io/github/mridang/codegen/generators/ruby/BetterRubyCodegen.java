@@ -329,12 +329,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         // snake_case of the parent's unqualified class name (Zitadel::Client::
         // ZitadelError -> zitadel_error). StandardError emits nothing, keeping the
         // petstore default byte-identical.
-        if (!DEFAULT_API_ERROR_PARENT.equals(apiErrorParent)) {
+        final boolean customApiErrorParent = !DEFAULT_API_ERROR_PARENT.equals(apiErrorParent);
+        String apiErrorParentFile = null;
+        if (customApiErrorParent) {
             final int sep = apiErrorParent.lastIndexOf("::");
             final String parentSimpleName =
                     sep < 0 ? apiErrorParent : apiErrorParent.substring(sep + 2);
-            additionalProperties.put(
-                    "apiErrorParentFile", NamingConvention.SNAKE_CASE.apply(parentSimpleName));
+            apiErrorParentFile = NamingConvention.SNAKE_CASE.apply(parentSimpleName);
+            additionalProperties.put("apiErrorParentFile", apiErrorParentFile);
+            additionalProperties.put("apiErrorParentSimpleName", parentSimpleName);
         }
 
         // Nested-module rendering for files that may be `require`d standalone
@@ -382,6 +385,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
+
+        // When the SDK-wide error base is a custom class (e.g. ZitadelError)
+        // rather than StandardError, the generator owns that file too: emit it
+        // alongside api_error.rb so consumers need not hand-write it. The default
+        // StandardError parent is a built-in and emits nothing, keeping the
+        // petstore golden byte-identical.
+        if (customApiErrorParent) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "error_parent.mustache", libPath, apiErrorParentFile + ".rb"));
+        }
 
         if (emitUnitTests()) {
             supportingFiles.add(
