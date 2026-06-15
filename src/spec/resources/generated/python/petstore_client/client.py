@@ -88,3 +88,24 @@ class Client:
             Configured client instance.
         """
         return cls(BearerAuthenticator(host, access_token), transport_options)
+
+    @classmethod
+    def with_authenticator(
+        cls,
+        authenticator: Authenticator,
+        transport_options: Optional[TransportOptions] = None,
+    ) -> "Client":
+        """Creates a client from a ready-made authenticator.
+
+        This is the generic entry point for bespoke authenticators (client
+        credentials, JWT private key, PAT, etc.). Construct the authenticator
+        yourself and pass it in.
+
+        Args:
+            authenticator: Provides host URL and auth credentials.
+            transport_options: Optional transport configuration.
+
+        Returns:
+            Configured client instance.
+        """
+        return cls(authenticator, transport_options)

@@ -63,5 +63,19 @@ module {{moduleName}}
     def self.with_token(host, access_token, transport_options = nil)
       new(Auth::BearerAuthenticator.new(host, access_token), transport_options)
     end
+
+    # Creates a client from a ready-made authenticator.
+    #
+    # This is the generic entry point for bespoke authentication strategies
+    # such as OAuth2 client credentials, JWT private-key (JWT bearer), or a
+    # personal access token (PAT). Build the appropriate {Auth::Authenticator}
+    # and pass it here; use {.with_token} for the simple static Bearer case.
+    #
+    # @param authenticator [Auth::Authenticator] Provides host URL and auth headers.
+    # @param transport_options [TransportOptions, nil] Optional HTTP transport configuration.
+    # @return [{{clientClassName}}] Configured client instance.
+    def self.with_authenticator(authenticator, transport_options = nil)
+      new(authenticator, transport_options)
+    end
   end
 end

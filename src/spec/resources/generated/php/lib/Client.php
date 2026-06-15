@@ -92,4 +92,25 @@ class Client
     ): self {
         return new self(new BearerAuthenticator($host, $accessToken), $transportOptions);
     }
+
+    /**
+     * Creates a client from a ready-made authenticator.
+     *
+     * This is the generic entry point for bespoke authentication strategies
+     * such as OAuth2 client credentials, JWT private-key (service account),
+     * or a personal access token (PAT). Supply any {@see Authenticator}
+     * implementation; if it also implements {@see HttpAwareAuthenticator},
+     * the shared {@see ApiClient} is injected so its HTTP calls reuse the
+     * same transport configuration.
+     *
+     * @param Authenticator $authenticator Provides host URL and auth headers.
+     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration.
+     * @return self Configured client instance.
+     */
+    public static function withAuthenticator(
+        Authenticator $authenticator,
+        ?TransportOptions $transportOptions = null
+    ): self {
+        return new self($authenticator, $transportOptions);
+    }
 }

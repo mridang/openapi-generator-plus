@@ -65,4 +65,16 @@ public final class Client: Sendable {
       authenticator: BearerAuthenticator(host: host, token: accessToken),
       transportOptions: transportOptions)
   }
+
+  /// Creates a client from any ``Authenticator``, with optional transport options.
+  ///
+  /// This is the generic entry point for bespoke authentication strategies such as
+  /// client credentials, JWT private key, or personal access tokens (PAT). Pass any
+  /// type conforming to ``Authenticator`` and, optionally, ``TransportOptions`` to
+  /// customize the underlying transport (proxy, TLS, timeouts).
+  public static func withAuthenticator(
+    _ authenticator: Authenticator, transportOptions: TransportOptions? = nil
+  ) throws -> Client {
+    try Client(authenticator: authenticator, transportOptions: transportOptions)
+  }
 }

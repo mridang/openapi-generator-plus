@@ -387,6 +387,7 @@ module {{moduleName}}
 {{/apiInfo}}
     def initialize: (Auth::Authenticator, ?TransportOptions?) -> void
     def self.with_token: (String, String) -> Client
+    def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> Client
   end
 
   module Models

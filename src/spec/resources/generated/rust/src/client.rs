@@ -88,4 +88,16 @@ impl Client {
             transport_options,
         )
     }
+
+    /// Creates a client from any pre-built [`Authenticator`].
+    ///
+    /// This is the generic entry point for bespoke authentication strategies
+    /// (client credentials, JWT private key, personal access tokens, etc.) that
+    /// are not covered by the convenience constructors.
+    pub fn with_authenticator(
+        authenticator: Box<dyn Authenticator>,
+        transport_options: Option<TransportOptions>,
+    ) -> Self {
+        Self::new(authenticator, transport_options)
+    }
 }

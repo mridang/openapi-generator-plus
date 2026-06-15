@@ -106,4 +106,20 @@ class Client {
       transportOptions: transportOptions,
     );
   }
+
+  /// Creates a client from any [Authenticator].
+  ///
+  /// This is the generic entry point for bespoke authenticators such as client
+  /// credentials, JWT private key, or personal access token (PAT) flows. Pass
+  /// optional [transportOptions] to share proxy, TLS, and timeout settings with
+  /// the authenticator's own HTTP calls.
+  static Client withAuthenticator(
+    Authenticator authenticator, [
+    TransportOptions? transportOptions,
+  ]) {
+    return Client(
+      authenticator: authenticator,
+      transportOptions: transportOptions,
+    );
+  }
 }

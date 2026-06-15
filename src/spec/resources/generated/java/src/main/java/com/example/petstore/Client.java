@@ -110,4 +110,32 @@ public final class Client {
   public static Client withToken(String host, String accessToken) {
     return withToken(host, accessToken, null);
   }
+
+  /**
+   * Creates a client from any {@link Authenticator} implementation with default transport.
+   *
+   * <p>This is the generic entry point for bespoke authenticators (client credentials, JWT private
+   * key, personal access token, etc.): construct the authenticator and pass it here, e.g. {@code
+   * Client.withAuthenticator(new ClientCredentialsAuthenticator(host, id, secret))}.
+   *
+   * @param authenticator provides host URL and auth credentials
+   * @return configured client instance
+   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+   */
+  public static Client withAuthenticator(Authenticator authenticator) {
+    return new Client(authenticator);
+  }
+
+  /**
+   * Creates a client from any {@link Authenticator} implementation with the given transport.
+   *
+   * @param authenticator provides host URL and auth credentials
+   * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @return configured client instance
+   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+   */
+  public static Client withAuthenticator(
+      Authenticator authenticator, TransportOptions transportOptions) {
+    return new Client(authenticator, transportOptions);
+  }
 }

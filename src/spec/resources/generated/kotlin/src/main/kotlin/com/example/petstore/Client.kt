@@ -97,5 +97,26 @@ class Client {
             } else {
                 Client(BearerAuthenticator(host, accessToken))
             }
+
+        /**
+         * Creates a client from any [Authenticator] implementation.
+         *
+         * This is the generic entry point for bespoke authenticators such as
+         * client credentials, JWT private key, or personal access token (PAT)
+         * flows. Use [withToken] instead for a static Bearer token.
+         *
+         * @param authenticator provides host URL and auth credentials
+         * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+         * @return configured client instance
+         */
+        fun withAuthenticator(
+            authenticator: Authenticator,
+            transportOptions: TransportOptions? = null,
+        ): Client =
+            if (transportOptions != null) {
+                Client(authenticator, transportOptions)
+            } else {
+                Client(authenticator)
+            }
     }
 }

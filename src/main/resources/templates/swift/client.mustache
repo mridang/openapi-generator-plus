@@ -64,4 +64,14 @@ public final class {{clientClassName}}: Sendable {
     public convenience init(host: String, accessToken: String, transportOptions: TransportOptions? = nil) throws {
         try self.init(authenticator: BearerAuthenticator(host: host, token: accessToken), transportOptions: transportOptions)
     }
+
+    /// Creates a client from any ``Authenticator``, with optional transport options.
+    ///
+    /// This is the generic entry point for bespoke authentication strategies such as
+    /// client credentials, JWT private key, or personal access tokens (PAT). Pass any
+    /// type conforming to ``Authenticator`` and, optionally, ``TransportOptions`` to
+    /// customize the underlying transport (proxy, TLS, timeouts).
+    public static func withAuthenticator(_ authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws -> {{clientClassName}} {
+        try {{clientClassName}}(authenticator: authenticator, transportOptions: transportOptions)
+    }
 }

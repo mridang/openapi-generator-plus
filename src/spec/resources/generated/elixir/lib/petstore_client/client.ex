@@ -81,6 +81,28 @@ defmodule PetstoreClient.Client do
   end
 
   @doc """
+  Creates a client from a ready-made authenticator.
+
+  This is the generic entry point for bespoke authenticators such as client
+  credentials, JWT private key, or personal access token (PAT). Pass any
+  authenticator that implements `#{inspect(PetstoreClient.Auth.Authenticator)}`
+  and, optionally, transport options.
+
+  ## Parameters
+
+    * `authenticator` - Provides host URL and auth headers.
+    * `transport_options` - HTTP transport configuration (optional).
+
+  ## Returns
+
+    A configured `#{inspect(__MODULE__)}` instance.
+  """
+  @spec with_authenticator(term(), PetstoreClient.TransportOptions.t() | nil) :: t()
+  def with_authenticator(authenticator, transport_options \\ nil) do
+    new(authenticator, transport_options)
+  end
+
+  @doc """
   Creates a client authenticated with a static Bearer token.
 
   ## Parameters

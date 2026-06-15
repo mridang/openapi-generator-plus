@@ -92,6 +92,20 @@ public sealed class Client : IDisposable
         return new Client(new BearerAuthenticator(host, accessToken), transportOptions ?? TransportOptions.Builder().Build());
     }
 
+    /// <summary>
+    /// Creates a client from a ready-made <see cref="IAuthenticator"/>.
+    ///
+    /// This is the generic entry point for bespoke authenticators, such as
+    /// client credentials, JWT private key, or personal access token (PAT) flows.
+    /// </summary>
+    /// <param name="authenticator">Provides host URL and auth credentials.</param>
+    /// <param name="transportOptions">Optional HTTP transport configuration.</param>
+    /// <returns>Configured client instance.</returns>
+    public static Client WithAuthenticator(IAuthenticator authenticator, TransportOptions? transportOptions = null)
+    {
+        return new Client(authenticator, transportOptions ?? TransportOptions.Builder().Build());
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

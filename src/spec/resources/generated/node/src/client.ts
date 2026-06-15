@@ -98,4 +98,25 @@ export class Client {
       ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
       : new Client(new BearerAuthenticator(host, accessToken));
   }
+
+  /**
+   * Creates a client from a ready-made {@link Authenticator} and optional transport.
+   *
+   * This is the generic entry point for bespoke authenticators (client
+   * credentials, JWT private key, personal access token, etc.). Use this
+   * when you have already constructed an authenticator and want full control
+   * over how credentials are obtained.
+   *
+   * @param authenticator provides host URL and auth credentials
+   * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @returns configured client instance
+   */
+  static withAuthenticator(
+    authenticator: Authenticator,
+    transportOptions?: TransportOptions,
+  ): Client {
+    return transportOptions
+      ? new Client(authenticator, transportOptions)
+      : new Client(authenticator);
+  }
 }

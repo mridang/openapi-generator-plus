@@ -70,6 +70,16 @@ func New{{clientClassName}}WithToken(host, accessToken string, transportOptions 
 	return New{{clientClassName}}(auth.NewBearerAuthenticator(host, accessToken), transportOptions)
 }
 
+// New{{clientClassName}}WithAuthenticator creates a client from a ready-made Authenticator.
+//
+// This is the generic entry point for bespoke authenticators such as client
+// credentials, JWT private key, or personal access token (PAT) flows. The
+// optional transport options are applied to both API calls and any
+// authentication HTTP calls the authenticator performs.
+func New{{clientClassName}}WithAuthenticator(authenticator Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
+	return New{{clientClassName}}(authenticator, transportOptions)
+}
+
 // authApiClientAdapter adapts the main package's ApiClient interface to the
 // auth package's ApiClient interface, bridging the ApiHttpResponse types to
 // avoid circular imports between the root module and the auth subpackage.
