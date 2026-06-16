@@ -770,6 +770,31 @@ describe {{moduleName}}::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # ── Gap AL — Content-Encoding lie (gzip header, non-gzip body) ──
+  #
+  # Canonical cross-SDK scenario: a server advertises
+  # `Content-Encoding: gzip` but sends a plain (non-gzip) body. The client
+  # MUST surface the SDK's typed ApiError — no crash (dart) and no silent
+  # corrupt passthrough (csharp/kotlin/node/swift/elixir). Buggy before
+  # the fix in those six; ruby already wraps the Zlib failure as ApiError.
+  # Canonical = wrap as ApiError. Mirrors the malformed-Content-Encoding
+  # harness above, asserting the exact canonical input/expected pair.
+  it 'Gap AL: surfaces ApiError when gzip header lies about a plain body' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/gz') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'plain-not-gzip']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::ApiError) do
+        client.send_request('GET', 'http://localhost/gz', {}, nil)
+      end
+      refute_kind_of Zlib::Error, err
+    end
+    stubs.verify_stubbed_calls
+  end
+
   # Positive path: a correctly gzip-encoded body still decompresses normally.
   it 'decompresses a valid gzip-encoded body' do
     io = StringIO.new

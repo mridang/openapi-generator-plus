@@ -7,6 +7,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
+import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
@@ -872,6 +873,43 @@ class DefaultApiClientUnitTest {
             assertThrows(ApiException::class.java) {
                 runBlocking {
                     apiClient.sendRequest("GET", "http://localhost/body-fail", emptyMap(), null)
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Content-Encoding lie")
+    inner class ContentEncodingLie {
+
+        @Test
+        @DisplayName("Gap AL: Content-Encoding gzip on a non-gzip body surfaces ApiException")
+        fun lyingGzipContentEncodingWrappedInApiException() {
+            // A hostile/misconfigured server claims `Content-Encoding: gzip` but
+            // sends plaintext bytes. The production client installs the Ktor
+            // ContentEncoding plugin (gzip/deflate), so the gzip inflater runs
+            // over the body and fails. That decompression failure must surface as
+            // the SDK's ApiException -- never silently pass the corrupted bytes
+            // through. The mock client mirrors production by installing the same
+            // plugin so the lie is actually decoded here.
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "this is plain text, not gzip".toByteArray(Charsets.UTF_8),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Encoding", "gzip"),
+                )
+            }
+            val client = HttpClient(engine) {
+                followRedirects = false
+                install(ContentEncoding) {
+                    gzip()
+                    deflate()
+                }
+            }
+            val apiClient = DefaultApiClient(client)
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/lying-gzip", emptyMap(), null)
                 }
             }
         }

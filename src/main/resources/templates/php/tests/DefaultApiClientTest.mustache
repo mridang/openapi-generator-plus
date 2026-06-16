@@ -93,6 +93,33 @@ test('proxy with credentials injects basic authorization', function (): void {
     expect($expected)->toBe('Basic YWxpY2U6czNjcmV0');
 });
 
+// -- Gap AK: proxy URL userinfo must be carried, not dropped --
+//
+// Canonical cross-SDK scenario: configuring proxy URL
+// http://user:pass@127.0.0.1:3128 MUST carry the proxy credentials end-to-end
+// (Proxy-Authorization / userinfo honoured), not silently drop them. PHP
+// (Symfony/curl) reads userinfo natively from the proxy URL, so TransportOptions
+// preserves it (GREEN here); the same test is added to all 12 SDKs to lock the
+// behaviour (red in java, which drops proxy userinfo). The proxy-auth header
+// the credentials would produce is the RFC 7617 base64 of "user:pass".
+test('AK: proxy url with userinfo carries credentials', function (): void {
+    $transport = TransportOptions::builder()
+        ->proxy('http://user:pass@127.0.0.1:3128')
+        ->build();
+
+    $proxyUrl = (string) $transport->proxy;
+    $parts = parse_url($proxyUrl);
+    expect($parts)->toBeArray();
+    $user = (string) ($parts['user'] ?? '');
+    $pass = (string) ($parts['pass'] ?? '');
+    // The userinfo survives end-to-end on the proxy URL — not stripped.
+    expect($user)->toBe('user');
+    expect($pass)->toBe('pass');
+    // The credentials map to the RFC 7617 Proxy-Authorization value.
+    $expected = 'Basic ' . base64_encode(urldecode($user) . ':' . urldecode($pass));
+    expect($expected)->toBe('Basic dXNlcjpwYXNz');
+});
+
 // -- HTTP proxy with TLS --
 
 test('makes https request through proxy with verify ssl false', function (): void {

@@ -788,4 +788,40 @@ describe {{moduleName}}::ObjectSerializer do
       end
     end
   end
+
+  # ── Gap AJ — JSON null on a required, non-nullable field ──
+  #
+  # Canonical cross-SDK scenario: deserialize `{"name": null,
+  # "photoUrls": ["u"]}` into Pet, where `name` is required AND
+  # non-nullable. A literal JSON null for that field is a contract
+  # violation and MUST surface the SDK's deserialization error rather
+  # than producing a partial Pet with name == nil. Buggy before the fix
+  # in go/python/kotlin; ruby is already strict via dry-struct's
+  # non-omittable, non-nullable attribute. Canonical = throw.
+  describe 'Gap AJ — null on required non-nullable field' do
+    it 'raises when required name is JSON null' do
+      json = '{"name":null,"photoUrls":["u"]}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+  end
+
+  # ── Gap AU-residual — missing discriminator property ──
+  #
+  # Canonical cross-SDK scenario: deserialize a PetFood payload that omits
+  # the `foodType` discriminator property entirely (`{"weightKg": 5.0}`).
+  # With no discriminator value there is no subtype to route to, so the
+  # SDK MUST throw rather than wrap the raw dict in a union container.
+  # Buggy before the fix in python/php; ruby is already strict —
+  # PetFood.build raises SerializationError on a nil discriminator value.
+  # Canonical = throw.
+  describe 'Gap AU-residual — missing discriminator property' do
+    it 'raises when the foodType discriminator is absent' do
+      json = '{"weightKg":5.0}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+  end
 end

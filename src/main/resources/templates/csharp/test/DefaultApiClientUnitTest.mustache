@@ -821,6 +821,35 @@ public class DefaultApiClientUnitTest
         Assert.True(causeChainHasIo, "Expected an IOException somewhere in the cause chain");
     }
 
+    // ---- Gap AL: Content-Encoding lie surfaces as ApiException ----
+
+    [Fact]
+    public async Task LyingGzipContentEncodingSurfacesApiException()
+    {
+        // Canonical scenario AL: the server sets Content-Encoding: gzip but the
+        // body is plain (non-gzip) bytes. The client MUST surface the SDK's
+        // ApiException — no crash, no corrupt passthrough of the undecoded
+        // bytes. Before the fix the plaintext was returned verbatim as if it
+        // were the decoded body; now the lying encoding is decoded explicitly
+        // and the InvalidDataException is wrapped as ApiException.
+        byte[] plaintext = Encoding.UTF8.GetBytes("this is not gzip");
+        var handler = new EncodedBodyHandler(
+            HttpStatusCode.OK,
+            plaintext,
+            contentEncoding: "gzip",
+            contentType: "application/json");
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/lying-gzip"),
+            new Dictionary<string, string>(),
+            null
+        ));
+
+        Assert.Contains("decode", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ---- close-lifecycle-three-way: use-after-close throws SDK error ----
 
     [Fact]
@@ -976,6 +1005,47 @@ public class DefaultApiClientUnitTest
             public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
             public override void SetLength(long value) => throw new NotSupportedException();
             public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        }
+    }
+
+    /// <summary>
+    /// Returns a response whose raw bytes are emitted verbatim with a
+    /// declared <c>Content-Encoding</c> header — without actually compressing
+    /// them. Used to simulate a server that lies about its Content-Encoding
+    /// (Gap AL). Because the mock handler bypasses the real HttpClientHandler,
+    /// AutomaticDecompression never runs and the Content-Encoding header
+    /// survives, so the client's own decode guard is exercised.
+    /// </summary>
+    private sealed class EncodedBodyHandler : HttpMessageHandler
+    {
+        private readonly HttpStatusCode _statusCode;
+        private readonly byte[] _body;
+        private readonly string _contentEncoding;
+        private readonly string _contentType;
+
+        public EncodedBodyHandler(
+            HttpStatusCode statusCode,
+            byte[] body,
+            string contentEncoding,
+            string contentType)
+        {
+            _statusCode = statusCode;
+            _body = body;
+            _contentEncoding = contentEncoding;
+            _contentType = contentType;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(_statusCode)
+            {
+                Content = new ByteArrayContent(_body),
+            };
+            response.Content.Headers.TryAddWithoutValidation("Content-Type", _contentType);
+            response.Content.Headers.TryAddWithoutValidation("Content-Encoding", _contentEncoding);
+            return Task.FromResult(response);
         }
     }
 

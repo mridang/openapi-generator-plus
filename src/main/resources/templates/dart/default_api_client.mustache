@@ -318,22 +318,8 @@ class DefaultApiClient implements ApiClient {
                   'Refusing to follow redirect to non-http(s) URL: $nextUri',
             );
           }
-          /* Gap 3.3: refuse to replay a request body across an HTTPS→HTTP
-           * downgrade. A 307/308 from an HTTPS origin to plain HTTP would
-           * otherwise re-emit the original request body (which may contain
-           * credentials, PII, or signed payloads) over an unencrypted hop.
-           * Raise a typed SDK error rather than silently returning the 3xx,
-           * so the caller learns the request was not delivered (T-D2). */
           final downgrade = uri.scheme.toLowerCase() == 'https'
               && nextUri.scheme.toLowerCase() == 'http';
-          if (downgrade && currentBody != null) {
-            throw ApiError(
-              statusCode: 0,
-              message:
-                  'Refusing to replay request body across HTTPS->HTTP '
-                  'downgrade redirect to: $nextUri',
-            );
-          }
           final crossOrigin = !_sameOrigin(uri, nextUri);
 
           /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
@@ -357,6 +343,26 @@ class DefaultApiClient implements ApiClient {
           } else {
             nextMethod = 'GET';
             nextBody = null;
+          }
+
+          /* Gap 3.3 / Gap N1: refuse to replay a request body across an
+           * HTTPS→HTTP downgrade. A 307/308 from an HTTPS origin to plain
+           * HTTP preserves the original body (which may contain
+           * credentials, PII, or signed payloads), so re-emitting it over
+           * an unencrypted hop is a leak — raise a typed SDK error instead
+           * (T-D2). 301/302/303 coerce to GET and DROP the body above, so
+           * nothing is replayed and the redirect must proceed (the canonical
+           * N1 behaviour: guard 307/308 only). Checking the COERCED
+           * [nextBody] — not the original [currentBody] — is what
+           * distinguishes the two: it is null after a 301/302/303 body-drop
+           * and non-null only when the body would actually cross the wire. */
+          if (downgrade && nextBody != null) {
+            throw ApiError(
+              statusCode: 0,
+              message:
+                  'Refusing to replay request body across HTTPS->HTTP '
+                  'downgrade redirect to: $nextUri',
+            );
           }
 
           final redirectHeaders = <String, String>{};

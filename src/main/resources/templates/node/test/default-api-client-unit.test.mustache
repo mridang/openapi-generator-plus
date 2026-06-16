@@ -2,6 +2,7 @@
 /* eslint-disable */
 
 import * as http from 'node:http';
+import * as zlib from 'node:zlib';
 import { DefaultApiClient, SENSITIVE_HEADER_NAMES } from '../src/default-api-client{{importFileExtension}}';
 import { ApiError } from '../src/api-error{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
@@ -887,5 +888,74 @@ describe('body-read error is wrapped in ApiError', () => {
     await expect(
       client.sendRequest('GET', 'http://api.example/x', {}, null),
     ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+/*
+ * Canonical scenario AL — Content-Encoding lie. A server advertises
+ * `Content-Encoding: gzip` but the body is NOT a valid gzip stream. The
+ * client MUST surface the SDK's ApiError (no crash, no corrupt-byte
+ * passthrough), matching java/python/ruby/go/php/rust/elixir which wrap the
+ * decompression failure.
+ *
+ * On the real-network path undici decodes Content-Encoding transparently and
+ * throws on a malformed stream (already wrapped as ApiError by the body-read
+ * catch). This unit test pins the behaviour deterministically by mocking
+ * `fetch` to return a body that carries the gzip magic bytes (0x1F 0x8B) --
+ * so it claims AND looks like gzip -- but is not a decodable gzip stream.
+ * RED before the fix (the undecoded bytes were base64'd and returned), GREEN
+ * after (DefaultApiClient.ensureDecoded gunzips, fails, and throws ApiError).
+ */
+describe('Content-Encoding lie surfaces ApiError (canonical AL)', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('throws ApiError when Content-Encoding: gzip body is not valid gzip', async () => {
+    // gzip magic prefix + garbage tail: declares gzip, looks like gzip, but
+    // is not a valid gzip stream.
+    const lyingBody = Buffer.concat([
+      Buffer.from([0x1f, 0x8b]),
+      Buffer.from('this is not a valid gzip stream', 'utf-8'),
+    ]);
+    global.fetch = (async (): Promise<Response> => {
+      return new Response(lyingBody, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Encoding': 'gzip',
+        },
+      });
+    }) as typeof fetch;
+
+    const client = new DefaultApiClient();
+    await expect(
+      client.sendRequest('GET', 'http://api.example/lie', {}, null),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('decodes a genuinely gzip-encoded body that undici left compressed', () => {
+    // ensureDecoded is exercised directly: a valid gzip stream still on the
+    // wire is decompressed rather than passed through as base64.
+    const valid = zlib.gzipSync(Buffer.from('{"userId":1}', 'utf-8'));
+    const out = DefaultApiClient.ensureDecoded(valid, 'gzip');
+    expect(out.toString('utf-8')).toBe('{"userId":1}');
+  });
+
+  it('leaves an already-decoded body untouched (no double-decode)', () => {
+    // When undici has already decoded the body the gzip magic is gone, so
+    // ensureDecoded must pass the plaintext through unchanged.
+    const decoded = Buffer.from('{"userId":1}', 'utf-8');
+    const out = DefaultApiClient.ensureDecoded(decoded, 'gzip');
+    expect(out.toString('utf-8')).toBe('{"userId":1}');
+  });
+
+  it('throws ApiError directly from ensureDecoded on invalid gzip bytes', () => {
+    const lyingBody = Buffer.concat([
+      Buffer.from([0x1f, 0x8b]),
+      Buffer.from('garbage', 'utf-8'),
+    ]);
+    expect(() => DefaultApiClient.ensureDecoded(lyingBody, 'gzip')).toThrow(ApiError);
   });
 });

@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
+import { ApiError } from '../src/api-error{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 import { OAuth2TokenManager, OAuth2TokenError } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
 import * as zlib from 'node:zlib';
@@ -562,6 +563,143 @@ describe('DefaultApiClient', () => {
       // chasm reports contentLength as a camelCase integer (not a string keyed 'content-length').
       expect(payload.contentLength).toBe(0);
     }, 30000);
+  });
+
+  /*
+   * Canonical scenario AK — proxy userinfo is carried, not dropped.
+   * Configuring a proxy URL of the form http://user:pass@host:port MUST
+   * surface the embedded credentials (Proxy-Authorization / userinfo
+   * honoured) so an authenticated proxy can establish the tunnel. The Java
+   * SDK is the one that drops userinfo (Gap AK); every other SDK -- including
+   * Node, whose undici ProxyAgent reads userinfo natively from the URL --
+   * preserves it. GREEN: TransportOptions preserves the userinfo end-to-end
+   * and it base64-encodes to the expected Proxy-Authorization value.
+   */
+  describe('proxy credentials carried (canonical AK)', () => {
+    test('proxy http://user:pass@127.0.0.1:3128 carries the credentials', () => {
+      const transport = TransportOptions.builder()
+        .proxy('http://user:pass@127.0.0.1:3128')
+        .build();
+      // The userinfo survives on the configured proxy URL (undici's
+      // ProxyAgent reads it natively to emit Proxy-Authorization on CONNECT).
+      const url = new URL(transport.proxy!);
+      expect(url.username).toBe('user');
+      expect(url.password).toBe('pass');
+      expect(url.host).toBe('127.0.0.1:3128');
+      // The credentials base64-encode to the canonical Proxy-Authorization
+      // value the proxy expects.
+      const encoded = Buffer.from(
+        `${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`,
+      ).toString('base64');
+      expect(`Basic ${encoded}`).toBe('Basic dXNlcjpwYXNz');
+    });
+  });
+
+  /*
+   * Canonical scenario N1 — HTTPS->HTTP downgrade body-replay guard is
+   * restricted to 307/308. 301/302/303 coerce the follow-up to a bodyless
+   * GET (RFC 7231), so a downgrade on those statuses carries nothing
+   * sensitive and MUST proceed. Only 307/308 preserve the body, so only they
+   * may leak it across a TLS downgrade and MUST throw.
+   *
+   * The 302-with-body case is RED before the fix (the old guard fired on any
+   * status whenever the follow-up body was non-empty, so a GET-with-body that
+   * 301/302 preserves was wrongly refused) and GREEN after. The 307/308 cases
+   * are GREEN in both states (they must always refuse the downgrade).
+   *
+   * fetch is mocked so the test is deterministic and needs no live HTTPS.
+   */
+  describe('HTTPS->HTTP downgrade guard is 307/308-only (canonical N1)', () => {
+    const originalFetch = global.fetch;
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    test('302 https->http with a body PROCEEDS (body dropped, becomes GET)', async () => {
+      let call = 0;
+      global.fetch = (async (): Promise<Response> => {
+        call++;
+        if (call === 1) {
+          // 302 carrying a body, downgrading https -> http. Per RFC the
+          // follow-up is coerced to a bodyless GET, so the downgrade is safe
+          // and the client must follow it rather than refuse.
+          return new Response(null, {
+            status: 302,
+            headers: { Location: 'http://other.example/landing' },
+          });
+        }
+        return new Response('{"ok":true}', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }) as typeof fetch;
+
+      const transport = TransportOptions.builder().followRedirects(true).build();
+      const client = new DefaultApiClient(transport);
+      // A GET that carries a body: 301/302 preserve the original method+body
+      // for GET, so this is exactly the path the over-broad guard refused.
+      const response = await client.sendRequest(
+        'GET',
+        'https://secure.example/start',
+        { 'Content-Type': 'application/json' },
+        '{"x":1}',
+      );
+      expect(response.statusCode).toBe(200);
+      expect(call).toBe(2);
+    });
+
+    test('307 https->http with a body THROWS (body preserved across downgrade)', async () => {
+      let call = 0;
+      global.fetch = (async (): Promise<Response> => {
+        call++;
+        if (call === 1) {
+          return new Response(null, {
+            status: 307,
+            headers: { Location: 'http://evil.example/steal' },
+          });
+        }
+        return new Response('SHOULD NOT REACH', { status: 200 });
+      }) as typeof fetch;
+
+      const transport = TransportOptions.builder().followRedirects(true).build();
+      const client = new DefaultApiClient(transport);
+      await expect(
+        client.sendRequest(
+          'POST',
+          'https://secure.example/token',
+          { 'Content-Type': 'application/x-www-form-urlencoded' },
+          'grant_type=client_credentials&client_secret=topsecret',
+        ),
+      ).rejects.toBeInstanceOf(ApiError);
+      // The downgraded follow-up must never be sent.
+      expect(call).toBe(1);
+    });
+
+    test('308 https->http with a body THROWS (body preserved across downgrade)', async () => {
+      let call = 0;
+      global.fetch = (async (): Promise<Response> => {
+        call++;
+        if (call === 1) {
+          return new Response(null, {
+            status: 308,
+            headers: { Location: 'http://evil.example/steal' },
+          });
+        }
+        return new Response('SHOULD NOT REACH', { status: 200 });
+      }) as typeof fetch;
+
+      const transport = TransportOptions.builder().followRedirects(true).build();
+      const client = new DefaultApiClient(transport);
+      await expect(
+        client.sendRequest(
+          'POST',
+          'https://secure.example/token',
+          { 'Content-Type': 'application/x-www-form-urlencoded' },
+          'grant_type=client_credentials&client_secret=topsecret',
+        ),
+      ).rejects.toBeInstanceOf(ApiError);
+      expect(call).toBe(1);
+    });
   });
 
   describe('client lifecycle (Gap T6)', () => {

@@ -849,6 +849,65 @@ fn start_truncated_body_server() -> String {
     base_url
 }
 
+/// Gap AL: starts a server that LIES about its body encoding — it sets
+/// `Content-Encoding: gzip` on the response but writes a plain, non-gzip body.
+/// reqwest (with `.gzip(true)`) will attempt to inflate the body and fail.
+/// Handles one connection then stops.
+fn start_content_encoding_lie_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            // Body is plain ASCII, NOT gzip — but we claim gzip encoding.
+            let body = b"this is not gzip-compressed data";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Encoding: gzip\r\nContent-Length: {}\r\n\r\n",
+                body.len()
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            let _ = std::io::Write::write_all(&mut stream, body);
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Gap AL (fleet-wide regression guard) — a server that mislabels its encoding
+/// (declares `Content-Encoding: gzip` but sends plaintext) must surface a
+/// uniform SDK `ApiError`, NOT crash and NOT pass the corrupted bytes through
+/// silently. reqwest's gzip decoder fails to inflate the bogus body during the
+/// body read; the client wraps that body-read failure as an `ApiError`
+/// (statusCode 0), the same treatment any post-header read failure gets.
+/// dart/csharp/kotlin/node/swift/elixir were the buggy SDKs; Rust is already
+/// correct, so this asserts GREEN.
+#[tokio::test]
+async fn test_al_content_encoding_lie_surfaces_api_error() {
+    let base_url = start_content_encoding_lie_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+
+    let result = client
+        .send_request("GET", &format!("{}/lie", base_url), &headers, None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Gap AL: a Content-Encoding: gzip lie over a plaintext body must error, not pass through"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.downcast_ref::<{{packageName}}::api_error::ApiError>().is_some(),
+        "Gap AL: the decompression failure must be wrapped in the SDK ApiError type, got: {}",
+        err
+    );
+}
+
 /// Gap: a body-read failure that happens AFTER response headers are received
 /// (here a truncated Content-Length response) must be wrapped in the uniform
 /// SDK ApiError (statusCode 0), not surface as a raw reqwest::Error. Callers

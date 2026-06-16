@@ -63,8 +63,10 @@ Some langs disable chain + hostname verification; others keep the hostname check
 On a missing discriminator field, **python php** wrap the raw dict in a union container instead of throwing (the other 10 throw).
 - why/caught: no missing-discriminator-field test; fixture always supplies it. Canonical = throw.
 
-### N1 — Node refuses body-replay on ALL redirect statuses, not just 307/308 (DIVERGENCE, low)
-11 SDKs guard the HTTPS→HTTP body-replay only on 307/308 (301/302/303 force GET, body dropped anyway); **node** guards every status → throws where others proceed.
+### N1 — Node (and Dart) refuse body-replay on ALL redirect statuses, not just 307/308 (DIVERGENCE, low)
+Most SDKs guard the HTTPS→HTTP body-replay only on 307/308 (301/302/303 force GET, body dropped anyway);
+**node** AND **dart** guarded every status → threw on a 302-with-body where others proceed. (Dart was found
+during the fix wave — its guard ran before the 301/302/303→GET body-drop coercion. Both now fixed.)
 - why/caught: no 301/302 HTTPS→HTTP-with-body test. Canonical = guard 307/308 only.
 
 ## Dropped as false positives this round (verified against source)

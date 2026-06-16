@@ -558,6 +558,20 @@ public class ObjectSerializerTest
         }
 
         [Fact]
+        public void NullRequiredNonNullableFieldThrows()
+        {
+            // Canonical scenario AJ: a JSON null for the required,
+            // non-nullable 'name' field must hard-fail with the SDK
+            // deserialization error rather than silently building a partial
+            // object (go zero-inits, python/kotlin accept — the canonical is
+            // throw). C# already rejects it via the model constructor's
+            // null-guard, wrapped as SerializationException.
+            var json = "{\"name\":null,\"photoUrls\":[\"u\"]}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
         public void NullRequiredByteArrayFieldThrows()
         {
             // SetPetAvatarRequest requires a byte[] 'data' field; an explicit
@@ -899,6 +913,20 @@ public class ObjectSerializerTest
             Assert.NotNull(food);
             var dry = Assert.IsType<DryFood>(food);
             Assert.Equal(2.5, dry.WeightKg);
+        }
+
+        [Fact]
+        public void MissingDiscriminatorPropertyThrows()
+        {
+            // Canonical scenario AU-residual: a PetFood payload missing the
+            // 'foodType' discriminator property must hard-fail rather than wrap
+            // the raw dict in a union container (python/php wrap; the canonical
+            // is throw). The PetFoodConverter throws a JsonException for the
+            // absent discriminator, which the serializer wraps as the
+            // SDK-owned SerializationException.
+            var json = "{\"weightKg\":5.0}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<PetFood>(json));
         }
     }
 

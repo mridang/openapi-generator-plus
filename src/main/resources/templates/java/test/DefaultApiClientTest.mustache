@@ -168,6 +168,32 @@ class DefaultApiClientTest {
 
             assertEquals("Basic YWxpY2U6czNjcmV0", actual);
         }
+
+        /*
+         * Gap AK — canonical fleet-wide scenario (AUDIT.md): a proxy URL of
+         * http://user:pass@127.0.0.1:3128 must have its userinfo honoured, not
+         * dropped. java.net.http.HttpClient silently discards the embedded
+         * user:pass, so DefaultApiClient extracts it, base64-encodes it, and
+         * carries it as a pre-built `Basic <b64>` value that is injected as
+         * Proxy-Authorization on every request. Java is the SDK that was fixed
+         * for AK; this asserts the credentials are now carried.
+         */
+        @Test
+        @DisplayName("proxy_userinfo_carried_as_basic_proxy_authorization")
+        void proxyUserInfoCarriedAsBasicProxyAuthorization() throws Exception {
+            TransportOptions transport = TransportOptions.builder()
+                    .proxy("http://user:pass@127.0.0.1:3128")
+                    .build();
+            DefaultApiClient client = new DefaultApiClient(transport);
+
+            java.lang.reflect.Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+            field.setAccessible(true);
+            String actual = (String) field.get(client);
+
+            // base64("user:pass") == "dXNlcjpwYXNz"
+            assertEquals("Basic dXNlcjpwYXNz", actual,
+                    "proxy credentials user:pass must be carried, not dropped");
+        }
     }
 
     @Nested
@@ -644,6 +670,43 @@ class DefaultApiClientTest {
                     "same-scheme same-host same-port must be same-origin");
             assertTrue(sameSchemeImplicitPort,
                     "implicit default port must compare equal to explicit");
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect body-replay status guard (Gap N1)")
+    class RedirectBodyReplayStatusGuard {
+
+        /*
+         * Gap N1: the HTTPS->HTTP body-replay refusal must be guarded ONLY on
+         * 307/308 (the statuses that actually carry the body forward). On a 302
+         * HTTPS->HTTP redirect carrying a body the request proceeds — per RFC
+         * the follow-up becomes GET and the body is dropped, so there is no
+         * cleartext body to leak and the client must NOT throw. node was the
+         * divergent SDK (it refused on every status); the other 11, Java
+         * included, guard 307/308 only. Asserted directly against the predicate
+         * so the exact status matrix is locked.
+         */
+        @Test
+        @DisplayName("302_https_to_http_with_body_proceeds_but_307_308_throw")
+        void redirect302ProceedsWhile307And308Throw() {
+            java.net.URI origin = java.net.URI.create("https://api.example.com/secret");
+            java.net.URI target = java.net.URI.create("http://api.example.com/landed");
+
+            // 302 HTTPS->HTTP with a body: must proceed (guard does NOT fire,
+            // body is dropped when the request coerces to GET).
+            assertFalse(
+                    DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(origin, target, 302, true),
+                    "302 HTTPS->HTTP with body must proceed (body dropped, request becomes GET)");
+
+            // 307/308 HTTPS->HTTP with a body: must throw (guard fires — the
+            // body would otherwise be replayed over cleartext).
+            assertTrue(
+                    DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(origin, target, 307, true),
+                    "307 HTTPS->HTTP with body must be refused (body would replay in cleartext)");
+            assertTrue(
+                    DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(origin, target, 308, true),
+                    "308 HTTPS->HTTP with body must be refused (body would replay in cleartext)");
         }
     }
 

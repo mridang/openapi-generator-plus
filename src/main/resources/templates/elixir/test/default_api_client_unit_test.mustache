@@ -571,6 +571,31 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     end
   end
 
+  # ── Gap AL — Content-Encoding lie (gzip header, non-gzip body) ─────────────
+  #
+  # Canonical cross-SDK scenario: a server advertises `Content-Encoding: gzip`
+  # but sends a plain (non-gzip) body. The client MUST surface the SDK's typed
+  # ApiError — no crash (dart) and no silent corrupt passthrough
+  # (csharp/kotlin/node/swift/elixir). Buggy before the fix in those six;
+  # java/python/ruby/go/php already wrap the decompression failure. Canonical =
+  # wrap as ApiError. RED before the elixir fix (the non-magic-bytes gunzip
+  # clause returned the corrupt bytes verbatim), GREEN after.
+  test "Gap AL: surfaces ApiError when gzip header lies about a plain body" do
+    base_url =
+      start_server(
+        200,
+        "application/json",
+        "this is not gzip-compressed data",
+        [{"Content-Encoding", "gzip"}]
+      )
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    assert_raise {{moduleName}}.ApiError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
+    end
+  end
+
   # ── Multipart filename directive (Gap BI / Gap F) ──────────────────────────
 
   test "build_content_disposition emits RFC 5987 filename* for non-ASCII names" do

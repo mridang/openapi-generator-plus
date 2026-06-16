@@ -683,6 +683,21 @@ test('deserialize throws when a required field is explicitly null', function ():
         ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 
+// -- Gap AJ: JSON null on a required non-nullable field must throw --
+//
+// Canonical cross-SDK scenario: deserializing {"name":null,"photoUrls":["u"]}
+// into Pet (name is required + non-nullable) MUST raise the SDK's
+// deserialization error rather than zero-init / silently accept the null.
+// PHP already rejects this via assertRequiredPresent (DIVERGENCE #10), so this
+// is GREEN here; the same test is added to all 12 SDKs to lock the behaviour
+// fleet-wide (red in go/python/kotlin, green elsewhere).
+
+test('AJ: deserialize null on required non-nullable field throws', function (): void {
+    $json = '{"name":null,"photoUrls":["u"]}';
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+});
+
 test('deserialize throws when a required container field is explicitly null', function (): void {
     /* photoUrls is a required, non-nullable \Ds\Set. Explicit null must fail. */
     $json = '{"name":"doggie","photoUrls":null}';
@@ -741,6 +756,42 @@ test('deserialize parent routes to subtype by discriminator', function (): void 
     $food = ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class);
     expect($food->getActualInstance())->toBeInstanceOf(\{{invokerPackage}}\Models\DryFood::class);
 })->skip('PHP deserialize() does not route oneOf parents through PetFood::build()');
+
+// -- Gap AU-residual: missing discriminator must throw, not wrap raw dict --
+//
+// Deserializing a oneOf/discriminator parent (PetFood) from a payload that
+// omits the `foodType` discriminator property MUST raise the SDK-owned
+// SerializationException — not silently wrap the raw decoded array in an
+// empty union container. The composed model's static build() owns the
+// discriminator routing and throws on a missing discriminator (matching the
+// other 10 SDKs); ObjectSerializer::deserialize() routes oneOf parents
+// through build() so the contract violation surfaces. The native
+// \InvalidArgumentException is wrapped by the public deserialize() entry
+// point. RED before the routing fix (the raw dict was wrapped and returned),
+// GREEN after.
+
+test('deserialize PetFood missing discriminator throws', function (): void {
+    $json = '{"weightKg":5.0}'; // no "foodType" discriminator property
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class))
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+});
+
+test('deserialize PetFood missing discriminator does not wrap raw dict', function (): void {
+    /* Guard against a regression to the old behaviour where the raw decoded
+     * array was wrapped in a PetFood union container and returned. The call
+     * MUST raise — never return a PetFood whose actualInstance is the raw
+     * untyped array. */
+    $json = '{"weightKg":5.0}';
+
+    $threw = false;
+    try {
+        ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class);
+    } catch (\{{invokerPackage}}\SerializationException) {
+        $threw = true;
+    }
+
+    expect($threw)->toBeTrue();
+});
 
 // -- Gap #13: null fields omitted on serialize --
 

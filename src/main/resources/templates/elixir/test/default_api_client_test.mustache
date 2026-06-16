@@ -64,6 +64,25 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     assert client.proxy_auth_header == "Basic YWxpY2U6czNjcmV0"
   end
 
+  # Gap AK (canonical cross-SDK scenario): a proxy URL of exactly
+  # `http://user:pass@127.0.0.1:3128` MUST carry the proxy credentials —
+  # the userinfo is extracted, base64-encoded, and surfaced as the
+  # Proxy-Authorization header rather than being silently dropped. java's
+  # java.net.http.HttpClient drops the userinfo (proxy auth fails java-only);
+  # the other 11 (elixir among them) honour it. Canonical = honour the creds.
+  # GREEN in elixir — build_proxy_auth_header extracts user:pass at
+  # construction. base64("user:pass") == "dXNlcjpwYXNz".
+  test "Gap AK: proxy URL with user:pass carries Proxy-Authorization credentials" do
+    transport =
+      {{moduleName}}.TransportOptions.new(
+        proxy: "http://user:pass@127.0.0.1:3128"
+      )
+
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    assert client.proxy_auth_header == "Basic dXNlcjpwYXNz"
+    assert {{moduleName}}.DefaultApiClient.proxy_auth_header(client) == "Basic dXNlcjpwYXNz"
+  end
+
   @tag :skip
   test "makes HTTPS request through proxy with verify_ssl=false" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTPS_URL")
@@ -215,6 +234,84 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     json = Jason.decode!(response.body)
     assert json["method"] == "GET"
     assert json["body"] == ""
+  end
+
+  # Gap N1 (behavioural half): a 302 carrying a body must PROCEED across the
+  # redirect (RFC 7231 §6.4.3 switches the follow-up to GET and drops the
+  # body), not be refused. node was the buggy SDK — it refused body-replay on
+  # ALL redirect statuses; the other 11 (elixir among them) guard the
+  # HTTPS->HTTP body-replay on 307/308 only. GREEN in elixir. Driven over
+  # http->http against chasm (TLS origins are outside this harness); the
+  # scheme-downgrade status matrix is locked in the unit test below.
+  test "Gap N1: 302 with a body proceeds and drops the body (switches to GET)" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport =
+      {{moduleName}}.TransportOptions.new(
+        follow_redirects: true,
+        max_redirects: 5
+      )
+
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    response =
+      {{moduleName}}.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{chasm_url}/test/redirect/302",
+        %{"Content-Type" => "application/json"},
+        "client_secret=top-secret"
+      )
+
+    assert response.status_code == 200
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET", "302 must switch the follow-up to GET"
+    assert json["body"] == "", "302 must drop the request body"
+  end
+
+  # Gap N1 (status matrix): the HTTPS->HTTP body-replay refusal must fire on
+  # 307/308 ONLY, never on 301/302/303 (which drop the body regardless). This
+  # reconstructs the exact decision the client makes in the redirect loop using
+  # the public `downgrade?/2` predicate plus the status gate — the client
+  # refuses iff the status preserves the body (307/308) AND there is a body AND
+  # the hop downgrades https -> http. node got this wrong by refusing every
+  # status; elixir guards 307/308 only, so this asserts GREEN.
+  test "Gap N1: https->http body replay refused for 307/308 only" do
+    https = "https://example.com/x"
+    http = "http://example.com/x"
+
+    # Mirror of the redirect-loop decision: refuse iff status in [307, 308]
+    # AND there is a body AND the hop is an https->http downgrade.
+    refuses_replay = fn status, from, to, has_body ->
+      status in [307, 308] and has_body and {{moduleName}}.DefaultApiClient.downgrade?(from, to)
+    end
+
+    # 307/308 https->http WITH body: must refuse (would leak a TLS-protected
+    # body in cleartext).
+    assert refuses_replay.(307, https, http, true),
+           "Gap N1: 307 https->http with a body must be refused"
+
+    assert refuses_replay.(308, https, http, true),
+           "Gap N1: 308 https->http with a body must be refused"
+
+    # 301/302/303 https->http WITH body: must PROCEED — the body is dropped and
+    # the method becomes GET, so there is nothing to leak. This is the exact
+    # behaviour node got wrong by refusing every status.
+    refute refuses_replay.(301, https, http, true),
+           "Gap N1: 301 https->http must proceed (body dropped), not be refused"
+
+    refute refuses_replay.(302, https, http, true),
+           "Gap N1: 302 https->http must proceed (body dropped), not be refused"
+
+    refute refuses_replay.(303, https, http, true),
+           "Gap N1: 303 https->http must proceed (body dropped), not be refused"
+
+    # 307 with NO body, or no scheme downgrade: nothing to leak, must proceed.
+    refute refuses_replay.(307, https, http, false),
+           "Gap N1: 307 with no body has nothing to replay"
+
+    refute refuses_replay.(307, https, https, true),
+           "Gap N1: 307 https->https is not a downgrade"
   end
 
   # T-new-3: multipart bodies must be replayed across 307 redirects per

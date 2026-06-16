@@ -542,6 +542,16 @@ class TestDiscriminatorAutoInjection:
         assert isinstance(result.actual_instance, DryFood)
         assert result.actual_instance.weight_kg == 2.5
 
+    def test_missing_discriminator_field_raises(self) -> None:
+        # Gap AU-residual — a PetFood payload missing the `foodType`
+        # discriminator must raise, not wrap the raw dict in the union
+        # container's `actual_instance`. get_discriminator_value raises a
+        # ValueError on the missing field, which the composed deserializer
+        # surfaces as a SerializationError. Matches the 10 SDKs that throw.
+        json_str = '{"weightKg": 5.0}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+
 
 class TestResolveOneOf:
     def test_resolve_one_of_returns_first_matching_variant(self) -> None:

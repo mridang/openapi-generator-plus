@@ -300,9 +300,6 @@ defmodule {{moduleName}}.DefaultApiClient do
   end
 
   # Only gunzip when the body actually carries the gzip magic bytes (0x1F 0x8B).
-  # If some transport layer already decompressed it but left the
-  # Content-Encoding header in place, the bytes are plain and we must not
-  # double-decompress.
   defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label) do
     :zlib.gunzip(body)
   rescue
@@ -313,7 +310,24 @@ defmodule {{moduleName}}.DefaultApiClient do
         cause: e
   end
 
-  defp gunzip_body(body, _label), do: body
+  # An empty body declared gzip is a degenerate but harmless case (nothing to
+  # decompress); pass it through untouched rather than failing the request.
+  defp gunzip_body(<<>>, _label), do: <<>>
+
+  # Gap AL: the body claims `Content-Encoding: gzip` but lacks the gzip magic
+  # bytes (0x1F 0x8B). A mislabelling server (or a tampered response) handed us
+  # bytes that cannot be a gzip stream, so silently returning them would pass
+  # corrupt data straight to the caller as if it were the decoded payload.
+  # Surface a typed ApiError instead — the decode failure must not be hidden.
+  # Matches the java/python/ruby/go/php "wrap decompression failures as the
+  # SDK error" contract; previously Elixir passed these bytes through unchanged.
+  defp gunzip_body(_body, label) do
+    raise {{moduleName}}.ApiError,
+      message:
+        "Failed to decompress #{label} response body: " <>
+          "Content-Encoding declared #{label} but the body is not a valid gzip stream",
+      status_code: 0
+  end
 
   # HTTP "deflate" is nominally zlib-wrapped, but some servers emit raw
   # (headerless) DEFLATE; try zlib first, then fall back to raw inflate.

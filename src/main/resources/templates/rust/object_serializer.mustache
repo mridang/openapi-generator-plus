@@ -814,4 +814,43 @@ mod tests {
             other => panic!("expected PetFood::DryFood, got: {other:?}"),
         }
     }
+
+    // Gap AJ (fleet-wide regression guard) — JSON `null` on a required,
+    // non-nullable field must HARD-FAIL deserialization. The canonical payload
+    // `{"name": null, "photoUrls": ["u"]}` sets the required `name` (a plain
+    // `String`, not `Option<String>`) to JSON null. serde's derived
+    // `Deserialize` rejects the null because the field is non-Option, surfacing
+    // the SDK's SerializationError rather than silently constructing a Pet with
+    // an empty/partial `name`. go/python/kotlin were the buggy SDKs; Rust is
+    // already correct, so this asserts GREEN. Input/expected match the AUDIT.md
+    // canonical exactly.
+    #[test]
+    fn test_aj_null_on_required_field_rejected() {
+        let payload = br#"{"name":null,"photoUrls":["u"]}"#;
+        let result: Result<Option<Pet>, SerializationError> =
+            object_serializer::deserialize(payload);
+        assert!(
+            result.is_err(),
+            "Gap AJ: null on the required non-nullable `name` must be rejected"
+        );
+    }
+
+    // Gap AU-residual (fleet-wide regression guard) — a discriminated oneOf
+    // payload that omits the discriminator property must HARD-FAIL, not wrap the
+    // raw object in a union container. The canonical payload `{"weightKg": 5.0}`
+    // omits `foodType`; PetFood's hand-rolled Deserialize reads the
+    // discriminator field and returns an Err when it is absent (rather than
+    // serde-untagged's "try every variant" fall-through). python/php were the
+    // buggy SDKs; Rust is already correct, so this asserts GREEN. Input/expected
+    // match the AUDIT.md canonical exactly.
+    #[test]
+    fn test_au_residual_missing_discriminator_rejected() {
+        let payload = br#"{"weightKg":5.0}"#;
+        let result: Result<Option<PetFood>, SerializationError> =
+            object_serializer::deserialize(payload);
+        assert!(
+            result.is_err(),
+            "Gap AU-resid: PetFood missing the `foodType` discriminator must be rejected"
+        );
+    }
 }
