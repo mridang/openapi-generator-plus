@@ -164,6 +164,18 @@ class DefaultApiClientUnitTest {
             os.write(body);
           }
         });
+    server.createContext(
+        "/content-encoding-lie",
+        exchange -> {
+          // Gap AL: the server claims gzip but sends plain (non-gzip) bytes.
+          byte[] body = "this is not gzip".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -778,6 +790,27 @@ class DefaultApiClientUnitTest {
     ApiHttpResponse response =
         client.sendRequest("GET", baseUrl + "/unknown-charset", Map.of(), null);
     assertEquals("héllo", response.body());
+  }
+
+  @Test
+  void contentEncodingLieSurfacesApiException() {
+    // Gap AL: a response that advertises `Content-Encoding: gzip` but carries
+    // non-gzip plain bytes must surface a typed ApiException — never crash
+    // unconditionally and never silently hand back corrupted/garbage bytes.
+    // GZIPInputStream rejects the non-gzip magic with a ZipException
+    // (an IOException), which sendRequest wraps as an ApiException. (dart
+    // crashed; csharp/kotlin/node/swift/elixir passed corrupt bytes through;
+    // Java already wraps -> this guard is green here.)
+    DefaultApiClient client = new DefaultApiClient();
+    ApiException ex =
+        assertThrows(
+            ApiException.class,
+            () -> client.sendRequest("GET", baseUrl + "/content-encoding-lie", Map.of(), null));
+    assertNotNull(
+        ex.getCause(), "the underlying decompression failure must be preserved as the cause");
+    assertTrue(
+        ex.getCause() instanceof java.io.IOException,
+        "cause should be the decompression IOException, was: " + ex.getCause());
   }
 
   @Test

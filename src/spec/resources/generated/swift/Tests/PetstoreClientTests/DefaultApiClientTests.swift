@@ -80,6 +80,37 @@
       #expect(client.proxyAuthHeader == "Basic YWxpY2U6czNjcmV0")
     }
 
+    // proxy-userinfo-carries-credentials (Gap AK): the exact canonical
+    // fleet-wide scenario — a proxy URL `http://user:pass@127.0.0.1:3128` MUST
+    // carry the proxy credentials as a base64 Proxy-Authorization header rather
+    // than dropping the userinfo (Java's java.net.http.HttpClient silently drops
+    // it; the canonical is to honour it). URLSession's connectionProxyDictionary
+    // has no credential key, so the client extracts the userinfo and injects it.
+    // base64("user:pass") == "dXNlcjpwYXNz".
+    //
+    // NOTE: configuring a proxy on Linux throws at session construction (the
+    // platform path is macOS-only — see buildSession), so this test exercises
+    // the macOS path; the file is gated `#if !os(Linux)`. The credential
+    // extraction itself (proxyAuthHeader) is platform-independent and is
+    // asserted directly alongside the on-wire header.
+    @Test func testProxyUserinfoCarriesCredentialsCanonical() async throws {
+      let transport = try TransportOptionsBuilder()
+        .proxy("http://user:pass@127.0.0.1:3128")
+        .build()
+      var capturedRequest: URLRequest?
+      let client = makeClient(transport: transport) { req in
+        capturedRequest = req
+        return (self.jsonBody(), 200, [:])
+      }
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com", headers: [:], body: nil)
+      #expect(
+        capturedRequest?.value(forHTTPHeaderField: "Proxy-Authorization")
+          == "Basic dXNlcjpwYXNz"
+      )
+      #expect(client.proxyAuthHeader == "Basic dXNlcjpwYXNz")
+    }
+
     @Test func testMakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
       let transport = try TransportOptionsBuilder()
         .proxy("http://proxy.example.com:8080")
@@ -481,6 +512,55 @@
       RedirectStubURLProtocol.configure { _ in
         // 307 preserves method + body, so the POST body would be replayed.
         return .redirect(status: 307, location: "http://example.com/downgrade")
+      }
+      let client = DefaultApiClient(
+        transportOptions: transport,
+        protocolClasses: [RedirectStubURLProtocol.self])
+      await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "POST", url: "https://example.com/start",
+          headers: ["Content-Type": "application/json"],
+          body: Data("payload".utf8))
+      }
+    }
+
+    // MARK: - HTTPS->HTTP redirect: 302 proceeds, 307/308 throw (Gap N1)
+
+    // redirect-302-https-to-http-proceeds (Gap N1): a 302 HTTPS->HTTP redirect
+    // carrying a request body MUST proceed — RFC 7231 §6.4.3 permits clients to
+    // change the method to GET and the body is dropped, so there is no cleartext
+    // body replay to refuse. The follow-up GET reaches the http target and a 200
+    // is surfaced. (Node wrongly guarded EVERY status and threw here; the
+    // canonical guards only 307/308.) The RedirectStubURLProtocol coerces
+    // 301/302/303 to a bodyless GET, mirroring URLSession.
+    @Test func testRedirect302HttpsToHttpWithBodyProceeds() async throws {
+      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      RedirectStubURLProtocol.configure { req in
+        if req.url!.absoluteString.contains("/downgrade-target") {
+          return .ok(Data(#"{"ok":true}"#.utf8))
+        }
+        return .redirect(status: 302, location: "http://example.com/downgrade-target")
+      }
+      let client = DefaultApiClient(
+        transportOptions: transport,
+        protocolClasses: [RedirectStubURLProtocol.self])
+      let resp = try await client.sendRequest(
+        method: "POST", url: "https://example.com/start",
+        headers: ["Content-Type": "application/json"],
+        body: Data("payload".utf8))
+      #expect(resp.statusCode == 200)
+      #expect(resp.body.contains("ok"))
+    }
+
+    // redirect-308-https-to-http-with-body-throws (Gap N1): a 308 HTTPS->HTTP
+    // redirect preserves method AND body (RFC 7538), so the cleartext replay of
+    // the body across the TLS downgrade MUST be refused with a typed ApiError —
+    // the same as the 307 case. Pins both ends of the canonical: 302 proceeds
+    // (above), 307/308 throw.
+    @Test func testRedirect308HttpsToHttpWithBodyThrowsApiError() async throws {
+      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      RedirectStubURLProtocol.configure { _ in
+        return .redirect(status: 308, location: "http://example.com/downgrade")
       }
       let client = DefaultApiClient(
         transportOptions: transport,

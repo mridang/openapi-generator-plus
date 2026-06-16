@@ -680,6 +680,25 @@ func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
 	}
 }
 
+// ── Gap AU-residual: a PetFood payload omitting the foodType discriminator
+// cannot route to any variant and MUST throw, not silently wrap the raw dict
+// in the union container. python/php were the divergent SDKs; Go's
+// discriminator UnmarshalJSON already errors on the empty discriminator, so
+// this asserts the canonical throw and locks the fleet-wide behaviour. ──
+
+func TestDiscriminator_MissingDiscriminatorThrows(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"weightKg":5.0}`)
+	var food models.PetFood
+	err := deserialize(input, &food)
+	if err == nil {
+		t.Fatal("expected error when the foodType discriminator is missing")
+	}
+	if !strings.Contains(err.Error(), "discriminator") {
+		t.Errorf("expected error to mention the discriminator, got: %v", err)
+	}
+}
+
 // ── #24 format:double whole numbers keep the trailing .0 ──
 
 func TestStringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
@@ -749,7 +768,7 @@ func TestSerialize_OmitsNilFields(t *testing.T) {
 
 func TestDeserialize_RequiredFieldNullThrows(t *testing.T) {
 	t.Parallel()
-	raw := []byte(`{"name":null,"photoUrls":["x"]}`)
+	raw := []byte(`{"name":null,"photoUrls":["u"]}`)
 	var pet models.Pet
 	err := deserialize(raw, &pet)
 	if err == nil {

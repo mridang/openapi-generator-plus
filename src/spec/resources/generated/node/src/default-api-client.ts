@@ -350,13 +350,18 @@ export class DefaultApiClient implements ApiClient {
            * downgrade (HTTPS -> HTTP). Replaying the body in cleartext
            * after the original request was sent over TLS leaks whatever
            * the caller trusted to TLS to protect (credentials, PII,
-           * signed tokens). When a redirect would carry a body across
-           * such a downgrade we abort the redirect chain and surface
-           * the 3xx response to the caller, who can decide what to do.
-           * Bodyless follow-ups (303 + the 301/302 historical GET
-           * coercion) are unaffected. */
+           * signed tokens). Only 307 / 308 preserve the method AND body
+           * across a redirect (RFC 7231 sec 6.4.7 / RFC 7538), so they are
+           * the only statuses that can replay a body onto a downgraded
+           * http:// target -- restrict the guard to them. 301 / 302 / 303
+           * coerce the follow-up to a bodyless GET (handled above), so a
+           * downgrade on those statuses carries nothing sensitive and must
+           * PROCEED rather than throw; gating only on `nextBody` (without
+           * the status check) wrongly refused a GET-with-body whose body
+           * the 301/302 coercion preserves. N1: guard 307/308 only. */
           const currentProto = new URL(currentUrl).protocol;
           if (
+            (statusCode === 307 || statusCode === 308) &&
             nextBody !== undefined &&
             nextBody !== null &&
             currentProto === "https:" &&
@@ -443,7 +448,28 @@ export class DefaultApiClient implements ApiClient {
     let responseBytes: Buffer;
     try {
       responseBytes = Buffer.from(await response.arrayBuffer());
+      /* Gap AL: a server may advertise `Content-Encoding: gzip` (etc.) but
+       * send a body that is not a valid stream for that codec (a truncated
+       * or non-gzip payload). undici's fetch decodes Content-Encoding
+       * transparently and throws on a malformed stream -- that throw is
+       * caught above. But when undici did NOT decode (the body still carries
+       * the codec's signature bytes), passing those raw bytes straight
+       * through would silently hand the caller corrupt/undecoded data. Decode
+       * the declared encoding ourselves in that case and surface any failure
+       * as the SDK's own ApiError, so a Content-Encoding lie can never leak
+       * corrupted bytes -- matching java/python/ruby/go/php/rust/elixir which
+       * wrap the decompression failure rather than crashing or passing it on. */
+      const contentEncoding = (response.headers.get("content-encoding") ?? "")
+        .trim()
+        .toLowerCase();
+      responseBytes = DefaultApiClient.ensureDecoded(
+        responseBytes,
+        contentEncoding,
+      );
     } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
       throw new ApiError(
         0,
         error instanceof Error ? error.message : String(error),
@@ -502,6 +528,56 @@ export class DefaultApiClient implements ApiClient {
       encodings.push("zstd");
     }
     return encodings.join(", ");
+  }
+
+  /**
+   * Defend against a `Content-Encoding` lie (Gap AL).
+   *
+   * undici's `fetch` decodes the declared `Content-Encoding` transparently
+   * and throws on a malformed stream, so in the common case `buf` is already
+   * the decoded plaintext and the declared codec's signature bytes are gone.
+   * When undici did NOT decode -- the bytes still carry the codec signature
+   * (e.g. the gzip magic `0x1F 0x8B`) -- handing them to the caller untouched
+   * would silently surface corrupt, undecoded bytes. In that case we decode
+   * the declared encoding ourselves and surface any failure as an
+   * {@link ApiError}, so a server that advertises `gzip` but sends bytes that
+   * are not a valid gzip stream produces a typed error rather than corrupt
+   * passthrough. Bodies whose declared codec was already decoded (no signature
+   * bytes remain) and bodies with no/identity `Content-Encoding` pass through
+   * unchanged.
+   *
+   * @param buf the raw response bytes as read from the body
+   * @param contentEncoding the lower-cased `Content-Encoding` header value
+   * @returns the decoded bytes (or `buf` unchanged when no decode is needed)
+   * @throws ApiError when the declared encoding cannot be decoded
+   */
+  static ensureDecoded(buf: Buffer, contentEncoding: string): Buffer {
+    if (contentEncoding === "" || contentEncoding === "identity") {
+      return buf;
+    }
+    /* Only the first declared coding can still be on the wire; a comma list
+     * (e.g. "gzip, br") is decoded outer-first by undici, so inspect the
+     * last (outermost) token that remains. We only act when the bytes still
+     * carry a codec signature, which means undici left them encoded. */
+    if (contentEncoding === "gzip" || contentEncoding === "x-gzip") {
+      // gzip magic: 0x1F 0x8B. Absent => already decoded by undici => leave.
+      if (buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
+        try {
+          return zlib.gunzipSync(buf);
+        } catch (error) {
+          throw new ApiError(
+            0,
+            `failed to decompress response body (content-encoding=${contentEncoding}): ` +
+              (error instanceof Error ? error.message : String(error)),
+            null,
+            null,
+            null,
+            { cause: error },
+          );
+        }
+      }
+    }
+    return buf;
   }
 
   /**

@@ -11,7 +11,10 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -537,5 +540,73 @@ func TestDefaultApiClient_CloseReleasesUnderlyingClient(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "closed") {
 		t.Errorf("expected a closed-client error, got %q", err.Error())
+	}
+}
+
+// N1: redirect-status-specific body-replay across an HTTPS→HTTP downgrade.
+// On a 302 the follow-up is coerced to GET and the body is dropped (RFC 7231
+// §6.4.3), so an HTTPS→HTTP 302 carrying a body MUST proceed — there is no
+// body to leak. On a 307/308 the method and body are preserved (RFC 7231
+// §6.4.7 / RFC 7538), so replaying across an HTTPS→HTTP downgrade would leak
+// the request body in plaintext and MUST throw. The canonical behaviour
+// guards 307/308 only; 11 SDKs do this, node previously refused every status.
+//
+// The downgrade is built directly with httptest (a TLS origin redirecting to
+// a plaintext target) because the chasm fixture serves a single scheme and
+// cannot express a cross-scheme HTTPS→HTTP redirect.
+func TestDefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t *testing.T) {
+	t.Parallel()
+
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+
+	newTLSOrigin := func(status int) *httptest.Server {
+		return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Location", plainTarget.URL+"/downgraded")
+			w.WriteHeader(status)
+		}))
+	}
+
+	send := func(origin *httptest.Server) error {
+		transport := NewTransportOptionsBuilder().
+			VerifySsl(false).
+			FollowRedirects(true).
+			Build()
+		client := NewDefaultApiClient(transport)
+		_, err := client.SendRequest(
+			"POST", origin.URL+"/start",
+			map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+			[]byte("client_secret=hunter2"),
+		)
+		return err
+	}
+
+	// 302 HTTPS→HTTP with a body: the follow-up becomes a bodyless GET, so the
+	// redirect MUST proceed (no body to leak) and reach the plaintext target.
+	t.Run("302_proceeds", func(t *testing.T) {
+		origin := newTLSOrigin(302)
+		defer origin.Close()
+		if err := send(origin); err != nil {
+			t.Fatalf("expected 302 HTTPS→HTTP downgrade to proceed, got error: %v", err)
+		}
+	})
+
+	// 307/308 HTTPS→HTTP with a body: method+body are preserved, so replaying
+	// across the downgrade would leak the body in plaintext and MUST throw.
+	for _, status := range []int{307, 308} {
+		status := status
+		t.Run(strconv.Itoa(status)+"_throws", func(t *testing.T) {
+			origin := newTLSOrigin(status)
+			defer origin.Close()
+			err := send(origin)
+			if err == nil {
+				t.Fatalf("expected %d HTTPS→HTTP body replay to be refused, got nil", status)
+			}
+			if !strings.Contains(err.Error(), "HTTPS") || !strings.Contains(err.Error(), "HTTP") {
+				t.Errorf("expected downgrade-refusal message for %d, got %q", status, err.Error())
+			}
+		})
 	}
 }

@@ -270,6 +270,43 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       }
     }
 
+    /* Gap AL: surface a Content-Encoding lie as a typed ApiError rather
+       than silently passing corrupted bytes to the caller. URLSession
+       performs transparent decompression only for an encoding it itself
+       negotiated, and it strips the `Content-Encoding` header from the
+       response once it has decompressed. So a `Content-Encoding` header
+       that is STILL PRESENT on the response is one URLSession did not
+       handle — either the body is genuinely still compressed (this
+       client ships no manual decompressor — see the Accept-Encoding note
+       above) or, worse, the server lied (advertised `gzip` while sending
+       plaintext / truncated / non-gzip bytes). Either way the raw bytes
+       are NOT the decoded payload, so handing them back as the response
+       body is silent corruption. Decode them as the SDK's uniform
+       ApiError instead.
+    
+       The sole exception is a caller who explicitly set `Accept-Encoding`
+       on the request: per the Accept-Encoding note above, that caller has
+       opted to receive and decode the encoded bytes themselves, so the
+       residual header is expected and must not be treated as an error. */
+    let residualEncoding =
+      (respHeaders["content-encoding"] ?? "")
+      .split(separator: ",")
+      .first
+      .map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+    let callerManagedEncoding = merged.keys.contains { $0.lowercased() == "accept-encoding" }
+    if !residualEncoding.isEmpty,
+      residualEncoding != "identity",
+      !callerManagedEncoding,
+      DefaultApiClient.isHandledContentEncoding(residualEncoding)
+    {
+      throw ApiError(
+        statusCode: httpResponse.statusCode,
+        message: "Failed to decode response body: server advertised "
+          + "Content-Encoding: \(residualEncoding) but the body was not "
+          + "transparently decompressed (corrupt or mislabelled encoding)"
+      )
+    }
+
     let contentType = respHeaders["content-type"] ?? ""
     let responseBody: String
     if DefaultApiClient.isTextContentType(contentType) {
@@ -482,6 +519,22 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       || mediaType == "application/javascript"
       || mediaType.hasSuffix("+json")
       || mediaType.hasSuffix("+xml")
+  }
+
+  /// Returns true for the compression tokens this client expects URLSession
+  /// to have decompressed transparently (so a residual `Content-Encoding`
+  /// header naming one of them on the response means the body was NOT
+  /// decoded — a Content-Encoding lie or an encoding the client cannot
+  /// handle — and must surface as an ``ApiError`` rather than corrupt
+  /// passthrough). `identity` is excluded by the caller (it is a no-op
+  /// encoding). Matches the encodings the underlying transport advertises.
+  static func isHandledContentEncoding(_ encoding: String) -> Bool {
+    switch encoding {
+    case "gzip", "x-gzip", "deflate", "br", "zstd", "compress":
+      return true
+    default:
+      return false
+    }
   }
 
   private static func buildSession(_ opts: TransportOptions) throws -> (

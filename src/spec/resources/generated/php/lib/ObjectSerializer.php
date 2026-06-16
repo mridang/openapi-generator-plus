@@ -538,6 +538,29 @@ class ObjectSerializer
             return $result;
         }
 
+        /* Gap AU-residual: a oneOf/anyOf composed model carries a static
+         * build() + a getActualInstance() accessor instead of
+         * SerializedName-decorated typed properties. Routing it through the
+         * generic Symfony denormalize() below would silently wrap the raw
+         * decoded array in an empty union container — including a payload
+         * that is missing the discriminator property. build() owns the
+         * discriminator routing and THROWS on a missing / unknown / non-string
+         * discriminator value (matching the other 10 SDKs); dispatch composed
+         * classes through it so the contract violation surfaces loudly instead
+         * of producing an un-typeable wrapper. The native
+         * \InvalidArgumentException build() raises is wrapped in
+         * SerializationException by the public deserialize() entry point. */
+        if (
+            class_exists($class)
+            && method_exists($class, 'build')
+            && method_exists($class, 'getActualInstance')
+        ) {
+            $decoded = is_string($data) ? json_decode($data, true) : $data;
+            /** @var object $built */
+            $built = $class::build($decoded);
+            return $built;
+        }
+
         if (is_string($data)) {
             try {
                 $decoded = json_decode($data, true, 512, JSON_THROW_ON_ERROR);

@@ -17,6 +17,7 @@ import {
   Category,
   DryFood,
   WetFood,
+  PetFood,
   PetPassport,
   Pet,
   PetStatusEnum,
@@ -412,6 +413,19 @@ describe("ObjectSerializer", () => {
         SerializationError,
       );
     });
+
+    test('canonical AJ: {"name":null,"photoUrls":["u"]} into Pet throws', () => {
+      // Canonical scenario AJ — a JSON null on the required, non-nullable
+      // `name` field is a silent contract violation in go (zero-inits ""),
+      // python (pydantic accepts) and kotlin (explicitNulls=false accepts);
+      // the other 9 SDKs, Node included, throw. This pins Node on the
+      // throw side with the exact canonical input/expected pair so the
+      // behaviour cannot regress in any direction.
+      const json = { name: null, photoUrls: ["u"] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        SerializationError,
+      );
+    });
   });
 
   describe("SerializeDiscardsNullFields", () => {
@@ -603,6 +617,20 @@ describe("ObjectSerializer", () => {
       expect(dry).toBeInstanceOf(DryFood);
       expect(dry!.foodType).toBe("dry");
       expect(dry!.weightKg).toBe(2.5);
+    });
+
+    test("canonical AU-resid: PetFood payload missing the foodType discriminator throws", () => {
+      // Canonical scenario AU-residual — a discriminated-union payload that
+      // omits the discriminator property must hard-fail, not wrap the raw
+      // dict in a union container (the python/php divergence). PetFood is a
+      // oneOf discriminated by `foodType`; {"weightKg":5.0} supplies a
+      // subtype field but no discriminator, so deserialization MUST throw.
+      // Node already routes this through the "Missing discriminator property"
+      // guard in ObjectSerializer.deserialize, so it is GREEN.
+      const json = { weightKg: 5.0 };
+      expect(() => ObjectSerializer.deserialize(json, PetFood)).toThrow(
+        SerializationError,
+      );
     });
   });
 

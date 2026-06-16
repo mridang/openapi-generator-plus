@@ -83,6 +83,36 @@ describe PetstoreClient::DefaultApiClient do
       encoded = Base64.strict_encode64("#{user}:#{pass}")
       _("Basic #{encoded}").must_equal('Basic YWxpY2U6czNjcmV0')
     end
+
+    # Gap AK — canonical cross-SDK scenario: a proxy URL of the exact form
+    # `http://user:pass@127.0.0.1:3128` MUST carry its userinfo credentials
+    # through to the client's proxy configuration (Proxy-Authorization /
+    # userinfo honoured), not drop them. Java was the only SDK that dropped
+    # the userinfo (java.net.http.HttpClient strips it); ruby preserves it —
+    # TransportOptions keeps the userinfo verbatim and Faraday parses
+    # user/password from the proxy URL. Canonical = creds carried.
+    it 'carries user:pass userinfo from the canonical proxy URL' do
+      require 'base64'
+
+      transport = PetstoreClient::TransportOptions.builder
+        .proxy('http://user:pass@127.0.0.1:3128')
+        .build
+
+      # The userinfo survives in TransportOptions unmodified.
+      _(transport.proxy).must_equal('http://user:pass@127.0.0.1:3128')
+
+      # Faraday parses the userinfo from the proxy URL when the connection
+      # is built — the credentials are honoured, not dropped.
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      conn = client.send(:build_connection)
+      _(conn.proxy).wont_be_nil
+      _(conn.proxy.user).must_equal('user')
+      _(conn.proxy.password).must_equal('pass')
+
+      # And they encode to the canonical Proxy-Authorization Basic value.
+      encoded = Base64.strict_encode64('user:pass')
+      _("Basic #{encoded}").must_equal('Basic dXNlcjpwYXNz')
+    end
   end
 
   describe 'HTTP proxy with TLS' do
@@ -412,6 +442,74 @@ describe PetstoreClient::DefaultApiClient do
         client.send_request(:GET, 'https://example.com', {}, nil)
       end.must_raise PetstoreClient::ApiError
       _(error.message).must_include('closed')
+    end
+  end
+
+  # ── Gap N1 — body-replay guard fires ONLY on 307/308, not every 3xx ──
+  #
+  # Canonical cross-SDK scenario for an HTTPS -> HTTP (TLS downgrade)
+  # redirect that carries a request body:
+  #   * 302: per RFC the request demotes to GET and the body is dropped,
+  #          so there is nothing to replay over cleartext — the client
+  #          MUST proceed and follow the redirect.
+  #   * 307/308: the method and body are preserved, so replaying the body
+  #          across the downgrade would leak TLS-protected data — the
+  #          client MUST refuse with a typed ApiError.
+  # Node over-guarded (refused on ALL statuses, throwing where others
+  # proceed); ruby already guards 307/308 only. Canonical = guard 307/308.
+  # Deterministic Faraday test stubs — no network, no ENV dependency.
+  describe 'Gap N1 — HTTPS -> HTTP body-replay guard scope' do
+    def stub_connection_n1(stubs)
+      Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+    end
+
+    it '302 HTTPS -> HTTP with a body proceeds (body dropped, becomes GET)' do
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [302, { 'location' => 'http://localhost/landing' }, '']
+        end
+        stub.get('/landing') do
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection_n1(stubs)) do
+        resp = client.send_request(:POST, 'https://localhost/r', {}, 'secret=payload')
+        _(resp.status_code).must_equal(200)
+      end
+    end
+
+    it '307 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/upload') do
+          [307, { 'location' => 'http://insecure.example.com/upload' }, '']
+        end
+      end
+      transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection_n1(stubs)) do
+        err = assert_raises(PetstoreClient::ApiError) do
+          client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
+        end
+        _(err.message).must_match(/TLS downgrade/)
+      end
+    end
+
+    it '308 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/upload') do
+          [308, { 'location' => 'http://insecure.example.com/upload' }, '']
+        end
+      end
+      transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection_n1(stubs)) do
+        err = assert_raises(PetstoreClient::ApiError) do
+          client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
+        end
+        _(err.message).must_match(/TLS downgrade/)
+      end
     end
   end
 end

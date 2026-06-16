@@ -509,6 +509,26 @@ class ObjectSerializerTest {
                   new com.fasterxml.jackson.core.type.TypeReference<
                       com.example.petstore.models.Order>() {}.getType()));
     }
+
+    @Test
+    @DisplayName("JSON null on a required non-nullable field throws (Gap AJ)")
+    void nullOnRequiredFieldThrows() {
+      // Gap AJ: a malformed/hostile server sending JSON null for a
+      // required, non-nullable property ({"name": null} where name is
+      // required) must fail loudly with the SDK's (de)serialization
+      // exception, not be silently zero-initialized ("") or accepted.
+      // Pet.name is required + non-nullable, so the @JsonCreator's
+      // requireNonNull rejects the null and Jackson surfaces it as a
+      // SerializationException. (go/python/kotlin were the divergent SDKs;
+      // Java already throws -> this guard is green here.)
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"name\":null,\"photoUrls\":[\"u\"]}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Pet>() {}.getType()));
+    }
   }
 
   @Nested
@@ -775,6 +795,24 @@ class ObjectSerializerTest {
           food instanceof com.example.petstore.models.DryFood,
           "deserialized PetFood should be a DryFood, got: " + food.getClass());
       assertEquals(2.5, ((com.example.petstore.models.DryFood) food).weightKg);
+    }
+
+    @Test
+    @DisplayName("missing discriminator property throws (Gap AU-residual)")
+    void missingDiscriminatorThrows() {
+      // Gap AU-residual: a PetFood payload missing the foodType
+      // discriminator property ({"weightKg":5.0}) must throw rather than
+      // be silently wrapped as a raw dict in a union container. With no
+      // foodType, Jackson cannot resolve the @JsonSubTypes mapping and
+      // surfaces a SerializationException. (python/php were the divergent
+      // SDKs; Java already throws -> this guard is green here.)
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"weightKg\":5.0}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.PetFood>() {}.getType()));
     }
   }
 

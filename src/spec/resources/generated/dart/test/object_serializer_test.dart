@@ -329,6 +329,18 @@ void main() {
       },
     );
 
+    // -- Gap AU-residual: missing-discriminator wrapping --
+    //
+    // A PetFood payload that omits the `foodType` discriminator property
+    // (e.g. {"weightKg": 5.0}) must hard-fail with the SDK's
+    // SerializationError, NOT silently wrap the raw dict in a union
+    // container. With no discriminator value the switch lands on the
+    // `default:` branch (disc == null) and throws.
+    test('fromJson throws when the discriminator property is missing', () {
+      final input = <String, dynamic>{'weightKg': 5.0};
+      expect(() => PetFood.fromJson(input), throwsA(isA<SerializationError>()));
+    });
+
     // -- DiscardNullsOnSerializeTests --
     //
     // Models constructed without any of their optional fields must omit those

@@ -803,6 +803,61 @@ test('https to https with body still follows on 307', function (): void {
     expect($response->statusCode)->toBe(200);
 });
 
+// -- N1: redirect body-replay guard fires only on 307/308, not on 302 --
+//
+// Canonical cross-SDK scenario (DIVERGENCE N1): the HTTPS->HTTP body-replay
+// guard must apply ONLY to 307/308. On a 302 HTTPS->HTTP redirect carrying a
+// body the request MUST PROCEED (per RFC the method becomes GET and the body
+// is dropped, so there is nothing to leak); on a 307/308 HTTPS->HTTP redirect
+// with a body it MUST THROW. PHP guards 307/308 only (GREEN here); the same
+// test is added to all 12 SDKs to lock the behaviour (red in node, which
+// refuses body-replay on every redirect status). Co-located with the existing
+// 307/308 body-replay tests above (their working MockHttpClient harness).
+
+test('N1: 302 https to http downgrade with body proceeds as get', function (): void {
+    /* A 302 from an HTTPS origin to an HTTP URL while carrying a POST body
+     * must NOT throw — 301/302 force the follow-up to GET and drop the body,
+     * so there is no plaintext body to leak. The request proceeds. */
+    $downgrade = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'http://insecure.example.com/final'],
+    ]);
+    $final = new MockResponse('{"method":"GET","body":""}', ['http_code' => 200]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade, $final]), $transport);
+
+    $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'sensitive=payload');
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('N1: 307 https to http downgrade with body throws', function (): void {
+    /* The same downgrade on a 307 (which preserves method + body) must be
+     * refused with an SDK-typed ApiException — the body would otherwise be
+     * replayed in plaintext over HTTP. */
+    $downgrade = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
+        ->toThrow(ApiException::class);
+});
+
+test('N1: 308 https to http downgrade with body throws', function (): void {
+    $downgrade = new MockResponse('', [
+        'http_code' => 308,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v'))
+        ->toThrow(ApiException::class);
+});
+
 // -- T-D1: redirect-exhaustion throws "too many redirects" --
 
 test('exceeding max redirects throws too many redirects', function (): void {
@@ -912,5 +967,27 @@ test('wraps a gzip decompression failure as api exception', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/echo', [], null))
+        ->toThrow(ApiException::class);
+});
+
+// -- Gap AL: Content-Encoding lie (server claims gzip, sends plaintext) --
+//
+// Canonical cross-SDK scenario: a response carrying `Content-Encoding: gzip`
+// whose body is non-gzip plain bytes MUST surface the SDK's ApiException — no
+// crash, no corrupt passthrough. PHP already wraps the gzdecode() failure
+// (GREEN here); the same test is added to all 12 SDKs to lock the behaviour
+// (red in dart/csharp/kotlin/node/swift/elixir, green elsewhere).
+
+test('AL: content-encoding gzip lie with plaintext body surfaces ApiException', function (): void {
+    $mockResponse = new MockResponse('plain, not gzip', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'gzip',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/lie', [], null))
         ->toThrow(ApiException::class);
 });

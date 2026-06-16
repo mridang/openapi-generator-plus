@@ -717,5 +717,19 @@ class ObjectSerializerTest {
             val food = serializer.deserialize<com.example.petstore.models.PetFood>(json)
             assertTrue(food is com.example.petstore.models.DryFood)
         }
+
+        @Test
+        @DisplayName("AU-resid: PetFood payload missing the foodType discriminator throws")
+        fun missingDiscriminatorThrows() {
+            // A discriminated payload that omits the `foodType` discriminator
+            // property must fail loud rather than be silently wrapped in a union
+            // container (the python/php divergence). PetFood is declared with
+            // @JsonClassDiscriminator("foodType"); decoding it without that key
+            // raises the SDK's serialization error.
+            val json = "{\"weightKg\":5.0}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.PetFood>(json)
+            }
+        }
     }
 }

@@ -472,6 +472,21 @@ defmodule PetstoreClient.ObjectSerializerTest do
       pet = PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
       assert pet.status == nil
     end
+
+    # Gap AJ: JSON null on a required, non-nullable field. The canonical
+    # cross-SDK payload `{"name":null,"photoUrls":["u"]}` (name required +
+    # non-nullable, present-but-null) MUST raise the SDK's deserialization
+    # error. go zero-inits (""), python (pydantic) accepts, kotlin
+    # (explicitNulls=false) accepts → silent contract violation; the other 9
+    # (elixir among them) throw. Canonical = throw. GREEN in elixir — the
+    # assert_required_present guard rejects an explicitly-null required field.
+    test "Gap AJ: null on required non-nullable name raises SerializationError" do
+      json = ~s({"name":null,"photoUrls":["u"]})
+
+      assert_raise PetstoreClient.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
   end
 
   describe "format: time round-tripping" do
@@ -524,6 +539,20 @@ defmodule PetstoreClient.ObjectSerializerTest do
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       assert %PetstoreClient.Models.DryFood{} = result
       assert result.weight_kg == 2.5
+    end
+
+    # Gap AU-residual: a PetFood payload missing the `foodType` discriminator
+    # property MUST raise rather than wrap the raw map in a union container.
+    # python/php wrap (silent contract violation); the other 10 (elixir among
+    # them) throw. Canonical = throw. GREEN in elixir — PetFood.build raises
+    # ArgumentError ("Missing discriminator 'foodType' for PetFood") when the
+    # discriminator value is absent, before any subtype can be resolved.
+    test "Gap AU-resid: missing discriminator on PetFood raises" do
+      json = ~s({"weightKg":5.0})
+
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+      end
     end
   end
 

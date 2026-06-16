@@ -11,6 +11,11 @@ package com.example.petstore
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Disabled
@@ -128,6 +133,26 @@ class DefaultApiClientTest {
                     .build()
             val client = DefaultApiClient(transport)
             assertEquals("Basic YWxpY2U6czNjcmV0", client.proxyAuthHeader)
+        }
+
+        /*
+         * Gap AK (canonical): a proxy URL `http://user:pass@127.0.0.1:3128`
+         * must carry the embedded credentials. Ktor's CIO engine drops proxy
+         * userinfo, so the SDK extracts it once at construction into a
+         * `Basic <base64(user:pass)>` Proxy-Authorization value. Kotlin is not
+         * buggy here -- this asserts the credentials are honoured, not dropped.
+         */
+        @Test
+        @DisplayName("proxy_userinfo_user_pass_carried_as_basic_authorization")
+        fun proxy_userinfo_user_pass_carried_as_basic_authorization() {
+            val transport =
+                TransportOptions
+                    .builder()
+                    .proxy("http://user:pass@127.0.0.1:3128")
+                    .build()
+            val client = DefaultApiClient(transport)
+            // base64("user:pass") == "dXNlcjpwYXNz"
+            assertEquals("Basic dXNlcjpwYXNz", client.proxyAuthHeader)
         }
     }
 
@@ -432,6 +457,113 @@ class DefaultApiClientTest {
             val json = ObjectMapper().readTree(response.body)
             assertEquals("GET", json.get("method").asText())
             assertEquals("", json.get("body").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("HTTPS->HTTP redirect body-replay guard (N1)")
+    inner class HttpsToHttpRedirectBodyReplay {
+        /*
+         * N1: the HTTPS->HTTP body-replay guard fires ONLY for 307/308 (the
+         * status codes that preserve method+body). For 301/302/303 the request
+         * is downgraded to GET and the body is dropped per RFC, so there is no
+         * TLS-protected payload to leak and the redirect must proceed. A
+         * MockEngine stages the cross-scheme hop deterministically (chasm can't
+         * easily downgrade HTTPS->HTTP); only the guard logic is under test.
+         */
+        @Test
+        @DisplayName("N1: 302 HTTPS->HTTP with a body proceeds (body dropped, becomes GET)")
+        fun redirect_302_https_to_http_with_body_proceeds() {
+            var hopCount = 0
+            var secondHopMethod: String? = null
+            val engine =
+                MockEngine { req ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "http://insecure.example.com/dest"),
+                        )
+                    } else {
+                        secondHopMethod = req.method.value
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response =
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "https://secure.example.com/x",
+                        emptyMap(),
+                        "secret-body",
+                    )
+                }
+            assertEquals(200, response.statusCode)
+            assertEquals(2, hopCount, "302 must be followed across the HTTPS->HTTP downgrade")
+            assertEquals("GET", secondHopMethod, "302 must switch the follow-up to GET (body dropped)")
+        }
+
+        @Test
+        @DisplayName("N1: 307 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
+        fun redirect_307_https_to_http_with_body_throws() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://insecure.example.com/dest"),
+                    )
+                }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex =
+                assertThrows(ApiException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest(
+                            "POST",
+                            "https://secure.example.com/x",
+                            emptyMap(),
+                            "secret-body",
+                        )
+                    }
+                }
+            assertTrue(
+                ex.message!!.contains("HTTPS->HTTP"),
+                "307 HTTPS->HTTP body replay must be refused, got: ${ex.message}",
+            )
+        }
+
+        @Test
+        @DisplayName("N1: 308 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
+        fun redirect_308_https_to_http_with_body_throws() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.PermanentRedirect,
+                        headers = headersOf("Location", "http://insecure.example.com/dest"),
+                    )
+                }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex =
+                assertThrows(ApiException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest(
+                            "POST",
+                            "https://secure.example.com/x",
+                            emptyMap(),
+                            "secret-body",
+                        )
+                    }
+                }
+            assertTrue(
+                ex.message!!.contains("HTTPS->HTTP"),
+                "308 HTTPS->HTTP body replay must be refused, got: ${ex.message}",
+            )
         }
     }
 

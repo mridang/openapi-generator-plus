@@ -430,6 +430,40 @@ import Testing
     #expect(food.value() is DryFood)
   }
 
+  // MARK: - Gap AU-residual — missing discriminator field must throw
+
+  // missing-discriminator-throws (Gap AU-residual): deserialising a PetFood
+  // (discriminated oneOf, key `foodType`) payload that OMITS the
+  // discriminator property must throw the SDK's SerializationError, not wrap
+  // the raw dict in a union container. PetFood.init(from:) decodes a
+  // DiscriminatorHelper requiring `foodType`; an absent key raises
+  // DecodingError.keyNotFound, which ObjectSerializer.deserialize re-wraps as
+  // a SerializationError. The body is otherwise a valid DryFood (weightKg).
+  @Test func testMissingDiscriminatorFieldThrows() {
+    let json = "{\"weightKg\":5.0}"
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: PetFood.self)
+    }
+  }
+
+  // The underlying DecodingError raised when the discriminator is absent must
+  // be keyNotFound for `foodType` — pins the throw mechanism (not just the
+  // SerializationError wrapper) so a regression to a lenient union-container
+  // fallback is caught.
+  @Test func testMissingDiscriminatorRaisesKeyNotFound() {
+    let jsonData = Data("{\"weightKg\":5.0}".utf8)
+    do {
+      _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
+      Issue.record("expected DecodingError.keyNotFound for missing 'foodType'")
+    } catch let DecodingError.keyNotFound(key, _) {
+      #expect(
+        key.stringValue == "foodType",
+        "error must identify the missing discriminator key: \(key.stringValue)")
+    } catch {
+      Issue.record("expected DecodingError.keyNotFound, got: \(error)")
+    }
+  }
+
   // MARK: - Gap 4.6 — Map-of-Model deep deserialise
 
   /// `[String: Category]` must deep-decode each entry into a `Category`
@@ -688,6 +722,20 @@ import Testing
       // Expected: a JSON null for a non-optional property.
     } catch {
       Issue.record("expected DecodingError.valueNotFound, got: \(error)")
+    }
+  }
+
+  // null-on-required-non-nullable (Gap AJ): the exact canonical fleet-wide
+  // scenario — `{"name":null,"photoUrls":["u"]}` deserialised into Pet (name
+  // is required + non-nullable) MUST throw the SDK's SerializationError. Go
+  // zero-inited (""), pydantic accepted, and Kotlin (explicitNulls=false)
+  // accepted; the canonical is to throw. Swift's decode(_:forKey:) raises
+  // DecodingError.valueNotFound on a JSON null for a non-optional property,
+  // which ObjectSerializer.deserialize re-wraps as a SerializationError.
+  @Test func testDeserializeNullRequiredNameThrowsCanonical() {
+    let json = "{\"name\":null,\"photoUrls\":[\"u\"]}"
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: Pet.self)
     }
   }
 

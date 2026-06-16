@@ -449,6 +449,80 @@
       #expect(resp.statusCode == 200)
     }
 
+    // MARK: - Content-Encoding lie (Gap AL)
+
+    // content-encoding-lie-corrupt-passthrough (Gap AL): a server that
+    // advertises `Content-Encoding: gzip` but sends a body that is NOT valid
+    // gzip (plain bytes) must surface as the SDK's ApiError — never a silent
+    // corrupt passthrough. URLSession only decompresses (and strips the
+    // Content-Encoding header) for an encoding it negotiated; since this client
+    // advertises no Accept-Encoding, the lying header is left on the response
+    // with the raw bytes intact, which the client must reject rather than hand
+    // back as the response body.
+    @Test func testLyingGzipContentEncodingThrowsApiError() async throws {
+      let client = makeClient { _ in
+        // Advertise gzip but send bytes that are NOT valid gzip.
+        (
+          Data("this is definitely not gzip".utf8), 200,
+          ["Content-Type": "application/json", "Content-Encoding": "gzip"]
+        )
+      }
+      await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "GET", url: "http://localhost/bad-gzip", headers: [:], body: nil)
+      }
+    }
+
+    // content-encoding-lie-deflate (Gap AL): the same guard applies to any
+    // compression token URLSession would normally have stripped — a residual
+    // `Content-Encoding: deflate` on the response means the body was not
+    // decoded and must surface as an ApiError, not corrupt passthrough.
+    @Test func testLyingDeflateContentEncodingThrowsApiError() async throws {
+      let client = makeClient { _ in
+        (
+          Data("not deflate data".utf8), 200,
+          ["Content-Type": "application/json", "Content-Encoding": "deflate"]
+        )
+      }
+      await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "GET", url: "http://localhost/bad-deflate", headers: [:], body: nil)
+      }
+    }
+
+    // content-encoding-identity-passthrough (Gap AL): `Content-Encoding:
+    // identity` is a no-op encoding (RFC 7231 §3.1.2.1) — the body is already
+    // plaintext, so it must pass through unchanged, NOT be treated as a lie.
+    @Test func testIdentityContentEncodingPassesThrough() async throws {
+      let client = makeClient { _ in
+        (
+          Data(#"{"ok":true}"#.utf8), 200,
+          ["Content-Type": "application/json", "Content-Encoding": "identity"]
+        )
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/identity", headers: [:], body: nil)
+      #expect(resp.statusCode == 200)
+      #expect(resp.body.contains("ok"))
+    }
+
+    // content-encoding-caller-managed (Gap AL): a caller who explicitly sets
+    // `Accept-Encoding` has opted to receive and decode the encoded bytes
+    // itself, so a residual `Content-Encoding` header is expected and must NOT
+    // be treated as an error — the encoded body is returned to that caller.
+    @Test func testCallerManagedAcceptEncodingDoesNotThrow() async throws {
+      let client = makeClient { _ in
+        (
+          Data("caller-decodes-these-bytes".utf8), 200,
+          ["Content-Type": "application/octet-stream", "Content-Encoding": "gzip"]
+        )
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/caller-gzip",
+        headers: ["Accept-Encoding": "gzip"], body: nil)
+      #expect(resp.statusCode == 200)
+    }
+
     // MARK: - CA certificate fail-fast
 
     @Test func testNonexistentCaCertPathFailsFast() {

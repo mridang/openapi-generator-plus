@@ -101,6 +101,24 @@ class TestProxyWithCredentials:
         }
         assert "proxy-authorization" not in proxy_headers
 
+    def test_canonical_user_pass_proxy_carries_credentials(self) -> None:
+        # Gap AK (canonical scenario, AUDIT.md): a proxy URL of the form
+        # http://user:pass@127.0.0.1:3128 must carry the proxy credentials —
+        # the userinfo is extracted and surfaced as Proxy-Authorization
+        # rather than dropped. Java was the only SDK that dropped them; this
+        # locks the behaviour across the fleet.
+        import base64
+
+        transport = (
+            TransportOptions.builder().proxy("http://user:pass@127.0.0.1:3128").build()
+        )
+        client = DefaultApiClient(transport)
+        proxy_headers = {
+            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+        }
+        expected = "Basic " + base64.b64encode(b"user:pass").decode("ascii")
+        assert proxy_headers.get("proxy-authorization") == expected
+
 
 class TestHttpProxyWithTls:
     def test_makes_https_request_through_proxy_with_verify_ssl_false(
@@ -423,6 +441,94 @@ class TestRedirectSecurityGuards:
         # After the loop finishes, the original Proxy-Authorization is restored
         # on the pool manager so the next request still authenticates.
         assert pool.proxy_headers.get("Proxy-Authorization") == "Basic dXNlcjpwYXNz"
+
+
+class TestN1RedirectBodyReplayMatrix:
+    """N1 (canonical scenario, AUDIT.md): on an HTTPS -> HTTP downgrade the
+    body-replay guard must key on the redirect status, not refuse every
+    status. A 302 carrying a body PROCEEDS (the request becomes GET and the
+    body is dropped per RFC 7231 section 6.4), while a 307/308 carrying a
+    body THROWS (those statuses preserve method+body, so replaying over
+    plaintext would leak it). Node guarded every status and threw on 302
+    too; 11 SDKs guard only 307/308. This locks the 307/308-only behaviour.
+    """
+
+    class _FakeResp:
+        def __init__(self, status: int, headers: dict[str, Any]) -> None:
+            self.status = status
+            self.headers = headers
+
+        def read(self) -> bytes:
+            return b""
+
+        def release_conn(self) -> None:
+            return None
+
+    def _pool(self, first_status: int) -> Any:
+        outer = self
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, kwargs.get("body")))
+                if len(self.calls) == 1:
+                    return outer._FakeResp(
+                        first_status, {"location": "http://example.com/insecure"}
+                    )
+                return outer._FakeResp(200, {})
+
+        return _Pool()
+
+    def test_302_https_to_http_with_body_proceeds(self) -> None:
+        # 302 demotes POST -> GET and drops the body, so the plaintext hop
+        # carries no sensitive payload: it must proceed, not throw.
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(302)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        response = client.send_request(
+            "POST",
+            "https://example.com/secure",
+            {"Content-Type": "application/json"},
+            '{"secret":"value"}',
+        )
+        assert response.status_code == 200
+        assert len(pool.calls) == 2
+        # The follow-up is a GET with the body dropped.
+        assert pool.calls[1][0] == "GET"
+        assert pool.calls[1][2] is None
+
+    def test_307_https_to_http_with_body_raises(self) -> None:
+        from petstore_client.errors import ApiException
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(307)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                "POST",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        # The plaintext replay must never have been issued.
+        assert len(pool.calls) == 1
+
+    def test_308_https_to_http_with_body_raises(self) -> None:
+        from petstore_client.errors import ApiException
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(308)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                "PUT",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        assert len(pool.calls) == 1
 
 
 class TestMultipartBody:
