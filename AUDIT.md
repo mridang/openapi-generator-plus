@@ -91,6 +91,23 @@ Recorded for owner judgement, not a confirmed defect.
 - **Accept-Encoding header value/order divergence:** already W7 WONTFIX (cosmetic; each lib advertises what it can decode).
 - README section ordering: idiomatic per AGENT.md accepted non-divergences.
 
+## Canonical test scenarios (identical across all 12 — per PROMPT.md fix-time parity rule)
+
+Each test below is added to ALL 12 SDKs (translated to idiom), red-before-fix in the
+buggy ones, green in the rest. Co-located test file per Structural Invariant #1.
+
+- **AJ** (`ObjectSerializer` test): deserialize `{"name": null, "photoUrls": ["u"]}` into `Pet`
+  (name is required + non-nullable) → MUST throw the SDK's deserialization error. Fix in go/python/kotlin.
+- **AL** (`DefaultApiClientUnit` test): stub a response with header `Content-Encoding: gzip` and a body of
+  non-gzip plain bytes → client MUST surface `ApiError`/`ApiException` (no crash, no corrupt passthrough).
+  Fix in dart/csharp/kotlin/node/swift/elixir.
+- **AK** (`DefaultApiClient` test): configure proxy URL `http://user:pass@127.0.0.1:3128` → the client MUST
+  carry the proxy credentials (Proxy-Authorization / userinfo honoured), not drop them. Fix in java.
+- **AU-resid** (`ObjectSerializer` test): deserialize a `PetFood` payload missing the `foodType` discriminator
+  property (e.g. `{"weightKg": 5.0}`) → MUST throw (not wrap the raw dict in a union container). Fix in python/php.
+- **N1** (`DefaultApiClient` test): on a 302 HTTPS→HTTP redirect carrying a body → MUST proceed (body dropped,
+  per RFC the request becomes GET); on a 307/308 HTTPS→HTTP redirect with a body → MUST throw. Fix in node.
+
 ## Audit status: COMPLETE (4 rounds)
 Confirmed open: **D1, D2, U1, U2** (structural) + **AJ, AK, AL, AM, AU-residual, N1** (transport/serde,
 already tracked in AGENT.md cycle-18 as deferred-pending). B1 borderline. Every agent "high-severity"
