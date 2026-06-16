@@ -4,11 +4,51 @@ This is the standing spec for the recurring **cross-SDK parity audit**. The
 project emits 12 SDKs (`csharp dart elixir go java kotlin node php python ruby
 rust swift`) from Mustache templates under `src/main/resources/templates/<lang>/`.
 The goal is **12 perfectly harmonised SDKs** — identical behaviour, identical
-public surface, identical docs and structure, modulo each language's idioms.
+public surface, identical docs, identical test layout, and identical file
+structure, modulo each language's idioms. Perfect harmonisation is the bar: if
+two SDKs would look different to someone reading them side by side — in code,
+in docs, or in tests — that is a defect to be raised.
 
 Run this audit by fanning out **one agent per dimension** (see table below).
 Each agent reads the analogous file across all 12 SDKs and diffs *behaviour*,
 not cosmetics. Synthesise the agents' findings into one ranked report.
+
+---
+
+## Structural invariants (always-on — every round checks these)
+
+These hold across all 12 SDKs regardless of which dimension surfaces them. A
+violation is a finding: **DIVERGENCE** if some SDKs comply and others don't;
+**UNIFORM-GAP** if all 12 miss it.
+
+1. **Test co-location — one source file, one test file.** Every non-trivial
+   source file has a corresponding test file at the analogous path, named by the
+   language's idiom:
+   `a/b/c/foo.ts` → `a/b/c/foo.test.ts`; `Foo.java` → `FooTest.java`;
+   `Foo.kt` → `FooTest.kt`; `foo.py` → `test_foo.py`;
+   `foo.rb` → `foo_test.rb`/`spec/foo_spec.rb`; `foo.go` → `foo_test.go`;
+   `Foo.cs` → `FooTest.cs`; `foo.dart` → `foo_test.dart`;
+   `foo.ex` → `foo_test.exs`; `Foo.swift` → `FooTests.swift`;
+   `foo.rs` → an inline `#[cfg(test)] mod tests` or a sibling under `tests/`.
+   **One unit, one test file** — never a single aggregate/grab-bag file standing
+   in for several units, and never a unit left with no test at all. If SDK X
+   tests behaviour B inside `foo`'s own test file but SDK Y tests the same
+   behaviour from an unrelated/aggregate file (or not at all), that is a
+   DIVERGENCE. (Matches the maintainer's rule: *"one file, one unit test — `foo`
+   has `foo.test`, no random files."*)
+
+2. **Documentation parity — same docs, same shape, everywhere.** Every SDK ships
+   the same documentation set with the same structure, modulo language idiom:
+   the README has the same sections in the same order; `SKILLS.md` has the same
+   subsections in the same order; every public type, method, parameter, and
+   error carries an idiomatic doc comment (Javadoc / KDoc / XML-doc / docstring /
+   YARD / rustdoc / `///` / `@doc` / TSDoc) that says the same thing; the same
+   limitations/caveats are documented in the same place. A section, caveat, or
+   doc-comment present in one SDK's docs but absent — or differently ordered — in
+   another is a DIVERGENCE; a doc gap shared by all 12 is a UNIFORM-GAP.
+
+3. **Idempotency.** Regenerating produces an empty `git status`. Any churn on a
+   no-op regen is a finding.
 
 ---
 
@@ -74,6 +114,19 @@ For each finding:
   (behavioural surprise) | `low` (DX / docs)
 - **evidence** — file path + line/snippet per side, per SDK
 - **proposed_canonical** — which side should win and why (the harmonised target)
+- **why_not_surfaced** — *root cause:* why this divergence/bug never bit in
+  practice until now. (No exercising call path? Dormant feature with no fixture?
+  Only triggers on an unusual server response or param shape? Masked by a
+  downstream HTTP library? Cosmetic until a specific input hit it?) **Every
+  finding must answer this** — a finding with no plausible reason it stayed
+  hidden is probably mis-analysed.
+- **why_not_caught** — *test-gap root cause:* why the existing tests did not
+  catch it, and the exact test that would have. Name the missing assertion, the
+  missing fixture, or the missing/aggregate test file (tie this to the
+  test-co-location invariant — a missing `foo.test` is itself the gap). A finding
+  whose fix lands without closing this gap **will regress**, so the fix is not
+  "done" until a test that *would have caught it* exists and is red before the
+  fix.
 
 Sort findings: DIVERGENCE before UNIFORM-GAP; within each, severity desc.
 
@@ -120,19 +173,39 @@ Java is the canonical reference layout; find the analogous file in each lang
    param threading.
 9. **Docs, packaging & structural parity** — `readme`, `skills`, packaging
    (`pom`/`makefile`/`gitignore`/`editorconfig`/lint configs), file layout +
-   naming parity, README section parity, deprecation/limitation docs. Flag
-   structural/doc divergence that a consumer reading two SDKs side by side
+   naming parity, README section parity, deprecation/limitation docs. Enforce
+   **Documentation parity** (structural invariant #2): same README sections in
+   the same order, same `SKILLS.md` subsections, and an idiomatic doc comment on
+   every public type/method/param/error saying the same thing across all 12.
+   Flag any structural/doc divergence a consumer reading two SDKs side by side
    would notice.
+10. **Test parity & co-location** — the `test/` tree of every SDK. Enforce
+    **Test co-location** (structural invariant #1): every source file has its
+    own idiomatically-named test file, one unit per test file, no aggregate
+    grab-bags, no untested units. Diff *what is asserted*: if SDK X has a test
+    for behaviour B (BOM strip, secret redaction, required-param rejection, …)
+    and SDK Y has no equivalent assertion — or buries it in an unrelated file —
+    that is a DIVERGENCE. A behaviour all 12 leave untested is a UNIFORM-GAP.
+    This dimension is also how `why_not_caught` gets answered for every other
+    dimension's findings.
 
 ## How to run (audit pass)
 
-1. Read `AGENT.md` (audit criterion + WONTFIX deny-list) end to end.
-2. Launch the 9 dimension agents in parallel (one message, multiple tool uses).
+1. Read `AGENT.md` (audit criterion + WONTFIX deny-list) end to end. The WONTFIX
+   list is a hard deny-list: anything on it is **excluded entirely** — never
+   re-reported, not even as "still present".
+2. Launch the dimension agents in parallel (one message, multiple tool uses) —
+   all 10 dimensions above, including the structural invariants (test
+   co-location, documentation parity, idempotency).
 3. Each agent reads its file across all 12 SDKs, diffs behaviour, returns
-   findings per the output contract.
-4. Synthesise: dedupe, drop WONTFIX, split DIVERGENCE vs UNIFORM-GAP, rank by
-   severity. Produce a single report + a proposed fix order.
-5. Nothing is fixed in the audit pass — it produces the triage list only
+   findings per the output contract — **including `why_not_surfaced` and
+   `why_not_caught` for every finding** (a finding without both is incomplete).
+4. Synthesise: dedupe, **drop every WONTFIX**, split DIVERGENCE vs UNIFORM-GAP,
+   rank by severity. Produce a single report + a proposed fix order.
+5. Run **multiple rounds** until a round surfaces nothing new (loop-until-dry):
+   a fresh fan-out can find what the previous pass's framing missed. Collate all
+   rounds' findings into one deduped list.
+6. Nothing is fixed in the audit pass — it produces the triage list only
    (written to `AUDIT.md`).
 
 ## Fix loop (after triage — automatable)
