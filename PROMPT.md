@@ -247,6 +247,25 @@ implements the *same* agreed `proposed_canonical` from `AUDIT.md`, so per-langua
 agents stay coherent without coordinating, as long as they read the canonical
 target verbatim.
 
+**MANDATORY — the identical test goes in ALL 12, not just the divergent ones.**
+A finding usually names a subset of SDKs that have the bug, but the regression-
+guard test must be added to **every** language's suite — the same scenario, the
+same assertion, the same input/expected pair, only translated to each language's
+idiom. Rationale: if only the currently-broken SDKs get the test, the *other*
+SDKs can silently regress into the same bug on a future change and nothing will
+catch it. Lock the behaviour across the whole fleet so the bug **cannot resurface
+in any language**. Concretely, for each fixed finding:
+1. Write the canonical test once (scenario + exact input + exact expected output)
+   in `AUDIT.md` next to the finding.
+2. Add that same test to all 12 `templates/<lang>/test/...` suites, in the
+   co-located test file for the unit under test (per Structural Invariant #1).
+3. It must be **red before** the fix in the SDKs that have the bug, and **green**
+   (already-correct) in the SDKs that don't — both states prove the assertion is
+   real, not vacuous.
+4. A finding is not "done" until all 12 carry the test and all 12 are green.
+This is the fleet-wide expression of `AGENT.md`'s "TEST-COUNT PARITY — every SDK
+has every test": parity is enforced at fix time, every time, no exceptions.
+
 **Shared prerequisites handled centrally before/after the parallel wave:**
 - **Fixtures.** Dormant findings (`🟡 needs fixture`) require a petstore-spec
   addition (an operation/param/field that exercises the path) so the test can
