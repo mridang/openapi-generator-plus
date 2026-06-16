@@ -13,6 +13,15 @@ Run this audit by fanning out **one agent per dimension** (see table below).
 Each agent reads the analogous file across all 12 SDKs and diffs *behaviour*,
 not cosmetics. Synthesise the agents' findings into one ranked report.
 
+**High-yield hint (where the real bugs hide).** Empirically the caller-visible
+correctness/security defects concentrate in **HTTP transport & request lifecycle
+(dim 1)** and **serde — model serde (dim 2) + value serde (dim 3)**. On deeper
+rounds, spend the most agents there: go past the happy path into edge inputs —
+malformed/truncated bodies, unusual server responses, reserved/empty/null param
+values, oneOf/anyOf/discriminator corners, charset/encoding, redirects, retries.
+The structural dimensions (docs, tests, config) yield mostly low-severity parity
+nits; transport + serde is where wire-format and data-loss bugs live.
+
 ---
 
 ## Structural invariants (always-on — every round checks these)
