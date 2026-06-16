@@ -1,10 +1,21 @@
 # SDK Harmonisation Audit — open findings (triage list)
 
-Produced by the `PROMPT.md` audit. WONTFIX (per `AGENT.md`) excluded. Nothing
-fixed yet — this is the worklist. For each: why it never surfaced + why tests
-missed it.
+Produced by the `PROMPT.md` audit. WONTFIX (per `AGENT.md`) excluded. For each:
+why it never surfaced + why tests missed it.
 
-## TODO
+## STATUS: ALL RESOLVED — fixed + verified green on all 12 SDK ClientSpecs
+
+- **AJ, AL, AK, AU-resid, N1** (behavioural) — fixed in the divergent SDKs, identical
+  regression test added to all 12. N1 also fixed in dart (2nd bug found). ✅
+- **AM** (TLS verifySsl) — verified already-harmonised (all 12 disable chain+hostname). ✅
+- **D1, U1, U2** — standalone Bearer/ApiKey + ServerConfiguration/ServerVariable + ApiResult
+  tests added and registered across the fleet (D1 in the 11 non-java; U1/U2 in all 12). ✅
+- **D2** — README Caveats added to java/kotlin/csharp/python/rust. ✅
+- **B1** (rust monotonic vs wall clock for token expiry) — DEFERRED (borderline; debatable canonical).
+
+The worklist below is retained for the root-cause record.
+
+## (resolved) TODO
 
 ### D1 — Bearer & API-Key authenticators have no standalone test in 11/12 SDKs (DIVERGENCE, medium)
 Only **java** has `BearerAuthenticatorTest` + `ApiKeyAuthenticatorTest`. The other 11
