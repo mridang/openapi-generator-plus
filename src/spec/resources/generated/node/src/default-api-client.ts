@@ -560,7 +560,7 @@ export class DefaultApiClient implements ApiClient {
      * last (outermost) token that remains. We only act when the bytes still
      * carry a codec signature, which means undici left them encoded. */
     if (contentEncoding === "gzip" || contentEncoding === "x-gzip") {
-      // gzip magic: 0x1F 0x8B. Absent => already decoded by undici => leave.
+      /* gzip magic: 0x1F 0x8B. Absent => already decoded by undici => leave. */
       if (buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
         try {
           return zlib.gunzipSync(buf);

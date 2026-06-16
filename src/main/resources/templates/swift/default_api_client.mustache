@@ -6,13 +6,13 @@ import Security
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-// Apple platforms ship an importable `zlib` module in the SDK, so the Gap AL
-// guard below can gunzip a body that still carries the gzip magic bytes with
-// no extra Package.swift dependency. Linux Swift ships no importable
-// `zlib`/`CZlib` module (only the C headers), so `canImport(zlib)` is false
-// there; `decodeGzipBody` handles that fallback. On Linux libcurl has already
-// transparently decompressed the body (the magic bytes are gone), so the
-// decoder is not needed for normal responses.
+/* Apple platforms ship an importable `zlib` module in the SDK, so the Gap AL
+   guard below can gunzip a body that still carries the gzip magic bytes with
+   no extra Package.swift dependency. Linux Swift ships no importable
+   `zlib`/`CZlib` module (only the C headers), so `canImport(zlib)` is false
+   there; `decodeGzipBody` handles that fallback. On Linux libcurl has already
+   transparently decompressed the body (the magic bytes are gone), so the
+   decoder is not needed for normal responses. */
 #if canImport(zlib)
 import zlib
 #endif
@@ -303,8 +303,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         if !callerManagedEncoding,
            residualEncoding == "gzip" || residualEncoding == "x-gzip",
            DefaultApiClient.hasGzipMagic(data) {
-            // The body still carries the gzip magic (0x1F 0x8B), so URLSession
-            // did NOT decode it. Decode it ourselves; a malformed stream throws.
+            /* The body still carries the gzip magic (0x1F 0x8B), so URLSession
+               did NOT decode it. Decode it ourselves; a malformed stream throws. */
             do {
                 data = try DefaultApiClient.decodeGzipBody(data)
             } catch {
@@ -552,10 +552,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 #if canImport(zlib)
         if data.isEmpty { return data }
         var stream = z_stream()
-        // Use zlibVersion() (a runtime `const char *`) rather than the
-        // ZLIB_VERSION macro: Swift imports the macro as a `String`, which is
-        // not directly compatible with inflateInit2_'s `const char *` version
-        // parameter. window bits MAX_WBITS + 16 selects gzip framing.
+        /* Use zlibVersion() (a runtime `const char *`) rather than the
+           ZLIB_VERSION macro: Swift imports the macro as a `String`, which is
+           not directly compatible with inflateInit2_'s `const char *` version
+           parameter. window bits MAX_WBITS + 16 selects gzip framing. */
         let initResult = inflateInit2_(
             &stream, MAX_WBITS + 16, zlibVersion(),
             Int32(MemoryLayout<z_stream>.size))
@@ -598,9 +598,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         }
         return output
 #else
-        // No gzip decoder available on this platform (Linux ships no
-        // importable zlib module). A body that still carries the gzip magic is
-        // genuinely undecoded; do not hand the raw bytes back as the payload.
+        /* No gzip decoder available on this platform (Linux ships no
+           importable zlib module). A body that still carries the gzip magic is
+           genuinely undecoded; do not hand the raw bytes back as the payload. */
         throw ApiError(
             message: "Response body is gzip-encoded but no decoder is available "
                 + "on this platform")
