@@ -1,0 +1,159 @@
+{{>api_info}}
+
+use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
+use {{packageName}}::auth::api_key_location::ApiKeyLocation;
+use {{packageName}}::auth::Authenticator;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_valid_header_key_passes() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "abc123",
+        ApiKeyLocation::Header,
+    );
+    let headers = auth.auth_headers().await;
+    assert_eq!(headers.get("X-API-Key").map(|s| s.as_str()), Some("abc123"));
+}
+
+#[test]
+fn test_valid_query_key_passes() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "api_key",
+        "abc123",
+        ApiKeyLocation::Query,
+    );
+    let params = auth.query_params();
+    assert_eq!(params.get("api_key").map(|s| s.as_str()), Some("abc123"));
+}
+
+#[test]
+fn test_valid_cookie_key_passes() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "session",
+        "abc123",
+        ApiKeyLocation::Cookie,
+    );
+    let params = auth.cookie_params();
+    assert_eq!(params.get("session").map(|s| s.as_str()), Some("abc123"));
+}
+
+#[test]
+fn test_query_accepts_non_ascii() {
+    // Non-header locations accept arbitrary chars.
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "api_key",
+        "kéy",
+        ApiKeyLocation::Query,
+    );
+    assert_eq!(auth.query_params().get("api_key"), Some(&"kéy".to_string()));
+}
+
+#[test]
+#[should_panic(expected = "must not be empty")]
+fn test_empty_key_header_panics() {
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "",
+        ApiKeyLocation::Header,
+    );
+}
+
+#[test]
+#[should_panic(expected = "must not be empty")]
+fn test_empty_key_query_panics() {
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "api_key",
+        "",
+        ApiKeyLocation::Query,
+    );
+}
+
+#[test]
+#[should_panic(expected = "must not be empty")]
+fn test_empty_key_cookie_panics() {
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "session",
+        "",
+        ApiKeyLocation::Cookie,
+    );
+}
+
+#[test]
+#[should_panic(expected = "must not be empty")]
+fn test_whitespace_only_key_panics() {
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "   ",
+        ApiKeyLocation::Header,
+    );
+}
+
+#[test]
+#[should_panic(expected = "control characters")]
+fn test_crlf_in_query_key_panics() {
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "api_key",
+        "abc\r\n",
+        ApiKeyLocation::Query,
+    );
+}
+
+#[test]
+#[should_panic(expected = "control characters")]
+fn test_crlf_in_cookie_key_panics() {
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "session",
+        "abc\n",
+        ApiKeyLocation::Cookie,
+    );
+}
+
+#[test]
+#[should_panic(expected = "control characters")]
+fn test_crlf_in_header_key_panics() {
+    // RFC 7230 §3.2.6 — the Header location must reject CR/LF to prevent
+    // header injection. CR/LF is caught by the control-character guard
+    // before the printable-ASCII check.
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "abc\rdef",
+        ApiKeyLocation::Header,
+    );
+}
+
+#[test]
+#[should_panic(expected = "printable ASCII")]
+fn test_non_ascii_header_key_panics() {
+    let _ = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "kéy",
+        ApiKeyLocation::Header,
+    );
+}
+
+/// The default Debug representation must mask the stored API key: the secret
+/// value must be absent and a `***` redaction marker present.
+#[test]
+fn test_redacts_secret() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "abc123",
+        ApiKeyLocation::Header,
+    );
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("abc123"));
+    assert!(debug.contains("***"));
+}

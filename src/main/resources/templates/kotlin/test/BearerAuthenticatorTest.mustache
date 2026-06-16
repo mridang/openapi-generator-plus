@@ -1,0 +1,96 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}.auth
+
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class BearerAuthenticatorTest {
+
+    @Test
+    @DisplayName("raw token is prefixed with Bearer")
+    fun rawTokenIsPrefixedWithBearer() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("already-prefixed token is not doubled")
+    fun alreadyPrefixedTokenIsNotDoubled() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "Bearer xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("lowercase bearer prefix is stripped")
+    fun lowercaseBearerPrefixIsStripped() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "bearer xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("mixed-case bearer prefix is stripped")
+    fun mixedCaseBearerPrefixIsStripped() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "BeArEr xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("empty token is rejected at construction")
+    fun emptyTokenIsRejectedAtConstruction() {
+        // An empty or whitespace-only token would emit a credential-less
+        // "Authorization: Bearer " header (fail-open); reject it up front.
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "")
+        }
+    }
+
+    // No null-token test: the token parameter is non-nullable, so the Kotlin
+    // compiler rejects passing a literal null at compile time. The empty +
+    // whitespace cases here exercise the runtime guard.
+
+    @Test
+    @DisplayName("whitespace-only token is rejected at construction")
+    fun whitespaceOnlyTokenIsRejectedAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "   ")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "\t")
+        }
+    }
+
+    @Test
+    @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun bearerRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — reject CR/LF (header injection from tokens read
+        // from .env / files with trailing newlines) and non-ASCII bytes that
+        // different HTTP libs encode differently per language.
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "ñoño")
+        }
+    }
+
+    /**
+     * The default toString() must mask the stored token: the secret value
+     * must be absent and a *** redaction marker present.
+     */
+    @Test
+    @DisplayName("toString() redacts the token and shows ***")
+    fun redactsSecret() {
+        val auth = BearerAuthenticator("https://api.example.com", "xyz")
+        val repr = auth.toString()
+        assertFalse(repr.contains("token=xyz"))
+        assertTrue(repr.contains("***"))
+    }
+}

@@ -1,0 +1,56 @@
+{{>api_info}}
+import pytest
+
+from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
+
+
+class TestBearerAuthenticator:
+
+    def test_raw_token_is_prefixed_with_bearer(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='xyz')
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
+
+    def test_already_prefixed_token_is_not_doubled(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='Bearer xyz')
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
+
+    def test_lowercase_bearer_prefix_is_stripped(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='bearer xyz')
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
+
+    def test_mixed_case_bearer_prefix_is_stripped(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='BeArEr xyz')
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
+
+    def test_rejects_empty_token(self) -> None:
+        # bearer-no-empty-token-guard: an empty token would emit a bare
+        # "Authorization: Bearer " header and send the request unauthenticated,
+        # so construction must reject it.
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='')
+
+    def test_rejects_whitespace_only_token(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='   ')
+
+    def test_rejects_crlf(self) -> None:
+        # RFC 7230 §3.2.6 — reject anything outside printable ASCII + TAB to
+        # prevent header injection (\r\n).
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='tok\r\nInjected: yes')
+
+    def test_rejects_non_ascii(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='ñoño')
+
+    def test_token_is_not_leaked_in_repr(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='supersecret')
+        assert 'supersecret' not in repr(auth)
+        assert 'supersecret' not in str(auth)
+
+    def test_redacts_secret(self) -> None:
+        """The repr masks the token as ``***`` and never leaks its value."""
+        auth = BearerAuthenticator(host='https://api.example.com', token='xyz')
+        rendered = repr(auth)
+        assert 'token=xyz' not in rendered
+        assert '***' in rendered

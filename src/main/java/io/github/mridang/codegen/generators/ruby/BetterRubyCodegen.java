@@ -483,6 +483,31 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "test/api_error_test.mustache",
                             "test",
                             "api_error_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache",
+                            "test",
+                            "api_result_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "test",
+                            "server_configuration_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "test",
+                            "server_variable_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer_authenticator_test.mustache",
+                            "test",
+                            "bearer_authenticator_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_key_authenticator_test.mustache",
+                            "test",
+                            "api_key_authenticator_test.rb"));
             if (hasBasicAuth) {
                 supportingFiles.add(
                         new SupportingFile(

@@ -379,6 +379,21 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/ConfigurationTest.mustache",
                             "Test",
                             "ConfigurationTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerConfigurationTest.mustache",
+                            "Test",
+                            "ServerConfigurationTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerVariableTest.mustache",
+                            "Test",
+                            "ServerVariableTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiResultTest.mustache",
+                            "Test",
+                            "ApiResultTest.cs"));
         }
         if (generateTests) {
             final String testApiFolder = Path.of("Test", "Api").toString();
@@ -425,6 +440,16 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/ClientTest.mustache",
                             "Test",
                             "ClientTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/BearerAuthenticatorTest.mustache",
+                            "Test",
+                            "BearerAuthenticatorTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiKeyAuthenticatorTest.mustache",
+                            "Test",
+                            "ApiKeyAuthenticatorTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ApiExceptionTest.mustache",

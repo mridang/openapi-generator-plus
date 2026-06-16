@@ -382,6 +382,21 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/ConfigurationTest.mustache",
                             testFolder,
                             "ConfigurationTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerConfigurationTest.mustache",
+                            testFolder,
+                            "ServerConfigurationTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerVariableTest.mustache",
+                            testFolder,
+                            "ServerVariableTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiResultTest.mustache",
+                            testFolder,
+                            "ApiResultTest.java"));
         }
 
         if (generateTests) {

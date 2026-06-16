@@ -45,6 +45,29 @@ To auto-fix formatting issues:
 - Group: `{{invokerPackage}}`
 - Version: `{{packageVersion}}`
 
+## Caveats
+
+### Decimal / `format: number` precision
+
+`format: number` / `format: decimal` fields are typed as
+`java.math.BigDecimal` and serialized through a precision-preserving
+serializer that round-trips the JSON number as a string, so exact
+decimal values survive deserialization unchanged — unlike languages
+that decode JSON numbers into a binary `float64`. You can safely do
+arithmetic on prices, balances, and other money-typed fields using
+`BigDecimal`'s exact operators.
+
+The IEEE-754 binary types are a different story: `format: float` and
+`format: double` map to Kotlin's `Float` / `Double`, which **cannot**
+represent every decimal fraction exactly (`0.1 + 0.2` is
+`0.30000000000000004`). Do not use a `double`/`float`-typed field for
+money. If a monetary value is typed as `format: double` in the spec,
+read it from the raw response body and parse it into a `BigDecimal`
+yourself.
+
+`format: int64` is unaffected — Kotlin's `Long` natively represents the
+full 64-bit range without precision loss.
+
 ## Not supported
 
 ### Webhooks and callbacks

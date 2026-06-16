@@ -374,6 +374,25 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_configuration.mustache",
                             "test",
                             "test_configuration.py"));
+            // ServerConfiguration/ServerVariable/ApiResult are spec-independent
+            // runtime plumbing (server_configuration.py, api_result.py), so their
+            // tests compile against any generated SDK and ship alongside the other
+            // unit tests.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_server_configuration.mustache",
+                            "test",
+                            "test_server_configuration.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_server_variable.mustache",
+                            "test",
+                            "test_server_variable.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_api_result.mustache",
+                            "test",
+                            "test_api_result.py"));
         }
 
         // Petstore-coupled tests: they import spec-derived models/APIs
@@ -399,6 +418,24 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_client.mustache",
                             "test",
                             "test_client.py"));
+            // Standalone authenticator tests, emitted only when the spec's
+            // security schemes produce the corresponding authenticator (mirrors
+            // the gating of BearerAuthenticatorTest/ApiKeyAuthenticatorTest in
+            // BetterJavaCodegen and of test_basic_authenticator above).
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_bearer_authenticator.mustache",
+                                "test",
+                                "test_bearer_authenticator.py"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_api_key_authenticator.mustache",
+                                "test",
+                                "test_api_key_authenticator.py"));
+            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/test_pet_api.mustache",

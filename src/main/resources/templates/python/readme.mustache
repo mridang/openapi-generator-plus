@@ -77,6 +77,26 @@ matching the strict-type-coercion contract of the other SDKs.
 `AwareDatetime` rejects naive datetimes — RFC 3339 mandates a timezone
 offset.
 
+## Caveats
+
+### `format: float` / `format: double` precision
+
+`format: number` (no `format`) maps to `decimal.Decimal`, which preserves
+exact decimal representation — safe for monetary values. But `format:
+float` and `format: double` map to `pydantic.StrictFloat`, i.e. Python's
+native `float`, which is a 64-bit IEEE-754 binary float. Values such
+fields carry cannot represent every decimal fraction exactly: `0.1 + 0.2`
+in Python is `0.30000000000000004`.
+
+Do not do arithmetic on prices, balances, or other money-typed fields
+that the spec declares as `format: float` / `format: double`. If you need
+exact decimal arithmetic, model the field as a bare `type: number` so it
+deserializes to `decimal.Decimal`, or parse the raw response body yourself
+and feed the string into `decimal.Decimal`.
+
+`format: int64` is unaffected — Python's `int` is arbitrary-precision and
+represents the full 64-bit range (and beyond) without loss.
+
 ## Not supported
 
 ### Webhooks and callbacks

@@ -1,0 +1,87 @@
+defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
+  use ExUnit.Case, async: true
+
+  alias PetstoreClient.Auth.ApiKeyAuthenticator
+
+  describe "ApiKeyAuthenticator" do
+    test "valid header key is emitted as a header" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+      headers = ApiKeyAuthenticator.auth_headers(auth)
+      assert headers["X-Api-Key"] == "abc123"
+    end
+
+    test "valid query key is emitted as a query param" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc123", :query)
+      params = ApiKeyAuthenticator.query_params(auth)
+      assert params["api_key"] == "abc123"
+    end
+
+    test "valid cookie key is emitted as a cookie param" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "session", "abc123", :cookie)
+      cookies = ApiKeyAuthenticator.cookie_params(auth)
+      assert cookies["session"] == "abc123"
+    end
+
+    test "rejects an empty key for every location at construction" do
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "", :header)
+      end
+
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "api_key", "", :query)
+      end
+
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "session", "", :cookie)
+      end
+    end
+
+    test "rejects a whitespace-only key at construction" do
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "   ", :header)
+      end
+    end
+
+    # CR/LF/NUL are forbidden control characters in ALL locations.
+    test "rejects CR/LF/NUL keys for query and cookie at construction" do
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc\r\n", :query)
+      end
+
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "session", "abc\n", :cookie)
+      end
+
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc\rdef", :header)
+      end
+    end
+
+    # HEADER location must reject anything outside printable ASCII + TAB
+    # (RFC 7230 §3.2.6); non-header locations accept arbitrary chars.
+    test "header location rejects non-ASCII while query accepts it" do
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "kéy", :header)
+      end
+
+      query_auth =
+        ApiKeyAuthenticator.new("https://api.example.com", "api_key", "kéy", :query)
+
+      assert ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
+    end
+
+    # authenticator-secret-in-default-string-repr: the key must never appear
+    # in the authenticator's default Inspect representation.
+    test "default inspect/1 redacts the API key" do
+      auth =
+        ApiKeyAuthenticator.new(
+          "https://api.example.com",
+          "X-Api-Key",
+          "super-secret-key",
+          :header
+        )
+
+      refute inspect(auth) =~ "super-secret-key"
+    end
+  end
+end

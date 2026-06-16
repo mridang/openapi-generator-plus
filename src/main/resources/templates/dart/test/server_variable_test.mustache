@@ -1,0 +1,53 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('ServerVariable', () {
+    test('exposes default value when no override is applied', () {
+      // The default value is what ServerConfiguration falls back to when a
+      // variable is left unset, so it must be carried through verbatim.
+      const variable = ServerVariable(
+        defaultValue: 'v1',
+        description: 'API version',
+      );
+
+      expect(variable.defaultValue, equals('v1'));
+      expect(variable.description, equals('API version'));
+    });
+
+    test('omitted enumValues defaults to empty meaning any value allowed', () {
+      const variable = ServerVariable(defaultValue: 'prod');
+
+      expect(variable.enumValues, isEmpty);
+      expect(variable.description, isEmpty);
+    });
+
+    test('enumValues are exposed for validation', () {
+      // ServerConfiguration validates overrides against this set, so the
+      // enum list must surface exactly the allowed values.
+      const variable = ServerVariable(
+        defaultValue: 'prod',
+        description: 'deployment environment',
+        enumValues: ['prod', 'staging'],
+      );
+
+      expect(variable.enumValues, equals(['prod', 'staging']));
+      expect(variable.enumValues, contains('prod'));
+      expect(variable.enumValues, contains('staging'));
+    });
+
+    test('enum does not contain a value outside the allowed set', () {
+      // An out-of-set value (e.g. "dev") is absent from the enum, which is
+      // what drives ServerConfiguration to reject it.
+      const variable = ServerVariable(
+        defaultValue: 'prod',
+        enumValues: ['prod', 'staging'],
+      );
+
+      expect(variable.enumValues, isNot(contains('dev')));
+    });
+  });
+}
+{{/generateTests}}

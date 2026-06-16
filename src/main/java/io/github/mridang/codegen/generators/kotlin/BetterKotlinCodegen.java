@@ -369,6 +369,21 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/ConfigurationTest.mustache",
                             testFolder,
                             "ConfigurationTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerConfigurationTest.mustache",
+                            testFolder,
+                            "ServerConfigurationTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerVariableTest.mustache",
+                            testFolder,
+                            "ServerVariableTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiResultTest.mustache",
+                            testFolder,
+                            "ApiResultTest.kt"));
         }
 
         if (generateTests) {
@@ -427,6 +442,20 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                                 "test/BasicAuthenticatorTest.mustache",
                                 testBasicAuthFolder,
                                 "BasicAuthenticatorTest.kt"));
+            }
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/BearerAuthenticatorTest.mustache",
+                                testBasicAuthFolder,
+                                "BearerAuthenticatorTest.kt"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/ApiKeyAuthenticatorTest.mustache",
+                                testBasicAuthFolder,
+                                "ApiKeyAuthenticatorTest.kt"));
             }
             supportingFiles.add(
                     new SupportingFile(

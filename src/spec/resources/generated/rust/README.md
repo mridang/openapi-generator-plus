@@ -59,6 +59,8 @@ cargo fix --edition
 - Edition: `2024`
 - MSRV: `1.85`
 
+## Caveats
+
 ### Decimal / `format: number` precision
 
 `serde_json` parses JSON numbers into `f64` by default, and this SDK

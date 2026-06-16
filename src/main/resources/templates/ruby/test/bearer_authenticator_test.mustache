@@ -1,0 +1,73 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require '{{gemName}}'
+
+describe {{moduleName}}::Auth::BearerAuthenticator do
+  parallelize_me!
+
+  it 'raw token is prefixed with Bearer' do
+    auth = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'xyz')
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer xyz'
+  end
+
+  it 'already-prefixed token is not doubled' do
+    auth = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'Bearer xyz')
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer xyz'
+  end
+
+  it 'lowercase bearer prefix is stripped' do
+    auth = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'bearer xyz')
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer xyz'
+  end
+
+  it 'mixed-case bearer prefix is stripped' do
+    auth = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'BeArEr xyz')
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer xyz'
+  end
+
+  # bearer-no-empty-token-guard: an empty/whitespace token would emit a bare
+  # "Authorization: Bearer " header, sending the request unauthenticated, so
+  # the constructor must reject it.
+  it 'rejects an empty token' do
+    _(-> { {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
+  end
+
+  it 'rejects a whitespace-only token' do
+    _(-> { {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', '   ') }).must_raise ArgumentError
+  end
+
+  # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing newlines
+  # from .env / file reads, which would CRLF-inject the Authorization header.
+  # Also reject non-ASCII.
+  it 'rejects CR/LF in the token' do
+    _(-> {
+      {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
+    }).must_raise ArgumentError
+  end
+
+  it 'rejects a non-ASCII token' do
+    _(-> {
+      {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'ñoño')
+    }).must_raise ArgumentError
+  end
+
+  # authenticator-secret-in-default-string-repr: the default object
+  # representation must mask the stored token — the secret value must be absent
+  # and a *** redaction marker present.
+  it 'redacts the token from inspect and to_s' do
+    auth = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
+    _(auth.inspect).wont_include 'super-secret-token'
+    _(auth.to_s).wont_include 'super-secret-token'
+    _("#{auth}").wont_include 'super-secret-token'
+    _(auth.inspect).must_include '***'
+    _(auth.inspect).must_include 'host='
+  end
+end

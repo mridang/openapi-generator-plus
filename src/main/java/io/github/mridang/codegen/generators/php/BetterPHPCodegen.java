@@ -369,6 +369,21 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/DefaultApiClientUnitTest.mustache",
                             "tests",
                             "DefaultApiClientUnitTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ServerConfigurationTest.mustache",
+                            "tests",
+                            "ServerConfigurationTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ServerVariableTest.mustache",
+                            "tests",
+                            "ServerVariableTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ApiResultTest.mustache",
+                            "tests",
+                            "ApiResultTest.php"));
         }
 
         if (generateTests) {
@@ -433,6 +448,22 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/ClientTest.mustache",
                             "tests",
                             "ClientTest.php"));
+            // Standalone authenticator tests for the non-OAuth HTTP schemes.
+            // The OAuthTestCondition enum (in AbstractBetterCodegen) only gates
+            // BASIC + the OAuth2/OIDC flows, so Bearer/ApiKey have no matching
+            // condition; they are registered here in the golden-only generateTests
+            // block alongside ClientTest, which likewise references the
+            // Bearer/ApiKey authenticators that the golden spec always declares.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/BearerAuthenticatorTest.mustache",
+                            "tests",
+                            "BearerAuthenticatorTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ApiKeyAuthenticatorTest.mustache",
+                            "tests",
+                            "ApiKeyAuthenticatorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/ApiExceptionTest.mustache",

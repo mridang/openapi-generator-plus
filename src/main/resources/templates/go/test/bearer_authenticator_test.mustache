@@ -1,0 +1,96 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+)
+
+func TestBearerAuthenticator_RawTokenIsPrefixedWithBearer(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBearerAuthenticator("https://api.example.com", "xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBearerAuthenticator_AlreadyPrefixedTokenIsNotDoubled(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBearerAuthenticator("https://api.example.com", "Bearer xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBearerAuthenticator_LowercaseBearerPrefixIsStripped(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBearerAuthenticator("https://api.example.com", "bearer xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBearerAuthenticator_MixedCaseBearerPrefixIsStripped(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBearerAuthenticator("https://api.example.com", "BeArEr xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+// bearer-no-empty-token-guard: an empty or whitespace-only Bearer token would
+// emit the literal `Authorization: Bearer ` header and send the request
+// unauthenticated. The constructor must reject it at construction.
+func TestBearerAuthenticator_RejectsEmptyOrWhitespaceToken(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"", "   ", "\t"} {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for empty/whitespace bearer token %q", val)
+				}
+			}()
+			_ = auth.NewBearerAuthenticator("https://api.example.com", val)
+		}(bad)
+	}
+}
+
+// RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing newlines from
+// .env / file reads; CRLF would inject the Authorization header. Non-ASCII
+// bytes are silently mangled per HTTP lib. The constructor panics on invalid
+// input.
+func TestBearerAuthenticator_RejectsCrlfAndNonAscii(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño"} {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for invalid bearer token %q", val)
+				}
+			}()
+			_ = auth.NewBearerAuthenticator("https://api.example.com", val)
+		}(bad)
+	}
+}
+
+// authenticator-secret-in-default-string-repr: the bearer token must not leak
+// through the default string/format representation.
+func TestBearerAuthenticator_RedactsSecret(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBearerAuthenticator("https://api.example.com", "super-secret-token")
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+		if strings.Contains(s, "super-secret-token") {
+			t.Errorf("expected token to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}

@@ -381,6 +381,26 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/default-api-client-unit.test.mustache",
                             "test",
                             "default-api-client-unit.test.ts"));
+            // U1: ServerConfiguration / ServerVariable are spec-independent
+            // supporting modules emitted into every client, so their tests ship
+            // alongside the other pure-unit tests above.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server-configuration.test.mustache",
+                            "test",
+                            "server-configuration.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server-variable.test.mustache",
+                            "test",
+                            "server-variable.test.ts"));
+            // U2: ApiResult is a spec-independent supporting type emitted into
+            // every client.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api-result.test.mustache",
+                            "test",
+                            "api-result.test.ts"));
         }
 
         // Spec-coupled tests: they import spec-derived models/APIs, the
@@ -442,6 +462,21 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api-error.test.mustache",
                             "test",
                             "api-error.test.ts"));
+            // D1: standalone authenticator tests for the bearer/api-key schemes
+            // present in the petstore golden. Like client.test above, they import
+            // scheme-gated authenticators that exist only in the golden, so they
+            // are emitted under generateTests, next to the basic-authenticator
+            // golden coverage rather than into every real client.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer-authenticator.test.mustache",
+                            "test",
+                            "bearer-authenticator.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api-key-authenticator.test.mustache",
+                            "test",
+                            "api-key-authenticator.test.ts"));
         }
     }
 

@@ -391,6 +391,30 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "tests",
                                 "basic_authenticator_test.rs"));
             }
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/bearer_authenticator_test.mustache",
+                                "tests",
+                                "bearer_authenticator_test.rs"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/api_key_authenticator_test.mustache",
+                                "tests",
+                                "api_key_authenticator_test.rs"));
+            }
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "tests",
+                            "server_configuration_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache",
+                            "tests",
+                            "api_result_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

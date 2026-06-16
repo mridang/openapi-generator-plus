@@ -52,6 +52,25 @@ dotnet build --no-restore /warnaserror
 - Name: `{{packageName}}`
 - Version: `{{packageVersion}}`
 
+## Caveats
+
+### Decimal / `format: number` precision
+
+`format: number` and `format: decimal` fields map to .NET's `decimal`,
+a base-10 type that represents monetary values exactly — `0.1m + 0.2m`
+is `0.3m`, with no binary rounding error. Arithmetic on prices,
+balances, and other money-typed fields is safe.
+
+`format: float` and `format: double` are different: they map to the
+binary floating-point types `float` and `double`, so values like
+`0.1 + 0.2` evaluate to `0.30000000000000004`. Do not use those
+formats for money. If a numeric field carries currency, model it as
+`format: number` (decimal) in the spec, or parse the raw response body
+yourself and convert to `decimal`.
+
+`format: int64` is unaffected — .NET's `long` natively represents the
+full 64-bit range without precision loss.
+
 ## Not supported
 
 ### Webhooks and callbacks

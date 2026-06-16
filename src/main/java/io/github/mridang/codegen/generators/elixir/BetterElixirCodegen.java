@@ -364,6 +364,19 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/default_api_client_unit_test.mustache",
                             "test",
                             "default_api_client_unit_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "test",
+                            "server_configuration_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "test",
+                            "server_variable_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache", "test", "api_result_test.exs"));
         }
 
         if (generateTests) {
@@ -414,6 +427,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                                 "test",
                                 "basic_authenticator_test.exs"));
             }
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer_authenticator_test.mustache",
+                            "test",
+                            "bearer_authenticator_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_key_authenticator_test.mustache",
+                            "test",
+                            "api_key_authenticator_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

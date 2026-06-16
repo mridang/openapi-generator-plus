@@ -401,6 +401,31 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             }
             supportingFiles.add(
                     new SupportingFile(
+                            "test/BearerAuthenticatorTests.mustache",
+                            testDir,
+                            "BearerAuthenticatorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiKeyAuthenticatorTests.mustache",
+                            testDir,
+                            "ApiKeyAuthenticatorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerConfigurationTests.mustache",
+                            testDir,
+                            "ServerConfigurationTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerVariableTests.mustache",
+                            testDir,
+                            "ServerVariableTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiResultTests.mustache",
+                            testDir,
+                            "ApiResultTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/OAuth2TokenManagerTests.mustache",
                             testDir,
                             "OAuth2TokenManagerTests.swift"));

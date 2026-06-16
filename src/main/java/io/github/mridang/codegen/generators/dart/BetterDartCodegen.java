@@ -431,6 +431,21 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "test",
+                            "server_configuration_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "test",
+                            "server_variable_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache",
+                            "test",
+                            "api_result_test.dart"));
             if (hasBasicAuth) {
                 supportingFiles.add(
                         new SupportingFile(
@@ -438,6 +453,16 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "test",
                                 "basic_authenticator_test.dart"));
             }
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer_authenticator_test.mustache",
+                            "test",
+                            "bearer_authenticator_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_key_authenticator_test.mustache",
+                            "test",
+                            "api_key_authenticator_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

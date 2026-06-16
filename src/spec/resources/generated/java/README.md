@@ -36,6 +36,24 @@ mvn test
 - Group: `com.example.petstore`
 - Version: ``
 
+## Caveats
+
+### Decimal / `format: number` precision
+
+Fields typed `format: number` (and `format: decimal`) are deserialized
+into Java `double`, which is an IEEE-754 64-bit binary floating-point
+value. Monetary and other exact-decimal values therefore lose their
+exact decimal representation: `0.1 + 0.2` in Java evaluates to
+`0.30000000000000004`, not `0.3`.
+
+Do not do arithmetic on prices, balances, or other money-typed fields.
+If you need exact decimal arithmetic, parse the raw response body
+yourself and use `java.math.BigDecimal` (constructed from the `String`
+form, never from a `double`).
+
+`format: int64` is unaffected — Java's `long` natively represents the
+full 64-bit range without precision loss.
+
 ## Not supported
 
 ### Webhooks and callbacks

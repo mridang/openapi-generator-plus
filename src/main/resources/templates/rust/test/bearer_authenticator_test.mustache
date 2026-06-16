@@ -1,0 +1,82 @@
+{{>api_info}}
+
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::BearerAuthenticator;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_raw_token_is_prefixed_with_bearer() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "xyz");
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_already_prefixed_token_is_not_doubled() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "Bearer xyz");
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_lowercase_bearer_prefix_is_stripped() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "bearer xyz");
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_mixed_case_bearer_prefix_is_stripped() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "BeArEr xyz");
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[test]
+#[should_panic(expected = "printable ASCII")]
+fn test_bearer_rejects_crlf() {
+    // Gap AC — Bearer tokens with CR/LF would CRLF-inject the
+    // Authorization header.
+    let _ = BearerAuthenticator::new("https://api.example.com", "tok\r\nInjected: yes");
+}
+
+#[test]
+#[should_panic(expected = "printable ASCII")]
+fn test_bearer_rejects_non_ascii() {
+    let _ = BearerAuthenticator::new("https://api.example.com", "ñoño");
+}
+
+#[test]
+#[should_panic(expected = "must not be empty")]
+fn test_bearer_rejects_empty_token() {
+    // bearer-no-empty-token-guard: an empty token would emit a bare
+    // `Authorization: Bearer ` header. Must fail closed.
+    let _ = BearerAuthenticator::new("https://api.example.com", "");
+}
+
+#[test]
+#[should_panic(expected = "must not be empty")]
+fn test_bearer_rejects_whitespace_token() {
+    let _ = BearerAuthenticator::new("https://api.example.com", "   ");
+}
+
+/// The default Debug representation must mask the stored token: the secret
+/// value must be absent and a `***` redaction marker present.
+#[test]
+fn test_redacts_secret() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "xyz");
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("token: \"xyz\""));
+    assert!(debug.contains("***"));
+}
