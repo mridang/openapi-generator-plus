@@ -6,6 +6,16 @@ import Security
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+// Apple platforms ship an importable `zlib` module in the SDK, so the Gap AL
+// guard below can gunzip a body that still carries the gzip magic bytes with
+// no extra Package.swift dependency. Linux Swift ships no importable
+// `zlib`/`CZlib` module (only the C headers), so `canImport(zlib)` is false
+// there; `decodeGzipBody` handles that fallback. On Linux libcurl has already
+// transparently decompressed the body (the magic bytes are gone), so the
+// decoder is not needed for normal responses.
+#if canImport(zlib)
+import zlib
+#endif
 
 /// DefaultApiClient is the default HTTP client implementation backed by URLSession.
 ///
@@ -202,7 +212,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             request.setValue(v, forHTTPHeaderField: k)
         }
 
-        let data: Data
+        var data: Data
         let response: URLResponse
         do {
             /* Gap 3.2: when noRedirect is set (used by the OAuth2 token
@@ -259,39 +269,54 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             }
         }
 
-        /* Gap AL: surface a Content-Encoding lie as a typed ApiError rather
-           than silently passing corrupted bytes to the caller. URLSession
-           performs transparent decompression only for an encoding it itself
-           negotiated, and it strips the `Content-Encoding` header from the
-           response once it has decompressed. So a `Content-Encoding` header
-           that is STILL PRESENT on the response is one URLSession did not
-           handle — either the body is genuinely still compressed (this
-           client ships no manual decompressor — see the Accept-Encoding note
-           above) or, worse, the server lied (advertised `gzip` while sending
-           plaintext / truncated / non-gzip bytes). Either way the raw bytes
-           are NOT the decoded payload, so handing them back as the response
-           body is silent corruption. Decode them as the SDK's uniform
-           ApiError instead.
+        /* Gap AL: defend against a `Content-Encoding` lie WITHOUT mistaking a
+           normal, already-decompressed response for one.
 
-           The sole exception is a caller who explicitly set `Accept-Encoding`
-           on the request: per the Accept-Encoding note above, that caller has
-           opted to receive and decode the encoded bytes themselves, so the
-           residual header is expected and must not be treated as an error. */
+           URLSession transparently decompresses an encoding it negotiated, but
+           the two platforms differ in what they leave behind. On Apple it strips
+           the `Content-Encoding` header after decoding; on Linux,
+           swift-corelibs-foundation (libcurl) decompresses the body in place but
+           LEAVES the `Content-Encoding` header on the response. So a residual
+           `Content-Encoding: gzip` header does NOT imply the body is still
+           compressed — on Linux it is the normal case for every gzip response.
+           Throwing on the mere presence of the header (the previous heuristic)
+           rejected every normal Linux response, which was wrong.
+
+           Instead, mirror node's robust approach: only treat the body as still
+           encoded when the BYTES actually begin with the codec's magic number
+           (gzip = 0x1F 0x8B). If the magic is present the body really was not
+           decoded, so we gunzip it ourselves; a decode failure (advertised gzip
+           but the stream is truncated / not real gzip) surfaces as the SDK's
+           uniform ApiError rather than silent corrupt passthrough. If the magic
+           is absent the body was already decompressed (or is plaintext) and is
+           passed through untouched — never throwing on a body that lacks the
+           compression signature, which is what fixes the regression.
+
+           A caller who explicitly set `Accept-Encoding` has opted to receive and
+           decode the encoded bytes itself, so we leave its body completely
+           alone (no magic-byte inspection, no decode). */
         let residualEncoding = (respHeaders["content-encoding"] ?? "")
             .split(separator: ",")
-            .first
+            .last
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
         let callerManagedEncoding = merged.keys.contains { $0.lowercased() == "accept-encoding" }
-        if !residualEncoding.isEmpty,
-           residualEncoding != "identity",
-           !callerManagedEncoding,
-           DefaultApiClient.isHandledContentEncoding(residualEncoding) {
-            throw ApiError(
-                statusCode: httpResponse.statusCode,
-                message: "Failed to decode response body: server advertised "
-                    + "Content-Encoding: \(residualEncoding) but the body was not "
-                    + "transparently decompressed (corrupt or mislabelled encoding)"
-            )
+        if !callerManagedEncoding,
+           residualEncoding == "gzip" || residualEncoding == "x-gzip",
+           DefaultApiClient.hasGzipMagic(data) {
+            // The body still carries the gzip magic (0x1F 0x8B), so URLSession
+            // did NOT decode it. Decode it ourselves; a malformed stream throws.
+            do {
+                data = try DefaultApiClient.decodeGzipBody(data)
+            } catch {
+                throw ApiError(
+                    statusCode: httpResponse.statusCode,
+                    message: "Failed to decode response body: server advertised "
+                        + "Content-Encoding: \(residualEncoding) and the body carried the "
+                        + "gzip magic bytes but was not a valid gzip stream "
+                        + "(corrupt or mislabelled encoding)",
+                    underlyingError: error
+                )
+            }
         }
 
         let contentType = respHeaders["content-type"] ?? ""
@@ -497,20 +522,89 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             || mediaType.hasSuffix("+xml")
     }
 
-    /// Returns true for the compression tokens this client expects URLSession
-    /// to have decompressed transparently (so a residual `Content-Encoding`
-    /// header naming one of them on the response means the body was NOT
-    /// decoded — a Content-Encoding lie or an encoding the client cannot
-    /// handle — and must surface as an ``ApiError`` rather than corrupt
-    /// passthrough). `identity` is excluded by the caller (it is a no-op
-    /// encoding). Matches the encodings the underlying transport advertises.
-    static func isHandledContentEncoding(_ encoding: String) -> Bool {
-        switch encoding {
-        case "gzip", "x-gzip", "deflate", "br", "zstd", "compress":
-            return true
-        default:
-            return false
+    /// Returns true when `data` begins with the two-byte gzip magic number
+    /// (0x1F 0x8B). A body that still carries this signature was NOT
+    /// transparently decompressed by URLSession; one that lacks it was either
+    /// already decompressed (the normal case — on Linux the
+    /// `Content-Encoding` header survives even though the body is plaintext)
+    /// or is plaintext to begin with, and must pass through untouched.
+    static func hasGzipMagic(_ data: Data) -> Bool {
+        return data.count >= 2 && data[data.startIndex] == 0x1F
+            && data[data.startIndex + 1] == 0x8B
+    }
+
+    /// Decodes a gzip body that was left encoded on the wire (the caller has
+    /// already confirmed the gzip magic bytes are present). Returns the
+    /// decompressed bytes, or throws when the body is not a valid gzip stream
+    /// — the Gap AL guard converts that throw into the SDK's uniform
+    /// ``ApiError`` rather than handing corrupt, undecoded bytes back.
+    ///
+    /// On Apple platforms a `zlib` module is available, so we decompress with
+    /// it (window bits `MAX_WBITS + 16` selects gzip framing). On Linux there
+    /// is no importable `zlib`/`CZlib` module without adding a system-library
+    /// Package.swift target, and in practice libcurl has already transparently
+    /// decompressed the body (so the magic bytes are gone and this method is
+    /// never reached for a normal response). If a body that still carries the
+    /// gzip magic does reach here on a platform without a decoder, the bytes
+    /// are genuinely undecoded gzip we cannot process, so surfacing an
+    /// ``ApiError`` is the correct, non-corrupting outcome.
+    static func decodeGzipBody(_ data: Data) throws -> Data {
+#if canImport(zlib)
+        if data.isEmpty { return data }
+        var stream = z_stream()
+        // Use zlibVersion() (a runtime `const char *`) rather than the
+        // ZLIB_VERSION macro: Swift imports the macro as a `String`, which is
+        // not directly compatible with inflateInit2_'s `const char *` version
+        // parameter. window bits MAX_WBITS + 16 selects gzip framing.
+        let initResult = inflateInit2_(
+            &stream, MAX_WBITS + 16, zlibVersion(),
+            Int32(MemoryLayout<z_stream>.size))
+        guard initResult == Z_OK else {
+            throw ApiError(message: "zlib inflateInit2 failed (code \(initResult))")
         }
+        defer { inflateEnd(&stream) }
+
+        var output = Data()
+        let chunkSize = 64 * 1024
+        var outBuffer = [UInt8](repeating: 0, count: chunkSize)
+
+        let inflateError: Int32? = data.withUnsafeBytes {
+            (inPtr: UnsafeRawBufferPointer) -> Int32? in
+            guard let inBase = inPtr.bindMemory(to: UInt8.self).baseAddress else {
+                return Z_DATA_ERROR
+            }
+            stream.next_in = UnsafeMutablePointer(mutating: inBase)
+            stream.avail_in = uInt(data.count)
+
+            var status = Z_OK
+            repeat {
+                status = outBuffer.withUnsafeMutableBufferPointer {
+                    (outPtr: inout UnsafeMutableBufferPointer<UInt8>) -> Int32 in
+                    stream.next_out = outPtr.baseAddress
+                    stream.avail_out = uInt(chunkSize)
+                    let s = inflate(&stream, Z_NO_FLUSH)
+                    let produced = chunkSize - Int(stream.avail_out)
+                    if produced > 0 {
+                        output.append(outPtr.baseAddress!, count: produced)
+                    }
+                    return s
+                }
+            } while status == Z_OK
+            return status == Z_STREAM_END ? nil : status
+        }
+
+        if let code = inflateError {
+            throw ApiError(message: "Failed to gunzip response body (zlib code \(code))")
+        }
+        return output
+#else
+        // No gzip decoder available on this platform (Linux ships no
+        // importable zlib module). A body that still carries the gzip magic is
+        // genuinely undecoded; do not hand the raw bytes back as the payload.
+        throw ApiError(
+            message: "Response body is gzip-encoded but no decoder is available "
+                + "on this platform")
+#endif
     }
 
     private static func buildSession(_ opts: TransportOptions) throws -> (URLSession, SessionDelegate?) {

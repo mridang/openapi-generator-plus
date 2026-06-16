@@ -452,18 +452,23 @@
     // MARK: - Content-Encoding lie (Gap AL)
 
     // content-encoding-lie-corrupt-passthrough (Gap AL): a server that
-    // advertises `Content-Encoding: gzip` but sends a body that is NOT valid
-    // gzip (plain bytes) must surface as the SDK's ApiError — never a silent
-    // corrupt passthrough. URLSession only decompresses (and strips the
-    // Content-Encoding header) for an encoding it negotiated; since this client
-    // advertises no Accept-Encoding, the lying header is left on the response
-    // with the raw bytes intact, which the client must reject rather than hand
-    // back as the response body.
+    // advertises `Content-Encoding: gzip` AND sends a body that BEGINS WITH the
+    // gzip magic bytes (0x1F 0x8B) — so it both claims and looks like gzip — but
+    // is not a decodable gzip stream must surface as the SDK's ApiError, never a
+    // silent corrupt passthrough. The magic-byte prefix is what tells the client
+    // the body was genuinely left encoded (rather than already decompressed by
+    // URLSession, which on Linux leaves the Content-Encoding header in place); on
+    // a real-gzip stream the client gunzips it, so the only way to reach the
+    // error path deterministically is a malformed stream that still carries the
+    // magic.
     @Test func testLyingGzipContentEncodingThrowsApiError() async throws {
+      // gzip magic prefix (0x1F 0x8B) + garbage tail: declares gzip, looks
+      // like gzip, but is not a valid gzip stream.
+      var lyingBody = Data([0x1F, 0x8B])
+      lyingBody.append(Data("this is not a valid gzip stream".utf8))
       let client = makeClient { _ in
-        // Advertise gzip but send bytes that are NOT valid gzip.
         (
-          Data("this is definitely not gzip".utf8), 200,
+          lyingBody, 200,
           ["Content-Type": "application/json", "Content-Encoding": "gzip"]
         )
       }
@@ -473,21 +478,27 @@
       }
     }
 
-    // content-encoding-lie-deflate (Gap AL): the same guard applies to any
-    // compression token URLSession would normally have stripped — a residual
-    // `Content-Encoding: deflate` on the response means the body was not
-    // decoded and must surface as an ApiError, not corrupt passthrough.
-    @Test func testLyingDeflateContentEncodingThrowsApiError() async throws {
+    // content-encoding-residual-plaintext-passthrough (Gap AL regression): on
+    // Linux swift-corelibs-foundation (libcurl) decompresses the body in place
+    // but LEAVES the `Content-Encoding: gzip` header on the response. A body
+    // that carries that residual header yet does NOT begin with the gzip magic
+    // bytes has already been decompressed (or was always plaintext) and MUST be
+    // passed through unchanged — never thrown on. A pure-plaintext body is
+    // indistinguishable from an already-decompressed one, so it cannot be
+    // treated as a lie. This pins the fix for the regression where the old guard
+    // threw on every normal Linux response.
+    @Test func testResidualGzipHeaderWithoutMagicPassesThrough() async throws {
       let client = makeClient { _ in
+        // No gzip magic — plaintext JSON under a residual gzip header.
         (
-          Data("not deflate data".utf8), 200,
-          ["Content-Type": "application/json", "Content-Encoding": "deflate"]
+          Data(#"{"ok":true}"#.utf8), 200,
+          ["Content-Type": "application/json", "Content-Encoding": "gzip"]
         )
       }
-      await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "GET", url: "http://localhost/bad-deflate", headers: [:], body: nil)
-      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/residual-gzip", headers: [:], body: nil)
+      #expect(resp.statusCode == 200)
+      #expect(resp.body.contains("ok"))
     }
 
     // content-encoding-identity-passthrough (Gap AL): `Content-Encoding:
