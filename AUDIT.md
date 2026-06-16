@@ -72,5 +72,27 @@ On a missing discriminator field, **python php** wrap the raw dict in a union co
 - **Java/Dart timeout only-connect:** Java sets request `.timeout()` (line 423) + redirect timeout too; agent stopped at the connect line. Not a bug.
 - discriminator/oneOf routing — uniform across all 12.
 
-## Pending
-- Round 3 (final deep pass) queued, same transport/serde bias.
+## Rounds 3 & 4 — parallel independent deep passes (adversarial + feature-coverage)
+
+Both ran 5 agents each across transport/serde/auth/errors/docs/tests. Result: **no
+net-new confirmed defects.** Strong loop-until-dry signal — the behavioural surface
+is harmonised; remaining work is the Round-1/2 list above.
+
+### B1 — OAuth2 expiry clock source: Rust monotonic vs 11 wall-clock (borderline, low)
+**rust** tracks token expiry off `Instant::now()` (monotonic); the other 11 use wall-clock
+(`Instant.now()`/`DateTimeOffset.UtcNow`/`time.Now()`/…). Under a backward clock adjustment the
+wall-clock 11 can mis-time a refresh. Borderline: marginal caller-visibility, debatable canonical
+(storing an absolute expiry timestamp is itself wall-clock-shaped), large change to harmonise.
+Recorded for owner judgement, not a confirmed defect.
+
+## Dropped as false positives — rounds 3 & 4 (verified against source)
+- **go simple-style path scalar not encoded:** Go DOES encode — `value = encodePathSegment(stringify(value))`
+  at value_serializer.mustache:153 runs BEFORE the style switch; the agent read only line 241. Test passes.
+- **Accept-Encoding header value/order divergence:** already W7 WONTFIX (cosmetic; each lib advertises what it can decode).
+- README section ordering: idiomatic per AGENT.md accepted non-divergences.
+
+## Audit status: COMPLETE (4 rounds)
+Confirmed open: **D1, D2, U1, U2** (structural) + **AJ, AK, AL, AM, AU-residual, N1** (transport/serde,
+already tracked in AGENT.md cycle-18 as deferred-pending). B1 borderline. Every agent "high-severity"
+behavioural claim in rounds 2-4 (tilde, java-timeout, go-simple-path) was a verified misread — net-new
+behavioural defects from the deep passes: zero.
