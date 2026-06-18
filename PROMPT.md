@@ -59,6 +59,28 @@ violation is a finding: **DIVERGENCE** if some SDKs comply and others don't;
 3. **Idempotency.** Regenerating produces an empty `git status`. Any churn on a
    no-op regen is a finding.
 
+4. **Full structural & test-set parity — the same files, the same tests, the
+   same structure, in all 12.** Beyond one-unit-one-test (#1), the *whole tree*
+   must mirror across the fleet, modulo each language's idiomatic file naming and
+   extension:
+   - **Same unit set.** Every source unit that exists in one SDK exists in all 12
+     (a unit present in some but absent in others is a DIVERGENCE). The set of
+     supporting files / classes / modules is identical.
+   - **Same test set.** Every SDK emits the **same set of test files**, and within
+     them the **same set of test scenarios** — the exact same cases, the exact
+     same inputs and expected outputs, only translated to each language's idiom.
+     If SDK X asserts behaviours {a,b,c} for a unit and SDK Y asserts {a,b}, the
+     missing `c` in Y is a DIVERGENCE — never "close enough." A behaviour tested
+     in *any* SDK must be tested in *all* of them.
+   - **Same structure.** Directory layout, file-to-unit mapping, test-to-unit
+     mapping, and the ordering/grouping of declarations are mirrored. Two SDKs
+     opened side by side should look like the same project in two languages.
+   The acid test: list every unit and every test scenario per SDK and diff the
+   12 lists — they must be set-equal. Any asymmetry is a finding. This is the
+   maintainer's standing rule: *"all languages need the same exact tests and
+   structure."* It composes with the fix-time rule in the Fix loop (a fix's
+   regression test goes into all 12, identically).
+
 ---
 
 ## The one question every finding must answer
