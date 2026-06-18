@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
@@ -78,4 +80,28 @@ test('api groups are accessible', function (): void {
 
     expect($client->pet)->toBeInstanceOf(\PetstoreClient\Api\PetApi::class);
     expect($client->store)->toBeInstanceOf(\PetstoreClient\Api\StoreApi::class);
+});
+
+test('injected api client is wired into every api group', function (): void {
+    // A custom ApiClient passed to the facade must be the exact instance every
+    // API group sends through — this is the seam that lets a Psr18ApiClient (or
+    // any bespoke transport) replace the bundled DefaultApiClient.
+    $stub = new class implements ApiClient {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', []);
+        }
+    };
+
+    $client = new Client($this->authenticator, null, $stub);
+
+    $property = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->getProperty('apiClient');
+    expect($property->getValue($client->pet))->toBe($stub);
+    $property = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))->getProperty('apiClient');
+    expect($property->getValue($client->store))->toBe($stub);
 });

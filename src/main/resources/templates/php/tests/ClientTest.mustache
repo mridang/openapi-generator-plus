@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiHttpResponse;
 use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
@@ -80,6 +82,34 @@ test('api groups are accessible', function (): void {
 {{#apis}}
 {{#operations}}
     expect($client->{{clientPropertyName}})->toBeInstanceOf(\{{apiPackage}}\{{classname}}::class);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+test('injected api client is wired into every api group', function (): void {
+    // A custom ApiClient passed to the facade must be the exact instance every
+    // API group sends through — this is the seam that lets a Psr18ApiClient (or
+    // any bespoke transport) replace the bundled DefaultApiClient.
+    $stub = new class implements ApiClient {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', []);
+        }
+    };
+
+    $client = new {{clientClassName}}($this->authenticator, null, $stub);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $property = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->getProperty('apiClient');
+    expect($property->getValue($client->{{clientPropertyName}}))->toBe($stub);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

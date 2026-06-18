@@ -48,6 +48,37 @@ vendor/bin/rector
 - Name: `{{invokerPackage}}`
 - Version: `{{packageVersion}}`
 
+## Custom HTTP client (PSR-18)
+
+By default the SDK sends requests through `DefaultApiClient`, which is backed by
+the Symfony HTTP client and needs no configuration. To drive the SDK with your
+own framework-managed HTTP stack instead — Guzzle, Symfony's PSR-18 adapter,
+Laravel's client, or a test double — wrap any [PSR-18](https://www.php-fig.org/psr/psr-18/)
+`ClientInterface` in `Psr18ApiClient` and pass it to the client facade:
+
+```php
+use {{invokerPackage}}\Psr18ApiClient;
+
+// $httpClient is any PSR-18 client; $psr17 is any PSR-17 request/stream factory.
+$apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
+$client = {{clientClassName}}::withToken('{{basePath}}', $token, null, $apiClient);
+```
+
+Redirect handling, response decompression, charset decoding, and User-Agent /
+X-Request-ID injection are applied uniformly regardless of the transport, so the
+injected client gets the same behaviour as the bundled one. Two consequences
+follow from PSR-18 being a deliberately minimal, send-only contract:
+
+- **Disable redirects on your client.** The SDK runs its own security-aware
+  redirect loop (cross-origin header stripping, HTTPS→HTTP body-replay refusal).
+  A transport that also auto-follows would double-follow and defeat those
+  protections — e.g. configure Guzzle with `['allow_redirects' => false]`.
+- **Transport settings live on your client.** PSR-18 carries no transport
+  configuration, so `TransportOptions`' TLS-verification, custom-CA, proxy, and
+  timeout settings are not applied to an injected client; configure those when
+  you build it. The options still honoured are the request-data ones: default
+  headers, User-Agent, and X-Request-ID.
+
 ## Caveats
 
 ### Integer and decimal precision

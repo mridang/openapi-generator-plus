@@ -272,7 +272,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("cancellation_token.mustache", invokerFolder, "CancellationToken.php"),
             new SupportingFileSpec("cancellation_exception.mustache", invokerFolder, "CancellationException.php"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
+            new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
+            new SupportingFileSpec("abstract_api_client.mustache", invokerFolder, "AbstractApiClient.php"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.php"),
+            new SupportingFileSpec("psr18_api_client.mustache", invokerFolder, "Psr18ApiClient.php"),
             new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.php"),
             new SupportingFileSpec("transport_options_builder.mustache", invokerFolder, "TransportOptionsBuilder.php"),
             new SupportingFileSpec("server_variable.mustache", invokerFolder, "ServerVariable.php"),
@@ -369,6 +372,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/DefaultApiClientUnitTest.mustache",
                             "tests",
                             "DefaultApiClientUnitTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/Psr18ApiClientUnitTest.mustache",
+                            "tests",
+                            "Psr18ApiClientUnitTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/ServerConfigurationTest.mustache",
