@@ -57,6 +57,25 @@ func TestDeserialize_JSONToMap(t *testing.T) {
 	}
 }
 
+// P2: a UTF-8 BOM (\ufeff, encoded as 0xEF 0xBB 0xBF) prefixing JSON text must be
+// stripped transparently so the payload deserializes cleanly into the model, for
+// parity with Java Jackson / C# System.Text.Json which tolerate a leading BOM.
+func TestDeserialize_StripsUTF8BOMBeforeModel(t *testing.T) {
+	t.Parallel()
+	input := []byte("\ufeff{\"id\":1,\"name\":\"Dogs\"}")
+
+	var category models.Category
+	if err := deserialize(input, &category); err != nil {
+		t.Fatalf("unexpected error deserializing BOM-prefixed JSON: %v", err)
+	}
+	if category.Id == nil || *category.Id != 1 {
+		t.Errorf("expected id 1, got %v", category.Id)
+	}
+	if category.Name == nil || *category.Name != "Dogs" {
+		t.Errorf("expected name 'Dogs', got %v", category.Name)
+	}
+}
+
 func TestDeserialize_EmptyData(t *testing.T) {
 	t.Parallel()
 	var result map[string]any

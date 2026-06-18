@@ -65,22 +65,6 @@ fn test_url_rejects_value_outside_enum() {
 }
 
 #[test]
-fn test_server_variable_accessors() {
-    let variable = ServerVariable::new(
-        "api".to_string(),
-        "the environment".to_string(),
-        vec!["api".to_string(), "staging".to_string()],
-    );
-
-    assert_eq!(variable.default_value(), "api");
-    assert_eq!(variable.description(), "the environment");
-    assert_eq!(
-        variable.enum_values(),
-        &["api".to_string(), "staging".to_string()]
-    );
-}
-
-#[test]
 fn test_server_configuration_accessors() {
     let server = server_with_vars();
 

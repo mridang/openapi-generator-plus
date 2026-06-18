@@ -572,6 +572,36 @@ defmodule PetstoreClient.Api.BaseApiTest do
     # If the call succeeds, headers flowed through correctly
   end
 
+  # R5-1: a config default header wins over the operation-negotiated value.
+  # The header selector negotiates Accept: application/json for this operation,
+  # but the config default Accept: application/xml must override it because
+  # base_api merges config.default_headers OVER the selected headers.
+  test "config default Accept overrides operation-negotiated Accept", %{chasm_url: chasm_url} do
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: chasm_url,
+        default_headers: %{"Accept" => "application/xml"}
+      )
+
+    state = %{config: config, api_client: PetstoreClient.DefaultApiClient.new()}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object"
+             )
+
+    # chasm echoes request headers (lowercased) under .headers; config wins
+    assert result["headers"]["accept"] == "application/xml"
+  end
+
   # Body serialization
 
   test "serializes JSON body for POST", %{state: state} do

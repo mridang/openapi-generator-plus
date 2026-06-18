@@ -432,11 +432,11 @@ class ObjectSerializerTest {
             // String, so without an explicit trim the very first token fails.
             {{modelPackage}}.Category category =
                 serializer.deserialize(
-                    "\uFEFF{\"id\":1,\"name\":\"dogs\"}",
+                    "\uFEFF{\"id\":1,\"name\":\"Dogs\"}",
                     new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Category>() {}.getType());
             assertNotNull(category, "deserialized category must not be null");
             assertEquals(1L, category.id);
-            assertEquals("dogs", category.name);
+            assertEquals("Dogs", category.name);
         }
 
         @Test

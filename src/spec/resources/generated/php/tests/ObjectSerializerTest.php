@@ -408,6 +408,22 @@ test('deserialize deserializes json to typed model', function (): void {
     expect($category->name)->toBe('Dogs');
 });
 
+// -- P2: BOM-tolerant deserialization --
+//
+// Canonical cross-SDK scenario: a server response whose body is prefixed with
+// the UTF-8 byte-order mark (EF BB BF) must deserialize as if the BOM were not
+// present. RFC 8259 §8.1 forbids a BOM in JSON text and PHP's json_decode
+// silently returns null on it, so ObjectSerializer strips it first. GREEN
+// everywhere (behaviour already correct); locked across all 12 SDKs.
+
+test('deserialize tolerates utf-8 BOM prefix', function (): void {
+    $json = "\xEF\xBB\xBF{\"id\":1,\"name\":\"Dogs\"}";
+    $category = ObjectSerializer::deserialize($json, Category::class);
+    expect($category)->toBeInstanceOf(Category::class);
+    expect($category->id)->toBe(1);
+    expect($category->name)->toBe('Dogs');
+});
+
 test('deserialize returns null for null input', function (): void {
     expect(ObjectSerializer::deserialize(null, Category::class))->toBeNull();
 });

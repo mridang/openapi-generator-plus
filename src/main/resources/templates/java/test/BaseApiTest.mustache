@@ -61,6 +61,10 @@ class BaseApiTest {
             super(apiClient, new Configuration(baseUrl, Map.of()));
         }
 
+        TestableApi(ApiClient apiClient, Configuration config) {
+            super(apiClient, config);
+        }
+
         TestableApi(ApiClient apiClient, String baseUrl, @Nullable Authenticator authenticator) {
             super(apiClient, new Configuration(baseUrl, Map.of()), authenticator);
         }
@@ -849,6 +853,28 @@ class BaseApiTest {
                     null, null);
             assertTrue(client.capturedHeaders.containsKey("Accept"));
             assertTrue(client.capturedHeaders.containsKey("Content-Type"));
+        }
+
+        @Test
+        @DisplayName("config default header overrides operation-negotiated Accept")
+        void configDefaultHeaderOverridesNegotiatedAccept() throws ApiException {
+            // R5-1: a caller-supplied config default header must win over the
+            // operation's content-negotiated Accept. Here the operation
+            // negotiates Accept: application/json, but the config default sets
+            // Accept: application/xml — the outgoing request must carry the
+            // config default, not the negotiated value.
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
+            var testApi = new TestableApi(client, config);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("application/xml", client.capturedHeaders.get("Accept"),
+                    "config default Accept must override the negotiated Accept");
         }
     }
 

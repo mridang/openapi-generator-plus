@@ -36,6 +36,9 @@ public class BaseApiTest
         public TestableApi(IApiClient apiClient, string baseUrl)
             : base(apiClient, new Configuration(baseUrl)) { }
 
+        public TestableApi(IApiClient apiClient, Configuration config)
+            : base(apiClient, config) { }
+
         public TestableApi(IApiClient apiClient, string baseUrl, IAuthenticator? authenticator)
             : base(apiClient, new Configuration(baseUrl), authenticator) { }
 
@@ -606,6 +609,64 @@ public class BaseApiTest
             new Dictionary<string, object>(), ["application/json"], "application/json");
         Assert.True(client.CapturedHeaders.ContainsKey("Accept"));
         Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"));
+    }
+
+    // ── Default header merge order (Gap C / R5-1) ──
+
+    // R5-1: a caller's config default-header Accept must win over the
+    // operation-negotiated Accept. HeaderSelector.SelectHeaders runs first,
+    // then Config.DefaultHeaders is merged OVER it (matching java putAll,
+    // python, elixir). A config default Accept of application/xml therefore
+    // overrides an operation whose negotiated Accept is application/json.
+    [Fact]
+    public async Task ConfigDefaultHeaderAcceptWinsOverOperationNegotiatedAccept()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Accept", "application/xml")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("application/xml", client.CapturedHeaders["Accept"]);
+    }
+
+    [Fact]
+    public async Task ConfigDefaultCustomHeaderPropagatesToRequest()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("X-Custom", "v")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("v", client.CapturedHeaders["X-Custom"]);
+    }
+
+    [Fact]
+    public async Task HeaderParamsAcceptWinsOverConfigDefaultAndComputedAccept()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Accept", "text/plain")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string> { { "Accept", "application/xml" } },
+            null, ["application/json"], "application/json");
+        Assert.Equal("application/xml", client.CapturedHeaders["Accept"]);
     }
 
     // ── Binary response tests (Gap 3+4) ──

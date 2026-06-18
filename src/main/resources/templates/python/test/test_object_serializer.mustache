@@ -296,6 +296,19 @@ class TestDeserialize:
         assert ObjectSerializer().deserialize(None, 'Category') is None
 
 
+class TestBomTolerance:
+    def test_deserializes_bom_prefixed_json(self) -> None:
+        # P2: a UTF-8 BOM (U+FEFF) prefixing the JSON text must be tolerated.
+        # RFC 8259 forbids it, but Windows-generated payloads often include
+        # one; the serializer strips it transparently (parity with Java
+        # Jackson / C# System.Text.Json). GREEN across all 12.
+        json_str = '﻿{"id":1,"name":"Dogs"}'
+        category = ObjectSerializer().deserialize(json_str, 'Category')
+        assert isinstance(category, Category)
+        assert category.id == 1
+        assert category.name == 'Dogs'
+
+
 class TestRequiredFieldNullRejection:
     """Gap AJ — null or missing on a required non-nullable field must raise.
 

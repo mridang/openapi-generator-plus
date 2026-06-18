@@ -412,6 +412,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "server_configuration_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "tests",
+                            "server_variable_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/api_result_test.mustache",
                             "tests",
                             "api_result_test.rs"));

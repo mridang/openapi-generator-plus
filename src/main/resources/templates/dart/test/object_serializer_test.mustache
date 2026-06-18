@@ -37,6 +37,20 @@ void main() {
       );
     });
 
+    // -- Gap P2 (canonical): BOM-prefixed JSON deserializes cleanly --
+    //
+    // RFC 8259 §8.1 forbids a leading UTF-8 BOM (U+FEFF), but Windows-
+    // generated payloads often emit one and jsonDecode rejects it. The SDK
+    // strips it transparently (parity with Java Jackson / C# System.Text.Json)
+    // so a BOM-prefixed body still deserializes into the model. GREEN here.
+    test('deserialize strips a leading UTF-8 BOM before parsing into a model', () {
+      const bomJson = '﻿{"id":1,"name":"Dogs"}';
+      final category = deserialize<Category>(bomJson, Category.fromJson);
+      expect(category, isNotNull);
+      expect(category!.id, equals(1));
+      expect(category.name, equals('Dogs'));
+    });
+
     test('toPathValue string', () {
       expect(toPathValue('hello'), equals('hello'));
     });

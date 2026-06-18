@@ -462,6 +462,42 @@ void main() {
       }
     });
 
+    /* Gap R5-1 (canonical): a config-level default header must win over the
+     * operation's negotiated Accept/Content-Type. BaseApi applies
+     * selectHeaders() first, then merges config.defaultHeaders OVER it, so a
+     * caller-set default Accept of application/xml replaces the operation's
+     * negotiated application/json. Dart already merges in this order, so this
+     * is GREEN; the assertion locks the precedence fleet-wide. */
+    test('config default header overrides operation-negotiated Accept', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedAccept;
+      server.listen((request) {
+        receivedAccept = request.headers.value('accept');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Accept', 'application/xml')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        // getPetById negotiates Accept: application/json via the selector;
+        // the config default Accept: application/xml must win on the wire.
+        await api.getPetById(1, null);
+        expect(receivedAccept, equals('application/xml'),
+            reason: 'config default Accept must override the '
+                'operation-negotiated application/json');
+      } finally {
+        await server.close();
+      }
+    });
+
     test('skips deserialization for non-JSON content type', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

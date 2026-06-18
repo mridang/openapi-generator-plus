@@ -350,6 +350,28 @@ func TestBaseApi_AllHeadersFlowThrough(t *testing.T) {
 	}
 }
 
+// R5-1: a config default header must win over the operation-negotiated value.
+// The selector negotiates Accept: application/json for GetPetById; a caller who
+// sets a config default Accept: application/xml must see application/xml on the
+// wire (config defaults are merged OVER the selected headers, so config wins).
+func TestBaseApi_ConfigDefaultHeaderOverridesNegotiatedAccept(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().
+		BaseURL("http://localhost").
+		DefaultHeader("Accept", "application/xml").
+		Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, _ = api.GetPetById(int64(1), nil)
+	accept, ok := client.capturedHeaders["Accept"]
+	if !ok {
+		t.Fatal("expected Accept header to be sent")
+	}
+	if accept != "application/xml" {
+		t.Errorf("expected config default Accept 'application/xml' to win over negotiated 'application/json', got %q", accept)
+	}
+}
+
 // ── Body serialization by content type ──
 
 /* contentTypeApiClient returns a mock client that responds with the given Content-Type. */

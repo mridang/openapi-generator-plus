@@ -20,6 +20,7 @@ import type { ApiHttpResponse } from '../src/api-response{{importFileExtension}}
 import type { ApiResult } from '../src/api-result{{importFileExtension}}';
 import { PetApi } from '../src/api/pet-api{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
+import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
 
 
 class CapturingApiClient implements ApiClient {
@@ -177,6 +178,50 @@ describe('BaseApi success deserialization', () => {
     const result = await api().call('GET', '/test/echo', {}, {}, null,
       ['application/json'], 'application/json', null);
     expect(result).toBeUndefined();
+  });
+});
+
+describe('BaseApi config default Accept', () => {
+  /*
+   * R5-1 (canonical): a config-level default `Accept` header must win
+   * over the operation's negotiated Accept. The operation negotiates
+   * `application/json`, but the client config sets a default
+   * `Accept: application/xml`; base_api applies content negotiation
+   * first and then merges config.defaultHeaders OVER it, so the
+   * outgoing request must carry the config default.
+   */
+  test('config default Accept overrides negotiated Accept', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({
+      baseUrl: 'http://localhost',
+      defaultHeaders: { Accept: 'application/xml' }
+    });
+    const api = new TestableApi(client, config);
+    await api.call('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as unknown);
+    expect(client.capturedHeaders['Accept']).toBe('application/xml');
+  });
+});
+
+describe('BaseApi BOM tolerance', () => {
+  /*
+   * P2 (canonical): a JSON response body prefixed with a UTF-8 BOM
+   * (U+FEFF) must still deserialize. RFC 8259 §8.1 forbids the BOM and
+   * JSON.parse rejects it, so base_api strips a leading BOM before
+   * parsing for parity with Jackson / System.Text.Json.
+   */
+  test('deserializes a BOM-prefixed JSON body into a Category', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '﻿{"id":1,"name":"Dogs"}';
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const api = new TestableApi(client, config);
+    const result = await api.call('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json: unknown) => ObjectSerializer.deserialize(json, Category)!);
+    const category = result as Category;
+    expect(category.id).toBe(1);
+    expect(category.name).toBe('Dogs');
   });
 });
 

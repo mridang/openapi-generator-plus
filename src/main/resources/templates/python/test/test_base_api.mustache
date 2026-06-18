@@ -480,6 +480,20 @@ class TestHeaderFlowThrough:
         assert 'Accept' in client.captured_headers
         assert 'Content-Type' in client.captured_headers
 
+    async def test_config_default_accept_wins_over_operation_negotiation(self) -> None:
+        # R5-1: a config-level default header (Accept: application/xml) must
+        # WIN over the operation's negotiated Accept (application/json). The
+        # base API applies select_headers first, then merges
+        # config.default_headers OVER it, so the caller's default takes
+        # precedence on the wire. RED in ruby before its fix, GREEN here.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost',
+                               default_headers={'Accept': 'application/xml'})
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert client.captured_headers['Accept'] == 'application/xml'
+
 
 class TestServerVariableOverrides:
 

@@ -66,6 +66,22 @@ class BaseApiTest {
         ): ApiResult<T> = invokeApiForResult<T>(method, path, queryParams, headerParams, body, accepts, contentType, auth)
     }
 
+    class TestableApiWithConfig(
+        client: CapturingApiClient,
+        config: Configuration,
+    ) : com.example.petstore.api.BaseApi(client, config) {
+        suspend fun call(
+            method: String,
+            path: String,
+            queryParams: MutableMap<String, Any?> = mutableMapOf(),
+            headerParams: MutableMap<String, String> = mutableMapOf(),
+            body: Any? = null,
+            accepts: Array<String> = arrayOf("application/json"),
+            contentType: String = "application/json",
+            auth: Authenticator? = null,
+        ): ApiHttpResponse = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+    }
+
     class TestableApiWithAuth(
         client: CapturingApiClient,
         baseUrl: String,
@@ -735,6 +751,32 @@ class BaseApiTest {
             }
             assertTrue(client.capturedHeaders.containsKey("Accept"))
             assertTrue(client.capturedHeaders.containsKey("Content-Type"))
+        }
+
+        @Test
+        @DisplayName("R5-1: config default Accept wins over the operation-negotiated Accept")
+        fun configDefaultAcceptWinsOverNegotiated() {
+            // The operation negotiates Accept=application/json, but a client
+            // config default header of Accept=application/xml must win: the
+            // selector's negotiated value is applied first, then the config
+            // defaults are merged OVER it, so the outgoing request carries the
+            // caller's configured Accept. Matches java/elixir/python.
+            val client = CapturingApiClient()
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .defaultHeader("Accept", "application/xml")
+                    .build()
+            val testApi = TestableApiWithConfig(client, config)
+            runBlocking {
+                testApi.call("GET", "/test/echo", accepts = arrayOf("application/json"))
+            }
+            assertEquals(
+                "application/xml",
+                client.capturedHeaders["Accept"],
+                "config default Accept must override the operation-negotiated application/json",
+            )
         }
     }
 

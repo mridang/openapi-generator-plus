@@ -640,6 +640,26 @@ test('all headers from selector flow through', function (): void {
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
 });
 
+// -- Default header merge order (Gap C / R5-1) --
+//
+// Canonical cross-SDK scenario: a caller's config default `Accept` must win
+// over the operation-negotiated Accept. selectHeaders() runs first (negotiating
+// Accept from $accepts), then config->defaultHeaders is merged OVER it
+// (matching java putAll, python, elixir). RED in ruby before its merge-order
+// fix; GREEN in PHP (base_api array_merge puts the config defaults last).
+
+test('config default Accept wins over operation-negotiated Accept', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
+});
+
 // -- BinaryResponseTests --
 
 test('octet stream response decoded as base 64 bytes', function (): void {

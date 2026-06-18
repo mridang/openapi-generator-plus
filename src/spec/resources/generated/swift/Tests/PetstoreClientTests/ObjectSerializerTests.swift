@@ -747,4 +747,19 @@ import Testing
     #expect(pet?.name == "Fido")
     #expect(pet?.photoUrls.contains("http://example.com/fido.jpg") == true)
   }
+
+  // MARK: - P2 — BOM-tolerant deserialise (canonical)
+
+  // bom-tolerant-deserialise (P2): JSON text emitted by Windows tooling often
+  // carries a leading UTF-8 byte-order mark (U+FEFF). RFC 8259 §8.1 forbids it
+  // and Foundation's JSONDecoder rejects it, so ObjectSerializer.deserialize
+  // strips a leading BOM transparently — matching Java Jackson / C#
+  // System.Text.Json. The canonical input is the BOM-prefixed Category JSON;
+  // it must decode into a Category with id == 1 and name == "Dogs".
+  @Test func testDeserializeStripsLeadingByteOrderMark() throws {
+    let json = "\u{FEFF}{\"id\":1,\"name\":\"Dogs\"}"
+    let category = try ObjectSerializer.deserialize(json, as: Category.self)
+    #expect(category?.id == 1)
+    #expect(category?.name == "Dogs")
+  }
 }

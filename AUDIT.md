@@ -121,6 +121,30 @@ buggy ones, green in the rest. Co-located test file per Structural Invariant #1.
 - **N1** (`DefaultApiClient` test): on a 302 HTTPS→HTTP redirect carrying a body → MUST proceed (body dropped,
   per RFC the request becomes GET); on a 307/308 HTTPS→HTTP redirect with a body → MUST throw. Fix in node.
 
+## Rounds 5-9 — parity fixes (canonical tests, identical across all 12)
+
+### R5-1 — config default Accept/Content-Type must win over operation negotiation
+Code fix: **ruby** only — `ruby/base_api.mustache` applies `select_headers` first, then
+merges `config.default_headers` OVER it (matching java/elixir/python; currently ruby does the
+reverse so a caller's default Accept/Content-Type is dropped).
+CANONICAL TEST (all 12, co-located with the existing default-header-override transport test):
+set the client config default header `Accept: application/xml`; invoke an operation whose
+negotiated Accept is `application/json`; capture the outgoing request; assert the request
+`Accept` header == `application/xml` (config default wins). RED in ruby before the fix, GREEN in
+the other 11.
+
+### P1 — rust needs a dedicated server_variable test file
+**rust** only: split the `ServerVariable` cases out of `rust/test/server_configuration_test.mustache`
+into a new `rust/test/server_variable_test.mustache`, register it in `BetterRustCodegen.java`. The
+other 11 already ship a dedicated server_variable test — this brings the test-file set to parity.
+
+### P2 — BOM-tolerance test in all 12
+CANONICAL TEST (all 12, co-located with where the BOM strip lives — `object_serializer` test for
+11; node strips in `base_api` so node's goes in the base-api test): deserialize the BOM-prefixed
+JSON `"﻿{\"id\":1,\"name\":\"Dogs\"}"` into the `Category` model; assert success with id==1,
+name=="Dogs". GREEN everywhere (behaviour already correct). Add only where an equivalent BOM test
+is missing (kotlin definitely lacks it).
+
 ## Audit status: COMPLETE (4 rounds)
 Confirmed open: **D1, D2, U1, U2** (structural) + **AJ, AK, AL, AM, AU-residual, N1** (transport/serde,
 already tracked in AGENT.md cycle-18 as deferred-pending). B1 borderline. Every agent "high-severity"

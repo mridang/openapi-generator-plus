@@ -395,6 +395,27 @@ async fn test_base_api_all_headers_flow_through() {
     assert!(headers.contains_key("Content-Type"), "Expected Content-Type header from selector");
 }
 
+#[tokio::test]
+async fn test_base_api_config_default_header_overrides_negotiated_accept() {
+    /* A config default header must win over the operation-negotiated Accept.
+     * get_pet_by_id negotiates `Accept: application/json`; with a config
+     * default of `Accept: application/xml`, the outgoing request must carry
+     * the config default, not the negotiated value. */
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_header("Accept", "application/xml")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.get_pet_by_id(1, None).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Accept").map(|s| s.as_str()),
+        Some("application/xml"),
+        "config default Accept must override the operation-negotiated Accept"
+    );
+}
+
 // -- Auth Option<>: falling back to the client-level authenticator --
 
 #[tokio::test]

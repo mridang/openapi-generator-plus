@@ -342,6 +342,17 @@ describe PetstoreClient::ObjectSerializer do
       _(category.name).must_equal('Dogs')
     end
 
+    # P2: a leading UTF-8 byte-order mark (BOM) must not break
+    # deserialization. JSON.parse tolerates the BOM, so a Category prefixed
+    # with U+FEFF round-trips to the same model. GREEN everywhere.
+    it 'deserializes BOM-prefixed JSON to typed model' do
+      json_str = "﻿{\"id\":1,\"name\":\"Dogs\"}"
+      category = PetstoreClient::ObjectSerializer.deserialize(json_str, 'Category')
+      _(category).must_be_kind_of(PetstoreClient::Models::Category)
+      _(category.id).must_equal(1)
+      _(category.name).must_equal('Dogs')
+    end
+
     it 'returns nil for empty input' do
       _(PetstoreClient::ObjectSerializer.deserialize('', 'Category')).must_be_nil
     end

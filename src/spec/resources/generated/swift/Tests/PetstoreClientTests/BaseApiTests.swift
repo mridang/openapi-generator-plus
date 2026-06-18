@@ -303,6 +303,29 @@ import Testing
     #expect(mockClient.lastHeaders["Authorization"] == "Bearer test-token")
   }
 
+  // config-default-accept-wins (R5-1): a config default header MUST override
+  // the operation's negotiated Accept, not the other way round. selectHeaders
+  // negotiates `Accept: application/json` for getPetById, but the caller has
+  // configured a default `Accept: application/xml`; the config default is
+  // merged OVER the selected headers, so the outgoing request must carry the
+  // configured value. Pins parity with java/elixir/python (ruby merged in the
+  // reverse order and dropped the caller's default).
+  @Test func testConfigDefaultAcceptOverridesNegotiatedAccept() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+
+    let config = ConfigurationBuilder()
+      .baseURL("https://example.com")
+      .defaultHeader(name: "Accept", value: "application/xml")
+      .build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetById(petId: 1)
+    #expect(
+      mockClient.lastHeaders["Accept"] == "application/xml",
+      "config default Accept must win over the negotiated application/json")
+  }
+
   // MARK: - Nil body
 
   @Test func testHandlesNilBody() async throws {

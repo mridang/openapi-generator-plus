@@ -217,6 +217,21 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("BOM-tolerance: leading UTF-8 BOM is stripped before decode")
+        fun leadingBomStrippedBeforeDecode() {
+            // RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+            // Windows-generated payloads often include one and kotlinx-
+            // serialization rejects it. The serializer strips it silently for
+            // parity with Java Jackson / C# System.Text.Json. The leading
+            // ﻿ must not break the decode.
+            val json = "﻿{\"id\":1,\"name\":\"Dogs\"}"
+            val result = serializer.deserialize<{{modelPackage}}.Category>(json)
+            assertNotNull(result)
+            assertEquals(1L, result!!.id)
+            assertEquals("Dogs", result.name)
+        }
+
+        @Test
         @DisplayName("Gap AJ: null on required non-nullable field throws")
         fun nullOnRequiredFieldThrows() {
             val json = "{\"name\":null,\"photoUrls\":[\"x\"]}"

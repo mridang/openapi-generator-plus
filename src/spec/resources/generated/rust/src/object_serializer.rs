@@ -341,6 +341,22 @@ mod tests {
         assert_eq!(cat.name, Some("Cats".to_string()));
     }
 
+    // -- BOM tolerance: a leading UTF-8 BOM must be stripped before parse --
+
+    #[test]
+    fn test_deserialize_tolerates_leading_utf8_bom() {
+        /* Cross-language parity: Windows-generated payloads often prepend a
+         * UTF-8 BOM (U+FEFF) that RFC 8259 forbids and serde_json rejects.
+         * `deserialize` strips it transparently, so a BOM-prefixed Category
+         * body must parse successfully with id==1, name=="Dogs". */
+        let payload = "\u{FEFF}{\"id\":1,\"name\":\"Dogs\"}".as_bytes();
+        let result: Option<Category> = object_serializer::deserialize(payload)
+            .expect("deserialize must tolerate a leading UTF-8 BOM");
+        let cat = result.expect("expected Some(Category)");
+        assert_eq!(cat.id, Some(1));
+        assert_eq!(cat.name, Some("Dogs".to_string()));
+    }
+
     // -- DIVERGENCE #10: required, non-nullable fields must HARD-FAIL --
     //
     // A required field that is non-`Option` is generated without

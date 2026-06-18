@@ -467,18 +467,22 @@ describe PetstoreClient::Api::BaseApi do
     assert client.captured_headers.key?('Content-Type'), 'Expected Content-Type header'
   end
 
-  # ── Default header merge order (Gap C) ──
+  # ── Default header merge order (Gap C / R5-1) ──
 
-  it 'operation-level Accept wins over config.default_headers Accept' do
+  # R5-1: a caller's config.default_headers Accept must win over the
+  # operation-negotiated Accept. select_headers runs first, then
+  # config.default_headers is merged OVER it (matching java putAll, python,
+  # elixir). RED before the merge-order fix, GREEN after.
+  it 'config.default_headers Accept wins over operation-negotiated Accept' do
     client = CapturingApiClient.new
     config = PetstoreClient::Configuration.builder
       .base_url('http://localhost')
-      .default_header('Accept', 'text/plain')
+      .default_header('Accept', 'application/xml')
       .build
     test_api = TestableApi.new(client, config)
     test_api.call('GET', '/test', {}, {}, nil,
                   ['application/json'], 'application/json', nil)
-    _(client.captured_headers['Accept']).must_equal 'application/json'
+    _(client.captured_headers['Accept']).must_equal 'application/xml'
   end
 
   it 'config.default_headers custom headers propagate to request' do

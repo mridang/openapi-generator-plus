@@ -415,6 +415,18 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert category.name == "Dogs"
     end
 
+    # P2 (BOM tolerance): RFC 8259 §8.1 forbids a leading UTF-8 BOM in JSON
+    # text and Jason rejects it, but Windows-generated payloads often include
+    # one. deserialize/2 strips it transparently (parity with Java Jackson /
+    # C# System.Text.Json), so a BOM-prefixed body still yields a typed model.
+    test "strips a leading UTF-8 BOM before deserializing" do
+      json_str = <<0xEF, 0xBB, 0xBF>> <> ~s({"id":1,"name":"Dogs"})
+      category = PetstoreClient.ObjectSerializer.deserialize(json_str, "Category")
+      assert %PetstoreClient.Models.Category{} = category
+      assert category.id == 1
+      assert category.name == "Dogs"
+    end
+
     test "returns nil for empty input" do
       assert PetstoreClient.ObjectSerializer.deserialize("", "Category") == nil
     end
