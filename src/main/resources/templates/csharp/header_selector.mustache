@@ -23,8 +23,8 @@ internal static partial class HeaderSelector
     {
         Dictionary<string, string> headers = [];
 
-        string? acceptHeader = SelectAcceptHeader(accept);
-        if (acceptHeader != null)
+        string acceptHeader = SelectAcceptHeader(accept);
+        if (!string.IsNullOrEmpty(acceptHeader))
         {
             headers["Accept"] = acceptHeader;
         }
@@ -49,11 +49,11 @@ internal static partial class HeaderSelector
         return mimeType != null && JsonMimePattern().IsMatch(mimeType);
     }
 
-    private static string? SelectAcceptHeader(string[]? accept)
+    internal static string SelectAcceptHeader(string[]? accept)
     {
         if (accept == null || accept.Length == 0)
         {
-            return null;
+            return string.Empty;
         }
 
         string[] filtered = [.. accept.Where(s => !string.IsNullOrWhiteSpace(s))];

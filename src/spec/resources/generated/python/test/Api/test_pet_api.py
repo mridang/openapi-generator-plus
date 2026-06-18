@@ -145,6 +145,13 @@ class TestPetApi:
         assert result is not None
         assert isinstance(result, list)
 
+    def test_add_pet_photos_requires_options(self) -> None:
+        # Parity with the other 11 SDKs: when an operation's Options object has
+        # required fields, the options argument is required (no default). Omitting
+        # it must raise TypeError at call time, not silently pass None through.
+        with pytest.raises(TypeError):
+            self.api.add_pet_photos(1)
+
     async def test_download_pet_document(self) -> None:
         result = await self.api.download_pet_document(1, 1)
 

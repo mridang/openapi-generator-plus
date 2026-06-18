@@ -88,7 +88,7 @@ class {{classname}}(BaseApi):
     async def {{operationId}}(
         self,
 {{#vendorExtensions.op.signatureArgs}}
-        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
         """{{{summary}}}
@@ -191,7 +191,7 @@ class {{classname}}(BaseApi):
     async def {{operationId}}_with_http_info(
         self,
 {{#vendorExtensions.op.signatureArgs}}
-        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
         """{{{summary}}} (with HTTP info)

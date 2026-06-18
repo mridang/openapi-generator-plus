@@ -237,7 +237,7 @@ class PetApi(BaseApi):
     async def add_pet_photos(
         self,
         pet_id: StrictInt,
-        options: Optional[AddPetPhotosOptions] = None,
+        options: AddPetPhotosOptions,
     ) -> List[Photo]:
         """Add photos to the pet's gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -275,7 +275,7 @@ class PetApi(BaseApi):
     async def add_pet_photos_with_http_info(
         self,
         pet_id: StrictInt,
-        options: Optional[AddPetPhotosOptions] = None,
+        options: AddPetPhotosOptions,
     ) -> "ApiResult[List[Photo]]":
         """Add photos to the pet's gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -1006,7 +1006,7 @@ class PetApi(BaseApi):
     async def get_pet_by_name(
         self,
         name: StrictStr,
-        options: Optional[GetPetByNameOptions] = None,
+        options: GetPetByNameOptions,
     ) -> Pet:
         """Look up a pet by name (simple string path param + required query)
         :param name:  (required)
@@ -1040,7 +1040,7 @@ class PetApi(BaseApi):
     async def get_pet_by_name_with_http_info(
         self,
         name: StrictStr,
-        options: Optional[GetPetByNameOptions] = None,
+        options: GetPetByNameOptions,
     ) -> "ApiResult[Pet]":
         """Look up a pet by name (simple string path param + required query) (with HTTP info)
         :param name:  (required)
@@ -1569,7 +1569,7 @@ class PetApi(BaseApi):
     async def set_pet_preferences(
         self,
         pet_id: StrictInt,
-        options: Optional[SetPetPreferencesOptions] = None,
+        options: SetPetPreferencesOptions,
     ) -> ApiResponse:
         """Update a pet's notification preferences
         Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
@@ -1604,7 +1604,7 @@ class PetApi(BaseApi):
     async def set_pet_preferences_with_http_info(
         self,
         pet_id: StrictInt,
-        options: Optional[SetPetPreferencesOptions] = None,
+        options: SetPetPreferencesOptions,
     ) -> "ApiResult[ApiResponse]":
         """Update a pet's notification preferences (with HTTP info)
         Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
@@ -1731,7 +1731,7 @@ class PetApi(BaseApi):
     async def upload_pet_certificate(
         self,
         pet_id: StrictInt,
-        options: Optional[UploadPetCertificateOptions] = None,
+        options: UploadPetCertificateOptions,
     ) -> ApiResponse:
         """Upload the pet's adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1766,7 +1766,7 @@ class PetApi(BaseApi):
     async def upload_pet_certificate_with_http_info(
         self,
         pet_id: StrictInt,
-        options: Optional[UploadPetCertificateOptions] = None,
+        options: UploadPetCertificateOptions,
     ) -> "ApiResult[ApiResponse]":
         """Upload the pet's adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1813,7 +1813,7 @@ class PetApi(BaseApi):
     async def upload_pet_document(
         self,
         pet_id: StrictInt,
-        options: Optional[UploadPetDocumentOptions] = None,
+        options: UploadPetDocumentOptions,
     ) -> ApiResponse:
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1848,7 +1848,7 @@ class PetApi(BaseApi):
     async def upload_pet_document_with_http_info(
         self,
         pet_id: StrictInt,
-        options: Optional[UploadPetDocumentOptions] = None,
+        options: UploadPetDocumentOptions,
     ) -> "ApiResult[ApiResponse]":
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.

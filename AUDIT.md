@@ -167,6 +167,23 @@ Low — harmonise for consistency, not a caller-facing defect.
 
 R10 (format/type mapping) and R11 (security/injection) — NO FINDINGS.
 
+## R12-1 / R13-1 — fix (canonical tests, identical across all 12)
+
+### R12-1 — python options must be required when Options has required fields
+Code: **python** only — `python/api/api.mustache` (lines 91 + 194) gate the options default on
+`{{#nullable}}` like ruby: `{{#isOptions}}{{#nullable}}Optional[X] = None{{/nullable}}{{^nullable}}X{{/nullable}}{{/isOptions}}`.
+TEST (python runtime; the other 11 enforce it at compile time via their existing passing compilation):
+calling an op whose Options has required fields without the options arg raises TypeError
+(e.g. `add_pet_photos(1)` → TypeError). Add to python's pet-api test.
+
+### R13-1 — header_selector empty-Accept returns "" in all 12 (canonical = "")
+Code: **python, kotlin, csharp, elixir, node** — change `select_accept_header([])` to return `""`
+(not null/None) AND update the `select_headers` consumer to gate on non-empty (NOT non-null), so an
+empty result still omits the Accept header (do them in lockstep — a bare null→"" without the consumer
+change would send `Accept: ""`). Fix the return-type annotation too.
+CANONICAL TEST (all 12, in the header_selector test): `select_accept_header([])` returns `""` (empty
+string); align any existing test that asserts null/None to assert `""`.
+
 ## Audit status: COMPLETE (4 rounds)
 Confirmed open: **D1, D2, U1, U2** (structural) + **AJ, AK, AL, AM, AU-residual, N1** (transport/serde,
 already tracked in AGENT.md cycle-18 as deferred-pending). B1 borderline. Every agent "high-severity"

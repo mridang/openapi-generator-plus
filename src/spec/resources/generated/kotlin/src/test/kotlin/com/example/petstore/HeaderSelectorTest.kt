@@ -90,6 +90,16 @@ class HeaderSelectorTest {
     }
 
     @Nested
+    @DisplayName("selectAcceptHeader")
+    inner class SelectAcceptHeaderTests {
+        @Test
+        @DisplayName("returns empty string for empty accept list")
+        fun returnsEmptyStringForEmptyAccepts() {
+            assertEquals("", selector.selectAcceptHeader(arrayOf()))
+        }
+    }
+
+    @Nested
     @DisplayName("selectHeaders")
     inner class SelectHeadersTests {
         @Test

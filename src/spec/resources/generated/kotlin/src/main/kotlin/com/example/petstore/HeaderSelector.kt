@@ -30,7 +30,7 @@ internal class HeaderSelector {
         val headers = mutableMapOf<String, String>()
 
         val acceptHeader = selectAcceptHeader(accept)
-        if (acceptHeader != null) {
+        if (acceptHeader.isNotEmpty()) {
             headers["Accept"] = acceptHeader
         }
 
@@ -47,10 +47,11 @@ internal class HeaderSelector {
         return jsonMimePattern.containsMatchIn(searchString)
     }
 
-    private fun selectAcceptHeader(accept: Array<String>?): String? {
-        if (accept == null) return null
+    @PublishedApi
+    internal fun selectAcceptHeader(accept: Array<String>?): String {
+        if (accept == null) return ""
         val filtered = accept.filter { it.isNotBlank() }
-        if (filtered.isEmpty()) return null
+        if (filtered.isEmpty()) return ""
         return filtered.joinToString(", ")
     }
 }

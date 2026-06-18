@@ -60,6 +60,17 @@ defmodule PetstoreClient.HeaderSelectorTest do
     test "does not set Accept header when accepts empty" do
       headers = PetstoreClient.HeaderSelector.select_headers([], "application/json", false)
       assert headers["Accept"] == nil
+      refute Map.has_key?(headers, "Accept")
+    end
+
+    test "does not set Accept header when accepts is nil" do
+      headers = PetstoreClient.HeaderSelector.select_headers(nil, "application/json", false)
+      refute Map.has_key?(headers, "Accept")
+    end
+
+    test "does not set Accept header when all entries are filtered out" do
+      headers = PetstoreClient.HeaderSelector.select_headers(["", nil], "application/json", false)
+      refute Map.has_key?(headers, "Accept")
     end
 
     test "sets Content-Type header when not multipart" do

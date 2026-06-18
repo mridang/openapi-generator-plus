@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 class HeaderSelector:
@@ -20,7 +20,7 @@ class HeaderSelector:
         headers: Dict[str, str] = {}
 
         accept_header = self._select_accept_header(accept)
-        if accept_header is not None:
+        if accept_header:
             headers['Accept'] = accept_header
 
         if not is_multipart:
@@ -30,7 +30,7 @@ class HeaderSelector:
 
         return headers
 
-    def _select_accept_header(self, accept: List[str]) -> Optional[str]:
+    def _select_accept_header(self, accept: List[str]) -> str:
         """Return the header 'Accept' based on an array of Accept provided.
 
         The acceptable MIME types are joined in their original declaration
@@ -41,12 +41,12 @@ class HeaderSelector:
         :return: Accept (e.g. "image/jpeg, image/png, application/json")
         """
         if accept is None:
-            return None
+            return ''
 
         filtered_accept = [s for s in accept if s is not None and s]
 
         if not filtered_accept:
-            return None
+            return ''
 
         return ', '.join(filtered_accept)
 

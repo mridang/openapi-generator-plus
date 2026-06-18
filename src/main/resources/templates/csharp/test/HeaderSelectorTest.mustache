@@ -193,14 +193,35 @@ public class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldReturnEmptyAcceptWhenAllEntriesBlank()
+        public void ShouldNotSetAcceptHeaderWhenAllEntriesBlank()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["", "   "],
                 "application/json",
                 false
             );
-            Assert.Equal(string.Empty, headers["Accept"]);
+            Assert.False(headers.ContainsKey("Accept"));
+        }
+    }
+
+    public class SelectAcceptHeaderTests
+    {
+        [Fact]
+        public void ShouldReturnEmptyStringWhenAcceptsEmpty()
+        {
+            Assert.Equal(string.Empty, HeaderSelector.SelectAcceptHeader(Array.Empty<string>()));
+        }
+
+        [Fact]
+        public void ShouldReturnEmptyStringWhenAcceptsNull()
+        {
+            Assert.Equal(string.Empty, HeaderSelector.SelectAcceptHeader(null));
+        }
+
+        [Fact]
+        public void ShouldReturnEmptyStringWhenAllEntriesBlank()
+        {
+            Assert.Equal(string.Empty, HeaderSelector.SelectAcceptHeader(["", "   "]));
         }
     }
 }

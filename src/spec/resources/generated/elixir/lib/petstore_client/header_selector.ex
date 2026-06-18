@@ -40,7 +40,7 @@ defmodule PetstoreClient.HeaderSelector do
 
     headers =
       case select_accept_header(accept) do
-        nil -> headers
+        "" -> headers
         accept_header -> Map.put(headers, "Accept", accept_header)
       end
 
@@ -70,13 +70,14 @@ defmodule PetstoreClient.HeaderSelector do
     Regex.match?(@json_mime_pattern, search_string)
   end
 
-  defp select_accept_header(nil), do: nil
+  @spec select_accept_header([String.t()] | nil) :: String.t()
+  defp select_accept_header(nil), do: ""
 
   defp select_accept_header(accept) do
     filtered = Enum.filter(accept, fn s -> not is_nil(s) and s != "" end)
 
     case filtered do
-      [] -> nil
+      [] -> ""
       _ -> Enum.join(filtered, ", ")
     end
   end
