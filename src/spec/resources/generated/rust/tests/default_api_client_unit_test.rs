@@ -877,7 +877,8 @@ fn start_truncated_body_server() -> String {
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
             // Declare 1000 bytes but send only 3, then drop the connection.
-            let response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\nabc";
+            let response =
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\nabc";
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
             // stream dropped here -> client sees a truncated body.
         }

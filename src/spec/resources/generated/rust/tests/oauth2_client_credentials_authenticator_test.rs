@@ -10,14 +10,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiHttpResponse;
+use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
+use petstore::auth::oauth::OAuth2ClientCredentialsAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
-use petstore::auth::oauth::OAuth2ClientCredentialsAuthenticator;
-use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiHttpResponse>>,

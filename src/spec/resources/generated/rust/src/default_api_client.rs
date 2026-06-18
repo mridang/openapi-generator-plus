@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use std::time::Duration;
 
@@ -314,8 +314,7 @@ impl ApiClient for DefaultApiClient {
                             ),
                             None,
                             None,
-                        ))
-                            as Box<dyn std::error::Error + Send + Sync>);
+                        )) as Box<dyn std::error::Error + Send + Sync>);
                     }
 
                     // Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 /
@@ -778,9 +777,9 @@ fn is_text_content_type(content_type: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        SENSITIVE_HEADER_NAMES, build_filename_directive, decode_text_body,
-        is_https_to_http_body_replay, mime_for_filename, parse_charset, serialize_multipart_body,
-        validate_multipart_field_name, validate_multipart_filename,
+        build_filename_directive, decode_text_body, is_https_to_http_body_replay,
+        mime_for_filename, parse_charset, serialize_multipart_body, validate_multipart_field_name,
+        validate_multipart_filename, SENSITIVE_HEADER_NAMES,
     };
     use crate::api_client::MultipartValue;
 

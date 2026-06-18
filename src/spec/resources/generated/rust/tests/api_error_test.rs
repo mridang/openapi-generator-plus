@@ -7,16 +7,16 @@
 
 use std::collections::HashMap;
 
-use petstore::ApiError;
-use petstore::SerializationError;
-use petstore::ZitadelError;
-use petstore::auth::BasicAuthError;
 use petstore::auth::oauth::{AuthCodeNotExchangedError, OAuth2ServerError, OAuth2TokenError};
+use petstore::auth::BasicAuthError;
 use petstore::errors::{
     BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError,
     NotFoundError, ServerError, UnauthorizedError, UnprocessableEntityError,
 };
 use petstore::models::Category;
+use petstore::ApiError;
+use petstore::SerializationError;
+use petstore::ZitadelError;
 
 #[test]
 fn test_api_error_exposes_status_message_body_headers() {

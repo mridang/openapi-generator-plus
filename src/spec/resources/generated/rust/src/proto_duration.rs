@@ -15,7 +15,7 @@
 // + chrono rather than adding an ISO-8601 crate.
 
 use chrono::Duration;
-use serde::{Deserialize, Deserializer, Serializer, de};
+use serde::{de, Deserialize, Deserializer, Serializer};
 
 const NANOS_PER_SECOND: i64 = 1_000_000_000;
 

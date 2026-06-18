@@ -14,9 +14,9 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use crate::api_client::ApiClient;
-use crate::auth::Authenticator;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
+use crate::auth::Authenticator;
 
 /// Error returned by [`OAuth2AuthorizationCodeAuthenticator::try_auth_headers`]
 /// when the caller invokes it before

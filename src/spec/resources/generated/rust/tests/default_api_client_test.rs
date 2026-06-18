@@ -71,7 +71,7 @@ async fn test_default_api_client_makes_http_request_through_proxy() {
 // the userinfo end-to-end.
 #[tokio::test]
 async fn test_default_api_client_proxy_with_credentials_injects_basic_authorization() {
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     use reqwest::Url;
 
     let transport = TransportOptionsBuilder::new()
@@ -97,7 +97,7 @@ async fn test_default_api_client_proxy_with_credentials_injects_basic_authorizat
 // GREEN. Input matches the AUDIT.md canonical exactly.
 #[tokio::test]
 async fn test_proxy_url_with_userinfo_preserves_credentials() {
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     use reqwest::Url;
 
     let transport = TransportOptionsBuilder::new()

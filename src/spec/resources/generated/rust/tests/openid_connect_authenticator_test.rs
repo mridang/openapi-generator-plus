@@ -12,9 +12,9 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiHttpResponse;
+use petstore::auth::oauth::OpenIdConnectAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
-use petstore::auth::oauth::OpenIdConnectAuthenticator;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiHttpResponse>>,
