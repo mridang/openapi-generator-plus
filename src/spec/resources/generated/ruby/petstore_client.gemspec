@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'
   s.description = 'A simplified Pet Store API for integration testing.'
   s.license     = 'MIT'
-  s.required_ruby_version = '>= 3.4'
+  s.required_ruby_version = '>= 3.1'
   s.metadata['rubygems_mfa_required'] = 'true'
 
   s.add_dependency 'dry-struct', '~> 1.6'
