@@ -167,7 +167,9 @@ Low — harmonise for consistency, not a caller-facing defect.
 
 R10 (format/type mapping) and R11 (security/injection) — NO FINDINGS.
 
-## R12-1 / R13-1 — fix (canonical tests, identical across all 12)
+## R12-1 / R13-1 — RESOLVED + verified (full spec suite green; other 7 diff-free)
+
+### (resolved) canonical tests, identical across all 12
 
 ### R12-1 — python options must be required when Options has required fields
 Code: **python** only — `python/api/api.mustache` (lines 91 + 194) gate the options default on
