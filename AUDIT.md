@@ -145,6 +145,28 @@ JSON `"﻿{\"id\":1,\"name\":\"Dogs\"}"` into the `Category` model; assert succe
 name=="Dogs". GREEN everywhere (behaviour already correct). Add only where an equivalent BOM test
 is missing (kotlin definitely lacks it).
 
+## R5-1 / P1 / P2 — RESOLVED + verified
+Fixed and verified green across the FULL per-language spec suite (Client+Build+Lint+Format+
+StaticAnalysis+TypeCheck) for all 12. Identical canonical tests added fleet-wide.
+
+## Rounds 10-13 — new findings (open)
+
+### R12-1 — python `options` param is always Optional, even when Options has required fields (DIVERGENCE, medium)
+`python/api/api.mustache:91` emits `{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}`
+unconditionally. ruby gates on `{{#nullable}}`; java/go make it required (`addPetPhotos(petId, options)`,
+no default). So for an op whose Options has required fields (e.g. addPetPhotos → files+metadata) a python
+caller can omit the required options object; the other 11 force it. Public-API-surface divergence.
+- why_not_caught: no cross-SDK signature-parity test asserts options-requiredness.
+- canonical: python should gate `= None` on the same optional/nullable flag the other 11 use.
+
+### R13-1 — header_selector empty-Accept returns null (5) vs "" (7) (DIVERGENCE, low / not caller-visible)
+`select_accept_header([])` returns null in python/kotlin/elixir/csharp/node, "" in java/go/dart/swift/php/
+rust/ruby. **Wire-identical** (Accept omitted either way) → fails the caller-visible criterion; it's an
+internal-contract + divergent-test inconsistency (python test asserts `is None`, ruby asserts `== ''`).
+Low — harmonise for consistency, not a caller-facing defect.
+
+R10 (format/type mapping) and R11 (security/injection) — NO FINDINGS.
+
 ## Audit status: COMPLETE (4 rounds)
 Confirmed open: **D1, D2, U1, U2** (structural) + **AJ, AK, AL, AM, AU-residual, N1** (transport/serde,
 already tracked in AGENT.md cycle-18 as deferred-pending). B1 borderline. Every agent "high-severity"
