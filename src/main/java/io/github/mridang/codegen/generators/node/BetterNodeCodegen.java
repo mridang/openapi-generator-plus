@@ -278,7 +278,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("api_client.mustache", "src", "api-client.ts"),
+            new SupportingFileSpec("abstract_api_client.mustache", "src", "abstract-api-client.ts"),
             new SupportingFileSpec("default_api_client.mustache", "src", "default-api-client.ts"),
+            new SupportingFileSpec("web_api_client.mustache", "src", "default-api-client.web.ts"),
             new SupportingFileSpec("api_response.mustache", "src", "api-response.ts"),
             new SupportingFileSpec("api_result.mustache", "src", "api-result.ts"),
             new SupportingFileSpec("configuration.mustache", "src", "configuration.ts"),
@@ -381,6 +383,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/default-api-client-unit.test.mustache",
                             "test",
                             "default-api-client-unit.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/web-api-client.test.mustache",
+                            "test",
+                            "web-api-client.test.ts"));
             // U1: ServerConfiguration / ServerVariable are spec-independent
             // supporting modules emitted into every client, so their tests ship
             // alongside the other pure-unit tests above.

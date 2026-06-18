@@ -36,7 +36,7 @@ export * from "./models/index.js";
  */
 export type { ApiClient, SendRequestOptions } from "./api-client.js";
 export type { ApiResult } from "./api-result.js";
-export { DefaultApiClient } from "./default-api-client.js";
+export { DefaultApiClient } from "#transport";
 
 /* Configuration and transport tuning. */
 export { Configuration, ConfigurationBuilder } from "./configuration.js";

@@ -1065,29 +1065,31 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     ).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("decodes a genuinely gzip-encoded body that undici left compressed", () => {
+  it("decodes a genuinely gzip-encoded body that the fetch layer left compressed", async () => {
     // ensureDecoded is exercised directly: a valid gzip stream still on the
-    // wire is decompressed rather than passed through as base64.
+    // wire is decompressed rather than passed through as base64. It is async
+    // because the shared base decodes via the Web-standard DecompressionStream
+    // so the gzip-lie guard runs on every runtime.
     const valid = zlib.gzipSync(Buffer.from('{"userId":1}', "utf-8"));
-    const out = DefaultApiClient.ensureDecoded(valid, "gzip");
+    const out = await DefaultApiClient.ensureDecoded(valid, "gzip");
     expect(out.toString("utf-8")).toBe('{"userId":1}');
   });
 
-  it("leaves an already-decoded body untouched (no double-decode)", () => {
-    // When undici has already decoded the body the gzip magic is gone, so
-    // ensureDecoded must pass the plaintext through unchanged.
+  it("leaves an already-decoded body untouched (no double-decode)", async () => {
+    // When the fetch layer has already decoded the body the gzip magic is gone,
+    // so ensureDecoded must pass the plaintext through unchanged.
     const decoded = Buffer.from('{"userId":1}', "utf-8");
-    const out = DefaultApiClient.ensureDecoded(decoded, "gzip");
+    const out = await DefaultApiClient.ensureDecoded(decoded, "gzip");
     expect(out.toString("utf-8")).toBe('{"userId":1}');
   });
 
-  it("throws ApiError directly from ensureDecoded on invalid gzip bytes", () => {
+  it("throws ApiError directly from ensureDecoded on invalid gzip bytes", async () => {
     const lyingBody = Buffer.concat([
       Buffer.from([0x1f, 0x8b]),
       Buffer.from("garbage", "utf-8"),
     ]);
-    expect(() => DefaultApiClient.ensureDecoded(lyingBody, "gzip")).toThrow(
-      ApiError,
-    );
+    await expect(
+      DefaultApiClient.ensureDecoded(lyingBody, "gzip"),
+    ).rejects.toThrow(ApiError);
   });
 });

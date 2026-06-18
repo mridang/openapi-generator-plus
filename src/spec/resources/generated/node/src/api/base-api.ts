@@ -19,7 +19,7 @@ import { ServerError } from "../errors/server-error.js";
 import { UnauthorizedError } from "../errors/unauthorized-error.js";
 import { UnprocessableEntityError } from "../errors/unprocessable-entity-error.js";
 import { Configuration } from "../configuration.js";
-import { DefaultApiClient } from "../default-api-client.js";
+import { DefaultApiClient } from "#transport";
 import { HeaderSelector } from "../header-selector.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { injectTraceContext } from "../trace-context-util.js";

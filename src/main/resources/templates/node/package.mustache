@@ -17,6 +17,12 @@
     },
     "./package.json": "./package.json"
   },
+  "imports": {
+    "#transport": {
+      "node": "./dist/src/default-api-client.js",
+      "default": "./dist/src/default-api-client.web.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -41,7 +47,9 @@
   "dependencies": {
     "class-transformer": "^0.5",
     "reflect-metadata": "^0.2",
-    "temporal-polyfill": "^0.3",
+    "temporal-polyfill": "^0.3"
+  },
+  "optionalDependencies": {
     "undici": "^6"
   },
   "devDependencies": {

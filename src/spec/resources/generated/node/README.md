@@ -8,6 +8,27 @@ Auto-generated TypeScript SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 - **Package manager**: npm 10.x (bundled with Node 22) or pnpm
 - **TypeScript**: 5.7 or newer (installed as a devDependency)
 
+## Runtime support
+
+The HTTP transport ships in two variants resolved automatically by the
+package's [subpath imports](https://nodejs.org/api/packages.html#subpath-imports)
+(`#transport`); both share a single `AbstractApiClient` built on Web-standard
+`fetch` / `crypto` / `DecompressionStream`, so redirect handling, decompression,
+charset decoding, and header injection are identical everywhere:
+
+- **Node.js** resolves to the `undici`-backed transport, with full support for
+  proxy routing, custom CA certificates, and TLS-verification toggling. `undici`
+  is an `optionalDependency` — installed on Node, skipped elsewhere.
+- **Deno, Bun, and edge runtimes** (Cloudflare Workers, Vercel Edge) resolve to a
+  portable transport that uses only the Fetch API and imports no `undici` or
+  `node:*` module, so the package loads on runtimes that provide `fetch` but no
+  Node built-ins. Proxy / custom-CA / TLS-off are not expressible through the
+  standard Fetch API there, so requesting one throws a typed `ApiError` rather
+  than being silently ignored; everything else (including the `maxRedirects`
+  cap) works unchanged. Browsers are best-effort only — the manual redirect loop
+  relies on reading `Location` from a `redirect: 'manual'` response, which CORS
+  makes opaque.
+
 ## Install
 
 ```bash

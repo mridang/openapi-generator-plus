@@ -4,7 +4,10 @@ export default {
   maxWorkers: '50%',
   testMatch: ['**/test/**/*.test.ts', '**/spec/**/*.spec.ts'],
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    // Tests run on Node, so the `#transport` conditional import resolves to the
+    // Node (undici-backed) transport — the same variant Node consumers load.
+    '^#transport$': '<rootDir>/src/default-api-client.ts'
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { diagnostics: false }]
