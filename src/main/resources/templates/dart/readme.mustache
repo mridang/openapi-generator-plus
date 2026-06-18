@@ -6,6 +6,25 @@ Auto-generated Dart SDK client for the {{appName}} API.
 
 - **Dart SDK:** `>=3.6.0 <4.0.0`
 
+## Platform support
+
+The HTTP transport ships in two variants selected automatically at compile time
+by a conditional export (`default_api_client.dart`); both share a single
+`AbstractApiClient` built on `package:http`, so redirect handling, multipart
+encoding, decompression, charset decoding, and header injection are identical
+everywhere:
+
+- **Native** (Dart VM, Flutter mobile/desktop, server) uses a `dart:io`
+  `HttpClient` via `IOClient`, with full support for proxy routing, custom CA
+  certificates, and TLS-verification toggling.
+- **Flutter Web** (and any `dart2js`/`wasm` target) uses `package:http`'s
+  `BrowserClient`, importing no `dart:io`, so the package compiles and runs in
+  the browser. Proxy / custom-CA / TLS-off are not expressible through the
+  browser's `fetch`, so requesting one throws a typed `ApiError` at construction
+  rather than being silently ignored; everything else works unchanged. The
+  gzip-lie response hardening is a native-only extra (the browser already
+  decodes `Content-Encoding`).
+
 The Dart toolchain bundles the formatter, linter, static analyser, and
 upgrade tool. No additional tools need to be installed.
 
