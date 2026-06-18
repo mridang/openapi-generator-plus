@@ -36,6 +36,18 @@ mvn test
 - Group: `{{invokerPackage}}`
 - Version: `{{packageVersion}}`
 
+## GraalVM native image
+
+This SDK ships GraalVM reflection metadata
+(`META-INF/native-image/.../reflect-config.json`) registering every generated
+model and inline enum, so it works inside a GraalVM `native-image` build without
+manual configuration — Jackson can (de)serialize the models reflectively in the
+native binary. Drop the dependency into a native-image project and build as
+usual; no agent run or hand-written `reflect-config` is required for the model
+types. (TLS for the HTTP client still needs `--enable-url-protocols=https`, and
+the optional brotli/zstd decoders, loaded reflectively, are unavailable in a
+native image unless you register them yourself.)
+
 ## Caveats
 
 ### Decimal / `format: number` precision

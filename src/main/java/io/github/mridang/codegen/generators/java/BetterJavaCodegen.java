@@ -247,9 +247,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 .orElse(invokerPackage);
         final String invokerFolder = Path.of(sf, pkg.replace(".", "/")).toString();
         final String errorsFolder = Path.of(invokerFolder, "errors").toString();
+        /* GraalVM native-image reflection metadata. The generator knows every
+         * model class it emits, so it lists them in a reflect-config.json under
+         * META-INF/native-image (auto-detected by native-image) — without it,
+         * Jackson cannot reflectively (de)serialize the model POJOs in a native
+         * image and fails at runtime. */
+        final String nativeImageFolder = Path.of(
+            "src/main/resources", "META-INF", "native-image", pkg.replace(".", "/")).toString();
         return List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("reflect_config.mustache", nativeImageFolder, "reflect-config.json"),
             new SupportingFileSpec("zitadel_exception.mustache", invokerFolder, "ZitadelException.java"),
             new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.java"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.java"),
