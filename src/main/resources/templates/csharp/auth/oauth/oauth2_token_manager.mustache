@@ -20,7 +20,7 @@ public sealed class OAuth2TokenManager
     /// </summary>
     private const int ExpirySafetyMarginSeconds = 60;
 
-    private readonly System.Threading.Lock _stateLock = new();
+    private readonly object _stateLock = new();
     private Task<string>? _inflightRefresh;
     private IApiClient? _apiClient;
     private string? _accessToken;

@@ -6,6 +6,7 @@
 #pragma warning disable CS0618 // generated code must reference [Obsolete] spec members
 {{/referencesDeprecated}}
 {{#isEnum}}
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace {{packageName}}.Models;
@@ -15,18 +16,59 @@ namespace {{packageName}}.Models;
 /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof({{classname}}Converter))]
 public enum {{classname}}
 {
     {{#allowableValues}}
     {{#enumVars}}
-    [JsonStringEnumMemberName("{{{value}}}")]
     {{name}},
 {{^-last}}
 
 {{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
+}
+
+/// <summary>
+/// Serializes <see cref="{{classname}}"/> to and from its OpenAPI wire string
+/// values. This generated converter replaces the .NET 9+
+/// <c>[JsonStringEnumMemberName]</c> attribute so the client targets net8.0
+/// (LTS); unknown values throw a <see cref="JsonException"/>, matching the
+/// strict behaviour of the framework string-enum converter.
+/// </summary>
+internal sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+{
+    public override {{classname}} Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a JSON string for enum {{classname}} but got {reader.TokenType}.");
+        }
+
+        string? value = reader.GetString();
+        return value switch
+        {
+            {{#allowableValues}}
+            {{#enumVars}}
+            "{{{value}}}" => {{classname}}.{{name}},
+            {{/enumVars}}
+            {{/allowableValues}}
+            _ => throw new JsonException($"Unknown value '{value}' for enum {{classname}}.")
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value switch
+        {
+            {{#allowableValues}}
+            {{#enumVars}}
+            {{classname}}.{{name}} => "{{{value}}}",
+            {{/enumVars}}
+            {{/allowableValues}}
+            _ => throw new JsonException($"Unknown value '{value}' for enum {{classname}}.")
+        });
+    }
 }
 {{/isEnum}}
 {{^isEnum}}
@@ -210,18 +252,57 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
 {
     {{#vars}}
     {{#isEnum}}
-    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonConverter(typeof({{enumName}}Converter))]
     public enum {{enumName}}
     {
         {{#allowableValues}}
         {{#enumVars}}
-        [JsonStringEnumMemberName("{{{value}}}")]
         {{name}},
 {{^-last}}
 
 {{/-last}}
         {{/enumVars}}
         {{/allowableValues}}
+    }
+
+    /// <summary>
+    /// Serializes <see cref="{{enumName}}"/> to and from its OpenAPI wire string
+    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// <c>[JsonStringEnumMemberName]</c> attribute.
+    /// </summary>
+    private sealed class {{enumName}}Converter : JsonConverter<{{enumName}}>
+    {
+        public override {{enumName}} Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            if (reader.TokenType != System.Text.Json.JsonTokenType.String)
+            {
+                throw new System.Text.Json.JsonException($"Expected a JSON string for enum {{enumName}} but got {reader.TokenType}.");
+            }
+
+            string? value = reader.GetString();
+            return value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                "{{{value}}}" => {{enumName}}.{{name}},
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            };
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, {{enumName}} value, System.Text.Json.JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                {{enumName}}.{{name}} => "{{{value}}}",
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            });
+        }
     }
 
     {{/isEnum}}
@@ -338,18 +419,57 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {
     {{#vars}}
     {{#isEnum}}
-    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonConverter(typeof({{enumName}}Converter))]
     public enum {{enumName}}
     {
         {{#allowableValues}}
         {{#enumVars}}
-        [JsonStringEnumMemberName("{{{value}}}")]
         {{name}},
 {{^-last}}
 
 {{/-last}}
         {{/enumVars}}
         {{/allowableValues}}
+    }
+
+    /// <summary>
+    /// Serializes <see cref="{{enumName}}"/> to and from its OpenAPI wire string
+    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// <c>[JsonStringEnumMemberName]</c> attribute.
+    /// </summary>
+    private sealed class {{enumName}}Converter : JsonConverter<{{enumName}}>
+    {
+        public override {{enumName}} Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            if (reader.TokenType != System.Text.Json.JsonTokenType.String)
+            {
+                throw new System.Text.Json.JsonException($"Expected a JSON string for enum {{enumName}} but got {reader.TokenType}.");
+            }
+
+            string? value = reader.GetString();
+            return value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                "{{{value}}}" => {{enumName}}.{{name}},
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            };
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, {{enumName}} value, System.Text.Json.JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                {{enumName}}.{{name}} => "{{{value}}}",
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            });
+        }
     }
 
     {{/isEnum}}

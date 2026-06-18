@@ -4,9 +4,9 @@ Auto-generated C# SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- **.NET 10** (Standard Term Support) runtime / SDK
-- **C# 13** language version (`LangVersion=13`)
-- **dotnet CLI 10.x** — install from <https://dotnet.microsoft.com/download/dotnet/10.0>
+- **.NET 8.0** (Long Term Support) runtime / SDK or newer
+- **C# 12** language version (`LangVersion=12`)
+- **dotnet CLI 8.x** or newer — install from <https://dotnet.microsoft.com/download/dotnet/8.0>
 
 Tooling baked into the project:
 

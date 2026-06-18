@@ -1,9 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <LangVersion>13</LangVersion>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>12</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <!-- The test host targets net8.0 (the SDK's floor) but must run wherever
+         `dotnet test` is invoked. When only a newer major runtime is installed
+         (e.g. a net10-only CI image), roll the net8 test host forward so the
+         suite still executes; on a net8 machine it runs on net8 natively. The
+         shipped library project carries no RollForward and stays pure net8. -->
+        <RollForward>Major</RollForward>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <OutputType>Exe</OutputType>

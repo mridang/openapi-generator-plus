@@ -16,17 +16,50 @@ namespace PetstoreClient.Models;
 [method: System.Text.Json.Serialization.JsonConstructor]
 public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
 {
-    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonConverter(typeof(StatusEnumConverter))]
     public enum StatusEnum
     {
-        [JsonStringEnumMemberName("available")]
         Available,
 
-        [JsonStringEnumMemberName("pending")]
         Pending,
 
-        [JsonStringEnumMemberName("sold")]
         Sold,
+    }
+
+    /// <summary>
+    /// Serializes <see cref="StatusEnum"/> to and from its OpenAPI wire string
+    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// <c>[JsonStringEnumMemberName]</c> attribute.
+    /// </summary>
+    private sealed class StatusEnumConverter : JsonConverter<StatusEnum>
+    {
+        public override StatusEnum Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            if (reader.TokenType != System.Text.Json.JsonTokenType.String)
+            {
+                throw new System.Text.Json.JsonException($"Expected a JSON string for enum StatusEnum but got {reader.TokenType}.");
+            }
+
+            string? value = reader.GetString();
+            return value switch
+            {
+                "available" => StatusEnum.Available,
+                "pending" => StatusEnum.Pending,
+                "sold" => StatusEnum.Sold,
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum StatusEnum.")
+            };
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, StatusEnum value, System.Text.Json.JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value switch
+            {
+                StatusEnum.Available => "available",
+                StatusEnum.Pending => "pending",
+                StatusEnum.Sold => "sold",
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum StatusEnum.")
+            });
+        }
     }
 
     /// <example>10</example>
