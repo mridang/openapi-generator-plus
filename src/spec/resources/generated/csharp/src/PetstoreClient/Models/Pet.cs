@@ -13,9 +13,36 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 /// <seealso href="https://example.com/docs/pet">Learn more about the Pet model</seealso>
-[method: System.Text.Json.Serialization.JsonConstructor]
-public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
+public class Pet : IEquatable<Pet>
 {
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public Pet()
+    {
+    }
+
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new Pet(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Pet(string name, HashSet<string> photoUrls)
+    {
+        this.Name = name;
+        this.PhotoUrls = photoUrls;
+    }
+
     [JsonConverter(typeof(StatusEnumConverter))]
     public enum StatusEnum
     {
@@ -63,31 +90,37 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     }
 
     /// <example>10</example>
-
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
     /// <example>doggie</example>
 
     [JsonRequired]
-
     [JsonPropertyName("name")]
-    public string Name { get; set; } = name ?? throw new System.Text.Json.JsonException("Required property 'name' on Pet was null");
+    public required string Name
+    {
+        get => _name;
+        init => _name = value ?? throw new System.Text.Json.JsonException("Required property 'name' on Pet was null");
+    }
+
+    private readonly string _name = null!;
 
     /// <example>null</example>
-
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
     /// <example>null</example>
-
     [JsonRequired]
-
     [JsonPropertyName("photoUrls")]
-    public HashSet<string> PhotoUrls { get; set; } = photoUrls ?? throw new System.Text.Json.JsonException("Required property 'photoUrls' on Pet was null");
+    public required HashSet<string> PhotoUrls
+    {
+        get => _photoUrls;
+        init => _photoUrls = value ?? throw new System.Text.Json.JsonException("Required property 'photoUrls' on Pet was null");
+    }
+
+    private readonly HashSet<string> _photoUrls = null!;
 
     /// <example>null</example>
-
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
 
@@ -97,12 +130,10 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>null</example>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
-
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
     /// <example>null</example>
-
     [JsonPropertyName("location")]
     public List<Object>? Location { get; set; }
 
@@ -110,7 +141,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Absolute URL to the pet's public profile page
     /// </summary>
     /// <example>https://example.com/pets/fido</example>
-
     [JsonPropertyName("homepageUrl")]
     public Uri? HomepageUrl { get; set; }
 
@@ -118,7 +148,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Optionally-relative thumbnail location
     /// </summary>
     /// <example>/assets/thumb-fido.png</example>
-
     [JsonPropertyName("thumbnailRef")]
     public string? ThumbnailRef { get; set; }
 
@@ -126,7 +155,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// RFC 6570 template for related-resource links
     /// </summary>
     /// <example>https://example.com/pets/{id}/photos{?size}</example>
-
     [JsonPropertyName("linkTemplate")]
     public string? LinkTemplate { get; set; }
 
@@ -134,7 +162,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Contact email for the pet's owner
     /// </summary>
     /// <example>owner@example.com</example>
-
     [JsonPropertyName("ownerEmail")]
     public string? OwnerEmail { get; set; }
 
@@ -142,7 +169,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Pet weight in kilograms (decimal precision)
     /// </summary>
     /// <example>12.345</example>
-
     [JsonPropertyName("weightKg")]
     public decimal? WeightKg { get; set; }
 

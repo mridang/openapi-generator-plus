@@ -15,9 +15,37 @@ namespace PetstoreClient.Models;
 /// <summary>
 /// A pet record extended with owner information
 /// </summary>
-[method: System.Text.Json.Serialization.JsonConstructor]
-public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerName) : IEquatable<PetWithOwner>
+public class PetWithOwner : IEquatable<PetWithOwner>
 {
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public PetWithOwner()
+    {
+    }
+
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new PetWithOwner(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public PetWithOwner(string name, HashSet<string> photoUrls, string ownerName)
+    {
+        this.Name = name;
+        this.PhotoUrls = photoUrls;
+        this.OwnerName = ownerName;
+    }
+
     [JsonConverter(typeof(StatusEnumConverter))]
     public enum StatusEnum
     {
@@ -65,31 +93,37 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     }
 
     /// <example>10</example>
-
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
     /// <example>doggie</example>
 
     [JsonRequired]
-
     [JsonPropertyName("name")]
-    public string Name { get; set; } = name ?? throw new System.Text.Json.JsonException("Required property 'name' on PetWithOwner was null");
+    public required string Name
+    {
+        get => _name;
+        init => _name = value ?? throw new System.Text.Json.JsonException("Required property 'name' on PetWithOwner was null");
+    }
+
+    private readonly string _name = null!;
 
     /// <example>null</example>
-
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
     /// <example>null</example>
-
     [JsonRequired]
-
     [JsonPropertyName("photoUrls")]
-    public HashSet<string> PhotoUrls { get; set; } = photoUrls ?? throw new System.Text.Json.JsonException("Required property 'photoUrls' on PetWithOwner was null");
+    public required HashSet<string> PhotoUrls
+    {
+        get => _photoUrls;
+        init => _photoUrls = value ?? throw new System.Text.Json.JsonException("Required property 'photoUrls' on PetWithOwner was null");
+    }
+
+    private readonly HashSet<string> _photoUrls = null!;
 
     /// <example>null</example>
-
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
 
@@ -99,12 +133,10 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// <example>null</example>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
-
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
     /// <example>null</example>
-
     [JsonPropertyName("location")]
     public List<Object>? Location { get; set; }
 
@@ -112,7 +144,6 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// Absolute URL to the pet's public profile page
     /// </summary>
     /// <example>https://example.com/pets/fido</example>
-
     [JsonPropertyName("homepageUrl")]
     public Uri? HomepageUrl { get; set; }
 
@@ -120,7 +151,6 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// Optionally-relative thumbnail location
     /// </summary>
     /// <example>/assets/thumb-fido.png</example>
-
     [JsonPropertyName("thumbnailRef")]
     public string? ThumbnailRef { get; set; }
 
@@ -128,12 +158,10 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// RFC 6570 template for related-resource links
     /// </summary>
     /// <example>https://example.com/pets/{id}/photos{?size}</example>
-
     [JsonPropertyName("linkTemplate")]
     public string? LinkTemplate { get; set; }
 
     /// <example>null</example>
-
     [JsonPropertyName("ownerEmail")]
     public string? OwnerEmail { get; set; }
 
@@ -141,16 +169,20 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// Pet weight in kilograms (decimal precision)
     /// </summary>
     /// <example>12.345</example>
-
     [JsonPropertyName("weightKg")]
     public decimal? WeightKg { get; set; }
 
     /// <example>null</example>
 
     [JsonRequired]
-
     [JsonPropertyName("ownerName")]
-    public string OwnerName { get; set; } = ownerName ?? throw new System.Text.Json.JsonException("Required property 'ownerName' on PetWithOwner was null");
+    public required string OwnerName
+    {
+        get => _ownerName;
+        init => _ownerName = value ?? throw new System.Text.Json.JsonException("Required property 'ownerName' on PetWithOwner was null");
+    }
+
+    private readonly string _ownerName = null!;
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

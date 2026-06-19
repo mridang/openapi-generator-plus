@@ -11,25 +11,62 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-[method: System.Text.Json.Serialization.JsonConstructor]
-public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetPetAvatarRequest>
+public class SetPetAvatarRequest : IEquatable<SetPetAvatarRequest>
 {
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public SetPetAvatarRequest()
+    {
+    }
+
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new SetPetAvatarRequest(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public SetPetAvatarRequest(byte[] data, string mimeType)
+    {
+        this.Data = data;
+        this.MimeType = mimeType;
+    }
+
     /// <summary>
     /// Base64-encoded image data
     /// </summary>
     /// <example>null</example>
 
     [JsonRequired]
-
     [JsonPropertyName("data")]
-    public byte[] Data { get; set; } = data ?? throw new System.Text.Json.JsonException("Required property 'data' on SetPetAvatarRequest was null");
+    public required byte[] Data
+    {
+        get => _data;
+        init => _data = value ?? throw new System.Text.Json.JsonException("Required property 'data' on SetPetAvatarRequest was null");
+    }
+
+    private readonly byte[] _data = null!;
 
     /// <example>image/jpeg</example>
 
     [JsonRequired]
-
     [JsonPropertyName("mimeType")]
-    public string MimeType { get; set; } = mimeType ?? throw new System.Text.Json.JsonException("Required property 'mimeType' on SetPetAvatarRequest was null");
+    public required string MimeType
+    {
+        get => _mimeType;
+        init => _mimeType = value ?? throw new System.Text.Json.JsonException("Required property 'mimeType' on SetPetAvatarRequest was null");
+    }
+
+    private readonly string _mimeType = null!;
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

@@ -71,6 +71,29 @@ yourself and convert to `decimal`.
 `format: int64` is unaffected — .NET's `long` natively represents the
 full 64-bit range without precision loss.
 
+### Trimming and Blazor WebAssembly
+
+This SDK works in applications published with **`PublishTrimmed`**
+(Release Blazor WebAssembly, single-file deployments, etc.). The SDK
+serializes through `System.Text.Json`'s reflection-based resolver, which
+trimming would normally break, so two things keep it safe: the models
+are preserved by an embedded `ILLink.Descriptors.xml` keep-list, and the
+serializer pins a `DefaultJsonTypeInfoResolver` so reflection stays
+enabled under trimming. The generated models deserialize through a
+parameterless constructor and `required` init accessors (with a
+backward-compatible convenience constructor), so the trimmer has no
+constructor parameter names to strip. A trimmed consumer will emit
+`IL2026`/`IL2075` trim-analysis warnings pointing at the SDK — these are
+expected for any reflection-based serializer and are non-fatal; the
+keep-list guarantees the required types survive.
+
+**Native AOT is not supported.** Full ahead-of-time compilation
+(`PublishAot` / `RunAOTCompilation`) removes reflection entirely, which
+the custom converters and reflection-based serialization rely on.
+Supporting AOT would require regenerating the serialization layer with
+the System.Text.Json source generator. Use the (default, interpreted or
+trimmed) JIT/IL runtime instead.
+
 ## Not supported
 
 ### Webhooks and callbacks

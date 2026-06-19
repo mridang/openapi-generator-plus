@@ -11,18 +11,48 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-[method: System.Text.Json.Serialization.JsonConstructor]
-public class Medication(string drugName) : IEquatable<Medication>
+public class Medication : IEquatable<Medication>
 {
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public Medication()
+    {
+    }
+
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new Medication(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Medication(string drugName)
+    {
+        this.DrugName = drugName;
+    }
+
     /// <example>null</example>
 
     [JsonRequired]
-
     [JsonPropertyName("drugName")]
-    public string DrugName { get; set; } = drugName ?? throw new System.Text.Json.JsonException("Required property 'drugName' on Medication was null");
+    public required string DrugName
+    {
+        get => _drugName;
+        init => _drugName = value ?? throw new System.Text.Json.JsonException("Required property 'drugName' on Medication was null");
+    }
+
+    private readonly string _drugName = null!;
 
     /// <example>null</example>
-
     [JsonPropertyName("dosage")]
     public string? Dosage { get; set; }
 

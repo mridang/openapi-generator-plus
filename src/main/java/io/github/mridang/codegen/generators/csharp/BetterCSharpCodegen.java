@@ -307,6 +307,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.cs"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.cs"),
             new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "Auth").toString(), "IAuthenticator.cs"),
+            new SupportingFileSpec("illink_descriptors.mustache", invokerFolder, "ILLink.Descriptors.xml"),
             new SupportingFileSpec("csproj.mustache", invokerFolder, pkg + ".csproj"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),

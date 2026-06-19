@@ -247,9 +247,37 @@ namespace {{packageName}}.Models;
 {{#externalDocumentation}}
 /// <seealso href="{{url}}">{{description}}</seealso>
 {{/externalDocumentation}}
-[method: System.Text.Json.Serialization.JsonConstructor]
-public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}}){{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
+public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
 {
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public {{classname}}()
+    {
+    }
+
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new {{classname}}(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}})
+    {
+        {{#requiredVars}}
+        this.{{name}} = {{nameInCamelCase}};
+        {{/requiredVars}}
+    }
+
     {{#vars}}
     {{#isEnum}}
     [JsonConverter(typeof({{enumName}}Converter))]
@@ -329,20 +357,56 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
 {{/deprecated}}
-{{#required}}{{^defaultValue}}
-    [JsonRequired]
-{{/defaultValue}}{{/required}}
+{{#required}}
+{{! Required property. Deserialized through its init accessor (not a
+    constructor parameter), so the model stays trim-safe. Divergence #10 — a
+    required, non-nullable field that is explicitly null in the input JSON must
+    HARD-FAIL with System.Text.Json.JsonException — is preserved by the
+    null-guarding init accessor in required_guarded_property. A missing field
+    is already rejected by [JsonRequired]. Only true value-type surfaces
+    (non-string, non-container primitives and enums) skip the guard, because
+    their init values can never be null. }}
+{{#defaultValue}}
+{{! Required-with-default (e.g. a fixed discriminator value): the default
+    applies when the field is absent from the JSON, so it is NOT wire-required
+    and gets neither the `required` keyword nor [JsonRequired] -- matching the
+    pre-trim behaviour. It is excluded from requiredVars, so it is also not a
+    convenience-constructor parameter. }}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}{{^defaultValue}}{{#required}} = {{!
-        Divergence #10 — a required, non-nullable field that is explicitly
-        null in the input JSON must HARD-FAIL with the SDK serialization
-        error (System.Text.Json.JsonException), not silently build a partial
-        object nor throw a non-serialization ArgumentNullException. A missing
-        field is already rejected by [JsonRequired] above; this initializer
-        guards the explicit-null case. Only true value-type surfaces
-        (non-string, non-container primitives and enums) skip the guard,
-        because their constructor parameters can never be null.
-    }}{{#isEnum}}{{nameInCamelCase}}{{/isEnum}}{{^isEnum}}{{#isContainer}}{{nameInCamelCase}} ?? throw new System.Text.Json.JsonException("Required property '{{baseName}}' on {{classname}} was null"){{/isContainer}}{{^isContainer}}{{^isPrimitiveType}}{{nameInCamelCase}} ?? throw new System.Text.Json.JsonException("Required property '{{baseName}}' on {{classname}} was null"){{/isPrimitiveType}}{{#isPrimitiveType}}{{#isString}}{{nameInCamelCase}} ?? throw new System.Text.Json.JsonException("Required property '{{baseName}}' on {{classname}} was null"){{/isString}}{{^isString}}{{#isByteArray}}{{nameInCamelCase}} ?? throw new System.Text.Json.JsonException("Required property '{{baseName}}' on {{classname}} was null"){{/isByteArray}}{{^isByteArray}}{{#isBinary}}{{nameInCamelCase}} ?? throw new System.Text.Json.JsonException("Required property '{{baseName}}' on {{classname}} was null"){{/isBinary}}{{^isBinary}}{{nameInCamelCase}}{{/isBinary}}{{/isByteArray}}{{/isString}}{{/isPrimitiveType}}{{/isContainer}}{{/isEnum}};{{/required}}{{/defaultValue}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}} { get; set; } = {{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+{{#isEnum}}
+    [JsonRequired]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{{datatypeWithEnum}}} {{name}} { get; init; }
+{{/isEnum}}
+{{^isEnum}}
+{{#isContainer}}{{>required_guarded_property}}{{/isContainer}}
+{{^isContainer}}
+{{^isPrimitiveType}}{{>required_guarded_property}}{{/isPrimitiveType}}
+{{#isPrimitiveType}}
+{{#isString}}{{>required_guarded_property}}{{/isString}}
+{{^isString}}
+{{#isByteArray}}{{>required_guarded_property}}{{/isByteArray}}
+{{^isByteArray}}
+{{#isBinary}}{{>required_guarded_property}}{{/isBinary}}
+{{^isBinary}}
+    [JsonRequired]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{{dataType}}} {{name}} { get; init; }
+{{/isBinary}}
+{{/isByteArray}}
+{{/isString}}
+{{/isPrimitiveType}}
+{{/isContainer}}
+{{/isEnum}}
+{{/defaultValue}}
+{{/required}}
+{{^required}}
+    [JsonPropertyName("{{baseName}}")]
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
+{{/required}}
 {{^-last}}
 
 {{/-last}}

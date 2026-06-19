@@ -19,6 +19,18 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Trimmer keep-list. Embedded under the magic LogicalName
+         `ILLink.Descriptors.xml` so the .NET trimmer applies it when a
+         consuming app is published with `PublishTrimmed` (Release Blazor
+         WebAssembly, single-file, etc.). It preserves the reflection-based
+         model members so System.Text.Json deserialization survives trimming;
+         see ILLink.Descriptors.xml for the rationale. Inert for non-trimmed
+         builds. -->
+    <EmbeddedResource Include="ILLink.Descriptors.xml">
+      <LogicalName>ILLink.Descriptors.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <!-- The spec test project is a separate assembly. Expose the SDK's
          `internal` members (the test-only DefaultApiClient(HttpClient[,
          TransportOptions]) seams, the internal serde/transport helpers such as

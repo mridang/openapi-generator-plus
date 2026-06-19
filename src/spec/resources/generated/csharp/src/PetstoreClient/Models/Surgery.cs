@@ -11,18 +11,48 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-[method: System.Text.Json.Serialization.JsonConstructor]
-public class Surgery(string procedureName) : IEquatable<Surgery>
+public class Surgery : IEquatable<Surgery>
 {
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public Surgery()
+    {
+    }
+
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new Surgery(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Surgery(string procedureName)
+    {
+        this.ProcedureName = procedureName;
+    }
+
     /// <example>null</example>
 
     [JsonRequired]
-
     [JsonPropertyName("procedureName")]
-    public string ProcedureName { get; set; } = procedureName ?? throw new System.Text.Json.JsonException("Required property 'procedureName' on Surgery was null");
+    public required string ProcedureName
+    {
+        get => _procedureName;
+        init => _procedureName = value ?? throw new System.Text.Json.JsonException("Required property 'procedureName' on Surgery was null");
+    }
+
+    private readonly string _procedureName = null!;
 
     /// <example>null</example>
-
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }
 

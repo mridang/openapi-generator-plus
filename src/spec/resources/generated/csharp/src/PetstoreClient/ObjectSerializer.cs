@@ -260,6 +260,14 @@ internal class ObjectSerializer
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             WriteIndented = false,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            /* Pin the reflection-based metadata resolver. When a consuming app
+             * is published with PublishTrimmed (Release Blazor WebAssembly,
+             * single-file, ...), the trimmer disables reflection serialization
+             * by default, which would make every Serialize/Deserialize throw
+             * "reflection-based serialization has been disabled". The model
+             * members themselves are preserved by the embedded
+             * ILLink.Descriptors.xml keep-list, so reflection is safe here. */
+            TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
         };
         options.Converters.Add(new JsonStringEnumConverter());
         options.Converters.Add(new DateTimeOffsetJsonConverter());

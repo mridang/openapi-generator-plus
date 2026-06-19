@@ -11,20 +11,44 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-[method: System.Text.Json.Serialization.JsonConstructor]
-public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
+public class WetFood : PetFood, IEquatable<WetFood>
 {
-    /// <example>null</example>
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public WetFood()
+    {
+    }
 
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new WetFood(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public WetFood(int volumeMl)
+    {
+        this.VolumeMl = volumeMl;
+    }
+
+    /// <example>null</example>
     [JsonPropertyName("foodType")]
     public string FoodType { get; set; } = "wet";
 
     /// <example>null</example>
 
     [JsonRequired]
-
     [JsonPropertyName("volumeMl")]
-    public int VolumeMl { get; set; } = volumeMl;
+    public required int VolumeMl { get; init; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
