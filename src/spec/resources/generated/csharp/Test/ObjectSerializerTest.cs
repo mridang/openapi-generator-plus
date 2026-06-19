@@ -611,6 +611,40 @@ public class ObjectSerializerTest
         }
     }
 
+    // Enum wire-value lock: enum members must round-trip as their OpenAPI wire
+    // string (e.g. "available"), NOT the C# member name ("Available"). Each
+    // generated enum carries its own [JsonConverter] that maps to the wire
+    // value; this guards against a global converter shadowing it (per the
+    // System.Text.Json rule that an options-registered converter outranks a
+    // type-level [JsonConverter] attribute). Canonical across all 12 SDKs.
+    public class EnumWireValueTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void EnumSerializesToWireValue()
+        {
+            var order = new Order { Status = Order.StatusEnum.Approved };
+            var json = _serializer.Serialize(order);
+            Assert.Contains("\"status\":\"approved\"", json);
+        }
+
+        [Fact]
+        public void EnumDeserializesFromWireValue()
+        {
+            var order = _serializer.Deserialize<Order>("{\"status\":\"delivered\"}");
+            Assert.Equal(Order.StatusEnum.Delivered, order!.Status);
+        }
+
+        [Fact]
+        public void EnumRoundTripsWireValue()
+        {
+            var order = _serializer.Deserialize<Order>("{\"status\":\"placed\"}");
+            var back = _serializer.Serialize(order);
+            Assert.Contains("\"status\":\"placed\"", back);
+        }
+    }
+
     // Gap #13 — discard nulls on serialize.
     // The ObjectSerializer's default JsonSerializerOptions configures
     // DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull so

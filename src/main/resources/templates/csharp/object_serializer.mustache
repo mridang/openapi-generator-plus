@@ -262,7 +262,14 @@ internal class ObjectSerializer
              * ILLink.Descriptors.xml keep-list, so reflection is safe here. */
             TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
         };
-        options.Converters.Add(new JsonStringEnumConverter());
+        /* No global JsonStringEnumConverter: every generated enum carries its
+         * own [JsonConverter(typeof(XxxConverter))] that maps to the exact
+         * OpenAPI wire value (e.g. "available"). System.Text.Json ranks an
+         * options-registered converter ABOVE a type-level [JsonConverter]
+         * attribute, so a global string-enum converter here would shadow those
+         * per-enum converters on the write path and emit the C# member name
+         * ("Available") instead of the wire value. The per-enum converters
+         * cover every enum, so no global fallback is needed. */
         options.Converters.Add(new DateTimeOffsetJsonConverter());
         /* 4.8: TimeSpan's default System.Text.Json form is the .NET
          * "[d.]hh:mm:ss[.fff]" string, which would not round-trip with
