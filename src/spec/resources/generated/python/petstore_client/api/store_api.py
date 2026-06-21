@@ -93,7 +93,7 @@ class StoreApi(BaseApi):
     async def get_grouped_categories(
         self,
     ) -> List[Dict[str, Category]]:
-        """Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+        """Returns categories grouped into an array of string-keyed maps.
 
         :return: List[Dict[str, Category]]
         :raises ApiException: if fails to make API call
@@ -116,7 +116,7 @@ class StoreApi(BaseApi):
     async def get_grouped_categories_with_http_info(
         self,
     ) -> "ApiResult[List[Dict[str, Category]]]":
-        """Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps. (with HTTP info)
+        """Returns categories grouped into an array of string-keyed maps. (with HTTP info)
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call

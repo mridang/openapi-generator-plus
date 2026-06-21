@@ -77,7 +77,7 @@ export class StoreApi extends BaseApi {
   }
 
   /**
-   * Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+   * Returns categories grouped into an array of string-keyed maps.
    * @return Array<{ [key: string]: Category }>
    * @throws {ApiError} if fails to make API call
    */
@@ -102,7 +102,7 @@ export class StoreApi extends BaseApi {
   }
 
   /**
-   * Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps. (with HTTP info)
+   * Returns categories grouped into an array of string-keyed maps. (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
   async getGroupedCategoriesWithHttpInfo(): Promise<

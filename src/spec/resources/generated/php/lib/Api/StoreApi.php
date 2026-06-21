@@ -77,9 +77,9 @@ class StoreApi extends BaseApi
     }
 
     /**
-     * Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+     * Returns categories grouped into an array of string-keyed maps.
 
-     * @return \Ds\Vector<\Ds\Map>
+     * @return \Ds\Vector<\Ds\Map<array-key, mixed>>
      * @throws \PetstoreClient\ApiException
      */
     public function getGroupedCategories()
@@ -98,14 +98,14 @@ class StoreApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Vector<\Ds\Map> $result */
+        /** @var \Ds\Vector<\Ds\Map<array-key, mixed>> $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\Ds\Vector<\Ds\Map>>
+     * @return ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>>
      * @throws \PetstoreClient\ApiException
      */
     public function getGroupedCategoriesWithHttpInfo(): ApiResult
@@ -115,7 +115,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\Ds\Vector<\Ds\Map>> $result */
+        /** @var ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,

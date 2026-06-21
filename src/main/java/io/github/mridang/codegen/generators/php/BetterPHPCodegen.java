@@ -911,15 +911,17 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      * non-Ds type, is returned unchanged.
      */
     private static String withDsGenerics(String type) {
-        if (type == null || type.contains("<")) {
+        if (type == null) {
             return type;
         }
-        if ("\\Ds\\Vector".equals(type) || "\\Ds\\Set".equals(type)) {
-            return type + "<mixed>";
-        }
-        if ("\\Ds\\Map".equals(type)) {
-            return type + "<array-key, mixed>";
-        }
+        // Add default generic arguments to EVERY bare \Ds\* container — one not
+        // already followed by '<' — at any nesting depth, so a nested type such
+        // as \Ds\Vector<\Ds\Map> (whose inner \Ds\Map carries no generics)
+        // still satisfies PHPStan's missingType.generics rule. The lookahead
+        // skips a container that already has a <...> argument list.
+        type = type.replaceAll("\\\\Ds\\\\Map(?!<)", "\\\\Ds\\\\Map<array-key, mixed>");
+        type = type.replaceAll("\\\\Ds\\\\Vector(?!<)", "\\\\Ds\\\\Vector<mixed>");
+        type = type.replaceAll("\\\\Ds\\\\Set(?!<)", "\\\\Ds\\\\Set<mixed>");
         return type;
     }
 
@@ -1029,6 +1031,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     if (op.returnType != null && op.returnType.contains("SplFileObject")) {
                         op.returnType = "string";
                         op.returnBaseType = "string";
+                    }
+                    // Build the PHPDoc return type once, applying nested \Ds\*
+                    // generics, so the @return / @var tags are PHPStan-valid even
+                    // when the array element / map value is itself a \Ds\*
+                    // container (e.g. \Ds\Vector<\Ds\Map>). Kept separate from the
+                    // runtime deserialize descriptor, which needs the precise
+                    // value type, so dataType is not mutated here.
+                    final CodegenProperty rp = op.returnProperty;
+                    String phpDoc = null;
+                    if (rp != null && rp.isArray && rp.items != null) {
+                        phpDoc = op.returnType + "<" + rp.items.dataType + ">";
+                    } else if (rp != null && rp.isMap && rp.items != null) {
+                        phpDoc = op.returnType + "<string, " + rp.items.dataType + ">";
+                    } else if (op.returnType != null) {
+                        phpDoc = op.returnType;
+                    }
+                    if (phpDoc != null) {
+                        op.vendorExtensions.put("phpDocReturnType", withDsGenerics(phpDoc));
                     }
                 }
             }

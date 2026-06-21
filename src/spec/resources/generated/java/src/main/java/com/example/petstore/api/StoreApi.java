@@ -125,9 +125,7 @@ public class StoreApi extends BaseApi {
   }
 
   /**
-   * Returns an array of maps of Category. Exercises deserialization of a nested generic container
-   * (array of map of model) whose leaves must be decoded into typed model instances, not left as
-   * raw maps.
+   * Returns categories grouped into an array of string-keyed maps.
    *
    * @return {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call
@@ -137,9 +135,7 @@ public class StoreApi extends BaseApi {
   }
 
   /**
-   * Returns an array of maps of Category. Exercises deserialization of a nested generic container
-   * (array of map of model) whose leaves must be decoded into typed model instances, not left as
-   * raw maps.
+   * Returns categories grouped into an array of string-keyed maps.
    *
    * @return the API result wrapping {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call

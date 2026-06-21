@@ -97,7 +97,7 @@ impl StoreApi {
         self.base.invoke_api_for_empty_result(params).await
     }
 
-    /// Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+    /// Returns categories grouped into an array of string-keyed maps.
     pub async fn get_grouped_categories(
         &self,
     ) -> Result<

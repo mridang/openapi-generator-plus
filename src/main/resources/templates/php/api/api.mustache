@@ -136,7 +136,7 @@ class {{classname}} extends BaseApi
      * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#returnType}}
-     * @return {{#isArray}}{{{returnType}}}<{{{returnProperty.items.dataType}}}>{{/isArray}}{{#isMap}}{{{returnType}}}<string, {{{returnProperty.items.dataType}}}>{{/isMap}}{{^isArray}}{{^isMap}}{{{returnType}}}{{/isMap}}{{/isArray}}
+     * @return {{{vendorExtensions.phpDocReturnType}}}
 {{/returnType}}
      * @throws \{{invokerPackage}}\ApiException
 {{#isDeprecated}}
@@ -163,7 +163,7 @@ class {{classname}} extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var {{#isArray}}{{{returnType}}}<{{{returnProperty.items.dataType}}}>{{/isArray}}{{#isMap}}{{{returnType}}}<string, {{{returnProperty.items.dataType}}}>{{/isMap}}{{^isArray}}{{^isMap}}{{{returnType}}}{{/isMap}}{{/isArray}} $result */
+        /** @var {{{vendorExtensions.phpDocReturnType}}} $result */
         $result = $apiResult->data;
         return $result;
     }
@@ -198,7 +198,7 @@ class {{classname}} extends BaseApi
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
      * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
-     * @return ApiResult<{{#isArray}}{{{returnType}}}<{{{returnProperty.items.dataType}}}>{{/isArray}}{{#isMap}}{{{returnType}}}<string, {{{returnProperty.items.dataType}}}>{{/isMap}}{{^isArray}}{{^isMap}}{{{returnType}}}{{/isMap}}{{/isArray}}>
+     * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
      * @throws \{{invokerPackage}}\ApiException
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): ApiResult
@@ -367,7 +367,7 @@ class {{classname}} extends BaseApi
 {{/bodyParam}}
 {{/hasFormParams}}
 
-        /** @var ApiResult<{{#isArray}}{{{returnType}}}<{{{returnProperty.items.dataType}}}>{{/isArray}}{{#isMap}}{{{returnType}}}<string, {{{returnProperty.items.dataType}}}>{{/isMap}}{{^isArray}}{{^isMap}}{{{returnType}}}{{/isMap}}{{/isArray}}> $result */
+        /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
         $result = $this->invokeApiForResult(
             '{{httpMethod}}',
             $path,

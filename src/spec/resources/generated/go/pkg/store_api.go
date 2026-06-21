@@ -79,7 +79,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 	}, nil
 }
 
-// GetGroupedCategories Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+// GetGroupedCategories Returns categories grouped into an array of string-keyed maps.
 
 func (a *StoreApi) GetGroupedCategories() (*[]map[string]Category, error) {
 	result, err := a.GetGroupedCategoriesWithHTTPInfo()
