@@ -50,7 +50,7 @@ extension Indirect: Hashable where Wrapped: Hashable {
     }
 }
 
-// The storage class holds a single immutable, Sendable value, so the box is
-// safe to share across concurrency domains even though the compiler cannot
-// verify the reference type on its own.
+/// The storage class holds a single immutable, Sendable value, so the box is
+/// safe to share across concurrency domains even though the compiler cannot
+/// verify the reference type on its own.
 extension Indirect: @unchecked Sendable where Wrapped: Sendable {}
