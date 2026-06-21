@@ -168,8 +168,17 @@ class Psr18ApiClient extends AbstractApiClient
                 } elseif (is_resource($v)) {
                     $content = stream_get_contents($v);
                     fclose($v);
-                    $out .= 'Content-Disposition: form-data; name="' . $name . '"' . $crlf;
-                    $out .= 'Content-Type: application/octet-stream' . $crlf . $crlf;
+                    /* A raw-bytes part has no explicit filename, so the field
+                     * NAME is reused as the filename and the Content-Type is
+                     * guessed from that filename's extension (falling back to
+                     * application/octet-stream), matching the cross-language
+                     * multipart contract. */
+                    $filename = (string) $name;
+                    self::validateMultipartFilename($filename);
+                    $mime = $this->guessMimeType(null, $filename);
+                    $out .= 'Content-Disposition: form-data; name="' . $name . '"; '
+                        . self::buildFilenameDirective($filename) . $crlf;
+                    $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
                     $out .= ($content !== false ? $content : '') . $crlf;
                 } elseif (is_scalar($v)) {
                     $out .= 'Content-Disposition: form-data; name="' . $name . '"' . $crlf . $crlf;

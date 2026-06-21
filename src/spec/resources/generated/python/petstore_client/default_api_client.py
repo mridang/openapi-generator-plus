@@ -918,11 +918,16 @@ class DefaultApiClient:
             )
             return header.encode("utf-8") + raw_bytes + b"\r\n"
         elif isinstance(value, bytes):
-            disposition = cls._build_disposition(name, None)
+            # Raw bytes carry no explicit filename, so reuse the field name as
+            # the filename and guess the Content-Type from its extension,
+            # falling back to application/octet-stream. This matches the
+            # cross-language contract shared with go/node/java.
+            disposition = cls._build_disposition(name, name)
+            content_type = _guess_content_type(name)
             header = (
                 f"--{boundary}\r\n"
                 f"Content-Disposition: {disposition}\r\n"
-                f"Content-Type: application/octet-stream\r\n\r\n"
+                f"Content-Type: {content_type}\r\n\r\n"
             )
             return header.encode("utf-8") + value + b"\r\n"
         elif hasattr(value, "model_dump_json"):

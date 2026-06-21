@@ -287,6 +287,23 @@ import Testing
             "expected application/octet-stream fallback when no extension, got: \(bodyStr)")
     }
 
+    // multipart-rawbytes-content-type: a raw-bytes part with no explicit filename
+    // reuses the FIELD NAME as the filename and guesses the Content-Type from that
+    // name's extension, falling back to application/octet-stream when there is none.
+    // For a field named "file" (no extension) the part must emit both
+    // filename="file" and Content-Type: application/octet-stream.
+    @Test func testMultipartRawBytesPartUsesFieldNameAsFilenameAndOctetStream() throws {
+        let formParts: [String: Any] = ["file": Data([0x00, 0x01, 0x02])]
+        let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+        let bodyStr = String(data: body, encoding: .utf8) ?? ""
+        #expect(bodyStr.contains("name=\"file\""),
+            "expected Content-Disposition name=\"file\", got: \(bodyStr)")
+        #expect(bodyStr.contains("filename=\"file\""),
+            "expected field name reused as filename=\"file\", got: \(bodyStr)")
+        #expect(bodyStr.contains("Content-Type: application/octet-stream"),
+            "expected application/octet-stream for raw bytes without extension, got: \(bodyStr)")
+    }
+
     // MARK: - Response charset handling (Gap H)
 
     @Test func testRespectsIsoLatin1Charset() async throws {

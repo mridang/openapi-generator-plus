@@ -994,6 +994,56 @@ void main() {
       }
     });
 
+    /* multipart-rawbytes-part-content-type: a raw-bytes multipart part with
+     * no explicit filename must reuse the FIELD NAME as the filename and
+     * derive its Content-Type from that name's extension, falling back to
+     * `application/octet-stream` when the name has no recognised extension.
+     * For a field named `file` (no extension) the part must therefore emit
+     * BOTH `name="file"; filename="file"` and
+     * `Content-Type: application/octet-stream`. This is the cross-language
+     * contract already honoured by go/node/java; exercised here on the live
+     * BaseApi._buildMultipartBody output via the real uploadPetDocument
+     * operation (field name `file`). */
+    test('multipart raw-bytes part reuses field name as filename and falls back to octet-stream', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String receivedBody = '';
+      server.listen((request) async {
+        receivedBody = (await utf8.decoder.bind(request).join()).toLowerCase();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"code":200,"type":"","message":"ok"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.uploadPetDocument(
+          1,
+          UploadPetDocumentOptions(
+            // Raw binary bytes, no explicit filename: 0x00, 0x01, 0x02.
+            file: Uint8List.fromList([0x00, 0x01, 0x02]),
+            documentType: 'vaccination_record',
+          ),
+        );
+
+        // (a) the field name `file` is reused as the filename.
+        expect(receivedBody, contains('name="file"'),
+            reason: 'raw-bytes part must carry name="file", got: $receivedBody');
+        expect(receivedBody, contains('filename="file"'),
+            reason: 'raw-bytes part must reuse the field name as filename="file", got: $receivedBody');
+        // (b) an extensionless name falls back to octet-stream.
+        expect(receivedBody, contains('content-type: application/octet-stream'),
+            reason: 'extensionless raw-bytes part must fall back to application/octet-stream, got: $receivedBody');
+      } finally {
+        await server.close();
+      }
+    });
+
     /* multipart-rfc5987-filename: a binary multipart part whose
      * field/filename contains non-ASCII characters must emit an RFC 5987
      * `filename*=UTF-8''<pct-encoded>` parameter (with an ASCII

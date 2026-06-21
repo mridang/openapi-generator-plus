@@ -501,6 +501,37 @@ test('multipart resource falls back to octet stream', function (): void {
     expect($capturedBody)->toContain('Content-Type: application/octet-stream');
 });
 
+test('multipart raw bytes part reuses field name as filename with octet stream', function (): void {
+    /* A raw-bytes part with no explicit filename must reuse the field NAME as
+     * the filename and emit a Content-Type guessed from that filename's
+     * extension, falling back to application/octet-stream when there is none.
+     * For a field named "file" (no extension) the wire bytes must therefore
+     * carry name="file"; filename="file" AND Content-Type: application/octet-stream. */
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    fwrite($stream, "\x00\x01\x02");
+    rewind($stream);
+
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['file' => $stream]
+    );
+
+    expect($capturedBody)->toContain('name="file"; filename="file"');
+    expect($capturedBody)->toContain('Content-Type: application/octet-stream');
+});
+
 // -- Canonical behavior #5: non-ASCII multipart field name preserved as UTF-8 --
 
 test('multipart non ascii field name preserved as utf 8', function (): void {

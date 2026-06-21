@@ -377,7 +377,7 @@ defmodule PetstoreClient.Api.PetApi do
     query_params = %{}
     header_params = %{}
     request_body = %{}
-    request_body = Map.put(request_body, "files", options.files)
+    request_body = Map.put(request_body, "files", Enum.map(options.files, &{:raw, &1}))
     request_body = Map.put(request_body, "metadata", options.metadata)
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
@@ -2788,7 +2788,7 @@ defmodule PetstoreClient.Api.PetApi do
     query_params = %{}
     header_params = %{}
     request_body = %{}
-    request_body = Map.put(request_body, "file", options.file)
+    request_body = Map.put(request_body, "file", {:raw, options.file})
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
@@ -2910,7 +2910,7 @@ defmodule PetstoreClient.Api.PetApi do
     query_params = %{}
     header_params = %{}
     request_body = %{}
-    request_body = Map.put(request_body, "file", options.file)
+    request_body = Map.put(request_body, "file", {:raw, options.file})
 
     request_body =
       if not is_nil(options) and not is_nil(options.document_type),

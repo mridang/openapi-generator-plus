@@ -337,11 +337,16 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#hasFormParams}}
     request_body = %{}
 {{#formParams}}
+{{! Binary multipart parts are tagged with the {:raw, ...} marker (each array
+    element individually) so the body builder emits a FILE part — reusing the
+    field name as the filename with an extension-guessed Content-Type — rather
+    than a plain text part. A string is indistinguishable from raw bytes at
+    runtime in Elixir, so binary-ness must be tagged here at generation time. }}
 {{#required}}
-    request_body = Map.put(request_body, "{{baseName}}", options.{{paramName}})
+    request_body = Map.put(request_body, "{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}})
 {{/required}}
 {{^required}}
-    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: Map.put(request_body, "{{baseName}}", options.{{paramName}}), else: request_body
+    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: Map.put(request_body, "{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}), else: request_body
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

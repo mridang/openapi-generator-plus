@@ -1754,6 +1754,21 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "Expected octet-stream fallback for extension-less file, got: #{serialized}"
   end
 
+  # Behavior #4b: a raw-bytes part (binary content, no explicit filename)
+  # reuses the field name as the filename and derives its Content-Type from
+  # that name's extension, falling back to application/octet-stream when the
+  # name has none. Matches the cross-language go/node/java contract.
+  test "multipart raw-bytes part reuses field name as filename and falls back to octet-stream" do
+    body = %{"file" => {:raw, <<0, 1, 2>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "name=\"file\"; filename=\"file\""),
+           "Expected Content-Disposition to reuse field name as filename, got: #{serialized}"
+
+    assert String.contains?(serialized, "Content-Type: application/octet-stream"),
+           "Expected octet-stream fallback for extension-less raw bytes, got: #{serialized}"
+  end
+
   # Behavior #5: a non-ASCII multipart field name is preserved verbatim as
   # UTF-8 in the Content-Disposition `name=` parameter — not transliterated
   # to `?` and not stripped.

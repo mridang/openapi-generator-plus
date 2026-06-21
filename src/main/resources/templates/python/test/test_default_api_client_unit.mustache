@@ -391,15 +391,23 @@ class TestMultipartFieldNameUtf8:
     def test_multipart_body_preserves_non_ascii_field_name_as_utf8(self) -> None:
         client = DefaultApiClient()
         body = client._build_multipart_body({"café": b"x"}, "boundary")
-        # The name must appear as raw UTF-8 bytes, never folded to '?'.
+        # The name directive must appear as raw UTF-8 bytes, never folded to '?'.
+        # Anchor on '; name=' so the check targets the name directive and does
+        # not collide with the filename fallback (a raw-bytes part reuses the
+        # field name as the filename, whose ASCII fallback may legitimately fold
+        # non-ASCII to '?' alongside an RFC 5987 filename*= parameter).
         assert 'name="café"'.encode("utf-8") in body
-        assert b'name="caf?"' not in body
+        assert b'; name="caf?"' not in body
 
     def test_multipart_body_preserves_cjk_field_name_as_utf8(self) -> None:
         client = DefaultApiClient()
         body = client._build_multipart_body({"標籤": b"x"}, "boundary")
+        # The name directive must carry the raw UTF-8 field name. The filename
+        # fallback derived from the reused field name may legitimately fold
+        # non-ASCII to '?' alongside an RFC 5987 filename*= parameter, so only
+        # the name directive is asserted free of folding here.
         assert 'name="標籤"'.encode("utf-8") in body
-        assert b"?" not in body.split(b"\r\n\r\n", 1)[0]
+        assert b'; name="?' not in body
 
 
 class TestMultipartContentType:
@@ -426,6 +434,18 @@ class TestMultipartContentType:
     def test_multipart_body_uses_octet_stream_for_bytes_without_filename(self) -> None:
         client = DefaultApiClient()
         body = client._build_multipart_body({"upload": b"\x00\x01\x02"}, "boundary")
+        assert b"Content-Type: application/octet-stream" in body
+
+    def test_multipart_raw_bytes_reuses_field_name_as_filename(self) -> None:
+        # multipart-raw-bytes-part-content-type: a raw-bytes part with no
+        # explicit filename must reuse the field name as the filename and
+        # advertise a Content-Type guessed from that name (octet-stream when
+        # the name has no/unknown extension), matching the go/node/java
+        # cross-language contract.
+        client = DefaultApiClient()
+        body = client._build_multipart_body({"file": b"\x00\x01\x02"}, "boundary")
+        assert b'name="file"' in body
+        assert b'filename="file"' in body
         assert b"Content-Type: application/octet-stream" in body
 
 

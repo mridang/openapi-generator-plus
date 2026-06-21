@@ -628,6 +628,24 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void multipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream() throws Exception {
+    String part = renderMultipartPart("file", new byte[] {0x00, 0x01, 0x02});
+    assertTrue(
+        part.contains("name=\"file\""),
+        "byte[] part must carry Content-Disposition name=\"file\", got: " + part);
+    assertTrue(
+        part.contains("filename=\"file\""),
+        "byte[] part with no explicit filename must reuse the field name as filename=\"file\", got:"
+            + " "
+            + part);
+    assertTrue(
+        part.contains("Content-Type: application/octet-stream"),
+        "byte[] part named \"file\" (no extension) must emit Content-Type:"
+            + " application/octet-stream, got: "
+            + part);
+  }
+
+  @Test
   void multipartNonAsciiFieldNamePreservedAsUtf8() throws Exception {
     String fieldName = "imágé";
     String part = renderMultipartPart(fieldName, "value");

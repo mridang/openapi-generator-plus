@@ -418,6 +418,32 @@ describe PetstoreClient::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # A raw-bytes part with no explicit filename reuses the FIELD NAME as the
+  # filename and, since that name has no/unknown extension, falls back to
+  # Content-Type: application/octet-stream. For a field named "file" the part
+  # must therefore emit both filename="file" and application/octet-stream
+  # (the agreed cross-language contract shared with go/node/java).
+  it 'reuses field name as filename with octet-stream for raw bytes' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    # Raw binary bytes (0x00, 0x01, 0x02), an IO with no #path => no filename.
+    io = StringIO.new("\x00\x01\x02".b)
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_str).must_include 'Content-Disposition: form-data; name="file"; filename="file"'
+    _(body_str).must_include 'Content-Type: application/octet-stream'
+    stubs.verify_stubbed_calls
+  end
+
   # ── Response charset decoding (Gap H) ──
 
   it 'decodes ISO-8859-1 response body to UTF-8' do

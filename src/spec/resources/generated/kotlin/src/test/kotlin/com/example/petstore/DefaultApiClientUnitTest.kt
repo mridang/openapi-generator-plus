@@ -282,6 +282,43 @@ class DefaultApiClientUnitTest {
                 "multipart field name must be preserved as raw UTF-8, got: $wire",
             )
         }
+
+        @Test
+        @DisplayName("raw-bytes part reuses field name as filename and defaults to octet-stream")
+        fun rawBytesPartReusesNameAsFilenameOctetStream() {
+            // Cross-language contract: a multipart part carrying RAW BYTES with no
+            // explicit filename reuses the FIELD NAME as the filename and guesses
+            // the Content-Type from that name's extension, falling back to
+            // application/octet-stream when there is no/unknown extension. For a
+            // field named "file" (no extension) the part MUST emit
+            // filename="file" AND Content-Type: application/octet-stream.
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+
+            val form: Map<String, Any?> = mapOf("file" to byteArrayOf(0x00, 0x01, 0x02))
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    form,
+                )
+            }
+
+            val wire = String(bodyBytes!!, Charsets.UTF_8)
+            assertTrue(
+                wire.contains("name=\"file\"") && wire.contains("filename=\"file\""),
+                "raw-bytes part must reuse the field name as filename, got: $wire",
+            )
+            assertTrue(
+                wire.contains("Content-Type: application/octet-stream"),
+                "raw-bytes part with no extension must default to application/octet-stream, got: $wire",
+            )
+        }
     }
 
     @Nested

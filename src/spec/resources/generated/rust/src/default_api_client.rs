@@ -936,6 +936,31 @@ mod tests {
         );
     }
 
+    // Raw-bytes part with no explicit filename: the field name is reused as the
+    // filename and the Content-Type falls back to application/octet-stream when
+    // the field name carries no (known) extension. Mirrors the cross-language
+    // contract already implemented by go, node, and java.
+    #[test]
+    fn test_multipart_raw_bytes_part_reuses_field_name_as_filename_and_octet_stream() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "file".to_string(),
+            MultipartValue::Bytes(vec![0x00, 0x01, 0x02]),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("name=\"file\"; filename=\"file\""),
+            "raw-bytes part must reuse the field name as the filename, got: {}",
+            body_str
+        );
+        assert!(
+            body_str.contains("Content-Type: application/octet-stream\r\n"),
+            "raw-bytes part with no extension must use application/octet-stream, got: {}",
+            body_str
+        );
+    }
+
     // ── multipart-non-ascii-field-name-preserved-utf8 (behavior 5) ──
     //
     // A multipart part whose field NAME contains non-ASCII characters MUST emit

@@ -615,6 +615,27 @@ class DefaultApiClientUnitTest {
         "byte[] part with no usable extension must fall back to octet-stream, got: " + part);
   }
 
+  {{! -- Cross-language contract: a raw byte[] part with no explicit filename }}
+  {{! -- reuses the field name as the filename and, when that name has no usable }}
+  {{! -- extension, sets Content-Type: application/octet-stream. For a field }}
+  {{! -- named "file" this means filename="file" AND application/octet-stream. }}
+
+  @Test
+  void multipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream() throws Exception {
+    String part = renderMultipartPart("file", new byte[] {0x00, 0x01, 0x02});
+    assertTrue(
+        part.contains("name=\"file\""),
+        "byte[] part must carry Content-Disposition name=\"file\", got: " + part);
+    assertTrue(
+        part.contains("filename=\"file\""),
+        "byte[] part with no explicit filename must reuse the field name as filename=\"file\", got: "
+            + part);
+    assertTrue(
+        part.contains("Content-Type: application/octet-stream"),
+        "byte[] part named \"file\" (no extension) must emit Content-Type: application/octet-stream, got: "
+            + part);
+  }
+
   {{! -- Parity regression: a non-ASCII multipart field NAME must be preserved }}
   {{! -- verbatim as UTF-8 bytes, never transliterated or percent-encoded. }}
 

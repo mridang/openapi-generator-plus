@@ -927,6 +927,14 @@ defmodule PetstoreClient.DefaultApiClient do
     multipart_file_part(name, filename, content, content_type, boundary)
   end
 
+  # A raw-bytes part carries binary content with no explicit filename. The
+  # cross-language contract (go/node/java) reuses the field name as the
+  # filename and derives the Content-Type from that name's extension,
+  # falling back to application/octet-stream when there is none.
+  defp multipart_part(name, {:raw, content}, boundary) do
+    multipart_file_part(name, to_string(name), content, nil, boundary)
+  end
+
   defp multipart_part(name, value, boundary) when is_binary(value) do
     safe = sanitize_multipart_field_name(name)
     "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{value}\r\n"

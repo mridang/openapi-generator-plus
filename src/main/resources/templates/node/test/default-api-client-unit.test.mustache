@@ -412,6 +412,21 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
     }
   });
 
+  it('#4 raw-bytes part with no extension reuses the field name as filename and falls back to application/octet-stream', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      // Field name "file" has no extension: the field name doubles as the
+      // filename and the per-part Content-Type falls back to octet-stream.
+      await client.sendRequest('POST', url, {}, { file: Buffer.from([0x00, 0x01, 0x02]) });
+      const body = getBody().toString('binary');
+      expect(body).toContain('name="file"; filename="file"');
+      expect(body).toContain('Content-Type: application/octet-stream');
+    } finally {
+      close();
+    }
+  });
+
   it('#5 non-ASCII field name is preserved as UTF-8 in the part header', async () => {
     const { url, getBody, close } = await captureRawBody();
     try {

@@ -607,6 +607,34 @@ func TestDefaultApiClient_MultipartFieldWithoutExtensionDefaultsToOctetStream(t 
 	}
 }
 
+// multipart-rawbytes-part-contenttype: a raw-bytes part with no explicit
+// filename reuses the field name as the filename and, because that name has no
+// known extension, falls back to Content-Type: application/octet-stream
+// (the cross-language contract shared with the node and java SDKs).
+func TestDefaultApiClient_MultipartRawBytesReusesFieldNameAndDefaultsToOctetStream(t *testing.T) {
+	t.Parallel()
+	var wireBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		wireBody = string(b)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	_, err := client.SendRequest("POST", server.URL+"/upload",
+		map[string]string{}, map[string]any{"file": []byte{0x00, 0x01, 0x02}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(wireBody, `name="file"; filename="file"`) {
+		t.Errorf(`expected Content-Disposition with name="file"; filename="file", got: %q`, wireBody)
+	}
+	if !strings.Contains(wireBody, "Content-Type: application/octet-stream") {
+		t.Errorf("expected application/octet-stream fallback, got: %q", wireBody)
+	}
+}
+
 // Gap BI / Gap F: filename directive + filename validation helpers.
 
 func TestDefaultApiClient_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.T) {

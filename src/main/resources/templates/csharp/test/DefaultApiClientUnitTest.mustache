@@ -367,6 +367,37 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task MultipartRawBytesPartReusesFieldNameAsFilenameAndOctetStream()
+    {
+        // Cross-language contract: a raw-bytes part with NO explicit filename
+        // reuses the FIELD NAME as the filename and, since "file" has no
+        // extension, falls back to Content-Type application/octet-stream.
+        // Identical across go, node, java, and the rest of the 12 SDKs.
+        string? wireText = null;
+        string? contentTypeHeader = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            contentTypeHeader = req.Content!.Headers.ContentType?.ToString();
+            wireText = await req.Content.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "file", new byte[] { 0x00, 0x01, 0x02 } }
+        };
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(), formData);
+
+        Assert.NotNull(wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader);
+        Assert.Contains("name=\"file\"", wireText);
+        Assert.Contains("filename=\"file\"", wireText);
+        Assert.Contains("Content-Type: application/octet-stream", wireText);
+    }
+
+    [Fact]
     public async Task MultipartFileWithPdfExtensionSetsApplicationPdfContentType()
     {
         string? wireText = null;

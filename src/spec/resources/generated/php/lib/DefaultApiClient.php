@@ -196,11 +196,19 @@ class DefaultApiClient extends AbstractApiClient
                         }
                         $parts[] = $dataPart;
                     } elseif (is_resource($v)) {
+                        /* A raw-bytes part has no explicit filename, so the
+                         * field NAME is reused as the filename and the
+                         * Content-Type is guessed from that filename's
+                         * extension (falling back to application/octet-stream),
+                         * matching the cross-language multipart contract. */
+                        $filename = (string) $name;
+                        self::validateMultipartFilename($filename);
+                        $mime = $this->guessMimeType(null, $filename);
                         try {
                             $parts[] = new DataPart(
                                 stream_get_contents($v),
-                                null,
-                                'application/octet-stream'
+                                $filename,
+                                $mime
                             );
                         } finally {
                             fclose($v);
