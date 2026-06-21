@@ -105,14 +105,15 @@ public class StoreApi : BaseApi
     }
 
     /// <summary>
-    /// Echoes a swatch supplied via query and header parameters.
+    /// Echoes a swatch supplied via path, query and header parameters.
     /// </summary>
+    /// <param name="pathSwatch"></param>
     /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
     /// <returns><![CDATA[Category]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Category> GetBySwatchAsync(GetBySwatchOptions? options = null)
+    public async Task<Category> GetBySwatchAsync(Swatch pathSwatch, GetBySwatchOptions? options = null)
     {
-        Task<ApiResult<Category>> task = GetBySwatchWithHttpInfoAsync(options);
+        Task<ApiResult<Category>> task = GetBySwatchWithHttpInfoAsync(pathSwatch, options);
         ApiResult<Category> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -134,15 +135,22 @@ public class StoreApi : BaseApi
     }
 
     /// <summary>
-    /// Echoes a swatch supplied via query and header parameters. (with HTTP info)
+    /// Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
     /// </summary>
+    /// <param name="pathSwatch"></param>
     /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Category>> GetBySwatchWithHttpInfoAsync(GetBySwatchOptions? options = null)
+    public async Task<ApiResult<Category>> GetBySwatchWithHttpInfoAsync(Swatch pathSwatch, GetBySwatchOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(options);
-        string path = "/store/by-swatch";
+        string path = "/store/by-swatch/{pathSwatch}";
+        ArgumentNullException.ThrowIfNull(pathSwatch, nameof(pathSwatch));
+        path = path.Replace(
+            "{" + nameof(pathSwatch) + "}",
+            (string)ValueSerializer.SerializeStyled(nameof(pathSwatch), pathSwatch, "path", "Swatch", null, "simple", false)!,
+            StringComparison.Ordinal
+        );
 
         Dictionary<string, object?> queryParams = [];
         if (options != null && options.QuerySwatch != null)

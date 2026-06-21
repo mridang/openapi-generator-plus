@@ -85,14 +85,21 @@ export class StoreApi extends BaseApi {
   }
 
   /**
-   * Echoes a swatch supplied via query and header parameters.
+   * Echoes a swatch supplied via path, query and header parameters.
+   * @param pathSwatch  (required)
    * @param options.querySwatch  (optional)
    * @param options.preferredSwatch  (optional)
    * @return Category
    * @throws {ApiError} if fails to make API call
    */
-  async getBySwatch(options?: GetBySwatchOptions): Promise<Category> {
-    const getBySwatchResult = await this.getBySwatchWithHttpInfo(options);
+  async getBySwatch(
+    pathSwatch: Swatch,
+    options?: GetBySwatchOptions,
+  ): Promise<Category> {
+    const getBySwatchResult = await this.getBySwatchWithHttpInfo(
+      pathSwatch,
+      options,
+    );
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -109,13 +116,31 @@ export class StoreApi extends BaseApi {
   }
 
   /**
-   * Echoes a swatch supplied via query and header parameters. (with HTTP info)
+   * Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
   async getBySwatchWithHttpInfo(
+    pathSwatch: Swatch,
     options?: GetBySwatchOptions,
   ): Promise<ApiResult<Category>> {
-    const path = `/store/by-swatch`;
+    if (pathSwatch == null) {
+      throw new Error(
+        'Missing required parameter "pathSwatch" when calling getBySwatch',
+      );
+    }
+    let path = `/store/by-swatch/{pathSwatch}`;
+    path = path.replace(
+      `{${"pathSwatch"}}`,
+      ValueSerializer.serializeStyled(
+        "pathSwatch",
+        pathSwatch,
+        "path",
+        "Swatch",
+        null,
+        "simple",
+        false,
+      ) as string,
+    );
     const queryParams: Record<string, unknown> = {};
     if (options?.querySwatch != null) {
       queryParams["querySwatch"] = ValueSerializer.serializeStyled(

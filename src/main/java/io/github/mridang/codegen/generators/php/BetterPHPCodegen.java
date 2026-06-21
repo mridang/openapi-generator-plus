@@ -1040,6 +1040,19 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         op.returnType = "string";
                         op.returnBaseType = "string";
                     }
+                    // A required parameter whose type is a $ref to a named enum
+                    // is resolved away by the parser, so getTypeDeclaration can
+                    // no longer FQN it (its $ref marker is gone) and the API
+                    // method signature would emit the bare name — which php
+                    // resolves in the Api namespace (Api\Swatch) rather than the
+                    // models one. Fully-qualify such signature params here, before
+                    // the super call below builds signatureArgs from op.pathParams
+                    // / op.bodyParam. Optional enum params live in the Options
+                    // class, which imports the short name, so they are untouched.
+                    fqnEnumRefSignatureParams(op.pathParams);
+                    if (op.bodyParam != null) {
+                        fqnEnumRefSignatureParams(List.of(op.bodyParam));
+                    }
                     // Build the PHPDoc return type once, applying nested \Ds\*
                     // generics, so the @return / @var tags are PHPStan-valid even
                     // when the array element / map value is itself a \Ds\*
@@ -1074,5 +1087,26 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             processed.put("hasServerTypeDefs", processedOps.get("hasServerTypeDefs"));
         }
         return processed;
+    }
+
+    /**
+     * Fully-qualifies the {@code dataType} of any enum-ref parameter in the
+     * given signature-parameter list (path params, body param) so the generated
+     * API method emits {@code \Namespace\Models\Enum} rather than the bare enum
+     * name, which php would otherwise resolve against the API class namespace.
+     * Idempotent: a value already starting with {@code \} is left as-is.
+     */
+    private void fqnEnumRefSignatureParams(List<CodegenParameter> params) {
+        if (params == null) {
+            return;
+        }
+        for (final CodegenParameter p : params) {
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !p.dataType.startsWith("\\")
+                    && !languageSpecificPrimitives.contains(p.dataType)) {
+                p.dataType = "\\" + modelPackage + "\\" + p.dataType;
+            }
+        }
     }
 }

@@ -147,9 +147,10 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
-  Echoes a swatch supplied via query and header parameters.
+  Echoes a swatch supplied via path, query and header parameters.
 
   ## Parameters
+    * `path_swatch` - Swatch
 
     * `options` - Optional parameters (query, header, form, cookie).
 
@@ -161,10 +162,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_by_swatch(t(), Options.t(), keyword()) ::
+  @spec get_by_swatch(t(), Swatch, Options.t(), keyword()) ::
           {:ok, Category} | {:error, term()}
-  def get_by_swatch(%__MODULE__{} = api, options \\ nil, opts \\ []) do
-    case get_by_swatch_with_http_info(api, options, opts) do
+  def get_by_swatch(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
+    case get_by_swatch_with_http_info(api, path_swatch, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -189,8 +190,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_by_swatch`. Raises on error.
   """
-  def get_by_swatch!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
-    case get_by_swatch(api, options, opts) do
+  def get_by_swatch!(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
+    case get_by_swatch(api, path_swatch, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -199,13 +200,36 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_by_swatch` but returns the full `ApiResult`.
   """
-  @spec get_by_swatch_with_http_info(t(), Options.t(), keyword()) ::
+  @spec get_by_swatch_with_http_info(t(), Swatch, Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_by_swatch_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+  def get_by_swatch_with_http_info(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-    path = "/store/by-swatch"
+
+    if is_nil(path_swatch) do
+      raise ArgumentError,
+            "Missing the required parameter 'path_swatch' when calling StoreApi.get_by_swatch"
+    end
+
+    path = "/store/by-swatch/{pathSwatch}"
+
+    path =
+      String.replace(
+        path,
+        "{pathSwatch}",
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "pathSwatch",
+          path_swatch,
+          :path,
+          "Swatch",
+          nil,
+          "simple",
+          false
+        )
+        |> to_string()
+      )
+
     server = Keyword.get(opts, :server)
 
     path =
