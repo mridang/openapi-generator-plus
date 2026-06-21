@@ -161,3 +161,32 @@ async fn test_store_api_delete_order_not_found() {
         "expected error for deleting non-existent order"
     );
 }
+
+// Nested generic container: `getGroupedCategories` returns
+// `Vec<HashMap<String, Category>>` (array of map of model). The leaves must
+// decode into TYPED `Category` instances, not raw maps/JSON values. With a
+// strongly-typed return type the field access below only compiles if the
+// leaf is genuinely a `Category`.
+#[tokio::test]
+async fn test_store_api_get_grouped_categories_typed_leaves() {
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]"#,
+    );
+
+    let result = api
+        .get_grouped_categories()
+        .await
+        .expect("GetGroupedCategories failed");
+
+    let first: &Category = result[0]
+        .get("a")
+        .expect("expected key `a` in first map");
+    assert_eq!(first.id, Some(1), "leaf id mismatch");
+    assert_eq!(
+        first.name,
+        Some("Dogs".to_string()),
+        "leaf name mismatch"
+    );
+}

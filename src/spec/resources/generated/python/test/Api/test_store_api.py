@@ -9,6 +9,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
 from petstore_client.api.store_api import StoreApi
 from petstore_client.configuration import Configuration
+from petstore_client.models.category import Category
 from petstore_client.models.order import Order, OrderStatusEnum
 
 
@@ -143,3 +144,18 @@ class TestStoreApiErrorHandling:
         )
         with pytest.raises(Exception):
             await api.delete_order(99999)
+
+
+class TestStoreApiNestedContainer:
+    """nested-container-deserialize: an operation returning array-of-map-of-model
+    must decode the leaves into typed Category instances, not raw dicts."""
+
+    async def test_get_grouped_categories_decodes_typed_leaves(self) -> None:
+        body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]'
+        api, server = _create_mock_server(200, "application/json", body)
+
+        result = await api.get_grouped_categories()
+
+        assert isinstance(result[0]["a"], Category)
+        assert result[0]["a"].id == 1
+        assert result[0]["a"].name == "Dogs"

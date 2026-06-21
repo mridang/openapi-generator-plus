@@ -250,6 +250,23 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("deserializes a self-referential model preserving the nested child")
+        fun deserializesSelfReferentialModel() {
+            // TreeNode is recursive ({ value, child: TreeNode? }). The decoder
+            // must reconstruct the nested child as a typed TreeNode rather than
+            // dropping it or leaving a raw map, and the absent grandchild must
+            // come back as null.
+            val json = "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}"
+            val top = serializer.deserialize<{{modelPackage}}.TreeNode>(json)
+            assertNotNull(top)
+            assertEquals("root", top!!._value)
+            val child = top.child
+            assertNotNull(child)
+            assertEquals("leaf", child!!._value)
+            assertNull(child.child)
+        }
+
+        @Test
         @DisplayName("deserialize applies schema default for absent field")
         fun deserializeAppliesSchemaDefaultForAbsentField() {
             // The Order.status field declares `default: placed` in the schema, so

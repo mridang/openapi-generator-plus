@@ -48,5 +48,7 @@ mod surgery;
 pub use surgery::*;
 mod tag;
 pub use tag::*;
+mod tree_node;
+pub use tree_node::*;
 mod wet_food;
 pub use wet_food::*;

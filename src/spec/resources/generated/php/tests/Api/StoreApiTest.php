@@ -11,6 +11,7 @@ use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
+use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
 
@@ -107,6 +108,38 @@ test('delete order', function (): void {
     $this->api->deleteOrder(1);
 
     expect(true)->toBeTrue();
+});
+
+// -- nested-container deserialization --
+//
+// getGroupedCategories returns a nested generic container: an array of map of
+// Category (\Ds\Vector<\Ds\Map<Category>>). The recursive deserializer must
+// descend every container level so the innermost leaves are decoded into TYPED
+// Category instances, not left as raw maps. Driven against a mock server that
+// returns the canonical nested body.
+
+test('get grouped categories deserializes nested leaves to typed models', function (): void {
+    $body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]';
+    $api = newStoreApiForMock(200, 'application/json', $body);
+
+    $result = $api->getGroupedCategories();
+
+    expect($result)->toBeInstanceOf(\Ds\Vector::class);
+    expect($result->count())->toBe(2);
+
+    $first = $result->get(0);
+    expect($first)->toBeInstanceOf(\Ds\Map::class);
+    $dogs = $first->get('a');
+    expect($dogs)->toBeInstanceOf(Category::class);
+    expect($dogs->id)->toBe(1);
+    expect($dogs->name)->toBe('Dogs');
+
+    $second = $result->get(1);
+    expect($second)->toBeInstanceOf(\Ds\Map::class);
+    $cats = $second->get('b');
+    expect($cats)->toBeInstanceOf(Category::class);
+    expect($cats->id)->toBe(2);
+    expect($cats->name)->toBe('Cats');
 });
 
 // -- Mock-based error handling tests --

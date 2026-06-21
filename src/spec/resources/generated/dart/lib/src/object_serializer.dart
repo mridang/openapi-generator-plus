@@ -204,6 +204,63 @@ List<T>? deserializeList<T>(
   }
 }
 
+/// Deserialize an already-decoded JSON array into a typed `List<T>`,
+/// applying [deserializeElement] to each element.
+///
+/// recursive-container-deserialize: unlike [deserializeList], which parses a
+/// raw JSON string at the response boundary, this operates on a value that
+/// has already been decoded one container level up. It is the building block
+/// for nested generic containers — the per-element deserializer may itself
+/// re-enter [deserializeArray] / [deserializeMap], so the innermost models of
+/// a type like `List<Map<String, Category>>` are decoded into typed instances
+/// rather than left as raw maps.
+List<T> deserializeArray<T>(
+  Object? json,
+  T Function(dynamic) deserializeElement,
+) {
+  if (json is! List) {
+    throw SerializationError('Expected JSON array, got ${json.runtimeType}');
+  }
+  return json.map((item) => deserializeElement(item)).toList();
+}
+
+/// Deserialize an already-decoded JSON object into a typed `Map<String, T>`,
+/// applying [deserializeValue] to each value.
+///
+/// recursive-container-deserialize: the value deserializer may itself re-enter
+/// [deserializeArray] / [deserializeMap], so the leaves of a nested generic
+/// container become typed instances instead of raw maps.
+Map<String, T> deserializeMap<T>(
+  Object? json,
+  T Function(dynamic) deserializeValue,
+) {
+  if (json is! Map) {
+    throw SerializationError('Expected JSON object, got ${json.runtimeType}');
+  }
+  return json.map((k, v) => MapEntry(k as String, deserializeValue(v)));
+}
+
+/// Parses a JSON string into a typed `Map<String, T>` at the response
+/// boundary, then applies [deserializeValue] to each value via
+/// [deserializeMap]. The String-input counterpart of [deserializeMap], used
+/// when a nested map container is the operation's top-level return type.
+/// Returns null if data is empty.
+Map<String, T>? deserializeMapFromJson<T>(
+  String data,
+  T Function(dynamic) deserializeValue,
+) {
+  data = _stripBom(data);
+  if (data.isEmpty) {
+    return null;
+  }
+  try {
+    return deserializeMap(parseJson(data), deserializeValue);
+  } catch (e) {
+    if (e is SerializationError) rethrow;
+    throw SerializationError('Failed to deserialize JSON map: $e', e);
+  }
+}
+
 /// Parses a JSON string into a raw dynamic value.
 dynamic deserializeRaw(String data) {
   data = _stripBom(data);

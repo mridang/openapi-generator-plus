@@ -60,10 +60,10 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     @available(*, deprecated, message: "This property is deprecated.")
 {{/deprecated}}
 {{#required}}
-    public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}
+    {{#vendorExtensions.isSelfRecursive}}@Indirect {{/vendorExtensions.isSelfRecursive}}public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}
 {{/required}}
 {{^required}}
-    public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?
+    {{#vendorExtensions.isSelfRecursive}}@Indirect {{/vendorExtensions.isSelfRecursive}}public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}

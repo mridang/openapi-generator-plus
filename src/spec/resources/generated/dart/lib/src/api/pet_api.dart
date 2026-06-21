@@ -303,6 +303,7 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'List<Photo>',
       auth: null,
+
       deserialize: (body) =>
           deserializeList(body, Photo.fromJson) as List<Photo>,
     );
@@ -611,6 +612,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Pet>',
       auth: null,
+
       deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
     );
   }

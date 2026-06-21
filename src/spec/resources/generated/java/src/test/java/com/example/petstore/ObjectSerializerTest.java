@@ -611,6 +611,27 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("deserializes a self-referential model preserving nesting")
+    void deserializesSelfReferentialModel() {
+      // A self-referential ($ref to itself) schema must decode its nested
+      // child as a typed TreeNode instance, not a raw map, all the way down.
+      String json = "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}";
+      com.example.petstore.models.TreeNode top =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.TreeNode>() {}.getType());
+      assertNotNull(top);
+      assertEquals("root", top.value);
+      // The field is statically typed TreeNode, so a successful nested
+      // decode populates it with a typed instance (not a raw map) and its
+      // own value/child are reachable.
+      assertNotNull(top.child);
+      assertEquals("leaf", top.child.value);
+      assertNull(top.child.child);
+    }
+
+    @Test
     @DisplayName("returns null for empty input")
     void returnsNullForEmptyInput() {
       assertNull(

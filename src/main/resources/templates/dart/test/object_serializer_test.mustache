@@ -65,6 +65,21 @@ void main() {
       expect(order!.status, equals(OrderStatusEnum.placed));
     });
 
+    // -- recursive-self-referential-model-deserialize --
+    //
+    // TreeNode is self-referential ({ value, child: TreeNode? }). Deserializing
+    // a nested literal must decode the `child` into a real TreeNode instance
+    // (not a raw map), and the leaf node's absent `child` must read as null.
+    test('deserialize decodes a self-referential TreeNode nesting', () {
+      const json = '{"value":"root","child":{"value":"leaf"}}';
+      final top = deserialize<TreeNode>(json, TreeNode.fromJson);
+      expect(top, isNotNull);
+      expect(top!.value, equals('root'));
+      expect(top.child, isA<TreeNode>());
+      expect(top.child!.value, equals('leaf'));
+      expect(top.child!.child, isNull);
+    });
+
     test('toPathValue string', () {
       expect(toPathValue('hello'), equals('hello'));
     });

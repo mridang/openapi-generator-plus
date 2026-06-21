@@ -432,15 +432,38 @@ export class ObjectSerializer {
    * @param cls the class constructor to instantiate for each element
    * @returns array of deserialized objects
    */
-  static deserializeArray<T>(json: unknown, cls: ClassConstructor<T>): T[] {
+  static deserializeArray<T>(
+    json: unknown,
+    cls: ClassConstructor<T> | ((value: unknown) => T | null),
+  ): T[] {
     if (!Array.isArray(json)) {
       throw new SerializationError(
         "Expected array but received: " + typeof json,
       );
     }
+    const deserializeElement = ObjectSerializer.elementDeserializer(cls);
     return json
-      .map((item: unknown) => ObjectSerializer.deserialize(item, cls))
+      .map((item: unknown) => deserializeElement(item))
       .filter((x): x is T => x !== null);
+  }
+
+  /**
+   * Resolve a deserializer argument that is either a model class constructor
+   * or an element-deserializer function, into a uniform per-element function.
+   * A bare class constructor is wrapped in {@link deserialize}; an arrow
+   * function (which has no own `prototype`, unlike a class) is used directly.
+   * This lets nested generic containers — e.g. `Array<Record<string, Foo>>` —
+   * compose their per-level deserializers so the innermost models are decoded
+   * into typed instances instead of left as raw objects.
+   */
+  private static elementDeserializer<T>(
+    cls: ClassConstructor<T> | ((value: unknown) => T | null),
+  ): (value: unknown) => T | null {
+    if (typeof cls === "function" && !("prototype" in cls)) {
+      return cls as (value: unknown) => T | null;
+    }
+    return (value: unknown) =>
+      ObjectSerializer.deserialize(value, cls as ClassConstructor<T>);
   }
 
   /**
@@ -456,7 +479,7 @@ export class ObjectSerializer {
    */
   static deserializeMap<T>(
     json: unknown,
-    cls: ClassConstructor<T>,
+    cls: ClassConstructor<T> | ((value: unknown) => T | null),
   ): Record<string, T> {
     if (json === null || json === undefined) {
       return {};
@@ -467,9 +490,10 @@ export class ObjectSerializer {
           (Array.isArray(json) ? "array" : typeof json),
       );
     }
+    const deserializeValue = ObjectSerializer.elementDeserializer(cls);
     const out: Record<string, T> = {};
     for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
-      const deserialized = ObjectSerializer.deserialize(v, cls);
+      const deserialized = deserializeValue(v);
       if (deserialized !== null) {
         out[k] = deserialized;
       }

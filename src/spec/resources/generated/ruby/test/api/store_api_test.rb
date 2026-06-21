@@ -96,6 +96,51 @@ describe PetstoreClient::Api::StoreApi do
     end
   end
 
+  describe '#get_grouped_categories' do
+    def new_store_api_for_mock(status, content_type, body)
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = server.accept rescue break
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = PetstoreClient::Api::StoreApi.new(nil, config)
+      [api, server, thread]
+    end
+
+    # Nested generic container: Array<Hash<String, Category>>. Every leaf must
+    # deserialize into a typed Category instance, not be left as a raw Hash.
+    it 'decodes nested container leaves into typed Category instances' do
+      body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]'
+      api, server, thread = new_store_api_for_mock(200, 'application/json', body)
+      begin
+        result = api.get_grouped_categories
+
+        _(result).must_be_kind_of(Array)
+        _(result[0]['a']).must_be_kind_of(PetstoreClient::Models::Category)
+        _(result[0]['a'].id).must_equal(1)
+        _(result[0]['a'].name).must_equal('Dogs')
+        _(result[1]['b']).must_be_kind_of(PetstoreClient::Models::Category)
+        _(result[1]['b'].id).must_equal(2)
+        _(result[1]['b'].name).must_equal('Cats')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe 'error handling' do
     def new_store_api_for_mock(status, content_type, body)
       server = TCPServer.new('127.0.0.1', 0)

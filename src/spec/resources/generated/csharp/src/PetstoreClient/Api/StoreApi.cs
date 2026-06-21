@@ -19,9 +19,13 @@ namespace PetstoreClient.Api;
 public class StoreApi : BaseApi
 {
 
+    private static readonly string[] GetGroupedCategoriesAccepts = ["application/json"];
+
     private static readonly string[] GetInventoryAccepts = ["application/json"];
 
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
+
+    private static readonly string[] GetTreeAccepts = ["application/json"];
 
     private static readonly string[] PlaceOrderAccepts = ["application/json"];
 
@@ -79,6 +83,53 @@ public class StoreApi : BaseApi
                 [],
                 "application/json",
                 null,
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+    /// </summary>
+    /// <returns><![CDATA[List<Dictionary<string, Category>>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<Dictionary<string, Category>>> GetGroupedCategoriesAsync()
+    {
+        Task<ApiResult<List<Dictionary<string, Category>>>> task = GetGroupedCategoriesWithHttpInfoAsync();
+        ApiResult<List<Dictionary<string, Category>>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
+    }
+
+    /// <summary>
+    /// Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps. (with HTTP info)
+    /// </summary>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<Dictionary<string, Category>>>> GetGroupedCategoriesWithHttpInfoAsync()
+    {
+        string path = "/store/grouped-categories";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<List<Dictionary<string, Category>>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetGroupedCategoriesAccepts,
+                "application/json",
+                typeof(List<Dictionary<string, Category>>),
                 null
             )
             .ConfigureAwait(false);
@@ -180,6 +231,53 @@ public class StoreApi : BaseApi
                 GetOrderByIdAccepts,
                 "application/json",
                 typeof(Order),
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns a self-referential tree (recursive-type codegen fixture)
+    /// </summary>
+    /// <returns><![CDATA[TreeNode]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<TreeNode> GetTreeAsync()
+    {
+        Task<ApiResult<TreeNode>> task = GetTreeWithHttpInfoAsync();
+        ApiResult<TreeNode> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
+    }
+
+    /// <summary>
+    /// Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
+    /// </summary>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<TreeNode>> GetTreeWithHttpInfoAsync()
+    {
+        string path = "/store/tree";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<TreeNode>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetTreeAccepts,
+                "application/json",
+                typeof(TreeNode),
                 null
             )
             .ConfigureAwait(false);

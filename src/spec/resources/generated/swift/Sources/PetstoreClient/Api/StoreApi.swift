@@ -58,6 +58,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForEmptyResult(params)
   }
 
+  /// Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+
+  public func getGroupedCategories() async throws -> [[String: Category]] {
+    let result = try await getGroupedCategoriesWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getGroupedCategories",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getGroupedCategories operation and returns the full API result.
+  public func getGroupedCategoriesWithHTTPInfo() async throws -> ApiResult<[[String: Category]]> {
+
+    let path = "/store/grouped-categories"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[[String: Category]]",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: [[String: Category]].self)
+  }
+
   /// Returns pet inventories by status
 
   public func getInventory() async throws -> [String: Int] {
@@ -146,6 +187,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
+  }
+
+  /// Returns a self-referential tree (recursive-type codegen fixture)
+
+  public func getTree() async throws -> TreeNode {
+    let result = try await getTreeWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getTree",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getTree operation and returns the full API result.
+  public func getTreeWithHTTPInfo() async throws -> ApiResult<TreeNode> {
+
+    let path = "/store/tree"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "TreeNode",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: TreeNode.self)
   }
 
   /// Place an order for a pet

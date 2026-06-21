@@ -902,6 +902,43 @@ paths:
                   type: integer
                   format: int32
 
+  /store/tree:
+    get:
+      tags:
+        - store
+      summary: Returns a self-referential tree (recursive-type codegen fixture)
+      operationId: getTree
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreeNode'
+
+  /store/grouped-categories:
+    get:
+      tags:
+        - store
+      summary: >-
+        Returns an array of maps of Category. Exercises deserialization of a
+        nested generic container (array of map of model) whose leaves must be
+        decoded into typed model instances, not left as raw maps.
+      operationId: getGroupedCategories
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Category'
+
   /store/order:
     post:
       tags:
@@ -1630,3 +1667,17 @@ components:
           type: string
           format: date-time
           description: Absolute expiry instant
+
+    # Self-referential schema. Exercises recursive-type code generation: a
+    # value type that contains itself has infinite size unless the recursive
+    # member is heap-indirected (e.g. Rust requires Box around the optional
+    # self-reference). Drives the recursion round-trip test in every SDK.
+    TreeNode:
+      type: object
+      required:
+        - value
+      properties:
+        value:
+          type: string
+        child:
+          $ref: '#/components/schemas/TreeNode'

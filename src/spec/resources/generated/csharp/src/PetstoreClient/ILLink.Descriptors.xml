@@ -33,6 +33,7 @@
         <type fullname="PetstoreClient.Models.StrictTag" preserve="all" />
         <type fullname="PetstoreClient.Models.Surgery" preserve="all" />
         <type fullname="PetstoreClient.Models.Tag" preserve="all" />
+        <type fullname="PetstoreClient.Models.TreeNode" preserve="all" />
         <type fullname="PetstoreClient.Models.WetFood" preserve="all" />
     </assembly>
 </linker>

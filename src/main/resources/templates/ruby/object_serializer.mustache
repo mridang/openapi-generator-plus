@@ -298,7 +298,13 @@ module {{moduleName}}
         # @type var converted: Hash[untyped, untyped]
         converted = {}
         data.each_with_object(converted) do |(key, value), hash|
-          hash[key] = convert_to_type(value, sub_type)
+          # The map type declares String keys, but JSON.parse(symbolize_names:
+          # true) symbolizes every key — including the keys of a generic map.
+          # Restore them to String so a Hash<String, X> always exposes String
+          # keys, including when it is nested inside another container
+          # (e.g. Array<Hash<String, Category>>) where the leaves must be
+          # reachable via the same String key the wire used.
+          hash[key.to_s] = convert_to_type(value, sub_type)
         end
       else
         klass = begin

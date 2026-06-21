@@ -370,6 +370,19 @@ describe PetstoreClient::ObjectSerializer do
       _(order).must_be_kind_of(PetstoreClient::Models::Order)
       _(order.status).must_equal('placed')
     end
+
+    # Self-referential model (TreeNode has a `child` of its own type). A
+    # nested payload must decode every level into a typed TreeNode, with the
+    # absent innermost `child` left nil rather than wrapped in an empty model.
+    it 'deserializes a self-referential TreeNode preserving nesting' do
+      json = '{"value":"root","child":{"value":"leaf"}}'
+      top = PetstoreClient::ObjectSerializer.deserialize(json, 'TreeNode')
+      _(top).must_be_kind_of(PetstoreClient::Models::TreeNode)
+      _(top.value).must_equal('root')
+      _(top.child).must_be_kind_of(PetstoreClient::Models::TreeNode)
+      _(top.child.value).must_equal('leaf')
+      _(top.child.child).must_be_nil
+    end
   end
 
   # ── required field hard-fail on deserialize (#10) ──

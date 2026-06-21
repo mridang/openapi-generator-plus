@@ -449,6 +449,32 @@ defmodule PetstoreClient.ObjectSerializer do
     end)
   end
 
+  # Operation return types and model fields are described with the native
+  # Elixir typespec container forms the codegen emits: an array is "[Inner]"
+  # and a string-keyed map is "%{String.t() => Inner}". These two clauses peel
+  # exactly one container level (a single trailing "]"/"}", so nested forms
+  # like "[[Tag]]" or "[%{String.t() => Category}]" shed one wrapper per
+  # recursion) and re-enter convert_to_type/2 on every element, descending
+  # through arbitrarily many container levels until the innermost descriptor is
+  # a model/primitive that the clauses below decode into a typed value. Without
+  # these, a nested generic container fell through to the model-name fallback
+  # and was handed back as raw maps/lists. A plain "[Pet]" or
+  # "%{String.t() => Pet}" still resolves to one Enum.map/Map.new whose element
+  # descriptor is the bare model name, so simple single-level containers are
+  # unchanged.
+  def convert_to_type(data, "[" <> rest) when is_list(data) do
+    sub_type = String.replace_suffix(rest, "]", "")
+    Enum.map(data, fn item -> convert_to_type(item, sub_type) end)
+  end
+
+  def convert_to_type(data, "%{String.t() => " <> rest) when is_map(data) do
+    sub_type = String.replace_suffix(rest, "}", "")
+
+    Map.new(data, fn {key, value} ->
+      {key, convert_to_type(value, sub_type)}
+    end)
+  end
+
   # Inline property enum: the model's openapi_types map carries the allowed
   # wire values as an "Enum<a,b,c>" sentinel. An out-of-schema wire value is
   # spec drift; raise a SerializationError instead of silently passing the raw

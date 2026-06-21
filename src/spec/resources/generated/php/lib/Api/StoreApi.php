@@ -77,6 +77,59 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+
+     * @return \Ds\Vector<\Ds\Map>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getGroupedCategories()
+    {
+        $apiResult = $this->getGroupedCategoriesWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getGroupedCategories but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\Ds\Map> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\Ds\Vector<\Ds\Map>>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getGroupedCategoriesWithHttpInfo(): ApiResult
+    {
+        $path = '/store/grouped-categories';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\Ds\Map>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<\Ds\Map<Category>>'
+        );
+        return $result;
+    }
+
+    /**
      * Returns pet inventories by status
 
      * @return \Ds\Map<string, int>
@@ -191,6 +244,59 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             '\PetstoreClient\Models\Order'
+        );
+        return $result;
+    }
+
+    /**
+     * Returns a self-referential tree (recursive-type codegen fixture)
+
+     * @return \PetstoreClient\Models\TreeNode
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getTree()
+    {
+        $apiResult = $this->getTreeWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getTree but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\TreeNode $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\PetstoreClient\Models\TreeNode>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getTreeWithHttpInfo(): ApiResult
+    {
+        $path = '/store/tree';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\TreeNode> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\TreeNode'
         );
         return $result;
     }

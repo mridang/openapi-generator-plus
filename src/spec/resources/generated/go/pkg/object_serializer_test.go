@@ -905,6 +905,30 @@ func TestModelEqual_MapBearingModel(t *testing.T) {
 	}
 }
 
+// A self-referential model ($ref to itself via an optional field) must
+// deserialize recursively: the nested object decodes into a real TreeNode, not
+// a raw map, and the absent grandchild stays nil.
+func TestDeserialize_RecursiveModelDecodesNestedNode(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"value":"root","child":{"value":"leaf"}}`)
+	var top models.TreeNode
+	if err := deserialize(input, &top); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if top.Value != "root" {
+		t.Errorf("expected top value 'root', got %q", top.Value)
+	}
+	if top.Child == nil {
+		t.Fatal("expected top.Child to be a non-nil *TreeNode")
+	}
+	if top.Child.Value != "leaf" {
+		t.Errorf("expected top.Child.Value 'leaf', got %q", top.Child.Value)
+	}
+	if top.Child.Child != nil {
+		t.Errorf("expected top.Child.Child to be nil, got %v", top.Child.Child)
+	}
+}
+
 func TestResolveOneOf_ReturnsFirstMatch(t *testing.T) {
 	t.Parallel()
 	candidates := []func(any) (any, error){

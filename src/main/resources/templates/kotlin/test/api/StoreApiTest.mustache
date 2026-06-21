@@ -234,6 +234,41 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName("getGroupedCategories decodes nested array-of-map leaves into typed Category instances")
+        fun testGetGroupedCategoriesNestedContainer() {
+            // The response is Array<Map<String, Category>>. Each leaf value must
+            // be deserialized into a typed Category, not left as a raw map, so a
+            // caller can read id/name off the model directly.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val result = runBlocking { api.getGroupedCategories() }
+
+            assertNotNull(result)
+            assertEquals(2, result.size)
+            val first = result[0]["a"]
+            assertTrue(first is Category, "leaf should be a typed Category, got: $first")
+            assertEquals(1L, first!!.id)
+            assertEquals("Dogs", first.name)
+            val second = result[1]["b"]
+            assertTrue(second is Category)
+            assertEquals(2L, second!!.id)
+            assertEquals("Cats", second.name)
+        }
+
+        @Test
         @DisplayName("convenience-empty-body-handling: getOrderById throws ApiException on empty 200 body")
         fun testGetOrderByIdEmptyBodyThrows() {
             // A body-returning operation that receives a 2xx with an empty body

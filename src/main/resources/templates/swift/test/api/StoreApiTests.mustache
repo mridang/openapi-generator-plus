@@ -116,6 +116,27 @@ import Testing
         }
     }
 
+    // nested-container deserialise (array of map of Category): the
+    // getGroupedCategories operation returns [[String: Category]]. Each leaf
+    // value must decode into a TYPED Category instance (id/name accessible),
+    // not a raw [String: Any] map. The mock server returns a two-element array
+    // whose maps key onto Category objects.
+    @Test func testGetGroupedCategoriesDeserializesNestedTypedLeaves() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200,
+            body: "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]"
+        )
+        let result = try await mockApi.getGroupedCategories()
+        #expect(result.count == 2)
+        let first: Category? = result[0]["a"]
+        #expect(first != nil)
+        #expect(first?.id == 1)
+        #expect(first?.name == "Dogs")
+        let second: Category? = result[1]["b"]
+        #expect(second?.id == 2)
+        #expect(second?.name == "Cats")
+    }
+
     @Test func testDeleteOrderNotFound() async throws {
         let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
         do {

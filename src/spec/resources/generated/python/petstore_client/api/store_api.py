@@ -10,7 +10,9 @@
 from typing import Any, Dict, List, Optional
 from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 
+from petstore_client.models.category import Category
 from petstore_client.models.order import Order
+from petstore_client.models.tree_node import TreeNode
 
 from ..api_client import ApiClient
 from ..api_result import ApiResult
@@ -85,6 +87,54 @@ class StoreApi(BaseApi):
             [],
             "application/json",
             None,
+            None,
+        )
+
+    async def get_grouped_categories(
+        self,
+    ) -> List[Dict[str, Category]]:
+        """Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+
+        :return: List[Dict[str, Category]]
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_grouped_categories_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_grouped_categories_with_http_info(
+        self,
+    ) -> "ApiResult[List[Dict[str, Category]]]":
+        """Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps. (with HTTP info)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/grouped-categories"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[Dict[str, Category]]",
             None,
         )
 
@@ -199,6 +249,54 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
+            None,
+        )
+
+    async def get_tree(
+        self,
+    ) -> TreeNode:
+        """Returns a self-referential tree (recursive-type codegen fixture)
+
+        :return: TreeNode
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_tree_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_tree_with_http_info(
+        self,
+    ) -> "ApiResult[TreeNode]":
+        """Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/tree"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "TreeNode",
             None,
         )
 

@@ -15,12 +15,14 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.models.Category;
 import com.example.petstore.models.Order;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -172,5 +174,28 @@ class StoreApiTest {
         newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
     assertThatThrownBy(() -> mockApi.deleteOrder(99999L)).isInstanceOf(Exception.class);
+  }
+
+  @Test
+  void testGetGroupedCategoriesDeserializesNestedContainer() throws Exception {
+    // A nested generic container (array of map of model) must decode its
+    // leaves into typed Category instances, not leave them as raw maps.
+    StoreApi mockApi =
+        newStoreApiForMock(
+            200,
+            "application/json",
+            "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]");
+
+    List<Map<String, Category>> result = mockApi.getGroupedCategories();
+    assertNotNull(result);
+
+    // The leaf is statically typed Category (Map<String, Category>), so a
+    // successful nested decode yields a typed instance with populated
+    // fields rather than a raw map.
+    Category category =
+        java.util.Objects.requireNonNull(
+            result.get(0).get("a"), "leaf 'a' must decode to a typed Category");
+    assertThat(category.id).isEqualTo(1L);
+    assertThat(category.name).isEqualTo("Dogs");
   }
 }

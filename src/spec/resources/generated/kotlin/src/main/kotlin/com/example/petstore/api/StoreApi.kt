@@ -15,7 +15,10 @@ import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
+import com.example.petstore.models.Category
 import com.example.petstore.models.Order
+import com.example.petstore.models.TreeNode
+import kotlin.collections.List
 import kotlin.collections.Map
 
 /**
@@ -58,6 +61,32 @@ class StoreApi : BaseApi {
             headerParams,
             null,
             arrayOf(),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+     * @return List<Map<String, Category>>
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getGroupedCategories(): List<Map<String, Category>> =
+        getGroupedCategoriesWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getGroupedCategories but the server returned an empty body")
+
+    suspend fun getGroupedCategoriesWithHttpInfo(): ApiResult<List<Map<String, Category>>> {
+        var path = "/store/grouped-categories"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<List<Map<String, Category>>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
             "application/json",
             null,
         )
@@ -113,6 +142,32 @@ class StoreApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Order>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Returns a self-referential tree (recursive-type codegen fixture)
+     * @return TreeNode
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getTree(): TreeNode =
+        getTreeWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getTree but the server returned an empty body")
+
+    suspend fun getTreeWithHttpInfo(): ApiResult<TreeNode> {
+        var path = "/store/tree"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<TreeNode>(
             "GET",
             path,
             queryParams,

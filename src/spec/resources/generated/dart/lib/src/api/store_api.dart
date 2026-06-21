@@ -16,7 +16,9 @@ import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../errors/api_error.dart';
+import '../models/category.dart';
 import '../models/order.dart';
+import '../models/tree_node.dart';
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
@@ -75,6 +77,62 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: null,
+    );
+  }
+
+  /// Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+
+  Future<List<Map<String, Category>>> getGroupedCategories() async {
+    final result = await getGroupedCategoriesWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Map<String, Category>>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getGroupedCategories but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getGroupedCategories operation and returns the full API result.
+  Future<ApiResult<List<Map<String, Category>>>>
+  getGroupedCategoriesWithHTTPInfo() async {
+    var path = '/store/grouped-categories';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<Map<String, Category>>>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<Map<String, Category>>',
+      auth: null,
+
+      deserialize: (body) =>
+          deserializeList(
+                body,
+                (e) => deserializeMap(
+                  e,
+                  (e) => Category.fromJson(e as Map<String, dynamic>),
+                ),
+              )
+              as List<Map<String, Category>>,
     );
   }
 
@@ -185,6 +243,51 @@ class StoreApi extends BaseApi {
       returnType: 'Order',
       auth: null,
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
+  /// Returns a self-referential tree (recursive-type codegen fixture)
+
+  Future<TreeNode> getTree() async {
+    final result = await getTreeWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as TreeNode` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getTree but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getTree operation and returns the full API result.
+  Future<ApiResult<TreeNode>> getTreeWithHTTPInfo() async {
+    var path = '/store/tree';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<TreeNode>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'TreeNode',
+      auth: null,
+      deserialize: (body) => deserialize(body, TreeNode.fromJson) as TreeNode,
     );
   }
 

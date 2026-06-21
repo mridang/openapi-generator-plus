@@ -286,3 +286,26 @@ fn test_order_deserialize_applies_schema_default_for_absent_status() {
         order.status
     );
 }
+
+// -- self-referential model: TreeNode --
+//
+// `TreeNode` has a required `value` and an optional `child` that $refs back
+// to `TreeNode` (modeled as `Option<Box<TreeNode>>`). Deserializing a nested
+// payload must decode the child into a typed `TreeNode`, not leave it raw,
+// and a missing grandchild must be `None`.
+#[test]
+fn test_tree_node_deserialize_recursive() {
+    let json_data = r#"{"value":"root","child":{"value":"leaf"}}"#;
+
+    let top: TreeNode = serde_json::from_str(json_data).expect("failed to deserialize TreeNode");
+
+    assert_eq!(top.value, "root", "top.value mismatch");
+
+    let child = top.child.expect("expected `child` to be present");
+    assert_eq!(child.value, "leaf", "child.value mismatch");
+    assert!(
+        child.child.is_none(),
+        "expected grandchild to be absent, got: {:?}",
+        child.child
+    );
+}

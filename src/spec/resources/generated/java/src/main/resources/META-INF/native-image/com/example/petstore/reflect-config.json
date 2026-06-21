@@ -210,6 +210,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.TreeNode",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.WetFood",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,

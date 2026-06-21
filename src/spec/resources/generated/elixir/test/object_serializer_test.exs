@@ -446,6 +446,20 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert %PetstoreClient.Models.Order{} = order
       assert order.status == "placed"
     end
+
+    # Recursive self-referential model: TreeNode.child is a $ref back to
+    # TreeNode. Deserialization must decode the nested child into a typed
+    # TreeNode struct (not a raw map) at every level, with the absent
+    # grandchild left nil.
+    test "deserializes a self-referential TreeNode and decodes the nesting" do
+      json_str = ~s({"value":"root","child":{"value":"leaf"}})
+      top = PetstoreClient.ObjectSerializer.deserialize(json_str, "TreeNode")
+      assert %PetstoreClient.Models.TreeNode{} = top
+      assert top.value == "root"
+      assert %PetstoreClient.Models.TreeNode{} = top.child
+      assert top.child.value == "leaf"
+      assert top.child.child == nil
+    end
   end
 
   # Divergence #10: deserialization must hard-fail when a required,

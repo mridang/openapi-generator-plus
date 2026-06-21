@@ -14,7 +14,7 @@ import { Configuration } from "../configuration.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { ValueSerializer } from "../value-serializer.js";
 import type { DeepInput } from "../deep-input.js";
-import { Order } from "../models/index.js";
+import { Category, Order, TreeNode } from "../models/index.js";
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -77,6 +77,57 @@ export class StoreApi extends BaseApi {
   }
 
   /**
+   * Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+   * @return Array<{ [key: string]: Category }>
+   * @throws {ApiError} if fails to make API call
+   */
+  async getGroupedCategories(): Promise<Array<{ [key: string]: Category }>> {
+    const getGroupedCategoriesResult =
+      await this.getGroupedCategoriesWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getGroupedCategoriesResult.data == null) {
+      throw new ApiError(
+        getGroupedCategoriesResult.statusCode,
+        "Expected a response body for getGroupedCategories but received none",
+        getGroupedCategoriesResult.headers,
+        getGroupedCategoriesResult.rawBody,
+        null,
+      );
+    }
+    return getGroupedCategoriesResult.data as Array<{
+      [key: string]: Category;
+    }>;
+  }
+
+  /**
+   * Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getGroupedCategoriesWithHttpInfo(): Promise<
+    ApiResult<Array<{ [key: string]: Category }>>
+  > {
+    const path = `/store/grouped-categories`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) =>
+        ObjectSerializer.deserializeArray(json, (x: unknown) =>
+          ObjectSerializer.deserializeMap(x, Category),
+        ),
+      null,
+    );
+  }
+
+  /**
    * Returns pet inventories by status
    * @return { [key: string]: number }
    * @throws {ApiError} if fails to make API call
@@ -116,7 +167,8 @@ export class StoreApi extends BaseApi {
       null,
       ["application/json"],
       "application/json",
-      (json: unknown) => json as { [key: string]: number },
+      (json: unknown) =>
+        ObjectSerializer.deserializeMap(json, (x: unknown) => x as number),
       null,
     );
   }
@@ -178,6 +230,49 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
+      null,
+    );
+  }
+
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   * @return TreeNode
+   * @throws {ApiError} if fails to make API call
+   */
+  async getTree(): Promise<TreeNode> {
+    const getTreeResult = await this.getTreeWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getTreeResult.data == null) {
+      throw new ApiError(
+        getTreeResult.statusCode,
+        "Expected a response body for getTree but received none",
+        getTreeResult.headers,
+        getTreeResult.rawBody,
+        null,
+      );
+    }
+    return getTreeResult.data as TreeNode;
+  }
+
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getTreeWithHttpInfo(): Promise<ApiResult<TreeNode>> {
+    const path = `/store/tree`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, TreeNode)!,
       null,
     );
   }

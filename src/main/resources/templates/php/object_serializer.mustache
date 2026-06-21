@@ -292,15 +292,27 @@ class ObjectSerializer
 
         /* Phase-2 PHP type-surface: when the api template hands us a
          * typed container hint like `Ds\Vector<Pet>` /
-         * `Ds\Set<Pet>` / `Ds\Map<integer>` (compiled from the
-         * operation's returnType + returnBaseType pair), decode the
-         * JSON body, recursively deserialize each element against
-         * the inner type so model instances / DateTime / URI / enum
-         * fields route through their dedicated normalizers, then wrap
-         * the result in the matching Ds container. The inner type
-         * string is run through qualifySchemaName so short model
-         * names (e.g. "Pet") resolve to their FQN while primitives
-         * ("integer", "string") pass through unchanged. */
+         * `Ds\Set<Pet>` / `Ds\Map<integer>` (compiled by the
+         * deserialize_arg partial from the operation's returnProperty
+         * item tree), decode the JSON body, recursively deserialize
+         * each element against the inner type so model instances /
+         * DateTime / URI / enum fields route through their dedicated
+         * normalizers, then wrap the result in the matching Ds
+         * container. The inner type string is run through
+         * qualifySchemaName so short model names (e.g. "Pet") resolve
+         * to their FQN while primitives ("integer", "string") pass
+         * through unchanged.
+         *
+         * Nested generic containers recurse: a return type such as
+         * `\Ds\Vector<\Ds\Map<Category>>` (array of map of model)
+         * captures `\Ds\Map<Category>` as the inner type, which
+         * qualifySchemaName leaves intact (it already carries a
+         * backslash) and the per-element deserializeInternal() call
+         * re-enters this same branch, descending one container level
+         * per recursion so the innermost leaves become typed Category
+         * instances rather than raw maps. The greedy `(.+)` captures
+         * everything between the first `<` and the final `>`, keeping
+         * any nested `<...>` payload intact. */
         if (preg_match('/^Ds\\\\(Vector|Set|Map)<(.+)>$/', $class, $containerMatch)) {
             $container = $containerMatch[1];
             $inner = self::qualifySchemaName(trim($containerMatch[2]));

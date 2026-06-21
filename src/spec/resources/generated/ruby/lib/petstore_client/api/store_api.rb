@@ -58,6 +58,47 @@ module PetstoreClient
         )
       end
 
+      # Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+
+      # @return [Array<Hash<String, Category>>]
+      # @raise [ApiError] if fails to make API call
+      def get_grouped_categories()
+        result = get_grouped_categories_with_http_info()
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_grouped_categories_with_http_info()
+        path = '/store/grouped-categories'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Array<Hash<String, Category>>',
+          nil
+        )
+      end
+
       # Returns pet inventories by status
 
       # @return [Hash<String, Integer>]
@@ -148,6 +189,47 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Order',
+          nil
+        )
+      end
+
+      # Returns a self-referential tree (recursive-type codegen fixture)
+
+      # @return [TreeNode]
+      # @raise [ApiError] if fails to make API call
+      def get_tree()
+        result = get_tree_with_http_info()
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_tree_with_http_info()
+        path = '/store/tree'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'TreeNode',
           nil
         )
       end

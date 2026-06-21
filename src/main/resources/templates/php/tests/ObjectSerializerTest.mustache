@@ -8,6 +8,7 @@ use {{invokerPackage}}\Models\EdgeCases;
 use {{invokerPackage}}\Models\Order;
 use {{invokerPackage}}\Models\OrderStatusEnum;
 use {{invokerPackage}}\Models\Pet;
+use {{invokerPackage}}\Models\TreeNode;
 
 // -- toPathValue --
 
@@ -408,6 +409,26 @@ test('deserialize deserializes json to typed model', function (): void {
     expect($category)->toBeInstanceOf(Category::class);
     expect($category->id)->toBe(1);
     expect($category->name)->toBe('Dogs');
+});
+
+// -- self-referential model deserialization --
+//
+// TreeNode is self-referential: { value: string (required), child: $ref
+// TreeNode (optional) }. Deserializing a nested literal must decode the
+// `child` field into a typed TreeNode instance (not a raw map), proving the
+// recursive deserializer descends a model that references itself.
+
+test('deserialize decodes a self-referential model recursively', function (): void {
+    $json = '{"value":"root","child":{"value":"leaf"}}';
+    /** @var TreeNode $top */
+    $top = ObjectSerializer::deserialize($json, TreeNode::class);
+    expect($top)->toBeInstanceOf(TreeNode::class);
+    expect($top->value)->toBe('root');
+    expect($top->child)->toBeInstanceOf(TreeNode::class);
+    /** @var TreeNode $child */
+    $child = $top->child;
+    expect($child->value)->toBe('leaf');
+    expect($child->child)->toBeNull();
 });
 
 // -- P2: BOM-tolerant deserialization --

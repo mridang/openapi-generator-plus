@@ -75,6 +75,7 @@ require 'petstore_client/models/set_pet_avatar_thumbnail_request'
 require 'petstore_client/models/strict_tag'
 require 'petstore_client/models/surgery'
 require 'petstore_client/models/tag'
+require 'petstore_client/models/tree_node'
 require 'petstore_client/models/wet_food'
 
 # APIs

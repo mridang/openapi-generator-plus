@@ -8,7 +8,7 @@ import {
   durationFromProtoJson,
 } from '../src/object-serializer{{importFileExtension}}';
 import { ZitadelError } from '../src/errors/index{{importFileExtension}}';
-import { Category, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum } from '../src/models/index{{importFileExtension}}';
+import { Category, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode } from '../src/models/index{{importFileExtension}}';
 import { uuid, isUuid } from '../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
 
@@ -394,6 +394,20 @@ describe('ObjectSerializer', () => {
       const json = { id: 10, petId: 198772 };
       const order = ObjectSerializer.deserialize(json, Order);
       expect(order!.status).toBe(OrderStatusEnum.Placed);
+    });
+
+    test('deserializes a self-referential model and decodes the nesting', () => {
+      // recursive-self-ref: TreeNode.child is a $ref back to TreeNode. The
+      // nested child object on the wire must decode into a TreeNode instance,
+      // not be left as a raw plain object, so the recursion is honoured all
+      // the way down. The leaf's own child is absent and must stay null.
+      const json = { value: 'root', child: { value: 'leaf' } };
+      const top = ObjectSerializer.deserialize(json, TreeNode);
+      expect(top).toBeDefined();
+      expect(top!.value).toBe('root');
+      expect(top!.child).toBeInstanceOf(TreeNode);
+      expect(top!.child!.value).toBe('leaf');
+      expect(top!.child!.child == null).toBe(true);
     });
   });
 

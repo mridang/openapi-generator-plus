@@ -1,0 +1,7 @@
+{{! Recursive deserializer-argument builder for a (possibly nested) container
+    element type. Emits a model class constructor for a leaf model, an arrow
+    cast for a leaf primitive, or an arrow that re-enters deserializeArray /
+    deserializeMap for each further container level — so the innermost models
+    of a nested generic container (e.g. Array<Record<string, Foo>>) are decoded
+    into typed instances instead of left as raw objects. }}
+{{#isArray}}(x: unknown) => ObjectSerializer.deserializeArray(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isArray}}{{#isMap}}(x: unknown) => ObjectSerializer.deserializeMap(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isMap}}{{^isArray}}{{^isMap}}{{#isPrimitiveType}}(x: unknown) => x as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{complexType}}{{/isPrimitiveType}}{{/isMap}}{{/isArray}}

@@ -8,7 +8,7 @@
 import * as http from "node:http";
 import { StoreApi } from "../../src/api/store-api.js";
 import { Configuration } from "../../src/configuration.js";
-import { Order, OrderStatusEnum } from "../../src/models/index.js";
+import { Order, OrderStatusEnum, Category } from "../../src/models/index.js";
 
 const baseUrl = process.env.API_BASE_URL || "http://localhost:4010";
 const config = Configuration.builder()
@@ -120,6 +120,33 @@ function createMockServer(
     });
   });
 }
+
+describe("StoreApi nested container deserialization", () => {
+  test("getGroupedCategories decodes array-of-map leaves into typed Category instances", async () => {
+    // nested-container-deserialise: the operation returns Array<Record<string,
+    // Category>>. Each map leaf on the wire must be decoded into a typed
+    // Category instance, not left as a raw map, so field access and the
+    // instanceof check both hold.
+    const body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]';
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      body,
+    );
+    try {
+      const result = await mockApi.getGroupedCategories();
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(2);
+      expect(result[0]!["a"]).toBeInstanceOf(Category);
+      expect(result[0]!["a"]!.id).toBe(1);
+      expect(result[0]!["a"]!.name).toBe("Dogs");
+      expect(result[1]!["b"]).toBeInstanceOf(Category);
+      expect(result[1]!["b"]!.name).toBe("Cats");
+    } finally {
+      close();
+    }
+  });
+});
 
 describe("StoreApi error handling", () => {
   test("getOrderById 404 throws error", async () => {

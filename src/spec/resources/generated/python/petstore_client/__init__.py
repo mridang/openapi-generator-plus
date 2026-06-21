@@ -44,6 +44,7 @@ __all__ = [
     "StrictTag",
     "Surgery",
     "Tag",
+    "TreeNode",
     "WetFood",
 ]
 
@@ -128,6 +129,9 @@ from petstore_client.models.surgery import (
 )
 from petstore_client.models.tag import (
     Tag as Tag,
+)
+from petstore_client.models.tree_node import (
+    TreeNode as TreeNode,
 )
 from petstore_client.models.wet_food import (
     WetFood as WetFood,

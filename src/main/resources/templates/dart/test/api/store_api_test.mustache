@@ -140,6 +140,44 @@ void main() {
       }
     });
 
+    /* recursive-container-deserialize: getGroupedCategories returns a nested
+     * generic container (List<Map<String, Category>>). The deserializer must
+     * descend every container level so the innermost values are TYPED Category
+     * instances, not raw maps. Drive the generated operation against a local
+     * echo server returning the nested body and assert the leaf types. */
+    test('getGroupedCategories decodes nested container leaves into Category', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getGroupedCategories();
+        expect(result, hasLength(2));
+
+        final first = result[0]['a'];
+        expect(first, isA<Category>());
+        expect(first!.id, equals(1));
+        expect(first.name, equals('Dogs'));
+
+        final second = result[1]['b'];
+        expect(second, isA<Category>());
+        expect(second!.id, equals(2));
+        expect(second.name, equals('Cats'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('deleteOrderNotFound', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

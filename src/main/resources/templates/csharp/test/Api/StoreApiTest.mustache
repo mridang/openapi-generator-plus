@@ -168,4 +168,32 @@ public class StoreApiTest
 
         await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(async () => await mockApi.DeleteOrderAsync(99999L));
     }
+
+    [Fact]
+    public async Task TestGetGroupedCategoriesDeserializesNestedContainerLeavesAsTypedModels()
+    {
+        // getGroupedCategories returns a nested container: an array of maps of
+        // Category (List<Dictionary<string, Category>>). The deserialized
+        // leaves must be typed Category instances with their fields populated,
+        // not raw maps/JsonElement. Canonical across all 12 SDKs.
+        var mockApi = NewStoreApiForMock(
+            200,
+            "application/json",
+            "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]");
+
+        var result = await mockApi.GetGroupedCategoriesAsync();
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+
+        var first = result[0]["a"];
+        Assert.IsType<Category>(first);
+        Assert.Equal(1L, first.Id);
+        Assert.Equal("Dogs", first.Name);
+
+        var second = result[1]["b"];
+        Assert.IsType<Category>(second);
+        Assert.Equal(2L, second.Id);
+        Assert.Equal("Cats", second.Name);
+    }
 }

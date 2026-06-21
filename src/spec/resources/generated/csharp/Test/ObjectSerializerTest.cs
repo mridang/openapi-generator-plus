@@ -485,6 +485,23 @@ public class ObjectSerializerTest
             Assert.Equal(1L, category!.Id);
             Assert.Equal("Dogs", category.Name);
         }
+
+        [Fact]
+        public void DeserializesSelfReferentialModelPreservingNesting()
+        {
+            // A self-referential schema (TreeNode has an optional 'child' of its
+            // own type) must decode the full nesting: the outer node's child is
+            // itself a typed TreeNode, not a raw map. Canonical across all 12
+            // SDKs.
+            var json = "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}";
+            var top = _serializer.Deserialize<TreeNode>(json);
+            Assert.NotNull(top);
+            Assert.Equal("root", top!.Value);
+            Assert.NotNull(top.Child);
+            Assert.IsType<TreeNode>(top.Child);
+            Assert.Equal("leaf", top.Child!.Value);
+            Assert.Null(top.Child.Child);
+        }
     }
 
     public class RequiredFieldStrictnessTests

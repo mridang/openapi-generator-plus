@@ -173,6 +173,32 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return NamingConvention.CAMEL_CASE;
     }
 
+    /**
+     * Flags a property that directly references its own enclosing model (e.g. a
+     * tree node whose optional {@code child} is another node). A Swift struct
+     * is a value type, so a stored property of its own type would have infinite
+     * size and fail to compile; the model template marks such a property
+     * {@code @Indirect} (see Indirect.swift) to store it behind a reference.
+     * Only DIRECT self-references are flagged: an array or dictionary of the
+     * type is already heap-indirected, and unrelated model fields must not be
+     * boxed. The flag is read in the model template as
+     * {@code vendorExtensions.isSelfRecursive}.
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+
+        boolean directSelfReference =
+                !property.isContainer
+                        && property.complexType != null
+                        && property.complexType.equals(model.classname);
+        if (directSelfReference) {
+            property.vendorExtensions.put("isSelfRecursive", true);
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
@@ -267,6 +293,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("transport_options.mustache", srcDir, "TransportOptions.swift"),
             new SupportingFileSpec("server_configuration.mustache", srcDir, "ServerConfiguration.swift"),
             new SupportingFileSpec("servers.mustache", srcDir, "Servers.swift"),
+            new SupportingFileSpec("indirect.mustache", srcDir, "Indirect.swift"),
             new SupportingFileSpec("errors/zitadel_error.mustache", errorsDir, "ZitadelError.swift"),
             new SupportingFileSpec("api_error.mustache", srcDir, "ApiError.swift"),
             new SupportingFileSpec("errors/client_error.mustache", errorsDir, "ClientError.swift"),

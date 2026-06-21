@@ -133,4 +133,17 @@ defmodule PetstoreClient.Api.StoreApiTest do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
     assert {:error, _reason} = PetstoreClient.Api.StoreApi.delete_order(api, 99_999)
   end
+
+  # Nested container deserialization: getGroupedCategories returns
+  # Array<Record<string, Category>>. Each leaf of the array-of-maps must be
+  # decoded into a typed Category struct, not left as a raw map.
+  test "get_grouped_categories deserializes nested map leaves into typed Category structs" do
+    body = ~s([{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}])
+    api = new_store_api_for_mock(200, "application/json", body)
+
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_grouped_categories(api)
+    assert %PetstoreClient.Models.Category{} = Enum.at(result, 0)["a"]
+    assert Enum.at(result, 0)["a"].id == 1
+    assert Enum.at(result, 0)["a"].name == "Dogs"
+  end
 end

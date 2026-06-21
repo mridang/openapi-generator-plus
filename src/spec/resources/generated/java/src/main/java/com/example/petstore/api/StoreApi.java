@@ -12,9 +12,12 @@ import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.models.Category;
 import com.example.petstore.models.Order;
+import com.example.petstore.models.TreeNode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -36,11 +39,17 @@ import javax.annotation.Nullable;
 })
 public class StoreApi extends BaseApi {
 
+  private static final java.lang.reflect.Type getGroupedCategoriesTypeRef =
+      new TypeReference<List<Map<String, Category>>>() {}.getType();
+
   private static final java.lang.reflect.Type getInventoryTypeRef =
       new TypeReference<Map<String, Integer>>() {}.getType();
 
   private static final java.lang.reflect.Type getOrderByIdTypeRef =
       new TypeReference<Order>() {}.getType();
+
+  private static final java.lang.reflect.Type getTreeTypeRef =
+      new TypeReference<TreeNode>() {}.getType();
 
   private static final java.lang.reflect.Type placeOrderTypeRef =
       new TypeReference<Order>() {}.getType();
@@ -112,6 +121,42 @@ public class StoreApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
+        null);
+  }
+
+  /**
+   * Returns an array of maps of Category. Exercises deserialization of a nested generic container
+   * (array of map of model) whose leaves must be decoded into typed model instances, not left as
+   * raw maps.
+   *
+   * @return {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Map<String, Category>> getGroupedCategories() {
+    return requireBody(getGroupedCategoriesWithHttpInfo(), "getGroupedCategories");
+  }
+
+  /**
+   * Returns an array of maps of Category. Exercises deserialization of a nested generic container
+   * (array of map of model) whose leaves must be decoded into typed model instances, not left as
+   * raw maps.
+   *
+   * @return the API result wrapping {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo() {
+    String path = "/store/grouped-categories";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getGroupedCategoriesTypeRef,
         null);
   }
 
@@ -188,6 +233,38 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
+        null);
+  }
+
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * @return {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
+  public TreeNode getTree() {
+    return requireBody(getTreeWithHttpInfo(), "getTree");
+  }
+
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * @return the API result wrapping {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<TreeNode> getTreeWithHttpInfo() {
+    String path = "/store/tree";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getTreeTypeRef,
         null);
   }
 

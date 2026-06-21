@@ -439,11 +439,32 @@ class {{classname}} extends BaseApi {
 {{/returnTypeIsPrimitive}}
 {{^returnTypeIsPrimitive}}
 {{#isArray}}
+{{! Recursive container descent (recursive-container-deserialize): when the }}
+{{! array element is ITSELF a container (e.g. List<Map<String, Category>>), }}
+{{! the leaf model factory must be applied at the innermost level, not to the }}
+{{! outer element. The deserialize_arg partial walks returnProperty.items and }}
+{{! emits a per-element deserializer that re-enters deserializeMap/ }}
+{{! deserializeArray for each further level, so the leaves become typed model }}
+{{! instances instead of raw maps. The simple List<Model> case (items is a }}
+{{! leaf model) stays byte-identical via the deserializeList(body, X.fromJson) }}
+{{! form below. }}
+{{#returnProperty}}{{#items}}{{#isArray}}
+      deserialize: (body) => deserializeList(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isArray}}{{#isMap}}
+      deserialize: (body) => deserializeList(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isMap}}{{^isArray}}{{^isMap}}
       deserialize: (body) => deserializeList(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
+{{#returnProperty}}{{#items}}{{#isArray}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isArray}}{{#isMap}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isMap}}{{^isArray}}{{^isMap}}
       deserialize: (body) => (deserializeRaw(body) as Map).cast<String, {{{returnBaseType}}}>(),
+{{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}
 {{/isMap}}
 {{^isMap}}
       deserialize: (body) => deserialize(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},

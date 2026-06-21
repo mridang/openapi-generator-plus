@@ -222,6 +222,32 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return Set.of("i32", "i64", "f32", "f64");
     }
 
+    /**
+     * Rust value types have a fixed, statically-known size, so a struct that
+     * directly contains a field of its own type — e.g. a tree node whose
+     * optional {@code child} is another node — would have infinite size and
+     * fail to compile (E0072). Box such a recursive member to put it behind a
+     * heap pointer. Only DIRECT self-references are boxed: a {@code Vec} or
+     * {@code HashMap} of the type is already heap-indirected and needs no Box,
+     * and unrelated model fields must not be boxed or the public API would
+     * change needlessly. {@code Box<T>} is transparent to serde, so
+     * (de)serialization is unaffected.
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+
+        boolean directSelfReference =
+                !property.isContainer
+                        && property.complexType != null
+                        && property.complexType.equals(model.classname);
+        if (directSelfReference && !property.dataType.startsWith("Box<")) {
+            property.dataType = "Box<" + property.dataType + ">";
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getUniqueItemsSetType() {

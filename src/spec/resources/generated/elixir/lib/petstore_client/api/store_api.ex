@@ -147,6 +147,95 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Returns an array of maps of Category. Exercises deserialization of a nested generic container (array of map of model) whose leaves must be decoded into typed model instances, not left as raw maps.
+
+  ## Parameters
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, [%{String.t() => Category}]}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_grouped_categories(t(), keyword()) ::
+          {:ok, [%{String.t() => Category}]} | {:error, term()}
+  def get_grouped_categories(%__MODULE__{} = api, opts \\ []) do
+    case get_grouped_categories_with_http_info(api, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message:
+             "Expected a response body for get_grouped_categories but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_grouped_categories`. Raises on error.
+  """
+  def get_grouped_categories!(%__MODULE__{} = api, opts \\ []) do
+    case get_grouped_categories(api, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_grouped_categories` but returns the full `ApiResult`.
+  """
+  @spec get_grouped_categories_with_http_info(t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_grouped_categories_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+    path = "/store/grouped-categories"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "[%{String.t() => Category}]",
+      auth
+    )
+  end
+
+  @doc """
   Returns pet inventories by status
 
   ## Parameters
@@ -342,6 +431,94 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Order",
+      auth
+    )
+  end
+
+  @doc """
+  Returns a self-referential tree (recursive-type codegen fixture)
+
+  ## Parameters
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, TreeNode}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_tree(t(), keyword()) ::
+          {:ok, TreeNode} | {:error, term()}
+  def get_tree(%__MODULE__{} = api, opts \\ []) do
+    case get_tree_with_http_info(api, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_tree but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_tree`. Raises on error.
+  """
+  def get_tree!(%__MODULE__{} = api, opts \\ []) do
+    case get_tree(api, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_tree` but returns the full `ApiResult`.
+  """
+  @spec get_tree_with_http_info(t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_tree_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+    path = "/store/tree"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "TreeNode",
       auth
     )
   end

@@ -316,6 +316,20 @@ class TestDeserialize:
         order = ObjectSerializer().deserialize(json_str, "Order")
         assert order.status == OrderStatusEnum.PLACED
 
+    def test_deserializes_self_referential_model(self) -> None:
+        # A self-referential model (TreeNode.child is itself a TreeNode) must
+        # decode the nested level into a typed TreeNode instance, not a raw
+        # dict, and the absent grandchild must stay None.
+        from petstore_client.models.tree_node import TreeNode
+
+        json_str = '{"value":"root","child":{"value":"leaf"}}'
+        top = ObjectSerializer().deserialize(json_str, "TreeNode")
+        assert isinstance(top, TreeNode)
+        assert top.value == "root"
+        assert isinstance(top.child, TreeNode)
+        assert top.child.value == "leaf"
+        assert top.child.child is None
+
 
 class TestBomTolerance:
     def test_deserializes_bom_prefixed_json(self) -> None:

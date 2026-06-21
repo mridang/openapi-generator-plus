@@ -484,6 +484,20 @@ import Testing
         #expect(json.contains("\"name\":\"Birds\""))
     }
 
+    // self-referential-model (recursion): a model whose property $refs itself
+    // (TreeNode.child: TreeNode?) must deep-decode each nesting level into a
+    // TreeNode struct, not leave the inner object as a raw map. The literal
+    // below nests one level; the leaf has no `child`, which must decode as nil.
+    @Test func testDeserializeSelfReferentialModelNesting() throws {
+        let json = "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}"
+        let top = try ObjectSerializer.deserialize(json, as: TreeNode.self)
+        #expect(top?.value == "root")
+        let child = top?.child
+        #expect(child != nil)
+        #expect(child?.value == "leaf")
+        #expect(child?.child == nil)
+    }
+
     @Test func testMapOfModelRoundTrip() throws {
         let original: [String: Category] = [
             "k1": Category(id: 1, name: "A"),
