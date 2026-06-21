@@ -436,6 +436,55 @@ impl StoreApi {
         self.base.invoke_api_for_result::<Order>(params).await
     }
 
+    /// Returns a bare enum (value-type response codegen fixture).
+    pub async fn get_swatch(&self) -> Result<Swatch, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_swatch_with_http_info().await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_swatch operation and returns the full API result.
+    pub async fn get_swatch_with_http_info(
+        &self,
+    ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/swatch".to_string();
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Swatch",
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<Swatch>(params).await
+    }
+
     /// Returns swatches grouped as an array of string-keyed enum maps.
     pub async fn get_swatch_groups(
         &self,

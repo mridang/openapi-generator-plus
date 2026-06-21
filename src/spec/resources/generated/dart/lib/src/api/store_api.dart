@@ -125,6 +125,7 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Defaults',
       auth: null,
+
       deserialize: (body) => deserialize(body, Defaults.fromJson) as Defaults,
     );
   }
@@ -171,6 +172,7 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Department',
       auth: null,
+
       deserialize: (body) =>
           deserialize(body, Department.fromJson) as Department,
     );
@@ -389,7 +391,54 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Order',
       auth: null,
+
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
+  /// Returns a bare enum (value-type response codegen fixture).
+
+  Future<Swatch> getSwatch() async {
+    final result = await getSwatchWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Swatch` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getSwatch but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getSwatch operation and returns the full API result.
+  Future<ApiResult<Swatch>> getSwatchWithHTTPInfo() async {
+    var path = '/store/swatch';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Swatch>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Swatch',
+      auth: null,
+
+      deserialize: (body) => Swatch.fromJson(deserializeRaw(body) as String),
     );
   }
 
@@ -540,6 +589,7 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'TreeNode',
       auth: null,
+
       deserialize: (body) => deserialize(body, TreeNode.fromJson) as TreeNode,
     );
   }
@@ -586,6 +636,7 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Order',
       auth: null,
+
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
   }

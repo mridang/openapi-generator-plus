@@ -312,6 +312,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Order.self)
   }
 
+  /// Returns a bare enum (value-type response codegen fixture).
+
+  public func getSwatch() async throws -> Swatch {
+    let result = try await getSwatchWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getSwatch",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getSwatch operation and returns the full API result.
+  public func getSwatchWithHTTPInfo() async throws -> ApiResult<Swatch> {
+
+    let path = "/store/swatch"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Swatch",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Swatch.self)
+  }
+
   /// Returns swatches grouped as an array of string-keyed enum maps.
 
   public func getSwatchGroups() async throws -> [[String: Swatch]] {

@@ -203,4 +203,18 @@ public class StoreApiTest
         Assert.Equal(2L, second.Id);
         Assert.Equal("Cats", second.Name);
     }
+
+    [Fact]
+    public async Task TestGetSwatchReturnsValueTypeEnum()
+    {
+        // getSwatch returns a bare enum (a value type). The convenience wrapper
+        // must compile and decode the wire value into the enum — the empty-body
+        // guard uses an `is { }` null check rather than `?? throw`, which cannot
+        // be applied to a non-nullable value type.
+        var mockApi = NewStoreApiForMock(200, "application/json", "\"red\"");
+
+        var result = await mockApi.GetSwatchAsync();
+
+        Assert.Equal(Swatch.Red, result);
+    }
 }

@@ -374,6 +374,49 @@ export class StoreApi extends BaseApi {
   }
 
   /**
+   * Returns a bare enum (value-type response codegen fixture).
+   * @return Swatch
+   * @throws {ApiError} if fails to make API call
+   */
+  async getSwatch(): Promise<Swatch> {
+    const getSwatchResult = await this.getSwatchWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getSwatchResult.data == null) {
+      throw new ApiError(
+        getSwatchResult.statusCode,
+        "Expected a response body for getSwatch but received none",
+        getSwatchResult.headers,
+        getSwatchResult.rawBody,
+        null,
+      );
+    }
+    return getSwatchResult.data as Swatch;
+  }
+
+  /**
+   * Returns a bare enum (value-type response codegen fixture). (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getSwatchWithHttpInfo(): Promise<ApiResult<Swatch>> {
+    const path = `/store/swatch`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Swatch)!,
+      null,
+    );
+  }
+
+  /**
    * Returns swatches grouped as an array of string-keyed enum maps.
    * @return Array<{ [key: string]: Swatch }>
    * @throws {ApiError} if fails to make API call

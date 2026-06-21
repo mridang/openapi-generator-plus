@@ -408,6 +408,59 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * Returns a bare enum (value-type response codegen fixture).
+
+     * @return \PetstoreClient\Models\Swatch
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getSwatch()
+    {
+        $apiResult = $this->getSwatchWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getSwatch but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Swatch $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\PetstoreClient\Models\Swatch>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getSwatchWithHttpInfo(): ApiResult
+    {
+        $path = '/store/swatch';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Swatch> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Swatch'
+        );
+        return $result;
+    }
+
+    /**
      * Returns swatches grouped as an array of string-keyed enum maps.
 
      * @return \Ds\Vector<\Ds\Map<array-key, mixed>>

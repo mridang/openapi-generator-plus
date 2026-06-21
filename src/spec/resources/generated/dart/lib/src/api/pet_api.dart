@@ -215,6 +215,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: auth,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -382,6 +383,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'PetTreatment',
       auth: auth,
+
       deserialize: (body) =>
           deserialize(body, PetTreatment.fromJson) as PetTreatment,
     );
@@ -688,6 +690,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -763,6 +766,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -977,6 +981,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1058,6 +1063,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1122,6 +1128,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'PetPassport',
       auth: null,
+
       deserialize: (body) =>
           deserialize(body, PetPassport.fromJson) as PetPassport,
     );
@@ -1331,6 +1338,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1406,6 +1414,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1606,6 +1615,7 @@ class PetApi extends BaseApi {
       contentType: 'application/x-www-form-urlencoded',
       returnType: 'ApiResponse',
       auth: null,
+
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
@@ -1671,6 +1681,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1756,6 +1767,7 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
       auth: null,
+
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
@@ -1848,6 +1860,7 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
       auth: null,
+
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );

@@ -399,6 +399,54 @@ class StoreApi(BaseApi):
             None,
         )
 
+    async def get_swatch(
+        self,
+    ) -> Swatch:
+        """Returns a bare enum (value-type response codegen fixture).
+
+        :return: Swatch
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_swatch_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_swatch_with_http_info(
+        self,
+    ) -> "ApiResult[Swatch]":
+        """Returns a bare enum (value-type response codegen fixture). (with HTTP info)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/swatch"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "Swatch",
+            None,
+        )
+
     async def get_swatch_groups(
         self,
     ) -> List[Dict[str, Swatch]]:

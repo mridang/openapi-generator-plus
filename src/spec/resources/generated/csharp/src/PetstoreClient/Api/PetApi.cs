@@ -238,13 +238,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -290,13 +296,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -354,13 +366,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -475,13 +493,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -538,13 +562,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -611,13 +641,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -675,13 +711,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -739,13 +781,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -795,13 +843,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -855,13 +909,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -920,13 +980,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -998,13 +1064,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -1055,13 +1127,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -1118,13 +1196,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -1220,13 +1304,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -1377,13 +1467,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -1450,13 +1546,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -1507,13 +1609,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>
@@ -1569,13 +1677,19 @@ public class PetApi : BaseApi
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. */
-        return result.Data
-            ?? throw new ApiException(
-                result.StatusCode,
-                "Expected a non-empty response body but none was returned",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody);
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
     }
 
     /// <summary>

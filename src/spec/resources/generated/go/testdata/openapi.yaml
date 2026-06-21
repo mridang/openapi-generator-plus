@@ -917,6 +917,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/TreeNode'
 
+  /store/swatch:
+    get:
+      tags:
+        - store
+      summary: Returns a bare enum (value-type response codegen fixture).
+      operationId: getSwatch
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Swatch'
+
   /store/department:
     get:
       tags:

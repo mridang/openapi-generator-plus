@@ -236,6 +236,32 @@ class StoreApi : BaseApi {
     }
 
     /**
+     * Returns a bare enum (value-type response codegen fixture).
+     * @return Swatch
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getSwatch(): Swatch =
+        getSwatchWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getSwatch but the server returned an empty body")
+
+    suspend fun getSwatchWithHttpInfo(): ApiResult<Swatch> {
+        var path = "/store/swatch"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<Swatch>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
      * Returns swatches grouped as an array of string-keyed enum maps.
      * @return List<Map<String, Swatch>>
      * @throws ApiException if fails to make API call

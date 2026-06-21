@@ -316,6 +316,47 @@ module PetstoreClient
         )
       end
 
+      # Returns a bare enum (value-type response codegen fixture).
+
+      # @return [Swatch]
+      # @raise [ApiError] if fails to make API call
+      def get_swatch()
+        result = get_swatch_with_http_info()
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_swatch_with_http_info()
+        path = '/store/swatch'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Swatch',
+          nil
+        )
+      end
+
       # Returns swatches grouped as an array of string-keyed enum maps.
 
       # @return [Array<Hash<String, Swatch>>]

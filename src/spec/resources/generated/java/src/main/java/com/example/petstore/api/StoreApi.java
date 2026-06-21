@@ -61,6 +61,9 @@ public class StoreApi extends BaseApi {
   private static final java.lang.reflect.Type getOrderByIdTypeRef =
       new TypeReference<Order>() {}.getType();
 
+  private static final java.lang.reflect.Type getSwatchTypeRef =
+      new TypeReference<Swatch>() {}.getType();
+
   private static final java.lang.reflect.Type getSwatchGroupsTypeRef =
       new TypeReference<List<Map<String, Swatch>>>() {}.getType();
 
@@ -344,6 +347,38 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
+        null);
+  }
+
+  /**
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * @return {@code Swatch}
+   * @throws ApiException if fails to make API call
+   */
+  public Swatch getSwatch() {
+    return requireBody(getSwatchWithHttpInfo(), "getSwatch");
+  }
+
+  /**
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * @return the API result wrapping {@code Swatch}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Swatch> getSwatchWithHttpInfo() {
+    String path = "/store/swatch";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getSwatchTypeRef,
         null);
   }
 

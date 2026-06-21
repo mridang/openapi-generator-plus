@@ -467,7 +467,11 @@ class {{classname}} extends BaseApi {
 {{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}
 {{/isMap}}
 {{^isMap}}
+{{#returnProperty}}{{#isEnumRef}}
+      deserialize: (body) => {{{returnBaseType}}}.fromJson(deserializeRaw(body) as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}),
+{{/isEnumRef}}{{^isEnumRef}}
       deserialize: (body) => deserialize(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isEnumRef}}{{/returnProperty}}
 {{/isMap}}
 {{/isArray}}
 {{/returnTypeIsPrimitive}}
