@@ -26,6 +26,7 @@ export * from "./set-pet-avatar-request.js";
 export * from "./set-pet-avatar-thumbnail-request.js";
 export * from "./strict-tag.js";
 export * from "./surgery.js";
+export * from "./swatch.js";
 export * from "./tag.js";
 export * from "./tree-node.js";
 export * from "./wet-food.js";

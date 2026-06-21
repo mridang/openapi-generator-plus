@@ -262,6 +262,59 @@ impl StoreApi {
             .await
     }
 
+    /// Returns a matrix as an array of integer arrays.
+    pub async fn get_matrix(
+        &self,
+    ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_matrix_with_http_info().await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_matrix operation and returns the full API result.
+    pub async fn get_matrix_with_http_info(
+        &self,
+    ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/matrix".to_string();
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Vec<Vec<i32>>",
+            auth: None,
+        };
+
+        self.base
+            .invoke_api_for_result::<Vec<Vec<i32>>>(params)
+            .await
+    }
+
     /// Find purchase order by ID
     /// * `order_id`: ID of order to return
     pub async fn get_order_by_id(
@@ -330,6 +383,122 @@ impl StoreApi {
         };
 
         self.base.invoke_api_for_result::<Order>(params).await
+    }
+
+    /// Returns swatches grouped as an array of string-keyed enum maps.
+    pub async fn get_swatch_groups(
+        &self,
+    ) -> Result<
+        Vec<std::collections::HashMap<String, Swatch>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let result = self.get_swatch_groups_with_http_info().await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_swatch_groups operation and returns the full API result.
+    pub async fn get_swatch_groups_with_http_info(
+        &self,
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let mut path = "/store/swatch-groups".to_string();
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Vec<std::collections::HashMap<String, Swatch>>",
+            auth: None,
+        };
+
+        self.base
+            .invoke_api_for_result::<Vec<std::collections::HashMap<String, Swatch>>>(params)
+            .await
+    }
+
+    /// Returns timestamps grouped as an array of string-keyed maps.
+    pub async fn get_timestamp_groups(
+        &self,
+    ) -> Result<
+        Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let result = self.get_timestamp_groups_with_http_info().await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_timestamp_groups operation and returns the full API result.
+    pub async fn get_timestamp_groups_with_http_info(
+        &self,
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let mut path = "/store/timestamp-groups".to_string();
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>",
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>(params).await
     }
 
     /// Returns a self-referential tree (recursive-type codegen fixture)

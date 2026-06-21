@@ -8,7 +8,12 @@
 import * as http from "node:http";
 import { StoreApi } from "../../src/api/store-api.js";
 import { Configuration } from "../../src/configuration.js";
-import { Order, OrderStatusEnum, Category } from "../../src/models/index.js";
+import {
+  Order,
+  OrderStatusEnum,
+  Category,
+  Swatch,
+} from "../../src/models/index.js";
 
 const baseUrl = process.env.API_BASE_URL || "http://localhost:4010";
 const config = Configuration.builder()
@@ -142,6 +147,67 @@ describe("StoreApi nested container deserialization", () => {
       expect(result[0]!["a"]!.name).toBe("Dogs");
       expect(result[1]!["b"]).toBeInstanceOf(Category);
       expect(result[1]!["b"]!.name).toBe("Cats");
+    } finally {
+      close();
+    }
+  });
+
+  test("getMatrix decodes an array of integer arrays", async () => {
+    // nested-container-deserialise: Array<Array<number>> — the leaves are not
+    // maps, so the descent must not assume a map at any level.
+    const body = "[[1,2],[3,4]]";
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      body,
+    );
+    try {
+      const result = await mockApi.getMatrix();
+      expect(result).toEqual([
+        [1, 2],
+        [3, 4],
+      ]);
+      expect(typeof result[0]![0]).toBe("number");
+    } finally {
+      close();
+    }
+  });
+
+  test("getSwatchGroups decodes enum leaves into Swatch values", async () => {
+    // nested-container-deserialise: Array<Record<string, Swatch>> — an enum
+    // leaf must be carried through as its enum value, not run through a model
+    // class constructor.
+    const body = '[{"a":"red"},{"b":"blue"}]';
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      body,
+    );
+    try {
+      const result = await mockApi.getSwatchGroups();
+      expect(result).toHaveLength(2);
+      expect(result[0]!["a"]).toBe(Swatch.Red);
+      expect(result[1]!["b"]).toBe(Swatch.Blue);
+    } finally {
+      close();
+    }
+  });
+
+  test("getTimestampGroups decodes date-time leaves into Date", async () => {
+    // nested-container-deserialise: Array<Record<string, Date>> — a date-time
+    // leaf must be parsed into a Date, not left as a raw string.
+    const body = '[{"t":"2020-01-02T03:04:05Z"}]';
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      body,
+    );
+    try {
+      const result = await mockApi.getTimestampGroups();
+      expect(result).toHaveLength(1);
+      const ts = result[0]!["t"];
+      expect(ts).toBeInstanceOf(Date);
+      expect(ts!.getUTCFullYear()).toBe(2020);
     } finally {
       close();
     }

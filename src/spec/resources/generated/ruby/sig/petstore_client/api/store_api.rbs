@@ -10,8 +10,14 @@ module PetstoreClient
       def get_grouped_categories_with_http_info: () -> ::PetstoreClient::ApiResult[Array[Hash[String, Models::Category]]]
       def get_inventory: () -> Hash[String, Integer]
       def get_inventory_with_http_info: () -> ::PetstoreClient::ApiResult[Hash[String, Integer]]
+      def get_matrix: () -> Array[Array[Integer]]
+      def get_matrix_with_http_info: () -> ::PetstoreClient::ApiResult[Array[Array[Integer]]]
       def get_order_by_id: (Integer order_id) -> Models::Order
       def get_order_by_id_with_http_info: (Integer order_id) -> ::PetstoreClient::ApiResult[Models::Order]
+      def get_swatch_groups: () -> Array[Hash[String, Models::Swatch]]
+      def get_swatch_groups_with_http_info: () -> ::PetstoreClient::ApiResult[Array[Hash[String, Models::Swatch]]]
+      def get_timestamp_groups: () -> Array[Hash[String, Time]]
+      def get_timestamp_groups_with_http_info: () -> ::PetstoreClient::ApiResult[Array[Hash[String, Time]]]
       def get_tree: () -> Models::TreeNode
       def get_tree_with_http_info: () -> ::PetstoreClient::ApiResult[Models::TreeNode]
       def place_order: (Models::Order? order) -> Models::Order

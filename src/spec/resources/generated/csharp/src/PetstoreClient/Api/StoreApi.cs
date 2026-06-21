@@ -25,7 +25,13 @@ public class StoreApi : BaseApi
 
     private static readonly string[] GetInventoryAccepts = ["application/json"];
 
+    private static readonly string[] GetMatrixAccepts = ["application/json"];
+
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
+
+    private static readonly string[] GetSwatchGroupsAccepts = ["application/json"];
+
+    private static readonly string[] GetTimestampGroupsAccepts = ["application/json"];
 
     private static readonly string[] GetTreeAccepts = ["application/json"];
 
@@ -232,6 +238,53 @@ public class StoreApi : BaseApi
     }
 
     /// <summary>
+    /// Returns a matrix as an array of integer arrays.
+    /// </summary>
+    /// <returns><![CDATA[List<List<int>>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<List<int>>> GetMatrixAsync()
+    {
+        Task<ApiResult<List<List<int>>>> task = GetMatrixWithHttpInfoAsync();
+        ApiResult<List<List<int>>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
+    }
+
+    /// <summary>
+    /// Returns a matrix as an array of integer arrays. (with HTTP info)
+    /// </summary>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<List<int>>>> GetMatrixWithHttpInfoAsync()
+    {
+        string path = "/store/matrix";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<List<List<int>>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetMatrixAccepts,
+                "application/json",
+                typeof(List<List<int>>),
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Find purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
@@ -280,6 +333,100 @@ public class StoreApi : BaseApi
                 GetOrderByIdAccepts,
                 "application/json",
                 typeof(Order),
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns swatches grouped as an array of string-keyed enum maps.
+    /// </summary>
+    /// <returns><![CDATA[List<Dictionary<string, Swatch>>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<Dictionary<string, Swatch>>> GetSwatchGroupsAsync()
+    {
+        Task<ApiResult<List<Dictionary<string, Swatch>>>> task = GetSwatchGroupsWithHttpInfoAsync();
+        ApiResult<List<Dictionary<string, Swatch>>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
+    }
+
+    /// <summary>
+    /// Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
+    /// </summary>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<Dictionary<string, Swatch>>>> GetSwatchGroupsWithHttpInfoAsync()
+    {
+        string path = "/store/swatch-groups";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<List<Dictionary<string, Swatch>>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetSwatchGroupsAccepts,
+                "application/json",
+                typeof(List<Dictionary<string, Swatch>>),
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns timestamps grouped as an array of string-keyed maps.
+    /// </summary>
+    /// <returns><![CDATA[List<Dictionary<string, DateTimeOffset>>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<Dictionary<string, DateTimeOffset>>> GetTimestampGroupsAsync()
+    {
+        Task<ApiResult<List<Dictionary<string, DateTimeOffset>>>> task = GetTimestampGroupsWithHttpInfoAsync();
+        ApiResult<List<Dictionary<string, DateTimeOffset>>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
+    }
+
+    /// <summary>
+    /// Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
+    /// </summary>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<Dictionary<string, DateTimeOffset>>>> GetTimestampGroupsWithHttpInfoAsync()
+    {
+        string path = "/store/timestamp-groups";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<List<Dictionary<string, DateTimeOffset>>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetTimestampGroupsAccepts,
+                "application/json",
+                typeof(List<Dictionary<string, DateTimeOffset>>),
                 null
             )
             .ConfigureAwait(false);

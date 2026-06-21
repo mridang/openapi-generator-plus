@@ -951,6 +951,65 @@ paths:
                   additionalProperties:
                     $ref: '#/components/schemas/Category'
 
+  /store/matrix:
+    get:
+      tags:
+        - store
+      summary: Returns a matrix as an array of integer arrays.
+      operationId: getMatrix
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+
+  /store/swatch-groups:
+    get:
+      tags:
+        - store
+      summary: Returns swatches grouped as an array of string-keyed enum maps.
+      operationId: getSwatchGroups
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Swatch'
+
+  /store/timestamp-groups:
+    get:
+      tags:
+        - store
+      summary: Returns timestamps grouped as an array of string-keyed maps.
+      operationId: getTimestampGroups
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties:
+                    type: string
+                    format: date-time
+
   /store/order:
     post:
       tags:
@@ -1721,3 +1780,13 @@ components:
             - string
             - "null"
           default: untitled
+
+    # Named string enum used as the leaf of a nested container (array<map<enum>>)
+    # to exercise enum-leaf deep deserialization (must not be routed through the
+    # model fromJson / plainToInstance path).
+    Swatch:
+      type: string
+      enum:
+        - red
+        - green
+        - blue

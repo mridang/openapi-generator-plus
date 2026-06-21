@@ -15,8 +15,10 @@ import com.example.petstore.auth.Authenticator;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Order;
+import com.example.petstore.models.Swatch;
 import com.example.petstore.models.TreeNode;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +51,17 @@ public class StoreApi extends BaseApi {
   private static final java.lang.reflect.Type getInventoryTypeRef =
       new TypeReference<Map<String, Integer>>() {}.getType();
 
+  private static final java.lang.reflect.Type getMatrixTypeRef =
+      new TypeReference<List<List<Integer>>>() {}.getType();
+
   private static final java.lang.reflect.Type getOrderByIdTypeRef =
       new TypeReference<Order>() {}.getType();
+
+  private static final java.lang.reflect.Type getSwatchGroupsTypeRef =
+      new TypeReference<List<Map<String, Swatch>>>() {}.getType();
+
+  private static final java.lang.reflect.Type getTimestampGroupsTypeRef =
+      new TypeReference<List<Map<String, OffsetDateTime>>>() {}.getType();
 
   private static final java.lang.reflect.Type getTreeTypeRef =
       new TypeReference<TreeNode>() {}.getType();
@@ -225,6 +236,38 @@ public class StoreApi extends BaseApi {
   }
 
   /**
+   * Returns a matrix as an array of integer arrays.
+   *
+   * @return {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<List<Integer>> getMatrix() {
+    return requireBody(getMatrixWithHttpInfo(), "getMatrix");
+  }
+
+  /**
+   * Returns a matrix as an array of integer arrays.
+   *
+   * @return the API result wrapping {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<List<Integer>>> getMatrixWithHttpInfo() {
+    String path = "/store/matrix";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getMatrixTypeRef,
+        null);
+  }
+
+  /**
    * Find purchase order by ID
    *
    * @param orderId ID of order to return (required)
@@ -265,6 +308,70 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
+        null);
+  }
+
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * @return {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Map<String, Swatch>> getSwatchGroups() {
+    return requireBody(getSwatchGroupsWithHttpInfo(), "getSwatchGroups");
+  }
+
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * @return the API result wrapping {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo() {
+    String path = "/store/swatch-groups";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getSwatchGroupsTypeRef,
+        null);
+  }
+
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * @return {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Map<String, OffsetDateTime>> getTimestampGroups() {
+    return requireBody(getTimestampGroupsWithHttpInfo(), "getTimestampGroups");
+  }
+
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * @return the API result wrapping {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo() {
+    String path = "/store/timestamp-groups";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getTimestampGroupsTypeRef,
         null);
   }
 

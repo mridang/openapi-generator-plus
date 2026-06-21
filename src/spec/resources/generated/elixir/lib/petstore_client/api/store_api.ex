@@ -412,6 +412,94 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Returns a matrix as an array of integer arrays.
+
+  ## Parameters
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, [[integer()]]}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_matrix(t(), keyword()) ::
+          {:ok, [[integer()]]} | {:error, term()}
+  def get_matrix(%__MODULE__{} = api, opts \\ []) do
+    case get_matrix_with_http_info(api, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_matrix but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_matrix`. Raises on error.
+  """
+  def get_matrix!(%__MODULE__{} = api, opts \\ []) do
+    case get_matrix(api, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_matrix` but returns the full `ApiResult`.
+  """
+  @spec get_matrix_with_http_info(t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_matrix_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+    path = "/store/matrix"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "[[integer()]]",
+      auth
+    )
+  end
+
+  @doc """
   Find purchase order by ID
 
   ## Parameters
@@ -519,6 +607,183 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Order",
+      auth
+    )
+  end
+
+  @doc """
+  Returns swatches grouped as an array of string-keyed enum maps.
+
+  ## Parameters
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, [%{String.t() => Swatch}]}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_swatch_groups(t(), keyword()) ::
+          {:ok, [%{String.t() => Swatch}]} | {:error, term()}
+  def get_swatch_groups(%__MODULE__{} = api, opts \\ []) do
+    case get_swatch_groups_with_http_info(api, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_swatch_groups but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_swatch_groups`. Raises on error.
+  """
+  def get_swatch_groups!(%__MODULE__{} = api, opts \\ []) do
+    case get_swatch_groups(api, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_swatch_groups` but returns the full `ApiResult`.
+  """
+  @spec get_swatch_groups_with_http_info(t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_swatch_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+    path = "/store/swatch-groups"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "[%{String.t() => Swatch}]",
+      auth
+    )
+  end
+
+  @doc """
+  Returns timestamps grouped as an array of string-keyed maps.
+
+  ## Parameters
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, [%{String.t() => DateTime.t()}]}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_timestamp_groups(t(), keyword()) ::
+          {:ok, [%{String.t() => DateTime.t()}]} | {:error, term()}
+  def get_timestamp_groups(%__MODULE__{} = api, opts \\ []) do
+    case get_timestamp_groups_with_http_info(api, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message:
+             "Expected a response body for get_timestamp_groups but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_timestamp_groups`. Raises on error.
+  """
+  def get_timestamp_groups!(%__MODULE__{} = api, opts \\ []) do
+    case get_timestamp_groups(api, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_timestamp_groups` but returns the full `ApiResult`.
+  """
+  @spec get_timestamp_groups_with_http_info(t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_timestamp_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+    path = "/store/timestamp-groups"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "[%{String.t() => DateTime.t()}]",
       auth
     )
   end

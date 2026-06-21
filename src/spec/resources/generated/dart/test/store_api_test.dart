@@ -188,6 +188,96 @@ void main() {
       },
     );
 
+    /* recursive-container-deserialize: getMatrix returns List<List<int>>, a
+     * nested array whose leaves are NOT maps. The top-level deserializer must
+     * not hard-cast each outer element to a Map. */
+    test('getMatrix decodes an array of integer arrays', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[[1,2],[3,4]]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getMatrix();
+        expect(
+          result,
+          equals([
+            [1, 2],
+            [3, 4],
+          ]),
+        );
+        expect(result[0][0], isA<int>());
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* recursive-container-deserialize: getSwatchGroups returns
+     * List<Map<String, Swatch>> — an enum leaf. The leaf must go through the
+     * enum's String fromJson, not the model fromJson(Map) path. */
+    test('getSwatchGroups decodes enum leaves into Swatch', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[{"a":"red"},{"b":"blue"}]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getSwatchGroups();
+        expect(result, hasLength(2));
+        expect(result[0]['a'], equals(Swatch.red));
+        expect(result[1]['b'], equals(Swatch.blue));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* recursive-container-deserialize: getTimestampGroups returns
+     * List<Map<String, DateTime>> — a date-time leaf must be parsed into a
+     * DateTime, not left as a raw String. */
+    test('getTimestampGroups decodes date-time leaves into DateTime', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[{"t":"2020-01-02T03:04:05Z"}]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getTimestampGroups();
+        expect(result, hasLength(1));
+        final ts = result[0]['t'];
+        expect(ts, isA<DateTime>());
+        expect(ts!.toUtc().year, equals(2020));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('deleteOrderNotFound', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

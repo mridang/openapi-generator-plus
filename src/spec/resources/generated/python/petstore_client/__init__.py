@@ -44,6 +44,7 @@ __all__ = [
     "SetPetAvatarThumbnailRequest",
     "StrictTag",
     "Surgery",
+    "Swatch",
     "Tag",
     "TreeNode",
     "WetFood",
@@ -130,6 +131,9 @@ from petstore_client.models.strict_tag import (
 )
 from petstore_client.models.surgery import (
     Surgery as Surgery,
+)
+from petstore_client.models.swatch import (
+    Swatch as Swatch,
 )
 from petstore_client.models.tag import (
     Tag as Tag,

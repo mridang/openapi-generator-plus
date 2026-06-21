@@ -19,6 +19,7 @@ import '../errors/api_error.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/order.dart';
+import '../models/swatch.dart';
 import '../models/tree_node.dart';
 
 /// StoreApi provides methods for the Store API group.
@@ -172,7 +173,7 @@ class StoreApi extends BaseApi {
       auth: null,
 
       deserialize: (body) =>
-          deserializeList(
+          deserializeArrayFromJson(
                 body,
                 (e) => deserializeMap(
                   e,
@@ -226,6 +227,57 @@ class StoreApi extends BaseApi {
       returnType: 'Map<String, int>',
       auth: null,
       deserialize: (body) => (deserializeRaw(body) as Map).cast<String, int>(),
+    );
+  }
+
+  /// Returns a matrix as an array of integer arrays.
+
+  Future<List<List<int>>> getMatrix() async {
+    final result = await getMatrixWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<List<int>>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getMatrix but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getMatrix operation and returns the full API result.
+  Future<ApiResult<List<List<int>>>> getMatrixWithHTTPInfo() async {
+    var path = '/store/matrix';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<List<int>>>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<List<int>>',
+      auth: null,
+
+      deserialize: (body) =>
+          deserializeArrayFromJson(
+                body,
+                (e) => deserializeArray(e, (e) => e as int),
+              )
+              as List<List<int>>,
     );
   }
 
@@ -290,6 +342,112 @@ class StoreApi extends BaseApi {
       returnType: 'Order',
       auth: null,
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
+  /// Returns swatches grouped as an array of string-keyed enum maps.
+
+  Future<List<Map<String, Swatch>>> getSwatchGroups() async {
+    final result = await getSwatchGroupsWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Map<String, Swatch>>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getSwatchGroups but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getSwatchGroups operation and returns the full API result.
+  Future<ApiResult<List<Map<String, Swatch>>>>
+  getSwatchGroupsWithHTTPInfo() async {
+    var path = '/store/swatch-groups';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<Map<String, Swatch>>>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<Map<String, Swatch>>',
+      auth: null,
+
+      deserialize: (body) =>
+          deserializeArrayFromJson(
+                body,
+                (e) => deserializeMap(e, (e) => Swatch.fromJson(e as String)),
+              )
+              as List<Map<String, Swatch>>,
+    );
+  }
+
+  /// Returns timestamps grouped as an array of string-keyed maps.
+
+  Future<List<Map<String, DateTime>>> getTimestampGroups() async {
+    final result = await getTimestampGroupsWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Map<String, DateTime>>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getTimestampGroups but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getTimestampGroups operation and returns the full API result.
+  Future<ApiResult<List<Map<String, DateTime>>>>
+  getTimestampGroupsWithHTTPInfo() async {
+    var path = '/store/timestamp-groups';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<Map<String, DateTime>>>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<Map<String, DateTime>>',
+      auth: null,
+
+      deserialize: (body) =>
+          deserializeArrayFromJson(
+                body,
+                (e) => deserializeMap(e, (e) => DateTime.parse(e as String)),
+              )
+              as List<Map<String, DateTime>>,
     );
   }
 

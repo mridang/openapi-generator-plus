@@ -1,7 +1,10 @@
 {{! Recursive deserializer-argument builder for a (possibly nested) container
     element type. Emits a model class constructor for a leaf model, an arrow
-    cast for a leaf primitive, or an arrow that re-enters deserializeArray /
-    deserializeMap for each further container level — so the innermost models
-    of a nested generic container (e.g. Array<Record<string, Foo>>) are decoded
-    into typed instances instead of left as raw objects. }}
-{{#isArray}}(x: unknown) => ObjectSerializer.deserializeArray(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isArray}}{{#isMap}}(x: unknown) => ObjectSerializer.deserializeMap(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isMap}}{{^isArray}}{{^isMap}}{{#isPrimitiveType}}(x: unknown) => x as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{complexType}}{{/isPrimitiveType}}{{/isMap}}{{/isArray}}
+    cast for a leaf primitive or enum (a TS enum is structurally its string
+    value, so a cast suffices), a `new Date(...)` arrow for a date/date-time
+    leaf, or an arrow that re-enters deserializeArray / deserializeMap for each
+    further container level — so the innermost leaves of a nested generic
+    container (e.g. Array<Record<string, Foo>>) are decoded into typed values
+    instead of left as raw objects. Enum and date leaves are routed BEFORE the
+    model branch so they are not mistaken for model classes. }}
+{{#isArray}}(x: unknown) => ObjectSerializer.deserializeArray(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isArray}}{{#isMap}}(x: unknown) => ObjectSerializer.deserializeMap(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isMap}}{{^isArray}}{{^isMap}}{{#isEnum}}(x: unknown) => x as {{{dataType}}}{{/isEnum}}{{#isEnumRef}}(x: unknown) => x as {{{dataType}}}{{/isEnumRef}}{{^isEnum}}{{^isEnumRef}}{{#isDateTime}}(x: unknown) => new Date(x as string){{/isDateTime}}{{#isDate}}(x: unknown) => new Date(x as string){{/isDate}}{{^isDateTime}}{{^isDate}}{{#isPrimitiveType}}(x: unknown) => x as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{complexType}}{{/isPrimitiveType}}{{/isDate}}{{/isDateTime}}{{/isEnumRef}}{{/isEnum}}{{/isMap}}{{/isArray}}

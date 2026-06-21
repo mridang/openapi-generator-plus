@@ -14,7 +14,13 @@ import { Configuration } from "../configuration.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { ValueSerializer } from "../value-serializer.js";
 import type { DeepInput } from "../deep-input.js";
-import { Category, Defaults, Order, TreeNode } from "../models/index.js";
+import {
+  Category,
+  Defaults,
+  Order,
+  Swatch,
+  TreeNode,
+} from "../models/index.js";
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -217,6 +223,52 @@ export class StoreApi extends BaseApi {
   }
 
   /**
+   * Returns a matrix as an array of integer arrays.
+   * @return Array<Array<number>>
+   * @throws {ApiError} if fails to make API call
+   */
+  async getMatrix(): Promise<Array<Array<number>>> {
+    const getMatrixResult = await this.getMatrixWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getMatrixResult.data == null) {
+      throw new ApiError(
+        getMatrixResult.statusCode,
+        "Expected a response body for getMatrix but received none",
+        getMatrixResult.headers,
+        getMatrixResult.rawBody,
+        null,
+      );
+    }
+    return getMatrixResult.data as Array<Array<number>>;
+  }
+
+  /**
+   * Returns a matrix as an array of integer arrays. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getMatrixWithHttpInfo(): Promise<ApiResult<Array<Array<number>>>> {
+    const path = `/store/matrix`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) =>
+        ObjectSerializer.deserializeArray(json, (x: unknown) =>
+          ObjectSerializer.deserializeArray(x, (x: unknown) => x as number),
+        ),
+      null,
+    );
+  }
+
+  /**
    * Find purchase order by ID
    * @param orderId ID of order to return (required)
    * @return Order
@@ -273,6 +325,106 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
+      null,
+    );
+  }
+
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   * @return Array<{ [key: string]: Swatch }>
+   * @throws {ApiError} if fails to make API call
+   */
+  async getSwatchGroups(): Promise<Array<{ [key: string]: Swatch }>> {
+    const getSwatchGroupsResult = await this.getSwatchGroupsWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getSwatchGroupsResult.data == null) {
+      throw new ApiError(
+        getSwatchGroupsResult.statusCode,
+        "Expected a response body for getSwatchGroups but received none",
+        getSwatchGroupsResult.headers,
+        getSwatchGroupsResult.rawBody,
+        null,
+      );
+    }
+    return getSwatchGroupsResult.data as Array<{ [key: string]: Swatch }>;
+  }
+
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getSwatchGroupsWithHttpInfo(): Promise<
+    ApiResult<Array<{ [key: string]: Swatch }>>
+  > {
+    const path = `/store/swatch-groups`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) =>
+        ObjectSerializer.deserializeArray(json, (x: unknown) =>
+          ObjectSerializer.deserializeMap(x, (x: unknown) => x as Swatch),
+        ),
+      null,
+    );
+  }
+
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   * @return Array<{ [key: string]: Date }>
+   * @throws {ApiError} if fails to make API call
+   */
+  async getTimestampGroups(): Promise<Array<{ [key: string]: Date }>> {
+    const getTimestampGroupsResult =
+      await this.getTimestampGroupsWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getTimestampGroupsResult.data == null) {
+      throw new ApiError(
+        getTimestampGroupsResult.statusCode,
+        "Expected a response body for getTimestampGroups but received none",
+        getTimestampGroupsResult.headers,
+        getTimestampGroupsResult.rawBody,
+        null,
+      );
+    }
+    return getTimestampGroupsResult.data as Array<{ [key: string]: Date }>;
+  }
+
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getTimestampGroupsWithHttpInfo(): Promise<
+    ApiResult<Array<{ [key: string]: Date }>>
+  > {
+    const path = `/store/timestamp-groups`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) =>
+        ObjectSerializer.deserializeArray(json, (x: unknown) =>
+          ObjectSerializer.deserializeMap(
+            x,
+            (x: unknown) => new Date(x as string),
+          ),
+        ),
       null,
     );
   }

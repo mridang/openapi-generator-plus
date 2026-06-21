@@ -449,9 +449,9 @@ class {{classname}} extends BaseApi {
 {{! leaf model) stays byte-identical via the deserializeList(body, X.fromJson) }}
 {{! form below. }}
 {{#returnProperty}}{{#items}}{{#isArray}}
-      deserialize: (body) => deserializeList(body, {{>deserialize_arg}}) as {{{returnType}}},
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
 {{/isArray}}{{#isMap}}
-      deserialize: (body) => deserializeList(body, {{>deserialize_arg}}) as {{{returnType}}},
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
 {{/isMap}}{{^isArray}}{{^isMap}}
       deserialize: (body) => deserializeList(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
 {{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}

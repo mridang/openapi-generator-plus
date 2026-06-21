@@ -13,6 +13,7 @@ from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
 from petstore_client.models.order import Order
+from petstore_client.models.swatch import Swatch
 from petstore_client.models.tree_node import TreeNode
 
 from ..api_client import ApiClient
@@ -235,6 +236,54 @@ class StoreApi(BaseApi):
             None,
         )
 
+    async def get_matrix(
+        self,
+    ) -> List[List[StrictInt]]:
+        """Returns a matrix as an array of integer arrays.
+
+        :return: List[List[StrictInt]]
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_matrix_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_matrix_with_http_info(
+        self,
+    ) -> "ApiResult[List[List[StrictInt]]]":
+        """Returns a matrix as an array of integer arrays. (with HTTP info)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/matrix"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[List[StrictInt]]",
+            None,
+        )
+
     async def get_order_by_id(
         self,
         order_id: StrictInt,
@@ -298,6 +347,102 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
+            None,
+        )
+
+    async def get_swatch_groups(
+        self,
+    ) -> List[Dict[str, Swatch]]:
+        """Returns swatches grouped as an array of string-keyed enum maps.
+
+        :return: List[Dict[str, Swatch]]
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_swatch_groups_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_swatch_groups_with_http_info(
+        self,
+    ) -> "ApiResult[List[Dict[str, Swatch]]]":
+        """Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/swatch-groups"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[Dict[str, Swatch]]",
+            None,
+        )
+
+    async def get_timestamp_groups(
+        self,
+    ) -> List[Dict[str, AwareDatetime]]:
+        """Returns timestamps grouped as an array of string-keyed maps.
+
+        :return: List[Dict[str, AwareDatetime]]
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_timestamp_groups_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_timestamp_groups_with_http_info(
+        self,
+    ) -> "ApiResult[List[Dict[str, AwareDatetime]]]":
+        """Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/timestamp-groups"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[Dict[str, AwareDatetime]]",
             None,
         )
 

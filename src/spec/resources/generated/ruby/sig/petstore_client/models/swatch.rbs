@@ -1,0 +1,10 @@
+module PetstoreClient::Models
+  class Swatch
+    RED: String
+    GREEN: String
+    BLUE: String
+    VALUES: Array[String]
+    def self.all_vars: () -> Array[String]
+    def self.validate!: (String?) -> String?
+  end
+end

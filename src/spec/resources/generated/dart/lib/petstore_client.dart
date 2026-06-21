@@ -66,6 +66,7 @@ export 'src/models/set_pet_avatar_request.dart';
 export 'src/models/set_pet_avatar_thumbnail_request.dart';
 export 'src/models/strict_tag.dart';
 export 'src/models/surgery.dart';
+export 'src/models/swatch.dart';
 export 'src/models/tag.dart';
 export 'src/models/tree_node.dart';
 export 'src/models/wet_food.dart';

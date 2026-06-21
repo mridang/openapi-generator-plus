@@ -236,6 +236,59 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * Returns a matrix as an array of integer arrays.
+
+     * @return \Ds\Vector<\Ds\Vector<mixed>>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getMatrix()
+    {
+        $apiResult = $this->getMatrixWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getMatrix but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\Ds\Vector<mixed>> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\Ds\Vector<\Ds\Vector<mixed>>>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getMatrixWithHttpInfo(): ApiResult
+    {
+        $path = '/store/matrix';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\Ds\Vector<mixed>>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<\Ds\Vector<int>>'
+        );
+        return $result;
+    }
+
+    /**
      * Find purchase order by ID
      * @param int $orderId ID of order to return
 
@@ -297,6 +350,112 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             '\PetstoreClient\Models\Order'
+        );
+        return $result;
+    }
+
+    /**
+     * Returns swatches grouped as an array of string-keyed enum maps.
+
+     * @return \Ds\Vector<\Ds\Map<array-key, mixed>>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getSwatchGroups()
+    {
+        $apiResult = $this->getSwatchGroupsWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getSwatchGroups but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\Ds\Map<array-key, mixed>> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getSwatchGroupsWithHttpInfo(): ApiResult
+    {
+        $path = '/store/swatch-groups';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<\Ds\Map<Swatch>>'
+        );
+        return $result;
+    }
+
+    /**
+     * Returns timestamps grouped as an array of string-keyed maps.
+
+     * @return \Ds\Vector<\Ds\Map<array-key, mixed>>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getTimestampGroups()
+    {
+        $apiResult = $this->getTimestampGroupsWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getTimestampGroups but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\Ds\Map<array-key, mixed>> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getTimestampGroupsWithHttpInfo(): ApiResult
+    {
+        $path = '/store/timestamp-groups';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<\Ds\Map<\DateTime>>'
         );
         return $result;
     }

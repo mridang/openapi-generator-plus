@@ -48,6 +48,8 @@ mod strict_tag;
 pub use strict_tag::*;
 mod surgery;
 pub use surgery::*;
+mod swatch;
+pub use swatch::*;
 mod tag;
 pub use tag::*;
 mod tree_node;

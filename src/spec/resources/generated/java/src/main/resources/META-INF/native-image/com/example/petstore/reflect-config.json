@@ -217,6 +217,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Swatch",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Tag",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,

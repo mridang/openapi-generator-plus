@@ -249,6 +249,30 @@ Map<String, T>? deserializeMapFromJson<T>(
   }
 }
 
+/// Parses a JSON string into a typed `List<T>` at the response boundary, then
+/// applies [deserializeElement] to each element via [deserializeArray]. The
+/// String-input counterpart of [deserializeArray], used when a nested array
+/// container (e.g. `List<List<int>>` or `List<Map<String, Foo>>`) is the
+/// operation's top-level return type. Unlike [deserializeList] it does NOT
+/// assume each element is a `Map<String, dynamic>`, so array- and
+/// primitive-valued elements no longer crash the hard cast. Returns null if
+/// data is empty.
+List<T>? deserializeArrayFromJson<T>(
+  String data,
+  T Function(dynamic) deserializeElement,
+) {
+  data = _stripBom(data);
+  if (data.isEmpty) {
+    return null;
+  }
+  try {
+    return deserializeArray(parseJson(data), deserializeElement);
+  } catch (e) {
+    if (e is SerializationError) rethrow;
+    throw SerializationError('Failed to deserialize JSON list: $e', e);
+  }
+}
+
 /// Parses a JSON string into a raw dynamic value.
 dynamic deserializeRaw(String data) {
   data = _stripBom(data);

@@ -18,7 +18,9 @@ import com.example.petstore.auth.Authenticator
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Order
+import com.example.petstore.models.Swatch
 import com.example.petstore.models.TreeNode
+import java.time.OffsetDateTime
 import kotlin.collections.List
 import kotlin.collections.Map
 
@@ -146,6 +148,32 @@ class StoreApi : BaseApi {
     }
 
     /**
+     * Returns a matrix as an array of integer arrays.
+     * @return List<List<Int>>
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getMatrix(): List<List<Int>> =
+        getMatrixWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getMatrix but the server returned an empty body")
+
+    suspend fun getMatrixWithHttpInfo(): ApiResult<List<List<Int>>> {
+        var path = "/store/matrix"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<List<List<Int>>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
      * Find purchase order by ID
      * @param orderId ID of order to return (required)
      * @return Order
@@ -169,6 +197,58 @@ class StoreApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Order>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Returns swatches grouped as an array of string-keyed enum maps.
+     * @return List<Map<String, Swatch>>
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getSwatchGroups(): List<Map<String, Swatch>> =
+        getSwatchGroupsWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getSwatchGroups but the server returned an empty body")
+
+    suspend fun getSwatchGroupsWithHttpInfo(): ApiResult<List<Map<String, Swatch>>> {
+        var path = "/store/swatch-groups"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<List<Map<String, Swatch>>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Returns timestamps grouped as an array of string-keyed maps.
+     * @return List<Map<String, OffsetDateTime>>
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getTimestampGroups(): List<Map<String, OffsetDateTime>> =
+        getTimestampGroupsWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getTimestampGroups but the server returned an empty body")
+
+    suspend fun getTimestampGroupsWithHttpInfo(): ApiResult<List<Map<String, OffsetDateTime>>> {
+        var path = "/store/timestamp-groups"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<List<Map<String, OffsetDateTime>>>(
             "GET",
             path,
             queryParams,

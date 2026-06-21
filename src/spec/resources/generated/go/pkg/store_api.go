@@ -11,6 +11,7 @@ package petstore
 
 import (
 	"fmt"
+	"time"
 
 	. "petstore/pkg/models"
 )
@@ -319,6 +320,86 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 	}, nil
 }
 
+// GetMatrix Returns a matrix as an array of integer arrays.
+
+func (a *StoreApi) GetMatrix() (*[][]int32, error) {
+	result, err := a.GetMatrixWithHTTPInfo()
+	if err != nil {
+		return nil, err
+	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetMatrix", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetMatrixWithHTTPInfo performs the GetMatrix operation and returns the full API result.
+func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
+
+	path := "/store/matrix"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "[][]int32",
+		auth:         nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data [][]int32
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[][]int32
+	if response.Body != "" {
+		respContentType := ""
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[[][]int32]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // GetOrderById Find purchase order by ID
 // param orderId: ID of order to return
 
@@ -398,6 +479,166 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 	}
 
 	return &ApiResult[Order]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// GetSwatchGroups Returns swatches grouped as an array of string-keyed enum maps.
+
+func (a *StoreApi) GetSwatchGroups() (*[]map[string]Swatch, error) {
+	result, err := a.GetSwatchGroupsWithHTTPInfo()
+	if err != nil {
+		return nil, err
+	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetSwatchGroups", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetSwatchGroupsWithHTTPInfo performs the GetSwatchGroups operation and returns the full API result.
+func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch], error) {
+
+	path := "/store/swatch-groups"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "[]map[string]Swatch",
+		auth:         nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data []map[string]Swatch
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]map[string]Swatch
+	if response.Body != "" {
+		respContentType := ""
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[[]map[string]Swatch]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// GetTimestampGroups Returns timestamps grouped as an array of string-keyed maps.
+
+func (a *StoreApi) GetTimestampGroups() (*[]map[string]time.Time, error) {
+	result, err := a.GetTimestampGroupsWithHTTPInfo()
+	if err != nil {
+		return nil, err
+	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetTimestampGroups", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetTimestampGroupsWithHTTPInfo performs the GetTimestampGroups operation and returns the full API result.
+func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]time.Time], error) {
+
+	path := "/store/timestamp-groups"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "[]map[string]time.Time",
+		auth:         nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data []map[string]time.Time
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]map[string]time.Time
+	if response.Body != "" {
+		respContentType := ""
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[[]map[string]time.Time]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,

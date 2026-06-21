@@ -181,6 +181,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: [String: Int].self)
   }
 
+  /// Returns a matrix as an array of integer arrays.
+
+  public func getMatrix() async throws -> [[Int]] {
+    let result = try await getMatrixWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getMatrix",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getMatrix operation and returns the full API result.
+  public func getMatrixWithHTTPInfo() async throws -> ApiResult<[[Int]]> {
+
+    let path = "/store/matrix"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[[Int]]",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: [[Int]].self)
+  }
+
   /// Find purchase order by ID
   ///
   /// - Parameters:
@@ -228,6 +269,88 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
+  }
+
+  /// Returns swatches grouped as an array of string-keyed enum maps.
+
+  public func getSwatchGroups() async throws -> [[String: Swatch]] {
+    let result = try await getSwatchGroupsWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getSwatchGroups",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getSwatchGroups operation and returns the full API result.
+  public func getSwatchGroupsWithHTTPInfo() async throws -> ApiResult<[[String: Swatch]]> {
+
+    let path = "/store/swatch-groups"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[[String: Swatch]]",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: [[String: Swatch]].self)
+  }
+
+  /// Returns timestamps grouped as an array of string-keyed maps.
+
+  public func getTimestampGroups() async throws -> [[String: Date]] {
+    let result = try await getTimestampGroupsWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getTimestampGroups",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getTimestampGroups operation and returns the full API result.
+  public func getTimestampGroupsWithHTTPInfo() async throws -> ApiResult<[[String: Date]]> {
+
+    let path = "/store/timestamp-groups"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[[String: Date]]",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: [[String: Date]].self)
   }
 
   /// Returns a self-referential tree (recursive-type codegen fixture)

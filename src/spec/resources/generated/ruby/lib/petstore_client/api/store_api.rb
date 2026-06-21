@@ -181,6 +181,47 @@ module PetstoreClient
         )
       end
 
+      # Returns a matrix as an array of integer arrays.
+
+      # @return [Array<Array<Integer>>]
+      # @raise [ApiError] if fails to make API call
+      def get_matrix()
+        result = get_matrix_with_http_info()
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_matrix_with_http_info()
+        path = '/store/matrix'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Array<Array<Integer>>',
+          nil
+        )
+      end
+
       # Find purchase order by ID
       # @param order_id [Integer] ID of order to return
 
@@ -230,6 +271,88 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Order',
+          nil
+        )
+      end
+
+      # Returns swatches grouped as an array of string-keyed enum maps.
+
+      # @return [Array<Hash<String, Swatch>>]
+      # @raise [ApiError] if fails to make API call
+      def get_swatch_groups()
+        result = get_swatch_groups_with_http_info()
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_swatch_groups_with_http_info()
+        path = '/store/swatch-groups'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Array<Hash<String, Swatch>>',
+          nil
+        )
+      end
+
+      # Returns timestamps grouped as an array of string-keyed maps.
+
+      # @return [Array<Hash<String, Time>>]
+      # @raise [ApiError] if fails to make API call
+      def get_timestamp_groups()
+        result = get_timestamp_groups_with_http_info()
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_timestamp_groups_with_http_info()
+        path = '/store/timestamp-groups'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Array<Hash<String, Time>>',
           nil
         )
       end
