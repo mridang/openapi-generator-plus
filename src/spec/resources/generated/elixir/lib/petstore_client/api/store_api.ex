@@ -235,6 +235,94 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Returns a department (mutual-recursion codegen fixture).
+
+  ## Parameters
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, Department}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_department(t(), keyword()) ::
+          {:ok, Department} | {:error, term()}
+  def get_department(%__MODULE__{} = api, opts \\ []) do
+    case get_department_with_http_info(api, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_department but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_department`. Raises on error.
+  """
+  def get_department!(%__MODULE__{} = api, opts \\ []) do
+    case get_department(api, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_department` but returns the full `ApiResult`.
+  """
+  @spec get_department_with_http_info(t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_department_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+    path = "/store/department"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "Department",
+      auth
+    )
+  end
+
+  @doc """
   Returns categories grouped into an array of string-keyed maps.
 
   ## Parameters

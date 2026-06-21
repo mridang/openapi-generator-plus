@@ -519,6 +519,19 @@ import Testing
         #expect(child?.child == nil)
     }
 
+    // mutual-recursion: Department -> Employee -> Department forms a reference
+    // cycle with no direct self-reference. The cycle must be broken by storing
+    // an edge @Indirect; deserialization must still decode every level into a
+    // typed struct and the terminating leaf must decode as nil.
+    @Test func testDeserializeMutuallyRecursiveModels() throws {
+        let json = "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}"
+        let dept = try ObjectSerializer.deserialize(json, as: Department.self)
+        #expect(dept?.name == "Eng")
+        #expect(dept?.lead?.name == "Ada")
+        #expect(dept?.lead?.department?.name == "Core")
+        #expect(dept?.lead?.department?.lead == nil)
+    }
+
     @Test func testMapOfModelRoundTrip() throws {
         let original: [String: Category] = [
             "k1": Category(id: 1, name: "A"),

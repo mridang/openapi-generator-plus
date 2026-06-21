@@ -14,6 +14,7 @@ import com.example.petstore.Configuration;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
+import com.example.petstore.models.Department;
 import com.example.petstore.models.Order;
 import com.example.petstore.models.Swatch;
 import com.example.petstore.models.TreeNode;
@@ -44,6 +45,9 @@ public class StoreApi extends BaseApi {
 
   private static final java.lang.reflect.Type getDefaultsTypeRef =
       new TypeReference<Defaults>() {}.getType();
+
+  private static final java.lang.reflect.Type getDepartmentTypeRef =
+      new TypeReference<Department>() {}.getType();
 
   private static final java.lang.reflect.Type getGroupedCategoriesTypeRef =
       new TypeReference<List<Map<String, Category>>>() {}.getType();
@@ -168,6 +172,38 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getDefaultsTypeRef,
+        null);
+  }
+
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * @return {@code Department}
+   * @throws ApiException if fails to make API call
+   */
+  public Department getDepartment() {
+    return requireBody(getDepartmentWithHttpInfo(), "getDepartment");
+  }
+
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * @return the API result wrapping {@code Department}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Department> getDepartmentWithHttpInfo() {
+    String path = "/store/department";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getDepartmentTypeRef,
         null);
   }
 

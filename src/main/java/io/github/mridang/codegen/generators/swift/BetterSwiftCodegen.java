@@ -174,29 +174,28 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Flags a property that directly references its own enclosing model (e.g. a
-     * tree node whose optional {@code child} is another node). A Swift struct
-     * is a value type, so a stored property of its own type would have infinite
-     * size and fail to compile; the model template marks such a property
-     * {@code @Indirect} (see Indirect.swift) to store it behind a reference.
-     * Only DIRECT self-references are flagged: an array or dictionary of the
-     * type is already heap-indirected, and unrelated model fields must not be
-     * boxed. The flag is read in the model template as
-     * {@code vendorExtensions.isSelfRecursive}.
+     * Flags a property whose type can transitively reach its enclosing model —
+     * a direct self-reference (a tree node whose {@code child} is another node)
+     * or mutual recursion (Department -> Employee -> Department). A Swift struct
+     * is a value type, so such a stored property would have infinite size and
+     * fail to compile; opting in to the shared cycle-detection pass marks the
+     * recursive members so the model template stores them {@code @Indirect}
+     * (see Indirect.swift). An array or dictionary of the type is already
+     * heap-indirected and is not flagged.
      */
     @Override
-    public void postProcessModelProperty(
-            org.openapitools.codegen.CodegenModel model,
-            org.openapitools.codegen.CodegenProperty property) {
-        super.postProcessModelProperty(model, property);
+    protected boolean indirectsRecursiveProperties() {
+        return true;
+    }
 
-        boolean directSelfReference =
-                !property.isContainer
-                        && property.complexType != null
-                        && property.complexType.equals(model.classname);
-        if (directSelfReference) {
-            property.vendorExtensions.put("isSelfRecursive", true);
-        }
+    /**
+     * Flags a recursive model property so the model template stores it behind an
+     * {@code @Indirect} reference. Read in the template as
+     * {@code vendorExtensions.isSelfRecursive}. Idempotent.
+     */
+    @Override
+    protected void markRecursiveProperty(org.openapitools.codegen.CodegenProperty property) {
+        property.vendorExtensions.put("isSelfRecursive", true);
     }
 
     /** {@inheritDoc} */

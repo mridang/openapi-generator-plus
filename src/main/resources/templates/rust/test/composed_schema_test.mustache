@@ -310,6 +310,34 @@ fn test_tree_node_deserialize_recursive() {
     );
 }
 
+// -- mutually-recursive models: Department <-> Employee --
+//
+// `Department.lead` $refs `Employee` and `Employee.department` $refs
+// `Department`, a reference cycle with no direct self-reference. The cycle is
+// broken by boxing an edge (`Option<Box<...>>`); deserialization must still
+// decode each level into a typed value, and the terminating edge must be
+// `None`. `Box` derefs transparently for field access.
+#[test]
+fn test_mutually_recursive_models_deserialize() {
+    let json_data = r#"{"name":"Eng","lead":{"name":"Ada","department":{"name":"Core"}}}"#;
+
+    let dept: Department =
+        serde_json::from_str(json_data).expect("failed to deserialize Department");
+
+    assert_eq!(dept.name, "Eng", "dept.name mismatch");
+
+    let lead = dept.lead.expect("expected `lead` to be present");
+    assert_eq!(lead.name, "Ada", "lead.name mismatch");
+
+    let inner = lead.department.expect("expected nested `department`");
+    assert_eq!(inner.name, "Core", "inner.name mismatch");
+    assert!(
+        inner.lead.is_none(),
+        "expected terminating `lead` to be absent, got: {:?}",
+        inner.lead
+    );
+}
+
 // -- absent-vs-null defaults: Defaults --
 //
 // `Defaults` exercises the JSON-Schema-correct default contract:

@@ -5000,7 +5000,119 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
             }
         }
+
+        // Heap-indirect properties that participate in a model reference cycle
+        // (direct self-reference or mutual recursion) so value-type languages
+        // (Rust, Swift) compile instead of producing an infinite-size type.
+        if (indirectsRecursiveProperties()) {
+            indirectRecursiveProperties(result);
+        }
         return result;
+    }
+
+    /**
+     * Opt-in flag: value-type languages (Rust, Swift) must heap-indirect a
+     * property that participates in a model reference cycle, or the generated
+     * type has infinite size and fails to compile. Default {@code false}.
+     */
+    protected boolean indirectsRecursiveProperties() {
+        return false;
+    }
+
+    /**
+     * Marks a single scalar model property that participates in a reference
+     * cycle so the model template emits the language's heap indirection (Rust
+     * {@code Box<T>}, Swift {@code @Indirect}). Called for the property's copy
+     * in every var list, so it must be idempotent. Only invoked when
+     * {@link #indirectsRecursiveProperties()} is {@code true}. Default no-op.
+     */
+    protected void markRecursiveProperty(CodegenProperty prop) {
+        // no-op; value-type languages override.
+    }
+
+    /**
+     * Heap-indirects every scalar (non-container) model-typed property that
+     * participates in a reference cycle — a direct self-reference (a TreeNode
+     * whose {@code child} is a TreeNode) or mutual recursion (Department.lead
+     * -> Employee.department -> Department). Builds a directed graph over scalar
+     * model references keyed by class name and, for each such property
+     * {@code M.f} of type {@code T}, marks it when {@code T} can reach {@code M}
+     * (so {@code M -> T -> ... -> M} closes a cycle). The mark is applied to the
+     * property's copy in EVERY var list (vars/allVars/requiredVars/optionalVars)
+     * because the field declaration and the constructor read different lists; a
+     * boxed field with an unboxed constructor parameter would not compile (Rust
+     * E0308).
+     */
+    private void indirectRecursiveProperties(Map<String, ModelsMap> models) {
+        final Set<String> modelNames = new HashSet<>();
+        for (final ModelsMap mm : models.values()) {
+            for (final ModelMap m : mm.getModels()) {
+                modelNames.add(m.getModel().classname);
+            }
+        }
+        final Map<String, Set<String>> graph = new HashMap<>();
+        for (final ModelsMap mm : models.values()) {
+            for (final ModelMap m : mm.getModels()) {
+                final CodegenModel model = m.getModel();
+                final Set<String> targets =
+                        graph.computeIfAbsent(model.classname, k -> new HashSet<>());
+                if (model.vars != null) {
+                    for (final CodegenProperty p : model.vars) {
+                        if (!p.isContainer
+                                && p.complexType != null
+                                && modelNames.contains(p.complexType)) {
+                            targets.add(p.complexType);
+                        }
+                    }
+                }
+            }
+        }
+        for (final ModelsMap mm : models.values()) {
+            for (final ModelMap m : mm.getModels()) {
+                final CodegenModel model = m.getModel();
+                for (final List<CodegenProperty> list : List.of(
+                        model.vars == null ? List.<CodegenProperty>of() : model.vars,
+                        model.allVars == null ? List.<CodegenProperty>of() : model.allVars,
+                        model.requiredVars == null
+                                ? List.<CodegenProperty>of() : model.requiredVars,
+                        model.optionalVars == null
+                                ? List.<CodegenProperty>of() : model.optionalVars)) {
+                    for (final CodegenProperty p : list) {
+                        if (!p.isContainer
+                                && p.complexType != null
+                                && modelNames.contains(p.complexType)
+                                && reachesModel(graph, p.complexType, model.classname,
+                                        new HashSet<>())) {
+                            markRecursiveProperty(p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Depth-first reachability over the scalar model-reference graph: returns
+     * true when {@code target} is reachable from {@code start} (inclusive — a
+     * direct self-reference where {@code start == target} returns true).
+     */
+    private static boolean reachesModel(
+            Map<String, Set<String>> graph, String start, String target, Set<String> seen) {
+        if (start.equals(target)) {
+            return true;
+        }
+        if (!seen.add(start)) {
+            return false;
+        }
+        final Set<String> next = graph.get(start);
+        if (next != null) {
+            for (final String n : next) {
+                if (reachesModel(graph, n, target, seen)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

@@ -16,8 +16,10 @@
         <type fullname="PetstoreClient.Models.Category" preserve="all" />
         <type fullname="PetstoreClient.Models.Color" preserve="all" />
         <type fullname="PetstoreClient.Models.Defaults" preserve="all" />
+        <type fullname="PetstoreClient.Models.Department" preserve="all" />
         <type fullname="PetstoreClient.Models.DryFood" preserve="all" />
         <type fullname="PetstoreClient.Models.EdgeCases" preserve="all" />
+        <type fullname="PetstoreClient.Models.Employee" preserve="all" />
         <type fullname="PetstoreClient.Models.Medication" preserve="all" />
         <type fullname="PetstoreClient.Models.Metadata" preserve="all" />
         <type fullname="PetstoreClient.Models.Order" preserve="all" />

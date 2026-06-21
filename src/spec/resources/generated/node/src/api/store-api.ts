@@ -17,6 +17,7 @@ import type { DeepInput } from "../deep-input.js";
 import {
   Category,
   Defaults,
+  Department,
   Order,
   Swatch,
   TreeNode,
@@ -121,6 +122,49 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Defaults)!,
+      null,
+    );
+  }
+
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   * @return Department
+   * @throws {ApiError} if fails to make API call
+   */
+  async getDepartment(): Promise<Department> {
+    const getDepartmentResult = await this.getDepartmentWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getDepartmentResult.data == null) {
+      throw new ApiError(
+        getDepartmentResult.statusCode,
+        "Expected a response body for getDepartment but received none",
+        getDepartmentResult.headers,
+        getDepartmentResult.rawBody,
+        null,
+      );
+    }
+    return getDepartmentResult.data as Department;
+  }
+
+  /**
+   * Returns a department (mutual-recursion codegen fixture). (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getDepartmentWithHttpInfo(): Promise<ApiResult<Department>> {
+    const path = `/store/department`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Department)!,
       null,
     );
   }

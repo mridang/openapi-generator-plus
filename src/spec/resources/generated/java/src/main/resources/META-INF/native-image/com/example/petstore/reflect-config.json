@@ -43,6 +43,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Department",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.DryFood",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -53,6 +62,15 @@
   },
   {
     "name": "com.example.petstore.models.EdgeCases",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Employee",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,

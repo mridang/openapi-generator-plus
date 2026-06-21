@@ -17,6 +17,7 @@ import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
+import com.example.petstore.models.Department
 import com.example.petstore.models.Order
 import com.example.petstore.models.Swatch
 import com.example.petstore.models.TreeNode
@@ -84,6 +85,32 @@ class StoreApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Defaults>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Returns a department (mutual-recursion codegen fixture).
+     * @return Department
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getDepartment(): Department =
+        getDepartmentWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getDepartment but the server returned an empty body")
+
+    suspend fun getDepartmentWithHttpInfo(): ApiResult<Department> {
+        var path = "/store/department"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<Department>(
             "GET",
             path,
             queryParams,

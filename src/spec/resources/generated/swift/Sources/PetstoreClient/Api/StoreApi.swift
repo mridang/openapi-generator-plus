@@ -99,6 +99,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Defaults.self)
   }
 
+  /// Returns a department (mutual-recursion codegen fixture).
+
+  public func getDepartment() async throws -> Department {
+    let result = try await getDepartmentWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getDepartment",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getDepartment operation and returns the full API result.
+  public func getDepartmentWithHTTPInfo() async throws -> ApiResult<Department> {
+
+    let path = "/store/department"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Department",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Department.self)
+  }
+
   /// Returns categories grouped into an array of string-keyed maps.
 
   public func getGroupedCategories() async throws -> [[String: Category]] {

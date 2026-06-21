@@ -18,6 +18,7 @@ import '../value_serializer.dart';
 import '../errors/api_error.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
+import '../models/department.dart';
 import '../models/order.dart';
 import '../models/swatch.dart';
 import '../models/tree_node.dart';
@@ -125,6 +126,53 @@ class StoreApi extends BaseApi {
       returnType: 'Defaults',
       auth: null,
       deserialize: (body) => deserialize(body, Defaults.fromJson) as Defaults,
+    );
+  }
+
+  /// Returns a department (mutual-recursion codegen fixture).
+
+  Future<Department> getDepartment() async {
+    final result = await getDepartmentWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Department` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getDepartment but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getDepartment operation and returns the full API result.
+  Future<ApiResult<Department>> getDepartmentWithHTTPInfo() async {
+    var path = '/store/department';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Department>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Department',
+      auth: null,
+      deserialize: (body) =>
+          deserialize(body, Department.fromJson) as Department,
     );
   }
 

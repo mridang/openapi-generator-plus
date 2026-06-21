@@ -27,8 +27,10 @@ __all__ = [
     "Category",
     "Color",
     "Defaults",
+    "Department",
     "DryFood",
     "EdgeCases",
+    "Employee",
     "Medication",
     "Metadata",
     "Order",
@@ -81,11 +83,17 @@ from petstore_client.models.color import (
 from petstore_client.models.defaults import (
     Defaults as Defaults,
 )
+from petstore_client.models.department import (
+    Department as Department,
+)
 from petstore_client.models.dry_food import (
     DryFood as DryFood,
 )
 from petstore_client.models.edge_cases import (
     EdgeCases as EdgeCases,
+)
+from petstore_client.models.employee import (
+    Employee as Employee,
 )
 from petstore_client.models.medication import (
     Medication as Medication,

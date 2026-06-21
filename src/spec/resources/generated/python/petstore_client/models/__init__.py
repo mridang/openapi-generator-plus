@@ -12,8 +12,10 @@ from petstore_client.models.api_response import ApiResponse as ApiResponse
 from petstore_client.models.category import Category as Category
 from petstore_client.models.color import Color as Color
 from petstore_client.models.defaults import Defaults as Defaults
+from petstore_client.models.department import Department as Department
 from petstore_client.models.dry_food import DryFood as DryFood
 from petstore_client.models.edge_cases import EdgeCases as EdgeCases
+from petstore_client.models.employee import Employee as Employee
 from petstore_client.models.medication import Medication as Medication
 from petstore_client.models.metadata import Metadata as Metadata
 from petstore_client.models.order import Order as Order

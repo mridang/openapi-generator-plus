@@ -917,6 +917,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/TreeNode'
 
+  /store/department:
+    get:
+      tags:
+        - store
+      summary: Returns a department (mutual-recursion codegen fixture).
+      operationId: getDepartment
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+
   /store/defaults:
     get:
       tags:
@@ -1752,6 +1767,31 @@ components:
           type: string
         child:
           $ref: '#/components/schemas/TreeNode'
+
+    # Mutual recursion (Department -> Employee -> Department): neither model is a
+    # DIRECT self-reference, so a generator that only boxes direct self-refs
+    # leaves these as fixed-size value types — infinite size (rust E0072, swift
+    # infinite-size struct). The reference cycle must be broken by indirecting an
+    # edge (rust Box, swift @Indirect). The back-references are optional so a
+    # finite value can still be constructed.
+    Department:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        lead:
+          $ref: '#/components/schemas/Employee'
+    Employee:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        department:
+          $ref: '#/components/schemas/Department'
 
     # Exercises schema defaults on deserialize across SDKs.
     Defaults:

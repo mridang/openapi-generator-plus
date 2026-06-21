@@ -130,6 +130,59 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * Returns a department (mutual-recursion codegen fixture).
+
+     * @return \PetstoreClient\Models\Department
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getDepartment()
+    {
+        $apiResult = $this->getDepartmentWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getDepartment but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Department $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\PetstoreClient\Models\Department>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getDepartmentWithHttpInfo(): ApiResult
+    {
+        $path = '/store/department';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Department> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Department'
+        );
+        return $result;
+    }
+
+    /**
      * Returns categories grouped into an array of string-keyed maps.
 
      * @return \Ds\Vector<\Ds\Map<array-key, mixed>>
