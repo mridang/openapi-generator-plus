@@ -73,6 +73,30 @@ void main() {
       expect(order!.status, equals(OrderStatusEnum.placed));
     });
 
+    // -- default-applies-only-when-absent --
+    //
+    // The Defaults model declares `retries` (int, default 3), `mode` (enum,
+    // default `medium` — NOT the first variant), and `label` (nullable string,
+    // default "untitled"). A schema `default` fills in ONLY when the key is
+    // OMITTED from the payload. An explicit JSON `null` is a provided value and
+    // must be PRESERVED as null, not replaced by the default (JSON-Schema
+    // contract; parity with go/rust/python).
+    test('deserialize applies defaults only for absent keys', () {
+      final fromEmpty = deserialize<Defaults>('{}', Defaults.fromJson);
+      expect(fromEmpty, isNotNull);
+      expect(fromEmpty!.retries, equals(3));
+      expect(fromEmpty.mode, equals(DefaultsModeEnum.medium));
+      expect(fromEmpty.label, equals('untitled'));
+
+      final withNull = deserialize<Defaults>(
+        '{"label":null,"retries":7}',
+        Defaults.fromJson,
+      );
+      expect(withNull, isNotNull);
+      expect(withNull!.label, isNull);
+      expect(withNull.retries, equals(7));
+    });
+
     // -- recursive-self-referential-model-deserialize --
     //
     // TreeNode is self-referential ({ value, child: TreeNode? }). Deserializing

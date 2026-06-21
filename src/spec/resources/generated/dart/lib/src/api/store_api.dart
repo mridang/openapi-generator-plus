@@ -17,6 +17,7 @@ import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../errors/api_error.dart';
 import '../models/category.dart';
+import '../models/defaults.dart';
 import '../models/order.dart';
 import '../models/tree_node.dart';
 
@@ -77,6 +78,52 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: null,
+    );
+  }
+
+  /// Returns a model exercising schema defaults on deserialize.
+
+  Future<Defaults> getDefaults() async {
+    final result = await getDefaultsWithHTTPInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Defaults` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getDefaults but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getDefaults operation and returns the full API result.
+  Future<ApiResult<Defaults>> getDefaultsWithHTTPInfo() async {
+    var path = '/store/defaults';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Defaults>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Defaults',
+      auth: null,
+      deserialize: (body) => deserialize(body, Defaults.fromJson) as Defaults,
     );
   }
 

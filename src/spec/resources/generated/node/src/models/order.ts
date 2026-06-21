@@ -33,7 +33,7 @@ export class Order {
 
   constructor(data?: Partial<Order>) {
     Object.assign(this, data);
-    if (this.status == null) {
+    if (this.status === undefined) {
       this.status = OrderStatusEnum.Placed;
     }
     if (this.id != null && typeof this.id !== "number") {

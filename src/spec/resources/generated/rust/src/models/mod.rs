@@ -12,6 +12,8 @@ mod category;
 pub use category::*;
 mod color;
 pub use color::*;
+mod defaults;
+pub use defaults::*;
 mod dry_food;
 pub use dry_food::*;
 mod edge_cases;

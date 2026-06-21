@@ -340,16 +340,20 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     super(data);
 {{/parent}}
     Object.assign(this, data);
-{{! default-on-deserialize: a field whose schema declares a default must fall
-    back to that default when the wire payload OMITS it. The field initializer
-    seeds the default, but ObjectSerializer.deserialize feeds plainToInstance
-    output back through this constructor, and Object.assign copies an explicit
-    undefined for the absent key over that seeded default. Re-apply the default
-    here when the field came through null/undefined so an absent defaulted field
-    is populated instead of left empty. A present value is untouched. }}
+{{! default-on-deserialize: a field whose schema declares a default falls
+    back to that default ONLY when the wire payload OMITS the key. An
+    explicit JSON null is a provided value and is PRESERVED, not replaced
+    by the default (JSON-Schema-correct; matches go/rust/python). The field
+    initializer seeds the default, but ObjectSerializer.deserialize feeds
+    plainToInstance output back through this constructor, and Object.assign
+    copies an explicit undefined for an absent key over that seeded default.
+    plainToInstance assigns undefined for an absent key and null for an
+    explicit null, so a strict `=== undefined` check distinguishes the two:
+    re-apply the default for an absent (undefined) field, leave an explicit
+    null untouched. A present value is also untouched. }}
 {{#vars}}
 {{#defaultValue}}
-    if (this.{{name}} == null) {
+    if (this.{{name}} === undefined) {
       this.{{name}} = {{{defaultValue}}};
     }
 {{/defaultValue}}

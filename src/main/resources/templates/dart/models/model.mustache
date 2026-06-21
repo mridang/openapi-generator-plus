@@ -412,7 +412,10 @@ class {{classname}} {
 {{#isEnum}}
 {{#isInteger}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+         default solely when the key is OMITTED; an explicit `null` is
+         preserved as null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
@@ -421,7 +424,10 @@ class {{classname}} {
 {{^isInteger}}
 {{#isLong}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+         default solely when the key is OMITTED; an explicit `null` is
+         preserved as null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
@@ -429,7 +435,10 @@ class {{classname}} {
 {{/isLong}}
 {{^isLong}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+         default solely when the key is OMITTED; an explicit `null` is
+         preserved as null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
@@ -474,7 +483,11 @@ class {{classname}} {
 {{/isDuration}}
 {{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? json['{{baseName}}'] as {{{dataType}}} : {{{defaultValue}}},
+      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+         fills in only when the key is OMITTED from the payload. An explicit
+         JSON `null` is a provided value and is preserved as null (not replaced
+         by the default), matching the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? json['{{baseName}}'] as {{{dataType}}}? : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
@@ -484,7 +497,10 @@ class {{classname}} {
 {{^isPrimitiveType}}
 {{#isEnumRef}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}) : {{{defaultValue}}},
+      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+         solely when the key is OMITTED; an explicit `null` is preserved as
+         null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}) : null) : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}) : null,
@@ -492,7 +508,10 @@ class {{classname}} {
 {{/isEnumRef}}
 {{^isEnumRef}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : {{{defaultValue}}},
+      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+         solely when the key is OMITTED; an explicit `null` is preserved as
+         null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : null) : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : null,

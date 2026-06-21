@@ -90,8 +90,13 @@ class Order {
           ? DateTime.parse(json['shipDate'] as String)
           : null,
 
-      status: json['status'] != null
-          ? OrderStatusEnum.fromJson(json['status'] as String)
+      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+         default solely when the key is OMITTED; an explicit `null` is
+         preserved as null per the JSON-Schema contract. */
+      status: json.containsKey('status')
+          ? (json['status'] != null
+                ? OrderStatusEnum.fromJson(json['status'] as String)
+                : null)
           : OrderStatusEnum.placed,
 
       complete: json['complete'] as bool?,

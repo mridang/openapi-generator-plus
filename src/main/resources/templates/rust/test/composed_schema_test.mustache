@@ -309,3 +309,60 @@ fn test_tree_node_deserialize_recursive() {
         child.child
     );
 }
+
+// -- absent-vs-null defaults: Defaults --
+//
+// `Defaults` exercises the JSON-Schema-correct default contract:
+//   * `retries` (int, default 3) — a NON-ENUM scalar default.
+//   * `mode` (enum, default `medium`) — a default that is NOT the first
+//     variant, so it must resolve to the DECLARED variant `Medium`.
+//   * `label` (nullable string, default "untitled").
+// A schema `default` applies ONLY when the property is ABSENT. An explicit
+// JSON `null` is a provided value and is PRESERVED as `None`, never replaced
+// by the default.
+#[test]
+fn test_defaults_absent_applies_schema_defaults() {
+    let json_data = r#"{}"#;
+
+    let defaults: Defaults =
+        serde_json::from_str(json_data).expect("failed to deserialize Defaults");
+
+    assert_eq!(
+        defaults.retries,
+        Some(3),
+        "absent `retries` must deserialize to the schema default 3, got: {:?}",
+        defaults.retries
+    );
+    assert_eq!(
+        defaults.mode,
+        Some(DefaultsModeEnum::Medium),
+        "absent `mode` must deserialize to the declared default variant `Medium`, got: {:?}",
+        defaults.mode
+    );
+    assert_eq!(
+        defaults.label,
+        Some("untitled".to_string()),
+        "absent `label` must deserialize to the schema default \"untitled\", got: {:?}",
+        defaults.label
+    );
+}
+
+#[test]
+fn test_defaults_explicit_null_is_preserved() {
+    let json_data = r#"{"label":null,"retries":7}"#;
+
+    let defaults: Defaults =
+        serde_json::from_str(json_data).expect("failed to deserialize Defaults");
+
+    assert!(
+        defaults.label.is_none(),
+        "explicit null `label` must be preserved as None, not replaced by the default, got: {:?}",
+        defaults.label
+    );
+    assert_eq!(
+        defaults.retries,
+        Some(7),
+        "provided `retries` must be preserved as 7, got: {:?}",
+        defaults.retries
+    );
+}

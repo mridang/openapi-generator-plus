@@ -598,6 +598,40 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return null;
     }
 
+    /**
+     * Rewrites an optional enum field's {@code defaultValue} to the
+     * fully-qualified DECLARED variant (e.g. {@code DefaultsModeEnum::Medium})
+     * rather than the wire string. The schema {@code default} can be any
+     * variant — not necessarily the first — so the model template must not
+     * fall back to {@code <Enum>::default()} (which always resolves to the
+     * {@code #[default]} first variant). Emitting the declared variant here
+     * lets both the {@code default_<name>()} serde hook and the {@code new()}
+     * constructor seed the correct value.
+     */
+    @Override
+    protected void fixEnumDefaultValue(
+            org.openapitools.codegen.CodegenProperty prop,
+            org.openapitools.codegen.CodegenModel model) {
+        // toDefaultValue wraps a string-enum's wire default as
+        // String::from("medium") (a string schema). Unwrap that carrier and
+        // re-emit the declared variant (e.g. DefaultsModeEnum::Medium) so the
+        // value lands in the enum-typed field/hook rather than producing an
+        // Option<String> (E0308). Idempotent: after the rewrite the value no
+        // longer matches the String::from(...) form, so the four call sites
+        // (vars/allVars/optionalVars/requiredVars) converge.
+        final String prefix = "String::from(\"";
+        final String suffix = "\")";
+        if (prop.defaultValue != null
+                && prop.isEnum
+                && prop.defaultValue.startsWith(prefix)
+                && prop.defaultValue.endsWith(suffix)) {
+            final String rawValue = prop.defaultValue.substring(
+                    prefix.length(), prop.defaultValue.length() - suffix.length());
+            final String variant = toEnumVarName(rawValue.toLowerCase(Locale.ROOT), prop.dataType);
+            prop.defaultValue = model.classname + prop.enumName + "::" + variant;
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String formatEnumStringLiteral(String value) {

@@ -437,14 +437,40 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     # default-on-deserialize: Order.status carries a schema `default: placed`.
     # When the wire payload omits "status", deserialize must fall back to that
-    # default rather than leaving the field nil — the struct's `status: "placed"`
-    # default survives because the reducer skips absent keys. Canonical across
-    # the product; the asserted value is the schema default "placed".
+    # default rather than leaving the field nil — the struct's `status: :placed`
+    # default survives because the reducer skips absent keys. status is an enum,
+    # so the default is the atom `:placed`, identical to the value the
+    # deserializer produces for a present "status" wire string. Canonical across
+    # the product; the asserted value is the schema default placed.
     test "deserialize applies schema default for absent field" do
       json_str = ~s({"id":10,"petId":198772})
       order = PetstoreClient.ObjectSerializer.deserialize(json_str, "Order")
       assert %PetstoreClient.Models.Order{} = order
-      assert order.status == "placed"
+      assert order.status == :placed
+    end
+
+    # Defaults contract (canonical across all 12 SDKs): a schema `default`
+    # applies ONLY when the property is absent from the payload. An explicit
+    # JSON null is a provided value and is preserved (the field stays nil),
+    # never replaced by the default. The Defaults model declares
+    # retries (int, default 3), mode (enum, default medium — not the first
+    # variant), and label (nullable string, default "untitled").
+    test "deserialize applies defaults for an empty object" do
+      defaults = PetstoreClient.ObjectSerializer.deserialize(~s({}), "Defaults")
+      assert %PetstoreClient.Models.Defaults{} = defaults
+      assert defaults.retries == 3
+      assert defaults.mode == :medium
+      assert defaults.label == "untitled"
+    end
+
+    test "deserialize preserves an explicit null over the default" do
+      json_str = ~s({"label":null,"retries":7})
+      defaults = PetstoreClient.ObjectSerializer.deserialize(json_str, "Defaults")
+      assert %PetstoreClient.Models.Defaults{} = defaults
+      # label is present-but-null on the wire: the null is preserved, NOT
+      # replaced by the "untitled" default (absent-vs-null distinction).
+      assert defaults.label == nil
+      assert defaults.retries == 7
     end
 
     # Recursive self-referential model: TreeNode.child is a $ref back to

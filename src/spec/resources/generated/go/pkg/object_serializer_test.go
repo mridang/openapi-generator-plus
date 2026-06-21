@@ -84,6 +84,38 @@ func TestDeserialize_StripsUTF8BOMBeforeModel(t *testing.T) {
 	}
 }
 
+// A schema default applies only when the property is ABSENT from the payload.
+// An explicit JSON null is a provided value and must be preserved, not replaced
+// by the default. This mirrors the default-application contract of the other SDKs.
+func TestDeserialize_DefaultsAbsentVersusNull(t *testing.T) {
+	t.Parallel()
+
+	var fromEmpty models.Defaults
+	if err := deserialize([]byte("{}"), &fromEmpty); err != nil {
+		t.Fatalf("unexpected error deserializing empty object: %v", err)
+	}
+	if fromEmpty.Retries == nil || *fromEmpty.Retries != 3 {
+		t.Errorf("expected retries default 3, got %v", fromEmpty.Retries)
+	}
+	if fromEmpty.Mode == nil || *fromEmpty.Mode != models.DefaultsModeEnumMedium {
+		t.Errorf("expected mode default medium, got %v", fromEmpty.Mode)
+	}
+	if fromEmpty.Label == nil || *fromEmpty.Label != "untitled" {
+		t.Errorf("expected label default 'untitled', got %v", fromEmpty.Label)
+	}
+
+	var fromNull models.Defaults
+	if err := deserialize([]byte(`{"label":null,"retries":7}`), &fromNull); err != nil {
+		t.Fatalf("unexpected error deserializing explicit null: %v", err)
+	}
+	if fromNull.Label != nil {
+		t.Errorf("expected explicit null label to be preserved as nil, got %v", *fromNull.Label)
+	}
+	if fromNull.Retries == nil || *fromNull.Retries != 7 {
+		t.Errorf("expected retries 7, got %v", fromNull.Retries)
+	}
+}
+
 func TestDeserialize_EmptyData(t *testing.T) {
 	t.Parallel()
 	var result map[string]any

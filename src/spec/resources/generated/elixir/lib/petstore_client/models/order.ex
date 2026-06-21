@@ -26,7 +26,7 @@ defmodule PetstoreClient.Models.Order do
     :quantity,
     :ship_date,
     :complete,
-    status: "placed"
+    status: :placed
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."

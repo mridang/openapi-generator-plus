@@ -211,6 +211,28 @@ import Testing
       "absent status must fall back to the schema default 'placed'")
   }
 
+  // defaults-absent-vs-null (cross-language contract): a schema `default`
+  // applies ONLY when the property is ABSENT from the payload. An explicit
+  // JSON `null` is a provided value and is PRESERVED (the field stays nil),
+  // NOT replaced by the default. Defaults declares retries:int default 3,
+  // mode:enum default medium (not the first variant), label:string nullable
+  // default "untitled".
+  @Test func testDefaultsAbsentAppliesDefaults() throws {
+    let defaults = try ObjectSerializer.deserialize("{}", as: Defaults.self)
+    #expect(defaults?.retries == 3, "absent retries must default to 3")
+    #expect(defaults?.mode == .medium, "absent mode must default to medium")
+    #expect(defaults?.label == "untitled", "absent label must default to untitled")
+  }
+
+  @Test func testDefaultsExplicitNullPreservedNotDefaulted() throws {
+    let json = "{\"label\":null,\"retries\":7}"
+    let defaults = try ObjectSerializer.deserialize(json, as: Defaults.self)
+    #expect(
+      defaults?.label == nil,
+      "explicit null label must be preserved as nil, not replaced by the default")
+    #expect(defaults?.retries == 7, "provided retries must be preserved")
+  }
+
   @Test func testToCookieValueString() {
     #expect(ObjectSerializer.toCookieValue("hello") == "hello")
   }

@@ -77,6 +77,59 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * Returns a model exercising schema defaults on deserialize.
+
+     * @return \PetstoreClient\Models\Defaults
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getDefaults()
+    {
+        $apiResult = $this->getDefaultsWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getDefaults but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Defaults $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @return ApiResult<\PetstoreClient\Models\Defaults>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getDefaultsWithHttpInfo(): ApiResult
+    {
+        $path = '/store/defaults';
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Defaults> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Defaults'
+        );
+        return $result;
+    }
+
+    /**
      * Returns categories grouped into an array of string-keyed maps.
 
      * @return \Ds\Vector<\Ds\Map<array-key, mixed>>

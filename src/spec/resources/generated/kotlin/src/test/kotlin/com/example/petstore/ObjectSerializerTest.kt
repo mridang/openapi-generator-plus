@@ -286,6 +286,27 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("schema defaults apply only when the property is absent, not on explicit null")
+        fun deserializeAppliesDefaultsOnlyWhenAbsent() {
+            // The Defaults model declares retries=3 (non-enum scalar),
+            // mode=medium (enum default that is not the first variant) and
+            // label="untitled" (nullable string with a default). An absent
+            // property is populated with its declared default; an explicit JSON
+            // null is a provided value and must be preserved, never overwritten by
+            // the default.
+            val fromEmpty = serializer.deserialize<com.example.petstore.models.Defaults>("{}")
+            assertNotNull(fromEmpty)
+            assertEquals(3, fromEmpty!!.retries)
+            assertEquals(com.example.petstore.models.Defaults.ModeEnum.MEDIUM, fromEmpty.mode)
+            assertEquals("untitled", fromEmpty.label)
+
+            val fromNull = serializer.deserialize<com.example.petstore.models.Defaults>("{\"label\":null,\"retries\":7}")
+            assertNotNull(fromNull)
+            assertNull(fromNull!!.label)
+            assertEquals(7, fromNull.retries)
+        }
+
+        @Test
         @DisplayName("primitive-type-coercion-lenient: unquoted scalar on a String field throws")
         fun unquotedScalarOnStringFieldThrows() {
             // isLenient=true accepts an unquoted bare literal as a string value

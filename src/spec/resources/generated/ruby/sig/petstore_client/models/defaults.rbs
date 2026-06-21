@@ -1,0 +1,11 @@
+module PetstoreClient::Models
+  class Defaults < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    attr_reader retries: Integer?
+    attr_reader mode: String?
+    attr_reader label: String?
+  end
+end

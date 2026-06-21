@@ -16,6 +16,7 @@ import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.models.Category
+import com.example.petstore.models.Defaults
 import com.example.petstore.models.Order
 import com.example.petstore.models.TreeNode
 import kotlin.collections.List
@@ -61,6 +62,32 @@ class StoreApi : BaseApi {
             headerParams,
             null,
             arrayOf(),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Returns a model exercising schema defaults on deserialize.
+     * @return Defaults
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getDefaults(): Defaults =
+        getDefaultsWithHttpInfo().data
+            ?: throw ApiException("Expected a response body for getDefaults but the server returned an empty body")
+
+    suspend fun getDefaultsWithHttpInfo(): ApiResult<Defaults> {
+        var path = "/store/defaults"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<Defaults>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
             "application/json",
             null,
         )

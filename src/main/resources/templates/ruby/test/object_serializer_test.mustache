@@ -371,6 +371,25 @@ describe {{moduleName}}::ObjectSerializer do
       _(order.status).must_equal('placed')
     end
 
+    # Defaults model: schema `default` applies ONLY when the property is
+    # ABSENT from the payload; an explicit JSON `null` is a provided value
+    # and is PRESERVED (the field stays nil), not replaced by the default.
+    # This matches the JSON-Schema-correct behaviour of go/rust/python.
+    # deserialize_model skips absent keys (so dry-struct's `.default(...)`
+    # fires) but passes an explicit null through, which `.optional` keeps.
+    it 'applies defaults only for absent fields, preserving explicit null' do
+      from_empty = {{moduleName}}::ObjectSerializer.deserialize('{}', 'Defaults')
+      _(from_empty).must_be_kind_of({{moduleName}}::Models::Defaults)
+      _(from_empty.retries).must_equal(3)
+      _(from_empty.mode).must_equal('medium')
+      _(from_empty.label).must_equal('untitled')
+
+      from_null = {{moduleName}}::ObjectSerializer.deserialize('{"label":null,"retries":7}', 'Defaults')
+      _(from_null).must_be_kind_of({{moduleName}}::Models::Defaults)
+      _(from_null.label).must_be_nil
+      _(from_null.retries).must_equal(7)
+    end
+
     # Self-referential model (TreeNode has a `child` of its own type). A
     # nested payload must decode every level into a typed TreeNode, with the
     # absent innermost `child` left nil rather than wrapped in an empty model.

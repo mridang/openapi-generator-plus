@@ -31,7 +31,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
       pet_id: :rand.uniform(1_000_000_000),
       quantity: 1,
       ship_date: DateTime.utc_now() |> DateTime.to_iso8601(),
-      status: "placed",
+      status: :placed,
       complete: false
     }
 
@@ -52,7 +52,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
       pet_id: :rand.uniform(1_000_000_000),
       quantity: 1,
       ship_date: DateTime.utc_now() |> DateTime.to_iso8601(),
-      status: "placed",
+      status: :placed,
       complete: false
     }
 
@@ -122,7 +122,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
       id: :rand.uniform(1_000_000_000),
       pet_id: :rand.uniform(1_000_000_000),
       quantity: 1,
-      status: "placed",
+      status: :placed,
       complete: false
     }
 

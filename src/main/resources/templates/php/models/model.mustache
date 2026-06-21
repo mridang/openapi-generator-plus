@@ -401,7 +401,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isEnum}}
 {{^isEnum}}
 {{#defaultValue}}
-    public {{{dataType}}} ${{name}} = {{{.}}};
+    public {{#isNullable}}?{{/isNullable}}{{{dataType}}} ${{name}} = {{{.}}};
 {{/defaultValue}}
 {{^defaultValue}}
     public {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null;
@@ -504,7 +504,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isEnum}}
 {{^isEnum}}
 {{#defaultValue}}
-        {{{dataType}}} ${{name}} = {{{.}}},
+        {{#isNullable}}?{{/isNullable}}{{{dataType}}} ${{name}} = {{{.}}},
 {{/defaultValue}}
 {{^defaultValue}}
         {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null,

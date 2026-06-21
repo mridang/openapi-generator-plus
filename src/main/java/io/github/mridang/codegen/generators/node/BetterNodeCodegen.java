@@ -545,12 +545,25 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (resolved.getDefault() == null) {
+            return null;
+        }
+        // String enum: emit the wire value; fixEnumDefaultValue rewrites it to
+        // the typed member (e.g. DefaultsModeEnum.Medium) afterwards.
         if (ModelUtils.isStringSchema(resolved)
-                && resolved.getDefault() != null
                 && resolved.getEnum() != null
                 && !resolved.getEnum().isEmpty()) {
-            final String val = resolved.getDefault().toString();
-            return getQuoteChar() + val + getQuoteChar();
+            return getQuoteChar() + resolved.getDefault().toString() + getQuoteChar();
+        }
+        // Plain (non-enum) string default → a TypeScript string literal.
+        if (ModelUtils.isStringSchema(resolved)) {
+            return getQuoteChar() + escapeText(resolved.getDefault().toString()) + getQuoteChar();
+        }
+        // Numeric/boolean defaults render verbatim as TypeScript literals.
+        if (ModelUtils.isBooleanSchema(resolved)
+                || ModelUtils.isIntegerSchema(resolved)
+                || ModelUtils.isNumberSchema(resolved)) {
+            return resolved.getDefault().toString();
         }
         return null;
     }

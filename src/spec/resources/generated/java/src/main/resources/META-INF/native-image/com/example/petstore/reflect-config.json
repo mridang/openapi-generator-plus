@@ -27,6 +27,22 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Defaults",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Defaults$ModeEnum",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.DryFood",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,

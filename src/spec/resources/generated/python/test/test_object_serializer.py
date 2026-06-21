@@ -316,6 +316,31 @@ class TestDeserialize:
         order = ObjectSerializer().deserialize(json_str, "Order")
         assert order.status == OrderStatusEnum.PLACED
 
+    def test_deserialize_defaults_absent_vs_explicit_null(self) -> None:
+        # absent-vs-null contract: a schema `default` fills a field only when
+        # the key is ABSENT from the payload. An explicit JSON null is a
+        # provided value and is PRESERVED as None, never replaced by the
+        # default. Defaults carries retries(default 3, non-enum scalar),
+        # mode(default "medium" — not the first enum variant), and
+        # label(nullable, default "untitled"). All 12 SDKs converge here.
+        from petstore_client.models.defaults import Defaults, DefaultsModeEnum
+
+        # (a) Empty object -> every default is applied.
+        filled = ObjectSerializer().deserialize("{}", "Defaults")
+        assert isinstance(filled, Defaults)
+        assert filled.retries == 3
+        assert filled.mode == DefaultsModeEnum.MEDIUM
+        assert filled.label == "untitled"
+
+        # (b) Explicit null on the nullable field is PRESERVED, not defaulted;
+        # the supplied retries overrides its default.
+        preserved = ObjectSerializer().deserialize(
+            '{"label":null,"retries":7}', "Defaults"
+        )
+        assert isinstance(preserved, Defaults)
+        assert preserved.label is None
+        assert preserved.retries == 7
+
     def test_deserializes_self_referential_model(self) -> None:
         # A self-referential model (TreeNode.child is itself a TreeNode) must
         # decode the nested level into a typed TreeNode instance, not a raw

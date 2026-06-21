@@ -15,6 +15,7 @@
         <type fullname="PetstoreClient.Models.ApiResponse" preserve="all" />
         <type fullname="PetstoreClient.Models.Category" preserve="all" />
         <type fullname="PetstoreClient.Models.Color" preserve="all" />
+        <type fullname="PetstoreClient.Models.Defaults" preserve="all" />
         <type fullname="PetstoreClient.Models.DryFood" preserve="all" />
         <type fullname="PetstoreClient.Models.EdgeCases" preserve="all" />
         <type fullname="PetstoreClient.Models.Medication" preserve="all" />

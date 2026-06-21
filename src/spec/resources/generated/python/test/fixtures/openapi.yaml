@@ -917,6 +917,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/TreeNode'
 
+  /store/defaults:
+    get:
+      tags:
+        - store
+      summary: Returns a model exercising schema defaults on deserialize.
+      operationId: getDefaults
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Defaults'
+
   /store/grouped-categories:
     get:
       tags:
@@ -1678,3 +1693,31 @@ components:
           type: string
         child:
           $ref: '#/components/schemas/TreeNode'
+
+    # Exercises schema defaults on deserialize across SDKs.
+    Defaults:
+      type: object
+      properties:
+        # non-enum scalar default (must apply on absent, not only enums)
+        retries:
+          type: integer
+          format: int32
+          default: 3
+        # enum default that is NOT the first variant (must use the declared
+        # default, not the type's first/zero variant)
+        mode:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+          default: medium
+        # nullable field with a default: absent -> default, explicit null -> null.
+        # OAS 3.1 spells nullability as a "null" member of the type array (the
+        # 3.0 `nullable: true` keyword is ignored under 3.1); the normalizer
+        # folds this back to nullable:true so isNullable is set downstream.
+        label:
+          type:
+            - string
+            - "null"
+          default: untitled

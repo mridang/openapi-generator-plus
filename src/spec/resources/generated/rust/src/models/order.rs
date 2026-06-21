@@ -27,10 +27,10 @@ pub enum OrderStatusEnum {
 /// Serde default for the optional `status` field: when the property is
 /// ABSENT from the wire payload the schema's `default` applies, so an
 /// omitted `status` deserializes to the declared default variant
-/// (e.g. `"placed"`) rather than `None`. An explicit `null` still maps to
-/// `None`, and a present value is taken as-is.
+/// rather than `None`. An explicit `null` still maps to `None`, and a
+/// present value is taken as-is.
 fn default_status() -> Option<OrderStatusEnum> {
-    Some(OrderStatusEnum::default())
+    Some(OrderStatusEnum::Placed)
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -69,12 +69,11 @@ impl Order {
             quantity: None,
             ship_date: None,
             // Optional enum field with a schema default: seed it with the
-            // default variant so a default-constructed value serializes the
-            // declared default (e.g. `"status":"placed"`), matching the other
-            // SDKs. The enum derives Default with `#[default]` on the variant
-            // for the spec's first/default value, so `Default::default()`
-            // resolves to the schema default.
-            status: Some(OrderStatusEnum::default()),
+            // DECLARED default variant so a default-constructed value
+            // serializes the schema default (e.g. `"mode":"medium"`), matching
+            // the other SDKs. The schema default may not be the first variant,
+            // so the declared variant is used rather than `Default::default()`.
+            status: Some(OrderStatusEnum::Placed),
             complete: None,
         }
     }

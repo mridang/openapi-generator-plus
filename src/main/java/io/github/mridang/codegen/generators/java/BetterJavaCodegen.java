@@ -493,8 +493,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      * unique items; maps default to empty HashMap. String enum
      * schemas with a default return the raw value so that
      * {@code updateCodegenPropertyEnum} can match it to an enum
-     * var and produce {@code StatusEnum.PLACED}. All other types
-     * return null.
+     * var and produce {@code StatusEnum.PLACED}. Non-enum scalar
+     * schemas carrying a {@code default} render it as a Java
+     * literal (quoted string, numeric, {@code L}/{@code F}-suffixed
+     * long/float, or boolean) so the model field is initialized to
+     * the schema default. This makes an absent JSON key fall back
+     * to the default while an explicit JSON null is still preserved
+     * (Jackson overwrites the initializer only when the key is
+     * present). All other types return null.
      */
     @Nullable
     @SuppressWarnings("rawtypes")
@@ -514,6 +520,22 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 && unaliased.getEnum() != null
                 && !unaliased.getEnum().isEmpty()) {
             return unaliased.getDefault().toString();
+        }
+        if (unaliased.getDefault() != null) {
+            if (ModelUtils.isStringSchema(unaliased)) {
+                return "\"" + escapeText(String.valueOf(unaliased.getDefault())) + "\"";
+            }
+            if (ModelUtils.isLongSchema(unaliased)) {
+                return unaliased.getDefault() + "L";
+            }
+            if (ModelUtils.isFloatSchema(unaliased)) {
+                return unaliased.getDefault() + "F";
+            }
+            if (ModelUtils.isIntegerSchema(unaliased)
+                    || ModelUtils.isNumberSchema(unaliased)
+                    || ModelUtils.isBooleanSchema(unaliased)) {
+                return unaliased.getDefault().toString();
+            }
         }
         return null;
     }

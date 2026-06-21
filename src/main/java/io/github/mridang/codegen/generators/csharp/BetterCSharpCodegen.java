@@ -509,21 +509,41 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
      * not needed in the generated models.
      */
     /**
-     * Returns a raw string value for string enum schemas that have a
-     * declared OAS {@code default}. This value is then matched by
+     * Returns the C# default-value literal for a schema with a
+     * declared OAS {@code default}.
+     *
+     * <p>String enum schemas return the raw wire value (e.g.
+     * {@code medium}); this is later matched by
      * {@code updateCodegenPropertyEnum} and converted to the typed
-     * enum form (e.g. {@code StatusEnum.Placed}). All other types
-     * return null.
+     * enum form (e.g. {@code ModeEnum.Medium}). Non-enum integer,
+     * number and boolean schemas return their string representation
+     * (a valid C# numeric/boolean literal). Non-enum string schemas
+     * return the value wrapped in double quotes. All other schemas,
+     * and schemas with no default, return null.
+     *
+     * <p>Emitting the default as a property initializer makes an
+     * absent JSON key fall back to the schema default while an
+     * explicit JSON null is still preserved: System.Text.Json only
+     * overwrites the initializer when the key is present.
      */
     @Nullable
     @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
-        if (ModelUtils.isStringSchema(resolved)
-                && resolved.getDefault() != null
-                && resolved.getEnum() != null
-                && !resolved.getEnum().isEmpty()) {
+        if (resolved.getDefault() == null) {
+            return null;
+        }
+        final boolean isEnum = resolved.getEnum() != null && !resolved.getEnum().isEmpty();
+        if (ModelUtils.isStringSchema(resolved)) {
+            if (isEnum) {
+                return resolved.getDefault().toString();
+            }
+            return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+        }
+        if (ModelUtils.isIntegerSchema(resolved)
+                || ModelUtils.isNumberSchema(resolved)
+                || ModelUtils.isBooleanSchema(resolved)) {
             return resolved.getDefault().toString();
         }
         return null;

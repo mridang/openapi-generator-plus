@@ -499,7 +499,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
         if (resolved.getDefault() != null) {
-            if (ModelUtils.isStringSchema(resolved)) {
+            // An enum field's wire default ("medium") must become its atom
+            // form (:"medium") so an absent property yields the same typed
+            // value the deserializer produces for a present one — the struct
+            // @type declares enum fields as atoms, and ObjectSerializer
+            // atomizes the wire value verbatim via String.to_atom/1. Emitting
+            // the raw string here would leave the struct default as a String,
+            // diverging from the present-property path.
+            if (resolved.getEnum() != null && !resolved.getEnum().isEmpty()) {
+                return ":\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+            } else if (ModelUtils.isStringSchema(resolved)) {
                 return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
             } else if (ModelUtils.isBooleanSchema(resolved)) {
                 return resolved.getDefault().toString();

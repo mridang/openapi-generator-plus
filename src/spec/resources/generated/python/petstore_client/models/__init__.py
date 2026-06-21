@@ -11,6 +11,7 @@
 from petstore_client.models.api_response import ApiResponse as ApiResponse
 from petstore_client.models.category import Category as Category
 from petstore_client.models.color import Color as Color
+from petstore_client.models.defaults import Defaults as Defaults
 from petstore_client.models.dry_food import DryFood as DryFood
 from petstore_client.models.edge_cases import EdgeCases as EdgeCases
 from petstore_client.models.medication import Medication as Medication

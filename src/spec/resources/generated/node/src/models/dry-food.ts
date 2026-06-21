@@ -17,7 +17,7 @@ export class DryFood {
 
   constructor(data?: Partial<DryFood>) {
     Object.assign(this, data);
-    if (this.foodType == null) {
+    if (this.foodType === undefined) {
       this.foodType = "dry";
     }
     if (data !== undefined) {

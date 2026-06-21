@@ -26,6 +26,7 @@ __all__ = [
     "ApiResponse",
     "Category",
     "Color",
+    "Defaults",
     "DryFood",
     "EdgeCases",
     "Medication",
@@ -75,6 +76,9 @@ from petstore_client.models.category import (
 )
 from petstore_client.models.color import (
     Color as Color,
+)
+from petstore_client.models.defaults import (
+    Defaults as Defaults,
 )
 from petstore_client.models.dry_food import (
     DryFood as DryFood,

@@ -48,6 +48,7 @@ export 'src/object_serializer.dart' show SerializationError, UuidValue;
 export 'src/models/api_response.dart';
 export 'src/models/category.dart';
 export 'src/models/color.dart';
+export 'src/models/defaults.dart';
 export 'src/models/dry_food.dart';
 export 'src/models/edge_cases.dart';
 export 'src/models/medication.dart';

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 
 from petstore_client.models.category import Category
+from petstore_client.models.defaults import Defaults
 from petstore_client.models.order import Order
 from petstore_client.models.tree_node import TreeNode
 
@@ -87,6 +88,54 @@ class StoreApi(BaseApi):
             [],
             "application/json",
             None,
+            None,
+        )
+
+    async def get_defaults(
+        self,
+    ) -> Defaults:
+        """Returns a model exercising schema defaults on deserialize.
+
+        :return: Defaults
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_defaults_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_defaults_with_http_info(
+        self,
+    ) -> "ApiResult[Defaults]":
+        """Returns a model exercising schema defaults on deserialize. (with HTTP info)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/defaults"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "Defaults",
             None,
         )
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\Category;
+use PetstoreClient\Models\Defaults;
+use PetstoreClient\Models\DefaultsModeEnum;
 use PetstoreClient\Models\EdgeCases;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
@@ -466,6 +468,37 @@ test('deserialize applies schema default for absent field', function (): void {
     $order = ObjectSerializer::deserialize($json, Order::class);
     expect($order)->toBeInstanceOf(Order::class);
     expect($order->status)->toBe(OrderStatusEnum::PLACED);
+});
+
+// -- absent-vs-null defaults contract --
+//
+// Canonical cross-SDK scenario on the Defaults model: a schema `default`
+// applies ONLY when the property is ABSENT from the payload. An explicit JSON
+// null is a provided value and is PRESERVED (the field stays null), never
+// replaced by the default. This matches go/rust/python.
+//   retries: int    default 3       (non-enum scalar default)
+//   mode:    enum    default medium  (enum default, not the first variant)
+//   label:   string  nullable, default "untitled"
+
+test('deserialize applies defaults only when fields are absent', function (): void {
+    $json = '{}';
+    /** @var Defaults $defaults */
+    $defaults = ObjectSerializer::deserialize($json, Defaults::class);
+    expect($defaults)->toBeInstanceOf(Defaults::class);
+    expect($defaults->retries)->toBe(3);
+    expect($defaults->mode)->toBe(DefaultsModeEnum::MEDIUM);
+    expect($defaults->label)->toBe('untitled');
+});
+
+test('deserialize preserves explicit null over a defaulted field', function (): void {
+    $json = '{"label":null,"retries":7}';
+    /** @var Defaults $defaults */
+    $defaults = ObjectSerializer::deserialize($json, Defaults::class);
+    expect($defaults)->toBeInstanceOf(Defaults::class);
+    // Explicit null is PRESERVED, not replaced by the "untitled" default.
+    expect($defaults->label)->toBeNull();
+    // A provided scalar wins over the default.
+    expect($defaults->retries)->toBe(7);
 });
 
 test('deserialize roundtrips int 64 max exactly', function (): void {

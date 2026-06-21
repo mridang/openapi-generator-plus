@@ -4,6 +4,8 @@ module PetstoreClient
       def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config, ?::PetstoreClient::Auth::Authenticator? authenticator) -> void
       def delete_order: (Integer order_id) -> void
       def delete_order_with_http_info: (Integer order_id) -> ::PetstoreClient::ApiResult[nil]
+      def get_defaults: () -> Models::Defaults
+      def get_defaults_with_http_info: () -> ::PetstoreClient::ApiResult[Models::Defaults]
       def get_grouped_categories: () -> Array[Hash[String, Models::Category]]
       def get_grouped_categories_with_http_info: () -> ::PetstoreClient::ApiResult[Array[Hash[String, Models::Category]]]
       def get_inventory: () -> Hash[String, Integer]

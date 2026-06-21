@@ -515,6 +515,24 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 && !unaliased.getEnum().isEmpty()) {
             return unaliased.getDefault().toString();
         }
+        if (unaliased.getDefault() != null) {
+            // A non-enum scalar default must be materialised on deserialize: an
+            // absent property is populated with this value while an explicit JSON
+            // null is preserved by kotlinx-serialization (the default applies only
+            // when the key is missing). String defaults become quoted literals;
+            // numeric and boolean defaults are emitted verbatim.
+            if (ModelUtils.isStringSchema(unaliased)) {
+                return "\"" + escapeText(String.valueOf(unaliased.getDefault())) + "\"";
+            }
+            if (ModelUtils.isLongSchema(unaliased)) {
+                return String.valueOf(unaliased.getDefault()) + "L";
+            }
+            if (ModelUtils.isIntegerSchema(unaliased)
+                    || ModelUtils.isNumberSchema(unaliased)
+                    || ModelUtils.isBooleanSchema(unaliased)) {
+                return String.valueOf(unaliased.getDefault());
+            }
+        }
         return null;
     }
 

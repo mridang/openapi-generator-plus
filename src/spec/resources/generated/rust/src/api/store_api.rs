@@ -97,6 +97,55 @@ impl StoreApi {
         self.base.invoke_api_for_empty_result(params).await
     }
 
+    /// Returns a model exercising schema defaults on deserialize.
+    pub async fn get_defaults(&self) -> Result<Defaults, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_defaults_with_http_info().await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_defaults operation and returns the full API result.
+    pub async fn get_defaults_with_http_info(
+        &self,
+    ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/defaults".to_string();
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Defaults",
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<Defaults>(params).await
+    }
+
     /// Returns categories grouped into an array of string-keyed maps.
     pub async fn get_grouped_categories(
         &self,

@@ -13,6 +13,7 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.models.Category;
+import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Order;
 import com.example.petstore.models.TreeNode;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,6 +39,9 @@ import javax.annotation.Nullable;
   "checkstyle:ConstructorsDeclarationGrouping"
 })
 public class StoreApi extends BaseApi {
+
+  private static final java.lang.reflect.Type getDefaultsTypeRef =
+      new TypeReference<Defaults>() {}.getType();
 
   private static final java.lang.reflect.Type getGroupedCategoriesTypeRef =
       new TypeReference<List<Map<String, Category>>>() {}.getType();
@@ -121,6 +125,38 @@ public class StoreApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
+        null);
+  }
+
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * @return {@code Defaults}
+   * @throws ApiException if fails to make API call
+   */
+  public Defaults getDefaults() {
+    return requireBody(getDefaultsWithHttpInfo(), "getDefaults");
+  }
+
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * @return the API result wrapping {@code Defaults}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Defaults> getDefaultsWithHttpInfo() {
+    String path = "/store/defaults";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getDefaultsTypeRef,
         null);
   }
 

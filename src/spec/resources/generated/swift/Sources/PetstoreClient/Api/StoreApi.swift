@@ -58,6 +58,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForEmptyResult(params)
   }
 
+  /// Returns a model exercising schema defaults on deserialize.
+
+  public func getDefaults() async throws -> Defaults {
+    let result = try await getDefaultsWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getDefaults",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getDefaults operation and returns the full API result.
+  public func getDefaultsWithHTTPInfo() async throws -> ApiResult<Defaults> {
+
+    let path = "/store/defaults"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Defaults",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Defaults.self)
+  }
+
   /// Returns categories grouped into an array of string-keyed maps.
 
   public func getGroupedCategories() async throws -> [[String: Category]] {

@@ -14,7 +14,7 @@ import { Configuration } from "../configuration.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { ValueSerializer } from "../value-serializer.js";
 import type { DeepInput } from "../deep-input.js";
-import { Category, Order, TreeNode } from "../models/index.js";
+import { Category, Defaults, Order, TreeNode } from "../models/index.js";
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -72,6 +72,49 @@ export class StoreApi extends BaseApi {
       [],
       "application/json",
       null,
+      null,
+    );
+  }
+
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   * @return Defaults
+   * @throws {ApiError} if fails to make API call
+   */
+  async getDefaults(): Promise<Defaults> {
+    const getDefaultsResult = await this.getDefaultsWithHttpInfo();
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getDefaultsResult.data == null) {
+      throw new ApiError(
+        getDefaultsResult.statusCode,
+        "Expected a response body for getDefaults but received none",
+        getDefaultsResult.headers,
+        getDefaultsResult.rawBody,
+        null,
+      );
+    }
+    return getDefaultsResult.data as Defaults;
+  }
+
+  /**
+   * Returns a model exercising schema defaults on deserialize. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getDefaultsWithHttpInfo(): Promise<ApiResult<Defaults>> {
+    const path = `/store/defaults`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Defaults)!,
       null,
     );
   }

@@ -19,6 +19,8 @@ namespace PetstoreClient.Api;
 public class StoreApi : BaseApi
 {
 
+    private static readonly string[] GetDefaultsAccepts = ["application/json"];
+
     private static readonly string[] GetGroupedCategoriesAccepts = ["application/json"];
 
     private static readonly string[] GetInventoryAccepts = ["application/json"];
@@ -83,6 +85,53 @@ public class StoreApi : BaseApi
                 [],
                 "application/json",
                 null,
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns a model exercising schema defaults on deserialize.
+    /// </summary>
+    /// <returns><![CDATA[Defaults]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Defaults> GetDefaultsAsync()
+    {
+        Task<ApiResult<Defaults>> task = GetDefaultsWithHttpInfoAsync();
+        ApiResult<Defaults> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
+    }
+
+    /// <summary>
+    /// Returns a model exercising schema defaults on deserialize. (with HTTP info)
+    /// </summary>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Defaults>> GetDefaultsWithHttpInfoAsync()
+    {
+        string path = "/store/defaults";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<Defaults>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetDefaultsAccepts,
+                "application/json",
+                typeof(Defaults),
                 null
             )
             .ConfigureAwait(false);

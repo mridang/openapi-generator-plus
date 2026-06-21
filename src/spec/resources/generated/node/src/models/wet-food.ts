@@ -17,7 +17,7 @@ export class WetFood {
 
   constructor(data?: Partial<WetFood>) {
     Object.assign(this, data);
-    if (this.foodType == null) {
+    if (this.foodType === undefined) {
       this.foodType = "wet";
     }
     if (data !== undefined) {
