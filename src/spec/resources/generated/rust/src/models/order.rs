@@ -24,6 +24,15 @@ pub enum OrderStatusEnum {
     Delivered,
 }
 
+/// Serde default for the optional `status` field: when the property is
+/// ABSENT from the wire payload the schema's `default` applies, so an
+/// omitted `status` deserializes to the declared default variant
+/// (e.g. `"placed"`) rather than `None`. An explicit `null` still maps to
+/// `None`, and a present value is taken as-is.
+fn default_status() -> Option<OrderStatusEnum> {
+    Some(OrderStatusEnum::default())
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Order {
     /// Example: `10`
@@ -40,7 +49,11 @@ pub struct Order {
     pub ship_date: Option<chrono::DateTime<chrono::Utc>>,
     /// Order Status
     /// Example: `approved`
-    #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "status",
+        default = "default_status",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub status: Option<OrderStatusEnum>,
     /// Example: `null`
     #[serde(rename = "complete", skip_serializing_if = "Option::is_none")]

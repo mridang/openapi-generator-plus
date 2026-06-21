@@ -69,6 +69,9 @@ func (o *Medication) UnmarshalJSON(data []byte) error {
 	} else if string(rawVal) == "null" {
 		return fmt.Errorf("required field 'drugName' must not be null in Medication")
 	}
+	/* default-on-deserialize: an absent field carrying a schema default is
+	 * populated with that default so the deserialized model matches the spec,
+	 * consistent with the other SDKs. */
 	*o = Medication(*aux)
 	return nil
 }

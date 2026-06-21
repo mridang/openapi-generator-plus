@@ -33,6 +33,9 @@ export class Order {
 
   constructor(data?: Partial<Order>) {
     Object.assign(this, data);
+    if (this.status == null) {
+      this.status = OrderStatusEnum.Placed;
+    }
     if (this.id != null && typeof this.id !== "number") {
       throw new TypeError(`id must be a number, got ${typeof this.id}`);
     }

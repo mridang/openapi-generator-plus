@@ -631,6 +631,24 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("deserialize applies schema default for absent field")
+    void deserializeAppliesSchemaDefaultForAbsentField() {
+      // The Order.status property declares `default: placed` in the spec.
+      // When the JSON omits status entirely, deserialization must populate
+      // it with the schema default (StatusEnum.PLACED) rather than leaving
+      // it null. The generated model carries the default as a field
+      // initializer, so Jackson never overwrites it when the key is absent.
+      String json = "{\"id\":10,\"petId\":198772}";
+      com.example.petstore.models.Order order =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Order>() {}.getType());
+      assertNotNull(order);
+      assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order.status);
+    }
+
+    @Test
     @DisplayName("ignores unknown properties in JSON input")
     void ignoresUnknownPropertiesInJsonInput() {
       // Gap #14: extras must be discarded on deserialize (FAIL_ON_UNKNOWN_PROPERTIES=false).

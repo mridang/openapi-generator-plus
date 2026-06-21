@@ -76,6 +76,9 @@ func (o *WetFood) UnmarshalJSON(data []byte) error {
 	} else if string(rawVal) == "null" {
 		return fmt.Errorf("required field 'volumeMl' must not be null in WetFood")
 	}
+	/* default-on-deserialize: an absent field carrying a schema default is
+	 * populated with that default so the deserialized model matches the spec,
+	 * consistent with the other SDKs. */
 	*o = WetFood(*aux)
 	return nil
 }

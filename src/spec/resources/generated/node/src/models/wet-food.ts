@@ -17,6 +17,9 @@ export class WetFood {
 
   constructor(data?: Partial<WetFood>) {
     Object.assign(this, data);
+    if (this.foodType == null) {
+      this.foodType = "wet";
+    }
     if (data !== undefined) {
       if (this.volumeMl == null) {
         throw new Error("volumeMl is required");

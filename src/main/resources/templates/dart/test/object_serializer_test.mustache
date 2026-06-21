@@ -51,6 +51,20 @@ void main() {
       expect(category.name, equals('Dogs'));
     });
 
+    // -- default-on-deserialize --
+    //
+    // The Order.status field declares a schema `default: placed`. When a JSON
+    // response OMITS "status", the SDK must populate it with the default
+    // ("placed") rather than leaving it null. This exercises the same
+    // `deserialize<T>(json, T.fromJson)` entry point the other model
+    // deserialize tests use.
+    test('deserialize applies schema default for absent field', () {
+      const json = '{"id":10,"petId":198772}';
+      final order = deserialize<Order>(json, Order.fromJson);
+      expect(order, isNotNull);
+      expect(order!.status, equals(OrderStatusEnum.placed));
+    });
+
     test('toPathValue string', () {
       expect(toPathValue('hello'), equals('hello'));
     });

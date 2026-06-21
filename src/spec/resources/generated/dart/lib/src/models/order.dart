@@ -92,7 +92,7 @@ class Order {
 
       status: json['status'] != null
           ? OrderStatusEnum.fromJson(json['status'] as String)
-          : null,
+          : OrderStatusEnum.placed,
 
       complete: json['complete'] as bool?,
     );

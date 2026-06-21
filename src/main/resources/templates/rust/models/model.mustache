@@ -58,6 +58,21 @@ pub enum {{classname}}{{enumName}} {
 {{/allowableValues}}
 }
 
+{{^isDiscriminator}}
+{{^required}}
+{{#defaultValue}}
+/// Serde default for the optional `{{name}}` field: when the property is
+/// ABSENT from the wire payload the schema's `default` applies, so an
+/// omitted `{{baseName}}` deserializes to the declared default variant
+/// (e.g. `"placed"`) rather than `None`. An explicit `null` still maps to
+/// `None`, and a present value is taken as-is.
+fn default_{{name}}() -> Option<{{classname}}{{enumName}}> {
+    Some({{classname}}{{enumName}}::default())
+}
+
+{{/defaultValue}}
+{{/required}}
+{{/isDiscriminator}}
 {{/isEnum}}
 {{/vars}}
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -99,7 +114,7 @@ pub struct {{classname}} {
     pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
-    #[serde(rename = "{{baseName}}", skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::proto_duration::option"{{/isArray}}{{/isDuration}})]
+    #[serde(rename = "{{baseName}}"{{#isEnum}}{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}{{/isEnum}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::proto_duration::option"{{/isArray}}{{/isDuration}})]
     pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
 {{/required}}
 {{/isDiscriminator}}

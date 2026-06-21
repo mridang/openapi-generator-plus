@@ -360,6 +360,16 @@ describe PetstoreClient::ObjectSerializer do
     it 'returns nil for nil input' do
       _(PetstoreClient::ObjectSerializer.deserialize(nil, 'Category')).must_be_nil
     end
+
+    # Order.status carries an OpenAPI schema `default: placed`. When the wire
+    # JSON omits `status` entirely, deserialization must populate it with the
+    # schema default ('placed') rather than leaving it nil. dry-struct's
+    # `.default('placed')` on the attribute supplies this on the absent key.
+    it 'deserialize applies schema default for absent field' do
+      order = PetstoreClient::ObjectSerializer.deserialize('{"id":10,"petId":198772}', 'Order')
+      _(order).must_be_kind_of(PetstoreClient::Models::Order)
+      _(order.status).must_equal('placed')
+    end
   end
 
   # ── required field hard-fail on deserialize (#10) ──

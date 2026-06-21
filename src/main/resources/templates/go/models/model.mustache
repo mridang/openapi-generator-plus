@@ -351,6 +351,19 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{/isNullable}}
 {{/required}}
 {{/vars}}
+	/* default-on-deserialize: an absent field carrying a schema default is
+	 * populated with that default so the deserialized model matches the spec,
+	 * consistent with the other SDKs. */
+{{#vars}}
+{{^required}}
+{{#defaultValue}}
+	if _, ok := raw["{{baseName}}"]; !ok {
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		aux.{{name}} = &default{{name}}
+	}
+{{/defaultValue}}
+{{/required}}
+{{/vars}}
 	*o = {{classname}}(*aux)
 	return nil
 }
@@ -360,6 +373,18 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
+	/* default-on-deserialize: pre-seed optional fields that declare a schema
+	 * default. json.Unmarshal leaves a struct field untouched when its key is
+	 * absent from the payload, so a pre-set default survives while a present
+	 * value overwrites it — matching the default-application of the other SDKs. */
+{{#vars}}
+{{^required}}
+{{#defaultValue}}
+	var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+	aux.{{name}} = &default{{name}}
+{{/defaultValue}}
+{{/required}}
+{{/vars}}
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}

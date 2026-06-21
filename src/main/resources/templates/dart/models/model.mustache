@@ -411,14 +411,29 @@ class {{classname}} {
 {{^required}}
 {{#isEnum}}
 {{#isInteger}}
+{{#defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+{{/defaultValue}}
+{{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+{{/defaultValue}}
 {{/isInteger}}
 {{^isInteger}}
 {{#isLong}}
+{{#defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+{{/defaultValue}}
+{{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+{{/defaultValue}}
 {{/isLong}}
 {{^isLong}}
+{{#defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+{{/defaultValue}}
+{{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
+{{/defaultValue}}
 {{/isLong}}
 {{/isInteger}}
 {{/isEnum}}

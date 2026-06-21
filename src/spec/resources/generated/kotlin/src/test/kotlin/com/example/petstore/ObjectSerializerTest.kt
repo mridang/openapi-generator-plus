@@ -257,6 +257,18 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("deserialize applies schema default for absent field")
+        fun deserializeAppliesSchemaDefaultForAbsentField() {
+            // The Order.status field declares `default: placed` in the schema, so
+            // a payload that omits "status" must populate it with the enum default
+            // rather than leaving it null (default-on-deserialize parity).
+            val json = "{\"id\":10,\"petId\":198772}"
+            val order = serializer.deserialize<com.example.petstore.models.Order>(json)
+            assertNotNull(order)
+            assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order!!.status)
+        }
+
+        @Test
         @DisplayName("primitive-type-coercion-lenient: unquoted scalar on a String field throws")
         fun unquotedScalarOnStringFieldThrows() {
             // isLenient=true accepts an unquoted bare literal as a string value

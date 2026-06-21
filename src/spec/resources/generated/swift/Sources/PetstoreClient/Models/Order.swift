@@ -55,15 +55,20 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
   /// Decodes this instance from the given decoder.
   ///
   /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-  /// — matching the cross-language "discard extras on deserialise" expectation.
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is absent but the
+  /// schema declares a `default`, that default is applied — matching the
+  /// cross-language "apply schema default on deserialise" expectation.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
     self.petId = try container.decodeIfPresent(Int64.self, forKey: .petId)
     self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
     self.shipDate = try container.decodeIfPresent(Date.self, forKey: .shipDate)
-    self.status = try container.decodeIfPresent(OrderStatusEnum.self, forKey: .status)
+    self.status =
+      try container.decodeIfPresent(OrderStatusEnum.self, forKey: .status)
+      ?? OrderStatusEnum(rawValue: "placed")
     self.complete = try container.decodeIfPresent(Bool.self, forKey: .complete)
   }
 

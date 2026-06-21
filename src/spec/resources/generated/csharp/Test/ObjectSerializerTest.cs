@@ -643,6 +643,20 @@ public class ObjectSerializerTest
             var back = _serializer.Serialize(order);
             Assert.Contains("\"status\":\"placed\"", back);
         }
+
+        [Fact]
+        public void DeserializeAppliesSchemaDefaultForAbsentField()
+        {
+            // Order.status has schema `default: placed`. When the JSON response
+            // omits "status", the deserialized model must populate it with the
+            // schema default rather than leaving it null. The generated model
+            // initializes the property to StatusEnum.Placed and, because the
+            // field is optional, that initializer survives deserialization.
+            // Canonical across all 12 SDKs.
+            var order = _serializer.Deserialize<Order>("{\"id\":10,\"petId\":198772}");
+            Assert.NotNull(order);
+            Assert.Equal(Order.StatusEnum.Placed, order!.Status);
+        }
     }
 
     // Gap #13 — discard nulls on serialize.

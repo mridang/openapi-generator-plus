@@ -76,6 +76,9 @@ func (o *DryFood) UnmarshalJSON(data []byte) error {
 	} else if string(rawVal) == "null" {
 		return fmt.Errorf("required field 'weightKg' must not be null in DryFood")
 	}
+	/* default-on-deserialize: an absent field carrying a schema default is
+	 * populated with that default so the deserialized model matches the spec,
+	 * consistent with the other SDKs. */
 	*o = DryFood(*aux)
 	return nil
 }

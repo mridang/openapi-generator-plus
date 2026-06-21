@@ -295,6 +295,14 @@ class TestDeserialize:
     def test_returns_none_for_none_input(self) -> None:
         assert ObjectSerializer().deserialize(None, 'Category') is None
 
+    def test_deserialize_applies_schema_default_for_absent_field(self) -> None:
+        # default-on-deserialize: Order.status carries a schema `default: placed`.
+        # When the JSON omits "status", deserialize must populate the enum
+        # default rather than leaving it None. All 12 SDKs converge here.
+        json_str = '{"id":10,"petId":198772}'
+        order = ObjectSerializer().deserialize(json_str, 'Order')
+        assert order.status == OrderStatusEnum.PLACED
+
 
 class TestBomTolerance:
     def test_deserializes_bom_prefixed_json(self) -> None:

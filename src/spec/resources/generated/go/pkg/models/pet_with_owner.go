@@ -134,6 +134,9 @@ func (o *PetWithOwner) UnmarshalJSON(data []byte) error {
 	} else if string(rawVal) == "null" {
 		return fmt.Errorf("required field 'ownerName' must not be null in PetWithOwner")
 	}
+	/* default-on-deserialize: an absent field carrying a schema default is
+	 * populated with that default so the deserialized model matches the spec,
+	 * consistent with the other SDKs. */
 	*o = PetWithOwner(*aux)
 	return nil
 }

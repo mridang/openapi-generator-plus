@@ -5,6 +5,8 @@ declare(strict_types=1);
 use {{invokerPackage}}\ObjectSerializer;
 use {{invokerPackage}}\Models\Category;
 use {{invokerPackage}}\Models\EdgeCases;
+use {{invokerPackage}}\Models\Order;
+use {{invokerPackage}}\Models\OrderStatusEnum;
 use {{invokerPackage}}\Models\Pet;
 
 // -- toPathValue --
@@ -426,6 +428,23 @@ test('deserialize tolerates utf-8 BOM prefix', function (): void {
 
 test('deserialize returns null for null input', function (): void {
     expect(ObjectSerializer::deserialize(null, Category::class))->toBeNull();
+});
+
+// -- default-on-deserialize --
+//
+// Canonical cross-SDK scenario: Order's `status` field carries a schema
+// `default: placed`. A response that OMITS `status` must deserialize to the
+// schema default (OrderStatusEnum::PLACED) rather than leaving the field
+// unset/null. PHP applies this via the model's constructor/property default,
+// so the absent field falls back to PLACED. GREEN here; the same test is
+// added to all 12 SDKs to lock the behaviour fleet-wide.
+
+test('deserialize applies schema default for absent field', function (): void {
+    $json = '{"id":10,"petId":198772}'; // "status" is absent
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize($json, Order::class);
+    expect($order)->toBeInstanceOf(Order::class);
+    expect($order->status)->toBe(OrderStatusEnum::PLACED);
 });
 
 test('deserialize roundtrips int 64 max exactly', function (): void {

@@ -28,8 +28,11 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
   /// Decodes this instance from the given decoder.
   ///
   /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-  /// — matching the cross-language "discard extras on deserialise" expectation.
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is absent but the
+  /// schema declares a `default`, that default is applied — matching the
+  /// cross-language "apply schema default on deserialise" expectation.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.procedureName = try container.decode(String.self, forKey: .procedureName)

@@ -199,6 +199,18 @@ import Testing
       "default-constructed Order must serialize status=placed, got: \(json)")
   }
 
+  // default-on-deserialize: when a JSON payload OMITS an optional field that
+  // carries a schema `default`, deserialisation must populate it with that
+  // default rather than leaving it nil — matching the other SDKs. Order.status
+  // has `default: placed`; the payload below omits "status" entirely.
+  @Test func testDeserializeAppliesSchemaDefaultForAbsentField() throws {
+    let json = "{\"id\":10,\"petId\":198772}"
+    let order = try ObjectSerializer.deserialize(json, as: Order.self)
+    #expect(
+      order?.status == .placed,
+      "absent status must fall back to the schema default 'placed'")
+  }
+
   @Test func testToCookieValueString() {
     #expect(ObjectSerializer.toCookieValue("hello") == "hello")
   }

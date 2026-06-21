@@ -51,6 +51,10 @@ func (o ApiResponse) MarshalJSON() ([]byte, error) {
 func (o *ApiResponse) UnmarshalJSON(data []byte) error {
 	type Alias ApiResponse
 	aux := &Alias{}
+	/* default-on-deserialize: pre-seed optional fields that declare a schema
+	 * default. json.Unmarshal leaves a struct field untouched when its key is
+	 * absent from the payload, so a pre-set default survives while a present
+	 * value overwrites it — matching the default-application of the other SDKs. */
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}

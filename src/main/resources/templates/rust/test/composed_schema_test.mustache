@@ -263,3 +263,25 @@ fn test_order_default_status_serializes_default_variant() {
         data
     );
 }
+
+// -- default-on-deserialize (parity) --
+//
+// `Order.status` carries a schema `default: placed`. When a JSON payload
+// OMITS `status`, the SDK must apply that default on deserialize and yield
+// `Some(OrderStatusEnum::Placed)` rather than `None`. A field-level
+// `#[serde(default = ...)]` seeds the default variant for the absent
+// property, matching the other SDKs.
+#[test]
+fn test_order_deserialize_applies_schema_default_for_absent_status() {
+    let json_data = r#"{"id":10,"petId":198772}"#;
+
+    let order: Order =
+        serde_json::from_str(json_data).expect("failed to deserialize Order");
+
+    assert_eq!(
+        order.status,
+        Some(OrderStatusEnum::Placed),
+        "absent `status` must deserialize to the schema default `placed`, got: {:?}",
+        order.status
+    );
+}

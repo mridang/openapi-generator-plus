@@ -340,6 +340,20 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     super(data);
 {{/parent}}
     Object.assign(this, data);
+{{! default-on-deserialize: a field whose schema declares a default must fall
+    back to that default when the wire payload OMITS it. The field initializer
+    seeds the default, but ObjectSerializer.deserialize feeds plainToInstance
+    output back through this constructor, and Object.assign copies an explicit
+    undefined for the absent key over that seeded default. Re-apply the default
+    here when the field came through null/undefined so an absent defaulted field
+    is populated instead of left empty. A present value is untouched. }}
+{{#vars}}
+{{#defaultValue}}
+    if (this.{{name}} == null) {
+      this.{{name}} = {{{defaultValue}}};
+    }
+{{/defaultValue}}
+{{/vars}}
 {{! Divergence #10: a REQUIRED, non-nullable field that is missing
     (undefined) or explicitly null in the wire payload must hard-fail.
     ObjectSerializer.deserialize routes plainToInstance output back

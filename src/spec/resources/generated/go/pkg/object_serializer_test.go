@@ -829,6 +829,26 @@ func TestDeserialize_IgnoresUnknownFields(t *testing.T) {
 	}
 }
 
+// ── default-on-deserialize: an absent field carrying a schema default must be
+// populated with that default during deserialize, matching the other SDKs.
+// Order.status declares `default: placed`; when the payload omits "status" the
+// deserialized model must report "placed", not a nil/zero value. ──
+
+func TestDeserialize_AppliesSchemaDefaultForAbsentField(t *testing.T) {
+	t.Parallel()
+	raw := []byte(`{"id":10,"petId":198772}`)
+	var order models.Order
+	if err := deserialize(raw, &order); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if order.Status == nil {
+		t.Fatal("expected status to default to 'placed', got nil")
+	}
+	if *order.Status != models.OrderStatusEnumPlaced {
+		t.Errorf("expected status %q, got %q", models.OrderStatusEnumPlaced, *order.Status)
+	}
+}
+
 // ── model-equality-swift-go: Equal() value equality ──
 
 func TestModelEqual_Identical(t *testing.T) {

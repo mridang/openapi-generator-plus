@@ -21,6 +21,8 @@ import {
   PetPassport,
   Pet,
   PetStatusEnum,
+  Order,
+  OrderStatusEnum,
 } from "../src/models/index.js";
 import { uuid, isUuid } from "../src/brand.js";
 import { Temporal } from "temporal-polyfill";
@@ -425,6 +427,16 @@ describe("ObjectSerializer", () => {
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
         SerializationError,
       );
+    });
+
+    test("deserialize applies schema default for absent field", () => {
+      // default-on-deserialize: Order.status carries a schema `default: placed`.
+      // When the wire payload OMITS status, deserialize must populate it with
+      // the enum default (OrderStatusEnum.Placed) rather than leaving it
+      // null/undefined. status is absent from this payload.
+      const json = { id: 10, petId: 198772 };
+      const order = ObjectSerializer.deserialize(json, Order);
+      expect(order!.status).toBe(OrderStatusEnum.Placed);
     });
   });
 

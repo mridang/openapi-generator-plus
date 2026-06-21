@@ -434,6 +434,18 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "returns nil for nil input" do
       assert PetstoreClient.ObjectSerializer.deserialize(nil, "Category") == nil
     end
+
+    # default-on-deserialize: Order.status carries a schema `default: placed`.
+    # When the wire payload omits "status", deserialize must fall back to that
+    # default rather than leaving the field nil — the struct's `status: "placed"`
+    # default survives because the reducer skips absent keys. Canonical across
+    # the product; the asserted value is the schema default "placed".
+    test "deserialize applies schema default for absent field" do
+      json_str = ~s({"id":10,"petId":198772})
+      order = PetstoreClient.ObjectSerializer.deserialize(json_str, "Order")
+      assert %PetstoreClient.Models.Order{} = order
+      assert order.status == "placed"
+    end
   end
 
   # Divergence #10: deserialization must hard-fail when a required,
