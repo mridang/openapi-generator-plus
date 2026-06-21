@@ -18,3 +18,4 @@ from .upload_pet_certificate_options import (
 from .upload_pet_document_options import (
     UploadPetDocumentOptions as UploadPetDocumentOptions,
 )
+from .get_by_swatch_options import GetBySwatchOptions as GetBySwatchOptions

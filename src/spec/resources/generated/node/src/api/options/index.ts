@@ -8,3 +8,4 @@ export * from "./get-pet-tag-options.js";
 export * from "./set-pet-preferences-options.js";
 export * from "./upload-pet-certificate-options.js";
 export * from "./upload-pet-document-options.js";
+export * from "./get-by-swatch-options.js";

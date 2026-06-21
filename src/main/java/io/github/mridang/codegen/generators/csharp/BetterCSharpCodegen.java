@@ -805,6 +805,14 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                     && !languageSpecificPrimitives.contains(p.baseType)) {
                 hasAnyModelImports = true;
             }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null) and the generated enum lives in the Models
+            // namespace, so the Options class still needs the Models import.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)) {
+                hasAnyModelImports = true;
+            }
             if ((p.isArray || p.isMap)
                     && p.items != null
                     && p.items.baseType != null

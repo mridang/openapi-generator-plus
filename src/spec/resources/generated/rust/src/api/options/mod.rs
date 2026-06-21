@@ -18,3 +18,5 @@ mod upload_pet_certificate_options;
 pub use upload_pet_certificate_options::*;
 mod upload_pet_document_options;
 pub use upload_pet_document_options::*;
+mod get_by_swatch_options;
+pub use get_by_swatch_options::*;

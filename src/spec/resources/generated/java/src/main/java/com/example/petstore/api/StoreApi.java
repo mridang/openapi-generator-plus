@@ -11,6 +11,7 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
+import com.example.petstore.api.options.GetBySwatchOptions;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
@@ -42,6 +43,9 @@ import javax.annotation.Nullable;
   "checkstyle:ConstructorsDeclarationGrouping"
 })
 public class StoreApi extends BaseApi {
+
+  private static final java.lang.reflect.Type getBySwatchTypeRef =
+      new TypeReference<Category>() {}.getType();
 
   private static final java.lang.reflect.Type getDefaultsTypeRef =
       new TypeReference<Defaults>() {}.getType();
@@ -143,6 +147,89 @@ public class StoreApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
+        null);
+  }
+
+  /**
+   * Echoes a swatch supplied via query and header parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return {@code Category}
+   * @throws ApiException if fails to make API call
+   */
+  public Category getBySwatch() {
+    return getBySwatch(null);
+  }
+
+  /**
+   * Echoes a swatch supplied via query and header parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return the API result wrapping {@code Category}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Category> getBySwatchWithHttpInfo() {
+    return getBySwatchWithHttpInfo(null);
+  }
+
+  /**
+   * Echoes a swatch supplied via query and header parameters.
+   *
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return {@code Category}
+   * @throws ApiException if fails to make API call
+   */
+  public Category getBySwatch(@Nullable GetBySwatchOptions options) {
+    return requireBody(getBySwatchWithHttpInfo(options), "getBySwatch");
+  }
+
+  /**
+   * Echoes a swatch supplied via query and header parameters.
+   *
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return the API result wrapping {@code Category}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Category> getBySwatchWithHttpInfo(@Nullable GetBySwatchOptions options) {
+    String path = "/store/by-swatch";
+    Map<String, Object> queryParams = new HashMap<>();
+    if (options != null && options.querySwatch() != null) {
+      queryParams.put(
+          "querySwatch",
+          ValueSerializer.serializeStyled(
+              "querySwatch", options.querySwatch(), "query", "Swatch", null, "form", true));
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    if (options != null && options.preferredSwatch() != null) {
+      headerParams.put(
+          "Preferred-Swatch",
+          (String)
+              ValueSerializer.serializeStyled(
+                  "Preferred-Swatch",
+                  options.preferredSwatch(),
+                  "header",
+                  "Swatch",
+                  null,
+                  "simple",
+                  false));
+    }
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getBySwatchTypeRef,
         null);
   }
 

@@ -85,3 +85,4 @@ export 'src/api/options/get_pet_tag_options.dart';
 export 'src/api/options/set_pet_preferences_options.dart';
 export 'src/api/options/upload_pet_certificate_options.dart';
 export 'src/api/options/upload_pet_document_options.dart';
+export 'src/api/options/get_by_swatch_options.dart';

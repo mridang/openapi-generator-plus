@@ -97,6 +97,102 @@ impl StoreApi {
         self.base.invoke_api_for_empty_result(params).await
     }
 
+    /// Echoes a swatch supplied via query and header parameters.
+    pub async fn get_by_swatch(
+        &self,
+        options: Option<&GetBySwatchOptions>,
+    ) -> Result<Category, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_by_swatch_with_http_info(options).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_by_swatch operation and returns the full API result.
+    pub async fn get_by_swatch_with_http_info(
+        &self,
+        options: Option<&GetBySwatchOptions>,
+    ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/by-swatch".to_string();
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.query_swatch {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "querySwatch",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "Swatch",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("querySwatch".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("querySwatch".to_string(), v));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.preferred_swatch {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "Preferred-Swatch",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "header",
+                    "Swatch",
+                    "",
+                    "simple",
+                    false,
+                ) {
+                    if let SerializedValue::Single(v) = serialized {
+                        header_params.insert("Preferred-Swatch".to_string(), v);
+                    }
+                }
+            }
+        }
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Category",
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<Category>(params).await
+    }
+
     /// Returns a model exercising schema defaults on deserialize.
     pub async fn get_defaults(&self) -> Result<Defaults, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_defaults_with_http_info().await?;

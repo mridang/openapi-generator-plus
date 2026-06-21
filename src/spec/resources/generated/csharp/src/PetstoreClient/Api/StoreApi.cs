@@ -10,6 +10,8 @@
 using PetstoreClient.Auth;
 using PetstoreClient.Models;
 
+using PetstoreClient.Api.Options;
+
 namespace PetstoreClient.Api;
 
 /// <summary>
@@ -18,6 +20,8 @@ namespace PetstoreClient.Api;
 /// </summary>
 public class StoreApi : BaseApi
 {
+
+    private static readonly string[] GetBySwatchAccepts = ["application/json"];
 
     private static readonly string[] GetDefaultsAccepts = ["application/json"];
 
@@ -95,6 +99,87 @@ public class StoreApi : BaseApi
                 [],
                 "application/json",
                 null,
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Echoes a swatch supplied via query and header parameters.
+    /// </summary>
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <returns><![CDATA[Category]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Category> GetBySwatchAsync(GetBySwatchOptions? options = null)
+    {
+        Task<ApiResult<Category>> task = GetBySwatchWithHttpInfoAsync(options);
+        ApiResult<Category> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * `is { }` null check (rather than `?? throw`) compiles for a
+         * value-type return too — e.g. a bare enum, whose `Data` is a
+         * non-nullable value that `??` cannot be applied to. */
+        if (result.Data is { } body)
+        {
+            return body;
+        }
+        throw new ApiException(
+            result.StatusCode,
+            "Expected a non-empty response body but none was returned",
+            new Dictionary<string, string>(result.Headers),
+            result.RawBody);
+    }
+
+    /// <summary>
+    /// Echoes a swatch supplied via query and header parameters. (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Category>> GetBySwatchWithHttpInfoAsync(GetBySwatchOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        string path = "/store/by-swatch";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.QuerySwatch != null)
+        {
+            queryParams["querySwatch"] = ValueSerializer.SerializeStyled(
+                "querySwatch",
+                options.QuerySwatch,
+                "query",
+                "Swatch",
+                null,
+                "form",
+                true
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+        if (options != null && options.PreferredSwatch != null)
+        {
+            headerParams["Preferred-Swatch"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "Preferred-Swatch",
+                    options.PreferredSwatch,
+                    "header",
+                    "Swatch",
+                    null,
+                    "simple",
+                    false
+                )!;
+        }
+        return await InvokeApiForResultAsync<Category>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetBySwatchAccepts,
+                "application/json",
+                typeof(Category),
                 null
             )
             .ConfigureAwait(false);

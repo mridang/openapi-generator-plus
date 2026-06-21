@@ -147,6 +147,137 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Echoes a swatch supplied via query and header parameters.
+
+  ## Parameters
+
+    * `options` - Optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, Category}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_by_swatch(t(), Options.t(), keyword()) ::
+          {:ok, Category} | {:error, term()}
+  def get_by_swatch(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_by_swatch_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_by_swatch but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_by_swatch`. Raises on error.
+  """
+  def get_by_swatch!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_by_swatch(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_by_swatch` but returns the full `ApiResult`.
+  """
+  @spec get_by_swatch_with_http_info(t(), Options.t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_by_swatch_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+    path = "/store/by-swatch"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.query_swatch) and options.query_swatch != [] do
+        Map.put(
+          query_params,
+          "querySwatch",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "querySwatch",
+            options.query_swatch,
+            :query,
+            "Swatch",
+            nil,
+            "form",
+            true
+          )
+        )
+      else
+        query_params
+      end
+
+    header_params = %{}
+
+    header_params =
+      if not is_nil(options) and not is_nil(options.preferred_swatch) do
+        Map.put(
+          header_params,
+          "Preferred-Swatch",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "Preferred-Swatch",
+            options.preferred_swatch,
+            :header,
+            "Swatch",
+            nil,
+            "simple",
+            false
+          )
+          |> to_string()
+        )
+      else
+        header_params
+      end
+
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "Category",
+      auth
+    )
+  end
+
+  @doc """
   Returns a model exercising schema defaults on deserialize.
 
   ## Parameters

@@ -329,7 +329,9 @@ class {{classname}} extends BaseApi
         $headerParams = [];
 {{#headerParams}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $headerParams['{{baseName}}'] = $headerValue;
         }
 {{/headerParams}}
 {{#hasCookieParams}}
@@ -549,7 +551,9 @@ class {{classname}} extends BaseApi
         $headerParams = [];
 {{#headerParams}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $headerParams['{{baseName}}'] = $headerValue;
         }
 {{/headerParams}}
 {{#hasCookieParams}}

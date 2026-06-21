@@ -19,6 +19,7 @@ use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
+use PetstoreClient\Api\Options\GetBySwatchOptions;
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -72,6 +73,71 @@ class StoreApi extends BaseApi
             [],
             'application/json',
             null
+        );
+        return $result;
+    }
+
+    /**
+     * Echoes a swatch supplied via query and header parameters.
+
+     * @param GetBySwatchOptions $options Options for query, header, form, and cookie parameters
+
+     * @return \PetstoreClient\Models\Category
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getBySwatch(?GetBySwatchOptions $options = null)
+    {
+        $apiResult = $this->getBySwatchWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getBySwatch but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Category $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @param GetBySwatchOptions $options Options for query, header, form, and cookie parameters
+
+     * @return ApiResult<\PetstoreClient\Models\Category>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getBySwatchWithHttpInfo(?GetBySwatchOptions $options = null): ApiResult
+    {
+        $path = '/store/by-swatch';
+        $queryParams = [];
+        if ($options !== null && $options->querySwatch !== null) {
+            $queryParams['querySwatch'] = ValueSerializer::serializeStyled('querySwatch', $options->querySwatch, 'query', 'Swatch', null, 'form', true);
+        }
+        $headerParams = [];
+        if ($options !== null && $options->preferredSwatch !== null) {
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled('Preferred-Swatch', $options->preferredSwatch, 'header', 'Swatch', null, 'simple', false);
+            $headerParams['Preferred-Swatch'] = $headerValue;
+        }
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Category> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Category'
         );
         return $result;
     }

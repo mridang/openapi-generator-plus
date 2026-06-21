@@ -58,6 +58,60 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForEmptyResult(params)
   }
 
+  /// Echoes a swatch supplied via query and header parameters.
+  ///
+  /// - Parameters:
+
+  public func getBySwatch(options: GetBySwatchOptions? = nil) async throws -> Category {
+    let result = try await getBySwatchWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getBySwatch",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getBySwatch operation and returns the full API result.
+  public func getBySwatchWithHTTPInfo(options: GetBySwatchOptions? = nil) async throws -> ApiResult<
+    Category
+  > {
+
+    let path = "/store/by-swatch"
+
+    var queryParams: [String: Any?] = [:]
+    if let options = options, let val = options.querySwatch {
+      queryParams["querySwatch"] = ValueSerializer.serializeStyled(
+        "querySwatch", value: val, location: "query", schemaType: "Swatch", collectionFormat: "",
+        style: "form", explode: true)
+    }
+
+    var headerParams: [String: String] = [:]
+    if let options = options, let val = options.preferredSwatch {
+      headerParams["Preferred-Swatch"] =
+        "\(ValueSerializer.serializeStyled("Preferred-Swatch", value: val, location: "header", schemaType: "Swatch", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    }
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Category",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: Category.self)
+  }
+
   /// Returns a model exercising schema defaults on deserialize.
 
   public func getDefaults() async throws -> Defaults {

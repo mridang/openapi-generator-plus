@@ -22,6 +22,7 @@ import '../models/department.dart';
 import '../models/order.dart';
 import '../models/swatch.dart';
 import '../models/tree_node.dart';
+import 'options/get_by_swatch_options.dart';
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
@@ -80,6 +81,70 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: null,
+    );
+  }
+
+  /// Echoes a swatch supplied via query and header parameters.
+
+  Future<Category> getBySwatch(GetBySwatchOptions? options) async {
+    final result = await getBySwatchWithHTTPInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Category` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getBySwatch but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getBySwatch operation and returns the full API result.
+  Future<ApiResult<Category>> getBySwatchWithHTTPInfo(
+    GetBySwatchOptions? options,
+  ) async {
+    var path = '/store/by-swatch';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.querySwatch != null) {
+      queryParams['querySwatch'] = serializeStyled(
+        'querySwatch',
+        options.querySwatch,
+        'query',
+        'Swatch',
+        '',
+        'form',
+        true,
+      );
+    }
+
+    final headerParams = <String, String>{};
+    if (options != null && options.preferredSwatch != null) {
+      headerParams['Preferred-Swatch'] =
+          '${serializeStyled('Preferred-Swatch', options.preferredSwatch, 'header', 'Swatch', '', 'simple', false)}';
+    }
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Category>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Category',
+      auth: null,
+
+      deserialize: (body) => deserialize(body, Category.fromJson) as Category,
     );
   }
 

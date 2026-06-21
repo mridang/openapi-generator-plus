@@ -768,6 +768,18 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 imp.put("filename", toModelFilename(p.baseType));
                 optionsImports.add(imp);
             }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null); the generated enum lives under models/ and
+            // must be imported.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !typeMapping.containsValue(p.dataType)) {
+                final Map<String, String> imp = new HashMap<>();
+                imp.put("classname", p.dataType);
+                imp.put("filename", toModelFilename(p.dataType));
+                optionsImports.add(imp);
+            }
         }
 
         final Map<String, Object> context = new HashMap<>();

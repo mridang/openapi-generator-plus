@@ -840,6 +840,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     && !languageSpecificPrimitives.contains(p.baseType)) {
                 modelTypes.add(p.baseType);
             }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null); the generated enum lives in the models
+            // namespace and must be imported with a `use` statement.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)) {
+                modelTypes.add(p.dataType);
+            }
             if ((p.isArray || p.isMap) && p.items != null && p.items.baseType != null
                     && !p.items.isPrimitiveType
                     && !languageSpecificPrimitives.contains(p.items.baseType)) {

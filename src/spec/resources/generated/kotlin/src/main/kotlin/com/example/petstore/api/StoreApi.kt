@@ -14,6 +14,7 @@ import com.example.petstore.ApiException
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
+import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
@@ -65,6 +66,49 @@ class StoreApi : BaseApi {
             headerParams,
             null,
             arrayOf(),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Echoes a swatch supplied via query and header parameters.
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @return Category
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getBySwatch(options: GetBySwatchOptions? = null): Category =
+        getBySwatchWithHttpInfo(options).data
+            ?: throw ApiException("Expected a response body for getBySwatch but the server returned an empty body")
+
+    suspend fun getBySwatchWithHttpInfo(options: GetBySwatchOptions? = null): ApiResult<Category> {
+        var path = "/store/by-swatch"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.querySwatch != null) {
+            queryParams["querySwatch"] =
+                ValueSerializer.serializeStyled("querySwatch", options!!.querySwatch, "query", "Swatch", null, "form", true)
+        }
+        val headerParams = mutableMapOf<String, String>()
+        if (options?.preferredSwatch != null) {
+            headerParams["Preferred-Swatch"] =
+                ValueSerializer.serializeStyled(
+                    "Preferred-Swatch",
+                    options!!.preferredSwatch,
+                    "header",
+                    "Swatch",
+                    null,
+                    "simple",
+                    false,
+                ) as String
+        }
+        return invokeApiForResult<Category>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
             "application/json",
             null,
         )

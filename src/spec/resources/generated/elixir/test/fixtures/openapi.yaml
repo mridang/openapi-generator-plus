@@ -917,6 +917,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/TreeNode'
 
+  /store/by-swatch:
+    get:
+      tags:
+        - store
+      summary: Echoes a swatch supplied via query and header parameters.
+      operationId: getBySwatch
+      security: []
+      parameters:
+        # Optional named-enum ($ref) parameters: these land in the generated
+        # Options class, which must import the enum type (its generated type
+        # lives in the models namespace).
+        - name: querySwatch
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Swatch'
+        - name: Preferred-Swatch
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/Swatch'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+
   /store/swatch:
     get:
       tags:

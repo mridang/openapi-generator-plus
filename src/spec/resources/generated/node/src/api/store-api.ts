@@ -22,6 +22,7 @@ import {
   Swatch,
   TreeNode,
 } from "../models/index.js";
+import type { GetBySwatchOptions } from "./options/get-by-swatch-options.js";
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -79,6 +80,75 @@ export class StoreApi extends BaseApi {
       [],
       "application/json",
       null,
+      null,
+    );
+  }
+
+  /**
+   * Echoes a swatch supplied via query and header parameters.
+   * @param options.querySwatch  (optional)
+   * @param options.preferredSwatch  (optional)
+   * @return Category
+   * @throws {ApiError} if fails to make API call
+   */
+  async getBySwatch(options?: GetBySwatchOptions): Promise<Category> {
+    const getBySwatchResult = await this.getBySwatchWithHttpInfo(options);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getBySwatchResult.data == null) {
+      throw new ApiError(
+        getBySwatchResult.statusCode,
+        "Expected a response body for getBySwatch but received none",
+        getBySwatchResult.headers,
+        getBySwatchResult.rawBody,
+        null,
+      );
+    }
+    return getBySwatchResult.data as Category;
+  }
+
+  /**
+   * Echoes a swatch supplied via query and header parameters. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getBySwatchWithHttpInfo(
+    options?: GetBySwatchOptions,
+  ): Promise<ApiResult<Category>> {
+    const path = `/store/by-swatch`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.querySwatch != null) {
+      queryParams["querySwatch"] = ValueSerializer.serializeStyled(
+        "querySwatch",
+        options.querySwatch,
+        "query",
+        "Swatch",
+        null,
+        "form",
+        true,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    if (options?.preferredSwatch != null) {
+      headerParams["Preferred-Swatch"] = ValueSerializer.serializeStyled(
+        "Preferred-Swatch",
+        options.preferredSwatch,
+        "header",
+        "Swatch",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Category)!,
       null,
     );
   }

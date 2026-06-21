@@ -97,6 +97,7 @@ require 'petstore_client/api/options/get_pet_tag_options'
 require 'petstore_client/api/options/set_pet_preferences_options'
 require 'petstore_client/api/options/upload_pet_certificate_options'
 require 'petstore_client/api/options/upload_pet_document_options'
+require 'petstore_client/api/options/get_by_swatch_options'
 
 # :nodoc:
 module PetstoreClient

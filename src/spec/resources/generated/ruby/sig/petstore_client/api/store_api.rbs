@@ -4,6 +4,8 @@ module PetstoreClient
       def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config, ?::PetstoreClient::Auth::Authenticator? authenticator) -> void
       def delete_order: (Integer order_id) -> void
       def delete_order_with_http_info: (Integer order_id) -> ::PetstoreClient::ApiResult[nil]
+      def get_by_swatch: (?Options::GetBySwatchOptions? options) -> Models::Category
+      def get_by_swatch_with_http_info: (?Options::GetBySwatchOptions? options) -> ::PetstoreClient::ApiResult[Models::Category]
       def get_defaults: () -> Models::Defaults
       def get_defaults_with_http_info: () -> ::PetstoreClient::ApiResult[Models::Defaults]
       def get_department: () -> Models::Department
