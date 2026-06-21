@@ -8,12 +8,40 @@
 #nullable enable
 
 using PetstoreClient;
+using PetstoreClient.Models;
 using Xunit;
 
 namespace Test;
 
 public class ValueSerializerTest
 {
+    // -- enum parameters: must serialize the OpenAPI wire value, not the C#
+    //    member name (Swatch.Red -> "red", not "Red") --
+
+    [Fact]
+    public void EnumPathParameterSerializesWireValue()
+    {
+        Assert.Equal("red", ValueSerializer.Serialize(Swatch.Red, "path", "Swatch"));
+    }
+
+    [Fact]
+    public void EnumQueryParameterSerializesWireValue()
+    {
+        Assert.Equal("blue", ValueSerializer.Serialize(Swatch.Blue, "query", "Swatch"));
+    }
+
+    [Fact]
+    public void EnumHeaderParameterSerializesWireValue()
+    {
+        Assert.Equal("green", ValueSerializer.Serialize(Swatch.Green, "header", "Swatch"));
+    }
+
+    [Fact]
+    public void EnumStringifySerializesWireValue()
+    {
+        Assert.Equal("red", ObjectSerializer.Stringify(Swatch.Red));
+    }
+
     // -- path location --
 
     [Fact]

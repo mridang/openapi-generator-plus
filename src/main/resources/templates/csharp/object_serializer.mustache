@@ -116,9 +116,26 @@ internal class ObjectSerializer
             TimeSpan ts => ProtobufDurationConverter.Format(ts),
             DateTimeOffset dto => dto.ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
             DateTime dt => new DateTimeOffset(dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt).ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
+            Enum e => StringifyEnum(e),
             IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
+    }
+
+    /// <summary>
+    /// Stringifies an enum to its OpenAPI wire value (not the C# member name)
+    /// for use in query, path, and header parameters. The generated
+    /// <c>[JsonConverter]</c> on each enum maps members to their wire strings,
+    /// so the value is serialized through it and the surrounding JSON quotes
+    /// are stripped. Enums without a string converter (e.g. integer enums)
+    /// serialize to their numeric form, which is itself the wire value.
+    /// </summary>
+    private static string StringifyEnum(Enum value)
+    {
+        string json = JsonSerializer.Serialize(value, value.GetType());
+        return json.Length >= 2 && json[0] == '"' && json[^1] == '"'
+            ? json[1..^1]
+            : json;
     }
 
     /// <summary>
