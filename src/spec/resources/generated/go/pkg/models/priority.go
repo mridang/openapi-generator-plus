@@ -14,7 +14,7 @@ import (
 	"fmt"
 )
 
-// Priority is an enumeration of allowed values.
+// Priority Task priority, integer-backed enum
 type Priority int
 
 const (

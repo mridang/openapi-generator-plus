@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Availability is an enumeration of allowed values.
+/// Stock availability, non-lowercase string enum
 public enum Availability: String, Codable, Sendable, CaseIterable {
   case available = "Available"
   case sold = "Sold"

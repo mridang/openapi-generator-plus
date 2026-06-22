@@ -58,8 +58,12 @@ public final class {{className}} {
 
     /**
      * Sets the {@code {{baseName}}} parameter.
+{{#description}}
      *
-     * @param {{paramName}} the {@code {{baseName}}} parameter
+     * <p>{{{description}}}
+{{/description}}
+     *
+     * @param {{paramName}} {{#description}}{{{description}}}{{/description}}{{^description}}the {@code {{baseName}}} parameter{{/description}}
      * @return this options instance for chaining
      */
     public {{className}} {{paramName}}({{{dataType}}} {{paramName}}) {
@@ -74,6 +78,10 @@ public final class {{className}} {
 
     /**
      * Returns the {@code {{baseName}}} parameter.
+{{#description}}
+     *
+     * <p>{{{description}}}
+{{/description}}
      *
      * @return the {@code {{baseName}}} parameter, or {@code null} if unset
      */
@@ -82,6 +90,10 @@ public final class {{className}} {
 {{#required}}
     /**
      * Returns the {@code {{baseName}}} parameter.
+{{#description}}
+     *
+     * <p>{{{description}}}
+{{/description}}
      *
      * @return the {@code {{baseName}}} parameter
      */

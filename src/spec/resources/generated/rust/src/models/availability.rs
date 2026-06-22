@@ -8,7 +8,7 @@
 use super::*;
 use serde::{Deserialize, Serialize};
 
-/// Availability is an enumeration of allowed values.
+/// Stock availability, non-lowercase string enum
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Availability {
     /// Represents the value "Available".

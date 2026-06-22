@@ -14,7 +14,9 @@ public final class DeletePetOptions {
   /**
    * Sets the {@code api_key} parameter.
    *
-   * @param apiKey the {@code api_key} parameter
+   * <p>Session cookie used for authentication.
+   *
+   * @param apiKey Session cookie used for authentication.
    * @return this options instance for chaining
    */
   public DeletePetOptions apiKey(String apiKey) {
@@ -24,6 +26,8 @@ public final class DeletePetOptions {
 
   /**
    * Returns the {@code api_key} parameter.
+   *
+   * <p>Session cookie used for authentication.
    *
    * @return the {@code api_key} parameter, or {@code null} if unset
    */

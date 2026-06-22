@@ -13,7 +13,7 @@ import 'package:collection/collection.dart';
 
 import '../object_serializer.dart';
 
-/// Priority is an enumeration of allowed integer values.
+/// Task priority, integer-backed enum
 enum Priority {
   /// Represents the value 1.
   NUMBER_1(1),

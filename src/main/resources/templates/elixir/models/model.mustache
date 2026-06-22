@@ -5,7 +5,7 @@
 {{#isEnum}}
 defmodule {{moduleName}}.Models.{{classname}} do
   @moduledoc """
-  Enumeration of allowed values for {{classname}}.
+  {{#description}}{{{description}}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
 
   Values are exposed as atoms (e.g. `:{{#allowableValues}}{{#enumVars}}{{#-first}}{{nameLowercase}}{{/-first}}{{/enumVars}}{{/allowableValues}}`) and as the canonical
   {{#isInteger}}integer{{/isInteger}}{{#isLong}}integer{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}} form via `value/1` when wire interop is needed.

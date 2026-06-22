@@ -1,6 +1,11 @@
 use serde_repr::{Serialize_repr, Deserialize_repr};
 
+{{#description}}
+/// {{{description}}}
+{{/description}}
+{{^description}}
 /// {{classname}} is an enumeration of allowed integer values.
+{{/description}}
 ///
 /// Integer-backed enums serialize as JSON numbers, which serde's string-only
 /// `rename` cannot express; `serde_repr` derives the numeric representation

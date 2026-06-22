@@ -33,7 +33,7 @@ end
 module PetstoreClient
   # Model classes generated from OpenAPI schemas.
   module Models
-    # Enumeration of allowed values for Priority.
+    # Task priority, integer-backed enum
     class Priority
       NUMBER_1 = 1
       NUMBER_2 = 2

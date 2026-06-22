@@ -8,7 +8,7 @@
 use super::*;
 use serde::{Deserialize, Serialize};
 
-/// Color is an enumeration of allowed values.
+/// A standalone, reusable colour enumeration
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Color {
     /// Represents the value "red".

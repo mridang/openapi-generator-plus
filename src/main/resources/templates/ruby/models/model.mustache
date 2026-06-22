@@ -30,7 +30,7 @@ module {{moduleName}}
 {{#models}}
 {{#model}}
 {{#isEnum}}
-    # Enumeration of allowed values for {{classname}}.
+    # {{#description}}{{{description}}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
     class {{classname}}{{#allowableValues}}{{#enumVars}}
       {{{name}}} = {{{value}}}{{/enumVars}}
 

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-/// Priority is an enumeration of allowed integer values.
+/// Task priority, integer-backed enum
 ///
 /// Integer-backed enums serialize as JSON numbers, which serde's string-only
 /// `rename` cannot express; `serde_repr` derives the numeric representation

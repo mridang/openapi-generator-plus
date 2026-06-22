@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Color is an enumeration of allowed values.
+/// A standalone, reusable colour enumeration
 public enum Color: String, Codable, Sendable, CaseIterable {
   case red = "red"
   case green = "green"

@@ -14,7 +14,7 @@ import (
 	"fmt"
 )
 
-// Color is an enumeration of allowed values.
+// Color A standalone, reusable colour enumeration
 type Color string
 
 const (

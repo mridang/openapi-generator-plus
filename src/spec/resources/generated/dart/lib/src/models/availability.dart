@@ -13,7 +13,7 @@ import 'package:collection/collection.dart';
 
 import '../object_serializer.dart';
 
-/// Availability is an enumeration of allowed values.
+/// Stock availability, non-lowercase string enum
 enum Availability {
   /// Represents the value 'Available'.
   available('Available'),

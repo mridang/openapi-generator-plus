@@ -888,6 +888,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             param.put("baseName", p.baseName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // Thread the spec parameter description into the Options field so the
+            // generated accessor Javadoc documents what the parameter means,
+            // matching the per-parameter documentation the other SDKs carry.
+            if (p.description != null && !p.description.isBlank()) {
+                param.put("description", endWithPeriod(p.description.strip()));
+            }
             // Array/map params are stored and returned by reference, so SpotBugs
             // flags EI_EXPOSE_REP/EI_EXPOSE_REP2 on the generated accessor and
             // constructor. Rather than suppress (a class-level @SuppressFBWarnings

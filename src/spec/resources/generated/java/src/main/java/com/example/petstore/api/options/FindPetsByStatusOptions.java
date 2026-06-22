@@ -14,7 +14,9 @@ public final class FindPetsByStatusOptions {
   /**
    * Sets the {@code status} parameter.
    *
-   * @param status the {@code status} parameter
+   * <p>Status values that need to be considered for filter.
+   *
+   * @param status Status values that need to be considered for filter.
    * @return this options instance for chaining
    */
   public FindPetsByStatusOptions status(String status) {
@@ -24,6 +26,8 @@ public final class FindPetsByStatusOptions {
 
   /**
    * Returns the {@code status} parameter.
+   *
+   * <p>Status values that need to be considered for filter.
    *
    * @return the {@code status} parameter, or {@code null} if unset
    */
@@ -35,7 +39,9 @@ public final class FindPetsByStatusOptions {
   /**
    * Sets the {@code filter} parameter.
    *
-   * @param filter the {@code filter} parameter
+   * <p>Filter criteria as key-value pairs.
+   *
+   * @param filter Filter criteria as key-value pairs.
    * @return this options instance for chaining
    */
   public FindPetsByStatusOptions filter(Map<String, String> filter) {
@@ -45,6 +51,8 @@ public final class FindPetsByStatusOptions {
 
   /**
    * Returns the {@code filter} parameter.
+   *
+   * <p>Filter criteria as key-value pairs.
    *
    * @return the {@code filter} parameter, or {@code null} if unset
    */

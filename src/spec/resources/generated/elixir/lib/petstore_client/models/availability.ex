@@ -7,7 +7,7 @@
 
 defmodule PetstoreClient.Models.Availability do
   @moduledoc """
-  Enumeration of allowed values for Availability.
+  Stock availability, non-lowercase string enum
 
   Values are exposed as atoms (e.g. `:available`) and as the canonical
   string form via `value/1` when wire interop is needed.

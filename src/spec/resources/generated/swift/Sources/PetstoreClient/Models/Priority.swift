@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Priority is an enumeration of allowed values.
+/// Task priority, integer-backed enum
 public enum Priority: Int, Codable, Sendable, CaseIterable {
   case NUMBER_1 = 1
   case NUMBER_2 = 2

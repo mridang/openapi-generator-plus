@@ -17,7 +17,12 @@ import '{{filename}}.dart';
 {{/hasDartImports}}
 {{#isEnum}}
 {{#isInteger}}
+{{#description}}
+/// {{{description}}}
+{{/description}}
+{{^description}}
 /// {{classname}} is an enumeration of allowed integer values.
+{{/description}}
 enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
@@ -46,7 +51,12 @@ enum {{classname}} {
 {{/isInteger}}
 {{^isInteger}}
 {{#isLong}}
+{{#description}}
+/// {{{description}}}
+{{/description}}
+{{^description}}
 /// {{classname}} is an enumeration of allowed integer values.
+{{/description}}
 enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
@@ -74,7 +84,12 @@ enum {{classname}} {
 }
 {{/isLong}}
 {{^isLong}}
+{{#description}}
+/// {{{description}}}
+{{/description}}
+{{^description}}
 /// {{classname}} is an enumeration of allowed values.
+{{/description}}
 enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}

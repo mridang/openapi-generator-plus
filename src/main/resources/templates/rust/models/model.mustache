@@ -7,7 +7,12 @@ use super::*;
 {{#model}}
 {{#isEnum}}
 {{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
+{{#description}}
+/// {{{description}}}
+{{/description}}
+{{^description}}
 /// {{classname}} is an enumeration of allowed values.
+{{/description}}
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum {{classname}} {
 {{#allowableValues}}

@@ -13,7 +13,9 @@ public final class GetStockItemOptions {
   /**
    * Sets the {@code asOf} parameter.
    *
-   * @param asOf the {@code asOf} parameter
+   * <p>Only consider stock as of this instant.
+   *
+   * @param asOf Only consider stock as of this instant.
    * @return this options instance for chaining
    */
   public GetStockItemOptions asOf(OffsetDateTime asOf) {
@@ -23,6 +25,8 @@ public final class GetStockItemOptions {
 
   /**
    * Returns the {@code asOf} parameter.
+   *
+   * <p>Only consider stock as of this instant.
    *
    * @return the {@code asOf} parameter, or {@code null} if unset
    */

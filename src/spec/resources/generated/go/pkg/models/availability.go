@@ -14,7 +14,7 @@ import (
 	"fmt"
 )
 
-// Availability is an enumeration of allowed values.
+// Availability Stock availability, non-lowercase string enum
 type Availability string
 
 const (

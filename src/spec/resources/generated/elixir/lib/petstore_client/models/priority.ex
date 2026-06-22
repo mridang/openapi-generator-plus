@@ -7,7 +7,7 @@
 
 defmodule PetstoreClient.Models.Priority do
   @moduledoc """
-  Enumeration of allowed values for Priority.
+  Task priority, integer-backed enum
 
   Values are exposed as atoms (e.g. `:number_1`) and as the canonical
   integer form via `value/1` when wire interop is needed.

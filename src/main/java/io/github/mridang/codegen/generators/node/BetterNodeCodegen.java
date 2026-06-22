@@ -987,6 +987,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             param.put("dataType", p.dataType);
             param.put("required", p.required);
             param.put("isNullable", Boolean.TRUE.equals(p.isNullable));
+            // Thread the spec parameter description into the Options field so the
+            // generated property carries a JSDoc comment, matching the per-param
+            // documentation the other SDKs expose.
+            if (p.description != null && !p.description.isBlank()) {
+                param.put("description", p.description.strip());
+            }
             params.add(param);
         }
 

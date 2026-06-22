@@ -18,7 +18,7 @@ import (
 {{#models}}
 {{#model}}
 {{#isEnum}}
-// {{classname}} is an enumeration of allowed values.
+// {{classname}} {{#description}}{{{description}}}{{/description}}{{^description}}is an enumeration of allowed values.{{/description}}
 type {{classname}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
 
 const (

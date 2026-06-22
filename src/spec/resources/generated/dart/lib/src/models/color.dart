@@ -13,7 +13,7 @@ import 'package:collection/collection.dart';
 
 import '../object_serializer.dart';
 
-/// Color is an enumeration of allowed values.
+/// A standalone, reusable colour enumeration
 enum Color {
   /// Represents the value 'red'.
   red('red'),

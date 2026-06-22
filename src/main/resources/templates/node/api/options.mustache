@@ -17,6 +17,9 @@ import type { {{authFieldType}} } from '{{authImport}}';
  */
 export interface {{className}} {
 {{#params}}
+{{#description}}
+  /** {{{description}}} */
+{{/description}}
   readonly {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};
 {{/params}}
 {{#hasAuthField}}

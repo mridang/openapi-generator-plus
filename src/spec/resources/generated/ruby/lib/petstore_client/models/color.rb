@@ -33,7 +33,7 @@ end
 module PetstoreClient
   # Model classes generated from OpenAPI schemas.
   module Models
-    # Enumeration of allowed values for Color.
+    # A standalone, reusable colour enumeration
     class Color
       RED = 'red'
       GREEN = 'green'

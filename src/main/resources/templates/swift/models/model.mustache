@@ -4,7 +4,12 @@ import Foundation
 {{#models}}
 {{#model}}
 {{#isEnum}}
+{{#description}}
+/// {{{description}}}
+{{/description}}
+{{^description}}
 /// {{classname}} is an enumeration of allowed values.
+{{/description}}
 public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable {
 {{#allowableValues}}
 {{#enumVars}}

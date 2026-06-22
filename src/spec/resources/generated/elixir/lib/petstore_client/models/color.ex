@@ -7,7 +7,7 @@
 
 defmodule PetstoreClient.Models.Color do
   @moduledoc """
-  Enumeration of allowed values for Color.
+  A standalone, reusable colour enumeration
 
   Values are exposed as atoms (e.g. `:red`) and as the canonical
   string form via `value/1` when wire interop is needed.
