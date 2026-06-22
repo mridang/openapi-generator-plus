@@ -81,10 +81,10 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 	}, nil
 }
 
-// GetBySwatch Echoes a swatch supplied via query and header parameters.
+// GetBySwatch Echoes a swatch supplied via path, query and header parameters.
 
-func (a *StoreApi) GetBySwatch(options *opts.GetBySwatchOptions) (*Category, error) {
-	result, err := a.GetBySwatchWithHTTPInfo(options)
+func (a *StoreApi) GetBySwatch(pathSwatch Swatch, options *opts.GetBySwatchOptions) (*Category, error) {
+	result, err := a.GetBySwatchWithHTTPInfo(pathSwatch, options)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +99,14 @@ func (a *StoreApi) GetBySwatch(options *opts.GetBySwatchOptions) (*Category, err
 }
 
 // GetBySwatchWithHTTPInfo performs the GetBySwatch operation and returns the full API result.
-func (a *StoreApi) GetBySwatchWithHTTPInfo(options *opts.GetBySwatchOptions) (*ApiResult[Category], error) {
+func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetBySwatchOptions) (*ApiResult[Category], error) {
 
-	path := "/store/by-swatch"
+	path := "/store/by-swatch/{pathSwatch}"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "pathSwatch", fmt.Sprintf("%v", serializeStyled("pathSwatch", pathSwatch, "path", "Swatch", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 	if options != nil && options.QuerySwatch != nil {

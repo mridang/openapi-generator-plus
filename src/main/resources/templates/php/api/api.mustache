@@ -265,7 +265,15 @@ class {{classname}} extends BaseApi
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        $pathValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            ${{paramName}},
+            'path',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -503,7 +511,15 @@ class {{classname}} extends BaseApi
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        $pathValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            ${{paramName}},
+            'path',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [

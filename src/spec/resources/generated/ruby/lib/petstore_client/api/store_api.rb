@@ -58,14 +58,20 @@ module PetstoreClient
         )
       end
 
-      # Echoes a swatch supplied via query and header parameters.
+      # Echoes a swatch supplied via path, query and header parameters.
+      # @param path_swatch [Swatch]
 
       # @param options [GetBySwatchOptions] options for query, header, form, and cookie parameters
 
       # @return [Category]
       # @raise [ApiError] if fails to make API call
-      def get_by_swatch(options = nil)
-        result = get_by_swatch_with_http_info(options)
+      def get_by_swatch(path_swatch, options = nil)
+        if path_swatch.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'path_swatch' when calling StoreApi.get_by_swatch"
+        end
+
+        result = get_by_swatch_with_http_info(path_swatch, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -84,8 +90,14 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_by_swatch_with_http_info(options = nil)
-        path = '/store/by-swatch'
+      def get_by_swatch_with_http_info(path_swatch, options = nil)
+        if path_swatch.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'path_swatch' when calling StoreApi.get_by_swatch"
+        end
+
+        path = '/store/by-swatch/{pathSwatch}'
+        path = path.gsub('{pathSwatch}', PetstoreClient::ValueSerializer.serialize_styled('pathSwatch', path_swatch, :path, 'Swatch', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         unless options.nil? || options.query_swatch.nil?

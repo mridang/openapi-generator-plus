@@ -20,6 +20,7 @@ use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
+use PetstoreClient\Models\Swatch;
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -49,7 +50,15 @@ class StoreApi extends BaseApi
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled(
+            'orderId',
+            $orderId,
+            'path',
+            'int',
+            null,
+            'simple',
+            false,
+        );
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -78,16 +87,16 @@ class StoreApi extends BaseApi
     }
 
     /**
-     * Echoes a swatch supplied via query and header parameters.
+     * Echoes a swatch supplied via path, query and header parameters.
 
      * @param GetBySwatchOptions $options Options for query, header, form, and cookie parameters
 
      * @return \PetstoreClient\Models\Category
      * @throws \PetstoreClient\ApiException
      */
-    public function getBySwatch(?GetBySwatchOptions $options = null)
+    public function getBySwatch(Swatch $pathSwatch, ?GetBySwatchOptions $options = null)
     {
-        $apiResult = $this->getBySwatchWithHttpInfo($options);
+        $apiResult = $this->getBySwatchWithHttpInfo($pathSwatch, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -113,9 +122,28 @@ class StoreApi extends BaseApi
      * @return ApiResult<\PetstoreClient\Models\Category>
      * @throws \PetstoreClient\ApiException
      */
-    public function getBySwatchWithHttpInfo(?GetBySwatchOptions $options = null): ApiResult
+    public function getBySwatchWithHttpInfo(Swatch $pathSwatch, ?GetBySwatchOptions $options = null): ApiResult
     {
-        $path = '/store/by-swatch';
+        $path = '/store/by-swatch/{pathSwatch}';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'pathSwatch',
+            $pathSwatch,
+            'path',
+            'Swatch',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'pathSwatch' . '}', $pathValue, $path);
         $queryParams = [];
         if ($options !== null && $options->querySwatch !== null) {
             $queryParams['querySwatch'] = ValueSerializer::serializeStyled(
@@ -461,7 +489,15 @@ class StoreApi extends BaseApi
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled(
+            'orderId',
+            $orderId,
+            'path',
+            'int',
+            null,
+            'simple',
+            false,
+        );
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [

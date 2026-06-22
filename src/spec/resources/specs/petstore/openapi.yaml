@@ -917,14 +917,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/TreeNode'
 
-  /store/by-swatch:
+  /store/by-swatch/{pathSwatch}:
     get:
       tags:
         - store
-      summary: Echoes a swatch supplied via query and header parameters.
+      summary: Echoes a swatch supplied via path, query and header parameters.
       operationId: getBySwatch
       security: []
       parameters:
+        # Required named-enum ($ref) param: a path param is a required method
+        # argument on the API class (not an Options member). Its enum type must
+        # be referenced/imported correctly there in every SDK.
+        - name: pathSwatch
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Swatch'
         # Optional named-enum ($ref) parameters: these land in the generated
         # Options class, which must import/qualify the enum type (its generated
         # type lives in the models namespace) across every SDK.
