@@ -2,6 +2,8 @@
 
 package com.example.petstore.api.options
 
+import java.time.OffsetDateTime
+
 /**
  * Options for the getStockItem operation.
  */

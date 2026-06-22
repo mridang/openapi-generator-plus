@@ -7,6 +7,11 @@ package {{package}}
 import {{modelPackage}}.{{{.}}}
 {{/modelImports}}
 {{/hasModelImports}}
+{{#hasExtraImports}}
+{{#extraImports}}
+import {{{.}}}
+{{/extraImports}}
+{{/hasExtraImports}}
 {{#hasAuthField}}
 import {{authImport}}
 {{/hasAuthField}}
