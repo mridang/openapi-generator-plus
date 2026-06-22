@@ -14,14 +14,14 @@ public struct PetTreatment: Codable, @unchecked Sendable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     let data = try container.decode(AnyCodable.self)
-    let rawData = try JSONEncoder().encode(data)
+    let rawData = try ObjectSerializer.encodeToData(data)
 
     /* Try each anyOf type */
-    if let v = try? JSONDecoder().decode(Medication.self, from: rawData) {
+    if let v = try? ObjectSerializer.decodeFromData(rawData, as: Medication.self) {
       self._value = v
       return
     }
-    if let v = try? JSONDecoder().decode(Surgery.self, from: rawData) {
+    if let v = try? ObjectSerializer.decodeFromData(rawData, as: Surgery.self) {
       self._value = v
       return
     }

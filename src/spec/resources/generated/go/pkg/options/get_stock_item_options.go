@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// GetStockItemOptions holds optional parameters for the GetStockItem operation.
+// GetStockItemOptions carries the parameters for the GetStockItem operation.
 type GetStockItemOptions struct {
 	/* AsOf Only consider stock as of this instant */
 	AsOf *time.Time

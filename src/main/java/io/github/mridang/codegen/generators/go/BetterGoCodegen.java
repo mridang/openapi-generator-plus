@@ -919,9 +919,54 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         op.returnContainer = "array";
                         op.isArray = true;
                     }
+                    // Query/header/form/cookie params live on the per-operation
+                    // Options object passed to the generated method. A required one
+                    // therefore implies the caller must pass a non-nil options, and
+                    // the api template guards that with `if options == nil { ... }`.
+                    //
+                    // That guard must be emitted exactly once per operation. Emitting
+                    // it inside the per-param `{{#required}}` loops (as the template
+                    // previously did) produced byte-identical, unreachable duplicate
+                    // guards whenever an operation had two or more required non-string
+                    // params of the same kind — the second guard could never run
+                    // because the first already returned. Mustache cannot express
+                    // "emit once across these four sublists" without a positional or
+                    // boolean signal, so derive that boolean here. It is true when the
+                    // operation has any required param that is carried on the Options
+                    // object (path and body params are passed as plain arguments and
+                    // are validated separately, so they are deliberately excluded).
+                    final boolean hasRequiredOptionsParam =
+                            anyRequiredOptionsParam(op);
+                    op.vendorExtensions.put(
+                            "hasRequiredOptionsParam", hasRequiredOptionsParam);
                 }
             }
         }
         return super.postProcessOperationsWithModels(objs, allModels);
+    }
+
+    /**
+     * Returns whether the operation has any required parameter that is carried
+     * on the per-operation Options object — that is, a required query, header,
+     * form, or cookie parameter.
+     *
+     * <p>These are the parameters whose absence the generated method detects via
+     * a nil-options check, so the api template uses this to emit that guard
+     * exactly once. Path and body parameters are intentionally excluded: they
+     * are passed as plain positional arguments (not on the Options object) and
+     * are validated by their own dedicated checks in the template.
+     *
+     * @param op the operation to inspect
+     * @return {@code true} if at least one required query/header/form/cookie
+     *     parameter exists
+     */
+    private static boolean anyRequiredOptionsParam(final CodegenOperation op) {
+        final List<List<CodegenParameter>> optionsBorneParams =
+                Arrays.asList(
+                        op.queryParams, op.headerParams, op.formParams, op.cookieParams);
+        return optionsBorneParams.stream()
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .anyMatch(p -> p.required);
     }
 }

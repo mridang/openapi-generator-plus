@@ -135,7 +135,7 @@ abstract class AbstractApiClient implements ApiClient
          * an SDK-typed error here; PHP matches by throwing ApiException
          * rather than silently re-using a reset transport. */
         if ($this->closed) {
-            throw new ApiException('ApiClient has been closed and can no longer send requests');
+            throw new ApiException(0, 'ApiClient has been closed and can no longer send requests');
         }
 
         $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
@@ -201,6 +201,7 @@ abstract class AbstractApiClient implements ApiClient
                          * attack vector. Refuse loudly instead of silently
                          * returning the 3xx, matching the throwing SDKs. */
                         throw new ApiException(
+                            0,
                             "Redirect to unsupported scheme '$scheme' in Location: $nextUrl"
                         );
                     }
@@ -229,6 +230,7 @@ abstract class AbstractApiClient implements ApiClient
                          * the 3xx so the caller sees the refused downgrade,
                          * matching the SDKs that throw on a refused replay. */
                         throw new ApiException(
+                            0,
                             "Refusing to replay request body across HTTPS->HTTP downgrade redirect to $nextUrl"
                         );
                     }
@@ -280,6 +282,7 @@ abstract class AbstractApiClient implements ApiClient
                  * response — matching the throwing SDKs. */
                 if ($hops >= $maxRedirects && self::isRedirectStatus($response->statusCode)) {
                     throw new ApiException(
+                        0,
                         "Too many redirects (exceeded maxRedirects=$maxRedirects)"
                     );
                 }
@@ -329,8 +332,8 @@ abstract class AbstractApiClient implements ApiClient
              * surface; wrap it as the SDK's ApiException so callers catch a
              * single, documented exception type. */
             throw new ApiException(
-                "API Request failed: {$e->getMessage()}",
                 0,
+                "API Request failed: {$e->getMessage()}",
                 null,
                 null,
                 null,

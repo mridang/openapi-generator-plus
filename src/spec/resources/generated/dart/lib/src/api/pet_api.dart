@@ -257,10 +257,13 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/photos';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -350,10 +353,13 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/treatment';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -406,10 +412,13 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -481,10 +490,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/documents/{documentId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -498,10 +510,13 @@ class PetApi extends BaseApi {
       ).toString(),
     );
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'documentId' + '}',
       serializeStyled(
@@ -654,10 +669,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/external';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -730,10 +748,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/multi';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -801,10 +822,13 @@ class PetApi extends BaseApi {
   Future<ApiResult<Uint8List>> getPetAvatarWithHTTPInfo(int petId) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -867,10 +891,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -948,10 +975,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1026,10 +1056,13 @@ class PetApi extends BaseApi {
 
     var path = '/pet/byName/{name}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'name' + '}',
       serializeStyled(
@@ -1101,10 +1134,13 @@ class PetApi extends BaseApi {
   Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(int petId) async {
     var path = '/pet/{petId}/passport';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1170,10 +1206,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/photos/{photoId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1187,10 +1226,13 @@ class PetApi extends BaseApi {
       ).toString(),
     );
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'photoId' + '}',
       serializeStyled(
@@ -1257,10 +1299,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/tag/{tagName}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1274,10 +1319,13 @@ class PetApi extends BaseApi {
       ).toString(),
     );
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'tagName' + '}',
       serializeStyled(
@@ -1381,10 +1429,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/staging';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1439,10 +1490,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1495,10 +1549,13 @@ class PetApi extends BaseApi {
   ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1569,10 +1626,13 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/preferences';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1654,10 +1714,13 @@ class PetApi extends BaseApi {
   Future<ApiResult<Pet>> updatePetWithHTTPInfo(int petId, Pet pet) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1727,10 +1790,13 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/certificate';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1814,10 +1880,13 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/documents';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
     path = path.replaceAll(
       '{' + 'petId' + '}',
       serializeStyled(
@@ -1871,40 +1940,4 @@ class PetApi extends BaseApi {
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
   }
-}
-
-/// Percent-encodes a value for use as a URL path segment.
-///
-/// Encodes characters not allowed in a URI path segment, but preserves the
-/// sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
-/// simple styles use as structural separators in the styled value.
-/// Formats a `format: date` value as YYYY-MM-DD for wire serialization.
-/// Dart has only DateTime (no Date-only type), so the codegen checks the
-/// spec format and routes through this helper to strip the time component.
-/// Without this, a date param goes out as a full ISO+offset string, which
-/// the other 5 'datetime-only' SDKs also emit and which 6 SDKs (Java/
-/// Kotlin/C#/Python/Ruby/Elixir with their native LocalDate types) do
-/// not — the spec calls for date-only.
-String _stringifyDate(DateTime value) {
-  final y = value.year.toString().padLeft(4, '0');
-  final m = value.month.toString().padLeft(2, '0');
-  final d = value.day.toString().padLeft(2, '0');
-  return '$y-$m-$d';
-}
-
-String _encodePathSegment(String value) {
-  return Uri.encodeComponent(value)
-      .replaceAll('%3B', ';')
-      .replaceAll('%3D', '=')
-      .replaceAll('%2C', ',')
-      .replaceAll('%3A', ':')
-      .replaceAll('%40', '@')
-      .replaceAll('%21', '!')
-      .replaceAll('%24', r'$')
-      .replaceAll('%26', '&')
-      .replaceAll('%27', "'")
-      .replaceAll('%28', '(')
-      .replaceAll('%29', ')')
-      .replaceAll('%2A', '*')
-      .replaceAll('%2B', '+');
 }

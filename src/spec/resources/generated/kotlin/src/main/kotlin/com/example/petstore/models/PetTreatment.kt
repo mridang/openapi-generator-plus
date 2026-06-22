@@ -19,8 +19,96 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
 /** A treatment that can match a medication, a surgery, or both */
-@Serializable
+/*
+ * anyOf wrapper. Same defect as the non-discriminated oneOf wrapper: the
+ * default object serializer expected a `{"actualInstance": ...}` envelope and
+ * silently dropped the bare variant payload, leaving [actualInstance] null.
+ * The hand-written serializer tries each declared variant (first match wins)
+ * and emits the bare variant on serialize, matching the resolveAnyOf contract
+ * used by the other SDKs.
+ */
+@Serializable(with = PetTreatment.Serializer::class)
 class PetTreatment(
     @Contextual
     val actualInstance: Any? = null,
-)
+) {
+    internal object Serializer : kotlinx.serialization.KSerializer<PetTreatment> {
+        override val descriptor =
+            kotlinx.serialization.descriptors.buildClassSerialDescriptor("PetTreatment")
+
+        @Suppress("UNCHECKED_CAST")
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: PetTreatment,
+        ) {
+            val jsonEncoder =
+                encoder as? kotlinx.serialization.json.JsonEncoder
+                    ?: throw kotlinx.serialization.SerializationException(
+                        "PetTreatment can only be serialized to JSON",
+                    )
+            val instance =
+                value.actualInstance
+                    ?: throw kotlinx.serialization.SerializationException(
+                        "PetTreatment has no actualInstance to serialize",
+                    )
+            // Encode the wrapped value with the first variant serializer that accepts
+            // it; a value matching no variant fails loud. encodeSerializableValue is
+            // an Encoder member, so no extra import is needed.
+            try {
+                jsonEncoder.encodeSerializableValue(
+                    kotlinx.serialization.serializer<Medication>(),
+                    instance as Medication,
+                )
+                return
+            } catch (_: Exception) {
+                // wrapped value is not this variant; try the next
+            }
+            try {
+                jsonEncoder.encodeSerializableValue(
+                    kotlinx.serialization.serializer<Surgery>(),
+                    instance as Surgery,
+                )
+                return
+            } catch (_: Exception) {
+                // wrapped value is not this variant; try the next
+            }
+            throw kotlinx.serialization.SerializationException(
+                "Unsupported PetTreatment variant: ${instance::class.simpleName}",
+            )
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): PetTreatment {
+            val jsonDecoder =
+                decoder as? kotlinx.serialization.json.JsonDecoder
+                    ?: throw kotlinx.serialization.SerializationException(
+                        "PetTreatment can only be deserialized from JSON",
+                    )
+            val element = jsonDecoder.decodeJsonElement()
+            // Try each declared variant against the raw payload; the first that
+            // decodes without error wins. A payload matching no variant fails loud.
+            try {
+                return PetTreatment(
+                    jsonDecoder.json.decodeFromJsonElement(
+                        kotlinx.serialization.serializer<Medication>(),
+                        element,
+                    ),
+                )
+            } catch (_: Exception) {
+                // variant did not match; fall through to the next
+            }
+            try {
+                return PetTreatment(
+                    jsonDecoder.json.decodeFromJsonElement(
+                        kotlinx.serialization.serializer<Surgery>(),
+                        element,
+                    ),
+                )
+            } catch (_: Exception) {
+                // variant did not match; fall through to the next
+            }
+            throw kotlinx.serialization.SerializationException(
+                "No anyOf variant of PetTreatment matched the response body",
+            )
+        }
+    }
+}

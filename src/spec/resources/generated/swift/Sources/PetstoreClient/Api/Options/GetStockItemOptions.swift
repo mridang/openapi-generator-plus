@@ -1,6 +1,6 @@
 import Foundation
 
-/// GetStockItemOptions holds optional parameters for the getStockItem operation.
+/// Options for the getStockItem operation.
 public struct GetStockItemOptions: Sendable {
   /// Only consider stock as of this instant
   public let asOf: Date?

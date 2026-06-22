@@ -9,8 +9,8 @@ defmodule PetstoreClient.Models.Priority do
   @moduledoc """
   Enumeration of allowed values for Priority.
 
-  Values are exposed as atoms (e.g. `:available`) and as the canonical
-  string form via `value/1` when wire interop is needed.
+  Values are exposed as atoms (e.g. `:number_1`) and as the canonical
+  integer form via `value/1` when wire interop is needed.
   """
   @doc "Enum value `number_1`"
   def number_1, do: :number_1
@@ -32,4 +32,19 @@ defmodule PetstoreClient.Models.Priority do
   def value(:number_1), do: 1
   def value(:number_2), do: 2
   def value(:number_3), do: 3
+
+  @doc """
+  Map a wire value back to its atom — the inverse of `value/1`.
+
+  Deserialization must round-trip the declared wire value (which may be
+  non-lowercase like `"Available"`, hyphenated like `"on-hold"`, or an
+  integer for an integer-backed enum) rather than naively atomizing the
+  raw string. Returns `{:error, value}` for an unrecognised wire value so
+  the caller can raise instead of minting an arbitrary atom.
+  """
+  @spec from_value(term()) :: atom() | {:error, term()}
+  def from_value(1), do: :number_1
+  def from_value(2), do: :number_2
+  def from_value(3), do: :number_3
+  def from_value(value), do: {:error, value}
 end

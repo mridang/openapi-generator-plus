@@ -37,6 +37,26 @@ export class StockItem {
     ) {
       throw new TypeError(`matrix must be an array, got ${typeof this.matrix}`);
     }
+    if (this.priority != null) {
+      const priorityValues = Object.values(Priority);
+      if (!(priorityValues as readonly unknown[]).includes(this.priority)) {
+        throw new Error(
+          `Unknown enum value for priority: ${JSON.stringify(this.priority)}. ` +
+            `Expected one of [${priorityValues.map((v) => JSON.stringify(v)).join(", ")}].`,
+        );
+      }
+    }
+    if (this.availability != null) {
+      const availabilityValues = Object.values(Availability);
+      if (
+        !(availabilityValues as readonly unknown[]).includes(this.availability)
+      ) {
+        throw new Error(
+          `Unknown enum value for availability: ${JSON.stringify(this.availability)}. ` +
+            `Expected one of [${availabilityValues.map((v) => JSON.stringify(v)).join(", ")}].`,
+        );
+      }
+    }
   }
 
   /**

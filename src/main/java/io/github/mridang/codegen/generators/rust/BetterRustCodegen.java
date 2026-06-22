@@ -32,6 +32,7 @@ import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -688,6 +689,85 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         }
     }
 
+    /**
+     * Flags every model whose generated {@code Default} impl must be
+     * hand-written rather than {@code #[derive(Default)]}d, so the model
+     * template can drop the derive and emit a {@code Default} that mirrors
+     * {@code new()}.
+     *
+     * <p>The derived {@code Default} sets every {@code Option} field to
+     * {@code None}. But {@code new()} seeds optional fields that carry a schema
+     * {@code default} with that declared default (and the discriminator field
+     * with its mapping value). For such structs the two constructors would
+     * disagree: {@code default()} would omit the schema default on the wire
+     * while {@code new()} emits it. Setting {@code hasDefaultedOptionalVars}
+     * lets the template suppress the derive and generate a matching
+     * {@code Default} impl, so {@code ..Default::default()} struct-update syntax
+     * observes the same schema defaults {@code new()} promises.
+     */
+    @Override
+    public org.openapitools.codegen.model.ModelsMap postProcessModels(
+            org.openapitools.codegen.model.ModelsMap objs) {
+        final org.openapitools.codegen.model.ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+            final boolean hasDefaultedOptionalVars =
+                    model.optionalVars != null
+                            && model.optionalVars.stream()
+                                    .anyMatch(p -> p.defaultValue != null || p.isDiscriminator);
+            modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars);
+        }
+        return result;
+    }
+
+    /**
+     * Flags operations whose multipart request body is required, so the API
+     * template can reject a {@code None} {@code options} up front instead of
+     * silently issuing a body-less request.
+     *
+     * <p>A multipart operation populates its body from the {@code options}
+     * struct ({@code if let Some(opts) = options { ... }}). When the requestBody
+     * is {@code required: true} and the caller passes {@code options: None}, the
+     * multipart map stays empty and {@code invoke_api} sends a POST with no body
+     * — a malformed request silently, rather than the required-parameter
+     * validation the SDK performs for path/query/header params. The flag lets
+     * the template emit the same {@code ok_or_else} guard for the body.
+     *
+     * <p>Detection: the operation is multipart and carries at least one required
+     * form part (the OAS {@code required} list on the multipart schema surfaces
+     * as required {@code formParams}).
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    final boolean requiredMultipartBody =
+                            op.isMultipart
+                                    && op.formParams != null
+                                    && op.formParams.stream().anyMatch(p -> p.required);
+                    if (op.vendorExtensions == null) {
+                        op.vendorExtensions = new HashMap<>();
+                    }
+                    final Object existing = op.vendorExtensions.get("op");
+                    final Map<String, Object> opDecorators =
+                            existing instanceof Map
+                                    ? (Map<String, Object>) existing
+                                    : new HashMap<>();
+                    opDecorators.put("requiredMultipartBody", requiredMultipartBody);
+                    op.vendorExtensions.put("op", opDecorators);
+                }
+            }
+        }
+        return result;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String formatEnumStringLiteral(String value) {
@@ -861,6 +941,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
         context.put("params", params);
+        // When the options struct carries any required (non-Option) field, the
+        // template drops the `Default` derive and the no-arg `new()` in favour
+        // of a `new(<required fields>)` constructor, so a required parameter
+        // cannot be silently defaulted to an empty/zero value.
+        context.put(
+                "hasRequiredParams", optionsParams.stream().anyMatch(p -> p.required));
         // Folds the optional per-operation authenticator into the Options
         // struct (mirrors the Java generator). injectAuthFieldContext sets
         // hasAuthField (= op.hasAuthMethods) and authFieldType. Rust holds the

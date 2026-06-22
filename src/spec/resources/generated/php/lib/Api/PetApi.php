@@ -179,8 +179,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for addPet but received none',
                 $apiResult->statusCode,
+                'Expected a response body for addPet but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -241,8 +241,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for addPetPhotos but received none',
                 $apiResult->statusCode,
+                'Expected a response body for addPetPhotos but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -317,8 +317,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for addPetTreatment but received none',
                 $apiResult->statusCode,
+                'Expected a response body for addPetTreatment but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -470,8 +470,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for downloadPetDocument but received none',
                 $apiResult->statusCode,
+                'Expected a response body for downloadPetDocument but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -565,8 +565,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for findPetsByStatus but received none',
                 $apiResult->statusCode,
+                'Expected a response body for findPetsByStatus but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -630,8 +630,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getExternalPetInfo but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getExternalPetInfo but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -708,8 +708,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getMultiServerPetInfo but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getMultiServerPetInfo but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -787,8 +787,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getPetAvatar but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getPetAvatar but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -860,8 +860,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getPetAvatarThumbnail but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getPetAvatarThumbnail but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -937,8 +937,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getPetById but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getPetById but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1018,8 +1018,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getPetByName but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getPetByName but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1102,8 +1102,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getPetPassport but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getPetPassport but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1175,8 +1175,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getPetPhoto but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getPetPhoto but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1268,8 +1268,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getPetTag but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getPetTag but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1393,8 +1393,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for getStagingPetInfo but received none',
                 $apiResult->statusCode,
+                'Expected a response body for getStagingPetInfo but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1586,8 +1586,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for setPetPreferences but received none',
                 $apiResult->statusCode,
+                'Expected a response body for setPetPreferences but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1672,8 +1672,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for updatePet but received none',
                 $apiResult->statusCode,
+                'Expected a response body for updatePet but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1749,8 +1749,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for uploadPetCertificate but received none',
                 $apiResult->statusCode,
+                'Expected a response body for uploadPetCertificate but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );
@@ -1827,8 +1827,8 @@ class PetApi extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \PetstoreClient\ApiException(
-                'Expected a response body for uploadPetDocument but received none',
                 $apiResult->statusCode,
+                'Expected a response body for uploadPetDocument but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );

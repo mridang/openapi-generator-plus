@@ -119,10 +119,7 @@ class Order {
       json['quantity'] = quantity;
     }
     if (shipDate != null) {
-      json['shipDate'] = shipDate?.toUtc().toIso8601String().replaceFirst(
-        RegExp(r'(\.\d+)?Z$'),
-        '+00:00',
-      );
+      json['shipDate'] = formatDateTimeOffset(shipDate!);
     }
     if (status != null) {
       json['status'] = status?.toJson();

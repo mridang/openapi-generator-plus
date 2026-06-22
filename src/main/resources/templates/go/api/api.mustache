@@ -154,12 +154,20 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{! required-nested-param-validation: query/header/form/cookie params live on
     the Options object. A required one is a non-pointer field, so a nil options
     (or, for strings, an empty value) means the caller omitted it. Guard here so
-    the caller gets a clear error instead of silently sending the zero value. }}
+    the caller gets a clear error instead of silently sending the zero value.
+
+    The `options == nil` guard is emitted once for the whole operation (driven by
+    hasRequiredOptionsParam, set in BetterGoCodegen). Emitting it per required
+    param produced duplicate, unreachable guards when an operation had two or
+    more required non-string params of the same kind. The per-field presence
+    checks below run after it, so they can safely dereference `options`. }}
+{{#vendorExtensions.hasRequiredOptionsParam}}
+	if options == nil {
+		return nil, fmt.Errorf("missing required options when calling {{classname}}.{{operationId}}")
+	}
+{{/vendorExtensions.hasRequiredOptionsParam}}
 {{#queryParams}}
 {{#required}}
-	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
-	}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
@@ -169,9 +177,6 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
-	}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
@@ -181,21 +186,34 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
-	}
+{{! A required form/file param is only meaningfully present if its field is set.
+    Enforce that per field type: empty string for string params, nil for a single
+    *os.File, and an empty slice for repeated files / array params. Other shapes
+    (e.g. a model value type) have no unset sentinel, so the nil-options guard
+    above is the only check that applies. }}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
 	}
 {{/isString}}
+{{^isString}}
+{{#isFile}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isFile}}
+{{^isFile}}
+{{#isArray}}
+	if len(options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) == 0 {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isArray}}
+{{/isFile}}
+{{/isString}}
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
-	}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")

@@ -9,6 +9,11 @@ import { {{classname}} } from './{{filename}}{{importFileExtension}}';
 {{/hasTsImports}}
 {{#isEnum}}
 
+{{#description}}
+/**
+ * {{{.}}}
+ */
+{{/description}}
 export enum {{classname}} {
 {{#allowableValues}}
   {{#enumVars}}
@@ -281,6 +286,28 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isPrimitiveType}}
 {{#isArray}}
 {{#items}}
+{{#isByteArray}}
+  /*
+   * 2.1 — array of `format: byte`. Each element round-trips Buffer <->
+   * base64 string at the serde boundary, mirroring the scalar byte
+   * field. The @Transform sees the whole array, so map per element;
+   * non-array values pass through untouched.
+   */
+  @Transform(
+    ({ value }) =>
+      Array.isArray(value)
+        ? value.map((__e) => (typeof __e === 'string' ? Buffer.from(__e, 'base64') : __e))
+        : value,
+    { toClassOnly: true }
+  )
+  @Transform(
+    ({ value }) =>
+      Array.isArray(value)
+        ? value.map((__e) => (Buffer.isBuffer(__e) ? (__e as Buffer).toString('base64') : __e))
+        : value,
+    { toPlainOnly: true }
+  )
+{{/isByteArray}}
 {{#isDateTime}}
   @Type(() => Date)
 {{/isDateTime}}
@@ -522,6 +549,31 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !((this.{{name}} as unknown) instanceof Set)) {
       throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
     }
+{{#items}}
+{{#isByteArray}}
+    /**
+     * 2.1 — array of `format: byte`. The wire form is base64 per element;
+     * the model field is Array<Buffer>. The @Transform decorator handles
+     * the ObjectSerializer path, but a hand-constructed model bypasses it,
+     * so decode any base64 string element here and reject non-Buffer,
+     * non-string elements.
+     */
+    if (this.{{name}} != null && Array.isArray(this.{{name}})) {
+      this.{{name}} = (this.{{name}} as unknown as unknown[]).map((__e) => {
+        if (typeof __e === 'string') {
+          return Buffer.from(__e, 'base64');
+        }
+        if (__e != null && !Buffer.isBuffer(__e)) {
+          throw new TypeError(`{{name}} elements must be a Buffer or base64 string, got ${typeof __e}`);
+        }
+        return __e;
+      {{! The map produces an array of decoded Buffers; cast to the array type
+          (the surrounding field is byte[] -> Buffer[]), not the item's scalar
+          Buffer dataType which is what the items-context dataType resolves to. }}
+      }) as unknown as Buffer[];
+    }
+{{/isByteArray}}
+{{/items}}
 {{/isArray}}
 {{/isPrimitiveType}}
 {{#vendorExtensions.prop.isMapOfModel}}
@@ -564,6 +616,43 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isEnum}}
 {{/vars}}
 {{/hasEnums}}
+{{! Referenced (named) enum membership validation. An INLINE enum sets
+    isEnum on the var and is handled above; a property whose type is a
+    REFERENCED enum (e.g. priority typed as Priority) has isEnum == false
+    but carries vendorExtensions.prop.complexTypeIsEnum, with complexType
+    naming the imported enum object. Without this check an out-of-range
+    wire value (priority 99, favoriteColor magenta) would be silently
+    retained as a fake enum member. Mirrors Python's pydantic Enum
+    membership rejection. Array-of-referenced-enum is validated per
+    element via itemsComplexTypeIsEnum. }}
+{{#vars}}
+{{^isEnum}}
+{{#vendorExtensions.prop.complexTypeIsEnum}}
+    if (this.{{name}} != null) {
+      const {{name}}Values = Object.values({{complexType}});
+      if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
+        throw new Error(
+          `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
+            `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
+        );
+      }
+    }
+{{/vendorExtensions.prop.complexTypeIsEnum}}
+{{#vendorExtensions.prop.itemsComplexTypeIsEnum}}
+    if (this.{{name}} != null && Array.isArray(this.{{name}})) {
+      const {{name}}Values = Object.values({{items.complexType}});
+      for (const __v of this.{{name}} as readonly unknown[]) {
+        if (!({{name}}Values as readonly unknown[]).includes(__v)) {
+          throw new Error(
+            `Unknown enum value for {{name}}: ${JSON.stringify(__v)}. ` +
+              `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
+          );
+        }
+      }
+    }
+{{/vendorExtensions.prop.itemsComplexTypeIsEnum}}
+{{/isEnum}}
+{{/vars}}
   }
 
   /**

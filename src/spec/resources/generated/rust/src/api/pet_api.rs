@@ -307,21 +307,30 @@ impl PetApi {
         //   - absent optional fields    -> omitted entirely.
         // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
         let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
-        if let Some(opts) = options {
-            multipart.insert(
-                "files".to_string(),
-                MultipartValue::List(
-                    opts.files
-                        .iter()
-                        .map(|b| MultipartValue::Bytes(b.clone()))
-                        .collect(),
-                ),
-            );
-            multipart.insert(
-                "metadata".to_string(),
-                MultipartValue::Text(object_serializer::serialize(&opts.metadata)?),
-            );
-        }
+        // Required multipart request body: the parts come from the Options
+        // struct, so a missing Options would emit a body-less request. Reject it
+        // up front (matching the required path/query/header param validation)
+        // instead of silently sending an empty body.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!(
+                "missing required parameter '{}' when calling PetApi.add_pet_photos",
+                "options"
+            )
+            .into()
+        })?;
+        multipart.insert(
+            "files".to_string(),
+            MultipartValue::List(
+                opts.files
+                    .iter()
+                    .map(|b| MultipartValue::Bytes(b.clone()))
+                    .collect(),
+            ),
+        );
+        multipart.insert(
+            "metadata".to_string(),
+            MultipartValue::Text(object_serializer::serialize(&opts.metadata)?),
+        );
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 
@@ -1963,9 +1972,18 @@ impl PetApi {
         //   - absent optional fields    -> omitted entirely.
         // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
         let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
-        if let Some(opts) = options {
-            multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
-        }
+        // Required multipart request body: the parts come from the Options
+        // struct, so a missing Options would emit a body-less request. Reject it
+        // up front (matching the required path/query/header param validation)
+        // instead of silently sending an empty body.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!(
+                "missing required parameter '{}' when calling PetApi.upload_pet_certificate",
+                "options"
+            )
+            .into()
+        })?;
+        multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 
@@ -2051,20 +2069,29 @@ impl PetApi {
         //   - absent optional fields    -> omitted entirely.
         // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
         let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
-        if let Some(opts) = options {
-            multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
-            if let Some(ref val) = opts.document_type {
-                multipart.insert(
-                    "documentType".to_string(),
-                    MultipartValue::Text(object_serializer::stringify(val)),
-                );
-            }
-            if let Some(ref val) = opts.notes {
-                multipart.insert(
-                    "notes".to_string(),
-                    MultipartValue::Text(object_serializer::stringify(val)),
-                );
-            }
+        // Required multipart request body: the parts come from the Options
+        // struct, so a missing Options would emit a body-less request. Reject it
+        // up front (matching the required path/query/header param validation)
+        // instead of silently sending an empty body.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!(
+                "missing required parameter '{}' when calling PetApi.upload_pet_document",
+                "options"
+            )
+            .into()
+        })?;
+        multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
+        if let Some(ref val) = opts.document_type {
+            multipart.insert(
+                "documentType".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            );
+        }
+        if let Some(ref val) = opts.notes {
+            multipart.insert(
+                "notes".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            );
         }
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);

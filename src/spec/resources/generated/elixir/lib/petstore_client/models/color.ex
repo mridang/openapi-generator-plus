@@ -9,7 +9,7 @@ defmodule PetstoreClient.Models.Color do
   @moduledoc """
   Enumeration of allowed values for Color.
 
-  Values are exposed as atoms (e.g. `:available`) and as the canonical
+  Values are exposed as atoms (e.g. `:red`) and as the canonical
   string form via `value/1` when wire interop is needed.
   """
   @doc "Enum value `red`"
@@ -32,4 +32,19 @@ defmodule PetstoreClient.Models.Color do
   def value(:red), do: "red"
   def value(:green), do: "green"
   def value(:blue), do: "blue"
+
+  @doc """
+  Map a wire value back to its atom — the inverse of `value/1`.
+
+  Deserialization must round-trip the declared wire value (which may be
+  non-lowercase like `"Available"`, hyphenated like `"on-hold"`, or an
+  integer for an integer-backed enum) rather than naively atomizing the
+  raw string. Returns `{:error, value}` for an unrecognised wire value so
+  the caller can raise instead of minting an arbitrary atom.
+  """
+  @spec from_value(term()) :: atom() | {:error, term()}
+  def from_value("red"), do: :red
+  def from_value("green"), do: :green
+  def from_value("blue"), do: :blue
+  def from_value(value), do: {:error, value}
 end

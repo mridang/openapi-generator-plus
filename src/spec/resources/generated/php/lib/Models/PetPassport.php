@@ -91,6 +91,58 @@ class PetPassport
     }
 
     /**
+     * 2.1 — Returns the raw decoded bytes for every element of the
+     * `scans` array field (OAS items `format: byte`). The stored
+     * container holds the base64-encoded wire form of each element;
+     * this getter applies base64_decode element-by-element so callers
+     * receive a plain array of underlying binary strings. Returns null
+     * when the field itself is unset, mirroring the scalar byte
+     * accessor pair so array-of-byte fields expose the same first-class
+     * raw-bytes API.
+     *
+     * @return list<string>|null
+     */
+    public function getScansAsBytes(): ?array
+    {
+        if ($this->scans === null) {
+            return null;
+        }
+        $decoded = [];
+        foreach ($this->scans as $element) {
+            $bytes = \PetstoreClient\ObjectSerializer::decodeBytes($element);
+            if ($bytes !== null) {
+                $decoded[] = $bytes;
+            }
+        }
+        return $decoded;
+    }
+
+    /**
+     * 2.1 — Stores raw bytes for every element of the `scans`
+     * array field (OAS items `format: byte`) by base64-encoding each
+     * element before assignment. The container keeps the wire form so
+     * serialization stays a straight string pass-through, matching the
+     * scalar byte setter.
+     *
+     * @param list<string>|null $raw
+     */
+    public function setScansFromBytes(?array $raw): void
+    {
+        if ($raw === null) {
+            $this->scans = null;
+            return;
+        }
+        $encoded = [];
+        foreach ($raw as $element) {
+            $value = \PetstoreClient\ObjectSerializer::encodeBytes($element);
+            if ($value !== null) {
+                $encoded[] = $value;
+            }
+        }
+        $this->scans = new \Ds\Vector($encoded);
+    }
+
+    /**
      * 2.1 — Returns the raw decoded bytes for the `biometricChip`
      * field (OAS `format: byte`). The stored property holds the
      * base64-encoded wire form; this getter applies base64_decode

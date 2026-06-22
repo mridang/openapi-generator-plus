@@ -14,14 +14,14 @@ public struct SetPetAvatarThumbnailRequest: Codable, @unchecked Sendable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     let data = try container.decode(AnyCodable.self)
-    let rawData = try JSONEncoder().encode(data)
+    let rawData = try ObjectSerializer.encodeToData(data)
 
     /* Try each oneOf type */
-    if let v = try? JSONDecoder().decode(Data.self, from: rawData) {
+    if let v = try? ObjectSerializer.decodeFromData(rawData, as: Data.self) {
       self._value = v
       return
     }
-    if let v = try? JSONDecoder().decode([Data].self, from: rawData) {
+    if let v = try? ObjectSerializer.decodeFromData(rawData, as: [Data].self) {
       self._value = v
       return
     }

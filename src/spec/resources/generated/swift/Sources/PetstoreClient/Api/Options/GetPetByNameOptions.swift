@@ -1,6 +1,6 @@
 import Foundation
 
-/// GetPetByNameOptions holds optional parameters for the getPetByName operation.
+/// Options for the getPetByName operation.
 public struct GetPetByNameOptions: Sendable {
   public let category: String
 

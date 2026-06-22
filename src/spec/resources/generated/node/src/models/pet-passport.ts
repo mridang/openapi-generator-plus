@@ -35,6 +35,30 @@ export class PetPassport {
    * @example null
    */
   @Expose({ name: "scans" })
+  /*
+   * 2.1 — array of `format: byte`. Each element round-trips Buffer <->
+   * base64 string at the serde boundary, mirroring the scalar byte
+   * field. The @Transform sees the whole array, so map per element;
+   * non-array values pass through untouched.
+   */
+  @Transform(
+    ({ value }) =>
+      Array.isArray(value)
+        ? value.map((__e) =>
+            typeof __e === "string" ? Buffer.from(__e, "base64") : __e,
+          )
+        : value,
+    { toClassOnly: true },
+  )
+  @Transform(
+    ({ value }) =>
+      Array.isArray(value)
+        ? value.map((__e) =>
+            Buffer.isBuffer(__e) ? (__e as Buffer).toString("base64") : __e,
+          )
+        : value,
+    { toPlainOnly: true },
+  )
   scans?: Array<Buffer>;
   /** @example null */
   @Expose({ name: "issuedAt" })
@@ -81,6 +105,26 @@ export class PetPassport {
       !((this.scans as unknown) instanceof Set)
     ) {
       throw new TypeError(`scans must be an array, got ${typeof this.scans}`);
+    }
+    /**
+     * 2.1 — array of `format: byte`. The wire form is base64 per element;
+     * the model field is Array<Buffer>. The @Transform decorator handles
+     * the ObjectSerializer path, but a hand-constructed model bypasses it,
+     * so decode any base64 string element here and reject non-Buffer,
+     * non-string elements.
+     */
+    if (this.scans != null && Array.isArray(this.scans)) {
+      this.scans = (this.scans as unknown as unknown[]).map((__e) => {
+        if (typeof __e === "string") {
+          return Buffer.from(__e, "base64");
+        }
+        if (__e != null && !Buffer.isBuffer(__e)) {
+          throw new TypeError(
+            `scans elements must be a Buffer or base64 string, got ${typeof __e}`,
+          );
+        }
+        return __e;
+      }) as unknown as Buffer[];
     }
     /**
      * 2.1 — format: byte. The wire form is base64; the model field is a

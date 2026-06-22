@@ -1,6 +1,6 @@
 import Foundation
 
-/// GetPetTagOptions holds optional parameters for the getPetTag operation.
+/// Options for the getPetTag operation.
 public struct GetPetTagOptions: Sendable {
   public let colors: [String]?
   public let sizes: [String]?

@@ -14,6 +14,14 @@ defmodule PetstoreClient.Models.TestEnumStatus do
   def pending, do: :pending
   def sold, do: :sold
   def all_values, do: [available(), pending(), sold()]
+
+  # Mirror a generated enum's wire->atom inverse (used by ObjectSerializer's
+  # atomize_enum). Wire values here equal the atom names, so the match is a
+  # case-sensitive 1:1; an unknown/mis-cased value returns {:error, value}.
+  def from_value("available"), do: :available
+  def from_value("pending"), do: :pending
+  def from_value("sold"), do: :sold
+  def from_value(value), do: {:error, value}
 end
 
 defmodule PetstoreClient.ObjectSerializerTest do

@@ -362,6 +362,16 @@ internal class ObjectSerializer
             return true;
         }
 
+        /* Set-typed fields (e.g. HashSet<T>) have no defined enumeration
+           order, so element-wise comparison would report equal sets as unequal
+           when the same items were inserted in a different order. Compare them
+           by order-independent membership instead, mirroring the dictionary
+           path above. Both sides must be sets for set semantics to apply. */
+        if (IsSet(left) && IsSet(right))
+        {
+            return SetStructuralEquals((IEnumerable)left, (IEnumerable)right);
+        }
+
         /* Strings are IEnumerable but must compare as scalars, so they fall
            through to object.Equals below. */
         if (left is IEnumerable leftSeq && right is IEnumerable rightSeq
@@ -433,6 +443,19 @@ internal class ObjectSerializer
             return dictHash;
         }
 
+        if (IsSet(value))
+        {
+            /* Order-independent so two equal sets hash identically regardless of
+               enumeration order (HashSet<T> has no defined order). */
+            int setHash = 0;
+            foreach (object? item in (IEnumerable)value)
+            {
+                setHash ^= StructuralHashCode(item);
+            }
+
+            return setHash;
+        }
+
         if (value is IEnumerable seq && value is not string)
         {
             HashCode seqHash = default;
@@ -445,6 +468,67 @@ internal class ObjectSerializer
         }
 
         return value.GetHashCode();
+    }
+
+    /// <summary>
+    /// True when <paramref name="value"/>'s runtime type implements
+    /// <see cref="ISet{T}"/> (e.g. <c>HashSet{T}</c>). Sets have no
+    /// defined enumeration order, so equality and hashing must be
+    /// order-independent.
+    /// </summary>
+    private static bool IsSet(object value)
+    {
+        foreach (Type iface in value.GetType().GetInterfaces())
+        {
+            if (iface.IsGenericType
+                && iface.GetGenericTypeDefinition() == typeof(ISet<>))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Order-independent structural equality for two sets: equal iff they have
+    /// the same number of elements and every element of <paramref name="left"/>
+    /// has a structurally-equal match in <paramref name="right"/> (matches are
+    /// consumed so duplicates, were they possible, are handled correctly).
+    /// </summary>
+    private static bool SetStructuralEquals(IEnumerable left, IEnumerable right)
+    {
+        List<object?> remaining = new List<object?>();
+        foreach (object? item in right)
+        {
+            remaining.Add(item);
+        }
+
+        foreach (object? leftItem in left)
+        {
+            int matchIndex = -1;
+            for (int i = 0; i < remaining.Count; i++)
+            {
+                if (StructuralEquals(leftItem, remaining[i]))
+                {
+                    matchIndex = i;
+                    break;
+                }
+            }
+
+            /* No match means an element of left is absent from right, or left
+               has more elements than right (right already exhausted). */
+            if (matchIndex < 0)
+            {
+                return false;
+            }
+
+            remaining.RemoveAt(matchIndex);
+        }
+
+        /* Every left element consumed one right element; equal sizes iff no
+           right elements are left over. */
+        return remaining.Count == 0;
     }
 
 }

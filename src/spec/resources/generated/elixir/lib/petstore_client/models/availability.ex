@@ -32,4 +32,19 @@ defmodule PetstoreClient.Models.Availability do
   def value(:available), do: "Available"
   def value(:sold), do: "Sold"
   def value(:on_hold), do: "on-hold"
+
+  @doc """
+  Map a wire value back to its atom — the inverse of `value/1`.
+
+  Deserialization must round-trip the declared wire value (which may be
+  non-lowercase like `"Available"`, hyphenated like `"on-hold"`, or an
+  integer for an integer-backed enum) rather than naively atomizing the
+  raw string. Returns `{:error, value}` for an unrecognised wire value so
+  the caller can raise instead of minting an arbitrary atom.
+  """
+  @spec from_value(term()) :: atom() | {:error, term()}
+  def from_value("Available"), do: :available
+  def from_value("Sold"), do: :sold
+  def from_value("on-hold"), do: :on_hold
+  def from_value(value), do: {:error, value}
 end

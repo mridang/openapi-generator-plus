@@ -154,7 +154,7 @@ test('throws correct exception', function (int $status, string $expectedClass): 
 ]);
 
 test('get typed error body deserializes into given class', function (): void {
-    $ex = new ApiException('boom', 400, [], '{"id":42,"name":"Dogs"}');
+    $ex = new ApiException(400, 'boom', [], '{"id":42,"name":"Dogs"}');
     $typed = $ex->getTypedErrorBody(Category::class);
 
     expect($typed)->toBeInstanceOf(Category::class);
@@ -163,12 +163,12 @@ test('get typed error body deserializes into given class', function (): void {
 });
 
 test('get typed error body returns null for empty body', function (): void {
-    $ex = new ApiException('boom', 400, [], '');
+    $ex = new ApiException(400, 'boom', [], '');
     expect($ex->getTypedErrorBody(Category::class))->toBeNull();
 });
 
 test('get typed error body returns null for whitespace body', function (): void {
-    $ex = new ApiException('boom', 400, [], "   \n\t");
+    $ex = new ApiException(400, 'boom', [], "   \n\t");
     expect($ex->getTypedErrorBody(Category::class))->toBeNull();
 });
 

@@ -254,12 +254,56 @@ internal class ObjectSerializer(
             }
         if (unwrapped == null) return "null"
         if (unwrapped is Map<*, *> || unwrapped is List<*>) {
+            // Maps/lists round-trip through JsonElement; a free-form value the
+            // caller deliberately set to null is preserved here (only object
+            // *properties* are null-stripped, mirroring the other SDKs which
+            // omit absent optional fields but keep explicit nulls inside
+            // free-form payloads).
             return json.encodeToString(JsonElement.serializer(), toJsonElement(unwrapped))
         }
-        return json.encodeToString(serializer(unwrapped::class.java), unwrapped)
+        // Two separate wire contracts are intentionally decoupled here, because
+        // kotlinx-serialization's encodeDefaults conflates them:
+        //   1. Schema defaults MUST appear on the wire. Every other SDK emits a
+        //      field whose value equals its schema default (PHP `int $retries =
+        //      3`, Java NON_NULL, Go value-carrying serialize, ...). So the Json
+        //      instance is configured encodeDefaults = true.
+        //   2. A null optional field MUST be omitted (not emitted as
+        //      `"field":null`), matching swift encodeIfPresent / go omitempty /
+        //      rust skip_serializing_if / java NON_NULL / php SKIP_NULL_VALUES.
+        // encodeDefaults = true alone would satisfy (1) but, combined with
+        // explicitNulls = true, would emit `"field":null` for an explicitly
+        // nulled optional whose default is non-null — violating (2). So after
+        // encoding we strip JsonNull object entries recursively, regardless of
+        // each field's kotlinx default. This is the post-encode null filter the
+        // findings call for and keeps Kotlin byte-compatible with the other 11
+        // SDKs for both default-valued and explicitly-nulled fields.
+        val encoded =
+            json.parseToJsonElement(
+                json.encodeToString(serializer(unwrapped::class.java), unwrapped),
+            )
+        return json.encodeToString(JsonElement.serializer(), stripJsonNulls(encoded))
     }
 
     private fun toJsonElement(value: Any?): JsonElement = toJsonElementStatic(value)
+
+    /**
+     * Recursively drop JSON object entries whose value is [JsonNull], so a model
+     * property left at null is omitted from the serialized object entirely. Array
+     * elements are recursed into but never removed (a null array element is a real
+     * value, not an absent field) and JsonNull is preserved there. This is applied
+     * only to model serialization, never to free-form Map/List payloads.
+     */
+    private fun stripJsonNulls(element: JsonElement): JsonElement =
+        when (element) {
+            is JsonObject ->
+                JsonObject(
+                    element.entries
+                        .filter { it.value !is JsonNull }
+                        .associate { it.key to stripJsonNulls(it.value) },
+                )
+            is JsonArray -> JsonArray(element.map { stripJsonNulls(it) })
+            else -> element
+        }
 
     /**
      * Parse a raw JSON string into a [JsonElement] using the configured [Json]
@@ -564,7 +608,16 @@ internal class ObjectSerializer(
 
             override fun deserialize(decoder: Decoder): Any {
                 if (decoder is JsonDecoder) {
-                    return fromJsonElement(decoder.decodeJsonElement())
+                    // fromJsonElement returns Any? so that a JSON null nested
+                    // inside a free-form object/array round-trips as a real
+                    // Kotlin null rather than the literal string "null". A bare
+                    // top-level null does not reach here for a nullable
+                    // `@Contextual Any?` property — kotlinx-serialization's
+                    // nullable wrapper intercepts it — but guard defensively so
+                    // the non-null KSerializer<Any> contract is never violated.
+                    val element = decoder.decodeJsonElement()
+                    if (element is JsonNull) return JsonNull
+                    return fromJsonElement(element) ?: JsonNull
                 }
                 return decoder.decodeString()
             }
@@ -584,9 +637,16 @@ internal class ObjectSerializer(
                 else -> JsonPrimitive(value.toString())
             }
 
-        private fun fromJsonElement(element: JsonElement): Any =
+        /* Returns Any? (not Any): a nested JSON null must decode to a real
+         * Kotlin null, not the string "null". Coercing JsonNull to "null" here
+         * silently corrupted free-form values — `{"a":null}` became
+         * mapOf("a" to "null"), indistinguishable from a real string and
+         * re-serialized as a quoted "null". Maps/lists carry Any? values, so a
+         * null element survives the round-trip back through toJsonElementStatic
+         * (which maps null -> JsonNull). */
+        private fun fromJsonElement(element: JsonElement): Any? =
             when (element) {
-                is JsonNull -> "null"
+                is JsonNull -> null
                 is JsonPrimitive ->
                     element.booleanOrNull
                         ?: element.longOrNull
@@ -599,7 +659,14 @@ internal class ObjectSerializer(
         private fun createDefaultJson(): Json =
             Json {
                 ignoreUnknownKeys = true
-                encodeDefaults = false
+                // encodeDefaults = true so schema defaults are written on the wire,
+                // matching all 11 other SDKs (e.g. a default-constructed Order
+                // serializes `"status":"placed"`, not `{}`). Optional null-field
+                // omission is handled separately by stripJsonNulls() in serialize(),
+                // NOT by encodeDefaults, because the two contracts are independent:
+                // a field equal to its non-null default must be emitted, while a
+                // field explicitly set to null must be omitted.
+                encodeDefaults = true
                 // Gap AJ: removed `explicitNulls = false` so deserialization
                 // throws on `{"name": null}` for a required non-nullable field
                 // instead of silently assigning null. Aligns with the 9 SDKs

@@ -7,8 +7,8 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @moduledoc """
   Enumeration of allowed values for {{classname}}.
 
-  Values are exposed as atoms (e.g. `:available`) and as the canonical
-  string form via `value/1` when wire interop is needed.
+  Values are exposed as atoms (e.g. `:{{#allowableValues}}{{#enumVars}}{{#-first}}{{nameLowercase}}{{/-first}}{{/enumVars}}{{/allowableValues}}`) and as the canonical
+  {{#isInteger}}integer{{/isInteger}}{{#isLong}}integer{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}} form via `value/1` when wire interop is needed.
   """
 {{#allowableValues}}
 {{#enumVars}}
@@ -30,6 +30,23 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def value(:"{{nameLowercase}}"), do: {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}
+
+  @doc """
+  Map a wire value back to its atom — the inverse of `value/1`.
+
+  Deserialization must round-trip the declared wire value (which may be
+  non-lowercase like `"Available"`, hyphenated like `"on-hold"`, or an
+  integer for an integer-backed enum) rather than naively atomizing the
+  raw string. Returns `{:error, value}` for an unrecognised wire value so
+  the caller can raise instead of minting an arbitrary atom.
+  """
+  @spec from_value(term()) :: atom() | {:error, term()}
+{{#allowableValues}}
+{{#enumVars}}
+  def from_value({{{value}}}), do: :"{{nameLowercase}}"
+{{/enumVars}}
+{{/allowableValues}}
+  def from_value(value), do: {:error, value}
 end
 {{/isEnum}}
 {{^isEnum}}

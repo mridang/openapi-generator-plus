@@ -97,9 +97,16 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     /// payload but the schema declares a `default`, that default is applied —
     /// matching the cross-language "apply schema default on deserialise"
     /// expectation. An explicit JSON `null` is a provided value and is
-    /// preserved as `nil` rather than replaced by the default. Unknown JSON
-    /// keys are silently ignored — matching the cross-language "discard extras
-    /// on deserialise" expectation.
+    /// preserved as `nil` rather than replaced by the default.
+{{#isUnevaluatedPropertiesFalse}}
+    /// Unknown JSON keys are REJECTED — the schema declares
+    /// `unevaluatedProperties: false`, so any property not in `CodingKeys`
+    /// fails decoding loudly, matching the other SDKs' strict behavior.
+{{/isUnevaluatedPropertiesFalse}}
+{{^isUnevaluatedPropertiesFalse}}
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+{{/isUnevaluatedPropertiesFalse}}
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
@@ -321,13 +328,13 @@ public struct {{classname}}: Codable, @unchecked Sendable {
         struct DiscriminatorHelper: Decodable {
             let {{propertyBaseName}}: String
         }
-        let rawData = try JSONEncoder().encode(data)
-        let disc = try JSONDecoder().decode(DiscriminatorHelper.self, from: rawData)
+        let rawData = try ObjectSerializer.encodeToData(data)
+        let disc = try ObjectSerializer.decodeFromData(rawData, as: DiscriminatorHelper.self)
 
         switch disc.{{propertyBaseName}} {
 {{#mappedModels}}
         case "{{{mappingName}}}":
-            let v = try JSONDecoder().decode({{{modelName}}}.self, from: rawData)
+            let v = try ObjectSerializer.decodeFromData(rawData, as: {{{modelName}}}.self)
             self._value = v
             return
 {{/mappedModels}}
@@ -343,11 +350,11 @@ public struct {{classname}}: Codable, @unchecked Sendable {
 {{^discriminator}}
         let container = try decoder.singleValueContainer()
         let data = try container.decode(AnyCodable.self)
-        let rawData = try JSONEncoder().encode(data)
+        let rawData = try ObjectSerializer.encodeToData(data)
 
         /* Try each oneOf type */
 {{#oneOf}}
-        if let v = try? JSONDecoder().decode({{{.}}}.self, from: rawData) {
+        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{.}}}.self) {
             self._value = v
             return
         }
@@ -399,11 +406,11 @@ public struct {{classname}}: Codable, @unchecked Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let data = try container.decode(AnyCodable.self)
-        let rawData = try JSONEncoder().encode(data)
+        let rawData = try ObjectSerializer.encodeToData(data)
 
         /* Try each anyOf type */
 {{#anyOf}}
-        if let v = try? JSONDecoder().decode({{{.}}}.self, from: rawData) {
+        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{.}}}.self) {
             self._value = v
             return
         }

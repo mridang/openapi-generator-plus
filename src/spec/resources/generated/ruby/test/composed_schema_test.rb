@@ -90,10 +90,12 @@ describe 'Composed Schema' do
     it 'raises for anyOf payload matching no variant' do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty
-      # union. The anyOf build raises ArgumentError on union no-match.
+      # union. The anyOf build raises on union no-match, and deserialize wraps
+      # every schema-validation failure uniformly as SerializationError so a
+      # caller can rescue a single branded type.
       json = '{"unrelatedKey":"value","anotherUnknown":123}'
       _ { PetstoreClient::ObjectSerializer.deserialize(json, 'PetTreatment') }
-        .must_raise ArgumentError
+        .must_raise PetstoreClient::SerializationError
     end
   end
 

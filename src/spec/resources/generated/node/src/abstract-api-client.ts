@@ -8,6 +8,7 @@
 import type { ApiClient, SendRequestOptions } from "./api-client.js";
 import { ApiError } from "./api-error.js";
 import type { ApiHttpResponse } from "./api-response.js";
+import { ObjectSerializer } from "./object-serializer.js";
 import { TransportOptions } from "./transport-options.js";
 
 /**
@@ -565,7 +566,17 @@ export abstract class AbstractApiClient implements ApiClient {
     if (typeof value === "object" && value !== null) {
       AbstractApiClient.assertNoControlChars(name, "multipart field name");
       const escapedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      const json = JSON.stringify(value);
+      /*
+       * Serialize the JSON part through ObjectSerializer rather than raw
+       * JSON.stringify so the custom replacer (Date -> local-offset
+       * date-time, Buffer -> base64, Temporal -> protobuf-JSON,
+       * null-stripping) is applied — matching the JSON body path in
+       * base-api and the other 11 SDKs. Raw JSON.stringify would emit
+       * Date.toJSON() (UTC `...Z`), `{ type: 'Buffer', data: [...] }` for
+       * byte fields and the polyfill's internal object for Temporal types,
+       * all corrupt on the wire.
+       */
+      const json = ObjectSerializer.serialize(value);
       return Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\nContent-Type: application/json\r\n\r\n${json}\r\n`,
         "utf-8",

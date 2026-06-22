@@ -169,9 +169,25 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                 }
 
                 $innerType = $this->readPhpDocInnerType($parameter);
+                /* A nested Ds container inner type (e.g. `Ds\Vector<int>`)
+                 * is not a class but a typed-container string. Reconstruct
+                 * each element through ObjectSerializer::deserialize, which
+                 * descends one container level per recursion and rebuilds
+                 * the innermost leaves into their declared \Ds\Vector /
+                 * \Ds\Set / \Ds\Map — matching the encode path
+                 * (DsVectorNormalizer recurses on normalize) so a
+                 * nested-container model field round-trips. Without this,
+                 * the class_exists guard below is false for the nested
+                 * generic and each inner element would be left as a raw
+                 * PHP array, violating the declared container contract. */
+                $innerIsContainer = $innerType !== null
+                    && preg_match('/^Ds\\\\(?:Vector|Set|Map)<.+>$/', $innerType) === 1;
                 $items = [];
                 foreach ($parameterData as $itemKey => $item) {
-                    if ($innerType !== null && is_array($item) && class_exists($innerType)) {
+                    if ($innerIsContainer && is_array($item)) {
+                        /** @var string $innerType */
+                        $items[$itemKey] = \{{invokerPackage}}\ObjectSerializer::deserialize($item, $innerType);
+                    } elseif ($innerType !== null && is_array($item) && class_exists($innerType)) {
                         /* AbstractObjectNormalizer's parent stores the chain
                          * Serializer on a nullable property — Symfony's
                          * Serializer constructor calls setSerializer on every
@@ -228,17 +244,58 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
             return null;
         }
         $escapedParam = preg_quote($parameter->getName(), '/');
+        /* The inner capture must span nested generics. A field typed
+         * `\Ds\Vector<\Ds\Vector<int>>|null $matrix` carries two levels
+         * of `<...>`; a non-greedy or `[^>]+` capture stops at the first
+         * `>` (after `int`) and the whole match then fails because the
+         * following char is `>` rather than the required `|null`/space.
+         * The greedy `(.+)` captures everything between the first `<`
+         * and the final `>` — including any nested `<...>` — and the
+         * trailing `(?:\|null)?\s+\$name` anchor (with `.+` backtracking)
+         * pins the close to the last `>` that precedes the parameter
+         * name, matching ObjectSerializer::deserializeInternal's own
+         * greedy container regex. */
         if (!preg_match(
-            '/@param\s+\S+<([^>]+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+            '/@param\s+\S+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
             $doc,
             $matches,
         )) {
             return null;
         }
         $inner = trim($matches[1]);
+        /* Split off a Map's key type (`KeyType, ValueType`) to keep only
+         * the value type, but only at the top level — a nested generic
+         * such as `\Ds\Map<string, \Ds\Vector<int>>` must not be split on
+         * a comma that lives inside the nested `<...>`. Track angle-bracket
+         * depth and split on the first depth-zero comma. */
         if (str_contains($inner, ',')) {
-            $parts = explode(',', $inner, 2);
-            $inner = trim($parts[1]);
+            $depth = 0;
+            $splitAt = null;
+            for ($i = 0, $len = strlen($inner); $i < $len; $i++) {
+                $char = $inner[$i];
+                if ($char === '<') {
+                    $depth++;
+                } elseif ($char === '>') {
+                    $depth--;
+                } elseif ($char === ',' && $depth === 0) {
+                    $splitAt = $i;
+                    break;
+                }
+            }
+            if ($splitAt !== null) {
+                $inner = trim(substr($inner, $splitAt + 1));
+            }
+        }
+
+        /* A nested Ds container (e.g. `\Ds\Vector<int>` or
+         * `\Ds\Map<string, Foo>`) is not a class — it is a typed-container
+         * string that ObjectSerializer::deserialize knows how to rebuild
+         * recursively. Return it verbatim (without backslash-stripping or
+         * class_exists resolution) so denormalizeParameter routes each
+         * element back through the serializer's container path and every
+         * nested level is reconstructed into its declared container. */
+        if (preg_match('/^\\\\?Ds\\\\(?:Vector|Set|Map)<.+>$/', $inner)) {
+            return ltrim($inner, '\\');
         }
 
         return $this->resolveClassName(ltrim($inner, '\\'), $constructor);

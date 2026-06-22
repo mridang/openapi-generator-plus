@@ -16,8 +16,102 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
-@Serializable
+/*
+ * Non-discriminated oneOf wrapper. The default generated object serializer
+ * would expect a `{"actualInstance": ...}` envelope, but the wire payload is a
+ * bare variant — so deserialization silently dropped every key and left
+ * [actualInstance] null. The hand-written serializer below tries each declared
+ * variant in turn (first match wins) and emits the bare variant on serialize,
+ * matching the resolveOneOf contract used by the other SDKs.
+ *
+ * Variant serializers are resolved via the reified `serializer<T>()` so the
+ * union works for class variants AND primitive/collection variants (e.g.
+ * `ByteArray`, `List<ByteArray>`), which cannot use a `Type.serializer()`
+ * companion call or an `is Type` check on an erased generic.
+ */
+@Serializable(with = SetPetAvatarThumbnailRequest.Serializer::class)
 class SetPetAvatarThumbnailRequest(
     @Contextual
     val actualInstance: Any? = null,
-)
+) {
+    internal object Serializer : kotlinx.serialization.KSerializer<SetPetAvatarThumbnailRequest> {
+        override val descriptor =
+            kotlinx.serialization.descriptors.buildClassSerialDescriptor("SetPetAvatarThumbnailRequest")
+
+        @Suppress("UNCHECKED_CAST")
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: SetPetAvatarThumbnailRequest,
+        ) {
+            val jsonEncoder =
+                encoder as? kotlinx.serialization.json.JsonEncoder
+                    ?: throw kotlinx.serialization.SerializationException(
+                        "SetPetAvatarThumbnailRequest can only be serialized to JSON",
+                    )
+            val instance =
+                value.actualInstance
+                    ?: throw kotlinx.serialization.SerializationException(
+                        "SetPetAvatarThumbnailRequest has no actualInstance to serialize",
+                    )
+            // Encode the wrapped value with the first variant serializer that accepts
+            // it; a value matching no variant fails loud. encodeSerializableValue is
+            // an Encoder member, so no extra import is needed.
+            try {
+                jsonEncoder.encodeSerializableValue(
+                    kotlinx.serialization.serializer<ByteArray>(),
+                    instance as ByteArray,
+                )
+                return
+            } catch (_: Exception) {
+                // wrapped value is not this variant; try the next
+            }
+            try {
+                jsonEncoder.encodeSerializableValue(
+                    kotlinx.serialization.serializer<List<ByteArray>>(),
+                    instance as List<ByteArray>,
+                )
+                return
+            } catch (_: Exception) {
+                // wrapped value is not this variant; try the next
+            }
+            throw kotlinx.serialization.SerializationException(
+                "Unsupported SetPetAvatarThumbnailRequest variant: ${instance::class.simpleName}",
+            )
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): SetPetAvatarThumbnailRequest {
+            val jsonDecoder =
+                decoder as? kotlinx.serialization.json.JsonDecoder
+                    ?: throw kotlinx.serialization.SerializationException(
+                        "SetPetAvatarThumbnailRequest can only be deserialized from JSON",
+                    )
+            val element = jsonDecoder.decodeJsonElement()
+            // Try each declared variant against the raw payload; the first that
+            // decodes without error wins. A payload matching no variant is spec
+            // drift and fails loud rather than yielding an empty wrapper.
+            try {
+                return SetPetAvatarThumbnailRequest(
+                    jsonDecoder.json.decodeFromJsonElement(
+                        kotlinx.serialization.serializer<ByteArray>(),
+                        element,
+                    ),
+                )
+            } catch (_: Exception) {
+                // variant did not match; fall through to the next
+            }
+            try {
+                return SetPetAvatarThumbnailRequest(
+                    jsonDecoder.json.decodeFromJsonElement(
+                        kotlinx.serialization.serializer<List<ByteArray>>(),
+                        element,
+                    ),
+                )
+            } catch (_: Exception) {
+                // variant did not match; fall through to the next
+            }
+            throw kotlinx.serialization.SerializationException(
+                "No oneOf variant of SetPetAvatarThumbnailRequest matched the response body",
+            )
+        }
+    }
+}

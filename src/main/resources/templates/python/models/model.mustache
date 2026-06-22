@@ -6,7 +6,10 @@
 from enum import Enum
 
 
-class {{classname}}(str, Enum):
+{{! An integer-backed enum mixes in `int` (not `str`) so its members compare
+    and serialize as JSON numbers; pydantic/json then emit `1` rather than the
+    quoted `"1"` that `str, Enum` would produce. String enums keep `str`. }}
+class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}str{{/isLong}}{{/isInteger}}, Enum):
     """
     {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
     """
@@ -245,8 +248,8 @@ from __future__ import annotations
 
 import re
 import warnings
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer, model_validator
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
 {{#hasEnums}}
 from enum import Enum
@@ -356,6 +359,30 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
                 extras[key] = value
         merged['additional_properties'] = extras
         return merged
+
+    @model_serializer(mode='wrap')
+    def _flatten_additional_properties(
+        self, handler: Callable[[Any], Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Re-flatten additional_properties to top level on serialize.
+
+        The mirror of `_capture_additional_properties`. Without this,
+        pydantic emits the captured extras nested under a literal
+        `additional_properties` key (e.g. `{"createdAt": ...,
+        "additional_properties": {"foo": "bar"}}`) instead of the
+        round-trip-faithful flat form `{"createdAt": ..., "foo": "bar"}`.
+        We run the default serializer, lift the captured extras out of the
+        `additional_properties` key, and merge them back at the top level.
+        Declared fields win on key collisions so an explicit field is never
+        clobbered by a stale extra.
+        """
+        data = handler(self)
+        extras = data.pop('additional_properties', None)
+        if isinstance(extras, dict):
+            for key, value in extras.items():
+                if key not in data:
+                    data[key] = value
+        return data
 {{/isAdditionalPropertiesTrue}}
 {{! Item 9 — Gap AX.1 unevaluatedProperties:false is enforced natively
     via ConfigDict(extra='forbid') on the model_config below; no

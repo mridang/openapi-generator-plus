@@ -11,8 +11,15 @@ from __future__ import annotations
 
 import re
 import warnings
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
 
 
@@ -22,16 +29,16 @@ class PetPassport(BaseModel):
     """
 
     pet: Optional[Pet] = Field(default=None, alias="pet")
-    thumbnail: Optional[bytes] = Field(
+    thumbnail: Optional[Base64Bytes] = Field(
         default=None, alias="thumbnail", description="Base64-encoded primary thumbnail"
     )
-    scans: Optional[List[bytes]] = Field(
+    scans: Optional[List[Base64Bytes]] = Field(
         default=None,
         alias="scans",
         description="Base64-encoded scans of each passport page",
     )
     issued_at: Optional[AwareDatetime] = Field(default=None, alias="issuedAt")
-    biometric_chip: Optional[bytes] = Field(
+    biometric_chip: Optional[Base64Bytes] = Field(
         default=None,
         alias="biometricChip",
         description="Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream",
@@ -50,5 +57,6 @@ class PetPassport(BaseModel):
 
 from petstore_client.models.pet import Pet
 from pydantic import AwareDatetime
+from pydantic import Base64Bytes
 
 PetPassport.model_rebuild(raise_errors=False)

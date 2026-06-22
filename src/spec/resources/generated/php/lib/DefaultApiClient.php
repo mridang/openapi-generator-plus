@@ -83,11 +83,13 @@ class DefaultApiClient extends AbstractApiClient
             $pem = @file_get_contents($caCertPath);
             if ($pem === false) {
                 throw new ApiException(
+                    0,
                     sprintf('failed to read CA certificate from "%s"', $caCertPath)
                 );
             }
             if (openssl_x509_read($pem) === false) {
                 throw new ApiException(
+                    0,
                     sprintf(
                         'failed to parse CA certificate from "%s": no PEM blocks found or unparseable',
                         $caCertPath
@@ -257,8 +259,8 @@ class DefaultApiClient extends AbstractApiClient
             return new RawHttpResponse($statusCode, $responseBody, $rawHeaders);
         } catch (TransportExceptionInterface $e) {
             throw new ApiException(
-                "API Request failed: {$e->getMessage()}",
                 0,
+                "API Request failed: {$e->getMessage()}",
                 null,
                 null,
                 null,

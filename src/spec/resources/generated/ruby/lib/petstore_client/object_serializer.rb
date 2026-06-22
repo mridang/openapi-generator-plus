@@ -83,11 +83,16 @@ module PetstoreClient
       convert_to_type(data, target_type)
     rescue JSON::ParserError => e
       raise SerializationError.new("Failed to parse JSON: #{e.message}", e)
-    rescue ArgumentError
-      raise
     rescue StandardError => e
       raise e if e.is_a?(SerializationError)
 
+      # Schema-validation failures raised by convert_to_type — strict
+      # primitive type mismatches, unknown standalone-enum values, and the
+      # ArgumentErrors from Date/Time/Tod parsing — are all "server payload
+      # violates the schema" errors. Wrap them uniformly as SerializationError
+      # so a caller can `rescue SerializationError` and catch every bad-payload
+      # case, rather than having unknown-enum / wrong-type leak a raw stdlib
+      # ArgumentError while a missing-required-field is wrapped (dry-struct).
       raise SerializationError.new("Failed to deserialize JSON to #{target_type}: #{e.message}", e)
     end
 
@@ -519,13 +524,18 @@ module PetstoreClient
         raise SerializationError, "Invalid protobuf-JSON duration for format: duration: #{value.inspect}"
       end
 
-      sign = value.start_with?('-') ? -1 : 1
+      negative = value.start_with?('-')
       digits = value.delete_prefix('-').delete_suffix('s')
       int_part, frac_part = digits.split('.', 2)
       secs = int_part.to_i
       nanos = frac_part.nil? ? 0 : frac_part.ljust(9, '0').to_i
-      total_seconds = sign * (secs + (nanos / 1_000_000_000.0))
-      ISO8601::Duration.new("PT#{total_seconds}S")
+      abs_seconds = secs + (nanos / 1_000_000_000.0)
+      # ISO-8601 places the sign before the 'P' (the gem emits the "-PT…"
+      # form on the serialize side). Interpolating a signed Float into
+      # "PT…S" would build the malformed "PT-3600.0S", which the iso8601
+      # gem rejects — breaking the round-trip for any negative duration.
+      sign_prefix = negative ? '-' : ''
+      ISO8601::Duration.new("#{sign_prefix}PT#{abs_seconds}S")
     end
 
     # Apply +format+-specific encoding before JSON serialization.

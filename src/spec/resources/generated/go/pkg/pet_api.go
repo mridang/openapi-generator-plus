@@ -249,10 +249,10 @@ func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*
 // AddPetPhotosWithHTTPInfo performs the AddPetPhotos operation and returns the full API result.
 func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
 	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.AddPetPhotos", "files")
+		return nil, fmt.Errorf("missing required options when calling PetApi.AddPetPhotos")
 	}
-	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.AddPetPhotos", "metadata")
+	if options.Files == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.AddPetPhotos", "files")
 	}
 
 	path := "/pet/{petId}/photos"
@@ -1147,7 +1147,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "name")
 	}
 	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "category")
+		return nil, fmt.Errorf("missing required options when calling PetApi.GetPetByName")
 	}
 	if options.Category == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "category")
@@ -1718,7 +1718,7 @@ func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesO
 // SetPetPreferencesWithHTTPInfo performs the SetPetPreferences operation and returns the full API result.
 func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResult[ApiResponse], error) {
 	if options == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.SetPetPreferences", "nickname")
+		return nil, fmt.Errorf("missing required options when calling PetApi.SetPetPreferences")
 	}
 	if options.Nickname == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.SetPetPreferences", "nickname")
@@ -1907,6 +1907,9 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertif
 // UploadPetCertificateWithHTTPInfo performs the UploadPetCertificate operation and returns the full API result.
 func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
 	if options == nil {
+		return nil, fmt.Errorf("missing required options when calling PetApi.UploadPetCertificate")
+	}
+	if options.File == nil {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.UploadPetCertificate", "file")
 	}
 
@@ -2000,6 +2003,9 @@ func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentO
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
 func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
 	if options == nil {
+		return nil, fmt.Errorf("missing required options when calling PetApi.UploadPetDocument")
+	}
+	if options.File == nil {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.UploadPetDocument", "file")
 	}
 

@@ -116,7 +116,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !{{paramName}}.isEmpty else {
-            throw ApiError(statusCode: 0, message: "Missing required parameter '\({{paramName}})' when calling {{classname}}.{{operationId}}")
+            throw ApiError(statusCode: 0, message: "Missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}

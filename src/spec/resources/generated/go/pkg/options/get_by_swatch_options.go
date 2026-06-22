@@ -6,7 +6,7 @@ import (
 	. "petstore/pkg/models"
 )
 
-// GetBySwatchOptions holds optional parameters for the GetBySwatch operation.
+// GetBySwatchOptions carries the parameters for the GetBySwatch operation.
 type GetBySwatchOptions struct {
 	QuerySwatch     *Swatch
 	PreferredSwatch *Swatch

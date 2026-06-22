@@ -63,6 +63,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         imports.put("EmailStr", "from pydantic import EmailStr");
         imports.put("SecretStr", "from pydantic import SecretStr");
         imports.put("AwareDatetime", "from pydantic import AwareDatetime");
+        // format: byte (and OAS 3.1 contentEncoding: base64) → Base64Bytes so
+        // pydantic decodes the wire base64 string into real bytes on validate
+        // and re-encodes them to base64 on model_dump_json. A plain `bytes`
+        // field skips this transcoding entirely and breaks the round-trip.
+        imports.put("Base64Bytes", "from pydantic import Base64Bytes");
         imports.put("StrictInt", "from pydantic import StrictInt");
         imports.put("StrictStr", "from pydantic import StrictStr");
         imports.put("StrictBool", "from pydantic import StrictBool");
@@ -143,6 +148,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // generic-import machinery does not try to emit
                                 // `from petstore_client.models.HttpUrl import HttpUrl`.
                                 "HttpUrl", "EmailStr", "SecretStr", "AwareDatetime",
+                                "Base64Bytes",
                                 "StrictInt", "StrictStr", "StrictBool", "StrictFloat",
                                 "Decimal", "IPv4Address", "IPv6Address"));
 
@@ -661,6 +667,16 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // strict primitive so that the lax-coercion guarantee is preserved.
         keepStringForUriSubformats(property, "StrictStr");
 
+        // `format: byte` (and the OAS 3.1 `contentEncoding: base64` form, which
+        // ContentEncodingRule normalizes onto `format: byte`) carries base64 on
+        // the wire. The typeMapping resolves both `byte` and `binary` to plain
+        // `bytes`, but plain `bytes` skips pydantic's base64 transcoding: it
+        // stores the literal base64 ASCII on validate and raises on dump for
+        // real binary. Promote the base64 variant to pydantic's `Base64Bytes`
+        // so it decodes/encodes correctly on the JSON round-trip. Raw
+        // `format: binary` keeps plain `bytes` (raw body, never JSON base64).
+        promoteBase64Bytes(property);
+
         final String fmt = property.dataFormat;
         if (fmt == null) {
             return;
@@ -684,6 +700,39 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 break;
             default:
                 break;
+        }
+    }
+
+    /**
+     * Rewrites {@code bytes} to pydantic's {@code Base64Bytes} for properties
+     * whose OAS {@code format} is {@code byte} (base64-on-the-wire), handling
+     * both scalar fields ({@code data: bytes}) and array items
+     * ({@code scans: List[bytes]}). The {@code format: binary} variant is left
+     * as plain {@code bytes} — it is a raw octet body, not a JSON base64 string.
+     *
+     * @param property the model property to inspect and possibly rewrite
+     */
+    private static void promoteBase64Bytes(CodegenProperty property) {
+        final boolean scalarIsByte = "byte".equals(property.dataFormat);
+        final boolean itemsAreByte =
+                property.items != null && "byte".equals(property.items.dataFormat);
+        if (!scalarIsByte && !itemsAreByte) {
+            return;
+        }
+        if (property.dataType != null) {
+            // Replaces the `bytes` token in `bytes`, `List[bytes]`,
+            // `Optional[bytes]`, `List[Optional[bytes]]`, etc. The word
+            // boundary keeps `bytes` from matching inside other identifiers.
+            property.dataType =
+                    property.dataType.replaceAll("\\bbytes\\b", "Base64Bytes");
+        }
+        if (property.datatypeWithEnum != null) {
+            property.datatypeWithEnum =
+                    property.datatypeWithEnum.replaceAll("\\bbytes\\b", "Base64Bytes");
+        }
+        if (itemsAreByte && property.items.dataType != null) {
+            property.items.dataType =
+                    property.items.dataType.replaceAll("\\bbytes\\b", "Base64Bytes");
         }
     }
 

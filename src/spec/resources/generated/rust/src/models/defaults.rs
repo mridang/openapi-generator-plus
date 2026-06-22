@@ -51,7 +51,7 @@ fn default_label() -> Option<String> {
     Some(String::from("untitled"))
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Defaults {
     /// Example: `null`
     #[serde(
@@ -87,6 +87,32 @@ impl Defaults {
             // the other SDKs. The schema default may not be the first variant,
             // so the declared variant is used rather than `Default::default()`.
             mode: Some(DefaultsModeEnum::Medium),
+            label: Some(String::from("untitled")),
+        }
+    }
+}
+
+// Hand-written `Default` impl (the derive is suppressed above) so that
+// `Defaults::default()` agrees with `Defaults::new()` on the
+// schema-default fields. The derived impl would set every optional field to
+// `None`, silently dropping the schema defaults `new()` seeds (and that the
+// other SDKs emit on the wire). Required fields fall back to their own
+// `Default` (matching what the derive would have produced); optional fields
+// with a schema `default` are seeded with that declared default.
+impl Default for Defaults {
+    fn default() -> Self {
+        Self {
+            // Optional field with a schema default: seed the declared default
+            // so `default()` matches `new()` (and the wire output of the other
+            // SDKs) rather than emitting `None`.
+            retries: Some(3),
+            // Optional field with a schema default: seed the declared default
+            // so `default()` matches `new()` (and the wire output of the other
+            // SDKs) rather than emitting `None`.
+            mode: Some(DefaultsModeEnum::Medium),
+            // Optional field with a schema default: seed the declared default
+            // so `default()` matches `new()` (and the wire output of the other
+            // SDKs) rather than emitting `None`.
             label: Some(String::from("untitled")),
         }
     }

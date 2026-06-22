@@ -1,6 +1,6 @@
 import Foundation
 
-/// GetBySwatchOptions holds optional parameters for the getBySwatch operation.
+/// Options for the getBySwatch operation.
 public struct GetBySwatchOptions: Sendable {
   public let querySwatch: Swatch?
   public let preferredSwatch: Swatch?

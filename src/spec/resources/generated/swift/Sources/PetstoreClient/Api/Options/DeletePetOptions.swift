@@ -1,6 +1,6 @@
 import Foundation
 
-/// DeletePetOptions holds optional parameters for the deletePet operation.
+/// Options for the deletePet operation.
 public struct DeletePetOptions: Sendable {
   /// Session cookie used for authentication
   public let apiKey: String?

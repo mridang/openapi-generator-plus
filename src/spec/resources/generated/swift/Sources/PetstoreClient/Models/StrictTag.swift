@@ -32,9 +32,10 @@ public struct StrictTag: Codable, Sendable, Equatable, Hashable {
   /// payload but the schema declares a `default`, that default is applied —
   /// matching the cross-language "apply schema default on deserialise"
   /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default. Unknown JSON
-  /// keys are silently ignored — matching the cross-language "discard extras
-  /// on deserialise" expectation.
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are REJECTED — the schema declares
+  /// `unevaluatedProperties: false`, so any property not in `CodingKeys`
+  /// fails decoding loudly, matching the other SDKs' strict behavior.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.id = try container.decodeIfPresent(Int64.self, forKey: .id)

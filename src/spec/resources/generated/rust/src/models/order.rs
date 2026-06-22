@@ -33,7 +33,7 @@ fn default_status() -> Option<OrderStatusEnum> {
     Some(OrderStatusEnum::Placed)
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Order {
     /// Example: `10`
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
@@ -73,6 +73,29 @@ impl Order {
             // serializes the schema default (e.g. `"mode":"medium"`), matching
             // the other SDKs. The schema default may not be the first variant,
             // so the declared variant is used rather than `Default::default()`.
+            status: Some(OrderStatusEnum::Placed),
+            complete: None,
+        }
+    }
+}
+
+// Hand-written `Default` impl (the derive is suppressed above) so that
+// `Order::default()` agrees with `Order::new()` on the
+// schema-default fields. The derived impl would set every optional field to
+// `None`, silently dropping the schema defaults `new()` seeds (and that the
+// other SDKs emit on the wire). Required fields fall back to their own
+// `Default` (matching what the derive would have produced); optional fields
+// with a schema `default` are seeded with that declared default.
+impl Default for Order {
+    fn default() -> Self {
+        Self {
+            id: None,
+            pet_id: None,
+            quantity: None,
+            ship_date: None,
+            // Optional field with a schema default: seed the declared default
+            // so `default()` matches `new()` (and the wire output of the other
+            // SDKs) rather than emitting `None`.
             status: Some(OrderStatusEnum::Placed),
             complete: None,
         }

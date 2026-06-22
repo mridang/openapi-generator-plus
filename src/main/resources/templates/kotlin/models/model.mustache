@@ -149,17 +149,157 @@ enum class {{classname}}(val value: String) {
 {{/description}}
 {{/isDeprecated}}
 {{#discriminator}}
-@Serializable
-@OptIn(ExperimentalSerializationApi::class)
-@JsonClassDiscriminator("{{discriminator.propertyBaseName}}")
-abstract class {{classname}}
-{{/discriminator}}
-{{^discriminator}}
-@Serializable
+/*
+ * Discriminated oneOf wrapper. The previous shape was an empty
+ * `abstract class {{classname}}` annotated with @JsonClassDiscriminator, but the
+ * variant schemas ({{#discriminator.mappedModels}}{{modelName}}{{^-last}}, {{/-last}}{{/discriminator.mappedModels}}) are emitted as
+ * independent data classes that neither extend this type nor register a
+ * @SerialName subtype. kotlinx-serialization would build a PolymorphicSerializer
+ * with ZERO registered subclasses, so every encode/decode of {{classname}} threw
+ * "not registered for polymorphic serialization" at runtime.
+ *
+ * Instead this is a wrapper holding the resolved variant in [actualInstance],
+ * with a hand-written serializer that dispatches on the
+ * `{{discriminator.propertyBaseName}}` discriminator property — mirroring the
+ * other SDKs (e.g. Swift's PetFood, which switches on the discriminator and
+ * decodes the matching concrete type). [ObjectSerializer.serialize] unwraps
+ * [actualInstance] via reflection, so serialization of the bare variant works
+ * the same way it does for non-discriminated unions.
+ */
+@Serializable(with = {{classname}}.Serializer::class)
 class {{classname}}(
   @Contextual
   val actualInstance: Any? = null
-)
+) {
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be serialized to JSON")
+      val instance = value.actualInstance
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} has no actualInstance to serialize")
+      // Dispatch on the concrete variant type and encode it as its own bare
+      // object; the discriminator property lives on the variant itself.
+      // encodeSerializableValue is an Encoder member, so no extra import is
+      // needed and the variant's own (possibly contextual) serializer is used.
+      when (instance) {
+        {{#discriminator.mappedModels}}
+        is {{modelName}} ->
+          jsonEncoder.encodeSerializableValue({{modelName}}.serializer(), instance)
+        {{/discriminator.mappedModels}}
+        else -> throw kotlinx.serialization.SerializationException(
+          "Unsupported {{classname}} variant: ${instance::class.simpleName}")
+      }
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} {
+      val jsonDecoder = decoder as? kotlinx.serialization.json.JsonDecoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be deserialized from JSON")
+      val element = jsonDecoder.decodeJsonElement()
+      val obj = element as? kotlinx.serialization.json.JsonObject
+        ?: throw kotlinx.serialization.SerializationException(
+          "Expected a JSON object for {{classname}} but found ${element::class.simpleName}")
+      val discriminator =
+        (obj["{{discriminator.propertyBaseName}}"]
+          as? kotlinx.serialization.json.JsonPrimitive)?.content
+          ?: throw kotlinx.serialization.SerializationException(
+            "{{classname}} is missing the '{{discriminator.propertyBaseName}}' discriminator property")
+      // Resolve the variant from the discriminator value, then decode the
+      // matching concrete type. An unknown value fails loud rather than
+      // silently yielding an empty wrapper.
+      val instance: Any = when (discriminator) {
+        {{#discriminator.mappedModels}}
+        "{{mappingName}}" ->
+          jsonDecoder.json.decodeFromJsonElement({{modelName}}.serializer(), obj)
+        {{/discriminator.mappedModels}}
+        else -> throw kotlinx.serialization.SerializationException(
+          "Unknown {{classname}} discriminator value: '$discriminator'")
+      }
+      return {{classname}}(instance)
+    }
+  }
+}
+{{/discriminator}}
+{{^discriminator}}
+/*
+ * Non-discriminated oneOf wrapper. The default generated object serializer
+ * would expect a `{"actualInstance": ...}` envelope, but the wire payload is a
+ * bare variant — so deserialization silently dropped every key and left
+ * [actualInstance] null. The hand-written serializer below tries each declared
+ * variant in turn (first match wins) and emits the bare variant on serialize,
+ * matching the resolveOneOf contract used by the other SDKs.
+ *
+ * Variant serializers are resolved via the reified `serializer<T>()` so the
+ * union works for class variants AND primitive/collection variants (e.g.
+ * `ByteArray`, `List<ByteArray>`), which cannot use a `Type.serializer()`
+ * companion call or an `is Type` check on an erased generic.
+ */
+@Serializable(with = {{classname}}.Serializer::class)
+class {{classname}}(
+  @Contextual
+  val actualInstance: Any? = null
+) {
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
+
+    @Suppress("UNCHECKED_CAST")
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be serialized to JSON")
+      val instance = value.actualInstance
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} has no actualInstance to serialize")
+      // Encode the wrapped value with the first variant serializer that accepts
+      // it; a value matching no variant fails loud. encodeSerializableValue is
+      // an Encoder member, so no extra import is needed.
+      {{#oneOf}}
+      try {
+        jsonEncoder.encodeSerializableValue(
+          kotlinx.serialization.serializer<{{{.}}}>(), instance as {{{.}}})
+        return
+      } catch (_: Exception) {
+        // wrapped value is not this variant; try the next
+      }
+      {{/oneOf}}
+      throw kotlinx.serialization.SerializationException(
+        "Unsupported {{classname}} variant: ${instance::class.simpleName}")
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} {
+      val jsonDecoder = decoder as? kotlinx.serialization.json.JsonDecoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be deserialized from JSON")
+      val element = jsonDecoder.decodeJsonElement()
+      // Try each declared variant against the raw payload; the first that
+      // decodes without error wins. A payload matching no variant is spec
+      // drift and fails loud rather than yielding an empty wrapper.
+      {{#oneOf}}
+      try {
+        return {{classname}}(
+          jsonDecoder.json.decodeFromJsonElement(
+            kotlinx.serialization.serializer<{{{.}}}>(), element))
+      } catch (_: Exception) {
+        // variant did not match; fall through to the next
+      }
+      {{/oneOf}}
+      throw kotlinx.serialization.SerializationException(
+        "No oneOf variant of {{classname}} matched the response body")
+    }
+  }
+}
 {{/discriminator}}
 {{/-first}}
 {{/oneOf}}
@@ -202,11 +342,71 @@ class {{classname}}(
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-@Serializable
+/*
+ * anyOf wrapper. Same defect as the non-discriminated oneOf wrapper: the
+ * default object serializer expected a `{"actualInstance": ...}` envelope and
+ * silently dropped the bare variant payload, leaving [actualInstance] null.
+ * The hand-written serializer tries each declared variant (first match wins)
+ * and emits the bare variant on serialize, matching the resolveAnyOf contract
+ * used by the other SDKs.
+ */
+@Serializable(with = {{classname}}.Serializer::class)
 class {{classname}}(
   @Contextual
   val actualInstance: Any? = null
-)
+) {
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
+
+    @Suppress("UNCHECKED_CAST")
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be serialized to JSON")
+      val instance = value.actualInstance
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} has no actualInstance to serialize")
+      // Encode the wrapped value with the first variant serializer that accepts
+      // it; a value matching no variant fails loud. encodeSerializableValue is
+      // an Encoder member, so no extra import is needed.
+      {{#anyOf}}
+      try {
+        jsonEncoder.encodeSerializableValue(
+          kotlinx.serialization.serializer<{{{.}}}>(), instance as {{{.}}})
+        return
+      } catch (_: Exception) {
+        // wrapped value is not this variant; try the next
+      }
+      {{/anyOf}}
+      throw kotlinx.serialization.SerializationException(
+        "Unsupported {{classname}} variant: ${instance::class.simpleName}")
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} {
+      val jsonDecoder = decoder as? kotlinx.serialization.json.JsonDecoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be deserialized from JSON")
+      val element = jsonDecoder.decodeJsonElement()
+      // Try each declared variant against the raw payload; the first that
+      // decodes without error wins. A payload matching no variant fails loud.
+      {{#anyOf}}
+      try {
+        return {{classname}}(
+          jsonDecoder.json.decodeFromJsonElement(
+            kotlinx.serialization.serializer<{{{.}}}>(), element))
+      } catch (_: Exception) {
+        // variant did not match; fall through to the next
+      }
+      {{/anyOf}}
+      throw kotlinx.serialization.SerializationException(
+        "No anyOf variant of {{classname}} matched the response body")
+    }
+  }
+}
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}

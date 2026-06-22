@@ -109,8 +109,8 @@ class Psr18ApiClient extends AbstractApiClient
             $response = $this->httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
             throw new ApiException(
-                "API Request failed: {$e->getMessage()}",
                 0,
+                "API Request failed: {$e->getMessage()}",
                 null,
                 null,
                 null,

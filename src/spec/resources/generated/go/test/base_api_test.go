@@ -597,8 +597,11 @@ func TestBaseApi_ExpandsArrayQueryParams(t *testing.T) {
 }
 
 // required-nested-param-validation: getPetByName has a REQUIRED query param
-// `category`. Omitting it (nil options) must surface a clear missing-parameter
-// error before any HTTP call, not silently send the zero value.
+// `category`, so an entirely nil options object means the caller omitted a
+// required parameter. That must surface a clear missing-required error before
+// any HTTP call, not silently send the zero value. The error is the single
+// per-operation nil-options guard, which reports that required options are
+// missing rather than naming one specific field.
 func TestBaseApi_MissingRequiredQueryParam_NilOptions(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
@@ -606,10 +609,10 @@ func TestBaseApi_MissingRequiredQueryParam_NilOptions(t *testing.T) {
 	api := petstore.NewPetApi(client, config, nil)
 	_, err := api.GetPetByName("rex", nil)
 	if err == nil {
-		t.Fatal("expected error for missing required query param 'category', got nil")
+		t.Fatal("expected error for nil options with a required query param, got nil")
 	}
-	if !strings.Contains(err.Error(), "category") {
-		t.Errorf("expected error to mention 'category', got %q", err.Error())
+	if !strings.Contains(err.Error(), "missing required") {
+		t.Errorf("expected a missing-required error, got %q", err.Error())
 	}
 	if client.capturedURL != "" {
 		t.Errorf("expected no HTTP call when required param is missing, got URL %q", client.capturedURL)

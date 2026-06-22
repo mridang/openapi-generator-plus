@@ -1,7 +1,7 @@
 // ignore_for_file: unused_import
 import 'dart:typed_data';
 
-/// UploadPetDocumentOptions holds optional parameters for the uploadPetDocument operation.
+/// Options for the uploadPetDocument operation.
 class UploadPetDocumentOptions {
   final Uint8List file;
 

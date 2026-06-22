@@ -45,10 +45,7 @@ class Metadata {
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
     if (createdAt != null) {
-      json['createdAt'] = createdAt?.toUtc().toIso8601String().replaceFirst(
-        RegExp(r'(\.\d+)?Z$'),
-        '+00:00',
-      );
+      json['createdAt'] = formatDateTimeOffset(createdAt!);
     }
     json.addAll(additionalProperties);
     return json;

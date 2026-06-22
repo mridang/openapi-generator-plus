@@ -95,7 +95,19 @@ fn default_{{name}}() -> Option<{{{dataType}}}> {
 {{/isDiscriminator}}
 {{/isEnum}}
 {{/vars}}
+{{! When any optional field carries a schema `default`, the derived `Default`
+    impl would seed that field with `None` — diverging from `new()`, which
+    seeds the declared schema default. To keep the two constructors in lockstep
+    (callers using `..Default::default()` must observe the same schema defaults
+    `new()` promises), drop the `Default` derive for such structs and hand-write
+    a `Default` impl below that mirrors `new()`. Structs without defaulted
+    optional fields keep the cheap derive. }}
+{{#hasDefaultedOptionalVars}}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+{{/hasDefaultedOptionalVars}}
+{{^hasDefaultedOptionalVars}}
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+{{/hasDefaultedOptionalVars}}
 {{#isUnevaluatedPropertiesFalse}}
 // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
 // `deny_unknown_fields` makes serde return an error containing the unknown
@@ -187,6 +199,51 @@ impl {{classname}} {
         }
     }
 }
+{{#hasDefaultedOptionalVars}}
+
+// Hand-written `Default` impl (the derive is suppressed above) so that
+// `{{classname}}::default()` agrees with `{{classname}}::new()` on the
+// schema-default fields. The derived impl would set every optional field to
+// `None`, silently dropping the schema defaults `new()` seeds (and that the
+// other SDKs emit on the wire). Required fields fall back to their own
+// `Default` (matching what the derive would have produced); optional fields
+// with a schema `default` are seeded with that declared default.
+impl Default for {{classname}} {
+    fn default() -> Self {
+        Self {
+{{#requiredVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
+            {{name}}: Default::default(),
+{{/isDiscriminator}}
+{{/requiredVars}}
+{{#optionalVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
+{{#defaultValue}}
+            // Optional field with a schema default: seed the declared default
+            // so `default()` matches `new()` (and the wire output of the other
+            // SDKs) rather than emitting `None`.
+            {{name}}: Some({{{defaultValue}}}),
+{{/defaultValue}}
+{{^defaultValue}}
+            {{name}}: None,
+{{/defaultValue}}
+{{/isDiscriminator}}
+{{/optionalVars}}
+{{#isAdditionalPropertiesTrue}}
+            additional_properties: std::collections::HashMap::new(),
+{{/isAdditionalPropertiesTrue}}
+        }
+    }
+}
+{{/hasDefaultedOptionalVars}}
 {{/hasVars}}
 {{/anyOf}}
 {{/oneOf}}

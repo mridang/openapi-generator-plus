@@ -11,8 +11,15 @@ from __future__ import annotations
 
 import re
 import warnings
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
 
 
@@ -57,6 +64,30 @@ class Metadata(BaseModel):
                 extras[key] = value
         merged["additional_properties"] = extras
         return merged
+
+    @model_serializer(mode="wrap")
+    def _flatten_additional_properties(
+        self, handler: Callable[[Any], Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Re-flatten additional_properties to top level on serialize.
+
+        The mirror of `_capture_additional_properties`. Without this,
+        pydantic emits the captured extras nested under a literal
+        `additional_properties` key (e.g. `{"createdAt": ...,
+        "additional_properties": {"foo": "bar"}}`) instead of the
+        round-trip-faithful flat form `{"createdAt": ..., "foo": "bar"}`.
+        We run the default serializer, lift the captured extras out of the
+        `additional_properties` key, and merge them back at the top level.
+        Declared fields win on key collisions so an explicit field is never
+        clobbered by a stale extra.
+        """
+        data = handler(self)
+        extras = data.pop("additional_properties", None)
+        if isinstance(extras, dict):
+            for key, value in extras.items():
+                if key not in data:
+                    data[key] = value
+        return data
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

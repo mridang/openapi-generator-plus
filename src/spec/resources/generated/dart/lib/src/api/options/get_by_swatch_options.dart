@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import '../../models/swatch.dart';
 
-/// GetBySwatchOptions holds optional parameters for the getBySwatch operation.
+/// Options for the getBySwatch operation.
 class GetBySwatchOptions {
   final Swatch? querySwatch;
 

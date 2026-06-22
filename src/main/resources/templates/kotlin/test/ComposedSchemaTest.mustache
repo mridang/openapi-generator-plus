@@ -7,7 +7,6 @@ import {{modelPackage}}.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -80,8 +79,9 @@ class ComposedSchemaTest {
 
         @Test
         @DisplayName("unknown discriminator error names the offending value")
-        @Disabled("kotlinx polymorphic decode returns no caller-facing message naming the offending value (feature gap)")
         fun testUnknownDiscriminatorErrorNamesValue() {
+            // The hand-written discriminator serializer surfaces the offending
+            // value in its message, unlike kotlinx's built-in polymorphic decode.
             val jsonString = """{"foodType":"raw","calories":300}"""
             val ex = assertThrows(Exception::class.java) {
                 json.decodeFromString<PetFood>(jsonString)
@@ -113,13 +113,46 @@ class ComposedSchemaTest {
     inner class PetTreatmentTests {
 
         @Test
-        @DisplayName("deserializes PetTreatment from JSON without error")
+        @DisplayName("deserializes a matching variant into actualInstance")
         fun testDeserialize() {
-            val jsonString = """{}"""
+            // The wrapper now resolves the bare payload against each declared
+            // variant and stores the concrete match in actualInstance, instead
+            // of silently decoding to an empty wrapper (the previous defect).
+            val jsonString = """{"drugName":"Amoxicillin","dosage":"500mg"}"""
 
             val result = json.decodeFromString<PetTreatment>(jsonString)
 
             assertNotNull(result)
+            assertTrue(result.actualInstance is Medication)
+            assertEquals("Amoxicillin", (result.actualInstance as Medication).drugName)
+        }
+
+        @Test
+        @DisplayName("deserializes the surgery variant into actualInstance")
+        fun testDeserializeSurgery() {
+            val jsonString = """{"procedureName":"Spay","durationMinutes":45}"""
+
+            val result = json.decodeFromString<PetTreatment>(jsonString)
+
+            assertNotNull(result)
+            assertTrue(result.actualInstance is Surgery)
+            assertEquals("Spay", (result.actualInstance as Surgery).procedureName)
+        }
+
+        @Test
+        @DisplayName("round-trips a wrapped variant back to the bare payload")
+        fun testWrapperSerializeRoundTrip() {
+            val original = PetTreatment(
+                actualInstance = Medication(drugName = "Amoxicillin", dosage = "500mg"))
+
+            val encoded = json.encodeToString(original)
+            // The wrapper emits the bare variant object, not an envelope.
+            assertFalse(encoded.contains("actualInstance"))
+            assertTrue(encoded.contains("Amoxicillin"))
+
+            val restored = json.decodeFromString<PetTreatment>(encoded)
+            assertTrue(restored.actualInstance is Medication)
+            assertEquals("Amoxicillin", (restored.actualInstance as Medication).drugName)
         }
 
         @Test
@@ -157,8 +190,10 @@ class ComposedSchemaTest {
 
         @Test
         @DisplayName("anyOf with no matching variant throws")
-        @Disabled("kotlinx anyOf wrapper performs no variant validation; a non-matching payload is not rejected (feature gap)")
         fun testNoMatchThrows() {
+            // Neither Medication (requires drugName) nor Surgery (requires
+            // procedureName) can decode this payload, so the wrapper fails loud
+            // rather than yielding an empty actualInstance.
             val jsonString = """{"unrelatedKey":"value","anotherUnknown":123}"""
             assertThrows(Exception::class.java) {
                 json.decodeFromString<PetTreatment>(jsonString)

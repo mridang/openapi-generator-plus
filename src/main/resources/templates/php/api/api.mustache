@@ -160,8 +160,8 @@ class {{classname}} extends BaseApi
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
             throw new \{{invokerPackage}}\ApiException(
-                'Expected a response body for {{operationId}} but received none',
                 $apiResult->statusCode,
+                'Expected a response body for {{operationId}} but received none',
                 $apiResult->headers,
                 $apiResult->rawBody
             );

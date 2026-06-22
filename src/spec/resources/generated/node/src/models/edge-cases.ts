@@ -115,6 +115,19 @@ export class EdgeCases {
         );
       }
     }
+    if (this.favoriteColor != null) {
+      const favoriteColorValues = Object.values(Color);
+      if (
+        !(favoriteColorValues as readonly unknown[]).includes(
+          this.favoriteColor,
+        )
+      ) {
+        throw new Error(
+          `Unknown enum value for favoriteColor: ${JSON.stringify(this.favoriteColor)}. ` +
+            `Expected one of [${favoriteColorValues.map((v) => JSON.stringify(v)).join(", ")}].`,
+        );
+      }
+    }
   }
 
   /**

@@ -65,10 +65,7 @@ class PhotoMetadata {
       json['isPrimary'] = isPrimary;
     }
     if (takenAt != null) {
-      json['takenAt'] = takenAt?.toUtc().toIso8601String().replaceFirst(
-        RegExp(r'(\.\d+)?Z$'),
-        '+00:00',
-      );
+      json['takenAt'] = formatDateTimeOffset(takenAt!);
     }
     if (location != null) {
       json['location'] = location?.toJson();

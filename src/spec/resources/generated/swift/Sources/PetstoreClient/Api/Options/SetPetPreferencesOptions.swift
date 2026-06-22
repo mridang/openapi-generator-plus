@@ -1,6 +1,6 @@
 import Foundation
 
-/// SetPetPreferencesOptions holds optional parameters for the setPetPreferences operation.
+/// Options for the setPetPreferences operation.
 public struct SetPetPreferencesOptions: Sendable {
   public let nickname: String
   public let tags: [String]?

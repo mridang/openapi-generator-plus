@@ -11,8 +11,15 @@ from __future__ import annotations
 
 import re
 import warnings
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
 
 
@@ -21,7 +28,7 @@ class SetPetAvatarRequest(BaseModel):
     SetPetAvatarRequest
     """
 
-    data: bytes = Field(alias="data", description="Base64-encoded image data")
+    data: Base64Bytes = Field(alias="data", description="Base64-encoded image data")
     mime_type: StrictStr = Field(alias="mimeType")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
@@ -35,6 +42,7 @@ class SetPetAvatarRequest(BaseModel):
     )
 
 
+from pydantic import Base64Bytes
 from pydantic import StrictStr
 
 SetPetAvatarRequest.model_rebuild(raise_errors=False)

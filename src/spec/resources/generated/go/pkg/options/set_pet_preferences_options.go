@@ -2,7 +2,7 @@
 
 package options
 
-// SetPetPreferencesOptions holds optional parameters for the SetPetPreferences operation.
+// SetPetPreferencesOptions carries the parameters for the SetPetPreferences operation.
 type SetPetPreferencesOptions struct {
 	Nickname string
 	Tags     *[]string

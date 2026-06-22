@@ -781,8 +781,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   {
     guard !name.isEmpty else {
       throw ApiError(
-        statusCode: 0,
-        message: "Missing required parameter '\(name)' when calling PetApi.getPetByName")
+        statusCode: 0, message: "Missing required parameter 'name' when calling PetApi.getPetByName"
+      )
     }
     guard !options.category.isEmpty else {
       throw ApiError(
@@ -953,8 +953,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   {
     guard !tagName.isEmpty else {
       throw ApiError(
-        statusCode: 0,
-        message: "Missing required parameter '\(tagName)' when calling PetApi.getPetTag")
+        statusCode: 0, message: "Missing required parameter 'tagName' when calling PetApi.getPetTag"
+      )
     }
 
     var path = "/pet/{petId}/tag/{tagName}"

@@ -2,7 +2,7 @@
 
 package options
 
-// FindPetsByStatusOptions holds optional parameters for the FindPetsByStatus operation.
+// FindPetsByStatusOptions carries the parameters for the FindPetsByStatus operation.
 type FindPetsByStatusOptions struct {
 	/* Status Status values that need to be considered for filter */
 	Status *string

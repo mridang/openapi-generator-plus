@@ -484,8 +484,13 @@ describe PetstoreClient::ObjectSerializer do
   # ── enum unknown value throws on deserialize (#12) ──
 
   describe 'enum unknown value detection' do
-    it 'raises ArgumentError when deserializing unknown enum value' do
-      assert_raises(ArgumentError) do
+    it 'raises SerializationError when deserializing unknown enum value' do
+      # An unknown standalone-enum value is a schema-validation failure, the
+      # same class as a missing required field or a strict type mismatch.
+      # deserialize wraps all of them uniformly as SerializationError so a
+      # caller can catch every bad-payload case with one rescue, rather than
+      # this path leaking a raw stdlib ArgumentError.
+      assert_raises(PetstoreClient::SerializationError) do
         PetstoreClient::ObjectSerializer.deserialize('"shipped"', 'TestStatusEnumDeserialize')
       end
     end
@@ -778,6 +783,20 @@ describe PetstoreClient::ObjectSerializer do
     it 'stringify preserves the sign for a negative duration' do
       d = ISO8601::Duration.new('-PT1H')
       _(PetstoreClient::ObjectSerializer.stringify(d)).must_equal('-3600s')
+    end
+
+    it 'convert_to_type parses a negative protobuf-JSON duration' do
+      # The sign must be reconstructed before the 'P' ("-PT3600S"); the gem
+      # rejects the "PT-3600S" form, so a negative wire value would otherwise
+      # fail to deserialize — breaking the round-trip the serialize side emits.
+      result = PetstoreClient::ObjectSerializer.convert_to_type('-3600s', 'ISO8601::Duration')
+      _(result).must_be_kind_of(ISO8601::Duration)
+      _(result.to_seconds).must_equal(-3600)
+    end
+
+    it 'convert_to_type parses a negative fractional protobuf-JSON duration' do
+      result = PetstoreClient::ObjectSerializer.convert_to_type('-1.5s', 'ISO8601::Duration')
+      _(result.to_seconds).must_be_close_to(-1.5, 1e-9)
     end
 
     it 'convert_to_type parses protobuf-JSON seconds into an ISO8601::Duration' do

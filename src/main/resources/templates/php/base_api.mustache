@@ -257,18 +257,18 @@ class BaseApi
                 404 => new NotFoundException($message, $headers, $body, $errorBody),
                 409 => new ConflictException($message, $headers, $body, $errorBody),
                 422 => new UnprocessableEntityException($message, $headers, $body, $errorBody),
-                default => new ClientException($message, $code, $headers, $body, $errorBody),
+                default => new ClientException($code, $message, $headers, $body, $errorBody),
             };
         }
 
         if ($code >= 500) {
             throw match ($code) {
                 500 => new InternalServerErrorException($message, $headers, $body, $errorBody),
-                default => new ServerException($message, $code, $headers, $body, $errorBody),
+                default => new ServerException($code, $message, $headers, $body, $errorBody),
             };
         }
 
-        throw new ApiException($message, $code, $headers, $body, $errorBody);
+        throw new ApiException($code, $message, $headers, $body, $errorBody);
     }
 
     /**

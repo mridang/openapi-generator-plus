@@ -294,7 +294,7 @@ String stringify(Object? value) {
   if (value == null) return '';
 
   if (value is bool) return value ? 'true' : 'false';
-  if (value is DateTime) return _formatDateTimeOffset(value);
+  if (value is DateTime) return formatDateTimeOffset(value);
   if (value is Duration) return formatProtobufDuration(value);
   if (value is String) return value;
   if (value is int) return value.toString();
@@ -382,7 +382,11 @@ T resolveAnyOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic
 /// Formats a DateTime as an ISO 8601 string preserving the original timezone
 /// offset instead of converting to UTC, matching the format used by Java,
 /// Kotlin, C#, and other language generators.
-String _formatDateTimeOffset(DateTime date) {
+///
+/// Public so model `toJson` bodies can share the exact same wire format as
+/// parameter serialization — a date-time value must serialize identically
+/// whether it travels in a path/query/header or in a request body.
+String formatDateTimeOffset(DateTime date) {
   final y = date.year.toString().padLeft(4, '0');
   final mo = date.month.toString().padLeft(2, '0');
   final d = date.day.toString().padLeft(2, '0');

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import '../../auth/authenticator.dart';
 
-/// AddPetOptions holds optional parameters for the addPet operation.
+/// Options for the addPet operation.
 class AddPetOptions {
   final Authenticator? auth;
 

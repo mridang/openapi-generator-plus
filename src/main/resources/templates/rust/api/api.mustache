@@ -487,7 +487,18 @@ impl {{classname}} {
         //   - absent optional fields    -> omitted entirely.
         // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
         let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
+{{#vendorExtensions.op.requiredMultipartBody}}
+        // Required multipart request body: the parts come from the Options
+        // struct, so a missing Options would emit a body-less request. Reject it
+        // up front (matching the required path/query/header param validation)
+        // instead of silently sending an empty body.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "options").into()
+        })?;
+{{/vendorExtensions.op.requiredMultipartBody}}
+{{^vendorExtensions.op.requiredMultipartBody}}
         if let Some(opts) = options {
+{{/vendorExtensions.op.requiredMultipartBody}}
 {{#formParams}}
 {{#required}}
 {{#isArray}}
@@ -538,7 +549,9 @@ impl {{classname}} {
             }
 {{/required}}
 {{/formParams}}
+{{^vendorExtensions.op.requiredMultipartBody}}
         }
+{{/vendorExtensions.op.requiredMultipartBody}}
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 {{/isMultipart}}
@@ -566,8 +579,23 @@ impl {{classname}} {
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
+{{#nullable}}
+        // Optional (not-`required`) request body. The parameter is
+        // `Option<{{{dataType}}}>`; when the caller passes `None` we send NO
+        // body at all (and invoke_api drops the Content-Type) rather than
+        // serializing a literal JSON `null`, which a strict server may reject or
+        // treat differently from an absent body.
+        let request_body = {{paramName}}
+            .as_ref()
+            .map(|b| object_serializer::serialize(b))
+            .transpose()?
+            .map(String::into_bytes);
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/nullable}}
+{{^nullable}}
         let request_body = Some(object_serializer::serialize(&{{paramName}})?.into_bytes());
         let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/nullable}}
 {{/bodyParam}}
 {{^bodyParam}}
         let request_body: Option<Vec<u8>> = None;

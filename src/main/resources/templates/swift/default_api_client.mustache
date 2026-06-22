@@ -378,8 +378,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         } else if let number = value as? NSNumber {
             body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(number)\(crlf)".utf8))
         } else {
-            if let jsonData = try? JSONSerialization.data(withJSONObject: value),
-               let json = String(data: jsonData, encoding: .utf8) {
+            /* Model objects (Codable structs) -- serialize through the SDK's
+             * shared, date-strategy-configured encoder rather than
+             * JSONSerialization.data(withJSONObject:). A Swift struct is not a
+             * valid JSONSerialization top-level object, so that path raises an
+             * ObjC NSInvalidArgumentException that `try?` cannot catch. Routing
+             * through ObjectSerializer.serialize mirrors BaseApi.appendMultipartField
+             * and keeps both multipart builders agreeing on date encoding. */
+            if let json = try? ObjectSerializer.serialize(value) {
                 body.append(Data("\(separator)\"\(safeName)\"\(crlf)Content-Type: application/json\(crlf)\(crlf)\(json)\(crlf)".utf8))
             }
         }

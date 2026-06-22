@@ -318,9 +318,25 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   # 2.1 format: byte — encode the native `binary()` bytes back to a
   # base64 string before they hit the JSON encoder. The struct's
-  # openapi_types map tells us which fields carry byte semantics.
-  defp sanitize_field_value(value, "ByteArray") when is_binary(value) do
+  # openapi_types map tells us which fields carry byte semantics. A
+  # scalar byte field is tagged "ByteArray"; an array-of-byte field is
+  # tagged "binary()" (the element descriptor the array clause peels to)
+  # — both forms must be re-encoded so they round-trip symmetrically with
+  # the matching `convert_to_type/2` decode clauses.
+  defp sanitize_field_value(value, type)
+       when type in ["ByteArray", "binary()"] and is_binary(value) do
     Base.encode64(value)
+  end
+
+  # Array (and nested-array) byte fields: the codegen tags an array of
+  # bytes "[binary()]" (or "[ByteArray]", and deeper "[[binary()]]" etc.).
+  # Peel exactly one container level and recurse on every element, so each
+  # innermost `binary()`/`ByteArray` leaf reaches the encode clause above.
+  # Mirrors the deserialize side, where convert_to_type/2's "[" <> rest
+  # clause peels the same wrapper before base64-decoding each element.
+  defp sanitize_field_value(value, "[" <> rest) when is_list(value) do
+    sub_type = String.replace_suffix(rest, "]", "")
+    Enum.map(value, fn item -> sanitize_field_value(item, sub_type) end)
   end
 
   # 2.18 named enum field — the field carries an atom whose name is the
@@ -570,27 +586,24 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   defp atomize_enum(_module, data) when is_atom(data), do: data
 
-  defp atomize_enum(module, data) when is_binary(data) do
-    # An out-of-spec enum wire value is spec drift; raise instead of
-    # silently retaining the raw string as an invalid typed value, so
-    # callers see a deserialize error (matching the throwing behaviour of
-    # the other 10 SDKs). The wire value is matched case-sensitively — the
-    # previous implementation down-cased before comparing, which silently
-    # accepted mis-cased values.
-    candidate = String.to_atom(data)
-
-    if Enum.member?(module.all_values(), candidate) do
-      candidate
-    else
-      raise {{moduleName}}.SerializationError,
-            "Unknown enum value #{inspect(data)} for #{inspect(module)}; " <>
-              "allowed values: #{inspect(module.all_values())}"
-    end
-  end
-
   defp atomize_enum(module, data) do
-    raise {{moduleName}}.SerializationError,
-          "Cannot coerce #{inspect(data)} to an enum value for #{inspect(module)}"
+    # Deserialize by inverting the enum's value/1 mapping via from_value/1
+    # rather than atomizing the raw wire value. The wire form may be
+    # non-lowercase ("Available"), hyphenated ("on-hold"), or an integer for
+    # an integer-backed enum — none of which equal the lowercased atom name,
+    # so the previous String.to_atom + membership check silently failed for
+    # every such enum. from_value/1 pattern-matches the declared wire values,
+    # so it never mints an arbitrary atom from untrusted input (no atom-table
+    # exhaustion) and raises only on genuine spec drift, matching the other SDKs.
+    case module.from_value(data) do
+      {:error, _} ->
+        raise {{moduleName}}.SerializationError,
+              "Unknown enum value #{inspect(data)} for #{inspect(module)}; " <>
+                "allowed values: #{inspect(module.all_values())}"
+
+      atom ->
+        atom
+    end
   end
 
   # Returns true when at least one key in data matches a JSON key for the struct,

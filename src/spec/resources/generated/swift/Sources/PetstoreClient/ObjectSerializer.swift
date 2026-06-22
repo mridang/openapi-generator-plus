@@ -38,6 +38,12 @@ internal enum ObjectSerializer {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxx"
     formatter.locale = Locale(identifier: "en_US_POSIX")
+    /* Pin the zone to UTC so an absolute instant always serializes with a
+     * `+00:00` offset. DateFormatter defaults an unset timeZone to the
+     * device's local zone, and the `xxx` specifier would then emit THAT
+     * offset — making the wire value depend on the device and contradicting
+     * the "numeric UTC offset" contract above. Mirrors `dateOnlyFormatter`. */
+    formatter.timeZone = TimeZone(identifier: "UTC")
     return formatter
   }()
 
@@ -100,6 +106,22 @@ internal enum ObjectSerializer {
     }
     return decoder
   }()
+
+  /// Encodes an Encodable value to JSON `Data` using the shared,
+  /// date-strategy-configured encoder. Used by oneOf/anyOf union types to
+  /// round-trip a parsed payload through the SAME RFC 3339 date strategy as
+  /// every other model, instead of a bare `JSONEncoder()` whose default
+  /// `.deferredToDate` strategy would diverge on any Date-bearing variant.
+  static func encodeToData<T: Encodable>(_ object: T) throws -> Data {
+    return try encoder.encode(object)
+  }
+
+  /// Decodes a Decodable value from JSON `Data` using the shared,
+  /// date-strategy-configured decoder. Counterpart to ``encodeToData(_:)``
+  /// for oneOf/anyOf union variant resolution.
+  static func decodeFromData<T: Decodable>(_ data: Data, as type: T.Type) throws -> T {
+    return try decoder.decode(type, from: data)
+  }
 
   /// Serializes an Encodable object to a JSON string.
   static func serialize<T: Encodable>(_ object: T) throws -> String {

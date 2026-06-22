@@ -19,16 +19,16 @@ public struct PetFood: Codable, @unchecked Sendable {
     struct DiscriminatorHelper: Decodable {
       let foodType: String
     }
-    let rawData = try JSONEncoder().encode(data)
-    let disc = try JSONDecoder().decode(DiscriminatorHelper.self, from: rawData)
+    let rawData = try ObjectSerializer.encodeToData(data)
+    let disc = try ObjectSerializer.decodeFromData(rawData, as: DiscriminatorHelper.self)
 
     switch disc.foodType {
     case "dry":
-      let v = try JSONDecoder().decode(DryFood.self, from: rawData)
+      let v = try ObjectSerializer.decodeFromData(rawData, as: DryFood.self)
       self._value = v
       return
     case "wet":
-      let v = try JSONDecoder().decode(WetFood.self, from: rawData)
+      let v = try ObjectSerializer.decodeFromData(rawData, as: WetFood.self)
       self._value = v
       return
     default:

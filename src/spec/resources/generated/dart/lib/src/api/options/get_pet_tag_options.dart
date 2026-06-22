@@ -1,7 +1,7 @@
 // ignore_for_file: unused_import
 import 'dart:typed_data';
 
-/// GetPetTagOptions holds optional parameters for the getPetTag operation.
+/// Options for the getPetTag operation.
 class GetPetTagOptions {
   final List<String>? colors;
 

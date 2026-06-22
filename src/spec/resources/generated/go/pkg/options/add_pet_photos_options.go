@@ -7,7 +7,7 @@ import (
 	. "petstore/pkg/models"
 )
 
-// AddPetPhotosOptions holds optional parameters for the AddPetPhotos operation.
+// AddPetPhotosOptions carries the parameters for the AddPetPhotos operation.
 type AddPetPhotosOptions struct {
 	Files    []*os.File
 	Metadata PhotoMetadata

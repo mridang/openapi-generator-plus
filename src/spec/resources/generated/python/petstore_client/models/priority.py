@@ -10,7 +10,7 @@
 from enum import Enum
 
 
-class Priority(str, Enum):
+class Priority(int, Enum):
     """
     Task priority, integer-backed enum
     """

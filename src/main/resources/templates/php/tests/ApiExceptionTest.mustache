@@ -10,8 +10,8 @@ use {{modelPackage}}\Category;
 
 test('exposes status code, message, body, headers and error body', function (): void {
     $ex = new ApiException(
-        'not found',
         404,
+        'not found',
         ['content-type' => 'application/json'],
         '{"id":7,"name":"missing"}',
         null,
@@ -29,8 +29,8 @@ test('null headers and body mark transport-no-response', function (): void {
     // empty header map / empty body so a pre-response transport failure can
     // be encoded.
     $ex = new ApiException(
-        'connection reset',
         0,
+        'connection reset',
         null,
         null,
     );
@@ -40,7 +40,7 @@ test('null headers and body mark transport-no-response', function (): void {
 });
 
 test('is an Exception subclass', function (): void {
-    $ex = new ApiException('boom', 500);
+    $ex = new ApiException(500, 'boom');
 
     expect($ex)->toBeInstanceOf(Exception::class);
     expect($ex->getMessage())->not->toBeEmpty();
@@ -49,7 +49,7 @@ test('is an Exception subclass', function (): void {
 test('ApiException extends the SDK root ZitadelException', function (): void {
     /* One SDK root: ApiException extends ZitadelException, so a single
      * catch on ZitadelException covers every API/HTTP error. */
-    $ex = new ApiException('boom', 500);
+    $ex = new ApiException(500, 'boom');
 
     expect($ex)->toBeInstanceOf(ZitadelException::class);
     expect($ex)->toBeInstanceOf(Exception::class);
@@ -102,9 +102,9 @@ test('every typed API error extends the base ApiException', function (): void {
         new \{{invokerPackage}}\Errors\NotFoundException('not found'),
         new \{{invokerPackage}}\Errors\ConflictException('conflict'),
         new \{{invokerPackage}}\Errors\UnprocessableEntityException('unprocessable'),
-        new \{{invokerPackage}}\Errors\ClientException('client error', 418),
+        new \{{invokerPackage}}\Errors\ClientException(418, 'client error'),
         new \{{invokerPackage}}\Errors\InternalServerErrorException('server error'),
-        new \{{invokerPackage}}\Errors\ServerException('server error', 503),
+        new \{{invokerPackage}}\Errors\ServerException(503, 'server error'),
     ];
 
     foreach ($typed as $ex) {
@@ -125,7 +125,7 @@ test('a typed error is caught by a base ApiException catch', function (): void {
 });
 
 test('getTypedErrorBody deserializes the body into the given class', function (): void {
-    $ex = new ApiException('bad request', 400, [], '{"id":42,"name":"Dogs"}');
+    $ex = new ApiException(400, 'bad request', [], '{"id":42,"name":"Dogs"}');
 
     $typed = $ex->getTypedErrorBody(Category::class);
     expect($typed)->toBeInstanceOf(Category::class);
@@ -134,13 +134,13 @@ test('getTypedErrorBody deserializes the body into the given class', function ()
 });
 
 test('getTypedErrorBody returns null when there is no response body', function (): void {
-    $ex = new ApiException('oops', 500, [], null);
+    $ex = new ApiException(500, 'oops', [], null);
 
     expect($ex->getTypedErrorBody(Category::class))->toBeNull();
 });
 
 test('getTypedErrorBody ignores extraneous fields not on the model', function (): void {
-    $ex = new ApiException('unprocessable', 422, [], '{"id":1,"name":"Cat","extra":"drop-me"}');
+    $ex = new ApiException(422, 'unprocessable', [], '{"id":1,"name":"Cat","extra":"drop-me"}');
 
     $typed = $ex->getTypedErrorBody(Category::class);
     expect($typed)->toBeInstanceOf(Category::class);

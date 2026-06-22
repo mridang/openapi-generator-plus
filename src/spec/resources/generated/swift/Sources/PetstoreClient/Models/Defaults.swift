@@ -46,9 +46,9 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
   /// payload but the schema declares a `default`, that default is applied —
   /// matching the cross-language "apply schema default on deserialise"
   /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default. Unknown JSON
-  /// keys are silently ignored — matching the cross-language "discard extras
-  /// on deserialise" expectation.
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.retries =

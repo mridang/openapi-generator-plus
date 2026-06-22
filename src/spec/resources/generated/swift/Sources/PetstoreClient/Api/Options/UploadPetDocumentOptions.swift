@@ -1,6 +1,6 @@
 import Foundation
 
-/// UploadPetDocumentOptions holds optional parameters for the uploadPetDocument operation.
+/// Options for the uploadPetDocument operation.
 public struct UploadPetDocumentOptions: Sendable {
   public let file: Data
   public let documentType: String?

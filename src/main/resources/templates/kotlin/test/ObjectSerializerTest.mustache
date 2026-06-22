@@ -179,6 +179,32 @@ class ObjectSerializerTest {
             assertTrue(json.contains("\"name\":\"Dogs\""), "serialized JSON should include name, got: $json")
             assertFalse(json.contains("null"), "serialized JSON should not contain the literal 'null', got: $json")
         }
+
+        @Test
+        @DisplayName("emits non-null schema defaults on the wire (cross-SDK parity)")
+        fun emitsSchemaDefaultsOnTheWire() {
+            // A default-constructed model carries its schema defaults as kotlinx
+            // constructor defaults (retries=3, mode=medium, label="untitled").
+            // Every other SDK writes those values on the wire, so Kotlin must
+            // too — a default Defaults() must NOT serialize to "{}".
+            val json = serializer.serialize({{modelPackage}}.Defaults())
+            assertTrue(json.contains("\"retries\":3"), "expected retries=3 default, got: $json")
+            assertTrue(json.contains("\"mode\":\"medium\""), "expected mode=medium default, got: $json")
+            assertTrue(json.contains("\"label\":\"untitled\""), "expected label default, got: $json")
+        }
+
+        @Test
+        @DisplayName("omits an explicitly-nulled optional even when its default is non-null")
+        fun omitsExplicitNullEvenWithNonNullDefault() {
+            // label has a non-null schema default ("untitled"). Setting it to null
+            // must omit the key entirely (parity with swift encodeIfPresent / go
+            // omitempty / rust skip_serializing_if), not emit "label":null.
+            val json = serializer.serialize({{modelPackage}}.Defaults(label = null))
+            assertFalse(json.contains("\"label\""), "explicitly-nulled label must be omitted, got: $json")
+            assertFalse(json.contains("null"), "no literal null should appear, got: $json")
+            // The other defaulted fields still emit their values.
+            assertTrue(json.contains("\"retries\":3"), "expected retries=3 default, got: $json")
+        }
     }
 
     @Nested
@@ -204,6 +230,35 @@ class ObjectSerializerTest {
         fun deserializesStringFromJson() {
             val result: String? = serializer.deserialize("\"hello\"")
             assertEquals("hello", result)
+        }
+
+        @Test
+        @DisplayName("free-form Any preserves a JSON null nested in an object as a real null")
+        fun freeFormAnyNestedObjectNullStaysNull() {
+            // Regression: a JSON null nested inside a free-form @Contextual Any
+            // value was coerced to the literal string "null", indistinguishable
+            // from a real string and re-serialized as a quoted "null".
+            val edge = serializer.deserialize<{{modelPackage}}.EdgeCases>(
+                "{\"freeFormAny\":{\"a\":null,\"b\":\"x\"}}")
+            assertNotNull(edge)
+            @Suppress("UNCHECKED_CAST")
+            val map = edge!!.freeFormAny as Map<String, Any?>
+            assertNull(map["a"], "nested JSON null must decode to a real Kotlin null, not \"null\"")
+            assertEquals("x", map["b"])
+        }
+
+        @Test
+        @DisplayName("free-form Any preserves a JSON null nested in an array as a real null")
+        fun freeFormAnyNestedArrayNullStaysNull() {
+            val edge = serializer.deserialize<{{modelPackage}}.EdgeCases>(
+                "{\"freeFormAny\":[1,null,2]}")
+            assertNotNull(edge)
+            @Suppress("UNCHECKED_CAST")
+            val list = edge!!.freeFormAny as List<Any?>
+            assertEquals(3, list.size)
+            assertEquals(1L, list[0])
+            assertNull(list[1], "null array element must decode to a real Kotlin null, not \"null\"")
+            assertEquals(2L, list[2])
         }
 
         @Test

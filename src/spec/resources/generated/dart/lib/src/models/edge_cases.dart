@@ -125,10 +125,7 @@ class EdgeCases {
       json['retryAfter'] = formatProtobufDuration(retryAfter!);
     }
     if (expiresAt != null) {
-      json['expiresAt'] = expiresAt?.toUtc().toIso8601String().replaceFirst(
-        RegExp(r'(\.\d+)?Z$'),
-        '+00:00',
-      );
+      json['expiresAt'] = formatDateTimeOffset(expiresAt!);
     }
     return json;
   }
