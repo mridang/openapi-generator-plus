@@ -968,6 +968,21 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 + " import "
                                 + p.baseType);
             }
+            // A $ref to a top-level enum carries its type name in dataType
+            // (baseType is null); import its generated model so the annotation
+            // resolves.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !TYPE_IMPORTS.containsKey(p.dataType)) {
+                importSet.add(
+                        "from "
+                                + modelPackage
+                                + "."
+                                + toModelFilename(p.dataType)
+                                + " import "
+                                + p.dataType);
+            }
             if (p.items != null
                     && p.items.baseType != null
                     && !p.items.isPrimitiveType

@@ -1,5 +1,7 @@
 {{>api_info}}
 
+from __future__ import annotations
+
 {{#operations}}{{#hasServerTypeDefs}}from abc import ABC, abstractmethod
 from enum import Enum
 {{/hasServerTypeDefs}}{{/operations}}from typing import Any, Dict, List, Optional
