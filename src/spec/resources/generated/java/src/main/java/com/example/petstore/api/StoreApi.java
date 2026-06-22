@@ -151,7 +151,7 @@ public class StoreApi extends BaseApi {
   }
 
   /**
-   * Echoes a swatch supplied via path, query and header parameters.
+   * Echoes a swatch supplied via query and header parameters.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any per-call
    * authenticator and optional parameters default to unset and the client's configured credentials
@@ -160,12 +160,12 @@ public class StoreApi extends BaseApi {
    * @return {@code Category}
    * @throws ApiException if fails to make API call
    */
-  public Category getBySwatch(Swatch pathSwatch) {
-    return getBySwatch(pathSwatch, null);
+  public Category getBySwatch() {
+    return getBySwatch(null);
   }
 
   /**
-   * Echoes a swatch supplied via path, query and header parameters.
+   * Echoes a swatch supplied via query and header parameters.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any per-call
    * authenticator and optional parameters default to unset and the client's configured credentials
@@ -174,45 +174,32 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Category> getBySwatchWithHttpInfo(Swatch pathSwatch) {
-    return getBySwatchWithHttpInfo(pathSwatch, null);
+  public ApiResult<Category> getBySwatchWithHttpInfo() {
+    return getBySwatchWithHttpInfo(null);
   }
 
   /**
-   * Echoes a swatch supplied via path, query and header parameters.
+   * Echoes a swatch supplied via query and header parameters.
    *
-   * @param pathSwatch (required)
    * @param options options for query, header, form, and cookie parameters, plus an optional
    *     per-call authenticator
    * @return {@code Category}
    * @throws ApiException if fails to make API call
    */
-  public Category getBySwatch(Swatch pathSwatch, @Nullable GetBySwatchOptions options) {
-    return requireBody(getBySwatchWithHttpInfo(pathSwatch, options), "getBySwatch");
+  public Category getBySwatch(@Nullable GetBySwatchOptions options) {
+    return requireBody(getBySwatchWithHttpInfo(options), "getBySwatch");
   }
 
   /**
-   * Echoes a swatch supplied via path, query and header parameters.
+   * Echoes a swatch supplied via query and header parameters.
    *
-   * @param pathSwatch (required)
    * @param options options for query, header, form, and cookie parameters, plus an optional
    *     per-call authenticator
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Category> getBySwatchWithHttpInfo(
-      Swatch pathSwatch, @Nullable GetBySwatchOptions options) {
-    if (pathSwatch == null) {
-      throw new IllegalArgumentException(
-          "Missing the required parameter 'pathSwatch' when calling getBySwatch");
-    }
-    String path =
-        "/store/by-swatch/{pathSwatch}"
-            .replace(
-                "{" + "pathSwatch" + "}",
-                (String)
-                    ValueSerializer.serializeStyled(
-                        "pathSwatch", pathSwatch, "path", "Swatch", null, "simple", false));
+  public ApiResult<Category> getBySwatchWithHttpInfo(@Nullable GetBySwatchOptions options) {
+    String path = "/store/by-swatch";
     Map<String, Object> queryParams = new HashMap<>();
     if (options != null && options.querySwatch() != null) {
       queryParams.put(

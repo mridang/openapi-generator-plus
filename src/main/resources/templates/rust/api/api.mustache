@@ -376,7 +376,7 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
         })?;
-        if let Some(serialized) = value_serializer::serialize_styled(
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
             Some(&object_serializer::stringify(&opts.{{paramName}})),
             None,
@@ -386,15 +386,13 @@ impl {{classname}} {
             "{{style}}",
             {{isExplode}},
         ) {
-            if let SerializedValue::Single(v) = serialized {
-                header_params.insert("{{baseName}}".to_string(), v);
-            }
+            header_params.insert("{{baseName}}".to_string(), v);
         }
 {{/required}}
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
                     Some(&object_serializer::stringify(val)),
                     None,
@@ -404,9 +402,7 @@ impl {{classname}} {
                     "{{style}}",
                     {{isExplode}},
                 ) {
-                    if let SerializedValue::Single(v) = serialized {
-                        header_params.insert("{{baseName}}".to_string(), v);
-                    }
+                    header_params.insert("{{baseName}}".to_string(), v);
                 }
             }
         }

@@ -58,14 +58,12 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForEmptyResult(params)
   }
 
-  /// Echoes a swatch supplied via path, query and header parameters.
+  /// Echoes a swatch supplied via query and header parameters.
   ///
   /// - Parameters:
 
-  public func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions? = nil) async throws
-    -> Category
-  {
-    let result = try await getBySwatchWithHTTPInfo(pathSwatch: pathSwatch, options: options)
+  public func getBySwatch(options: GetBySwatchOptions? = nil) async throws -> Category {
+    let result = try await getBySwatchWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -78,16 +76,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getBySwatch operation and returns the full API result.
-  public func getBySwatchWithHTTPInfo(pathSwatch: Swatch, options: GetBySwatchOptions? = nil)
-    async throws -> ApiResult<Category>
-  {
+  public func getBySwatchWithHTTPInfo(options: GetBySwatchOptions? = nil) async throws -> ApiResult<
+    Category
+  > {
 
-    var path = "/store/by-swatch/{pathSwatch}"
-    path = path.replacingOccurrences(
-      of: "{" + "pathSwatch" + "}",
-      with:
-        "\(ValueSerializer.serializeStyled("pathSwatch", value: pathSwatch, location: "path", schemaType: "Swatch", collectionFormat: "", style: "simple", explode: false) ?? "")"
-    )
+    let path = "/store/by-swatch"
 
     var queryParams: [String: Any?] = [:]
     if let options = options, let val = options.querySwatch {

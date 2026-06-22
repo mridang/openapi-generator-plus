@@ -759,10 +759,15 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         }
 
         final List<Map<String, String>> optionsImports = new ArrayList<>();
+        // Dedupe by type name so two params of the same type (e.g. two Swatch
+        // enum params) import the model file once, not twice (Dart treats a
+        // duplicate import as an analyzer warning/error).
+        final Set<String> importedTypes = new HashSet<>();
         for (final CodegenParameter p : optionsParams) {
             if (p.baseType != null
                     && !languageSpecificPrimitives.contains(p.baseType)
-                    && !typeMapping.containsValue(p.baseType)) {
+                    && !typeMapping.containsValue(p.baseType)
+                    && importedTypes.add(p.baseType)) {
                 final Map<String, String> imp = new HashMap<>();
                 imp.put("classname", p.baseType);
                 imp.put("filename", toModelFilename(p.baseType));
@@ -774,7 +779,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             if (p.isEnumRef
                     && p.dataType != null
                     && !languageSpecificPrimitives.contains(p.dataType)
-                    && !typeMapping.containsValue(p.dataType)) {
+                    && !typeMapping.containsValue(p.dataType)
+                    && importedTypes.add(p.dataType)) {
                 final Map<String, String> imp = new HashMap<>();
                 imp.put("classname", p.dataType);
                 imp.put("filename", toModelFilename(p.dataType));

@@ -1,3 +1,5 @@
+import type { Swatch } from "../../models/index.js";
+
 /**
  * Options for the getBySwatch operation.
  */

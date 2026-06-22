@@ -1204,10 +1204,26 @@ class PetApi extends BaseApi
         $path = str_replace('{' . 'tagName' . '}', $pathValue, $path);
         $queryParams = [];
         if ($options !== null && $options->colors !== null) {
-            $queryParams['colors'] = ValueSerializer::serializeStyled('colors', $options->colors, 'query', '\Ds\Vector', 'pipes', 'pipeDelimited', false);
+            $queryParams['colors'] = ValueSerializer::serializeStyled(
+                'colors',
+                $options->colors,
+                'query',
+                '\Ds\Vector',
+                'pipes',
+                'pipeDelimited',
+                false,
+            );
         }
         if ($options !== null && $options->sizes !== null) {
-            $queryParams['sizes'] = ValueSerializer::serializeStyled('sizes', $options->sizes, 'query', '\Ds\Vector', 'ssv', 'spaceDelimited', false);
+            $queryParams['sizes'] = ValueSerializer::serializeStyled(
+                'sizes',
+                $options->sizes,
+                'query',
+                '\Ds\Vector',
+                'ssv',
+                'spaceDelimited',
+                false,
+            );
         }
         if ($options !== null) {
             if ($options->filter !== null) {

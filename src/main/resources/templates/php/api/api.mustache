@@ -18,6 +18,9 @@ use {{invokerPackage}}\ValueSerializer;
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}
+{{#enumParamImports}}
+use {{invokerPackage}}\Models\{{.}};
+{{/enumParamImports}}
 
 {{#operations}}
 /**
@@ -321,7 +324,15 @@ class {{classname}} extends BaseApi
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'query',
+                '{{dataType}}',
+                {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
         }
 {{/required}}
 {{/vendorExtensions.param.queryStyled}}
@@ -330,7 +341,15 @@ class {{classname}} extends BaseApi
 {{#headerParams}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $headerValue */
-            $headerValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $headerValue = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'header',
+                '{{dataType}}',
+                null,
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
             $headerParams['{{baseName}}'] = $headerValue;
         }
 {{/headerParams}}
@@ -543,7 +562,15 @@ class {{classname}} extends BaseApi
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'query',
+                '{{dataType}}',
+                {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
         }
 {{/required}}
 {{/vendorExtensions.param.queryStyled}}
@@ -552,7 +579,15 @@ class {{classname}} extends BaseApi
 {{#headerParams}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $headerValue */
-            $headerValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $headerValue = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'header',
+                '{{dataType}}',
+                null,
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
             $headerParams['{{baseName}}'] = $headerValue;
         }
 {{/headerParams}}

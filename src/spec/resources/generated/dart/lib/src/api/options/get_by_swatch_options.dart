@@ -2,7 +2,6 @@
 import 'dart:typed_data';
 
 import '../../models/swatch.dart';
-import '../../models/swatch.dart';
 
 /// GetBySwatchOptions holds optional parameters for the getBySwatch operation.
 class GetBySwatchOptions {

@@ -78,16 +78,16 @@ class StoreApi extends BaseApi
     }
 
     /**
-     * Echoes a swatch supplied via path, query and header parameters.
+     * Echoes a swatch supplied via query and header parameters.
 
      * @param GetBySwatchOptions $options Options for query, header, form, and cookie parameters
 
      * @return \PetstoreClient\Models\Category
      * @throws \PetstoreClient\ApiException
      */
-    public function getBySwatch(\PetstoreClient\Models\Swatch $pathSwatch, ?GetBySwatchOptions $options = null)
+    public function getBySwatch(?GetBySwatchOptions $options = null)
     {
-        $apiResult = $this->getBySwatchWithHttpInfo($pathSwatch, $options);
+        $apiResult = $this->getBySwatchWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -113,28 +113,33 @@ class StoreApi extends BaseApi
      * @return ApiResult<\PetstoreClient\Models\Category>
      * @throws \PetstoreClient\ApiException
      */
-    public function getBySwatchWithHttpInfo(\PetstoreClient\Models\Swatch $pathSwatch, ?GetBySwatchOptions $options = null): ApiResult
+    public function getBySwatchWithHttpInfo(?GetBySwatchOptions $options = null): ApiResult
     {
-        $path = '/store/by-swatch/{pathSwatch}';
-        /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('pathSwatch', $pathSwatch, 'path', '\PetstoreClient\Models\Swatch', null, 'simple', false);
-        /* URL-encode the styled value for use as a URL path segment, preserving
-         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
-        $pathValue = strtr(rawurlencode($pathValue), [
-            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
-            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
-            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
-            '%2B' => '+',
-        ]);
-        $path = str_replace('{' . 'pathSwatch' . '}', $pathValue, $path);
+        $path = '/store/by-swatch';
         $queryParams = [];
         if ($options !== null && $options->querySwatch !== null) {
-            $queryParams['querySwatch'] = ValueSerializer::serializeStyled('querySwatch', $options->querySwatch, 'query', 'Swatch', null, 'form', true);
+            $queryParams['querySwatch'] = ValueSerializer::serializeStyled(
+                'querySwatch',
+                $options->querySwatch,
+                'query',
+                'Swatch',
+                null,
+                'form',
+                true,
+            );
         }
         $headerParams = [];
         if ($options !== null && $options->preferredSwatch !== null) {
             /** @var string $headerValue */
-            $headerValue = ValueSerializer::serializeStyled('Preferred-Swatch', $options->preferredSwatch, 'header', 'Swatch', null, 'simple', false);
+            $headerValue = ValueSerializer::serializeStyled(
+                'Preferred-Swatch',
+                $options->preferredSwatch,
+                'header',
+                'Swatch',
+                null,
+                'simple',
+                false,
+            );
             $headerParams['Preferred-Swatch'] = $headerValue;
         }
         $requestBody = null;

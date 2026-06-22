@@ -984,6 +984,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             return rbsType.replaceAll(
                     "\\b" + Pattern.quote(p.baseType) + "\\b", "Models::" + p.baseType);
         }
+        // A $ref to a top-level enum carries its type name in dataType (baseType
+        // is null); its RBS type lives under Models:: too.
+        if (p.isEnumRef && p.dataType != null
+                && !languageSpecificPrimitives.contains(p.dataType)
+                && !rbsType.contains("Models::")) {
+            return rbsType.replaceAll(
+                    "\\b" + Pattern.quote(p.dataType) + "\\b", "Models::" + p.dataType);
+        }
         return rbsType;
     }
 

@@ -96,21 +96,16 @@ class StoreApi(BaseApi):
 
     async def get_by_swatch(
         self,
-        path_swatch: Swatch,
         options: Optional[GetBySwatchOptions] = None,
     ) -> Category:
-        """Echoes a swatch supplied via path, query and header parameters.
-        :param path_swatch:  (required)
+        """Echoes a swatch supplied via query and header parameters.
 
         :param options: options for query, header, form, and cookie parameters
 
         :return: Category
         :raises ApiException: if fails to make API call
         """
-        if path_swatch is None:
-            raise ValueError("Missing the required parameter 'path_swatch'")
-
-        result = await self.get_by_swatch_with_http_info(path_swatch, options)
+        result = await self.get_by_swatch_with_http_info(options)
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -127,29 +122,16 @@ class StoreApi(BaseApi):
 
     async def get_by_swatch_with_http_info(
         self,
-        path_swatch: Swatch,
         options: Optional[GetBySwatchOptions] = None,
     ) -> "ApiResult[Category]":
-        """Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
-        :param path_swatch:  (required)
+        """Echoes a swatch supplied via query and header parameters. (with HTTP info)
 
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
-        if path_swatch is None:
-            raise ValueError("Missing the required parameter 'path_swatch'")
-
-        path = "/store/by-swatch/{pathSwatch}"
-        path = path.replace(
-            "{" + "pathSwatch" + "}",
-            str(
-                ValueSerializer.serialize_styled(
-                    "pathSwatch", path_swatch, "path", "Swatch", None, "simple", False
-                )
-            ),
-        )
+        path = "/store/by-swatch"
         query_params: Dict[str, Any] = {}
         if options is not None and options.query_swatch is not None:
             query_params["querySwatch"] = ValueSerializer.serialize_styled(

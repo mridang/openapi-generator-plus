@@ -658,6 +658,14 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                     && !typeMapping.containsValue(p.baseType)) {
                 modelTypes.add(p.baseType);
             }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null); its generated type must be imported.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !typeMapping.containsValue(p.dataType)) {
+                modelTypes.add(p.dataType);
+            }
             if ((p.isArray || p.isMap)
                     && p.items != null
                     && p.items.baseType != null

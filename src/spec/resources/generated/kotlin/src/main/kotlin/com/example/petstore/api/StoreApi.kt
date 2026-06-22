@@ -72,33 +72,18 @@ class StoreApi : BaseApi {
     }
 
     /**
-     * Echoes a swatch supplied via path, query and header parameters.
-     * @param pathSwatch  (required)
+     * Echoes a swatch supplied via query and header parameters.
      * @param options options for query, header, form, cookie parameters, and per-operation auth
      * @return Category
      * @throws ApiException if fails to make API call
      */
 
-    suspend fun getBySwatch(
-        pathSwatch: Swatch,
-        options: GetBySwatchOptions? = null,
-    ): Category =
-        getBySwatchWithHttpInfo(pathSwatch, options).data
+    suspend fun getBySwatch(options: GetBySwatchOptions? = null): Category =
+        getBySwatchWithHttpInfo(options).data
             ?: throw ApiException("Expected a response body for getBySwatch but the server returned an empty body")
 
-    suspend fun getBySwatchWithHttpInfo(
-        pathSwatch: Swatch,
-        options: GetBySwatchOptions? = null,
-    ): ApiResult<Category> {
-        requireNotNull(pathSwatch) {
-            "Missing the required parameter 'pathSwatch' when calling getBySwatch"
-        }
-        var path =
-            "/store/by-swatch/{pathSwatch}"
-                .replace(
-                    "{" + "pathSwatch" + "}",
-                    ValueSerializer.serializeStyled("pathSwatch", pathSwatch, "path", "Swatch", null, "simple", false) as String,
-                )
+    suspend fun getBySwatchWithHttpInfo(options: GetBySwatchOptions? = null): ApiResult<Category> {
+        var path = "/store/by-swatch"
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.querySwatch != null) {
             queryParams["querySwatch"] =

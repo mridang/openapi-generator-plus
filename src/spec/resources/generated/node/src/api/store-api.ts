@@ -85,21 +85,14 @@ export class StoreApi extends BaseApi {
   }
 
   /**
-   * Echoes a swatch supplied via path, query and header parameters.
-   * @param pathSwatch  (required)
+   * Echoes a swatch supplied via query and header parameters.
    * @param options.querySwatch  (optional)
    * @param options.preferredSwatch  (optional)
    * @return Category
    * @throws {ApiError} if fails to make API call
    */
-  async getBySwatch(
-    pathSwatch: Swatch,
-    options?: GetBySwatchOptions,
-  ): Promise<Category> {
-    const getBySwatchResult = await this.getBySwatchWithHttpInfo(
-      pathSwatch,
-      options,
-    );
+  async getBySwatch(options?: GetBySwatchOptions): Promise<Category> {
+    const getBySwatchResult = await this.getBySwatchWithHttpInfo(options);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -116,31 +109,13 @@ export class StoreApi extends BaseApi {
   }
 
   /**
-   * Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
+   * Echoes a swatch supplied via query and header parameters. (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
   async getBySwatchWithHttpInfo(
-    pathSwatch: Swatch,
     options?: GetBySwatchOptions,
   ): Promise<ApiResult<Category>> {
-    if (pathSwatch == null) {
-      throw new Error(
-        'Missing required parameter "pathSwatch" when calling getBySwatch',
-      );
-    }
-    let path = `/store/by-swatch/{pathSwatch}`;
-    path = path.replace(
-      `{${"pathSwatch"}}`,
-      ValueSerializer.serializeStyled(
-        "pathSwatch",
-        pathSwatch,
-        "path",
-        "Swatch",
-        null,
-        "simple",
-        false,
-      ) as string,
-    );
+    const path = `/store/by-swatch`;
     const queryParams: Record<string, unknown> = {};
     if (options?.querySwatch != null) {
       queryParams["querySwatch"] = ValueSerializer.serializeStyled(
@@ -506,7 +481,7 @@ export class StoreApi extends BaseApi {
       null,
       ["application/json"],
       "application/json",
-      (json: unknown) => ObjectSerializer.deserialize(json, Swatch)!,
+      (json: unknown) => json as Swatch,
       null,
     );
   }

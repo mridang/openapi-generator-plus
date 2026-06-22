@@ -6,9 +6,9 @@ module PetstoreClient
       # are nullable only for optional parameters.  Instances are
       # frozen after construction, so only readers are exposed.
       class GetBySwatchOptions
-        attr_reader query_swatch: Swatch?
-        attr_reader preferred_swatch: Swatch?
-        def initialize: (?query_swatch: Swatch?, ?preferred_swatch: Swatch?) -> void
+        attr_reader query_swatch: Models::Swatch?
+        attr_reader preferred_swatch: Models::Swatch?
+        def initialize: (?query_swatch: Models::Swatch?, ?preferred_swatch: Models::Swatch?) -> void
       end
     end
   end

@@ -2,6 +2,8 @@
 
 package com.example.petstore.api.options
 
+import com.example.petstore.models.Swatch
+
 /**
  * Options for the getBySwatch operation.
  */

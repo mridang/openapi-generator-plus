@@ -1031,6 +1031,16 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        // Model types of required enum-ref signature params (path/body). A
+        // required param whose type is a $ref to a named enum is resolved away
+        // by the parser, so getTypeDeclaration cannot FQN it and the signature
+        // would emit the bare name, which php resolves against the API
+        // namespace (Api\Swatch) instead of the models one. Importing the type
+        // with a `use` lets the short name resolve correctly AND keeps the
+        // signature line within the 120-char limit (a FQN can overflow it).
+        // Optional enum params live in the Options class, which imports them
+        // separately.
+        final Set<String> enumParamImports = new LinkedHashSet<>();
         if (operations != null) {
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
@@ -1040,18 +1050,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         op.returnType = "string";
                         op.returnBaseType = "string";
                     }
-                    // A required parameter whose type is a $ref to a named enum
-                    // is resolved away by the parser, so getTypeDeclaration can
-                    // no longer FQN it (its $ref marker is gone) and the API
-                    // method signature would emit the bare name — which php
-                    // resolves in the Api namespace (Api\Swatch) rather than the
-                    // models one. Fully-qualify such signature params here, before
-                    // the super call below builds signatureArgs from op.pathParams
-                    // / op.bodyParam. Optional enum params live in the Options
-                    // class, which imports the short name, so they are untouched.
-                    fqnEnumRefSignatureParams(op.pathParams);
+                    collectEnumRefParamImports(op.pathParams, enumParamImports);
                     if (op.bodyParam != null) {
-                        fqnEnumRefSignatureParams(List.of(op.bodyParam));
+                        collectEnumRefParamImports(List.of(op.bodyParam), enumParamImports);
                     }
                     // Build the PHPDoc return type once, applying nested \Ds\*
                     // generics, so the @return / @var tags are PHPStan-valid even
@@ -1081,6 +1082,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         // server-variant classes (PSR1.MultipleClasses) that are inherent to
         // the generated API group. enrichOperationServers runs inside the
         // super call above, so the flag must be read afterwards.
+        // enumParamImports sits on the OperationsMap root, the same level as
+        // optionsImports, since the api template renders both as file-level
+        // `use` statements outside the {{#operations}} block.
+        processed.put("enumParamImports", new ArrayList<>(enumParamImports));
         final Map<String, Object> processedOps =
                 (Map<String, Object>) processed.get("operations");
         if (processedOps != null) {
@@ -1090,13 +1095,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Fully-qualifies the {@code dataType} of any enum-ref parameter in the
-     * given signature-parameter list (path params, body param) so the generated
-     * API method emits {@code \Namespace\Models\Enum} rather than the bare enum
-     * name, which php would otherwise resolve against the API class namespace.
-     * Idempotent: a value already starting with {@code \} is left as-is.
+     * Collects the model type name of each enum-ref parameter in the given
+     * signature-parameter list (path params, body param) so the API class can
+     * import it with a {@code use} statement and reference it by short name.
+     * Idempotent via the supplied set.
      */
-    private void fqnEnumRefSignatureParams(List<CodegenParameter> params) {
+    private void collectEnumRefParamImports(
+            List<CodegenParameter> params, Set<String> into) {
         if (params == null) {
             return;
         }
@@ -1105,7 +1110,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     && p.dataType != null
                     && !p.dataType.startsWith("\\")
                     && !languageSpecificPrimitives.contains(p.dataType)) {
-                p.dataType = "\\" + modelPackage + "\\" + p.dataType;
+                into.add(p.dataType);
             }
         }
     }

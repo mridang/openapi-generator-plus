@@ -84,13 +84,10 @@ class StoreApi extends BaseApi {
     );
   }
 
-  /// Echoes a swatch supplied via path, query and header parameters.
+  /// Echoes a swatch supplied via query and header parameters.
 
-  Future<Category> getBySwatch(
-    Swatch pathSwatch,
-    GetBySwatchOptions? options,
-  ) async {
-    final result = await getBySwatchWithHTTPInfo(pathSwatch, options);
+  Future<Category> getBySwatch(GetBySwatchOptions? options) async {
+    final result = await getBySwatchWithHTTPInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -111,27 +108,9 @@ class StoreApi extends BaseApi {
 
   /// Performs the getBySwatch operation and returns the full API result.
   Future<ApiResult<Category>> getBySwatchWithHTTPInfo(
-    Swatch pathSwatch,
     GetBySwatchOptions? options,
   ) async {
-    var path = '/store/by-swatch/{pathSwatch}';
-    /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so the
-     * outer _encodePathSegment wrapper was encoding a second time (a
-     * space became %2520, `a/b` became a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. */
-    path = path.replaceAll(
-      '{' + 'pathSwatch' + '}',
-      serializeStyled(
-        'pathSwatch',
-        pathSwatch,
-        'path',
-        'Swatch',
-        '',
-        'simple',
-        false,
-      ).toString(),
-    );
+    var path = '/store/by-swatch';
 
     final queryParams = <String, Object?>{};
     if (options != null && options.querySwatch != null) {

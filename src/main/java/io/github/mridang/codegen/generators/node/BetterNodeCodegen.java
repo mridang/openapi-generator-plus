@@ -1003,6 +1003,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     && p.baseType.matches("^[A-Z]\\w*$")) {
                 modelTypes.add(p.baseType);
             }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null); its generated type must be imported.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && p.dataType.matches("^[A-Z]\\w*$")) {
+                modelTypes.add(p.dataType);
+            }
             if ((p.isArray || p.isMap)
                     && p.items != null
                     && p.items.baseType != null

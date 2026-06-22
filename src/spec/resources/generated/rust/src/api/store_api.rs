@@ -97,15 +97,12 @@ impl StoreApi {
         self.base.invoke_api_for_empty_result(params).await
     }
 
-    /// Echoes a swatch supplied via path, query and header parameters.
+    /// Echoes a swatch supplied via query and header parameters.
     pub async fn get_by_swatch(
         &self,
-        path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
     ) -> Result<Category, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self
-            .get_by_swatch_with_http_info(path_swatch, options)
-            .await?;
+        let result = self.get_by_swatch_with_http_info(options).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -126,26 +123,9 @@ impl StoreApi {
     /// Performs the get_by_swatch operation and returns the full API result.
     pub async fn get_by_swatch_with_http_info(
         &self,
-        path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
     ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
-        let mut path = "/store/by-swatch/{pathSwatch}".to_string();
-        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
-            "pathSwatch",
-            Some(&object_serializer::to_path_value(&path_swatch)),
-            None,
-            "path",
-            "Swatch",
-            "",
-            "simple",
-            false,
-        ) {
-            // `serialize_styled` already percent-encodes path segments (preserving
-            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
-            // serializer output directly — re-encoding here would double-encode
-            // (a space would become %2520, a slash %252F).
-            path = path.replace("{pathSwatch}", &v);
-        }
+        let mut path = "/store/by-swatch".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
         if let Some(opts) = options {
@@ -177,7 +157,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.preferred_swatch {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "Preferred-Swatch",
                     Some(&object_serializer::stringify(val)),
                     None,
@@ -187,9 +167,7 @@ impl StoreApi {
                     "simple",
                     false,
                 ) {
-                    if let SerializedValue::Single(v) = serialized {
-                        header_params.insert("Preferred-Swatch".to_string(), v);
-                    }
+                    header_params.insert("Preferred-Swatch".to_string(), v);
                 }
             }
         }
