@@ -60,13 +60,13 @@ public class PetPassport {
   public OffsetDateTime issuedAt;
 
   /**
-   * Embedded chip data (OAS 3.1 contentEncoding form)
+   * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
    *
    * <p>Example: {@code null}
    */
   @JsonProperty("biometricChip")
   @Nullable
-  public String biometricChip;
+  public byte[] biometricChip;
 
   /** Creates an empty instance. */
   public PetPassport() {}
@@ -88,12 +88,16 @@ public class PetPassport {
         && java.util.Arrays.equals(this.thumbnail, other.thumbnail)
         && java.util.Objects.equals(this.scans, other.scans)
         && java.util.Objects.equals(this.issuedAt, other.issuedAt)
-        && java.util.Objects.equals(this.biometricChip, other.biometricChip);
+        && java.util.Arrays.equals(this.biometricChip, other.biometricChip);
   }
 
   @Override
   public int hashCode() {
     return java.util.Objects.hash(
-        pet, java.util.Arrays.hashCode(thumbnail), scans, issuedAt, biometricChip);
+        pet,
+        java.util.Arrays.hashCode(thumbnail),
+        scans,
+        issuedAt,
+        java.util.Arrays.hashCode(biometricChip));
   }
 }

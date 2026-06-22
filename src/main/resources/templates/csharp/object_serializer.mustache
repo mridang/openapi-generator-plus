@@ -318,6 +318,135 @@ internal class ObjectSerializer
         }
     }
 
+    /// <summary>
+    /// Structural value-equality for model fields. Scalars and model instances
+    /// compare via <see cref="object.Equals(object?)"/>; collections compare
+    /// element-wise (recursively), and <c>byte[]</c> compares by content, so two
+    /// instances deserialized from identical JSON are equal even when a field is
+    /// a list, set, map, or byte array. Used by generated model
+    /// <c>Equals</c>/<c>GetHashCode</c> so models work as HashSet/Dictionary keys.
+    /// </summary>
+    public static bool StructuralEquals(object? left, object? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        if (left is byte[] leftBytes && right is byte[] rightBytes)
+        {
+            return leftBytes.AsSpan().SequenceEqual(rightBytes);
+        }
+
+        if (left is IDictionary leftDict && right is IDictionary rightDict)
+        {
+            if (leftDict.Count != rightDict.Count)
+            {
+                return false;
+            }
+
+            foreach (DictionaryEntry entry in leftDict)
+            {
+                if (!rightDict.Contains(entry.Key)
+                    || !StructuralEquals(entry.Value, rightDict[entry.Key]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /* Strings are IEnumerable but must compare as scalars, so they fall
+           through to object.Equals below. */
+        if (left is IEnumerable leftSeq && right is IEnumerable rightSeq
+            && left is not string && right is not string)
+        {
+            IEnumerator leftEnum = leftSeq.GetEnumerator();
+            IEnumerator rightEnum = rightSeq.GetEnumerator();
+            try
+            {
+                while (true)
+                {
+                    bool leftHasNext = leftEnum.MoveNext();
+                    bool rightHasNext = rightEnum.MoveNext();
+                    if (leftHasNext != rightHasNext)
+                    {
+                        return false;
+                    }
+
+                    if (!leftHasNext)
+                    {
+                        return true;
+                    }
+
+                    if (!StructuralEquals(leftEnum.Current, rightEnum.Current))
+                    {
+                        return false;
+                    }
+                }
+            }
+            finally
+            {
+                (leftEnum as IDisposable)?.Dispose();
+                (rightEnum as IDisposable)?.Dispose();
+            }
+        }
+
+        return left.Equals(right);
+    }
+
+    /// <summary>
+    /// Content-based hash code matching <see cref="StructuralEquals"/>: equal
+    /// values (including equal collections and byte arrays) hash identically.
+    /// </summary>
+    public static int StructuralHashCode(object? value)
+    {
+        if (value is null)
+        {
+            return 0;
+        }
+
+        if (value is byte[] bytes)
+        {
+            HashCode byteHash = default;
+            byteHash.AddBytes(bytes);
+            return byteHash.ToHashCode();
+        }
+
+        if (value is IDictionary dict)
+        {
+            /* Order-independent so two equal maps hash identically regardless of
+               enumeration order. */
+            int dictHash = 0;
+            foreach (DictionaryEntry entry in dict)
+            {
+                dictHash ^= HashCode.Combine(
+                    StructuralHashCode(entry.Key), StructuralHashCode(entry.Value));
+            }
+
+            return dictHash;
+        }
+
+        if (value is IEnumerable seq && value is not string)
+        {
+            HashCode seqHash = default;
+            foreach (object? item in seq)
+            {
+                seqHash.Add(StructuralHashCode(item));
+            }
+
+            return seqHash.ToHashCode();
+        }
+
+        return value.GetHashCode();
+    }
+
 }
 
 /// <summary>

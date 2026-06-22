@@ -6,7 +6,7 @@ public struct SetPetPreferencesOptions: Sendable {
   public let tags: [String]?
   public let note: String?
 
-  public init(nickname: String, tags: [String]? = nil, note: String? = nil, ) {
+  public init(nickname: String, tags: [String]? = nil, note: String? = nil) {
     self.nickname = nickname
     self.tags = tags
     self.note = note

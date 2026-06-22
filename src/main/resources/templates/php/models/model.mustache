@@ -23,6 +23,28 @@
 namespace {{modelPackage}};
 
 {{#isEnum}}
+{{#isInteger}}
+enum {{classname}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+enum {{classname}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+{{/isLong}}
+{{^isLong}}
 enum {{classname}}: string
 {
 {{#allowableValues}}
@@ -31,6 +53,8 @@ enum {{classname}}: string
 {{/enumVars}}
 {{/allowableValues}}
 }
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{#oneOf}}
@@ -252,6 +276,30 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 {{#hasEnums}}
 {{#vars}}
 {{#isEnum}}
+{{#isInteger}}
+enum {{classname}}{{enumName}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+enum {{classname}}{{enumName}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isLong}}
+{{^isLong}}
 enum {{classname}}{{enumName}}: string
 {
 {{#allowableValues}}
@@ -261,6 +309,8 @@ enum {{classname}}{{enumName}}: string
 {{/allowableValues}}
 }
 
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{/vars}}
 {{/hasEnums}}
@@ -273,18 +323,18 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#isContainer}}
 {{#isArray}}
 {{#required}}
-     * @var {{{dataType}}}<{{{items.dataType}}}>
+     * @var {{>phpdoc_type}}
 {{/required}}
 {{^required}}
-     * @var {{{dataType}}}<{{{items.dataType}}}>|null
+     * @var {{>phpdoc_type}}|null
 {{/required}}
 {{/isArray}}
 {{#isMap}}
 {{#required}}
-     * @var {{{dataType}}}<string, {{{items.dataType}}}>
+     * @var {{>phpdoc_type}}
 {{/required}}
 {{^required}}
-     * @var {{{dataType}}}<string, {{{items.dataType}}}>|null
+     * @var {{>phpdoc_type}}|null
 {{/required}}
 {{/isMap}}
 {{/isContainer}}
@@ -311,18 +361,18 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /**
 {{#isArray}}
 {{#required}}
-     * @var {{{dataType}}}<{{{items.dataType}}}>
+     * @var {{>phpdoc_type}}
 {{/required}}
 {{^required}}
-     * @var {{{dataType}}}<{{{items.dataType}}}>|null
+     * @var {{>phpdoc_type}}|null
 {{/required}}
 {{/isArray}}
 {{#isMap}}
 {{#required}}
-     * @var {{{dataType}}}<string, {{{items.dataType}}}>
+     * @var {{>phpdoc_type}}
 {{/required}}
 {{^required}}
-     * @var {{{dataType}}}<string, {{{items.dataType}}}>|null
+     * @var {{>phpdoc_type}}|null
 {{/required}}
 {{/isMap}}
      * @deprecated This property is deprecated.
@@ -331,18 +381,18 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{^deprecated}}
 {{#isArray}}
 {{#required}}
-    /** @var {{{dataType}}}<{{{items.dataType}}}> */
+    /** @var {{>phpdoc_type}} */
 {{/required}}
 {{^required}}
-    /** @var {{{dataType}}}<{{{items.dataType}}}>|null */
+    /** @var {{>phpdoc_type}}|null */
 {{/required}}
 {{/isArray}}
 {{#isMap}}
 {{#required}}
-    /** @var {{{dataType}}}<string, {{{items.dataType}}}> */
+    /** @var {{>phpdoc_type}} */
 {{/required}}
 {{^required}}
-    /** @var {{{dataType}}}<string, {{{items.dataType}}}>|null */
+    /** @var {{>phpdoc_type}}|null */
 {{/required}}
 {{/isMap}}
 {{/deprecated}}
@@ -445,27 +495,27 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /**
 {{#requiredVars}}
 {{#isArray}}
-     * @param {{{dataType}}}<{{{items.dataType}}}> ${{name}}
+     * @param {{>phpdoc_type}} ${{name}}
 {{/isArray}}
 {{#isMap}}
-     * @param {{{dataType}}}<string, {{{items.dataType}}}> ${{name}}
+     * @param {{>phpdoc_type}} ${{name}}
 {{/isMap}}
 {{/requiredVars}}
 {{#optionalVars}}
 {{#isArray}}
 {{#defaultValue}}
-     * @param {{{dataType}}}<{{{items.dataType}}}> ${{name}}
+     * @param {{>phpdoc_type}} ${{name}}
 {{/defaultValue}}
 {{^defaultValue}}
-     * @param {{{dataType}}}<{{{items.dataType}}}>|null ${{name}}
+     * @param {{>phpdoc_type}}|null ${{name}}
 {{/defaultValue}}
 {{/isArray}}
 {{#isMap}}
 {{#defaultValue}}
-     * @param {{{dataType}}}<string, {{{items.dataType}}}> ${{name}}
+     * @param {{>phpdoc_type}} ${{name}}
 {{/defaultValue}}
 {{^defaultValue}}
-     * @param {{{dataType}}}<string, {{{items.dataType}}}>|null ${{name}}
+     * @param {{>phpdoc_type}}|null ${{name}}
 {{/defaultValue}}
 {{/isMap}}
 {{/optionalVars}}

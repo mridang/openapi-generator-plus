@@ -17,7 +17,7 @@ defmodule {{moduleName}}.ValueSerializer do
 
   """
   @spec serialize(term(), atom(), String.t(), keyword()) :: String.t() | [String.t()] | nil
-  def serialize(value, location, _schema_type, opts \\ []) do
+  def serialize(value, location, schema_type, opts \\ []) do
     collection_format = Keyword.get(opts, :collection_format)
 
     cond do
@@ -28,7 +28,11 @@ defmodule {{moduleName}}.ValueSerializer do
         serialize_array(value, location, collection_format)
 
       true ->
-        str_val = {{moduleName}}.ObjectSerializer.stringify(value)
+        # 2.18 named enum param — the atom name is the lowercased constant,
+        # which is not necessarily the wire value. When `schema_type` names a
+        # generated enum module, route the atom through its `value/1` to emit
+        # the declared wire value instead of `to_string(atom)`.
+        str_val = enum_wire_value(value, schema_type) || {{moduleName}}.ObjectSerializer.stringify(value)
 
         if location == :path do
           encode_path_segment(str_val)
@@ -37,6 +41,24 @@ defmodule {{moduleName}}.ValueSerializer do
         end
     end
   end
+
+  # Returns the wire-value string for `value` when `schema_type` resolves to a
+  # generated enum module that maps the atom via `value/1`; otherwise nil so
+  # the caller falls back to `stringify/1`.
+  defp enum_wire_value(value, schema_type)
+       when is_atom(value) and is_binary(schema_type) and value not in [nil, true, false] do
+    module = {{moduleName}}.ObjectSerializer.resolve_model_module(schema_type)
+
+    if function_exported?(module, :value, 1) do
+      to_string(module.value(value))
+    else
+      nil
+    end
+  rescue
+    _ -> nil
+  end
+
+  defp enum_wire_value(_value, _schema_type), do: nil
 
   @doc """
   Serialize a deepObject-style query parameter.
@@ -89,6 +111,13 @@ defmodule {{moduleName}}.ValueSerializer do
   end
 
   def serialize_styled(param_name, value, location, schema_type, collection_format, style, explode) do
+    # 2.18 named enum param — resolve enum atoms to their declared wire value
+    # via the enum module's `value/1` before the style helpers stringify them,
+    # so a sanitized atom name (`:great_dane`) emits the wire value
+    # ("GreatDane") rather than `to_string(atom)`. Scalars and arrays of enums
+    # are both covered; non-enum values pass through untouched.
+    value = resolve_enum_wire_values(value, schema_type)
+
     case style do
       "matrix" ->
         serialize_matrix(param_name, value, location, explode)
@@ -112,6 +141,26 @@ defmodule {{moduleName}}.ValueSerializer do
         serialize(value, location, schema_type, collection_format: collection_format)
     end
   end
+
+  # When `schema_type` (or, for an array param, its element type) names a
+  # generated enum module exporting `value/1`, replace each enum atom with its
+  # wire-value string. Returns the value unchanged when no enum module matches.
+  defp resolve_enum_wire_values(value, schema_type) when is_list(value) do
+    element_type = enum_element_type(schema_type)
+    Enum.map(value, fn v -> resolve_enum_wire_values(v, element_type) end)
+  end
+
+  defp resolve_enum_wire_values(value, schema_type) do
+    enum_wire_value(value, schema_type) || value
+  end
+
+  # Peels one Elixir array-container level ("[Inner]") to recover the element
+  # type used for per-item enum resolution; non-array descriptors pass through.
+  defp enum_element_type("[" <> rest) when is_binary(rest) do
+    String.replace_suffix(rest, "]", "")
+  end
+
+  defp enum_element_type(schema_type), do: schema_type
 
   # RFC 3986 path-segment encoder: preserves unreserved chars and sub-delimiters
   # (! $ & ' ( ) * + , ; = : @) while percent-encoding everything else

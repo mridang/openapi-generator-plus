@@ -9,6 +9,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import '../object_serializer.dart';
 
 import 'color.dart';
@@ -82,7 +84,9 @@ class EdgeCases {
 
       return_: json['return'] as String?,
 
-      retryAfter: json['retryAfter'] as Duration?,
+      retryAfter: json['retryAfter'] != null
+          ? parseProtobufDuration(json['retryAfter'] as String)
+          : null,
 
       expiresAt: json['expiresAt'] != null
           ? DateTime.parse(json['expiresAt'] as String)
@@ -118,7 +122,7 @@ class EdgeCases {
       json['return'] = return_;
     }
     if (retryAfter != null) {
-      json['retryAfter'] = retryAfter;
+      json['retryAfter'] = formatProtobufDuration(retryAfter!);
     }
     if (expiresAt != null) {
       json['expiresAt'] = expiresAt?.toUtc().toIso8601String().replaceFirst(
@@ -129,9 +133,10 @@ class EdgeCases {
     return json;
   }
 
-  /// Value-equality based on all declared fields. Nested List/Map fields are compared
-  /// by reference — callers needing structural equality on those should
-  /// use `package:collection`'s `DeepCollectionEquality`.
+  /// Value-equality based on all declared fields. List, Map and Uint8List
+  /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
+  /// built-in `==` on those is identity), so two instances decoded from
+  /// identical JSON are equal and usable as Set/Map keys.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -150,7 +155,9 @@ class EdgeCases {
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
   /// Iterable (Object.hash requires 2+ positional args, so it can't
-  /// represent the 0-var or 1-var cases without special-casing).
+  /// represent the 0-var or 1-var cases without special-casing). Collection
+  /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
+  /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([
     freeFormAny,

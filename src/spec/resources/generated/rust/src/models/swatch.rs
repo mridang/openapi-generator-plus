@@ -9,9 +9,10 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 /// Swatch is an enumeration of allowed values.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Swatch {
     /// Represents the value "red".
+    #[default]
     #[serde(rename = "red")]
     Red,
     /// Represents the value "green".

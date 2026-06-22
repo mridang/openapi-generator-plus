@@ -12,7 +12,7 @@ defmodule PetstoreClient.Models.Department do
   """
 
   @type t :: %__MODULE__{
-          name: String.t() | nil,
+          name: String.t(),
           lead: Employee | nil
         }
 

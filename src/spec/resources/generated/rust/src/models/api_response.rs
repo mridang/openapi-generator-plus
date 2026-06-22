@@ -16,7 +16,7 @@ pub struct ApiResponse {
     pub code: Option<i32>,
     /// Example: `null`
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub _type: Option<String>,
+    pub r#type: Option<String>,
     /// Example: `null`
     #[serde(rename = "message", skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -27,7 +27,7 @@ impl ApiResponse {
     pub fn new() -> Self {
         Self {
             code: None,
-            _type: None,
+            r#type: None,
             message: None,
         }
     }

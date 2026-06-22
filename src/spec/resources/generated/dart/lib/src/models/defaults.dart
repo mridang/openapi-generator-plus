@@ -9,6 +9,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import '../object_serializer.dart';
 
 /// Defaults is a model class generated from the OpenAPI schema.
@@ -56,10 +58,11 @@ class Defaults {
     /* Cross-cutting `optional-enum-default-omitted`: an OPTIONAL enum field
      * with a schema `default` is initialised to that default variant so a
      * default-constructed model serialises the default on the wire (parity
-     * with the SDKs that emit `"status":"placed"`). The Dart `defaultValue`
-     * arrives as the quoted wire literal (e.g. `'placed'`); camelcase strips
-     * the quotes to the variant identifier, which equals the lowercased enum
-     * value the typed enum declares above. */
+     * with the SDKs that emit `"status":"placed"`). `defaultEnumVarName` is
+     * the `nameLowercase` of the variant whose wire value equals the schema
+     * default — i.e. the exact identifier the typed enum declares above — so
+     * a non-lowercase wire value (e.g. `IN_STOCK`) still references a real
+     * variant rather than a re-camelcased copy of the literal. */
     this.mode = DefaultsModeEnum.medium,
     this.label = 'untitled',
   });
@@ -105,9 +108,10 @@ class Defaults {
     return json;
   }
 
-  /// Value-equality based on all declared fields. Nested List/Map fields are compared
-  /// by reference — callers needing structural equality on those should
-  /// use `package:collection`'s `DeepCollectionEquality`.
+  /// Value-equality based on all declared fields. List, Map and Uint8List
+  /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
+  /// built-in `==` on those is identity), so two instances decoded from
+  /// identical JSON are equal and usable as Set/Map keys.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -119,7 +123,9 @@ class Defaults {
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
   /// Iterable (Object.hash requires 2+ positional args, so it can't
-  /// represent the 0-var or 1-var cases without special-casing).
+  /// represent the 0-var or 1-var cases without special-casing). Collection
+  /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
+  /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([retries, mode, label]);
 }

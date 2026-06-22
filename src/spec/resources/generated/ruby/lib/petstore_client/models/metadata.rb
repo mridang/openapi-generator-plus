@@ -67,6 +67,13 @@ module PetstoreClient
 
       # Whether this model accepts additional properties not defined in the schema.
       ADDITIONAL_PROPERTIES = true
+
+      # Undeclared JSON keys captured on deserialization and re-emitted
+      # verbatim on serialization, so a round-trip preserves additional
+      # properties (matching the 10 SDKs that round-trip them). Keyed by the
+      # original JSON key; values are typed via ADDITIONAL_PROPERTIES_TYPE
+      # when one is declared.
+      attribute :additional_properties, Types::Hash.optional.meta(omittable: true)
       # @example null
       attribute :created_at, Types::Any.optional.meta(omittable: true)
     end

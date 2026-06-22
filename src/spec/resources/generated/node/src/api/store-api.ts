@@ -19,10 +19,12 @@ import {
   Defaults,
   Department,
   Order,
+  StockItem,
   Swatch,
   TreeNode,
 } from "../models/index.js";
 import type { GetBySwatchOptions } from "./options/get-by-swatch-options.js";
+import type { GetStockItemOptions } from "./options/get-stock-item-options.js";
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -469,6 +471,63 @@ export class StoreApi extends BaseApi {
   }
 
   /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   * @param options.asOf Only consider stock as of this instant (optional)
+   * @return StockItem
+   * @throws {ApiError} if fails to make API call
+   */
+  async getStockItem(options?: GetStockItemOptions): Promise<StockItem> {
+    const getStockItemResult = await this.getStockItemWithHttpInfo(options);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getStockItemResult.data == null) {
+      throw new ApiError(
+        getStockItemResult.statusCode,
+        "Expected a response body for getStockItem but received none",
+        getStockItemResult.headers,
+        getStockItemResult.rawBody,
+        null,
+      );
+    }
+    return getStockItemResult.data as StockItem;
+  }
+
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getStockItemWithHttpInfo(
+    options?: GetStockItemOptions,
+  ): Promise<ApiResult<StockItem>> {
+    const path = `/store/stock-item`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.asOf != null) {
+      queryParams["asOf"] = ValueSerializer.serializeStyled(
+        "asOf",
+        options.asOf,
+        "query",
+        "Date",
+        null,
+        "form",
+        true,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, StockItem)!,
+      null,
+    );
+  }
+
+  /**
    * Returns a bare enum (value-type response codegen fixture).
    * @return Swatch
    * @throws {ApiError} if fails to make API call
@@ -506,7 +565,11 @@ export class StoreApi extends BaseApi {
       null,
       ["application/json"],
       "application/json",
-      (json: unknown) => json as Swatch,
+      (json: unknown) =>
+        ObjectSerializer.deserializeEnum<Swatch>(
+          json,
+          Swatch as unknown as Record<string, unknown>,
+        ),
       null,
     );
   }
@@ -553,7 +616,12 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) =>
         ObjectSerializer.deserializeArray(json, (x: unknown) =>
-          ObjectSerializer.deserializeMap(x, (x: unknown) => x as Swatch),
+          ObjectSerializer.deserializeMap(x, (x: unknown) =>
+            ObjectSerializer.deserializeEnum<Swatch>(
+              x,
+              Swatch as unknown as Record<string, unknown>,
+            ),
+          ),
         ),
       null,
     );

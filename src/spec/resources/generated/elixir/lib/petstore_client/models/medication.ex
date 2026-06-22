@@ -12,7 +12,7 @@ defmodule PetstoreClient.Models.Medication do
   """
 
   @type t :: %__MODULE__{
-          drug_name: String.t() | nil,
+          drug_name: String.t(),
           dosage: String.t() | nil
         }
 

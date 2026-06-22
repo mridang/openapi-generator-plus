@@ -8,6 +8,7 @@ description = "{{#appDescription}}{{appDescription}}{{/appDescription}}{{^appDes
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+serde_repr = "0.1"
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "deflate", "zstd", "multipart", "http2", "charset", "rustls-tls-native-roots"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

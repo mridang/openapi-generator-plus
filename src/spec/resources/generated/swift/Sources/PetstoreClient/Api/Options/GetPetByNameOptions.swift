@@ -4,7 +4,7 @@ import Foundation
 public struct GetPetByNameOptions: Sendable {
   public let category: String
 
-  public init(category: String, ) {
+  public init(category: String) {
     self.category = category
   }
 }

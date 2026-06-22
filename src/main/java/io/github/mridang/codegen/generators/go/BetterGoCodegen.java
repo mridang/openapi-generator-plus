@@ -22,6 +22,7 @@ import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
@@ -630,6 +631,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected Map<String, String> getOperationContextFlags() {
         return Map.of(
                 "type:os.File", "hasOsImport",
+                "type:time.Time", "hasTimeImport",
                 "type:uuid.UUID", "hasUuidImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport",
@@ -656,6 +658,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         boolean hasModelImport = false;
         boolean hasOsImport = false;
         boolean hasUuidImport = false;
+        boolean hasTimeImport = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -666,6 +669,13 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 param.put("description", p.description);
             }
             params.add(param);
+            // A date-time options param emits time.Time / *time.Time and needs an
+            // `import "time"` in the generated options file. Detected on the raw
+            // dataType (independent of the primitive check) so the import block
+            // fires regardless of how the type maps.
+            if (p.dataType != null && p.dataType.contains("time.Time")) {
+                hasTimeImport = true;
+            }
             if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
                 hasOsImport = true;
             } else if (p.dataType != null && p.dataType.contains("uuid.UUID")) {
@@ -702,6 +712,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasUuidImport) {
             context.put("hasUuidImport", true);
+        }
+        if (hasTimeImport) {
+            context.put("hasTimeImport", true);
         }
         if (op.hasAuthMethods && !optionsAuthenticatorWritten) {
             // Emit the shared mirror Authenticator interface exactly once, in its
@@ -829,6 +842,42 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected boolean demotesDiscriminatorFromRequiredVars() {
         return true;
+    }
+
+    /**
+     * Opts into the shared cycle-detection pass so a model property that
+     * participates in a reference cycle (a direct self-reference, or mutual
+     * recursion) is heap-indirected. Without this, a <em>required</em>
+     * recursive complex field emits a plain value-type field
+     * ({@code type TreeNode struct { Child TreeNode }}), which the Go compiler
+     * rejects as an {@code invalid recursive type}.
+     *
+     * <p>Optional fields already emit {@code *T} (the model template wraps every
+     * non-required field in a pointer), so only required fields need the extra
+     * indirection — see {@link #markRecursiveProperty(CodegenProperty)}.
+     */
+    @Override
+    protected boolean indirectsRecursiveProperties() {
+        return true;
+    }
+
+    /**
+     * Pointer-indirects a <em>required</em> recursive model property so the
+     * struct has a known, finite size. A pointer is transparent to
+     * {@code encoding/json}, so (de)serialization is unaffected.
+     *
+     * <p>Optional recursive fields are skipped: the model template already
+     * renders every optional field as {@code *T}, so marking them would yield a
+     * non-compiling double pointer {@code **T}. Idempotent — a property already
+     * pointer-typed (it appears across several var lists) is left untouched.
+     */
+    @Override
+    protected void markRecursiveProperty(CodegenProperty property) {
+        if (property.required
+                && property.dataType != null
+                && !property.dataType.startsWith("*")) {
+            property.dataType = "*" + property.dataType;
+        }
     }
 
     /**

@@ -204,7 +204,24 @@ class BaseApi {
       final returnsBytes =
           returnType == 'List<int>' || returnType == 'Uint8List';
       final isBinaryContentType = _isBinaryContentType(responseContentType);
-      if (returnsBytes) {
+      if (returnsBytes && _headerSelector.isJsonMime(responseContentType)) {
+        /* Top-level `format: byte` response carried as application/json
+         * (Case 13): the body is a JSON string LITERAL, e.g.
+         * `"dGVzdC1pbWFnZQ=="` (quotes included). JSON-parse it first to
+         * recover the inner base64 string, then base64-decode to raw bytes.
+         * Decoding the raw body directly would either choke on the quotes or
+         * (via the utf8 fallback) return the bytes of the quoted literal —
+         * both wrong. This mirrors python/go/java/rust, which parse then
+         * base64-decode. */
+        final inner = parseJson(response.body);
+        if (inner is String) {
+          data = base64Decode(inner) as T?;
+        } else {
+          /* Not a string literal (shouldn't happen for format:byte); fall
+           * back to the binary decode path below by treating it as raw. */
+          data = Uint8List.fromList(utf8.encode(response.body)) as T?;
+        }
+      } else if (returnsBytes) {
         try {
           /* Body may be either base64 (the DefaultApiClient path) or a
            * raw UTF-8 string (e.g. a test server writing JSON-encoded

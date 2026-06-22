@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,12 +24,12 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -313,32 +312,42 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
 
         // SDK-wide error base. ApiError (and through it the whole HTTP/OAuth
         // error tree) and the serializer errors all subclass this, so a single
-        // `rescue <apiErrorParent>` catches every SDK error. Defaults to
-        // StandardError; an SDK with a hand-written base (e.g. ZitadelError)
-        // points this at that class so the two roots collapse into one.
-        final String apiErrorParent =
+        // `rescue <apiErrorParent>` catches every SDK error. When unset, the
+        // generator emits its own branded root `<moduleName>::Error < StandardError`
+        // unconditionally and roots the whole error tree (ApiError,
+        // SerializationError, SchemaMismatchError, OAuth) under it — so callers
+        // can `rescue <moduleName>::Error` to catch HTTP *and* serialization
+        // failures, mirroring the branded root every other SDK provides. An SDK
+        // with a hand-written base (e.g. ZitadelError) points this at that class
+        // so the two roots collapse into one.
+        String apiErrorParent =
                 getPropertyOrDefault("apiErrorParent", DEFAULT_API_ERROR_PARENT);
+        final boolean customApiErrorParent =
+                !DEFAULT_API_ERROR_PARENT.equals(apiErrorParent);
+        if (!customApiErrorParent) {
+            // No hand-written base supplied: brand our own root rather than
+            // leaving the tree at the bare StandardError.
+            apiErrorParent = moduleName + "::Error";
+        }
         additionalProperties.put("apiErrorParent", apiErrorParent);
 
-        // When the error base is a custom, hand-written class (e.g. ZitadelError)
-        // rather than StandardError, api_error.rb must be able to load it before
-        // evaluating `class ApiError < <parent>`. The entrypoint uses fixed-order
-        // explicit requires and never pulls the hand-written base in first, so we
-        // make api_error.rb self-sufficient with a `require_relative`. The base
+        // The error base (whether our branded `<moduleName>::Error` or a custom
+        // hand-written class) lives outside the entrypoint's fixed-order requires,
+        // so api_error.rb must load it before evaluating `class ApiError < <parent>`.
+        // Make api_error.rb self-sufficient with a `require_relative`. The base
         // lives in the same dir as api_error.rb, so the relative file name is the
         // snake_case of the parent's unqualified class name (Zitadel::Client::
-        // ZitadelError -> zitadel_error). StandardError emits nothing, keeping the
-        // petstore default byte-identical.
-        final boolean customApiErrorParent = !DEFAULT_API_ERROR_PARENT.equals(apiErrorParent);
-        String apiErrorParentFile = null;
-        if (customApiErrorParent) {
-            final int sep = apiErrorParent.lastIndexOf("::");
-            final String parentSimpleName =
-                    sep < 0 ? apiErrorParent : apiErrorParent.substring(sep + 2);
-            apiErrorParentFile = NamingConvention.SNAKE_CASE.apply(parentSimpleName);
-            additionalProperties.put("apiErrorParentFile", apiErrorParentFile);
-            additionalProperties.put("apiErrorParentSimpleName", parentSimpleName);
-        }
+        // ZitadelError -> zitadel_error; PetstoreClient::Error -> error).
+        final int sep = apiErrorParent.lastIndexOf("::");
+        final String parentSimpleName =
+                sep < 0 ? apiErrorParent : apiErrorParent.substring(sep + 2);
+        final String apiErrorParentFile = NamingConvention.SNAKE_CASE.apply(parentSimpleName);
+        additionalProperties.put("apiErrorParentFile", apiErrorParentFile);
+        additionalProperties.put("apiErrorParentSimpleName", parentSimpleName);
+        // The branded default root lives inside this gem's module, so we own its
+        // RBS declaration too. A custom hand-written base ships its own sig, so
+        // suppress ours to avoid a duplicate/conflicting declaration.
+        additionalProperties.put("brandedErrorRoot", !customApiErrorParent);
 
         // Nested-module rendering for files that may be `require`d standalone
         // (e.g. lib/.../version.rb pulled in by the gemspec before Zeitwerk has
@@ -386,16 +395,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         supportingFiles.add(
                 new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
 
-        // When the SDK-wide error base is a custom class (e.g. ZitadelError)
-        // rather than StandardError, the generator owns that file too: emit it
-        // alongside api_error.rb so consumers need not hand-write it. The default
-        // StandardError parent is a built-in and emits nothing, keeping the
-        // petstore golden byte-identical.
-        if (customApiErrorParent) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "error_parent.mustache", libPath, apiErrorParentFile + ".rb"));
-        }
+        // The generator owns the SDK-wide error base file in both cases: the
+        // branded default `<moduleName>::Error` and a custom hand-written base
+        // (e.g. ZitadelError). Emitting it unconditionally guarantees a single
+        // branded root the whole error tree (ApiError, SerializationError,
+        // SchemaMismatchError, OAuth) parents under, so one `rescue` catches
+        // every SDK error.
+        supportingFiles.add(
+                new SupportingFile(
+                        "error_parent.mustache", libPath, apiErrorParentFile + ".rb"));
 
         if (emitUnitTests()) {
             supportingFiles.add(
@@ -546,6 +554,56 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "test",
                             "openid_connect_authenticator_test.rb"));
         }
+    }
+
+    /** Sentinel return type for a top-level {@code format: byte} response. */
+    private static final String BYTE_RETURN_TYPE = "ByteArray";
+
+    /**
+     * Re-types a top-level bare {@code format: byte} response so the transport
+     * base64-decodes it instead of handing back the raw base64 string.
+     *
+     * <p>Such a response (a {@code type: string, format: byte} schema carried as
+     * {@code application/json}) arrives on the wire as a JSON string literal
+     * ({@code "dGVzdC1pbWFnZQ=="}). Its Ruby surface type is {@code String}, but
+     * the deserialize path must JSON-parse <em>and</em> base64-decode it to raw
+     * bytes. {@code String} is indistinguishable from a plain string response, so
+     * we route the deserialize type through the {@code ByteArray} sentinel (which
+     * {@code ObjectSerializer#convert_to_type} base64-decodes) while leaving the
+     * public method/RBS return type as {@code String}. Nested {@code format: byte}
+     * model fields already decode correctly via {@code OPENAPI_FORMATS}; only the
+     * top-level bare response needs this. Mirrors the python {@code bytes} /
+     * java {@code byte[]} return types.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return objs;
+        }
+        final List<CodegenOperation> ops =
+                (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return objs;
+        }
+        for (final CodegenOperation op : ops) {
+            // A top-level byte response: the return schema itself is
+            // `format: byte` (not a byte *field* of a model, which decodes via
+            // OPENAPI_FORMATS, and not `binary`, which streams as a File).
+            if (op.returnProperty != null
+                    && "byte".equals(op.returnProperty.dataFormat)
+                    && !op.returnProperty.isArray
+                    && !op.returnProperty.isMap) {
+                if (op.vendorExtensions == null) {
+                    op.vendorExtensions = new HashMap<>();
+                }
+                op.vendorExtensions.put("deserializeReturnType", BYTE_RETURN_TYPE);
+            }
+        }
+        return objs;
     }
 
     /**
@@ -911,6 +969,18 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                     modelRequires.add(req);
                 }
             }
+            // A $ref to a top-level enum carries its type name in dataType
+            // (baseType is null), so the two branches above skip it. The RBS
+            // sig already types the reader as Models::<Enum>, so the source
+            // file must require it too — mirror node/java/kotlin/php/csharp.
+            if (p.isEnumRef && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)) {
+                final String modelFile = NamingConvention.SNAKE_CASE.apply(p.dataType);
+                final String req = "require_relative '../../models/" + modelFile + "'";
+                if (!modelRequires.contains(req)) {
+                    modelRequires.add(req);
+                }
+            }
         }
 
         final StringBuilder sig = new StringBuilder();
@@ -1105,16 +1175,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @Override
     protected String getSourceFolder() {
         return "lib";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
-        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-            final String enumValue =
-                    prop.defaultValue.substring(prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "'" + enumValue.toLowerCase(Locale.ROOT) + "'";
-        }
     }
 
     /**

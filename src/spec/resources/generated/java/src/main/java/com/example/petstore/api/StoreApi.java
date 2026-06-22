@@ -12,11 +12,13 @@ import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.api.options.GetBySwatchOptions;
+import com.example.petstore.api.options.GetStockItemOptions;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
 import com.example.petstore.models.Order;
+import com.example.petstore.models.StockItem;
 import com.example.petstore.models.Swatch;
 import com.example.petstore.models.TreeNode;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -64,6 +66,9 @@ public class StoreApi extends BaseApi {
 
   private static final java.lang.reflect.Type getOrderByIdTypeRef =
       new TypeReference<Order>() {}.getType();
+
+  private static final java.lang.reflect.Type getStockItemTypeRef =
+      new TypeReference<StockItem>() {}.getType();
 
   private static final java.lang.reflect.Type getSwatchTypeRef =
       new TypeReference<Swatch>() {}.getType();
@@ -447,6 +452,76 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
+        null);
+  }
+
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return {@code StockItem}
+   * @throws ApiException if fails to make API call
+   */
+  public StockItem getStockItem() {
+    return getStockItem(null);
+  }
+
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return the API result wrapping {@code StockItem}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<StockItem> getStockItemWithHttpInfo() {
+    return getStockItemWithHttpInfo(null);
+  }
+
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return {@code StockItem}
+   * @throws ApiException if fails to make API call
+   */
+  public StockItem getStockItem(@Nullable GetStockItemOptions options) {
+    return requireBody(getStockItemWithHttpInfo(options), "getStockItem");
+  }
+
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return the API result wrapping {@code StockItem}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<StockItem> getStockItemWithHttpInfo(@Nullable GetStockItemOptions options) {
+    String path = "/store/stock-item";
+    Map<String, Object> queryParams = new HashMap<>();
+    if (options != null && options.asOf() != null) {
+      queryParams.put(
+          "asOf",
+          ValueSerializer.serializeStyled(
+              "asOf", options.asOf(), "query", "OffsetDateTime", null, "form", true));
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getStockItemTypeRef,
         null);
   }
 

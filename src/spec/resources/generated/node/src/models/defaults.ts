@@ -34,11 +34,6 @@ export class Defaults {
         `retries must be a number, got ${typeof this.retries}`,
       );
     }
-    if (this.retries != null && typeof this.retries !== "number") {
-      throw new TypeError(
-        `retries must be a number, got ${typeof this.retries}`,
-      );
-    }
     if (this.label != null && typeof this.label !== "string") {
       throw new TypeError(`label must be a string, got ${typeof this.label}`);
     }

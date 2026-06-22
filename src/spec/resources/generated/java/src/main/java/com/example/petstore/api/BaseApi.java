@@ -218,11 +218,17 @@ public abstract class BaseApi {
                 continue;
               }
               joiner.add(
-                  key + "=" + URLEncoder.encode(String.valueOf(element), StandardCharsets.UTF_8));
+                  key
+                      + "="
+                      + URLEncoder.encode(
+                          ObjectSerializer.toFormValue(element), StandardCharsets.UTF_8));
             }
           } else {
             joiner.add(
-                key + "=" + URLEncoder.encode(String.valueOf(value), StandardCharsets.UTF_8));
+                key
+                    + "="
+                    + URLEncoder.encode(
+                        ObjectSerializer.toFormValue(value), StandardCharsets.UTF_8));
           }
         }
         requestBody = joiner.toString();
@@ -262,6 +268,19 @@ public abstract class BaseApi {
         byte[] rawBytes;
         if (!isTextResponseContentType(responseContentType)) {
           rawBytes = java.util.Base64.getDecoder().decode(response.body());
+        } else if (returnType == byte[].class && headerSelector.isJsonMime(responseContentType)) {
+          /* A top-level `format: byte` value carried as application/json
+           * arrives as a JSON string literal (e.g. "dGVzdA==", quotes
+           * included). The transport leaves JSON bodies as a decoded
+           * string, so we must JSON-parse the literal first and then
+           * base64-decode the inner string to recover the raw bytes —
+           * returning neither the quoted literal's UTF-8 bytes nor the
+           * still-encoded base64 string. */
+          String inner =
+              objectSerializer.deserialize(
+                  response.body(),
+                  new com.fasterxml.jackson.core.type.TypeReference<String>() {}.getType());
+          rawBytes = java.util.Base64.getDecoder().decode(inner);
         } else {
           rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
         }

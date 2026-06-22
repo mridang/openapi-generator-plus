@@ -24,6 +24,7 @@ __all__ = [
     "OpenApiException",
     "ApiException",
     "ApiResponse",
+    "Availability",
     "Category",
     "Color",
     "Defaults",
@@ -42,8 +43,10 @@ __all__ = [
     "Photo",
     "PhotoMetadata",
     "PhotoMetadataLocation",
+    "Priority",
     "SetPetAvatarRequest",
     "SetPetAvatarThumbnailRequest",
+    "StockItem",
     "StrictTag",
     "Surgery",
     "Swatch",
@@ -73,6 +76,9 @@ from petstore_client.errors import ApiException as ApiException
 # import models into sdk package
 from petstore_client.models.api_response import (
     ApiResponse as ApiResponse,
+)
+from petstore_client.models.availability import (
+    Availability as Availability,
 )
 from petstore_client.models.category import (
     Category as Category,
@@ -128,11 +134,17 @@ from petstore_client.models.photo_metadata import (
 from petstore_client.models.photo_metadata_location import (
     PhotoMetadataLocation as PhotoMetadataLocation,
 )
+from petstore_client.models.priority import (
+    Priority as Priority,
+)
 from petstore_client.models.set_pet_avatar_request import (
     SetPetAvatarRequest as SetPetAvatarRequest,
 )
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
+)
+from petstore_client.models.stock_item import (
+    StockItem as StockItem,
 )
 from petstore_client.models.strict_tag import (
     StrictTag as StrictTag,

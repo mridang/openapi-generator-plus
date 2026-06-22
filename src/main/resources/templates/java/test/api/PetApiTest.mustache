@@ -199,8 +199,14 @@ class PetApiTest {
 
     @Test
     void testGetPetAvatarThumbnail() throws Exception {
+        // The thumbnail is a top-level `format: byte` value carried as
+        // application/json, so it arrives as the JSON string literal
+        // "dGVzdC1pbWFnZQ==". The SDK must JSON-parse the literal and then
+        // base64-decode the inner string to the raw bytes "test-image" —
+        // neither the quoted literal's UTF-8 bytes nor the un-decoded base64.
         byte[] result = api.getPetAvatarThumbnail(1L);
         assertNotNull(result);
+        assertThat(new String(result, StandardCharsets.UTF_8)).isEqualTo("test-image");
     }
 
     @Test

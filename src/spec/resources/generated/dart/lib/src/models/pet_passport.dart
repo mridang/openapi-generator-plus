@@ -9,6 +9,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import '../object_serializer.dart';
 
 import 'pet.dart';
@@ -29,9 +31,9 @@ class PetPassport {
   /// Example: `null`
   final DateTime? issuedAt;
 
-  /// Embedded chip data (OAS 3.1 contentEncoding form)
+  /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
   /// Example: `null`
-  final String? biometricChip;
+  final Uint8List? biometricChip;
 
   const PetPassport({
     this.pet,
@@ -50,14 +52,19 @@ class PetPassport {
       thumbnail: json['thumbnail'] != null
           ? base64Decode(json['thumbnail'] as String)
           : null,
-      scans: (json['scans'] as List?)
-          ?.map((e) => base64Decode(e as String))
-          .toList(),
+      scans: json['scans'] != null
+          ? deserializeArray(
+              json['scans'] as List,
+              (e) => base64Decode(e as String),
+            )
+          : null,
       issuedAt: json['issuedAt'] != null
           ? DateTime.parse(json['issuedAt'] as String)
           : null,
 
-      biometricChip: json['biometricChip'] as String?,
+      biometricChip: json['biometricChip'] != null
+          ? base64Decode(json['biometricChip'] as String)
+          : null,
     );
   }
 
@@ -80,29 +87,40 @@ class PetPassport {
       );
     }
     if (biometricChip != null) {
-      json['biometricChip'] = biometricChip;
+      json['biometricChip'] = base64Encode(biometricChip!);
     }
     return json;
   }
 
-  /// Value-equality based on all declared fields. Nested List/Map fields are compared
-  /// by reference — callers needing structural equality on those should
-  /// use `package:collection`'s `DeepCollectionEquality`.
+  /// Value-equality based on all declared fields. List, Map and Uint8List
+  /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
+  /// built-in `==` on those is identity), so two instances decoded from
+  /// identical JSON are equal and usable as Set/Map keys.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is PetPassport &&
         pet == other.pet &&
-        thumbnail == other.thumbnail &&
-        scans == other.scans &&
+        const DeepCollectionEquality().equals(thumbnail, other.thumbnail) &&
+        const DeepCollectionEquality().equals(scans, other.scans) &&
         issuedAt == other.issuedAt &&
-        biometricChip == other.biometricChip;
+        const DeepCollectionEquality().equals(
+          biometricChip,
+          other.biometricChip,
+        );
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
   /// Iterable (Object.hash requires 2+ positional args, so it can't
-  /// represent the 0-var or 1-var cases without special-casing).
+  /// represent the 0-var or 1-var cases without special-casing). Collection
+  /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
+  /// so equal instances hash equally.
   @override
-  int get hashCode =>
-      Object.hashAll([pet, thumbnail, scans, issuedAt, biometricChip]);
+  int get hashCode => Object.hashAll([
+    pet,
+    const DeepCollectionEquality().hash(thumbnail),
+    const DeepCollectionEquality().hash(scans),
+    issuedAt,
+    const DeepCollectionEquality().hash(biometricChip),
+  ]);
 }

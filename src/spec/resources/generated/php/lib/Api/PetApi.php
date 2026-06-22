@@ -911,7 +911,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            'string'
+            'byte'
         );
         return $result;
     }

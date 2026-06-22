@@ -47,11 +47,6 @@ export class Order {
         `quantity must be a number, got ${typeof this.quantity}`,
       );
     }
-    if (this.quantity != null && typeof this.quantity !== "number") {
-      throw new TypeError(
-        `quantity must be a number, got ${typeof this.quantity}`,
-      );
-    }
     if (this.complete != null && typeof this.complete !== "boolean") {
       throw new TypeError(
         `complete must be a boolean, got ${typeof this.complete}`,

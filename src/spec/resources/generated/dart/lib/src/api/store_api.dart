@@ -20,9 +20,11 @@ import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/department.dart';
 import '../models/order.dart';
+import '../models/stock_item.dart';
 import '../models/swatch.dart';
 import '../models/tree_node.dart';
 import 'options/get_by_swatch_options.dart';
+import 'options/get_stock_item_options.dart';
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
@@ -479,6 +481,67 @@ class StoreApi extends BaseApi {
       auth: null,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
+  /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+  /// `asOf` Only consider stock as of this instant
+
+  Future<StockItem> getStockItem(GetStockItemOptions? options) async {
+    final result = await getStockItemWithHTTPInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as StockItem` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getStockItem but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getStockItem operation and returns the full API result.
+  Future<ApiResult<StockItem>> getStockItemWithHTTPInfo(
+    GetStockItemOptions? options,
+  ) async {
+    var path = '/store/stock-item';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.asOf != null) {
+      queryParams['asOf'] = serializeStyled(
+        'asOf',
+        options.asOf,
+        'query',
+        'DateTime',
+        '',
+        'form',
+        true,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<StockItem>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'StockItem',
+      auth: null,
+
+      deserialize: (body) => deserialize(body, StockItem.fromJson) as StockItem,
     );
   }
 

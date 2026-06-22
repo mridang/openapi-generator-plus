@@ -81,9 +81,6 @@ class {{classname}} extends BaseApi {
 {{#notes}}
   /// {{{.}}}
 {{/notes}}
-{{#isDeprecated}}
-  @Deprecated('This operation is deprecated.')
-{{/isDeprecated}}
 {{#allParams}}
 {{#description}}
   /// `{{paramName}}` {{description}}
@@ -96,6 +93,9 @@ class {{classname}} extends BaseApi {
   /// {{value}}
   /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
   Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}) async {
 {{#returnType}}
     final result = await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}});

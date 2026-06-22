@@ -22,8 +22,8 @@ type PetPassport struct {
 	/* Scans Base64-encoded scans of each passport page */
 	Scans    *[][]byte  `json:"scans,omitempty"`
 	IssuedAt *time.Time `json:"issuedAt,omitempty"`
-	/* BiometricChip Embedded chip data (OAS 3.1 contentEncoding form) */
-	BiometricChip *string `json:"biometricChip,omitempty"`
+	/* BiometricChip Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream */
+	BiometricChip *[]byte `json:"biometricChip,omitempty"`
 }
 
 // Equal reports whether this PetPassport is value-equal to other.

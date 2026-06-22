@@ -36,11 +36,11 @@ public class PetPassport : IEquatable<PetPassport>
     public DateTimeOffset? IssuedAt { get; set; }
 
     /// <summary>
-    /// Embedded chip data (OAS 3.1 contentEncoding form)
+    /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
     /// </summary>
     /// <example>null</example>
     [JsonPropertyName("biometricChip")]
-    public string? BiometricChip { get; set; }
+    public byte[]? BiometricChip { get; set; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(PetPassport? other)
@@ -48,10 +48,10 @@ public class PetPassport : IEquatable<PetPassport>
         return other is not null
             && (ReferenceEquals(this, other)
                 || EqualityComparer<Pet?>.Default.Equals(this.Pet, other.Pet)
-                    && EqualityComparer<byte[]?>.Default.Equals(this.Thumbnail, other.Thumbnail)
-                    && EqualityComparer<List<byte[]>?>.Default.Equals(this.Scans, other.Scans)
+                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Thumbnail, other.Thumbnail)
+                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Scans, other.Scans)
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(this.IssuedAt, other.IssuedAt)
-                    && EqualityComparer<string?>.Default.Equals(this.BiometricChip, other.BiometricChip));
+                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.BiometricChip, other.BiometricChip));
     }
 
     public override bool Equals(object? obj)
@@ -63,10 +63,10 @@ public class PetPassport : IEquatable<PetPassport>
     {
         HashCode hash = default;
         hash.Add(this.Pet);
-        hash.Add(this.Thumbnail);
-        hash.Add(this.Scans);
+        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Thumbnail));
+        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Scans));
         hash.Add(this.IssuedAt);
-        hash.Add(this.BiometricChip);
+        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.BiometricChip));
         return hash.ToHashCode();
     }
 }

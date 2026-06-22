@@ -18,6 +18,8 @@ module PetstoreClient
       def get_matrix_with_http_info: () -> ::PetstoreClient::ApiResult[Array[Array[Integer]]]
       def get_order_by_id: (Integer order_id) -> Models::Order
       def get_order_by_id_with_http_info: (Integer order_id) -> ::PetstoreClient::ApiResult[Models::Order]
+      def get_stock_item: (?Options::GetStockItemOptions? options) -> Models::StockItem
+      def get_stock_item_with_http_info: (?Options::GetStockItemOptions? options) -> ::PetstoreClient::ApiResult[Models::StockItem]
       def get_swatch: () -> Models::Swatch
       def get_swatch_with_http_info: () -> ::PetstoreClient::ApiResult[Models::Swatch]
       def get_swatch_groups: () -> Array[Hash[String, Models::Swatch]]

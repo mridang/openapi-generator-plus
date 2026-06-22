@@ -35,14 +35,6 @@ export class Surgery {
         `durationMinutes must be a number, got ${typeof this.durationMinutes}`,
       );
     }
-    if (
-      this.durationMinutes != null &&
-      typeof this.durationMinutes !== "number"
-    ) {
-      throw new TypeError(
-        `durationMinutes must be a number, got ${typeof this.durationMinutes}`,
-      );
-    }
   }
 
   /**

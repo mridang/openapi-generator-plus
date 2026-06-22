@@ -12,8 +12,8 @@ defmodule PetstoreClient.Models.DryFood do
   """
 
   @type t :: %__MODULE__{
-          weight_kg: float() | nil,
-          food_type: String.t() | nil
+          weight_kg: float(),
+          food_type: String.t()
         }
 
   @enforce_keys [

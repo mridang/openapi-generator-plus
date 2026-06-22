@@ -108,9 +108,15 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     const extraHeaders: Record<string, string> = {};
     if (this.clientAuthMethod === ClientAuthMethod.Basic) {
       /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
-       * separately before joining with ':' and base64-encoding. */
-      const encodedId = encodeURIComponent(this.clientId);
-      const encodedSecret = encodeURIComponent(this.clientSecret);
+       * separately before joining with ':' and base64-encoding.
+       * encodeURIComponent emits %20 for a space, but the
+       * application/x-www-form-urlencoded form (matching the other SDKs'
+       * URLEncoder/url.QueryEscape) requires '+'. */
+      const encodedId = encodeURIComponent(this.clientId).replace(/%20/g, "+");
+      const encodedSecret = encodeURIComponent(this.clientSecret).replace(
+        /%20/g,
+        "+",
+      );
       const credentials = Buffer.from(`${encodedId}:${encodedSecret}`).toString(
         "base64",
       );

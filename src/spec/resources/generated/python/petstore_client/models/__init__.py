@@ -9,6 +9,7 @@
 
 # import models into model package
 from petstore_client.models.api_response import ApiResponse as ApiResponse
+from petstore_client.models.availability import Availability as Availability
 from petstore_client.models.category import Category as Category
 from petstore_client.models.color import Color as Color
 from petstore_client.models.defaults import Defaults as Defaults
@@ -29,12 +30,14 @@ from petstore_client.models.photo_metadata import PhotoMetadata as PhotoMetadata
 from petstore_client.models.photo_metadata_location import (
     PhotoMetadataLocation as PhotoMetadataLocation,
 )
+from petstore_client.models.priority import Priority as Priority
 from petstore_client.models.set_pet_avatar_request import (
     SetPetAvatarRequest as SetPetAvatarRequest,
 )
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
 )
+from petstore_client.models.stock_item import StockItem as StockItem
 from petstore_client.models.strict_tag import StrictTag as StrictTag
 from petstore_client.models.surgery import Surgery as Surgery
 from petstore_client.models.swatch import Swatch as Swatch

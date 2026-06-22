@@ -12,7 +12,7 @@ defmodule PetstoreClient.Models.TreeNode do
   """
 
   @type t :: %__MODULE__{
-          value: String.t() | nil,
+          value: String.t(),
           child: TreeNode | nil
         }
 

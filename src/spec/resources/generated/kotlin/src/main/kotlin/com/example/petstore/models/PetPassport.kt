@@ -44,10 +44,54 @@ data class PetPassport(
     @Contextual
     val issuedAt: OffsetDateTime? = null,
     /**
-     * Embedded chip data (OAS 3.1 contentEncoding form)
+     * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
      *
      * Example: `null`
      */
     @SerialName("biometricChip")
-    val biometricChip: String? = null,
-)
+    val biometricChip: ByteArray? = null,
+) {
+    /* Kotlin's synthesized data-class equals/hashCode compare Array and
+     * ByteArray by reference identity (and List<ByteArray> bottoms out in
+     * reference-equal elements), so two instances decoded from identical JSON
+     * would not be equal and would hash differently. The overrides below route
+     * those fields through contentEquals/contentHashCode (element-wise for
+     * List<ByteArray>) while every other field keeps ordinary == semantics. */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as PetPassport
+        if (pet != other.pet) return false
+        if (thumbnail != null) {
+            if (other.thumbnail == null) return false
+            if (!thumbnail.contentEquals(other.thumbnail)) return false
+        } else if (other.thumbnail != null) {
+            return false
+        }
+        if (scans != null) {
+            if (other.scans == null) return false
+            if (scans.size != other.scans.size) return false
+            if (!scans.zip(other.scans).all { (a, b) -> a.contentEquals(b) }) return false
+        } else if (other.scans != null) {
+            return false
+        }
+        if (issuedAt != other.issuedAt) return false
+        if (biometricChip != null) {
+            if (other.biometricChip == null) return false
+            if (!biometricChip.contentEquals(other.biometricChip)) return false
+        } else if (other.biometricChip != null) {
+            return false
+        }
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + (pet?.hashCode() ?: 0)
+        result = 31 * result + (thumbnail?.contentHashCode() ?: 0)
+        result = 31 * result + (scans?.fold(0) { acc, e -> 31 * acc + e.contentHashCode() } ?: 0)
+        result = 31 * result + (issuedAt?.hashCode() ?: 0)
+        result = 31 * result + (biometricChip?.contentHashCode() ?: 0)
+        return result
+    }
+}

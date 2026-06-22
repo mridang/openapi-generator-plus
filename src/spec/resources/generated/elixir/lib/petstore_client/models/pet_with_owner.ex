@@ -13,9 +13,9 @@ defmodule PetstoreClient.Models.PetWithOwner do
 
   @type t :: %__MODULE__{
           id: integer() | nil,
-          name: String.t() | nil,
+          name: String.t(),
           category: Category | nil,
-          photo_urls: MapSet.t(String.t()) | nil,
+          photo_urls: MapSet.t(String.t()),
           tags: [Tag] | nil,
           status: :available | :pending | :sold | nil,
           location: [any()] | nil,
@@ -24,7 +24,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
           link_template: String.t() | nil,
           owner_email: String.t() | nil,
           weight_kg: float() | nil,
-          owner_name: String.t() | nil
+          owner_name: String.t()
         }
 
   @enforce_keys [

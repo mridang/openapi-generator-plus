@@ -391,7 +391,7 @@ module {{moduleName}}
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
           '{{vendorExtensions.op.effectiveConsumes}}',
-          {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}},
+          {{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
           {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
         )
       end

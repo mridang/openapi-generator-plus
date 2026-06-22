@@ -401,11 +401,13 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
     }
 {{/isLong}}
+{{^isInteger}}
 {{#isShort}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
     }
 {{/isShort}}
+{{/isInteger}}
 {{#isFloat}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);

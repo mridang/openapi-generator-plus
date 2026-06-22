@@ -85,7 +85,10 @@ module PetstoreClient
     def initialize: (status_code: Integer, data: T, raw_body: String, headers: Hash[String, String]) -> void
   end
 
-  class ApiError < StandardError
+  class Error < StandardError
+  end
+
+  class ApiError < PetstoreClient::Error
     attr_reader status_code: Integer?
     attr_reader response_headers: Hash[String, String]?
     attr_reader response_body: String?
@@ -163,12 +166,12 @@ module PetstoreClient
 
   UUID_REGEX: Regexp
 
-  class SerializationError < StandardError
+  class SerializationError < PetstoreClient::Error
     attr_reader cause: Exception?
     def initialize: (String, ?Exception?) -> void
   end
 
-  class SchemaMismatchError < StandardError
+  class SchemaMismatchError < PetstoreClient::Error
   end
 
   class ValueSerializer

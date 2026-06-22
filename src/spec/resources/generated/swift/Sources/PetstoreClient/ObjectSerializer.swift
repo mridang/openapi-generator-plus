@@ -32,12 +32,53 @@ public struct SerializationError: ZitadelError, LocalizedError {
 /// ObjectSerializer provides JSON serialization and deserialization using
 /// Foundation's JSONEncoder and JSONDecoder.
 internal enum ObjectSerializer {
+  /// Canonical encoder format: RFC 3339 with a numeric UTC offset, used for
+  /// every Date we *emit* (model encoding, path/query/header stringify).
   private static let dateFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxx"
     formatter.locale = Locale(identifier: "en_US_POSIX")
     return formatter
   }()
+
+  /// Parses an RFC 3339 / ISO 8601 date string, accepting the full range of
+  /// shapes a server may emit: a literal `Z` zone, a numeric `+hh:mm` offset,
+  /// optional fractional seconds, and a bare `yyyy-MM-dd` date-only value. A
+  /// single rigid `DateFormatter` cannot match all of these, so try the
+  /// ISO8601 strategies first (handling `Z`, offsets and fractional seconds)
+  /// and fall back to a date-only formatter.
+  private static let dateOnlyFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(identifier: "UTC")
+    return formatter
+  }()
+
+  private static let iso8601WithFractional: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+  }()
+
+  private static let iso8601NoFractional: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter
+  }()
+
+  static func parseDate(_ string: String) -> Date? {
+    if let date = iso8601WithFractional.date(from: string) {
+      return date
+    }
+    if let date = iso8601NoFractional.date(from: string) {
+      return date
+    }
+    if let date = dateFormatter.date(from: string) {
+      return date
+    }
+    return dateOnlyFormatter.date(from: string)
+  }
 
   private static let encoder: JSONEncoder = {
     let encoder = JSONEncoder()
@@ -47,7 +88,16 @@ internal enum ObjectSerializer {
 
   private static let decoder: JSONDecoder = {
     let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .formatted(dateFormatter)
+    decoder.dateDecodingStrategy = .custom { decoder in
+      let container = try decoder.singleValueContainer()
+      let string = try container.decode(String.self)
+      guard let date = parseDate(string) else {
+        throw DecodingError.dataCorruptedError(
+          in: container,
+          debugDescription: "Invalid date: \(string)")
+      }
+      return date
+    }
     return decoder
   }()
 
@@ -199,6 +249,14 @@ internal enum ObjectSerializer {
       return "\(float)"
     case let double as Double:
       return "\(double)"
+    case let rawString as any RawRepresentable where rawString.rawValue is String:
+      /* Named ($ref) enums are `enum X: String`; emit the declared wire
+       * value (`rawValue`) rather than the Swift case name. Without this
+       * a sanitised case (`case healthCertificate = "health_certificate"`)
+       * would serialise as `healthCertificate` and break the wire
+       * contract. Default `CustomStringConvertible` on an enum returns the
+       * case name, so this branch must precede that fallthrough. */
+      return (rawString.rawValue as? String) ?? "\(value)"
     case let desc as CustomStringConvertible:
       return desc.description
     default:

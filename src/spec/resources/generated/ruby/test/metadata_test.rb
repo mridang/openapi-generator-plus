@@ -27,6 +27,20 @@ describe PetstoreClient::Models::Metadata do
     _(metadata).wont_be_nil
     _(metadata).must_be_kind_of(PetstoreClient::Models::Metadata)
   end
+
+  it 'captures and round-trips additionalProperties' do
+    json = '{"createdAt":"2024-01-01T00:00:00+0000","customField":"hello","count":3}'
+    metadata = PetstoreClient::ObjectSerializer.deserialize(json, 'Metadata')
+
+    # Undeclared keys are captured (not silently dropped) so a round-trip
+    # preserves them, matching the SDKs that round-trip additionalProperties.
+    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => 3)
+
+    data = JSON.parse(PetstoreClient::ObjectSerializer.serialize(metadata))
+    _(data['customField']).must_equal('hello')
+    _(data['count']).must_equal(3)
+    _(data['createdAt']).wont_be_nil
+  end
 end
 
 describe PetstoreClient::Models::Metadata, 'round-trip and constants' do

@@ -935,6 +935,28 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             }
         }
 
+        // Parameters typed as java.time / java.math / java.util.UUID / java.net.URI
+        // surfaces (e.g. an OffsetDateTime date-time query param) need their
+        // fully-qualified import in the Options class. The List/Map/Set/File/
+        // InputStream types are already imported by the template header, so they
+        // are skipped to avoid duplicate-import errors.
+        final Set<String> headerImported =
+                Set.of("List", "Map", "Set", "File", "InputStream");
+        final Set<String> extraImports = new LinkedHashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            for (final Map.Entry<String, String> mapping : importMapping.entrySet()) {
+                if (headerImported.contains(mapping.getKey())
+                        || !mapping.getValue().startsWith("java.")) {
+                    continue;
+                }
+                if (typeReferencesName(p.dataType, mapping.getKey())
+                        || (p.items != null
+                                && typeReferencesName(p.items.dataType, mapping.getKey()))) {
+                    extraImports.add(mapping.getValue());
+                }
+            }
+        }
+
         final String apiPkg = apiPackage();
         final Map<String, Object> context = new HashMap<>();
         context.put("package", apiPkg + ".options");
@@ -945,9 +967,41 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         context.put("requiredParams", requiredParams);
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
+        context.put("extraImports", new ArrayList<>(extraImports));
+        context.put("hasExtraImports", !extraImports.isEmpty());
         injectAuthFieldContext(op, context);
         context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Returns {@code true} when {@code type} references the simple type name
+     * {@code name} as a whole word — matching a bare {@code OffsetDateTime} as
+     * well as the element type inside a generic such as
+     * {@code List<OffsetDateTime>}, while never matching a substring of a longer
+     * identifier. Used to decide which {@code java.*} imports an Options class
+     * needs for its parameter types.
+     */
+    private static boolean typeReferencesName(@Nullable String type, String name) {
+        if (type == null) {
+            return false;
+        }
+        int from = 0;
+        while ((from = type.indexOf(name, from)) >= 0) {
+            final int end = from + name.length();
+            final boolean leftBoundary = from == 0 || !isJavaIdentifierPart(type.charAt(from - 1));
+            final boolean rightBoundary =
+                    end == type.length() || !isJavaIdentifierPart(type.charAt(end));
+            if (leftBoundary && rightBoundary) {
+                return true;
+            }
+            from = end;
+        }
+        return false;
+    }
+
+    private static boolean isJavaIdentifierPart(char c) {
+        return Character.isJavaIdentifierPart(c);
     }
 
     /**

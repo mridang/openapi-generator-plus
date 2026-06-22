@@ -64,6 +64,7 @@ import org.openapitools.codegen.meta.features.SecurityFeature;
 import org.openapitools.codegen.meta.features.WireFormatFeature;
 import org.openapitools.codegen.utils.ModelUtils;
 
+import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
 import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
 
@@ -605,6 +606,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // array-of-Object before the rest of the pipeline inspects schemas.
         // See NormalizePrefixItemsRule for the chosen cross-language strategy.
         new NormalizePrefixItemsRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        // Normalize OAS 3.1 `contentEncoding`/`contentMediaType` onto the OAS
+        // 3.0 `format: byte` / `format: binary` machinery the rest of the
+        // generator understands. Applied unconditionally (mirroring the prefix-
+        // items and internal-operation rules) rather than gated on a custom
+        // normalizer key, so e.g. `contentEncoding: base64` decodes to bytes.
+        new ContentEncodingRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         // Drop {{x-internal: true}} operations from the SDK generator's
         // view. Chasm still sees the full spec (it loads the file directly);
         // only the codegen-side document is pruned so transport-test
@@ -1319,6 +1326,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * reserved word. This keeps reserved-word lists in plain
      * text files alongside the templates rather than
      * hard-coding them in Java.
+     *
+     * <p>Entries are lowercased (and thereby deduped) because
+     * {@link DefaultCodegen#isReservedWord} looks up the candidate name with
+     * {@code reservedWords.contains(name.toLowerCase(Locale.ROOT))}. A
+     * verbatim uppercase-only entry (e.g. Ruby {@code __FILE__}, Swift
+     * {@code didSet}/{@code willSet}/{@code Type}, Dart {@code Function}) could
+     * never match the lowercased candidate and was silently dead; lowercasing
+     * here makes those genuine keywords actually get escaped while collapsing
+     * redundant case-variant duplicates.
      */
     protected static Set<String> loadReservedWords(String resourcePath) {
         try (InputStream is = AbstractBetterCodegen.class.getResourceAsStream(resourcePath);
@@ -1333,6 +1349,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return reader.lines()
                     .map(String::trim)
                     .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+                    .map(line -> line.toLowerCase(Locale.ROOT))
                     .collect(Collectors.toCollection(HashSet::new));
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to load reserved words from " + resourcePath, e);
@@ -1801,20 +1818,82 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-            final String enumValue = prop.defaultValue.substring(
+            final String varName = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = formatEnumStringLiteral(enumValue.toLowerCase(Locale.ROOT));
+            // The base class sets the default to an enum REFERENCE
+            // ({@code StatusEnum.Placed}); the segment after the dot is the
+            // generated variant identifier, whose casing is the variant-name
+            // casing (e.g. {@code Placed}, {@code MEDIUM}), NOT the wire value
+            // ({@code placed}, {@code medium}). Neither force-lowercasing nor
+            // keeping the identifier verbatim is correct in general -- sanitized
+            // variants such as {@code OnHold} (wire {@code on-hold}) match
+            // neither. Map the identifier back to its declared wire value via
+            // the enumVars table so the emitted literal is always the exact wire
+            // string, whatever its casing.
+            final String wireValue = enumWireValueForVariant(prop, varName);
+            prop.defaultValue =
+                    formatEnumStringLiteral(wireValue != null ? wireValue : varName);
         }
     }
 
     /**
-     * Wraps the (already-lowercased) enum value as a language-appropriate
-     * string literal used by {@link #fixEnumDefaultValue(CodegenProperty,
-     * CodegenModel)}. The default form is {@code <quote>value<quote>} using
-     * {@link #getQuoteChar()}; languages with bespoke literal syntax (e.g.
-     * Rust's {@code String::from("...")}) override this hook.
+     * Resolves the declared wire value of an enum variant given its generated
+     * variant identifier (the segment after the dot in a base-class enum
+     * default reference). Returns {@code null} when the property carries no
+     * matching {@code enumVars} entry, in which case the caller falls back to
+     * the identifier itself.
      *
-     * @param value the lowercased enum value
+     * @param prop    the enum property whose {@code allowableValues} hold the
+     *     variant table
+     * @param varName the generated variant identifier (e.g. {@code Placed})
+     * @return the variant's wire value (e.g. {@code placed}), or {@code null}
+     */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    protected static String enumWireValueForVariant(CodegenProperty prop, String varName) {
+        if (prop.allowableValues == null) {
+            return null;
+        }
+        final Object enumVars = prop.allowableValues.get("enumVars");
+        if (!(enumVars instanceof List)) {
+            return null;
+        }
+        for (final Object entry : (List<Object>) enumVars) {
+            if (!(entry instanceof Map)) {
+                continue;
+            }
+            final Map<String, Object> ev = (Map<String, Object>) entry;
+            if (varName.equals(String.valueOf(ev.get("name")))) {
+                final Object value = ev.get("value");
+                if (value != null) {
+                    return stripEnumValueQuotes(String.valueOf(value));
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Strips a single layer of surrounding single or double quotes. */
+    private static String stripEnumValueQuotes(String literal) {
+        if (literal.length() >= 2) {
+            final char first = literal.charAt(0);
+            final char last = literal.charAt(literal.length() - 1);
+            if ((first == '\'' && last == '\'') || (first == '"' && last == '"')) {
+                return literal.substring(1, literal.length() - 1);
+            }
+        }
+        return literal;
+    }
+
+    /**
+     * Wraps the enum value (preserving its wire casing) as a
+     * language-appropriate string literal used by
+     * {@link #fixEnumDefaultValue(CodegenProperty, CodegenModel)}. The default
+     * form is {@code <quote>value<quote>} using {@link #getQuoteChar()};
+     * languages with bespoke literal syntax (e.g. Rust's
+     * {@code String::from("...")}) override this hook.
+     *
+     * @param value the enum value (in its declared wire casing)
      * @return the language-appropriate string literal
      */
     protected String formatEnumStringLiteral(String value) {
@@ -3846,6 +3925,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         applyConstAsSingleValueEnum(property, p);
         return property;
     }
+
 
     /**
      * Translates OpenAPI 3.1 {@code const} schemas into the existing

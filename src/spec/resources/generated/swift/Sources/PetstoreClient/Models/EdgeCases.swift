@@ -84,7 +84,9 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     self.not = try container.decodeIfPresent(Bool.self, forKey: .not)
     self._class = try container.decodeIfPresent(String.self, forKey: ._class)
     self._return = try container.decodeIfPresent(String.self, forKey: ._return)
-    self.retryAfter = try container.decodeIfPresent(TimeInterval.self, forKey: .retryAfter)
+    self.retryAfter = try container.decodeIfPresent(String.self, forKey: .retryAfter).map {
+      try ObjectSerializer.decodeDuration($0)
+    }
     self.expiresAt = try container.decodeIfPresent(Date.self, forKey: .expiresAt)
   }
 
@@ -103,7 +105,8 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(not, forKey: .not)
     try container.encodeIfPresent(_class, forKey: ._class)
     try container.encodeIfPresent(_return, forKey: ._return)
-    try container.encodeIfPresent(retryAfter, forKey: .retryAfter)
+    try container.encodeIfPresent(
+      retryAfter.map { ObjectSerializer.encodeDuration($0) }, forKey: .retryAfter)
     try container.encodeIfPresent(expiresAt, forKey: .expiresAt)
   }
 }

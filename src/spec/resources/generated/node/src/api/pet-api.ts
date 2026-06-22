@@ -847,7 +847,7 @@ export class PetApi extends BaseApi {
       null,
       ["application/json"],
       "application/json",
-      (json: unknown) => json as Buffer,
+      (json: unknown) => Buffer.from(json as string, "base64"),
       null,
     );
   }

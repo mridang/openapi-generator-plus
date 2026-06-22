@@ -35,9 +35,19 @@ func AllColorValues() []Color {
 	}
 }
 
+// String returns the declared wire value of the enum.
+//
+// A parameter passed as *Color (the shape optional query/header params
+// take) must reach the wire as its declared value, not the fmt-default "%v" of
+// the pointer. Implementing fmt.Stringer lets the shared stringify helper render
+// the value for both the value and pointer forms.
+func (v Color) String() string {
+	return string(v)
+}
+
 // UnmarshalJSON enforces that the deserialized value is one of the
 // declared enum members and returns an error otherwise. The default
-// json.Unmarshal would silently accept any string, masking spec drift.
+// json.Unmarshal would silently accept any value, masking spec drift.
 func (v *Color) UnmarshalJSON(data []byte) error {
 	var raw string
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -50,5 +60,5 @@ func (v *Color) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %q for enum Color", raw)
+	return fmt.Errorf("unexpected value %v for enum Color", raw)
 }

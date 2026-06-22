@@ -33,10 +33,14 @@ pub struct PetPassport {
     /// Example: `null`
     #[serde(rename = "issuedAt", skip_serializing_if = "Option::is_none")]
     pub issued_at: Option<chrono::DateTime<chrono::Utc>>,
-    /// Embedded chip data (OAS 3.1 contentEncoding form)
+    /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
     /// Example: `null`
-    #[serde(rename = "biometricChip", skip_serializing_if = "Option::is_none")]
-    pub biometric_chip: Option<String>,
+    #[serde(
+        rename = "biometricChip",
+        skip_serializing_if = "Option::is_none",
+        with = "super::base64_serde::option"
+    )]
+    pub biometric_chip: Option<Vec<u8>>,
 }
 
 impl PetPassport {

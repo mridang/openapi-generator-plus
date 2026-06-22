@@ -1,0 +1,31 @@
+use serde_repr::{Serialize_repr, Deserialize_repr};
+
+/// {{classname}} is an enumeration of allowed integer values.
+///
+/// Integer-backed enums serialize as JSON numbers, which serde's string-only
+/// `rename` cannot express; `serde_repr` derives the numeric representation
+/// from the explicit discriminants instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize_repr, Deserialize_repr)]
+#[repr(i64)]
+pub enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+    /// Represents the value {{{value}}}.
+    {{#-first}}#[default]
+    {{/-first}}{{name}} = {{{value}}},
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+impl {{classname}} {
+    /// Returns all allowed values of {{classname}}.
+    pub fn all_values() -> Vec<{{classname}}> {
+        vec![
+{{#allowableValues}}
+{{#enumVars}}
+            {{classname}}::{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+        ]
+    }
+}

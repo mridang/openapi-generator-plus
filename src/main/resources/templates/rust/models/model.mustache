@@ -6,13 +6,15 @@ use super::*;
 {{#models}}
 {{#model}}
 {{#isEnum}}
+{{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
 /// {{classname}} is an enumeration of allowed values.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
     /// Represents the value {{{value}}}.
-    #[serde(rename = {{{value}}})]
+    {{#-first}}#[default]
+    {{/-first}}#[serde(rename = {{{value}}})]
     {{name}},
 {{/enumVars}}
 {{/allowableValues}}
@@ -30,6 +32,7 @@ impl {{classname}} {
         ]
     }
 }
+{{/isLong}}{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{^oneOf}}
@@ -127,11 +130,11 @@ pub struct {{classname}} {
 {{/isDiscriminator}}
 {{^isDiscriminator}}
 {{#required}}
-    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::proto_duration"{{/isArray}}{{/isDuration}})]
+    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration"{{/isArray}}{{/vendorExtensions.isDuration}})]
     pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
-    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#isDuration}}{{^isArray}}, with = "crate::proto_duration::option"{{/isArray}}{{/isDuration}})]
+    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration::option"{{/isArray}}{{/vendorExtensions.isDuration}})]
     pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
 {{/required}}
 {{/isDiscriminator}}

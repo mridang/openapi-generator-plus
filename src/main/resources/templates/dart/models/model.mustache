@@ -5,6 +5,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import '../object_serializer.dart';
 
 {{#hasDartImports}}
@@ -261,11 +263,12 @@ class {{classname}} {
     /* Cross-cutting `optional-enum-default-omitted`: an OPTIONAL enum field
      * with a schema `default` is initialised to that default variant so a
      * default-constructed model serialises the default on the wire (parity
-     * with the SDKs that emit `"status":"placed"`). The Dart `defaultValue`
-     * arrives as the quoted wire literal (e.g. `'placed'`); camelcase strips
-     * the quotes to the variant identifier, which equals the lowercased enum
-     * value the typed enum declares above. */
-    this.{{name}} = {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+     * with the SDKs that emit `"status":"placed"`). `defaultEnumVarName` is
+     * the `nameLowercase` of the variant whose wire value equals the schema
+     * default — i.e. the exact identifier the typed enum declares above — so
+     * a non-lowercase wire value (e.g. `IN_STOCK`) still references a real
+     * variant rather than a re-camelcased copy of the literal. */
+    this.{{name}} = {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
     this.{{name}},
@@ -358,7 +361,13 @@ class {{classname}} {
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
-      {{name}}: (json['{{baseName}}'] as List).map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String){{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+      {{! recursive-container-deserialize: route each element through the }}
+      {{! deserialize_arg partial so a nested container (List<Map<..>>, }}
+      {{! List<List<..>>) or an enum/date/byte leaf is decoded at the correct }}
+      {{! depth instead of one level deep. A primitive `Map<String, X>` value }}
+      {{! that is itself primitive still casts; deserializeArray returns a }}
+      {{! List which `.toSet()` narrows for uniqueItems. }}
+      {{name}}: deserializeArray(json['{{baseName}}'] as List, {{#items}}{{>deserialize_arg}}{{/items}}){{#uniqueItems}}.toSet(){{/uniqueItems}},
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -367,9 +376,7 @@ class {{classname}} {
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).cast<String, {{{dataType}}}>(),
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).map(
-        (k, v) => MapEntry(k, {{{dataType}}}.fromJson(v as Map<String, dynamic>)),
-      ),
+      {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{>deserialize_arg}}),
 {{/isPrimitiveType}}
 {{/items}}
 {{/isMap}}
@@ -388,12 +395,12 @@ class {{classname}} {
 {{#isUuid}}
       {{name}}: UuidValue.fromString(json['{{baseName}}'] as String),
 {{/isUuid}}
-{{#isDuration}}
+{{#vendorExtensions.isDuration}}
       {{name}}: parseProtobufDuration(json['{{baseName}}'] as String),
-{{/isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
-{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
@@ -415,7 +422,7 @@ class {{classname}} {
       /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
@@ -427,7 +434,7 @@ class {{classname}} {
       /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
@@ -438,7 +445,7 @@ class {{classname}} {
       /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null) : {{classname}}{{enumName}}.{{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}},
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null) : {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
@@ -448,7 +455,9 @@ class {{classname}} {
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
-      {{name}}: (json['{{baseName}}'] as List?)?.map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String){{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+      {{! recursive-container-deserialize (optional): same recursive descent as }}
+      {{! the required branch, guarded for an absent/null key. }}
+      {{name}}: json['{{baseName}}'] != null ? deserializeArray(json['{{baseName}}'] as List, {{#items}}{{>deserialize_arg}}{{/items}}){{#uniqueItems}}.toSet(){{/uniqueItems}} : null,
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -457,9 +466,7 @@ class {{classname}} {
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.cast<String, {{{dataType}}}>(),
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, {{{dataType}}}.fromJson(v as Map<String, dynamic>)),
-      ),
+      {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{>deserialize_arg}}) : null,
 {{/isPrimitiveType}}
 {{/items}}
 {{/isMap}}
@@ -478,10 +485,10 @@ class {{classname}} {
 {{#isUuid}}
       {{name}}: json['{{baseName}}'] != null ? UuidValue.fromString(json['{{baseName}}'] as String) : null,
 {{/isUuid}}
-{{#isDuration}}
+{{#vendorExtensions.isDuration}}
       {{name}}: json['{{baseName}}'] != null ? parseProtobufDuration(json['{{baseName}}'] as String) : null,
-{{/isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
 {{#defaultValue}}
       /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
@@ -492,7 +499,7 @@ class {{classname}} {
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
 {{/defaultValue}}
-{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
@@ -569,12 +576,12 @@ class {{classname}} {
 {{#isUuid}}
     json['{{baseName}}'] = {{name}}.toString();
 {{/isUuid}}
-{{#isDuration}}
+{{#vendorExtensions.isDuration}}
     json['{{baseName}}'] = formatProtobufDuration({{name}});
-{{/isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
     json['{{baseName}}'] = {{name}};
-{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}
@@ -624,12 +631,12 @@ class {{classname}} {
 {{#isUuid}}
       json['{{baseName}}'] = {{name}}?.toString();
 {{/isUuid}}
-{{#isDuration}}
+{{#vendorExtensions.isDuration}}
       json['{{baseName}}'] = formatProtobufDuration({{name}}!);
-{{/isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
       json['{{baseName}}'] = {{name}};
-{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}
@@ -652,33 +659,25 @@ class {{classname}} {
   }
 
   /// Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including the
-  /// additionalProperties map){{/isAdditionalPropertiesTrue}}. Nested List/Map fields are compared
-  /// by reference — callers needing structural equality on those should
-  /// use `package:collection`'s `DeepCollectionEquality`.
+  /// additionalProperties map){{/isAdditionalPropertiesTrue}}. List, Map and Uint8List
+  /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
+  /// built-in `==` on those is identity), so two instances decoded from
+  /// identical JSON are equal and usable as Set/Map keys.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is {{classname}}{{#vars}} &&
-        {{name}} == other.{{name}}{{/vars}}{{#isAdditionalPropertiesTrue}} &&
-        _mapEquals(additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
+        {{#isArray}}const DeepCollectionEquality().equals({{name}}, other.{{name}}){{/isArray}}{{^isArray}}{{#isMap}}const DeepCollectionEquality().equals({{name}}, other.{{name}}){{/isMap}}{{^isMap}}{{#isByteArray}}const DeepCollectionEquality().equals({{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}{{name}} == other.{{name}}{{/isByteArray}}{{/isMap}}{{/isArray}}{{/vars}}{{#isAdditionalPropertiesTrue}} &&
+        const DeepCollectionEquality().equals(additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
   /// Iterable (Object.hash requires 2+ positional args, so it can't
-  /// represent the 0-var or 1-var cases without special-casing).
+  /// represent the 0-var or 1-var cases without special-casing). Collection
+  /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
+  /// so equal instances hash equally.
   @override
-  int get hashCode => Object.hashAll([{{#vars}}{{name}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}}]);
-{{#isAdditionalPropertiesTrue}}
-
-  static bool _mapEquals(Map<String, dynamic> a, Map<String, dynamic> b) {
-    if (identical(a, b)) return true;
-    if (a.length != b.length) return false;
-    for (final key in a.keys) {
-      if (!b.containsKey(key) || a[key] != b[key]) return false;
-    }
-    return true;
-  }
-{{/isAdditionalPropertiesTrue}}
+  int get hashCode => Object.hashAll([{{#vars}}{{#isArray}}const DeepCollectionEquality().hash({{name}}){{/isArray}}{{^isArray}}{{#isMap}}const DeepCollectionEquality().hash({{name}}){{/isMap}}{{^isMap}}{{#isByteArray}}const DeepCollectionEquality().hash({{name}}){{/isByteArray}}{{^isByteArray}}{{name}}{{/isByteArray}}{{/isMap}}{{/isArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}const DeepCollectionEquality().hash(additionalProperties){{/isAdditionalPropertiesTrue}}]);
 }
 {{/isPrimitiveAnyOf}}
 {{/isPrimitiveOneOf}}

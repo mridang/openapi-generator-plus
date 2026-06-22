@@ -5,7 +5,7 @@ public struct GetBySwatchOptions: Sendable {
   public let querySwatch: Swatch?
   public let preferredSwatch: Swatch?
 
-  public init(querySwatch: Swatch? = nil, preferredSwatch: Swatch? = nil, ) {
+  public init(querySwatch: Swatch? = nil, preferredSwatch: Swatch? = nil) {
     self.querySwatch = querySwatch
     self.preferredSwatch = preferredSwatch
   }

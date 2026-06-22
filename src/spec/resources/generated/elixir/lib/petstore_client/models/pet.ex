@@ -13,9 +13,9 @@ defmodule PetstoreClient.Models.Pet do
 
   @type t :: %__MODULE__{
           id: integer() | nil,
-          name: String.t() | nil,
+          name: String.t(),
           category: Category | nil,
-          photo_urls: MapSet.t(String.t()) | nil,
+          photo_urls: MapSet.t(String.t()),
           tags: [Tag] | nil,
           status: :available | :pending | :sold | nil,
           location: [any()] | nil,

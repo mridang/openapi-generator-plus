@@ -614,6 +614,39 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("applies defaults for absent fields but preserves explicit null")
+        void deserializeDefaultsAbsentVsExplicitNull() {
+            // absent-vs-null contract: a schema `default` fills a field only when
+            // the key is ABSENT from the payload. An explicit JSON null is a
+            // provided value and is PRESERVED as null, never replaced by the
+            // default. Defaults carries retries (default 3, non-enum scalar),
+            // mode (default "medium" — not the first enum variant), and
+            // label (nullable, default "untitled"). All 12 SDKs converge here.
+
+            // (a) Empty object -> every default is applied.
+            {{modelPackage}}.Defaults filled =
+                    serializer.deserialize(
+                            "{}",
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.Defaults>() {}.getType());
+            assertNotNull(filled);
+            assertEquals(3, filled.retries);
+            assertEquals({{modelPackage}}.Defaults.ModeEnum.MEDIUM, filled.mode);
+            assertEquals("untitled", filled.label);
+
+            // (b) Explicit null on the nullable field is PRESERVED, not defaulted;
+            // the supplied retries overrides its default.
+            {{modelPackage}}.Defaults preserved =
+                    serializer.deserialize(
+                            "{\"label\":null,\"retries\":7}",
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.Defaults>() {}.getType());
+            assertNotNull(preserved);
+            assertNull(preserved.label);
+            assertEquals(7, preserved.retries);
+        }
+
+        @Test
         @DisplayName("ignores unknown properties in JSON input")
         void ignoresUnknownPropertiesInJsonInput() {
             // Gap #14: extras must be discarded on deserialize (FAIL_ON_UNKNOWN_PROPERTIES=false).

@@ -23,6 +23,8 @@ import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -719,6 +721,51 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         // property through the protobuf-JSON DurationSerializer registered in the
         // SerializersModule.
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+    }
+
+    /**
+     * Flags every model whose value-semantics would be broken by the
+     * {@code data class}-generated {@code equals}/{@code hashCode}.
+     *
+     * <p>Kotlin's synthesized data-class {@code equals} compares
+     * {@code List}/{@code Map} structurally but {@code Array} and
+     * {@code ByteArray} by reference identity. A property typed
+     * {@code ByteArray} (a {@code format: byte}/{@code binary} field), an
+     * {@code Array<T>}, or a {@code List<ByteArray>} (whose structural
+     * {@code List} comparison still bottoms out in reference-equal
+     * {@code ByteArray} elements) therefore makes two instances decoded from
+     * identical JSON compare unequal and hash differently. This breaks their
+     * use as {@code Set}/{@code Map} keys and round-trip equality.
+     *
+     * <p>For such models a per-property equality strategy is recorded so the
+     * model template can emit explicit {@code equals}/{@code hashCode} that
+     * route array/byte-array fields through {@code contentEquals}/
+     * {@code contentHashCode} (element-wise for {@code List<ByteArray>}) while
+     * leaving every other field on the ordinary {@code ==}/{@code hashCode}.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            boolean hasContentEqualsField = false;
+            for (final CodegenProperty prop : model.vars) {
+                final String dataType = prop.dataType == null ? "" : prop.dataType;
+                final boolean byteArray = "ByteArray".equals(dataType);
+                final boolean array = dataType.startsWith("Array<");
+                final boolean listByteArray =
+                        dataType.startsWith("List<") && dataType.contains("ByteArray");
+                prop.vendorExtensions.put("eqByteArray", byteArray || array);
+                prop.vendorExtensions.put("eqListByteArray", listByteArray);
+                if (byteArray || array || listByteArray) {
+                    hasContentEqualsField = true;
+                }
+            }
+            if (hasContentEqualsField) {
+                modelMap.put("hasContentEqualsField", true);
+            }
+        }
+        return result;
     }
 
     /**

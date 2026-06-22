@@ -16,6 +16,7 @@ namespace {{packageName}}.Models;
 /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
+{{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
 [JsonConverter(typeof({{classname}}Converter))]
 public enum {{classname}}
 {
@@ -70,6 +71,7 @@ internal sealed class {{classname}}Converter : JsonConverter<{{classname}}>
         });
     }
 }
+{{/isLong}}{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{#oneOf}}
@@ -373,7 +375,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     pre-trim behaviour. It is excluded from requiredVars, so it is also not a
     convenience-constructor parameter. }}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}} { get; set; } = {{{.}}};
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}} { get; set; } = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};
 {{/defaultValue}}
 {{^defaultValue}}
 {{#isEnum}}
@@ -382,6 +384,15 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     public required {{{datatypeWithEnum}}} {{name}} { get; init; }
 {{/isEnum}}
 {{^isEnum}}
+{{! A $ref to a top-level enum is a value type (cannot be null), so it skips
+    the null-guarding init accessor just like an inline enum -- otherwise the
+    `value ?? throw` / `null!` backing would fail to compile against a struct. }}
+{{#isEnumRef}}
+    [JsonRequired]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{{dataType}}} {{name}} { get; init; }
+{{/isEnumRef}}
+{{^isEnumRef}}
 {{#isContainer}}{{>required_guarded_property}}{{/isContainer}}
 {{^isContainer}}
 {{^isPrimitiveType}}{{>required_guarded_property}}{{/isPrimitiveType}}
@@ -400,12 +411,13 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{/isString}}
 {{/isPrimitiveType}}
 {{/isContainer}}
+{{/isEnumRef}}
 {{/isEnum}}
 {{/defaultValue}}
 {{/required}}
 {{^required}}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}} { get; set; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}
 {{/required}}
 {{^-last}}
 
@@ -448,9 +460,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
+                    && {{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
     }
 
     public override bool Equals(object? obj)
@@ -462,10 +474,10 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         HashCode hash = default;
         {{#vars}}
-        hash.Add(this.{{name}});
+        {{#isContainer}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
-        hash.Add(this.AdditionalProperties);
+        hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
         {{/isAdditionalPropertiesTrue}}
         return hash.ToHashCode();
     }
@@ -599,9 +611,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
+                    && {{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
     }
 
     public override bool Equals(object? obj)
@@ -613,10 +625,10 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         HashCode hash = default;
         {{#vars}}
-        hash.Add(this.{{name}});
+        {{#isContainer}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
-        hash.Add(this.AdditionalProperties);
+        hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
         {{/isAdditionalPropertiesTrue}}
         return hash.ToHashCode();
     }

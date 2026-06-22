@@ -405,7 +405,7 @@ class {{classname}} extends BaseApi
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             '{{vendorExtensions.op.effectiveConsumes}}',
-            '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{{returnType}}}{{/returnContainer}}'{{#hasAuthMethods}},
+            '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{#returnProperty}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{{returnType}}}{{/isByteArray}}{{/returnProperty}}{{^returnProperty}}{{{returnType}}}{{/returnProperty}}{{/returnContainer}}'{{#hasAuthMethods}},
             $auth{{/hasAuthMethods}}
         );
         return $result;

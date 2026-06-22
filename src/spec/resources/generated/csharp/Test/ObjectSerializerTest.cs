@@ -674,6 +674,28 @@ public class ObjectSerializerTest
             Assert.NotNull(order);
             Assert.Equal(Order.StatusEnum.Placed, order!.Status);
         }
+
+        [Fact]
+        public void DefaultsAbsentFieldsTakeSchemaDefaultExplicitNullIsPreserved()
+        {
+            // default-vs-explicit-null contract: a schema `default` applies ONLY
+            // when the property is ABSENT from the payload. An explicit JSON null
+            // is a provided value and must be PRESERVED (the field stays null),
+            // not replaced by the default. Exercised against the dedicated
+            // Defaults model (retries/mode/label), matching go/rust/python/node.
+            var fromEmpty = _serializer.Deserialize<Defaults>("{}");
+            Assert.NotNull(fromEmpty);
+            Assert.Equal(3, fromEmpty!.Retries);
+            Assert.Equal(Defaults.ModeEnum.Medium, fromEmpty.Mode);
+            Assert.Equal("untitled", fromEmpty.Label);
+
+            var fromNull = _serializer.Deserialize<Defaults>("{\"label\":null,\"retries\":7}");
+            Assert.NotNull(fromNull);
+            Assert.Null(fromNull!.Label);
+            Assert.Equal(7, fromNull.Retries);
+            // mode was absent, so it keeps the schema default.
+            Assert.Equal(Defaults.ModeEnum.Medium, fromNull.Mode);
+        }
     }
 
     // Gap #13 — discard nulls on serialize.

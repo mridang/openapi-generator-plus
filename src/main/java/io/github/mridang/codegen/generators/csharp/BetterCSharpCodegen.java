@@ -86,8 +86,8 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         typeMapping.put("duration", "TimeSpan");
         typeMapping.put("UUID", "Guid");
         typeMapping.put("URI", "Uri");
-        typeMapping.put("object", "Object");
-        typeMapping.put("AnyType", "Object");
+        typeMapping.put("object", "object");
+        typeMapping.put("AnyType", "object");
         typeMapping.put("array", "List");
         typeMapping.put("set", "HashSet");
         typeMapping.put("map", "Dictionary");
@@ -98,7 +98,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 new HashSet<>(
                         Arrays.asList(
                                 "int", "long", "float", "double", "decimal", "bool", "string",
-                                "byte[]", "void", "Object", "DateOnly", "DateTimeOffset", "Guid",
+                                "byte[]", "void", "object", "DateOnly", "DateTimeOffset", "Guid",
                                 "TimeOnly", "TimeSpan"));
 
         instantiationTypes.put("array", "List");

@@ -41,11 +41,22 @@ export class PetPassport {
   @Type(() => Date)
   issuedAt?: Date;
   /**
-   * Embedded chip data (OAS 3.1 contentEncoding form)
+   * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
    * @example null
    */
   @Expose({ name: "biometricChip" })
-  biometricChip?: string;
+  /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
+  @Transform(
+    ({ value }) =>
+      typeof value === "string" ? Buffer.from(value, "base64") : value,
+    { toClassOnly: true },
+  )
+  @Transform(
+    ({ value }) =>
+      Buffer.isBuffer(value) ? (value as Buffer).toString("base64") : value,
+    { toPlainOnly: true },
+  )
+  biometricChip?: Buffer;
 
   constructor(data?: Partial<PetPassport>) {
     Object.assign(this, data);
@@ -71,9 +82,22 @@ export class PetPassport {
     ) {
       throw new TypeError(`scans must be an array, got ${typeof this.scans}`);
     }
-    if (this.biometricChip != null && typeof this.biometricChip !== "string") {
+    /**
+     * 2.1 — format: byte. The wire form is base64; the model field is a
+     * Buffer. Lives outside the isString block because typeMapping
+     * (ByteArray to Buffer) flips isString to false at codegen time.
+     */
+    if (this.biometricChip != null && typeof this.biometricChip === "string") {
+      this.biometricChip = Buffer.from(
+        this.biometricChip as unknown as string,
+        "base64",
+      ) as unknown as Buffer;
+    } else if (
+      this.biometricChip != null &&
+      !Buffer.isBuffer(this.biometricChip)
+    ) {
       throw new TypeError(
-        `biometricChip must be a string, got ${typeof this.biometricChip}`,
+        `biometricChip must be a Buffer or base64 string, got ${typeof this.biometricChip}`,
       );
     }
   }

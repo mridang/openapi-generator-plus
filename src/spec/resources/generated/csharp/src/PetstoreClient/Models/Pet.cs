@@ -135,7 +135,7 @@ public class Pet : IEquatable<Pet>
 
     /// <example>null</example>
     [JsonPropertyName("location")]
-    public List<Object>? Location { get; set; }
+    public List<object>? Location { get; set; }
 
     /// <summary>
     /// Absolute URL to the pet's public profile page
@@ -182,10 +182,10 @@ public class Pet : IEquatable<Pet>
                 || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
                     && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
-                    && EqualityComparer<HashSet<string>>.Default.Equals(this.PhotoUrls, other.PhotoUrls)
-                    && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
+                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.PhotoUrls, other.PhotoUrls)
+                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
-                    && EqualityComparer<List<Object>?>.Default.Equals(this.Location, other.Location)
+                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Location, other.Location)
                     && EqualityComparer<Uri?>.Default.Equals(this.HomepageUrl, other.HomepageUrl)
                     && EqualityComparer<string?>.Default.Equals(this.ThumbnailRef, other.ThumbnailRef)
                     && EqualityComparer<string?>.Default.Equals(this.LinkTemplate, other.LinkTemplate)
@@ -204,10 +204,10 @@ public class Pet : IEquatable<Pet>
         hash.Add(this.Id);
         hash.Add(this.Name);
         hash.Add(this.Category);
-        hash.Add(this.PhotoUrls);
-        hash.Add(this.Tags);
+        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.PhotoUrls));
+        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Tags));
         hash.Add(this.Status);
-        hash.Add(this.Location);
+        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Location));
         hash.Add(this.HomepageUrl);
         hash.Add(this.ThumbnailRef);
         hash.Add(this.LinkTemplate);

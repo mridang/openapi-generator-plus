@@ -502,6 +502,33 @@ export class ObjectSerializer {
   }
 
   /**
+   * Validate a wire value against the members of a named enum at the
+   * deserialize boundary. A bare-enum return (e.g. `getSwatch`) or an
+   * enum container leaf arrives as a raw JSON scalar; a plain cast would
+   * silently let an unknown value (`"magenta"`) through as a non-enum
+   * string. This mirrors the model-field enum check (and Python's
+   * `klass(data)` / Java's `@JsonCreator fromValue`), throwing on an
+   * unknown value instead of corrupting the typed result.
+   *
+   * @param value the parsed wire value
+   * @param enumObj the runtime enum object whose values are the wire values
+   * @returns the value, typed as the enum member
+   */
+  static deserializeEnum<T>(
+    value: unknown,
+    enumObj: Record<string, unknown>,
+  ): T {
+    const members = Object.values(enumObj);
+    if (!(members as readonly unknown[]).includes(value)) {
+      throw new SerializationError(
+        `Unknown enum value: ${JSON.stringify(value)}. ` +
+          `Expected one of [${members.map((v) => JSON.stringify(v)).join(", ")}].`,
+      );
+    }
+    return value as T;
+  }
+
+  /**
    * Convert a single scalar value to its string representation.
    *
    * This is the canonical scalar-to-string conversion used by all parameter

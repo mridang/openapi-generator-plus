@@ -41,7 +41,7 @@ class PetPassport
     public ?\DateTime $issuedAt = null;
 
     /**
-     * Embedded chip data (OAS 3.1 contentEncoding form)
+     * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
      * @example null
      */
     #[SerializedName('biometricChip')]
@@ -87,6 +87,32 @@ class PetPassport
         $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
         if ($encoded !== null) {
             $this->thumbnail = $encoded;
+        }
+    }
+
+    /**
+     * 2.1 — Returns the raw decoded bytes for the `biometricChip`
+     * field (OAS `format: byte`). The stored property holds the
+     * base64-encoded wire form; this getter applies base64_decode
+     * so callers receive the underlying binary string. Returns
+     * null when the field is unset or empty.
+     */
+    public function getBiometricChipAsBytes(): ?string
+    {
+        return \PetstoreClient\ObjectSerializer::decodeBytes($this->biometricChip);
+    }
+
+    /**
+     * 2.1 — Stores raw bytes in the `biometricChip` field (OAS
+     * `format: byte`) by base64-encoding before assignment. The
+     * property keeps the wire form so serialization stays a
+     * straight string pass-through.
+     */
+    public function setBiometricChipFromBytes(?string $raw): void
+    {
+        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
+        if ($encoded !== null) {
+            $this->biometricChip = $encoded;
         }
     }
 }

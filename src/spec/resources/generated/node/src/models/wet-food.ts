@@ -35,11 +35,6 @@ export class WetFood {
         `volumeMl must be a number, got ${typeof this.volumeMl}`,
       );
     }
-    if (this.volumeMl != null && typeof this.volumeMl !== "number") {
-      throw new TypeError(
-        `volumeMl must be a number, got ${typeof this.volumeMl}`,
-      );
-    }
   }
 
   /**

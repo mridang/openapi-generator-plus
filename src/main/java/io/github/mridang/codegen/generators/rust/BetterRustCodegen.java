@@ -48,6 +48,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRustCodegen.class);
 
+    /**
+     * Rust keywords that cannot be used as raw identifiers ({@code r#crate} etc.
+     * are rejected by the compiler), so they keep the leading-underscore escape.
+     */
+    private static final Set<String> NON_RAW_IDENTIFIER_KEYWORDS =
+            Set.of("crate", "self", "super", "Self");
+
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
 
@@ -602,6 +609,47 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Surfaces {@code format: duration} to the model template under a vendor
+     * extension (OpenAPI Generator 7.12 has no native {@code isDuration} flag on
+     * {@code CodegenProperty}). The template applies
+     * {@code #[serde(with = "crate::proto_duration")]} (or the {@code ::option}
+     * submodule for optional fields) to route the {@code chrono::Duration}
+     * property through the hand-rolled protobuf-JSON helper in
+     * {@code src/proto_duration.rs}; {@code chrono::Duration} has no usable serde
+     * impl of the {@code "3600s"} shape, so without this the derived
+     * {@code Serialize}/{@code Deserialize} would not compile. Mirrors the Kotlin
+     * generator.
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+    }
+
+    /**
+     * Escapes a reserved word using Rust's raw-identifier form ({@code r#type})
+     * rather than the default leading-underscore ({@code _type}). A leading
+     * underscore idiomatically signals "intentionally unused", which is
+     * misleading for a public, serialized field; {@code r#<name>} is the
+     * idiomatic way to use a keyword as an identifier. The serde {@code rename}
+     * on the field still carries the wire key, so only the Rust-side identifier
+     * changes.
+     *
+     * <p>The four keywords {@code crate}, {@code self}, {@code super} and
+     * {@code Self} cannot be raw identifiers, so they keep the leading-underscore
+     * escape.
+     */
+    @Override
+    public String escapeReservedWord(String name) {
+        if (NON_RAW_IDENTIFIER_KEYWORDS.contains(name)) {
+            return "_" + name;
+        }
+        return "r#" + name;
+    }
+
+    /**
      * Rewrites an optional enum field's {@code defaultValue} to the
      * fully-qualified DECLARED variant (e.g. {@code DefaultsModeEnum::Medium})
      * rather than the wire string. The schema {@code default} can be any
@@ -630,7 +678,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 && prop.defaultValue.endsWith(suffix)) {
             final String rawValue = prop.defaultValue.substring(
                     prefix.length(), prop.defaultValue.length() - suffix.length());
-            final String variant = toEnumVarName(rawValue.toLowerCase(Locale.ROOT), prop.dataType);
+            // Derive the variant from the ORIGINAL wire value, not a lowercased
+            // copy. The declared variants are named via toEnumVarName(value)
+            // (PascalCase, no lowercasing), so lowercasing here would reference a
+            // non-existent variant (e.g. `AVAILABLE` declared but `Available`
+            // referenced -> rustc E0599) for any all-caps/mixed-case default.
+            final String variant = toEnumVarName(rawValue, prop.dataType);
             prop.defaultValue = model.classname + prop.enumName + "::" + variant;
         }
     }

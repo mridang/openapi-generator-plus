@@ -4,7 +4,7 @@ import Foundation
 public struct UploadPetCertificateOptions: Sendable {
   public let file: Data
 
-  public init(file: Data, ) {
+  public init(file: Data) {
     self.file = file
   }
 }

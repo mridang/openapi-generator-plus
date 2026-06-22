@@ -246,8 +246,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   @type t :: %__MODULE__{
   {{#vars}}
-          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} | nil{{^-last}},{{/-last}}
+          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
   {{/vars}}
+  {{#isAdditionalPropertiesTrue}}
+          additional_properties: %{String.t() => any()}
+  {{/isAdditionalPropertiesTrue}}
         }
 
   {{#hasRequired}}
@@ -262,12 +265,15 @@ defmodule {{moduleName}}.Models.{{classname}} do
   defstruct [
   {{#vars}}
 {{#defaultValue}}
-    {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}
+    {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
 {{/defaultValue}}
 {{^defaultValue}}
-    :{{name}}{{^-last}},{{/-last}}
+    :{{name}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
 {{/defaultValue}}
   {{/vars}}
+  {{#isAdditionalPropertiesTrue}}
+    additional_properties: %{}
+  {{/isAdditionalPropertiesTrue}}
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."

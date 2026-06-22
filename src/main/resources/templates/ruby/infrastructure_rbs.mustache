@@ -86,6 +86,11 @@ module {{moduleName}}
     def initialize: (status_code: Integer, data: T, raw_body: String, headers: Hash[String, String]) -> void
   end
 
+{{#brandedErrorRoot}}
+  class {{apiErrorParentSimpleName}} < StandardError
+  end
+
+{{/brandedErrorRoot}}
   class ApiError < {{apiErrorParent}}
     attr_reader status_code: Integer?
     attr_reader response_headers: Hash[String, String]?

@@ -9,6 +9,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import '../object_serializer.dart';
 
 /// Color is an enumeration of allowed values.

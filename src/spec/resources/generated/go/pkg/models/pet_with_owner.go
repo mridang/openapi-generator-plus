@@ -33,6 +33,12 @@ func AllPetWithOwnerStatusEnumValues() []PetWithOwnerStatusEnum {
 	}
 }
 
+// String returns the declared wire value of the enum, so the shared stringify
+// helper renders the value rather than the fmt-default "%v" of a pointer.
+func (v PetWithOwnerStatusEnum) String() string {
+	return string(v)
+}
+
 // UnmarshalJSON validates the value is one of the declared
 // enum members at deserialise time.
 func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
@@ -47,7 +53,7 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %q for enum PetWithOwnerStatusEnum", raw)
+	return fmt.Errorf("unexpected value %v for enum PetWithOwnerStatusEnum", raw)
 }
 
 type PetWithOwner struct {

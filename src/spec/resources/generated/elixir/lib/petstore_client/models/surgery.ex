@@ -12,7 +12,7 @@ defmodule PetstoreClient.Models.Surgery do
   """
 
   @type t :: %__MODULE__{
-          procedure_name: String.t() | nil,
+          procedure_name: String.t(),
           duration_minutes: integer() | nil
         }
 

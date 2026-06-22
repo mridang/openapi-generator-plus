@@ -17,6 +17,94 @@ import javax.annotation.Nullable;
 /** {{classname}}. */
 {{/description}}
 {{>models/checkstyle_suppressions}}
+{{#isInteger}}
+public enum {{classname}} {
+  {{#allowableValues}}
+  {{#enumVars}}
+  /** The {@code {{{value}}}} value. */
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  private final int value;
+
+  {{classname}}(int value) {
+    this.value = value;
+  }
+
+  /**
+   * Returns the wire value of this enum constant.
+   *
+   * @return the wire value
+   */
+  @com.fasterxml.jackson.annotation.JsonValue
+  public int getValue() {
+    return value;
+  }
+
+  /**
+   * Returns the enum constant for the given wire value.
+   *
+   * @param value the wire value
+   * @return the matching enum constant
+   * @throws IllegalArgumentException if no constant matches
+   */
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public static {{classname}} fromValue(int value) {
+    for ({{classname}} b : values()) {
+      if (b.value == value) {
+        return b;
+      }
+    }
+    throw new IllegalArgumentException("Unexpected value '" + value + "'");
+  }
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+public enum {{classname}} {
+  {{#allowableValues}}
+  {{#enumVars}}
+  /** The {@code {{{value}}}} value. */
+  {{{name}}}({{{value}}}L){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  private final long value;
+
+  {{classname}}(long value) {
+    this.value = value;
+  }
+
+  /**
+   * Returns the wire value of this enum constant.
+   *
+   * @return the wire value
+   */
+  @com.fasterxml.jackson.annotation.JsonValue
+  public long getValue() {
+    return value;
+  }
+
+  /**
+   * Returns the enum constant for the given wire value.
+   *
+   * @param value the wire value
+   * @return the matching enum constant
+   * @throws IllegalArgumentException if no constant matches
+   */
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public static {{classname}} fromValue(long value) {
+    for ({{classname}} b : values()) {
+      if (b.value == value) {
+        return b;
+      }
+    }
+    throw new IllegalArgumentException("Unexpected value '" + value + "'");
+  }
+}
+{{/isLong}}
+{{^isLong}}
 public enum {{classname}} {
   {{#allowableValues}}
   {{#enumVars}}
@@ -58,6 +146,8 @@ public enum {{classname}} {
     throw new IllegalArgumentException("Unexpected value '" + value + "'");
   }
 }
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{#oneOf}}
@@ -346,6 +436,94 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#isEnum}}
 
   /** Allowed values for the {@code {{name}}} property. */
+{{#isInteger}}
+  public enum {{enumName}} {
+    {{#allowableValues}}
+    {{#enumVars}}
+    /** The {@code {{{value}}}} value. */
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    private final int value;
+
+    {{enumName}}(int value) {
+      this.value = value;
+    }
+
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
+    @JsonValue
+    public int getValue() {
+      return value;
+    }
+
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant
+     * @throws IllegalArgumentException if no constant matches
+     */
+    @JsonCreator
+    public static {{enumName}} fromValue(int value) {
+      for ({{enumName}} b : values()) {
+        if (b.value == value) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+  public enum {{enumName}} {
+    {{#allowableValues}}
+    {{#enumVars}}
+    /** The {@code {{{value}}}} value. */
+    {{{name}}}({{{value}}}L){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    private final long value;
+
+    {{enumName}}(long value) {
+      this.value = value;
+    }
+
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
+    @JsonValue
+    public long getValue() {
+      return value;
+    }
+
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant
+     * @throws IllegalArgumentException if no constant matches
+     */
+    @JsonCreator
+    public static {{enumName}} fromValue(long value) {
+      for ({{enumName}} b : values()) {
+        if (b.value == value) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+{{/isLong}}
+{{^isLong}}
   public enum {{enumName}} {
     {{#allowableValues}}
     {{#enumVars}}
@@ -387,6 +565,8 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       throw new IllegalArgumentException("Unexpected value '" + value + "'");
     }
   }
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{/vars}}
 

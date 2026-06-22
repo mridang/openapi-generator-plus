@@ -20,6 +20,74 @@ import kotlinx.serialization.json.JsonClassDiscriminator
 {{#models}}
 {{#model}}
 {{#isEnum}}
+{{#isInteger}}
+{{#description}}
+/** {{{.}}} */
+{{/description}}
+@Serializable(with = {{classname}}.Serializer::class)
+enum class {{classname}}(val value: Int) {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  companion object {
+    fun fromValue(value: Int): {{classname}} =
+      entries.firstOrNull { it.value == value }
+        ?: throw IllegalArgumentException("Unexpected value '$value'")
+  }
+
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+        "{{classname}}", kotlinx.serialization.descriptors.PrimitiveKind.INT)
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) = encoder.encodeInt(value.value)
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} =
+      fromValue(decoder.decodeInt())
+  }
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+{{#description}}
+/** {{{.}}} */
+{{/description}}
+@Serializable(with = {{classname}}.Serializer::class)
+enum class {{classname}}(val value: Long) {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  companion object {
+    fun fromValue(value: Long): {{classname}} =
+      entries.firstOrNull { it.value == value }
+        ?: throw IllegalArgumentException("Unexpected value '$value'")
+  }
+
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+        "{{classname}}", kotlinx.serialization.descriptors.PrimitiveKind.LONG)
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) = encoder.encodeLong(value.value)
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} =
+      fromValue(decoder.decodeLong())
+  }
+}
+{{/isLong}}
+{{^isLong}}
 {{#description}}
 /** {{{.}}} */
 {{/description}}
@@ -38,6 +106,8 @@ enum class {{classname}}(val value: String) {
         ?: throw IllegalArgumentException("Unexpected value '$value'")
   }
 }
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{#oneOf}}
@@ -261,6 +331,70 @@ class {{classname}}(
 ){{#parent}} : {{{.}}}(){{/parent}} {
 {{#vars}}
 {{#isEnum}}
+{{#isInteger}}
+
+  @Serializable(with = {{enumName}}.Serializer::class)
+  enum class {{enumName}}(val value: Int) {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    companion object {
+      fun fromValue(value: Int): {{enumName}} =
+        entries.firstOrNull { it.value == value }
+          ?: throw IllegalArgumentException("Unexpected value '$value'")
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<{{enumName}}> {
+      override val descriptor =
+        kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+          "{{enumName}}", kotlinx.serialization.descriptors.PrimitiveKind.INT)
+
+      override fun serialize(
+        encoder: kotlinx.serialization.encoding.Encoder,
+        value: {{enumName}},
+      ) = encoder.encodeInt(value.value)
+
+      override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{enumName}} =
+        fromValue(decoder.decodeInt())
+    }
+  }
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+
+  @Serializable(with = {{enumName}}.Serializer::class)
+  enum class {{enumName}}(val value: Long) {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    companion object {
+      fun fromValue(value: Long): {{enumName}} =
+        entries.firstOrNull { it.value == value }
+          ?: throw IllegalArgumentException("Unexpected value '$value'")
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<{{enumName}}> {
+      override val descriptor =
+        kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+          "{{enumName}}", kotlinx.serialization.descriptors.PrimitiveKind.LONG)
+
+      override fun serialize(
+        encoder: kotlinx.serialization.encoding.Encoder,
+        value: {{enumName}},
+      ) = encoder.encodeLong(value.value)
+
+      override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{enumName}} =
+        fromValue(decoder.decodeLong())
+    }
+  }
+{{/isLong}}
+{{^isLong}}
 
   @Serializable
   enum class {{enumName}}(val value: String) {
@@ -277,6 +411,8 @@ class {{classname}}(
           ?: throw IllegalArgumentException("Unexpected value '$value'")
     }
   }
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -305,6 +441,89 @@ class {{classname}}(
     }
   }
 {{/isUnevaluatedPropertiesFalse}}
+{{#hasContentEqualsField}}
+
+  /* Kotlin's synthesized data-class equals/hashCode compare Array and
+   * ByteArray by reference identity (and List<ByteArray> bottoms out in
+   * reference-equal elements), so two instances decoded from identical JSON
+   * would not be equal and would hash differently. The overrides below route
+   * those fields through contentEquals/contentHashCode (element-wise for
+   * List<ByteArray>) while every other field keeps ordinary == semantics. */
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other == null || this::class != other::class) return false
+    other as {{classname}}
+{{#vars}}
+{{#vendorExtensions.eqByteArray}}
+{{#required}}
+    if (!{{name}}.contentEquals(other.{{name}})) return false
+{{/required}}
+{{^required}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if (!{{name}}.contentEquals(other.{{name}})) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/required}}
+{{/vendorExtensions.eqByteArray}}
+{{#vendorExtensions.eqListByteArray}}
+{{#required}}
+    if ({{name}}.size != other.{{name}}.size) return false
+    if (!{{name}}.zip(other.{{name}}).all { (a, b) -> a.contentEquals(b) }) return false
+{{/required}}
+{{^required}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if ({{name}}.size != other.{{name}}.size) return false
+      if (!{{name}}.zip(other.{{name}}).all { (a, b) -> a.contentEquals(b) }) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/required}}
+{{/vendorExtensions.eqListByteArray}}
+{{^vendorExtensions.eqByteArray}}
+{{^vendorExtensions.eqListByteArray}}
+    if ({{name}} != other.{{name}}) return false
+{{/vendorExtensions.eqListByteArray}}
+{{/vendorExtensions.eqByteArray}}
+{{/vars}}
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var result = 0
+{{#vars}}
+{{#vendorExtensions.eqByteArray}}
+{{#required}}
+    result = 31 * result + {{name}}.contentHashCode()
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.contentHashCode() ?: 0)
+{{/required}}
+{{/vendorExtensions.eqByteArray}}
+{{#vendorExtensions.eqListByteArray}}
+{{#required}}
+    result = 31 * result + {{name}}.fold(0) { acc, e -> 31 * acc + e.contentHashCode() }
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.fold(0) { acc, e -> 31 * acc + e.contentHashCode() } ?: 0)
+{{/required}}
+{{/vendorExtensions.eqListByteArray}}
+{{^vendorExtensions.eqByteArray}}
+{{^vendorExtensions.eqListByteArray}}
+{{#required}}
+    result = 31 * result + {{name}}.hashCode()
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.hashCode() ?: 0)
+{{/required}}
+{{/vendorExtensions.eqListByteArray}}
+{{/vendorExtensions.eqByteArray}}
+{{/vars}}
+    return result
+  }
+{{/hasContentEqualsField}}
 }
 {{/anyOf}}
 {{/oneOf}}

@@ -12,8 +12,8 @@ defmodule PetstoreClient.Models.SetPetAvatarRequest do
   """
 
   @type t :: %__MODULE__{
-          data: binary() | nil,
-          mime_type: String.t() | nil
+          data: binary(),
+          mime_type: String.t()
         }
 
   @enforce_keys [

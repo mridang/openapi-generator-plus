@@ -18,7 +18,7 @@ require 'tod'
 
 module PetstoreClient
   # Exception raised when serialization or deserialization fails.
-  class SerializationError < StandardError
+  class SerializationError < PetstoreClient::Error
     attr_reader :cause
 
     def initialize(message, cause = nil)
@@ -28,7 +28,7 @@ module PetstoreClient
   end
 
   # Exception raised when data does not match a schema during oneOf/anyOf resolution.
-  class SchemaMismatchError < StandardError; end
+  class SchemaMismatchError < PetstoreClient::Error; end
 
   # Canonical RFC 4122 UUID textual form. Validated on both the
   # deserialize and serialize paths for any `format: uuid` property.
@@ -233,6 +233,21 @@ module PetstoreClient
                                  sanitize_for_serialization(value, visited)
                                end
             end
+            # Re-emit additionalProperties captured on deserialize. They live on
+            # the :additional_properties accessor (outside ATTRIBUTE_MAP) and are
+            # merged back at the top level under their original JSON keys, so a
+            # round-trip preserves undeclared properties.
+            if object.class.const_defined?(:ADDITIONAL_PROPERTIES) && object.class::ADDITIONAL_PROPERTIES &&
+               object.respond_to?(:additional_properties)
+              extras = object.additional_properties
+              if extras.is_a?(Hash)
+                extras.each do |json_key, value|
+                  next if value.nil?
+
+                  hash[json_key] = sanitize_for_serialization(value, visited)
+                end
+              end
+            end
             hash
           ensure
             visited.delete(obj_id)
@@ -293,6 +308,15 @@ module PetstoreClient
         duration_from_protobuf_json(data.to_s)
       when 'Object'
         data
+      when 'ByteArray'
+        # A top-level `type: string, format: byte` response carried as
+        # application/json arrives as a JSON string literal ("dGVzdC1pbWFnZQ==").
+        # By this point #deserialize has JSON-parsed it to the inner base64
+        # string, so base64-decode it to raw bytes — matching the nested
+        # `format: byte` field path (apply_format_on_deserialize) and the
+        # python/go/java/rust SDKs. Returning the inner string undecoded (or
+        # the quoted literal) is the regression this guards against.
+        decode_byte(data)
       when /\AArray<(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
         data.map { |item| convert_to_type(item, sub_type) }
@@ -339,6 +363,25 @@ module PetstoreClient
       return nil unless data.is_a?(Hash)
 
       data = data.transform_keys(&:to_s)
+
+      # unevaluatedProperties:false (OAS 3.1 / JSON Schema 2020-12): reject any
+      # JSON key not declared in the schema. Enforced here against the full raw
+      # payload — before key-filtering below — because deserialize_model never
+      # routes the raw hash through the model's own transform_keys guard (it
+      # builds a clean attribute-keyed hash), so the model-level rejection would
+      # otherwise never see the extras. Aligns with Python's pydantic
+      # extra="forbid". (Models with additionalProperties:true skip this and
+      # capture extras instead — the two are mutually exclusive.)
+      if klass.const_defined?(:UNEVALUATED_PROPERTIES_FALSE) && klass::UNEVALUATED_PROPERTIES_FALSE
+        declared_keys = klass::ATTRIBUTE_MAP.values
+        data.each_key do |json_key|
+          next if declared_keys.include?(json_key)
+
+          raise SerializationError,
+                "Unknown property '#{json_key}' on #{klass} (unevaluatedProperties:false)"
+        end
+      end
+
       # @type var formats: Hash[Symbol, String]
       formats = klass.const_defined?(:OPENAPI_FORMATS) ? klass::OPENAPI_FORMATS : {}
       # @type var transformed: Hash[untyped, untyped]
@@ -356,6 +399,29 @@ module PetstoreClient
                               converted
                             end
       end
+
+      # additionalProperties:true — capture every JSON key not declared in the
+      # schema so a round-trip preserves it. Values are typed via
+      # ADDITIONAL_PROPERTIES_TYPE when the schema declares one, otherwise kept
+      # as-is. Stored on the :additional_properties accessor and re-emitted by
+      # #sanitize_for_serialization. Matches the 10 SDKs that round-trip extras.
+      if klass.const_defined?(:ADDITIONAL_PROPERTIES) && klass::ADDITIONAL_PROPERTIES
+        declared_keys = klass::ATTRIBUTE_MAP.values
+        extra_type = klass.const_defined?(:ADDITIONAL_PROPERTIES_TYPE) ? klass::ADDITIONAL_PROPERTIES_TYPE : nil
+        # @type var extras: Hash[untyped, untyped]
+        extras = {}
+        data.each do |json_key, value|
+          next if declared_keys.include?(json_key)
+
+          extras[json_key] = if value.nil? || extra_type.nil?
+                               value
+                             else
+                               convert_to_type(value, extra_type.to_s)
+                             end
+        end
+        transformed[:additional_properties] = extras unless extras.empty?
+      end
+
       klass.new(transformed)
     end
 

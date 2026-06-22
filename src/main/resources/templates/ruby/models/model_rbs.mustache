@@ -52,6 +52,7 @@ module {{moduleName}}::Models
 {{#additionalPropertiesType}}
     ADDITIONAL_PROPERTIES_TYPE: String
 {{/additionalPropertiesType}}
+    attr_reader additional_properties: Hash[String, untyped]?
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
     UNEVALUATED_PROPERTIES_FALSE: bool

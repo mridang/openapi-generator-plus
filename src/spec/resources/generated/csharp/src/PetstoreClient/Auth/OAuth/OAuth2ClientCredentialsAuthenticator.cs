@@ -93,8 +93,12 @@ public class OAuth2ClientCredentialsAuthenticator
         {
             /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
              * separately before joining with ':' and base64-encoding. */
-            string encodedId = Uri.EscapeDataString(_clientId);
-            string encodedSecret = Uri.EscapeDataString(_clientSecret);
+            string encodedId = Uri
+                .EscapeDataString(_clientId)
+                .Replace("%20", "+", StringComparison.Ordinal);
+            string encodedSecret = Uri
+                .EscapeDataString(_clientSecret)
+                .Replace("%20", "+", StringComparison.Ordinal);
             string credentials = Convert.ToBase64String(
                 System.Text.Encoding.UTF8.GetBytes(encodedId + ":" + encodedSecret)
             );

@@ -69,6 +69,8 @@ module PetstoreClient
         
         scans: 'byte[]',
         
+        biometric_chip: 'byte',
+        
       }
       OPENAPI_FORMATS = openapi_formats.freeze
 
@@ -87,7 +89,7 @@ module PetstoreClient
       attribute :scans, Types::Any.optional.meta(omittable: true)
       # @example null
       attribute :issued_at, Types::Any.optional.meta(omittable: true)
-      # Embedded chip data (OAS 3.1 contentEncoding form)
+      # Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
       # @example null
       attribute :biometric_chip, Types::Any.optional.meta(omittable: true)
     end

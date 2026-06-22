@@ -270,16 +270,26 @@ abstract class BaseApi {
         val data: T? =
             if (response.body.isNotEmpty()) {
                 if (T::class == ByteArray::class) {
-                    // Binary return types must never be JSON-deserialized,
-                    // even when the negotiated response Content-Type is JSON
-                    // (an operation whose Accept set includes application/json
-                    // can still receive raw image bytes). Detect by the target
-                    // type, then recover the raw bytes the way the transport
-                    // encoded them: it base64-encodes binary content types and
-                    // leaves text content types (including JSON) as a decoded
-                    // string, so base64-decode for binary and fall back to
-                    // UTF-8 bytes otherwise.
-                    if (isTextResponseContentType(responseContentType)) {
+                    // Binary return types must never be JSON-deserialized, even
+                    // when the negotiated response Content-Type is JSON (an
+                    // operation whose Accept set includes application/json can
+                    // still receive raw image bytes). Recover the raw bytes the
+                    // way the transport encoded them:
+                    //   * application/json: a top-level `format: byte` value is a
+                    //     JSON string literal ("dGVzdC1pbWFnZQ==") — JSON-parse to
+                    //     strip the quotes/escapes, then base64-decode the inner
+                    //     string to the raw bytes. Returning the quoted literal's
+                    //     UTF-8 bytes (with the `"`) or the un-decoded base64 text
+                    //     would both be wrong.
+                    //   * other text content types: the transport keeps the body
+                    //     as a decoded string, so the raw bytes are its UTF-8.
+                    //   * binary content types: base64-encoded by the transport.
+                    if (headerSelector.isJsonMime(responseContentType)) {
+                        val inner = objectSerializer.deserialize<String>(response.body) ?: ""
+                        java.util.Base64
+                            .getDecoder()
+                            .decode(inner) as T
+                    } else if (isTextResponseContentType(responseContentType)) {
                         response.body.toByteArray(Charsets.UTF_8) as T
                     } else {
                         java.util.Base64

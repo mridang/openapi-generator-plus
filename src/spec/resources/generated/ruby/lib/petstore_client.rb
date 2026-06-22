@@ -55,6 +55,7 @@ require 'petstore_client/client'
 
 # Models
 require 'petstore_client/models/api_response'
+require 'petstore_client/models/availability'
 require 'petstore_client/models/category'
 require 'petstore_client/models/color'
 require 'petstore_client/models/defaults'
@@ -73,8 +74,10 @@ require 'petstore_client/models/pet_with_owner'
 require 'petstore_client/models/photo'
 require 'petstore_client/models/photo_metadata'
 require 'petstore_client/models/photo_metadata_location'
+require 'petstore_client/models/priority'
 require 'petstore_client/models/set_pet_avatar_request'
 require 'petstore_client/models/set_pet_avatar_thumbnail_request'
+require 'petstore_client/models/stock_item'
 require 'petstore_client/models/strict_tag'
 require 'petstore_client/models/surgery'
 require 'petstore_client/models/swatch'
@@ -98,6 +101,7 @@ require 'petstore_client/api/options/set_pet_preferences_options'
 require 'petstore_client/api/options/upload_pet_certificate_options'
 require 'petstore_client/api/options/upload_pet_document_options'
 require 'petstore_client/api/options/get_by_swatch_options'
+require 'petstore_client/api/options/get_stock_item_options'
 
 # :nodoc:
 module PetstoreClient

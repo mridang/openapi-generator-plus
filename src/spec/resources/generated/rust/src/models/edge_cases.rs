@@ -35,10 +35,14 @@ pub struct EdgeCases {
     pub class: Option<String>,
     /// Example: `null`
     #[serde(rename = "return", skip_serializing_if = "Option::is_none")]
-    pub _return: Option<String>,
+    pub r#return: Option<String>,
     /// Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
     /// Example: `null`
-    #[serde(rename = "retryAfter", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "retryAfter",
+        skip_serializing_if = "Option::is_none",
+        with = "crate::proto_duration::option"
+    )]
     pub retry_after: Option<chrono::Duration>,
     /// Absolute expiry instant
     /// Example: `null`
@@ -57,7 +61,7 @@ impl EdgeCases {
             or: None,
             not: None,
             class: None,
-            _return: None,
+            r#return: None,
             retry_after: None,
             expires_at: None,
         }

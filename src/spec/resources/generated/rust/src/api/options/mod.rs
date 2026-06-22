@@ -20,3 +20,5 @@ mod upload_pet_document_options;
 pub use upload_pet_document_options::*;
 mod get_by_swatch_options;
 pub use get_by_swatch_options::*;
+mod get_stock_item_options;
+pub use get_stock_item_options::*;

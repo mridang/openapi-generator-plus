@@ -239,18 +239,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -297,18 +298,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -367,18 +369,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -494,18 +497,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -563,18 +567,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -642,18 +647,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -712,18 +718,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -782,18 +789,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -844,18 +852,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -910,18 +919,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -981,18 +991,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1065,18 +1076,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1128,18 +1140,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1197,18 +1210,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1305,18 +1319,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1468,18 +1483,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1547,18 +1563,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1610,18 +1627,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>
@@ -1678,18 +1696,19 @@ public class PetApi : BaseApi
          * ApiException as any other API failure (carrying the status code,
          * headers and raw body) — never a silent null or a non-SDK
          * exception type. Matches the harmonised cross-SDK canonical. The
-         * `is { }` null check (rather than `?? throw`) compiles for a
-         * value-type return too — e.g. a bare enum, whose `Data` is a
-         * non-nullable value that `??` cannot be applied to. */
-        if (result.Data is { } body)
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
         {
-            return body;
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
         }
-        throw new ApiException(
-            result.StatusCode,
-            "Expected a non-empty response body but none was returned",
-            new Dictionary<string, string>(result.Headers),
-            result.RawBody);
+        return result.Data!;
     }
 
     /// <summary>

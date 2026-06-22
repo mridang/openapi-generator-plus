@@ -536,19 +536,22 @@ class PetApi extends BaseApi {
   }
 
   /// Finds Pets by status
-  @Deprecated('This operation is deprecated.')
   /// `status` Status values that need to be considered for filter
   /// `filter` Filter criteria as key-value pairs
+
   /// ### `status` — Available only
   /// Show only pets currently in stock
   /// ```json
   /// available
   /// ```
+
   /// ### `status` — Sold pets
   /// Show pets that have been sold
   /// ```json
   /// sold
   /// ```
+
+  @Deprecated('This operation is deprecated.')
   Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options) async {
     final result = await findPetsByStatusWithHTTPInfo(options);
     final data = result.data;
@@ -903,18 +906,21 @@ class PetApi extends BaseApi {
 
   /// Find pet by ID
   /// Returns a single pet
-  @Deprecated('This operation is deprecated.')
   /// `petId` ID of pet to return
+
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
   /// ```json
   /// 1
   /// ```
+
   /// ### `petId` — Large breed ID
   /// A common large-breed pet identifier
   /// ```json
   /// 42
   /// ```
+
+  @Deprecated('This operation is deprecated.')
   Future<Pet> getPetById(int petId, GetPetByIdServer? server) async {
     final result = await getPetByIdWithHTTPInfo(petId, server);
     final data = result.data;

@@ -625,6 +625,35 @@ describe PetstoreClient::ObjectSerializer do
         PetstoreClient::ObjectSerializer.deserialize(json, 'TestFormatModel')
       }).must_raise(PetstoreClient::SerializationError)
     end
+
+    it 'base64-decodes a top-level byte response (JSON string literal)' do
+      # A top-level `type: string, format: byte` response carried as
+      # application/json arrives as a JSON string literal. deserialize must
+      # JSON-parse it and then base64-decode the inner string to raw bytes.
+      raw = "test-image".dup.force_encoding(Encoding::BINARY)
+      json = Base64.strict_encode64(raw).to_json
+      result = PetstoreClient::ObjectSerializer.deserialize(json, 'ByteArray')
+      _(result).must_equal(raw)
+      _(result.encoding).must_equal(Encoding::BINARY)
+    end
+  end
+
+  # ── unevaluatedProperties:false (StrictTag, 2.20) ──
+
+  describe 'unevaluatedProperties:false enforcement' do
+    it 'rejects an undeclared key in the raw payload' do
+      json = '{"id":1,"name":"Dogs","rogue":"x"}'
+      _(proc {
+        PetstoreClient::ObjectSerializer.deserialize(json, 'StrictTag')
+      }).must_raise(PetstoreClient::SerializationError)
+    end
+
+    it 'accepts a payload with only declared keys' do
+      result = PetstoreClient::ObjectSerializer.deserialize('{"id":1,"name":"Dogs"}', 'StrictTag')
+      _(result).wont_be_nil
+      _(result.id).must_equal(1)
+      _(result.name).must_equal('Dogs')
+    end
   end
 
   # ── format: uuid (typed UUID surface, 2.2) ──

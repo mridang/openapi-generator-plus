@@ -183,10 +183,13 @@ impl {{classname}} {
         let mut path = "{{{path}}}".to_string();
 {{#pathParams}}
 {{=<% %>=}}
+<%#isArray%>
+        let items: Vec<String> = <%paramName%>.iter().map(|i| object_serializer::to_path_value(i)).collect();
+<%/isArray%>
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "<%baseName%>",
-            Some(&object_serializer::to_path_value(&<%paramName%>)),
-            None,
+            <%#isArray%>None<%/isArray%><%^isArray%>Some(&object_serializer::to_path_value(&<%paramName%>))<%/isArray%>,
+            <%#isArray%>Some(&items)<%/isArray%><%^isArray%>None<%/isArray%>,
             "path",
             "<%dataType%>",
             "",
@@ -221,10 +224,13 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
         })?;
+{{#isArray}}
+        let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
         if let Some(serialized) = value_serializer::serialize_styled(
             "{{baseName}}",
-            Some(&object_serializer::stringify(&opts.{{paramName}})),
-            None,
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
             "query",
             "{{{dataType}}}",
             "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
@@ -246,10 +252,13 @@ impl {{classname}} {
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    Some(&object_serializer::stringify(val)),
-                    None,
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
                     "query",
                     "{{{dataType}}}",
                     "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
@@ -317,10 +326,13 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
         })?;
+{{#isArray}}
+        let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
         if let Some(serialized) = value_serializer::serialize_styled(
             "{{baseName}}",
-            Some(&object_serializer::stringify(&opts.{{paramName}})),
-            None,
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
             "query",
             "{{{dataType}}}",
             "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
@@ -342,10 +354,13 @@ impl {{classname}} {
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    Some(&object_serializer::stringify(val)),
-                    None,
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
                     "query",
                     "{{{dataType}}}",
                     "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
@@ -376,10 +391,13 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
         })?;
+{{#isArray}}
+        let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
-            Some(&object_serializer::stringify(&opts.{{paramName}})),
-            None,
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
             "header",
             "{{{dataType}}}",
             "",
@@ -392,10 +410,13 @@ impl {{classname}} {
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    Some(&object_serializer::stringify(val)),
-                    None,
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
                     "header",
                     "{{{dataType}}}",
                     "",

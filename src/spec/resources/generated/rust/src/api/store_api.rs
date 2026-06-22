@@ -550,6 +550,85 @@ impl StoreApi {
         self.base.invoke_api_for_result::<Order>(params).await
     }
 
+    /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+    /// * `as_of`: Only consider stock as of this instant
+    pub async fn get_stock_item(
+        &self,
+        options: Option<&GetStockItemOptions>,
+    ) -> Result<StockItem, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_stock_item_with_http_info(options).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_stock_item operation and returns the full API result.
+    pub async fn get_stock_item_with_http_info(
+        &self,
+        options: Option<&GetStockItemOptions>,
+    ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/stock-item".to_string();
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.as_of {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "asOf",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "chrono::DateTime<chrono::Utc>",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("asOf".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("asOf".to_string(), v));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "StockItem",
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<StockItem>(params).await
+    }
+
     /// Returns a bare enum (value-type response codegen fixture).
     pub async fn get_swatch(&self) -> Result<Swatch, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_swatch_with_http_info().await?;

@@ -267,7 +267,19 @@ public abstract class BaseApi
             bool binaryTarget =
                 typeof(T) == typeof(System.IO.Stream) || typeof(T) == typeof(byte[]);
 
-            if (binaryTarget)
+            if (typeof(T) == typeof(byte[])
+                && responseContentType != null
+                && HeaderSelector.IsJsonMime(responseContentType))
+            {
+                /* A top-level `format: byte` response carried as application/json
+                   arrives as a JSON string literal (e.g. "dGVzdC1pbWFnZQ==").
+                   JSON-parse it to the inner string, then base64-decode to the
+                   raw bytes — never the UTF-8 bytes of the quoted literal, and
+                   never the un-decoded base64 string. Matches python/go/java/rust. */
+                string base64 = Serializer.Deserialize<string>(response.Body) ?? "";
+                data = (T)(object)Convert.FromBase64String(base64);
+            }
+            else if (binaryTarget)
             {
                 /* The caller expects raw bytes (Stream/byte[]). DefaultApiClient
                    base64-encodes the body for non-text content types and leaves

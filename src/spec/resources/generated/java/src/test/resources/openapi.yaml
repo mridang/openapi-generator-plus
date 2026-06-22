@@ -1038,6 +1038,34 @@ paths:
                     type: integer
                     format: int32
 
+  /store/stock-item:
+    get:
+      tags:
+        - store
+      summary: Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+      operationId: getStockItem
+      security: []
+      parameters:
+        # Optional date-time OPERATION query param. Exercises finding 2.10:
+        # Go's options/api paths emit time.Time without importing "time" when a
+        # date-time appears as an operation parameter (the model path imports it
+        # correctly, but the operation path was masked because petstore only
+        # used date-time in model bodies).
+        - name: asOf
+          in: query
+          required: false
+          description: Only consider stock as of this instant
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockItem'
+
   /store/swatch-groups:
     get:
       tags:
@@ -1882,3 +1910,57 @@ components:
         - red
         - green
         - blue
+
+    # Integer-backed enum component. Exercises the int-enum template path that
+    # 7 SDKs hard-code as String-backed (latent finding 2.29): the backing field
+    # and wire (de)serialization must be int, not String. Dart is the reference.
+    Priority:
+      type: integer
+      format: int32
+      description: Task priority, integer-backed enum
+      enum:
+        - 1
+        - 2
+        - 3
+
+    # String enum whose values are NOT all lowercase. Exercises enum-name
+    # sanitization (2.17/2.18): the "on-hold" value requires variant-name
+    # sanitization (hyphen is not a legal identifier character) and the
+    # non-lowercase "Available"/"Sold" values must round-trip with their wire
+    # casing preserved. NOTE: a declared enum-property `default` is deliberately
+    # omitted -- honoring an enum-typed property default is a generator-wide gap
+    # (only dart/elixir emit the member reference today; kotlin/python/node
+    # silently fall back to null/None and go/ruby/swift mis-render it), so it is
+    # tracked as its own toDefaultValue harmonization pass rather than bundled
+    # into this change.
+    Availability:
+      type: string
+      description: Stock availability, non-lowercase string enum
+      enum:
+        - Available
+        - Sold
+        - on-hold
+
+    # Model carrying the latent shapes the petstore previously masked: an
+    # integer-backed enum field, a non-lowercase string enum field with a
+    # non-lowercase default, and a nested-container property (array of array of
+    # integer) whose leaf is a non-model primitive. The nested container as a
+    # MODEL PROPERTY (not an operation return) exercises the recursive
+    # per-element deserialization path that finding 2.22 found masked.
+    StockItem:
+      type: object
+      required:
+        - priority
+      properties:
+        priority:
+          $ref: '#/components/schemas/Priority'
+        availability:
+          $ref: '#/components/schemas/Availability'
+        matrix:
+          type: array
+          description: Quantity grid as an array of integer arrays
+          items:
+            type: array
+            items:
+              type: integer
+              format: int32

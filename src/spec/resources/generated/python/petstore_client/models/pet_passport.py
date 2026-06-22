@@ -31,10 +31,10 @@ class PetPassport(BaseModel):
         description="Base64-encoded scans of each passport page",
     )
     issued_at: Optional[AwareDatetime] = Field(default=None, alias="issuedAt")
-    biometric_chip: Optional[StrictStr] = Field(
+    biometric_chip: Optional[bytes] = Field(
         default=None,
         alias="biometricChip",
-        description="Embedded chip data (OAS 3.1 contentEncoding form)",
+        description="Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream",
     )
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
@@ -50,6 +50,5 @@ class PetPassport(BaseModel):
 
 from petstore_client.models.pet import Pet
 from pydantic import AwareDatetime
-from pydantic import StrictStr
 
 PetPassport.model_rebuild(raise_errors=False)

@@ -23,6 +23,11 @@
 #![allow(unused_imports)]
 #![allow(unused_mut)]
 #![allow(dead_code)]
+// `non_camel_case_types`: integer-backed enum variants are emitted with the same
+// `NUMBER_<n>` identifiers every other SDK uses (the wire value is the serde_repr
+// discriminant, not the variant name), so the cross-language-consistent names are
+// kept rather than rewriting them to `Number<n>` for Rust alone.
+#![allow(non_camel_case_types)]
 // Clippy style lints that fire on machine-generated code where the "idiomatic"
 // rewrite is not expressible from a template that must cover every spec shape:
 // `new_without_default`: generated `new()` takes required fields, so a blanket

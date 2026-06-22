@@ -16,7 +16,7 @@ defmodule PetstoreClient.Models.PetPassport do
           thumbnail: binary() | nil,
           scans: [binary()] | nil,
           issued_at: DateTime.t() | nil,
-          biometric_chip: String.t() | nil
+          biometric_chip: binary() | nil
         }
 
   defstruct [
@@ -68,7 +68,7 @@ defmodule PetstoreClient.Models.PetPassport do
       thumbnail: "ByteArray",
       scans: "[binary()]",
       issued_at: "DateTime.t()",
-      biometric_chip: "String.t()"
+      biometric_chip: "ByteArray"
     }
   end
 end

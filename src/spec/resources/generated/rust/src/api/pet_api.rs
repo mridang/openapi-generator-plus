@@ -1434,10 +1434,11 @@ impl PetApi {
         let mut query_params: Vec<(String, String)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.colors {
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "colors",
-                    Some(&object_serializer::stringify(val)),
                     None,
+                    Some(&items),
                     "query",
                     "Vec<String>",
                     "pipes",
@@ -1459,10 +1460,11 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.sizes {
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "sizes",
-                    Some(&object_serializer::stringify(val)),
                     None,
+                    Some(&items),
                     "query",
                     "Vec<String>",
                     "ssv",

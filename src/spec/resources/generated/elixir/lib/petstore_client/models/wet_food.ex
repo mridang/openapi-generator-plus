@@ -12,8 +12,8 @@ defmodule PetstoreClient.Models.WetFood do
   """
 
   @type t :: %__MODULE__{
-          volume_ml: integer() | nil,
-          food_type: String.t() | nil
+          volume_ml: integer(),
+          food_type: String.t()
         }
 
   @enforce_keys [

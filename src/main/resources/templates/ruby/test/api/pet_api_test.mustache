@@ -89,10 +89,17 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#get_pet_avatar_thumbnail' do
-    it 'returns a base64-encoded thumbnail' do
+    it 'base64-decodes the top-level byte response to raw bytes' do
+      # The response is a top-level `type: string, format: byte` schema served
+      # as application/json, so it arrives as a JSON string literal
+      # ("dGVzdC1pbWFnZQ=="). The SDK must JSON-parse then base64-decode it to
+      # raw bytes — not return the un-decoded base64 string or the quoted
+      # literal. The mock serves the spec example, which decodes to "test-image".
       result = @api.get_pet_avatar_thumbnail(1)
 
       _(result).wont_be_nil
+      _(result).must_be_kind_of(String)
+      _(result).must_equal('test-image')
     end
   end
 

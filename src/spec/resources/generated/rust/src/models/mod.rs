@@ -6,6 +6,8 @@
 
 mod api_response;
 pub use api_response::*;
+mod availability;
+pub use availability::*;
 mod base64_serde;
 pub use base64_serde::*;
 mod category;
@@ -44,10 +46,14 @@ mod photo_metadata;
 pub use photo_metadata::*;
 mod photo_metadata_location;
 pub use photo_metadata_location::*;
+mod priority;
+pub use priority::*;
 mod set_pet_avatar_request;
 pub use set_pet_avatar_request::*;
 mod set_pet_avatar_thumbnail_request;
 pub use set_pet_avatar_thumbnail_request::*;
+mod stock_item;
+pub use stock_item::*;
 mod strict_tag;
 pub use strict_tag::*;
 mod surgery;

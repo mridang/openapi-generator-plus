@@ -373,6 +373,57 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Order.self)
   }
 
+  /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+  ///
+  /// - Parameters:
+  ///   - asOf: Only consider stock as of this instant
+
+  public func getStockItem(options: GetStockItemOptions? = nil) async throws -> StockItem {
+    let result = try await getStockItemWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for getStockItem",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getStockItem operation and returns the full API result.
+  public func getStockItemWithHTTPInfo(options: GetStockItemOptions? = nil) async throws
+    -> ApiResult<StockItem>
+  {
+
+    let path = "/store/stock-item"
+
+    var queryParams: [String: Any?] = [:]
+    if let options = options, let val = options.asOf {
+      queryParams["asOf"] = ValueSerializer.serializeStyled(
+        "asOf", value: val, location: "query", schemaType: "Date", collectionFormat: "",
+        style: "form", explode: true)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "StockItem",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: StockItem.self)
+  }
+
   /// Returns a bare enum (value-type response codegen fixture).
 
   public func getSwatch() async throws -> Swatch {

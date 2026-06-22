@@ -15,6 +15,7 @@ namespace PetstoreClient.Models;
 /// <summary>
 /// A standalone, reusable colour enumeration
 /// </summary>
+
 [JsonConverter(typeof(ColorConverter))]
 public enum Color
 {

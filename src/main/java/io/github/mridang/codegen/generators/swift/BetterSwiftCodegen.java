@@ -198,6 +198,28 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         property.vendorExtensions.put("isSelfRecursive", true);
     }
 
+    /**
+     * Surfaces {@code format: duration} to the model template under the
+     * {@code isDuration} vendor extension.
+     *
+     * <p>OpenAPI Generator 7.12 has no {@code isDuration} flag on
+     * {@code CodegenProperty}, and {@code duration} maps to {@code TimeInterval}
+     * (a plain {@code Double}). Default {@code Codable} would decode the
+     * protobuf-JSON string literal (e.g. {@code "3600s"}) into a {@code Double}
+     * and throw {@code typeMismatch}, and would encode a bare number rather than
+     * the canonical {@code "3600s"} string. The template reads this flag to route
+     * the property through {@code ObjectSerializer.decodeDuration} /
+     * {@code encodeDuration} (backed by the shipped {@code ISO8601Duration.swift}
+     * helpers). Mirrors {@code BetterKotlinCodegen}.
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {

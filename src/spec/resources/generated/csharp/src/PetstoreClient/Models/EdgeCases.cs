@@ -18,7 +18,7 @@ public class EdgeCases : IEquatable<EdgeCases>
 {
     /// <example>null</example>
     [JsonPropertyName("freeFormAny")]
-    public Object? FreeFormAny { get; set; }
+    public object? FreeFormAny { get; set; }
 
     /// <example>null</example>
     [JsonPropertyName("favoriteColor")]
@@ -70,7 +70,7 @@ public class EdgeCases : IEquatable<EdgeCases>
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || EqualityComparer<Object?>.Default.Equals(this.FreeFormAny, other.FreeFormAny)
+                || EqualityComparer<object?>.Default.Equals(this.FreeFormAny, other.FreeFormAny)
                     && EqualityComparer<Color?>.Default.Equals(this.FavoriteColor, other.FavoriteColor)
                     && EqualityComparer<string?>.Default.Equals(this.PermissionsNote, other.PermissionsNote)
                     && EqualityComparer<bool?>.Default.Equals(this.And, other.And)

@@ -9,6 +9,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Availability",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Category",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -199,6 +208,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Priority",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.SetPetAvatarRequest",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -209,6 +227,15 @@
   },
   {
     "name": "com.example.petstore.models.SetPetAvatarThumbnailRequest",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.StockItem",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,

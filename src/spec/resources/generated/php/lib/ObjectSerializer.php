@@ -387,9 +387,31 @@ class ObjectSerializer
             return $deserialized;
         }
 
+        /* A top-level `format: byte` response carried as application/json is a
+         * JSON string literal holding the base64-encoded bytes (e.g.
+         * "dGVzdC1pbWFnZQ=="). Unlike a non-JSON binary body — which the
+         * transport layer base64-decodes in BaseApi — this body reaches the
+         * deserializer as JSON text, so JSON-parse the literal and then
+         * base64-decode the inner string to recover the raw bytes. Returning
+         * the un-decoded base64 string (or the quoted literal) would diverge
+         * from the byte-decoding SDKs (python/go/java/rust). */
+        if ($class === 'byte') {
+            $data = is_string($data) ? json_decode($data, true) : $data;
+            if ($data === null || $data === '') {
+                return null;
+            }
+            if (!is_string($data)) {
+                throw new \InvalidArgumentException(
+                    "Expected a base64 string for 'byte' but got " . gettype($data)
+                );
+            }
+            $decoded = base64_decode($data, true);
+            return $decoded === false ? $data : $decoded;
+        }
+
         $primitives = [
             'string', 'int', 'integer', 'float', 'number',
-            'bool', 'boolean', 'mixed', 'void', 'byte',
+            'bool', 'boolean', 'mixed', 'void',
         ];
         if (in_array($class, $primitives, true)) {
             /* For int-typed fields use JSON_BIGINT_AS_STRING so json_decode

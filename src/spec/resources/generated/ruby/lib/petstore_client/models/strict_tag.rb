@@ -68,18 +68,13 @@ module PetstoreClient
       end
 
       # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-      # Reject any JSON key not declared in ATTRIBUTE_MAP before dry-struct
-      # tries to coerce it (otherwise dry-struct silently drops extras).
+      # Marker constant read by ObjectSerializer#deserialize_model, which
+      # rejects any undeclared JSON key against the full raw payload before
+      # key-filtering. Enforcement lives in the deserialize path (not a
+      # model-level transform_keys) because deserialize_model passes a clean
+      # attribute-keyed hash to .new, so a model-level guard would never see
+      # the extras (it would silently drop them — the original bug).
       UNEVALUATED_PROPERTIES_FALSE = true
-
-      transform_keys do |key|
-        skey = key.to_s
-        if !JSON_KEY_MAP.key?(skey) && !ATTRIBUTE_MAP.key?(key.to_sym)
-          raise ArgumentError,
-                "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
-        end
-        JSON_KEY_MAP[skey] || key.to_sym
-      end
       # @example null
       attribute :id, Types::Any.optional.meta(omittable: true)
       # @example null

@@ -23,11 +23,14 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -539,6 +542,129 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         return null;
+    }
+
+    /**
+     * Surfaces {@code format: duration} to the Dart model template under a
+     * plain vendor-extension flag. OpenAPI Generator 7.12 has no
+     * {@code isDuration} field on {@code CodegenProperty}, so the model
+     * template's existing duration branch — which routes the property
+     * through {@code parseProtobufDuration} / {@code formatProtobufDuration}
+     * to bridge the protobuf-JSON {@code "<seconds>s"} wire form and Dart's
+     * stdlib {@code Duration} — keys off {@code vendorExtensions.isDuration}.
+     * Mirrors {@code BetterKotlinCodegen}.
+     */
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        propagateEnumRefBackingType(property);
+    }
+
+    /**
+     * A property that is a {@code $ref} to a top-level enum ({@code isEnumRef})
+     * does not inherit the referenced enum's backing primitive, so its own
+     * {@code isInteger}/{@code isLong} flags are false even when the enum is
+     * integer-backed. Dart deserializes such fields with an explicit cast
+     * ({@code Enum.fromJson(json['x'] as int)}), so the template needs the
+     * backing type at the property. Resolve the referenced enum schema and lift
+     * its integer-ness onto the property; string-backed enums are unaffected.
+     */
+    @SuppressWarnings("rawtypes")
+    private void propagateEnumRefBackingType(CodegenProperty property) {
+        if (!property.isEnumRef || this.openAPI == null) {
+            return;
+        }
+        final String enumName = property.complexType != null ? property.complexType : property.dataType;
+        if (enumName == null || openAPI.getComponents() == null) {
+            return;
+        }
+        final Map<String, Schema> schemas = openAPI.getComponents().getSchemas();
+        if (schemas == null) {
+            return;
+        }
+        final Schema referenced = schemas.get(enumName);
+        if (referenced != null && ModelUtils.isIntegerSchema(referenced)) {
+            property.isInteger = true;
+            property.isLong = ModelUtils.isLongSchema(referenced);
+        }
+    }
+
+    /**
+     * Resolves the declared default enum variant identifier after the base
+     * pass has normalized enum default values and computed each enumVar's
+     * {@code nameLowercase}. Runs in {@code postProcessModels} (not
+     * {@code postProcessModelProperty}) because both inputs — the quoted-wire
+     * {@code defaultValue} (set by {@code fixEnumDefaultValue}) and the
+     * {@code nameLowercase} enumVar key (set by the ghost-enum strip) — are
+     * only present here.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model == null) {
+                continue;
+            }
+            for (final CodegenProperty prop : model.vars) {
+                setDefaultEnumVarName(prop);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * For an enum property carrying a schema {@code default}, resolves the
+     * declared variant identifier (the {@code nameLowercase} the model
+     * template uses when it emits the enum's variants) for the variant whose
+     * wire value equals the default, and exposes it as the
+     * {@code defaultEnumVarName} vendor extension.
+     *
+     * <p>The template previously rendered the default as
+     * {@code {{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}}} —
+     * a re-camelcased copy of the wire literal. That coincides with the
+     * declared variant only for single lowercase words; a wire value such as
+     * {@code not-available} or {@code IN_STOCK} would reference a
+     * non-existent constant (variants are declared with {@code nameLowercase},
+     * not a re-camelcased copy). Matching against the actual enumVars keeps
+     * the default pointing at the same identifier the declaration uses.
+     */
+    @SuppressWarnings("unchecked")
+    private static void setDefaultEnumVarName(CodegenProperty property) {
+        if (!property.isEnum
+                || property.defaultValue == null
+                || property.allowableValues == null) {
+            return;
+        }
+        final Object enumVars = property.allowableValues.get("enumVars");
+        if (!(enumVars instanceof List)) {
+            return;
+        }
+        final String wanted = unquote(property.defaultValue);
+        for (final Map<String, Object> ev : (List<Map<String, Object>>) enumVars) {
+            final Object value = ev.get("value");
+            final Object nameLowercase = ev.get("nameLowercase");
+            if (value != null
+                    && nameLowercase != null
+                    && unquote(String.valueOf(value)).equals(wanted)) {
+                property.vendorExtensions.put(
+                        "defaultEnumVarName", String.valueOf(nameLowercase));
+                return;
+            }
+        }
+    }
+
+    /** Strips a single layer of surrounding single or double quotes. */
+    private static String unquote(String literal) {
+        if (literal.length() >= 2
+                && ((literal.charAt(0) == '\''
+                                && literal.charAt(literal.length() - 1) == '\'')
+                        || (literal.charAt(0) == '"'
+                                && literal.charAt(literal.length() - 1) == '"'))) {
+            return literal.substring(1, literal.length() - 1);
+        }
+        return literal;
     }
 
     /**

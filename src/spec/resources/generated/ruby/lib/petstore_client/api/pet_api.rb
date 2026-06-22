@@ -700,7 +700,7 @@ module PetstoreClient
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
-          'String',
+          'ByteArray',
           nil
         )
       end

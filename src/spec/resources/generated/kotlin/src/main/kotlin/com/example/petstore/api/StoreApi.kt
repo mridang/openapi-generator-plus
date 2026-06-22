@@ -15,11 +15,13 @@ import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.GetBySwatchOptions
+import com.example.petstore.api.options.GetStockItemOptions
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
 import com.example.petstore.models.Order
+import com.example.petstore.models.StockItem
 import com.example.petstore.models.Swatch
 import com.example.petstore.models.TreeNode
 import java.time.OffsetDateTime
@@ -283,6 +285,36 @@ class StoreApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Order>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @return StockItem
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getStockItem(options: GetStockItemOptions? = null): StockItem =
+        getStockItemWithHttpInfo(options).data
+            ?: throw ApiException("Expected a response body for getStockItem but the server returned an empty body")
+
+    suspend fun getStockItemWithHttpInfo(options: GetStockItemOptions? = null): ApiResult<StockItem> {
+        var path = "/store/stock-item"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.asOf != null) {
+            queryParams["asOf"] = ValueSerializer.serializeStyled("asOf", options!!.asOf, "query", "OffsetDateTime", null, "form", true)
+        }
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<StockItem>(
             "GET",
             path,
             queryParams,

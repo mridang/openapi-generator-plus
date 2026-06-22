@@ -19,9 +19,9 @@ public struct PetPassport: Codable, Sendable, Equatable, Hashable {
   public var scans: [Data]?
   /// Example: `null`
   public var issuedAt: Date?
-  /// Embedded chip data (OAS 3.1 contentEncoding form)
+  /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
   /// Example: `null`
-  public var biometricChip: String?
+  public var biometricChip: Data?
 
   enum CodingKeys: String, CodingKey {
     case pet = "pet"
@@ -34,7 +34,7 @@ public struct PetPassport: Codable, Sendable, Equatable, Hashable {
   /// Creates a new PetPassport instance.
   public init(
     pet: Pet? = nil, thumbnail: Data? = nil, scans: [Data]? = nil, issuedAt: Date? = nil,
-    biometricChip: String? = nil
+    biometricChip: Data? = nil
   ) {
     self.pet = pet
     self.thumbnail = thumbnail
@@ -59,7 +59,7 @@ public struct PetPassport: Codable, Sendable, Equatable, Hashable {
     self.thumbnail = try container.decodeIfPresent(Data.self, forKey: .thumbnail)
     self.scans = try container.decodeIfPresent([Data].self, forKey: .scans)
     self.issuedAt = try container.decodeIfPresent(Date.self, forKey: .issuedAt)
-    self.biometricChip = try container.decodeIfPresent(String.self, forKey: .biometricChip)
+    self.biometricChip = try container.decodeIfPresent(Data.self, forKey: .biometricChip)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.

@@ -13,6 +13,7 @@
 <linker>
     <assembly fullname="PetstoreClient">
         <type fullname="PetstoreClient.Models.ApiResponse" preserve="all" />
+        <type fullname="PetstoreClient.Models.Availability" preserve="all" />
         <type fullname="PetstoreClient.Models.Category" preserve="all" />
         <type fullname="PetstoreClient.Models.Color" preserve="all" />
         <type fullname="PetstoreClient.Models.Defaults" preserve="all" />
@@ -31,8 +32,10 @@
         <type fullname="PetstoreClient.Models.Photo" preserve="all" />
         <type fullname="PetstoreClient.Models.PhotoMetadata" preserve="all" />
         <type fullname="PetstoreClient.Models.PhotoMetadataLocation" preserve="all" />
+        <type fullname="PetstoreClient.Models.Priority" preserve="all" />
         <type fullname="PetstoreClient.Models.SetPetAvatarRequest" preserve="all" />
         <type fullname="PetstoreClient.Models.SetPetAvatarThumbnailRequest" preserve="all" />
+        <type fullname="PetstoreClient.Models.StockItem" preserve="all" />
         <type fullname="PetstoreClient.Models.StrictTag" preserve="all" />
         <type fullname="PetstoreClient.Models.Surgery" preserve="all" />
         <type fullname="PetstoreClient.Models.Swatch" preserve="all" />

@@ -19,7 +19,7 @@ import (
 {{#model}}
 {{#isEnum}}
 // {{classname}} is an enumeration of allowed values.
-type {{classname}} string
+type {{classname}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
 
 const (
 {{#allowableValues}}
@@ -41,11 +41,23 @@ func All{{classname}}Values() []{{classname}} {
 	}
 }
 
+// String returns the declared wire value of the enum.
+//
+// A parameter passed as *{{classname}} (the shape optional query/header params
+// take) must reach the wire as its declared value, not the fmt-default "%v" of
+// the pointer. Implementing fmt.Stringer lets the shared stringify helper render
+// the value for both the value and pointer forms.
+func (v {{classname}}) String() string {
+{{#isInteger}}	return fmt.Sprintf("%d", int(v))
+{{/isInteger}}{{#isLong}}	return fmt.Sprintf("%d", int64(v))
+{{/isLong}}{{^isInteger}}{{^isLong}}	return string(v)
+{{/isLong}}{{/isInteger}}}
+
 // UnmarshalJSON enforces that the deserialized value is one of the
 // declared enum members and returns an error otherwise. The default
-// json.Unmarshal would silently accept any string, masking spec drift.
+// json.Unmarshal would silently accept any value, masking spec drift.
 func (v *{{classname}}) UnmarshalJSON(data []byte) error {
-	var raw string
+	var raw {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
@@ -56,7 +68,7 @@ func (v *{{classname}}) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %q for enum {{classname}}", raw)
+	return fmt.Errorf("unexpected value %v for enum {{classname}}", raw)
 }
 {{/isEnum}}
 {{^isEnum}}
@@ -77,7 +89,7 @@ func (v *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#vars}}
 {{#isEnum}}
 // {{classname}}{{enumName}} is the typed enum for {{classname}}.{{name}}.
-type {{classname}}{{enumName}} string
+type {{classname}}{{enumName}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
 
 const (
 {{#allowableValues}}
@@ -98,10 +110,18 @@ func All{{classname}}{{enumName}}Values() []{{classname}}{{enumName}} {
 	}
 }
 
+// String returns the declared wire value of the enum, so the shared stringify
+// helper renders the value rather than the fmt-default "%v" of a pointer.
+func (v {{classname}}{{enumName}}) String() string {
+{{#isInteger}}	return fmt.Sprintf("%d", int(v))
+{{/isInteger}}{{#isLong}}	return fmt.Sprintf("%d", int64(v))
+{{/isLong}}{{^isInteger}}{{^isLong}}	return string(v)
+{{/isLong}}{{/isInteger}}}
+
 // UnmarshalJSON validates the value is one of the declared
 // enum members at deserialise time.
 func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
-	var raw string
+	var raw {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
@@ -112,7 +132,7 @@ func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %q for enum {{classname}}{{enumName}}", raw)
+	return fmt.Errorf("unexpected value %v for enum {{classname}}{{enumName}}", raw)
 }
 
 {{/isEnum}}

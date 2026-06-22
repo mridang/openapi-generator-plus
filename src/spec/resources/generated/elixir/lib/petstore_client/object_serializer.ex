@@ -295,15 +295,31 @@ defmodule PetstoreClient.ObjectSerializer do
           %{}
         end
 
-      Enum.reduce(attr_map, %{}, fn {attr, json_key}, acc ->
-        value = Map.get(struct, attr)
+      declared =
+        Enum.reduce(attr_map, %{}, fn {attr, json_key}, acc ->
+          value = Map.get(struct, attr)
 
-        if is_nil(value) do
-          acc
-        else
-          Map.put(acc, json_key, sanitize_field_value(value, Map.get(types, attr)))
-        end
-      end)
+          if is_nil(value) do
+            acc
+          else
+            Map.put(acc, json_key, sanitize_field_value(value, Map.get(types, attr)))
+          end
+        end)
+
+      # 2.19 additionalProperties round-trip: re-emit any undeclared keys
+      # captured into the struct's `additional_properties` map on deserialize,
+      # so they survive serialization. Declared fields always win over a
+      # captured extra of the same JSON key.
+      extras = Map.get(struct, :additional_properties)
+
+      if is_map(extras) and map_size(extras) > 0 do
+        sanitized_extras =
+          Map.new(extras, fn {k, v} -> {to_string(k), sanitize_for_serialization(v)} end)
+
+        Map.merge(sanitized_extras, declared)
+      else
+        declared
+      end
     else
       struct
       |> Map.from_struct()
@@ -325,6 +341,23 @@ defmodule PetstoreClient.ObjectSerializer do
     Base.encode64(value)
   end
 
+  # 2.18 named enum field — the field carries an atom whose name is the
+  # lowercased constant, which is NOT necessarily the wire value (e.g.
+  # `:great_dane` -> "GreatDane"). The enum module's `value/1` is the only
+  # function that knows the true wire mapping, so route the atom through it.
+  # Inline property enums ("Enum<a,b,c>") keep atom-name == wire value and
+  # fall through to the catch-all below.
+  defp sanitize_field_value(value, type)
+       when is_atom(value) and is_binary(type) and value not in [nil, true, false] do
+    module = resolve_model_module(type)
+
+    if function_exported?(module, :value, 1) do
+      module.value(value)
+    else
+      sanitize_for_serialization(value)
+    end
+  end
+
   defp sanitize_field_value(value, _type), do: sanitize_for_serialization(value)
 
   @doc """
@@ -336,25 +369,36 @@ defmodule PetstoreClient.ObjectSerializer do
   # Strict primitive type-check. Aligns Elixir with Java/Kotlin/C#/Go/
   # Swift/Rust which throw on type mismatch — server bugs surface as
   # ArgumentError instead of being silently coerced ("42" -> 42 etc).
-  def convert_to_type(data, "String") when is_binary(data), do: data
+  # The strict primitive clauses match both the bare capitalized literal and
+  # the Elixir typespec form ("String.t()", "integer()", "float()",
+  # "boolean()") that `openapi_types/0` emits via the codegen's typeMapping,
+  # mirroring the Time/Duration clauses below. Without the typespec-form
+  # alternative every model primitive field skipped validation (and the
+  # int->float coercion) because the descriptor never matched.
+  def convert_to_type(data, type) when type in ["String", "String.t()"] and is_binary(data),
+    do: data
 
-  def convert_to_type(data, "String"),
+  def convert_to_type(data, type) when type in ["String", "String.t()"],
     do: raise(ArgumentError, "Expected String, got #{inspect(data)}")
 
-  def convert_to_type(data, "Integer") when is_integer(data), do: data
+  def convert_to_type(data, type) when type in ["Integer", "integer()"] and is_integer(data),
+    do: data
 
-  def convert_to_type(data, "Integer"),
+  def convert_to_type(data, type) when type in ["Integer", "integer()"],
     do: raise(ArgumentError, "Expected Integer, got #{inspect(data)}")
 
-  def convert_to_type(data, "Float") when is_float(data), do: data
-  def convert_to_type(data, "Float") when is_integer(data), do: data / 1
+  def convert_to_type(data, type) when type in ["Float", "float()"] and is_float(data), do: data
 
-  def convert_to_type(data, "Float"),
+  def convert_to_type(data, type) when type in ["Float", "float()"] and is_integer(data),
+    do: data / 1
+
+  def convert_to_type(data, type) when type in ["Float", "float()"],
     do: raise(ArgumentError, "Expected Float/Integer, got #{inspect(data)}")
 
-  def convert_to_type(data, "Boolean") when is_boolean(data), do: data
+  def convert_to_type(data, type) when type in ["Boolean", "boolean()"] and is_boolean(data),
+    do: data
 
-  def convert_to_type(data, "Boolean"),
+  def convert_to_type(data, type) when type in ["Boolean", "boolean()"],
     do: raise(ArgumentError, "Expected Boolean, got #{inspect(data)}")
 
   def convert_to_type(data, "Object"), do: data
@@ -376,6 +420,27 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, "ByteArray"),
     do: raise(ArgumentError, "Expected base64 String for ByteArray, got #{inspect(data)}")
 
+  # 2.4 / 3.3: `format: byte` leaves carried inside a typespec descriptor
+  # arrive as `binary()` — either the element type of an array of bytes
+  # (the codegen emits "[binary()]" and the array clause peels it to
+  # "binary()") or a top-level bare byte response carried as
+  # application/json (a JSON string literal, parsed by deserialize/2 to
+  # the inner base64 string). In both cases the wire form is base64; decode
+  # it to native Elixir bytes, mirroring the "ByteArray" clause above.
+  def convert_to_type(data, "binary()") when is_binary(data) do
+    case Base.decode64(data) do
+      {:ok, bytes} ->
+        bytes
+
+      :error ->
+        raise PetstoreClient.SerializationError,
+          message: "Invalid base64 payload for binary() field: #{inspect(data)}"
+    end
+  end
+
+  def convert_to_type(data, "binary()"),
+    do: raise(ArgumentError, "Expected base64 String for binary(), got #{inspect(data)}")
+
   # 2.2 format: uuid — RFC 4122 canonical 8-4-4-4-12 hex form, case
   # insensitive. Validated at construction; invalid payloads surface as
   # SerializationError instead of silently propagating an arbitrary
@@ -394,14 +459,18 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, "UUID"),
     do: raise(ArgumentError, "Expected UUID String, got #{inspect(data)}")
 
-  def convert_to_type(data, "DateTime") do
+  # Matches both the bare name and the typespec form ("DateTime.t()") that
+  # `openapi_types/0` emits via the codegen's typeMapping, mirroring the
+  # Time/Duration clauses below. Without the typespec-form alternative the
+  # descriptor never matched and the raw ISO-8601 string was returned.
+  def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] do
     case DateTime.from_iso8601(to_string(data)) do
       {:ok, dt, _offset} -> dt
       _ -> data
     end
   end
 
-  def convert_to_type(data, "Date") do
+  def convert_to_type(data, type) when type in ["Date", "Date.t()"] do
     case Date.from_iso8601(to_string(data)) do
       {:ok, d} -> d
       _ -> data
@@ -677,7 +746,46 @@ defmodule PetstoreClient.ObjectSerializer do
         end
       end)
 
+    transformed = capture_additional_properties(transformed, data, module, attr_map)
+
     struct(module, transformed)
+  end
+
+  # 2.19 additionalProperties round-trip: when the model declares
+  # `additional_properties/0 == true`, undeclared wire keys are not discarded
+  # but captured into the struct's `additional_properties` map so they survive
+  # a deserialize/serialize round-trip. Values are type-converted through
+  # `additional_properties_type/0` when the model declares a value type.
+  # Matches the round-trip behaviour of Python/Go/Java/Node/etc.
+  defp capture_additional_properties(transformed, data, module, attr_map) do
+    if function_exported?(module, :additional_properties, 0) and module.additional_properties() do
+      declared = attr_map |> Map.values() |> MapSet.new()
+
+      value_type =
+        if function_exported?(module, :additional_properties_type, 0) do
+          module.additional_properties_type()
+        else
+          nil
+        end
+
+      extras =
+        data
+        |> Enum.reject(fn {key, _v} -> MapSet.member?(declared, key) end)
+        |> Map.new(fn {key, value} ->
+          converted =
+            if is_nil(value) or is_nil(value_type) do
+              value
+            else
+              convert_to_type(value, to_string(value_type))
+            end
+
+          {key, converted}
+        end)
+
+      Map.put(transformed, :additional_properties, extras)
+    else
+      transformed
+    end
   end
 
   defp deserialize_model(_data, _module), do: nil
@@ -792,7 +900,11 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  defp resolve_model_module(type_name) do
+  @doc false
+  # Resolves a type-name string to its generated module atom, ensuring the
+  # module is loaded so `function_exported?/3` introspection is reliable.
+  # Public so ValueSerializer can resolve enum modules for wire-value mapping.
+  def resolve_model_module(type_name) do
     module =
       try do
         Module.concat([PetstoreClient, Models, type_name])

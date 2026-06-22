@@ -589,6 +589,46 @@ func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, stri
 			if _, err := part.Write(v); err != nil {
 				return nil, "", err
 			}
+		case *os.File:
+			// *os.File is the SDK's own file type; without this case it would
+			// fall to the default branch and json.Marshal to "{}", silently
+			// corrupting the upload. Stream it as a file part for parity with
+			// base_api's writeMultipartField.
+			if v == nil {
+				continue
+			}
+			if err := validateMultipartFilename(fieldName); err != nil {
+				return nil, "", err
+			}
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
+			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := v.Seek(0, io.SeekStart); err != nil {
+				return nil, "", fmt.Errorf("failed to rewind multipart file %q: %w", fieldName, err)
+			}
+			if _, err := io.Copy(part, v); err != nil {
+				return nil, "", err
+			}
+		case io.Reader:
+			if err := validateMultipartFilename(fieldName); err != nil {
+				return nil, "", err
+			}
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
+			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := io.Copy(part, v); err != nil {
+				return nil, "", err
+			}
 		case string:
 			if err := writer.WriteField(fieldName, v); err != nil {
 				return nil, "", err

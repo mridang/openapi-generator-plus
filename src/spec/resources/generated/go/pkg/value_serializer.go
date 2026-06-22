@@ -12,6 +12,7 @@ package petstore
 import (
 	"fmt"
 	"net/url"
+	"reflect"
 	"strings"
 )
 
@@ -136,7 +137,19 @@ func serializeStyled(paramName string, value any, location, schemaType, collecti
 	 * case that slips through it. panic is appropriate because this
 	 * is a programmer error, not a recoverable runtime condition. */
 	if location == "path" {
-		if s, ok := value.(string); ok && s == "" {
+		/* A named string enum path param (e.g. Swatch) has dynamic type Swatch,
+		 * not string, so a plain `value.(string)` assertion misses an empty
+		 * zero-value enum. Dereference any pointer and inspect the underlying
+		 * kind via reflection so a string-kinded value of any named type is
+		 * caught. */
+		rv := reflect.ValueOf(value)
+		if rv.Kind() == reflect.Ptr {
+			if rv.IsNil() {
+				panic(fmt.Sprintf("path parameter '%s' must not be empty", paramName))
+			}
+			rv = rv.Elem()
+		}
+		if rv.Kind() == reflect.String && rv.String() == "" {
 			panic(fmt.Sprintf("path parameter '%s' must not be empty", paramName))
 		}
 	}

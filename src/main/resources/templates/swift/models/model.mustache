@@ -5,7 +5,7 @@ import Foundation
 {{#model}}
 {{#isEnum}}
 /// {{classname}} is an enumeration of allowed values.
-public enum {{classname}}: String, Codable, Sendable, CaseIterable {
+public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable {
 {{#allowableValues}}
 {{#enumVars}}
     case {{name}} = {{{value}}}
@@ -31,7 +31,7 @@ public enum {{classname}}: String, Codable, Sendable, CaseIterable {
 {{#vars}}
 {{#isEnum}}
 /// Typed enum for {{classname}}.{{name}}.
-public enum {{classname}}{{enumName}}: String, Codable, Sendable, CaseIterable {
+public enum {{classname}}{{enumName}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable {
 {{#allowableValues}}
 {{#enumVars}}
     case {{name}} = {{{value}}}
@@ -103,6 +103,15 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+        self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
+{{/required}}
+{{^required}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
 {{#required}}
         self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/required}}
@@ -116,6 +125,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/defaultValue}}
 {{/required}}
+{{/vendorExtensions.isDuration}}
 {{/vars}}
 {{#isUnevaluatedPropertiesFalse}}
         /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -144,12 +154,22 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+        try container.encode(ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
 {{#required}}
         try container.encode({{name}}, forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}, forKey: .{{name}})
 {{/required}}
+{{/vendorExtensions.isDuration}}
 {{/vars}}
     }
 {{/hasVars}}
@@ -180,6 +200,15 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+        self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
+{{/required}}
+{{^required}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
 {{#required}}
         self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/required}}
@@ -193,6 +222,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/defaultValue}}
 {{/required}}
+{{/vendorExtensions.isDuration}}
 {{/vars}}
 
         /* Decode additional properties */
@@ -211,12 +241,22 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+        try container.encode(ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
 {{#required}}
         try container.encode({{name}}, forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}, forKey: .{{name}})
 {{/required}}
+{{/vendorExtensions.isDuration}}
 {{/vars}}
 
         /* Encode additional properties */

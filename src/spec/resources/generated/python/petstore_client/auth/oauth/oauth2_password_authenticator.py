@@ -101,10 +101,10 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
         if self.client_auth_method == ClientAuthMethod.BASIC:
             # RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
             # separately before joining with ':' and base64-encoding.
-            from urllib.parse import quote
+            from urllib.parse import quote_plus
 
-            encoded_id = quote(self.client_id, safe="")
-            encoded_secret = quote(self.client_secret, safe="")
+            encoded_id = quote_plus(self.client_id)
+            encoded_secret = quote_plus(self.client_secret)
             credentials = base64.b64encode(
                 f"{encoded_id}:{encoded_secret}".encode("utf-8")
             ).decode("ascii")

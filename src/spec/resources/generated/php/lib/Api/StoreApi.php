@@ -20,6 +20,7 @@ use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
+use PetstoreClient\Api\Options\GetStockItemOptions;
 use PetstoreClient\Models\Swatch;
 
 /**
@@ -521,6 +522,74 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             '\PetstoreClient\Models\Order'
+        );
+        return $result;
+    }
+
+    /**
+     * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+
+     * @param GetStockItemOptions $options Options for query, header, form, and cookie parameters
+
+     * @return \PetstoreClient\Models\StockItem
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getStockItem(?GetStockItemOptions $options = null)
+    {
+        $apiResult = $this->getStockItemWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getStockItem but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\StockItem $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @param GetStockItemOptions $options Options for query, header, form, and cookie parameters
+
+     * @return ApiResult<\PetstoreClient\Models\StockItem>
+     * @throws \PetstoreClient\ApiException
+     */
+    public function getStockItemWithHttpInfo(?GetStockItemOptions $options = null): ApiResult
+    {
+        $path = '/store/stock-item';
+        $queryParams = [];
+        if ($options !== null && $options->asOf !== null) {
+            $queryParams['asOf'] = ValueSerializer::serializeStyled(
+                'asOf',
+                $options->asOf,
+                'query',
+                '\DateTime',
+                null,
+                'form',
+                true,
+            );
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\StockItem> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\StockItem'
         );
         return $result;
     }

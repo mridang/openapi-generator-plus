@@ -12,11 +12,13 @@ defmodule PetstoreClient.Models.Metadata do
   """
 
   @type t :: %__MODULE__{
-          created_at: DateTime.t() | nil
+          created_at: DateTime.t() | nil,
+          additional_properties: %{String.t() => any()}
         }
 
   defstruct [
-    :created_at
+    :created_at,
+    additional_properties: %{}
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
