@@ -304,13 +304,9 @@ async fn test_pet_api_upload_pet_certificate() {
 #[tokio::test]
 async fn test_pet_api_upload_pet_document() {
     let api = new_pet_api_for_integration();
-    let opts = UploadPetDocumentOptions::new()
+    let opts = UploadPetDocumentOptions::new(b"document-content".to_vec())
         .document_type("vaccination_record".to_string())
         .notes("Annual checkup".to_string());
-    let opts = UploadPetDocumentOptions {
-        file: b"document-content".to_vec(),
-        ..opts
-    };
     let result = api.upload_pet_document(1, Some(&opts)).await;
     assert!(
         result.is_ok(),

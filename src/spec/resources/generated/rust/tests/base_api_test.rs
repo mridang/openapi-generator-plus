@@ -682,12 +682,8 @@ async fn test_set_pet_preferences_form_body_wire_format() {
     let api = PetApi::new(client.clone(), config, None);
 
     // `note` is intentionally left unset (None) to exercise null-omission.
-    let opts =
-        SetPetPreferencesOptions::new().tags(vec!["fluffy".to_string(), "very good".to_string()]);
-    let opts = SetPetPreferencesOptions {
-        nickname: "Good Boy".to_string(),
-        ..opts
-    };
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .tags(vec!["fluffy".to_string(), "very good".to_string()]);
     let _ = api.set_pet_preferences(1, Some(&opts)).await;
 
     let body = client.captured_body.lock().unwrap();
@@ -748,10 +744,7 @@ async fn test_set_pet_preferences_sends_form_content_type() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let opts = SetPetPreferencesOptions {
-        nickname: "Rex".to_string(),
-        ..SetPetPreferencesOptions::new()
-    };
+    let opts = SetPetPreferencesOptions::new("Rex".to_string());
     let _ = api.set_pet_preferences(1, Some(&opts)).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
