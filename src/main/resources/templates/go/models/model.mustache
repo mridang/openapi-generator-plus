@@ -18,7 +18,7 @@ import (
 {{#models}}
 {{#model}}
 {{#isEnum}}
-// {{classname}} {{#description}}{{{description}}}{{/description}}{{^description}}is an enumeration of allowed values.{{/description}}
+// {{classname}} {{#description}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/description}}{{^description}}is an enumeration of allowed values.{{/description}}
 type {{classname}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
 
 const (
@@ -75,7 +75,7 @@ func (v *{{classname}}) UnmarshalJSON(data []byte) error {
 {{^oneOf}}
 {{^anyOf}}
 {{#description}}
-// {{classname}} {{{.}}}
+// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 // {{classname}} is a model class generated from the OpenAPI schema.
@@ -140,7 +140,7 @@ func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
 type {{classname}} struct {
 {{#vars}}
 {{#description}}
-	/* {{name}} {{{.}}} */
+	/* {{name}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/description}}
 {{#vendorExtensions.pluralExamples}}
 	// {{summary}} — {{value}}
@@ -419,7 +419,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#oneOf}}
 {{#-first}}
 {{#description}}
-// {{classname}} {{{.}}}
+// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 // {{classname}} is a union type (oneOf).
@@ -485,7 +485,7 @@ func (o *{{classname}}) Value() any {
 {{#anyOf}}
 {{#-first}}
 {{#description}}
-// {{classname}} {{{.}}}
+// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 // {{classname}} is a union type (anyOf).

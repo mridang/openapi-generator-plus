@@ -11,7 +11,7 @@ import { {{classname}} } from './{{filename}}{{importFileExtension}}';
 
 {{#description}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/description}}
 export enum {{classname}} {
@@ -29,7 +29,7 @@ export enum {{classname}} {
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -42,14 +42,14 @@ export enum {{classname}} {
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see {@link {{url}}} {{description}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -96,7 +96,7 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -109,14 +109,14 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see {@link {{url}}} {{description}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -170,7 +170,7 @@ import { Decimal } from '../brand{{importFileExtension}}';
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -183,14 +183,14 @@ import { Decimal } from '../brand{{importFileExtension}}';
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see {@link {{url}}} {{description}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -206,7 +206,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#description}}
   /**
-   * {{{.}}}
+   * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{#example}}
    * @example {{{.}}}
 {{/example}}

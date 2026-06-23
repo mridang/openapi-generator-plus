@@ -24,7 +24,7 @@ export class EdgeCases {
   @Expose({ name: "favoriteColor" })
   favoriteColor?: Color;
   /**
-   * Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+   * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
    * @example null
    */
   @Expose({ name: "permissionsNote" })
@@ -45,7 +45,7 @@ export class EdgeCases {
   @Expose({ name: "return" })
   return?: string;
   /**
-   * Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+   * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
    * @example null
    */
   @Expose({ name: "retryAfter" })

@@ -8,7 +8,7 @@ use super::*;
 {{#isEnum}}
 {{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
 {{#description}}
-/// {{{description}}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is an enumeration of allowed values.
@@ -43,7 +43,7 @@ impl {{classname}} {
 {{^oneOf}}
 {{^anyOf}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a model class generated from the OpenAPI schema.
@@ -122,7 +122,7 @@ fn default_{{name}}() -> Option<{{{dataType}}}> {
 pub struct {{classname}} {
 {{#vars}}
 {{#description}}
-    /// {{{.}}}
+    /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{#example}}
     /// Example: `{{{.}}}`
@@ -255,7 +255,7 @@ impl Default for {{classname}} {
 {{#oneOf}}
 {{#-first}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (oneOf).
@@ -328,7 +328,7 @@ pub enum {{classname}} {
 {{#anyOf}}
 {{#-first}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (anyOf).

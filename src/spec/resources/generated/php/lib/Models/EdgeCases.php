@@ -30,7 +30,7 @@ class EdgeCases
     public ?\PetstoreClient\Models\Color $favoriteColor = null;
 
     /**
-     * Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+     * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
      * @example null
      */
     #[SerializedName('permissionsNote')]
@@ -57,7 +57,7 @@ class EdgeCases
     public ?string $return_ = null;
 
     /**
-     * Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+     * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
      * @example null
      */
     #[SerializedName('retryAfter')]

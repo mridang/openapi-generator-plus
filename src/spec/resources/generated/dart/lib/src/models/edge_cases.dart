@@ -23,7 +23,7 @@ class EdgeCases {
   /// Example: `null`
   final Color? favoriteColor;
 
-  /// Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+  /// Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
   /// Example: `null`
   final String? permissionsNote;
 
@@ -42,7 +42,7 @@ class EdgeCases {
   /// Example: `null`
   final String? return_;
 
-  /// Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+  /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
   /// Example: `null`
   final Duration? retryAfter;
 

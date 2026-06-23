@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.generators;
 
+import com.google.common.collect.ImmutableMap;
 import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
@@ -1799,6 +1800,43 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
             }
         }
+    }
+
+    /**
+     * Registers the {@code unescapeDocComment} Mustache lambda. A description is
+     * pre-escaped for string-literal use (a quote becomes {@code \"}); wrapping a
+     * doc comment's description in this lambda reverses that escaping so the
+     * comment prose reads naturally.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "unescapeDocComment",
+                        (fragment, writer) ->
+                                writer.write(unescapeDocComment(fragment.execute())));
+    }
+
+    /** Reverses string-literal escaping for doc-comment prose. */
+    @Nullable
+    private static String unescapeDocComment(@Nullable String text) {
+        if (text == null) {
+            return null;
+        }
+        final StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\' && i + 1 < text.length()) {
+                final char next = text.charAt(i + 1);
+                if (next == '"' || next == '\\') {
+                    sb.append(next);
+                    i++;
+                    continue;
+                }
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     /**

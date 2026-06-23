@@ -13,7 +13,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public var freeFormAny: AnyCodable?
   /// Example: `null`
   public var favoriteColor: Color?
-  /// Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+  /// Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
   /// Example: `null`
   public var permissionsNote: String?
   /// Example: `null`
@@ -26,7 +26,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public var _class: String?
   /// Example: `null`
   public var _return: String?
-  /// Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+  /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
   /// Example: `null`
   public var retryAfter: TimeInterval?
   /// Absolute expiry instant

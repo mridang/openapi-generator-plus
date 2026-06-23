@@ -18,7 +18,7 @@ import '{{filename}}.dart';
 {{#isEnum}}
 {{#isInteger}}
 {{#description}}
-/// {{{description}}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is an enumeration of allowed integer values.
@@ -52,7 +52,7 @@ enum {{classname}} {
 {{^isInteger}}
 {{#isLong}}
 {{#description}}
-/// {{{description}}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is an enumeration of allowed integer values.
@@ -85,7 +85,7 @@ enum {{classname}} {
 {{/isLong}}
 {{^isLong}}
 {{#description}}
-/// {{{description}}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is an enumeration of allowed values.
@@ -124,7 +124,7 @@ enum {{classname}} {
 {{^isPrimitiveOneOf}}
 {{^isPrimitiveAnyOf}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a model class generated from the OpenAPI schema.
@@ -228,7 +228,7 @@ enum {{classname}}{{enumName}} {
 class {{classname}} {
 {{#vars}}
 {{#description}}
-  /// {{{.}}}
+  /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{#example}}
   /// Example: `{{{.}}}`
@@ -698,7 +698,7 @@ class {{classname}} {
 {{/isPrimitiveOneOf}}
 {{#isPrimitiveOneOf}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (oneOf) of primitive/array variants.
@@ -797,7 +797,7 @@ class {{classname}} {
 {{/isPrimitiveOneOf}}
 {{#isPrimitiveAnyOf}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (anyOf) of primitive/array variants.
@@ -899,7 +899,7 @@ class {{classname}} {
 {{#oneOf}}
 {{#-first}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (oneOf).
@@ -964,7 +964,7 @@ class {{classname}} {
 {{#anyOf}}
 {{#-first}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (anyOf).

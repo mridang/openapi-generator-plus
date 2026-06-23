@@ -22,7 +22,7 @@ import kotlinx.serialization.json.JsonClassDiscriminator
 {{#isEnum}}
 {{#isInteger}}
 {{#description}}
-/** {{{.}}} */
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/description}}
 @Serializable(with = {{classname}}.Serializer::class)
 enum class {{classname}}(val value: Int) {
@@ -56,7 +56,7 @@ enum class {{classname}}(val value: Int) {
 {{^isInteger}}
 {{#isLong}}
 {{#description}}
-/** {{{.}}} */
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/description}}
 @Serializable(with = {{classname}}.Serializer::class)
 enum class {{classname}}(val value: Long) {
@@ -89,7 +89,7 @@ enum class {{classname}}(val value: Long) {
 {{/isLong}}
 {{^isLong}}
 {{#description}}
-/** {{{.}}} */
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/description}}
 @Serializable
 enum class {{classname}}(val value: String) {
@@ -115,7 +115,7 @@ enum class {{classname}}(val value: String) {
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -129,13 +129,13 @@ enum class {{classname}}(val value: String) {
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see <a href="{{url}}">{{description}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
-/** {{{.}}} */
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/externalDocumentation}}
 {{/description}}
 {{^description}}
@@ -309,7 +309,7 @@ class {{classname}}(
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -323,13 +323,13 @@ class {{classname}}(
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see <a href="{{url}}">{{description}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
-/** {{{.}}} */
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/externalDocumentation}}
 {{/description}}
 {{^description}}
@@ -413,7 +413,7 @@ class {{classname}}(
 {{#isDeprecated}}
 {{#description}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
@@ -435,13 +435,13 @@ class {{classname}}(
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see <a href="{{url}}">{{description}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
-/** {{{.}}} */
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/externalDocumentation}}
 {{/description}}
 {{^description}}
@@ -460,7 +460,7 @@ class {{classname}}(
   {{#deprecated}}
   {{#description}}
   /**
-   * {{{.}}}
+   * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
    *
   {{#example}}
    * Example: `{{{.}}}`
@@ -487,13 +487,13 @@ class {{classname}}(
   {{#description}}
   {{#example}}
   /**
-   * {{{description}}}
+   * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
    *
    * Example: `{{{example}}}`
    */
   {{/example}}
   {{^example}}
-  /** {{{.}}} */
+  /** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
   {{/example}}
   {{/description}}
   {{^description}}

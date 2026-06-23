@@ -13,7 +13,7 @@ namespace {{packageName}}.Models;
 
 {{#description}}
 /// <summary>
-/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 {{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
@@ -84,7 +84,7 @@ namespace {{packageName}}.Models;
 {{#isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 /// <remarks>Deprecated.</remarks>
@@ -96,7 +96,7 @@ namespace {{packageName}}.Models;
 {{^isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 {{#externalDocumentation}}
@@ -180,7 +180,7 @@ namespace {{packageName}}.Models;
 {{#isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 /// <remarks>Deprecated.</remarks>
@@ -192,7 +192,7 @@ namespace {{packageName}}.Models;
 {{^isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 {{#externalDocumentation}}
@@ -238,7 +238,7 @@ namespace {{packageName}}.Models;
 
 {{#description}}
 /// <summary>
-/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 {{#hasRequired}}
@@ -340,7 +340,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {{#vars}}
     {{#description}}
     /// <summary>
-    /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+    /// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
     /// </summary>
     {{/description}}
 {{#example}}
@@ -553,7 +553,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {{#vars}}
     {{#description}}
     /// <summary>
-    /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+    /// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
     /// </summary>
     {{/description}}
 {{#example}}

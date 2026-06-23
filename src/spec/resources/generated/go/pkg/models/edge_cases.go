@@ -18,14 +18,14 @@ import (
 type EdgeCases struct {
 	FreeFormAny   *any   `json:"freeFormAny,omitempty"`
 	FavoriteColor *Color `json:"favoriteColor,omitempty"`
-	/* PermissionsNote Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it) */
+	/* PermissionsNote Required permission is "user.grant.write" for <admin> & owner roles (don't skip it) */
 	PermissionsNote *string `json:"permissionsNote,omitempty"`
 	And             *bool   `json:"and,omitempty"`
 	Or              *bool   `json:"or,omitempty"`
 	Not             *bool   `json:"not,omitempty"`
 	Class           *string `json:"class,omitempty"`
 	Return          *string `json:"return,omitempty"`
-	/* RetryAfter Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\") */
+	/* RetryAfter Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
 	RetryAfter *string `json:"retryAfter,omitempty"`
 	/* ExpiresAt Absolute expiry instant */
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`

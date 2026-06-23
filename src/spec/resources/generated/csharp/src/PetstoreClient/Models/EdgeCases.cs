@@ -25,7 +25,7 @@ public class EdgeCases : IEquatable<EdgeCases>
     public Color? FavoriteColor { get; set; }
 
     /// <summary>
-    /// <![CDATA[Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)]]>
+    /// <![CDATA[Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)]]>
     /// </summary>
     /// <example>null</example>
     [JsonPropertyName("permissionsNote")]
@@ -52,7 +52,7 @@ public class EdgeCases : IEquatable<EdgeCases>
     public string? Return { get; set; }
 
     /// <summary>
-    /// Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+    /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
     /// </summary>
     /// <example>null</example>
     [JsonPropertyName("retryAfter")]

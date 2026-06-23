@@ -62,7 +62,7 @@ enum {{classname}}: string
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -75,14 +75,14 @@ enum {{classname}}: string
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see {{url}} {{description}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -172,7 +172,7 @@ class {{classname}}
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -185,14 +185,14 @@ class {{classname}}
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see {{url}} {{description}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -241,7 +241,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
@@ -254,14 +254,14 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
  * @see {{url}} {{description}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -319,7 +319,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#vars}}
 {{#description}}
     /**
-     * {{{.}}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{#isContainer}}
 {{#isArray}}
 {{#required}}

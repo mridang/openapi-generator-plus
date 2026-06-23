@@ -601,13 +601,13 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   {{#description}}
   {{#example}}
   /**
-   * {{{description}}}
+   * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
    *
    * <p>Example: {@code {{{example}}}}
    */
   {{/example}}
   {{^example}}
-  /** {{{.}}} */
+  /** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
   {{/example}}
   {{/description}}
   {{^description}}

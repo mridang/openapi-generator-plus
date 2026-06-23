@@ -5,7 +5,7 @@ import Foundation
 {{#model}}
 {{#isEnum}}
 {{#description}}
-/// {{{description}}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is an enumeration of allowed values.
@@ -22,7 +22,7 @@ public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLon
 {{^oneOf}}
 {{^anyOf}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a model class generated from the OpenAPI schema.
@@ -49,7 +49,7 @@ public enum {{classname}}{{enumName}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}
 public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#description}}
-    /// {{{.}}}
+    /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{#example}}
     /// Example: `{{{.}}}`
@@ -313,7 +313,7 @@ private struct DynamicCodingKey: CodingKey {
 {{#oneOf}}
 {{#-first}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (oneOf).
@@ -397,7 +397,7 @@ public struct {{classname}}: Codable, @unchecked Sendable {
 {{#anyOf}}
 {{#-first}}
 {{#description}}
-/// {{classname}} {{{.}}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
 /// {{classname}} is a union type (anyOf).

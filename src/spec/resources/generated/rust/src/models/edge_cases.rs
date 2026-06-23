@@ -17,7 +17,7 @@ pub struct EdgeCases {
     /// Example: `null`
     #[serde(rename = "favoriteColor", skip_serializing_if = "Option::is_none")]
     pub favorite_color: Option<Color>,
-    /// Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+    /// Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
     /// Example: `null`
     #[serde(rename = "permissionsNote", skip_serializing_if = "Option::is_none")]
     pub permissions_note: Option<String>,
@@ -36,7 +36,7 @@ pub struct EdgeCases {
     /// Example: `null`
     #[serde(rename = "return", skip_serializing_if = "Option::is_none")]
     pub r#return: Option<String>,
-    /// Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+    /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
     /// Example: `null`
     #[serde(
         rename = "retryAfter",

@@ -41,7 +41,7 @@ public class EdgeCases {
   public Color favoriteColor;
 
   /**
-   * Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+   * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
    *
    * <p>Example: {@code null}
    */
@@ -75,7 +75,7 @@ public class EdgeCases {
   public String _return;
 
   /**
-   * Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+   * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
    *
    * <p>Example: {@code null}
    */

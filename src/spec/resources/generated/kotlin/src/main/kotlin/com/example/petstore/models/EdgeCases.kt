@@ -30,7 +30,7 @@ data class EdgeCases(
     @SerialName("favoriteColor")
     val favoriteColor: Color? = null,
     /**
-     * Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+     * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
      *
      * Example: `null`
      */
@@ -55,7 +55,7 @@ data class EdgeCases(
     @SerialName("return")
     val _return: String? = null,
     /**
-     * Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+     * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
      *
      * Example: `null`
      */
