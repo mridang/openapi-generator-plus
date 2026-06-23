@@ -10,9 +10,9 @@ pub struct AddPetPhotosOptions {
 impl AddPetPhotosOptions {
     /// Creates a new AddPetPhotosOptions, requiring every required parameter up front.
     ///
-    /// Required fields are taken as constructor arguments so they cannot be
-    /// silently omitted; optional fields start as `None` and are populated via
-    /// the chained setters below.
+    /// Every field of this struct is required and is taken as a constructor
+    /// argument so it cannot be silently omitted. This struct has no optional
+    /// fields and therefore no chained setters.
     pub fn new(files: Vec<Vec<u8>>, metadata: PhotoMetadata) -> Self {
         Self { files, metadata }
     }

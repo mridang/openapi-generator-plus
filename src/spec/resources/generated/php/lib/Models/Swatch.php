@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
+/**
+ * Swatch is an enumeration of allowed values.
+ */
 enum Swatch: string
 {
     case RED = 'red';

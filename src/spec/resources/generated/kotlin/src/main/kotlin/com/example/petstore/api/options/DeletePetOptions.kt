@@ -8,6 +8,7 @@ import com.example.petstore.auth.Authenticator
  * Options for the deletePet operation.
  */
 class DeletePetOptions(
+    /** Session cookie used for authentication */
     val apiKey: String? = null,
     val auth: Authenticator? = null,
 )

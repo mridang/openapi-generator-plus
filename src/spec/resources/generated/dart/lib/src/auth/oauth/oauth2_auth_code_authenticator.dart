@@ -122,6 +122,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
   }
 
   /// Asynchronously retrieves auth headers with a valid access token.
+  @override
   Future<Map<String, String>> authHeadersAsync() async {
     if (!_tokenExchanged) {
       throw StateError('Must call exchangeCode before making API requests');

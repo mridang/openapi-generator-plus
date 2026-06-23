@@ -14,6 +14,8 @@ module PetstoreClient
   module Api
     module Options
       # Options for the add_pet_photos operation.
+      # @param files [Array<File>]
+      # @param metadata [PhotoMetadata]
       class AddPetPhotosOptions
         attr_reader :files, :metadata
 

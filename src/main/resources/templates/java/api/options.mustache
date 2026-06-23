@@ -40,7 +40,7 @@ public final class {{className}} {
      * Creates an options instance with the required parameters.
      *
 {{#requiredParams}}
-     * @param {{paramName}} the {@code {{baseName}}} parameter
+     * @param {{paramName}} {{#description}}{{{description}}}{{/description}}{{^description}}the {@code {{baseName}}} parameter{{/description}}
 {{/requiredParams}}
      */
     public {{className}}({{#requiredParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}) {

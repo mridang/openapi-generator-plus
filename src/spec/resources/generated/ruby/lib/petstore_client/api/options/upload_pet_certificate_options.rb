@@ -12,6 +12,7 @@ module PetstoreClient
   module Api
     module Options
       # Options for the upload_pet_certificate operation.
+      # @param file [File]
       class UploadPetCertificateOptions
         attr_reader :file
 

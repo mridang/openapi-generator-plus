@@ -132,6 +132,27 @@ class ObjectSerializer
             $normalized = self::getSerializer()->normalize($data, null, [
                 AbstractObjectNormalizer::SKIP_NULL_VALUES => true,
             ]);
+            /* OAS `additionalProperties` flatten. A model that declares an open
+             * additionalProperties map carries a public `?\Ds\Map
+             * $additionalProperties` property. The normalizer above walks every
+             * public property, so the map is emitted under a literal nested
+             * `additionalProperties` key — but the wire contract requires those
+             * entries flattened to the top level (matching Python's re-flatten
+             * and Java's `@JsonAnyGetter`). Lift each entry to the top level and
+             * drop the synthetic key. */
+            if (
+                property_exists($data, 'additionalProperties')
+                && $data->additionalProperties instanceof \Ds\Map
+            ) {
+                unset($normalized['additionalProperties']);
+                /* Iterate via toArray() so the keys are typed as the native PHP
+                 * array-key (int|string) rather than the Ds\Map's mixed key type;
+                 * additionalProperties keys are always JSON strings, and an
+                 * int|string casts to string cleanly (no phpstan cast.string). */
+                foreach ($data->additionalProperties->toArray() as $extraKey => $extraValue) {
+                    $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
+                }
+            }
             return $normalized;
         }
 
@@ -593,9 +614,10 @@ class ObjectSerializer
                 }
                 self::assertRequiredPresent($decoded, $class);
                 self::assertPrimitiveTypes($decoded, $class);
+                self::assertNoUnknownProperties($decoded, $class);
                 /** @var object $result */
                 $result = self::getSerializer()->denormalize($decoded, $class);
-                return $result;
+                return self::captureAdditionalProperties($result, $decoded);
             } catch (\Throwable $e) {
                 throw new SerializationException($e->getMessage(), 0, $e);
             }
@@ -605,9 +627,13 @@ class ObjectSerializer
             if (is_array($data)) {
                 self::assertRequiredPresent($data, $class);
                 self::assertPrimitiveTypes($data, $class);
+                self::assertNoUnknownProperties($data, $class);
             }
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class);
+            if (is_array($data)) {
+                $result = self::captureAdditionalProperties($result, $data);
+            }
             return $result;
         } catch (\Throwable $e) {
             throw new SerializationException($e->getMessage(), 0, $e);
@@ -749,6 +775,99 @@ class ObjectSerializer
                 ));
             }
         }
+    }
+
+    /**
+     * OAS 3.1 / JSON Schema 2020-12 `unevaluatedProperties: false` enforcement.
+     *
+     * The model template emits a static `assertNoUnknownProperties(array $data)`
+     * helper on every schema that declares `unevaluatedProperties: false`; that
+     * helper throws when the decoded payload carries a key not declared on the
+     * schema. Symfony's denormalizer is permissive and silently drops extra
+     * attributes, so the per-model helper has to run BEFORE denormalize() for
+     * the contract to bite. This guard dispatches to the model's own helper
+     * when present (and is a no-op for every other class), aligning PHP with
+     * Python's `extra="forbid"` and Java's throwing `@JsonAnySetter`.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertNoUnknownProperties(array $data, string $class): void
+    {
+        if (!class_exists($class) || !method_exists($class, 'assertNoUnknownProperties')) {
+            return;
+        }
+        /* Dispatch via Reflection rather than a dynamic `$class::method()` call:
+         * the static method's presence was confirmed by method_exists, and
+         * ReflectionMethod::invoke keeps the call statically analysable at
+         * PHPStan level 9 (a string-typed class-string static call is not). The
+         * model-side helper throws \InvalidArgumentException on an unknown key;
+         * the surrounding deserialize() try/catch wraps it in
+         * SerializationException. */
+        (new \ReflectionMethod($class, 'assertNoUnknownProperties'))->invoke(null, $data);
+    }
+
+    /**
+     * OAS `additionalProperties` capture.
+     *
+     * The model template emits a public `?\Ds\Map $additionalProperties`
+     * property on every schema that declares an open `additionalProperties`
+     * map. Symfony's denormalizer maps only the declared/SerializedName-tagged
+     * properties and drops every other decoded key, so without this step the
+     * undeclared keys are lost (data loss) and `$additionalProperties` stays
+     * null. This collects every decoded key that does NOT correspond to a
+     * declared property (matched by its wire / SerializedName) into a
+     * `\Ds\Map` and assigns it, mirroring Python's capture validator and
+     * Java's `@JsonAnySetter`. Returns the object unchanged when it has no
+     * `additionalProperties` property.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function captureAdditionalProperties(object $result, array $data): object
+    {
+        if (!property_exists($result, 'additionalProperties')) {
+            return $result;
+        }
+        $reflection = new \ReflectionClass($result);
+        /* Build the set of wire names that map to a declared property so they
+         * are NOT swept into the additionalProperties bag. Each declared
+         * property contributes its SerializedName (or, absent the attribute,
+         * its PHP name). The synthetic `additionalProperties` property itself
+         * is never a wire key. */
+        $declaredWireNames = [];
+        foreach ($reflection->getProperties() as $property) {
+            if ($property->getName() === 'additionalProperties') {
+                continue;
+            }
+            $wireName = $property->getName();
+            foreach (
+                $property->getAttributes(
+                    \Symfony\Component\Serializer\Attribute\SerializedName::class
+                ) as $attr
+            ) {
+                $args = $attr->getArguments();
+                if (isset($args[0]) && is_string($args[0])) {
+                    $wireName = $args[0];
+                } elseif (isset($args['name']) && is_string($args['name'])) {
+                    $wireName = $args['name'];
+                }
+            }
+            $declaredWireNames[$wireName] = true;
+        }
+
+        /** @var array<string, mixed> $extra */
+        $extra = [];
+        foreach ($data as $key => $value) {
+            if (!isset($declaredWireNames[(string) $key])) {
+                $extra[(string) $key] = $value;
+            }
+        }
+        if ($extra !== []) {
+            /* The declared property type is `?\Ds\Map`; assign a populated map
+             * so callers read undeclared keys back through the same container
+             * type the model documents. */
+            $result->additionalProperties = new \Ds\Map($extra);
+        }
+        return $result;
     }
 
     /**

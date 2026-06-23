@@ -523,13 +523,26 @@ module {{moduleName}}
       int_part, frac_part = digits.split('.', 2)
       secs = int_part.to_i
       nanos = frac_part.nil? ? 0 : frac_part.ljust(9, '0').to_i
-      abs_seconds = secs + (nanos / 1_000_000_000.0)
       # ISO-8601 places the sign before the 'P' (the gem emits the "-PT…"
       # form on the serialize side). Interpolating a signed Float into
       # "PT…S" would build the malformed "PT-3600.0S", which the iso8601
       # gem rejects — breaking the round-trip for any negative duration.
       sign_prefix = negative ? '-' : ''
-      ISO8601::Duration.new("#{sign_prefix}PT#{abs_seconds}S")
+      # Build the seconds literal from the integer parts, never from a
+      # Float: Float#to_s emits scientific notation for sub-0.0001s values
+      # (0.00001 → "1.0e-05"), and the iso8601 gem's grammar accepts only
+      # plain decimals (\d+(?:[.,]\d+)?) for the seconds field, so an "e"
+      # would break the round-trip for nanosecond/microsecond durations.
+      seconds_literal = if nanos.zero?
+                          secs.to_s
+                        else
+                          # Zero-pad nanos to 9 digits and strip trailing
+                          # zeros to keep the literal canonical (e.g.
+                          # "0.000001", "3600.000000001").
+                          frac = format('%09d', nanos).sub(/0+\z/, '')
+                          "#{secs}.#{frac}"
+                        end
+      ISO8601::Duration.new("#{sign_prefix}PT#{seconds_literal}S")
     end
 
     # Apply +format+-specific encoding before JSON serialization.
@@ -559,50 +572,6 @@ module {{moduleName}}
       raise SerializationError, "Expected String for format: byte, got #{value.class}" unless value.is_a?(String)
 
       Base64.strict_encode64(value)
-    end
-
-    # Attempt to deserialize data as a specific type for oneOf/anyOf resolution.
-    # Uses the try-deserialize-and-catch pattern: attempts deserialization via
-    # convert_to_type and raises on failure.
-    def self.find_and_cast_into_type(klass_name, data)
-      return if data.nil?
-
-      result = convert_to_type(data, klass_name.to_s)
-      return result unless result.nil?
-
-      raise SchemaMismatchError, "#{data.inspect} doesn't match the #{klass_name} type"
-    end
-
-    # Attempt to deserialize data against a list of candidate schemas, returning
-    # the first successful result. Each candidate is a lambda that accepts the
-    # raw JSON data and returns a deserialized object or raises on failure.
-    #
-    # @param data [Object] the parsed JSON data
-    # @param candidates [Array<Proc>] lambdas that attempt deserialization
-    # @return [Object] the first successfully deserialized result
-    # @raise [SchemaMismatchError] if no candidate matches the data. A payload
-    #   satisfying none of the declared variants is a contract violation and
-    #   must fail loudly rather than be silently dropped to nil.
-    # @api private
-    def self.resolve_one_of(data, candidates)
-      candidates.each do |candidate|
-        return candidate.call(data)
-      rescue StandardError
-        next
-      end
-      raise SchemaMismatchError, 'No oneOf/anyOf variant matched the JSON'
-    end
-
-    # Attempt to deserialize data against a list of candidate schemas using
-    # anyOf semantics. Delegates to {.resolve_one_of}.
-    #
-    # @param data [Object] the parsed JSON data
-    # @param candidates [Array<Proc>] lambdas that attempt deserialization
-    # @return [Object] the first successfully deserialized result
-    # @raise [SchemaMismatchError] if no candidate matches the data
-    # @api private
-    def self.resolve_any_of(data, candidates)
-      resolve_one_of(data, candidates)
     end
 
     private_class_method :sanitize_for_serialization, :deserialize_model

@@ -609,7 +609,10 @@ public class PetApi : BaseApi
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
                 "filter",
-                options.Filter as IDictionary<string, object?>
+                options.Filter.ToDictionary(
+                    entry => entry.Key,
+                    entry => (object?)entry.Value
+                )
             );
             foreach (KeyValuePair<string, string> entry in deepObj)
             {

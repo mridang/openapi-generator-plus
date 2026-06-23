@@ -203,6 +203,26 @@ import { Decimal } from '../brand{{importFileExtension}}';
 {{/description}}
 {{/isDeprecated}}
 export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
+  /**
+   * 2.5 — Wire-serialization registry for `type: number` (no format)
+   * fields. Such fields are carried as branded {@link Decimal} values,
+   * which are plain strings at runtime to preserve arbitrary precision.
+   * On the request path ObjectSerializer.serialize walks the instance with
+   * JSON.stringify, which would quote a string and emit
+   * `"weightKg":"12.345"` (a JSON string) instead of the spec-required
+   * `"weightKg":12.345` (a JSON number). The serializer consults this set
+   * (by runtime property name) to emit those fields unquoted via JSON.rawJSON,
+   * preserving the full decimal text without a lossy Number() round-trip.
+   * Empty when the model has no `type: number` no-format fields.
+   */
+  static readonly __decimalFields: ReadonlySet<string> = new Set([
+{{#vars}}
+{{#vendorExtensions.isDecimalFormat}}
+    '{{name}}',
+{{/vendorExtensions.isDecimalFormat}}
+{{/vars}}
+  ]);
+
 {{#vars}}
 {{#description}}
   /**
@@ -574,6 +594,20 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/isByteArray}}
 {{/items}}
+{{#uniqueItems}}
+    /**
+     * uniqueItems: the declared field type is Set<T>, but deserialization
+     * (plainToInstance) and hand-construction both deliver a plain Array —
+     * class-transformer cannot build a Set from a JSON array. Coerce the
+     * validated array into a Set here so the runtime shape matches the
+     * static Set<T> type and callers can use .has()/.add() without a
+     * TypeError. Duplicate elements collapse, honouring uniqueItems. An
+     * already-Set value (re-construction) is left untouched.
+     */
+    if (this.{{name}} != null && Array.isArray(this.{{name}})) {
+      this.{{name}} = new Set(this.{{name}} as unknown as unknown[]) as unknown as {{{dataType}}};
+    }
+{{/uniqueItems}}
 {{/isArray}}
 {{/isPrimitiveType}}
 {{#vendorExtensions.prop.isMapOfModel}}
@@ -605,7 +639,17 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
     if (this.{{name}} != null) {
-      const {{name}}Values = Object.values({{classname}}{{enumName}});
+      {{! A TypeScript numeric enum carries a reverse mapping, so
+          Object.values() yields BOTH the member-name strings and the
+          numeric wire values (e.g. ["NUMBER_1", 1]). Without filtering, a
+          string payload matching a member name ("NUMBER_1") would pass the
+          membership test and bypass validation. Drop the reverse-mapped
+          string keys by keeping only values v for which E[v] is not itself a
+          number. For a string enum (no reverse mapping) E[value] is
+          undefined, so every value is retained unchanged. }}
+      const {{name}}Values = Object.values({{classname}}{{enumName}}).filter(
+        (v) => typeof ({{classname}}{{enumName}} as Record<string, unknown>)[v as string] !== 'number'
+      );
       if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
         throw new Error(
           `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
@@ -629,7 +673,12 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{^isEnum}}
 {{#vendorExtensions.prop.complexTypeIsEnum}}
     if (this.{{name}} != null) {
-      const {{name}}Values = Object.values({{complexType}});
+      {{! Numeric enums add a reverse mapping to Object.values(); drop the
+          reverse-mapped string keys so a string payload matching a member
+          name cannot bypass validation. See the inline-enum branch above. }}
+      const {{name}}Values = Object.values({{complexType}}).filter(
+        (v) => typeof ({{complexType}} as Record<string, unknown>)[v as string] !== 'number'
+      );
       if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
         throw new Error(
           `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
@@ -640,7 +689,12 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{#vendorExtensions.prop.itemsComplexTypeIsEnum}}
     if (this.{{name}} != null && Array.isArray(this.{{name}})) {
-      const {{name}}Values = Object.values({{items.complexType}});
+      {{! Numeric enums add a reverse mapping to Object.values(); drop the
+          reverse-mapped string keys so a string element matching a member
+          name cannot bypass validation. See the inline-enum branch above. }}
+      const {{name}}Values = Object.values({{items.complexType}}).filter(
+        (v) => typeof ({{items.complexType}} as Record<string, unknown>)[v as string] !== 'number'
+      );
       for (const __v of this.{{name}} as readonly unknown[]) {
         if (!({{name}}Values as readonly unknown[]).includes(__v)) {
           throw new Error(

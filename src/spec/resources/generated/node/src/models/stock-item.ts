@@ -10,6 +10,20 @@ import { Priority } from "./priority.js";
 import { Expose } from "class-transformer";
 
 export class StockItem {
+  /**
+   * 2.5 — Wire-serialization registry for `type: number` (no format)
+   * fields. Such fields are carried as branded {@link Decimal} values,
+   * which are plain strings at runtime to preserve arbitrary precision.
+   * On the request path ObjectSerializer.serialize walks the instance with
+   * JSON.stringify, which would quote a string and emit
+   * `"weightKg":"12.345"` (a JSON string) instead of the spec-required
+   * `"weightKg":12.345` (a JSON number). The serializer consults this set
+   * (by runtime property name) to emit those fields unquoted via JSON.rawJSON,
+   * preserving the full decimal text without a lossy Number() round-trip.
+   * Empty when the model has no `type: number` no-format fields.
+   */
+  static readonly __decimalFields: ReadonlySet<string> = new Set([]);
+
   /** @example null */
   @Expose({ name: "priority" })
   priority!: Priority;
@@ -38,7 +52,11 @@ export class StockItem {
       throw new TypeError(`matrix must be an array, got ${typeof this.matrix}`);
     }
     if (this.priority != null) {
-      const priorityValues = Object.values(Priority);
+      const priorityValues = Object.values(Priority).filter(
+        (v) =>
+          typeof (Priority as Record<string, unknown>)[v as string] !==
+          "number",
+      );
       if (!(priorityValues as readonly unknown[]).includes(this.priority)) {
         throw new Error(
           `Unknown enum value for priority: ${JSON.stringify(this.priority)}. ` +
@@ -47,7 +65,11 @@ export class StockItem {
       }
     }
     if (this.availability != null) {
-      const availabilityValues = Object.values(Availability);
+      const availabilityValues = Object.values(Availability).filter(
+        (v) =>
+          typeof (Availability as Record<string, unknown>)[v as string] !==
+          "number",
+      );
       if (
         !(availabilityValues as readonly unknown[]).includes(this.availability)
       ) {

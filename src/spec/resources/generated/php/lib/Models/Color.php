@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
+/**
+ * A standalone, reusable colour enumeration
+ */
 enum Color: string
 {
     case RED = 'red';

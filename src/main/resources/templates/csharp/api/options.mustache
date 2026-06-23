@@ -16,11 +16,15 @@ public sealed class {{className}}
 {
 {{#params}}
 {{#required}}
-    /// <summary>{{#description}} {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}{{/description}}</summary>
+{{#description}}
+    /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
+{{/description}}
     public required {{{dataType}}} {{pascalParamName}} { get; init; }
 {{/required}}
 {{^required}}
-    /// <summary>{{#description}} {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}{{/description}}</summary>
+{{#description}}
+    /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
+{{/description}}
     public {{{dataType}}}? {{pascalParamName}} { get; init; }
 {{/required}}
 

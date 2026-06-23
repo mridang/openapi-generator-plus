@@ -86,7 +86,11 @@ class BaseApi {
     }
 
     if (effectiveAuth != null) {
-      headers.addAll(effectiveAuth.authHeaders());
+      /* Await the async variant so token-exchange OAuth flows (client-
+         credentials, password, authorization-code) perform their token fetch
+         and contribute a real Authorization header; non-token schemes fall
+         through to the synchronous authHeaders via the default implementation. */
+      headers.addAll(await effectiveAuth.authHeadersAsync());
 
       final cookies = effectiveAuth.cookieParams();
       if (cookies.isNotEmpty) {

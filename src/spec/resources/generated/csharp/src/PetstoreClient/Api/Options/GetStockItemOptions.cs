@@ -8,7 +8,7 @@ namespace PetstoreClient.Api.Options;
 /// </summary>
 public sealed class GetStockItemOptions
 {
-    /// <summary> Only consider stock as of this instant</summary>
+    /// <summary>Only consider stock as of this instant</summary>
     public DateTimeOffset? AsOf { get; init; }
 
 }

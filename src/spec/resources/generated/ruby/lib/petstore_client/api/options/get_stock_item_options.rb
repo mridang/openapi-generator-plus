@@ -12,6 +12,7 @@ module PetstoreClient
   module Api
     module Options
       # Options for the get_stock_item operation.
+      # @param as_of [Time] Only consider stock as of this instant
       class GetStockItemOptions
         attr_reader :as_of
 

@@ -946,6 +946,16 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
             param.put("required", p.required);
+            // Per-field YARD documentation: mirror the `# @param` lines
+            // api.mustache emits for direct operation parameters, so option
+            // fields are documented with the same type and description as the
+            // parameters they wrap. dataType is the unqualified surface type
+            // (matching api.mustache); description/isDeprecated may be absent.
+            param.put("dataType", p.dataType);
+            if (p.description != null && !p.description.isEmpty()) {
+                param.put("description", p.description);
+            }
+            param.put("isDeprecated", p.isDeprecated);
             params.add(param);
             if (p.required) {
                 hasAnyRequired = true;

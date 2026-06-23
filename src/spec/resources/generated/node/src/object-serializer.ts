@@ -138,6 +138,40 @@ export function durationFromProtoJson(value: string): Temporal.Duration {
 }
 
 /**
+ * Matches a canonical JSON number: optional minus, an integer part with no
+ * leading zeros (or a bare 0), an optional fractional part, and an optional
+ * exponent. Used to gate {@link rawDecimal} so only valid numeric text is
+ * emitted unquoted; anything else falls back to a normal quoted string.
+ */
+const JSON_NUMBER_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+
+/**
+ * 2.5 — Emit a `type: number` (no-format) Decimal field as an unquoted JSON
+ * number while preserving its full textual precision.
+ *
+ * A Decimal is a branded string at runtime (arbitrary precision the IEEE-754
+ * `number` type cannot hold), so letting JSON.stringify quote it would emit
+ * a JSON string and a spec-conformant server validating `type: number` would
+ * reject it. JSON.rawJSON (TC39 json-parse-with-source, Node >= 21 / V8 12.4)
+ * wraps already-valid JSON text so JSON.stringify writes it verbatim — and the
+ * spec checks the [[IsRawJSON]] slot AFTER the replacer returns, so returning
+ * this from the serialize replacer is honoured.
+ *
+ * `JSON.rawJSON` is not declared by the ES2024 lib this client targets, so it
+ * is reached through a minimal typed view rather than an inline suppression.
+ * Returns the raw-JSON token for valid numeric text, or the original string
+ * unchanged (to be quoted normally) for anything that is not a JSON number.
+ */
+function rawDecimal(text: string): unknown {
+  if (!JSON_NUMBER_PATTERN.test(text)) {
+    return text;
+  }
+  const rawJson = (JSON as unknown as { rawJSON?: (t: string) => unknown })
+    .rawJSON;
+  return typeof rawJson === "function" ? rawJson(text) : text;
+}
+
+/**
  * Maximum allowed JSON nesting depth. Node's JSON.parse has no built-in
  * cap and recurses through V8's call stack, so a malicious 100k-deep
  * `{"a":{"a":...}}` payload would stack-overflow / DoS. Matches the
@@ -261,6 +295,27 @@ export class ObjectSerializer {
           return (this[_key] as Temporal.PlainTime).toString();
         if (this[_key] instanceof Temporal.Duration)
           return durationToProtoJson(this[_key] as Temporal.Duration);
+        /**
+         * 2.5 — `type: number` (no format) Decimal field. The model holds it
+         * as a precision-preserving string; emit it unquoted as a JSON number
+         * (via JSON.rawJSON) so a spec-conformant server sees a number, not a
+         * quoted string. The owning model registers its no-format numeric
+         * fields by property name in a static `__decimalFields` set; consult
+         * the holder's constructor for it. Only fires for a string value whose
+         * field is registered, so genuine string fields are untouched.
+         */
+        if (typeof value === "string") {
+          const ctor = (this as { constructor?: unknown }).constructor as
+            | { __decimalFields?: ReadonlySet<string> }
+            | undefined;
+          if (
+            ctor &&
+            ctor.__decimalFields instanceof Set &&
+            ctor.__decimalFields.has(_key)
+          ) {
+            return rawDecimal(value);
+          }
+        }
         if (value === null && _key !== "") return undefined;
         return value;
       });
@@ -442,9 +497,32 @@ export class ObjectSerializer {
       );
     }
     const deserializeElement = ObjectSerializer.elementDeserializer(cls);
-    return json
-      .map((item: unknown) => deserializeElement(item))
-      .filter((x): x is T => x !== null);
+    const mapped = json.map((item: unknown) => deserializeElement(item));
+    /**
+     * Only drop nulls for a model-class element type, where `deserialize`
+     * returns null for a null/absent element and dropping it is the
+     * established behaviour. For a primitive/enum element deserializer a
+     * `null` is a legitimate wire value (e.g. `items: { nullable: true }`),
+     * so preserving it keeps the array length and index alignment intact
+     * rather than silently losing data.
+     */
+    if (ObjectSerializer.isClassConstructor(cls)) {
+      return mapped.filter((x): x is T => x !== null);
+    }
+    return mapped as T[];
+  }
+
+  /**
+   * Whether a deserializer argument is a model class constructor (as opposed
+   * to a bare element-deserializer arrow function). A class constructor has
+   * an own `prototype`; an arrow function does not. Used to decide whether a
+   * produced `null` is a failed-model-parse sentinel (drop) or a legitimate
+   * primitive/enum null wire value (keep).
+   */
+  private static isClassConstructor<T>(
+    cls: ClassConstructor<T> | ((value: unknown) => T | null),
+  ): cls is ClassConstructor<T> {
+    return typeof cls === "function" && "prototype" in cls;
   }
 
   /**
@@ -459,11 +537,10 @@ export class ObjectSerializer {
   private static elementDeserializer<T>(
     cls: ClassConstructor<T> | ((value: unknown) => T | null),
   ): (value: unknown) => T | null {
-    if (typeof cls === "function" && !("prototype" in cls)) {
+    if (!ObjectSerializer.isClassConstructor(cls)) {
       return cls as (value: unknown) => T | null;
     }
-    return (value: unknown) =>
-      ObjectSerializer.deserialize(value, cls as ClassConstructor<T>);
+    return (value: unknown) => ObjectSerializer.deserialize(value, cls);
   }
 
   /**
@@ -491,11 +568,18 @@ export class ObjectSerializer {
       );
     }
     const deserializeValue = ObjectSerializer.elementDeserializer(cls);
+    /**
+     * As in deserializeArray: drop a null only for a model-class value type
+     * (where null is a failed-parse sentinel). For a primitive/enum value
+     * deserializer a null is a legitimate nullable wire value and the key
+     * must be retained so the map's key set is not silently mutated.
+     */
+    const dropNulls = ObjectSerializer.isClassConstructor(cls);
     const out: Record<string, T> = {};
     for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
       const deserialized = deserializeValue(v);
-      if (deserialized !== null) {
-        out[k] = deserialized;
+      if (deserialized !== null || !dropNulls) {
+        out[k] = deserialized as T;
       }
     }
     return out;
@@ -518,7 +602,19 @@ export class ObjectSerializer {
     value: unknown,
     enumObj: Record<string, unknown>,
   ): T {
-    const members = Object.values(enumObj);
+    /**
+     * A TypeScript numeric enum carries a reverse mapping, so
+     * Object.values() yields both the member-name strings and the numeric
+     * wire values (e.g. ["NUMBER_1", 1]). Without filtering, a string
+     * payload matching a member name would pass this membership check and
+     * bypass validation. Drop the reverse-mapped string keys by keeping
+     * only values v for which enumObj[v] is not itself a number. For a
+     * string enum (no reverse mapping) enumObj[value] is undefined, so
+     * every value is retained unchanged.
+     */
+    const members = Object.values(enumObj).filter(
+      (v) => typeof enumObj[v as string] !== "number",
+    );
     if (!(members as readonly unknown[]).includes(value)) {
       throw new SerializationError(
         `Unknown enum value: ${JSON.stringify(value)}. ` +
@@ -564,24 +660,28 @@ export class ObjectSerializer {
   }
 
   /**
-   * Formats a Date as an ISO 8601 string preserving the local timezone offset
-   * instead of converting to UTC, matching the format used by Java, Kotlin, C#,
-   * and other language generators.
+   * Formats a Date as a deterministic ISO 8601 date-time in UTC, e.g.
+   * `2024-01-01T12:30:45+00:00`.
+   *
+   * A JS Date is an absolute instant with no stored timezone offset, so the
+   * previous local-time formatting (getFullYear/getHours/getTimezoneOffset)
+   * made the wire bytes depend on the host machine's timezone — the same
+   * instant serialized differently on a UTC host vs a CET host. Pinning to
+   * UTC via the getUTC* accessors makes the output host-independent and
+   * aligns it with the other SDKs that emit a fixed offset (Swift pins UTC
+   * and emits `+00:00`; Go emits the RFC3339 `Z`). The explicit `+00:00`
+   * suffix (rather than `Z`) keeps the offset-bearing shape the rest of the
+   * stack expects while remaining a valid UTC designator.
    */
   private static formatDateTimeOffset(date: Date): string {
     const pad = (n: number, w = 2): string => String(n).padStart(w, "0");
-    const y = date.getFullYear();
-    const mo = pad(date.getMonth() + 1);
-    const d = pad(date.getDate());
-    const h = pad(date.getHours());
-    const mi = pad(date.getMinutes());
-    const s = pad(date.getSeconds());
-    const offsetMin = -date.getTimezoneOffset();
-    const sign = offsetMin >= 0 ? "+" : "-";
-    const absMin = Math.abs(offsetMin);
-    const hh = String(Math.floor(absMin / 60)).padStart(2, "0");
-    const mm = String(absMin % 60).padStart(2, "0");
-    return `${y}-${mo}-${d}T${h}:${mi}:${s}${sign}${hh}:${mm}`;
+    const y = date.getUTCFullYear();
+    const mo = pad(date.getUTCMonth() + 1);
+    const d = pad(date.getUTCDate());
+    const h = pad(date.getUTCHours());
+    const mi = pad(date.getUTCMinutes());
+    const s = pad(date.getUTCSeconds());
+    return `${y}-${mo}-${d}T${h}:${mi}:${s}+00:00`;
   }
 
   /**

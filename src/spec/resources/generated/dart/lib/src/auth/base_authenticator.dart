@@ -17,4 +17,10 @@ abstract class BaseAuthenticator implements Authenticator {
   /// Returns an empty map. Override in concrete authenticators if needed.
   @override
   Map<String, String> cookieParams() => {};
+
+  /// Default async auth headers: returns the synchronous [authHeaders]. The
+  /// token-exchange OAuth authenticators override this to perform the token
+  /// fetch and return a valid `Authorization: Bearer` header.
+  @override
+  Future<Map<String, String>> authHeadersAsync() async => authHeaders();
 }

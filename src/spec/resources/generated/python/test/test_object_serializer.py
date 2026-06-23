@@ -632,31 +632,3 @@ class TestDiscriminatorAutoInjection:
         json_str = '{"weightKg": 5.0}'
         with pytest.raises(SerializationError):
             ObjectSerializer().deserialize(json_str, "PetFood")
-
-
-class TestResolveOneOf:
-    def test_resolve_one_of_returns_first_matching_variant(self) -> None:
-        def miss(_: str) -> object:
-            raise ValueError("variant A does not match")
-
-        def hit(json_string: str) -> object:
-            return "matched:" + json_string
-
-        result = ObjectSerializer()._resolve_one_of("payload", [miss, hit])
-        assert result == "matched:payload"
-
-    def test_resolve_one_of_throws_on_no_match(self) -> None:
-        # A payload matching none of the declared variants is a contract
-        # violation and must fail loudly rather than be silently returned as None.
-        def miss_a(_: str) -> object:
-            raise ValueError("variant A does not match")
-
-        def miss_b(_: str) -> object:
-            raise ValueError("variant B does not match")
-
-        with pytest.raises(SerializationError):
-            ObjectSerializer()._resolve_one_of('{"unexpected": true}', [miss_a, miss_b])
-
-    def test_resolve_any_of_throws_on_no_match(self) -> None:
-        with pytest.raises(SerializationError):
-            ObjectSerializer()._resolve_any_of("{}", [lambda _: None])

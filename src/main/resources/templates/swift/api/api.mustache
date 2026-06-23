@@ -239,8 +239,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-            if let jsonData = try? JSONEncoder().encode(val) {
-                queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
+            // Serialize through ObjectSerializer so a Date-bearing content param
+            // emits RFC 3339 via the shared date-strategy encoder, matching every
+            // other serialization path (a bare JSONEncoder would default to
+            // .deferredToDate and emit epoch-seconds doubles instead).
+            if let json = try? ObjectSerializer.serialize(val) {
+                queryParams["{{baseName}}"] = json
             }
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
@@ -260,8 +264,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-            if let jsonData = try? JSONEncoder().encode(val) {
-                queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
+            // Serialize through ObjectSerializer so a Date-bearing content param
+            // emits RFC 3339 via the shared date-strategy encoder, matching every
+            // other serialization path (a bare JSONEncoder would default to
+            // .deferredToDate and emit epoch-seconds doubles instead).
+            if let json = try? ObjectSerializer.serialize(val) {
+                queryParams["{{baseName}}"] = json
             }
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
@@ -282,8 +290,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-            if let jsonData = try? JSONEncoder().encode(val) {
-                queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
+            // Serialize through ObjectSerializer so a Date-bearing content param
+            // emits RFC 3339 via the shared date-strategy encoder, matching every
+            // other serialization path (a bare JSONEncoder would default to
+            // .deferredToDate and emit epoch-seconds doubles instead).
+            if let json = try? ObjectSerializer.serialize(val) {
+                queryParams["{{baseName}}"] = json
             }
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}

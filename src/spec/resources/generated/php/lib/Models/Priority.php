@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
+/**
+ * Task priority, integer-backed enum
+ */
 enum Priority: int
 {
     case NUMBER_1 = 1;

@@ -642,6 +642,14 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             param.put("paramName", p.paramName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // Thread the spec parameter description onto the Options field so
+            // the Kotlin template can emit a per-property KDoc, matching the
+            // other SDKs (Java, Node, C#, Go, Swift, Dart, Rust, ...). Only set
+            // when non-blank so the template's {{#description}} gate stays false
+            // for parameters without a description.
+            if (p.description != null && !p.description.isBlank()) {
+                param.put("description", p.description);
+            }
             params.add(param);
             if (p.required) {
                 requiredParams.add(param);

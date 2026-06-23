@@ -736,14 +736,14 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (!(o instanceof {{classname}} other)) {
       return false;
     }
-    return {{^vars}}true{{/vars}}{{#vars}}{{#isByteArray}}java.util.Arrays.equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}java.util.Objects.equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^-last}}
+    return {{^vars}}true{{/vars}}{{#vars}}{{#isByteArray}}java.util.Arrays.equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}java.util.Arrays.deepEquals(this.{{name}} == null ? null : this.{{name}}.toArray(), other.{{name}} == null ? null : other.{{name}}.toArray()){{/items.isByteArray}}{{^items.isByteArray}}java.util.Objects.equals(this.{{name}}, other.{{name}}){{/items.isByteArray}}{{/isByteArray}}{{^-last}}
         && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
         && java.util.Objects.equals(this.additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash({{#vars}}{{#isByteArray}}java.util.Arrays.hashCode({{name}}){{/isByteArray}}{{^isByteArray}}{{name}}{{/isByteArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
+    return java.util.Objects.hash({{#vars}}{{#isByteArray}}java.util.Arrays.hashCode({{name}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}java.util.Arrays.deepHashCode({{name}} == null ? null : {{name}}.toArray()){{/items.isByteArray}}{{^items.isByteArray}}{{name}}{{/items.isByteArray}}{{/isByteArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
   }
 }
 {{/anyOf}}

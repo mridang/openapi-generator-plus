@@ -221,62 +221,75 @@ defmodule PetstoreClient.Api.BaseApi do
         if response.status_code < 200 or response.status_code >= 300 do
           {:error, throw_api_error(response)}
         else
-          data =
-            if return_type && response.body && response.body != "" do
-              ct_header =
-                Enum.find(response.headers, fn {k, _v} ->
-                  String.downcase(k) == "content-type"
-                end)
-
-              resp_content_type =
-                case ct_header do
-                  {_k, v} -> v |> String.split(";") |> List.first() |> String.trim()
-                  nil -> nil
-                end
-
-              # When Content-Type is absent (nil) treat it as JSON, matching
-              # the behaviour of all other generated clients.
-              is_json =
-                is_nil(resp_content_type) or
-                  PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
-
-              cond do
-                is_json ->
-                  # A 2xx body that does not match the declared schema is a
-                  # contract violation; propagate the decode error to the
-                  # caller instead of silently substituting the raw body
-                  # string (which would yield type confusion). Matches the
-                  # fail-loud behaviour of the other 11 SDKs.
-                  PetstoreClient.ObjectSerializer.deserialize(response.body, return_type)
-
-                return_type == "binary()" ->
-                  # Binary operations declare `return_type = "binary()"`. The
-                  # transport base64-encodes non-text response bodies into the
-                  # `response.body` string, so decode it back to raw bytes
-                  # here, mirroring the other 11 SDKs. Fall back to the raw
-                  # body if it is not valid base64 (e.g. a test server that
-                  # writes raw bytes), never raising.
-                  case Base.decode64(response.body) do
-                    {:ok, decoded} -> decoded
-                    :error -> response.body
-                  end
-
-                true ->
-                  response.body
-              end
-            else
-              nil
-            end
-
-          {:ok,
-           %PetstoreClient.ApiResult{
-             status_code: response.status_code,
-             data: data,
-             raw_body: response.body,
-             headers: response.headers
-           }}
+          decode_success_body(response, return_type)
         end
     end
+  end
+
+  # Decode a 2xx response body into the declared return type. A body that
+  # does not match the declared schema is a contract violation and the
+  # deserialize path RAISES (SerializationError on bad base64 / UUID / unknown
+  # enum / missing required field; ArgumentError on a primitive type mismatch).
+  # That raise is allowed to propagate: it surfaces through `invoke_api` as a
+  # raised exception (matching the fail-loud behaviour of the other 11 SDKs and
+  # the BaseApi test contract), while transport-level failures remain tagged
+  # `{:error, _}` from the send try/rescue above. The success path returns
+  # `{:ok, ApiResult}`.
+  defp decode_success_body(response, return_type) do
+    data =
+      if return_type && response.body && response.body != "" do
+        ct_header =
+          Enum.find(response.headers, fn {k, _v} ->
+            String.downcase(k) == "content-type"
+          end)
+
+        resp_content_type =
+          case ct_header do
+            {_k, v} -> v |> String.split(";") |> List.first() |> String.trim()
+            nil -> nil
+          end
+
+        # When Content-Type is absent (nil) treat it as JSON, matching
+        # the behaviour of all other generated clients.
+        is_json =
+          is_nil(resp_content_type) or
+            PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
+
+        cond do
+          is_json ->
+            # A 2xx body that does not match the declared schema is a
+            # contract violation; propagate the decode error to the
+            # caller instead of silently substituting the raw body
+            # string (which would yield type confusion). Matches the
+            # fail-loud behaviour of the other 11 SDKs.
+            PetstoreClient.ObjectSerializer.deserialize(response.body, return_type)
+
+          return_type == "binary()" ->
+            # Binary operations declare `return_type = "binary()"`. The
+            # transport base64-encodes non-text response bodies into the
+            # `response.body` string, so decode it back to raw bytes
+            # here, mirroring the other 11 SDKs. Fall back to the raw
+            # body if it is not valid base64 (e.g. a test server that
+            # writes raw bytes), never raising.
+            case Base.decode64(response.body) do
+              {:ok, decoded} -> decoded
+              :error -> response.body
+            end
+
+          true ->
+            response.body
+        end
+      else
+        nil
+      end
+
+    {:ok,
+     %PetstoreClient.ApiResult{
+       status_code: response.status_code,
+       data: data,
+       raw_body: response.body,
+       headers: response.headers
+     }}
   end
 
   @doc """

@@ -26,9 +26,9 @@ class {{className}} {
 
 {{/params}}
 {{#hasAuthField}}
-  {{! Optional per-operation authenticator. When non-null it overrides the }}
-  {{! client's configured credentials for this call only; null falls back to }}
-  {{! the Configuration credentials. }}
+  /// Per-operation authenticator. When non-null it overrides the client's
+  /// configured credentials for this call only; null falls back to the
+  /// configured authenticator.
   final {{authFieldType}}? auth;
 
 {{/hasAuthField}}

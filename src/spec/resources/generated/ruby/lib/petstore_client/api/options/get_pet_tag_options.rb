@@ -12,6 +12,9 @@ module PetstoreClient
   module Api
     module Options
       # Options for the get_pet_tag operation.
+      # @param colors [Array<String>]
+      # @param sizes [Array<String>]
+      # @param filter [String]
       class GetPetTagOptions
         attr_reader :colors, :sizes, :filter
 

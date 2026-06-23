@@ -18,6 +18,9 @@ module {{moduleName}}
       # credentials for this call only; when nil, the base client falls
       # back to the Configuration credentials.
 {{/hasAuthField}}
+{{#params}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/params}}
       class {{className}}
         attr_reader {{accessorList}}
 

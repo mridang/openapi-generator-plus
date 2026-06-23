@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Union
 from typing_extensions import Self
 
 
@@ -20,7 +20,13 @@ class PetTreatment(BaseModel):
     """
 
     actual_instance: Optional[Union[Medication, Surgery]] = None
-    any_of_schemas: ClassVar[Set[str]] = {"Medication", "Surgery"}
+    # Declared-order tuple (NOT a set): the serializer trials these candidate
+    # schemas in order so the first declared variant wins. A set literal would
+    # iterate in hash order and make variant resolution non-deterministic.
+    any_of_schemas: ClassVar[Tuple[str, ...]] = (
+        "Medication",
+        "Surgery",
+    )
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like

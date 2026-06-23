@@ -8,7 +8,7 @@ import {
   durationFromProtoJson,
 } from '../src/object-serializer{{importFileExtension}}';
 import { ZitadelError } from '../src/errors/index{{importFileExtension}}';
-import { Category, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum } from '../src/models/index{{importFileExtension}}';
+import { Category, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority } from '../src/models/index{{importFileExtension}}';
 import { uuid, isUuid } from '../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
 
@@ -36,18 +36,19 @@ describe('ObjectSerializer', () => {
 
   describe('DateTimeOffsetPreservationTests', () => {
     test('UTC datetime serializes containing date-time and offset', () => {
-      // Create a date at UTC midnight to test UTC offset
+      // A JS Date is an absolute instant; serialization pins UTC so the
+      // wire bytes are host-timezone-independent (deterministic across
+      // machines), matching the fixed-offset behaviour of the other SDKs.
       const date = new Date('2024-01-01T12:30:45.000Z');
       const result = ObjectSerializer.stringify(date);
-      expect(result).toContain('2024-01-01');
-      expect(result).toContain('12:30:45');
+      expect(result).toBe('2024-01-01T12:30:45+00:00');
     });
 
-    test('datetime preserves local timezone offset', () => {
+    test('datetime serializes in UTC regardless of host timezone', () => {
       const date = new Date('2024-01-01T12:30:45.000Z');
       const result = ObjectSerializer.stringify(date);
-      // Result should end with an offset like +HH:MM or -HH:MM
-      expect(result).toMatch(/[+-]\d{2}:\d{2}$/);
+      // Always the UTC designator +00:00, never a host-local offset.
+      expect(result).toMatch(/\+00:00$/);
     });
 
     test('subseconds are dropped from serialized datetime', () => {
@@ -323,6 +324,39 @@ describe('ObjectSerializer', () => {
       expect(parsed).toHaveProperty('id', 0);
       expect(parsed).toHaveProperty('name', '');
     });
+
+    test('emits a type:number (no-format) Decimal field as an unquoted JSON number', () => {
+      // 2.5 — Pet.weightKg is `type: number` with no format, carried as a
+      // branded Decimal string at runtime. The wire form must be a JSON
+      // number, not a quoted string, or a server validating `type: number`
+      // rejects it. The raw text is preserved (no lossy Number() round-trip).
+      const pet = new Pet({
+        name: 'Fido',
+        photoUrls: ['u'],
+        weightKg: '12.345' as unknown as Pet['weightKg'],
+      });
+      const result = ObjectSerializer.serialize(pet);
+      // Unquoted in the raw JSON text...
+      expect(result).toContain('"weightKg":12.345');
+      expect(result).not.toContain('"weightKg":"12.345"');
+      // ...and parses back to a real JSON number.
+      const parsed = JSON.parse(result);
+      expect(parsed.weightKg).toBe(12.345);
+      expect(typeof parsed.weightKg).toBe('number');
+    });
+
+    test('preserves Decimal precision beyond IEEE-754 on the wire', () => {
+      // A high-precision decimal that a JS number cannot hold exactly must
+      // survive verbatim in the wire text (the whole reason Decimal is a
+      // string), so the unquoted emission keeps every digit.
+      const pet = new Pet({
+        name: 'Fido',
+        photoUrls: ['u'],
+        weightKg: '12.34567890123456789' as unknown as Pet['weightKg'],
+      });
+      const result = ObjectSerializer.serialize(pet);
+      expect(result).toContain('"weightKg":12.34567890123456789');
+    });
   });
 
   describe('deserialize', () => {
@@ -554,6 +588,99 @@ describe('ObjectSerializer', () => {
 
     test('deserializeMap of null returns an empty record (lenient null)', () => {
       expect(ObjectSerializer.deserializeMap(null, Category)).toEqual({});
+    });
+  });
+
+  describe('IntegerEnumValidation', () => {
+    // An integer-backed enum is emitted as a TypeScript numeric enum, which
+    // carries a reverse mapping — so Object.values(Priority) contains the
+    // member-name strings too. Validation must reject a string payload that
+    // happens to match a member name; only the numeric wire values are valid.
+
+    test('rejects a reverse-mapped member name string as priority', () => {
+      expect(
+        () => new StockItem({ priority: 'NUMBER_1' as unknown as Priority }),
+      ).toThrow();
+    });
+
+    test('rejects deserializing a member-name string into the int enum field', () => {
+      const json = { priority: 'NUMBER_1' };
+      expect(() => ObjectSerializer.deserialize(json, StockItem)).toThrow(
+        SerializationError,
+      );
+    });
+
+    test('accepts a valid integer wire value', () => {
+      const item = new StockItem({ priority: Priority.NUMBER_2 });
+      expect(item.priority).toBe(2);
+    });
+
+    test('rejects an out-of-range integer', () => {
+      expect(
+        () => new StockItem({ priority: 99 as unknown as Priority }),
+      ).toThrow();
+    });
+  });
+
+  describe('UniqueItemsSetCoercion', () => {
+    // A `uniqueItems` array field is typed Set<T>; deserialization and
+    // hand-construction deliver a plain Array, so the constructor must coerce
+    // it to a real Set or callers calling .has()/.add() get a TypeError.
+
+    test('deserialize coerces a uniqueItems array into a runtime Set', () => {
+      const json = { name: 'Fido', photoUrls: ['a', 'b', 'a'] };
+      const pet = ObjectSerializer.deserialize(json, Pet);
+      expect(pet!.photoUrls).toBeInstanceOf(Set);
+      // duplicate collapses per uniqueItems
+      expect((pet!.photoUrls as Set<string>).size).toBe(2);
+      expect((pet!.photoUrls as Set<string>).has('a')).toBe(true);
+    });
+
+    test('hand-constructed model also yields a Set for photoUrls', () => {
+      const pet = new Pet({ name: 'Fido', photoUrls: ['x'] as unknown as Pet['photoUrls'] });
+      expect(pet.photoUrls).toBeInstanceOf(Set);
+      expect((pet.photoUrls as Set<string>).has('x')).toBe(true);
+    });
+
+    test('serializes a Set-valued uniqueItems field back to a JSON array', () => {
+      const pet = new Pet({ name: 'Fido', photoUrls: ['x', 'y'] as unknown as Pet['photoUrls'] });
+      const parsed = JSON.parse(ObjectSerializer.serialize(pet));
+      expect(Array.isArray(parsed.photoUrls)).toBe(true);
+      expect(parsed.photoUrls.sort()).toEqual(['x', 'y']);
+    });
+  });
+
+  describe('DeserializeArrayNullHandling', () => {
+    // For a primitive/enum element deserializer a null is a legitimate
+    // nullable wire value and must be preserved (array length and index
+    // alignment intact). For a model-class element type a null is a
+    // failed-parse sentinel and is dropped.
+
+    test('preserves null elements for a primitive element deserializer', () => {
+      const out = ObjectSerializer.deserializeArray(
+        ['a', null, 'b'],
+        (x) => x as string | null,
+      );
+      expect(out).toEqual(['a', null, 'b']);
+      expect(out.length).toBe(3);
+    });
+
+    test('drops null elements for a model-class element type', () => {
+      const out = ObjectSerializer.deserializeArray(
+        [{ id: 1, name: 'Dogs' }, null],
+        Category,
+      );
+      expect(out.length).toBe(1);
+      expect(out[0]).toBeInstanceOf(Category);
+    });
+
+    test('deserializeMap preserves a null value for a primitive value type', () => {
+      const out = ObjectSerializer.deserializeMap(
+        { a: 'x', b: null },
+        (x) => x as string | null,
+      );
+      expect(out).toEqual({ a: 'x', b: null });
+      expect(Object.keys(out).sort()).toEqual(['a', 'b']);
     });
   });
 

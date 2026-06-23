@@ -53,6 +53,17 @@ class DefaultApiClient internal constructor(
      */
     internal val proxyAuthHeader: String? = buildProxyAuthHeader(transportOptions.proxy)
 
+    /*
+     * Serializer used to render non-primitive multipart form parts to JSON.
+     * It MUST be the same configured ObjectSerializer used elsewhere in the
+     * SDK so that the contextual serializers (OffsetDateTime, BigDecimal,
+     * Duration, Uuid, KtorUrl, ...) registered in its SerializersModule are
+     * applied. A bare kotlinx-serialization Json instance lacks that module
+     * and fails serializer lookup for any model carrying such a field,
+     * corrupting the multipart part.
+     */
+    private val objectSerializer: ObjectSerializer = ObjectSerializer()
+
     /**
      * Tracks whether [close] has been called. Use-after-close must surface
      * the SDK's own [ApiException] rather than a foreign Ktor exception (or
@@ -370,14 +381,17 @@ class DefaultApiClient internal constructor(
             null -> {}
             is String, is Number, is Boolean -> append(fieldName, value.toString())
             else -> {
-                val json = try {
-                    kotlinx.serialization.json.Json.encodeToString(
-                        kotlinx.serialization.serializer(value::class.java),
-                        value,
-                    )
-                } catch (_: Exception) {
-                    value.toString()
-                }
+                // Serialize the object part through the SDK's configured
+                // ObjectSerializer, NOT a bare Json instance: the configured
+                // serializer carries the contextual SerializersModule
+                // (OffsetDateTime, BigDecimal, Duration, Uuid, KtorUrl, ...),
+                // so models with those field types render as real JSON. The
+                // encoding exception is intentionally NOT swallowed into a
+                // toString() fallback — that fallback emitted the data-class
+                // toString() as the JSON part, silently corrupting the body.
+                // A genuine serialization failure must surface, not produce
+                // invalid JSON.
+                val json = objectSerializer.serialize(value)
                 append(
                     fieldName,
                     json,

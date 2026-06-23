@@ -8,10 +8,10 @@ namespace PetstoreClient.Api.Options;
 /// </summary>
 public sealed class FindPetsByStatusOptions
 {
-    /// <summary> Status values that need to be considered for filter</summary>
+    /// <summary>Status values that need to be considered for filter</summary>
     public string? Status { get; init; }
 
-    /// <summary> Filter criteria as key-value pairs</summary>
+    /// <summary>Filter criteria as key-value pairs</summary>
     public Dictionary<string, string>? Filter { get; init; }
 
 }

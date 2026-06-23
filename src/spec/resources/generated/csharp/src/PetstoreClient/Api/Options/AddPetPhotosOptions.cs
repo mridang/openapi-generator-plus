@@ -9,10 +9,8 @@ namespace PetstoreClient.Api.Options;
 /// </summary>
 public sealed class AddPetPhotosOptions
 {
-    /// <summary></summary>
     public required List<System.IO.Stream> Files { get; init; }
 
-    /// <summary></summary>
     public required PhotoMetadata Metadata { get; init; }
 
 }

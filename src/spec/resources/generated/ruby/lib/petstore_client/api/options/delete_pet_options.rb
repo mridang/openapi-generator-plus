@@ -16,6 +16,7 @@ module PetstoreClient
       # The optional +auth+ member overrides the client's configured
       # credentials for this call only; when nil, the base client falls
       # back to the Configuration credentials.
+      # @param api_key [String] Session cookie used for authentication
       class DeletePetOptions
         attr_reader :api_key, :auth
 

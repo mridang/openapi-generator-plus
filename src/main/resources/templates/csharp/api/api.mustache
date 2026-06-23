@@ -322,7 +322,10 @@ public class {{classname}} : BaseApi
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
                 "{{baseName}}",
-                options.{{vendorExtensions.pascalName}} as IDictionary<string, object?>
+                options.{{vendorExtensions.pascalName}}.ToDictionary(
+                    entry => entry.Key,
+                    entry => (object?)entry.Value
+                )
             );
             foreach (KeyValuePair<string, string> entry in deepObj)
             {

@@ -272,6 +272,21 @@ internal enum ObjectSerializer {
              * contract. Default `CustomStringConvertible` on an enum returns the
              * case name, so this branch must precede that fallthrough. */
             return (rawString.rawValue as? String) ?? "\(value)"
+        case let rawInt as any RawRepresentable where rawInt.rawValue is Int:
+            /* Integer-backed ($ref) enums are `enum X: Int`; emit the declared
+             * numeric wire value (`rawValue`) rather than the Swift case name.
+             * Without this an Int-backed enum used as a path/query/header/cookie
+             * param would fall through to CustomStringConvertible, whose
+             * synthesized conformance returns the case name (`NUMBER_1`) instead
+             * of the wire value (`1`). This branch mirrors the String-backed one
+             * above and must precede the CustomStringConvertible fallthrough. */
+            return (rawInt.rawValue as? Int).map { "\($0)" } ?? "\(value)"
+        case let rawInt32 as any RawRepresentable where rawInt32.rawValue is Int32:
+            /* Int32-backed enum variant of the branch above. */
+            return (rawInt32.rawValue as? Int32).map { "\($0)" } ?? "\(value)"
+        case let rawInt64 as any RawRepresentable where rawInt64.rawValue is Int64:
+            /* Int64-backed enum variant of the branch above. */
+            return (rawInt64.rawValue as? Int64).map { "\($0)" } ?? "\(value)"
         case let desc as CustomStringConvertible:
             return desc.description
         default:

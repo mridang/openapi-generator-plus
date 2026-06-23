@@ -531,8 +531,25 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             if (ModelUtils.isFloatSchema(unaliased)) {
                 return unaliased.getDefault() + "F";
             }
+            // A {@code number} with {@code format: double} maps to
+            // {@code Double}, for which a bare decimal literal is a
+            // valid initializer.
+            if (ModelUtils.isDoubleSchema(unaliased)) {
+                return unaliased.getDefault().toString();
+            }
+            // A format-less {@code number} (and the explicit
+            // {@code decimal} type) maps to {@code BigDecimal}, which
+            // has no numeric-literal conversion. A bare literal like
+            // {@code 12.5} would not compile, so wrap the default in a
+            // {@code BigDecimal(String)} constructor. Using a string
+            // also preserves the exact decimal value.
+            if (ModelUtils.isNumberSchema(unaliased)
+                    || ModelUtils.isDecimalSchema(unaliased)) {
+                return "new java.math.BigDecimal(\""
+                        + escapeText(String.valueOf(unaliased.getDefault()))
+                        + "\")";
+            }
             if (ModelUtils.isIntegerSchema(unaliased)
-                    || ModelUtils.isNumberSchema(unaliased)
                     || ModelUtils.isBooleanSchema(unaliased)) {
                 return unaliased.getDefault().toString();
             }

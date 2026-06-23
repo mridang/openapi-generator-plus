@@ -9,6 +9,7 @@
 
 package com.example.petstore.models
 
+import com.example.petstore.ObjectSerializer
 import com.example.petstore.models.Metadata
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -75,6 +76,30 @@ class MetadataTest {
 
         assertNotNull(deserialized)
         assertEquals(original.createdAt, deserialized.createdAt)
+    }
+
+    @Test
+    @DisplayName("additional properties survive a full ObjectSerializer round-trip")
+    fun testAdditionalPropertiesRoundTripThroughObjectSerializer() {
+        // The on-the-wire round-trip must preserve free-form extras: the SDK's
+        // ObjectSerializer (not a bare kotlinx Json) writes additionalProperties
+        // out on serialize and re-collects undeclared JSON keys on deserialize.
+        // The model's additionalProperties map is @Transient, so a plain Json
+        // would drop them in both directions; this asserts the SDK does not.
+        val serializer = ObjectSerializer()
+        val original = Metadata()
+        original.additionalProperties["customField"] = "hello"
+        original.additionalProperties["count"] = 42L
+
+        val encoded = serializer.serialize(original)
+        // Extras must appear as real top-level JSON members, not a toString().
+        assertTrue(encoded.contains("\"customField\""), "extra key must be on the wire: $encoded")
+        assertTrue(encoded.contains("\"hello\""), "extra value must be on the wire: $encoded")
+
+        val decoded = serializer.deserialize<Metadata>(encoded)
+        assertNotNull(decoded)
+        assertEquals("hello", decoded!!.additionalProperties["customField"])
+        assertEquals(42L, decoded.additionalProperties["count"])
     }
 
     @Test

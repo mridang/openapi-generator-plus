@@ -32,6 +32,8 @@ class _BaseApiAuth implements Authenticator {
   @override
   Map<String, String> authHeaders() => headers;
   @override
+  Future<Map<String, String>> authHeadersAsync() async => headers;
+  @override
   Map<String, String> queryParams() => query;
   @override
   Map<String, String> cookieParams() => cookies;

@@ -63,6 +63,7 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
   }
 
   /// Asynchronously retrieves auth headers with a valid access token.
+  @override
   Future<Map<String, String>> authHeadersAsync() async {
     final params = <String, String>{'grant_type': 'client_credentials'};
     final extraHeaders = <String, String>{};

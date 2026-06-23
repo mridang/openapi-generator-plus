@@ -12,7 +12,18 @@ abstract class Authenticator {
   String host();
 
   /// Returns the authentication headers to include in every request.
+  ///
+  /// For credential schemes that need no I/O (api-key, bearer, basic) this is
+  /// the source of truth. Token-exchange OAuth flows (client-credentials,
+  /// password, authorization-code) cannot fetch a token synchronously and
+  /// return an empty map here; the request path must use [authHeadersAsync].
   Map<String, String> authHeaders();
+
+  /// Returns the authentication headers, performing any required asynchronous
+  /// token exchange first. The request path always awaits this; the default
+  /// implementation (see BaseAuthenticator) simply returns [authHeaders] for
+  /// schemes that need no async work.
+  Future<Map<String, String>> authHeadersAsync();
 
   /// Returns query parameters to include for authentication.
   Map<String, String> queryParams();

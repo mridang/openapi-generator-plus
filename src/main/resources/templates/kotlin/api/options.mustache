@@ -21,9 +21,15 @@ import {{authImport}}
  */
 class {{className}}(
 {{#requiredParams}}
+{{#description}}
+    /** {{{description}}} */
+{{/description}}
     val {{paramName}}: {{{dataType}}},
 {{/requiredParams}}
 {{#optionalParams}}
+{{#description}}
+    /** {{{description}}} */
+{{/description}}
     val {{paramName}}: {{{dataType}}}? = null,
 {{/optionalParams}}
 {{#hasAuthField}}

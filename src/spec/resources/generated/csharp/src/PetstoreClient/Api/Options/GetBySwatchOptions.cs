@@ -9,10 +9,8 @@ namespace PetstoreClient.Api.Options;
 /// </summary>
 public sealed class GetBySwatchOptions
 {
-    /// <summary></summary>
     public Swatch? QuerySwatch { get; init; }
 
-    /// <summary></summary>
     public Swatch? PreferredSwatch { get; init; }
 
 }

@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Union
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Tuple, Union
 from typing_extensions import Self
 
 
@@ -33,7 +33,14 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     # which gives us the same explicit-error guarantee as the native form
     # without needing a template-level overhaul of the child models.
     actual_instance: Optional[Union[List[bytes], bytes]] = None
-    one_of_schemas: ClassVar[Set[str]] = {"List[bytes]", "bytes"}
+    # Declared-order tuple (NOT a set): the serializer trials these candidate
+    # schemas in order and the model validators promise "first declared
+    # variant wins". A set literal would iterate in hash order and break that
+    # contract, so we preserve the oneOf declaration order here.
+    one_of_schemas: ClassVar[Tuple[str, ...]] = (
+        "List[bytes]",
+        "bytes",
+    )
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like

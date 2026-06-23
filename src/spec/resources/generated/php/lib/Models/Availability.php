@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
+/**
+ * Stock availability, non-lowercase string enum
+ */
 enum Availability: string
 {
     case AVAILABLE = 'Available';

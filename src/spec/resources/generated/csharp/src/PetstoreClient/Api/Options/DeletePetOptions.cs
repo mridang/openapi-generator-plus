@@ -9,7 +9,7 @@ namespace PetstoreClient.Api.Options;
 /// </summary>
 public sealed class DeletePetOptions
 {
-    /// <summary> Session cookie used for authentication</summary>
+    /// <summary>Session cookie used for authentication</summary>
     public string? ApiKey { get; init; }
 
     /// <summary>

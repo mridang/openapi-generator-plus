@@ -280,6 +280,16 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def sanitize_for_serialization(%Duration{} = d), do: format_protobuf_duration(d)
 
+  # uniqueItems array fields are typed `MapSet.t(...)` and deserialize into a
+  # MapSet (see convert_to_type's "MapSet.t(" clause). A MapSet is a struct, so
+  # without this clause it would hit the generic struct handler below, which
+  # exposes its private internal representation (`%{map: %{...}}`) instead of a
+  # JSON array. Convert it to a plain list first so the elements flow through
+  # the list clause and emit a proper JSON array — symmetric with deserialize.
+  def sanitize_for_serialization(%MapSet{} = set) do
+    set |> MapSet.to_list() |> sanitize_for_serialization()
+  end
+
   def sanitize_for_serialization(%{__struct__: _module, actual_instance: inner}) do
     sanitize_for_serialization(inner)
   end
@@ -507,7 +517,7 @@ defmodule PetstoreClient.ObjectSerializer do
 
   # 4.8: format:duration — google.protobuf.Duration protobuf-JSON
   # ("<seconds>s") decoded to stdlib `Duration.t()` (Elixir 1.17+). Stdlib
-  # floor is enforced via mix.exs `elixir: "~> 1.19"`. Falls back to the raw
+  # floor is enforced via mix.exs `elixir: "~> 1.17"`. Falls back to the raw
   # payload on parse failure.
   def convert_to_type(data, type) when type in ["Duration", "Duration.t()"] do
     case parse_protobuf_duration(to_string(data)) do

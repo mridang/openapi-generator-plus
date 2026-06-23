@@ -478,6 +478,21 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     {
                         next.Content = new StringContent(text2, Encoding.UTF8, contentType ?? "application/json");
                     }
+                    else if (nextBody is Stream)
+                    {
+                        /* A consumed request Stream is generally non-replayable:
+                           the original SendAsync has already read it to EOF, so
+                           it cannot be re-sent on the follow-up hop. Silently
+                           rebuilding it would dispatch the redirected request
+                           with an empty body and lose the upload. Surface a
+                           typed SDK error instead — mirroring the downgrade
+                           body-replay guard above — so the loss is observable
+                           rather than silent. */
+                        response.Dispose();
+                        next.Dispose();
+                        throw new ApiException(
+                            $"Cannot replay a streaming request body across a body-preserving redirect to: {nextUrl}");
+                    }
                     response.Dispose();
                     currentUrl = nextUrl;
                     currentMethod = nextMethod;
@@ -914,9 +929,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// Returns a comma-separated list of supported content encodings for
     /// the Accept-Encoding header.
     ///
-    /// Includes gzip and deflate unconditionally. Brotli ("br") is included
-    /// when <see cref="System.IO.Compression.BrotliStream"/> is available
-    /// (.NET 6+).
+    /// Always advertises gzip, deflate, and Brotli ("br"); the project targets
+    /// a framework where <see cref="System.IO.Compression.BrotliStream"/> is
+    /// always present.
     /// </summary>
     /// <returns>Comma-separated encoding names.</returns>
     private static string SupportedEncodings()

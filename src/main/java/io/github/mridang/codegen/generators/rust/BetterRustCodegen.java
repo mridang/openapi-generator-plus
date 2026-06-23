@@ -947,6 +947,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // cannot be silently defaulted to an empty/zero value.
         context.put(
                 "hasRequiredParams", optionsParams.stream().anyMatch(p -> p.required));
+        // Whether the struct carries any optional (Option-typed) field. Drives
+        // the new() doc comment: the "optional fields ... chained setters
+        // below" sentence is only true when at least one optional param emits a
+        // setter. (The per-operation auth field, when present, also adds a
+        // setter and is folded in at the template level via hasAuthField.)
+        context.put(
+                "hasOptionalParams", optionsParams.stream().anyMatch(p -> !p.required));
         // Folds the optional per-operation authenticator into the Options
         // struct (mirrors the Java generator). injectAuthFieldContext sets
         // hasAuthField (= op.hasAuthMethods) and authFieldType. Rust holds the

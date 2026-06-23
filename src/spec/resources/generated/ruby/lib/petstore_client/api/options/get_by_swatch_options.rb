@@ -14,6 +14,8 @@ module PetstoreClient
   module Api
     module Options
       # Options for the get_by_swatch operation.
+      # @param query_swatch [Swatch]
+      # @param preferred_swatch [Swatch]
       class GetBySwatchOptions
         attr_reader :query_swatch, :preferred_swatch
 

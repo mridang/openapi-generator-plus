@@ -19,6 +19,8 @@ class _TestAuth implements Authenticator {
   @override
   Map<String, String> authHeaders() => {'Authorization': 'Bearer test-token'};
   @override
+  Future<Map<String, String>> authHeadersAsync() async => authHeaders();
+  @override
   Map<String, String> queryParams() => {};
   @override
   Map<String, String> cookieParams() => {};
@@ -31,6 +33,8 @@ class _PerCallAuth implements Authenticator {
   Map<String, String> authHeaders() => {
     'Authorization': 'Bearer per-call-token',
   };
+  @override
+  Future<Map<String, String>> authHeadersAsync() async => authHeaders();
   @override
   Map<String, String> queryParams() => {};
   @override

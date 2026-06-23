@@ -12,6 +12,9 @@ module PetstoreClient
   module Api
     module Options
       # Options for the set_pet_preferences operation.
+      # @param nickname [String]
+      # @param tags [Array<String>]
+      # @param note [String]
       class SetPetPreferencesOptions
         attr_reader :nickname, :tags, :note
 

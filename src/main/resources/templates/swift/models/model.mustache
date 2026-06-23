@@ -120,7 +120,18 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
 {{/required}}
 {{^required}}
+{{#defaultValue}}
+        // When the key is absent, apply the schema default. The default literal
+        // is the wire-format String (e.g. "3600s"), so decode it through
+        // decodeDuration to convert it to the Swift TimeInterval type, matching
+        // the present-key path and the non-duration default branch below.
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+            : try ObjectSerializer.decodeDuration({{{.}}})
+{{/defaultValue}}
+{{^defaultValue}}
         self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}
@@ -217,7 +228,18 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
 {{/required}}
 {{^required}}
+{{#defaultValue}}
+        // When the key is absent, apply the schema default. The default literal
+        // is the wire-format String (e.g. "3600s"), so decode it through
+        // decodeDuration to convert it to the Swift TimeInterval type, matching
+        // the present-key path and the non-duration default branch below.
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+            : try ObjectSerializer.decodeDuration({{{.}}})
+{{/defaultValue}}
+{{^defaultValue}}
         self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}

@@ -87,8 +87,18 @@ pub fn parse(s: &str) -> Result<Duration, String> {
             .parse()
             .map_err(|_| format!("protobuf-JSON duration: bad fraction in {s:?}"))?
     };
-    let total = secs * NANOS_PER_SECOND + nanos;
-    let total = if neg { -total } else { total };
+    // Use checked arithmetic: `secs` is parsed from an arbitrary-length
+    // digit run and may be a valid i64 on its own yet overflow once
+    // multiplied by NANOS_PER_SECOND (e.g. `9223372037s`). An unchecked
+    // multiply would panic in debug builds and silently wrap in release;
+    // instead surface an out-of-range error consistent with the other
+    // rejection paths above. The negation is likewise checked so that
+    // i64::MIN does not panic on `-total`.
+    let total = secs
+        .checked_mul(NANOS_PER_SECOND)
+        .and_then(|s| s.checked_add(nanos))
+        .and_then(|t| if neg { t.checked_neg() } else { Some(t) })
+        .ok_or_else(|| format!("protobuf-JSON duration: out of range in {s:?}"))?;
     Ok(Duration::nanoseconds(total))
 }
 

@@ -52,9 +52,23 @@ impl {{className}} {
 {{#hasRequiredParams}}
     /// Creates a new {{className}}, requiring every required parameter up front.
     ///
+{{#hasOptionalParams}}
     /// Required fields are taken as constructor arguments so they cannot be
     /// silently omitted; optional fields start as `None` and are populated via
     /// the chained setters below.
+{{/hasOptionalParams}}
+{{^hasOptionalParams}}
+{{#hasAuthField}}
+    /// Required fields are taken as constructor arguments so they cannot be
+    /// silently omitted; the optional per-operation authenticator starts as
+    /// `None` and is populated via the chained setter below.
+{{/hasAuthField}}
+{{^hasAuthField}}
+    /// Every field of this struct is required and is taken as a constructor
+    /// argument so it cannot be silently omitted. This struct has no optional
+    /// fields and therefore no chained setters.
+{{/hasAuthField}}
+{{/hasOptionalParams}}
     pub fn new({{#params}}{{#required}}{{name}}: {{{dataType}}}, {{/required}}{{/params}}) -> Self {
         Self {
 {{#params}}

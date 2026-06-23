@@ -16,6 +16,20 @@ import { Decimal } from "../brand.js";
  * A pet record extended with owner information
  */
 export class PetWithOwner {
+  /**
+   * 2.5 — Wire-serialization registry for `type: number` (no format)
+   * fields. Such fields are carried as branded {@link Decimal} values,
+   * which are plain strings at runtime to preserve arbitrary precision.
+   * On the request path ObjectSerializer.serialize walks the instance with
+   * JSON.stringify, which would quote a string and emit
+   * `"weightKg":"12.345"` (a JSON string) instead of the spec-required
+   * `"weightKg":12.345` (a JSON number). The serializer consults this set
+   * (by runtime property name) to emit those fields unquoted via JSON.rawJSON,
+   * preserving the full decimal text without a lossy Number() round-trip.
+   * Empty when the model has no `type: number` no-format fields.
+   */
+  static readonly __decimalFields: ReadonlySet<string> = new Set(["weightKg"]);
+
   /** @example 10 */
   @Expose({ name: "id" })
   id?: number;
@@ -102,6 +116,20 @@ export class PetWithOwner {
         `photoUrls must be an array, got ${typeof this.photoUrls}`,
       );
     }
+    /**
+     * uniqueItems: the declared field type is Set<T>, but deserialization
+     * (plainToInstance) and hand-construction both deliver a plain Array —
+     * class-transformer cannot build a Set from a JSON array. Coerce the
+     * validated array into a Set here so the runtime shape matches the
+     * static Set<T> type and callers can use .has()/.add() without a
+     * TypeError. Duplicate elements collapse, honouring uniqueItems. An
+     * already-Set value (re-construction) is left untouched.
+     */
+    if (this.photoUrls != null && Array.isArray(this.photoUrls)) {
+      this.photoUrls = new Set(
+        this.photoUrls as unknown as unknown[],
+      ) as unknown as Set<string>;
+    }
     if (
       this.location != null &&
       !Array.isArray(this.location) &&
@@ -151,7 +179,12 @@ export class PetWithOwner {
       );
     }
     if (this.status != null) {
-      const statusValues = Object.values(PetWithOwnerStatusEnum);
+      const statusValues = Object.values(PetWithOwnerStatusEnum).filter(
+        (v) =>
+          typeof (PetWithOwnerStatusEnum as Record<string, unknown>)[
+            v as string
+          ] !== "number",
+      );
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
         throw new Error(
           `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +

@@ -903,10 +903,53 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             return withDsGenerics(p.items.dataType) + "[]";
         }
         if (p.isMap) {
-            String valueType = (p.items != null) ? withDsGenerics(p.items.dataType) : "mixed";
-            return "array<string, " + valueType + ">";
+            return "array<string, " + resolveMapValueType(p) + ">";
         }
         return withDsGenerics(p.dataType);
+    }
+
+    /**
+     * Resolves the PHPDoc value type for a map parameter
+     * ({@code additionalProperties: {...}}). The schema's value type can live
+     * on one of several fields depending on how openapi-generator built the
+     * parameter:
+     *
+     * <ul>
+     *   <li>For a plain map query/body param ({@code updateParameterForMap}),
+     *       {@code items} is the value schema, so {@code items.dataType} (e.g.
+     *       {@code string}) is the value type.</li>
+     *   <li>For a {@code style: deepObject} query param,
+     *       {@code DefaultCodegen} overwrites {@code items} with the whole map
+     *       schema (whose own {@code dataType} is the container placeholder
+     *       {@code \Ds\Map}), and the real value schema is nested one level
+     *       deeper on {@code items.additionalProperties}. Without unwrapping
+     *       this we would emit the container placeholder
+     *       {@code \Ds\Map<array-key, mixed>} as the value type instead of the
+     *       declared scalar.</li>
+     *   <li>{@code additionalProperties} directly on the parameter is honoured
+     *       when present.</li>
+     * </ul>
+     *
+     * Falls back to {@code mixed} only when no value schema can be located.
+     */
+    private static String resolveMapValueType(CodegenParameter p) {
+        // Param-level additionalProperties (the map's value schema) wins when set.
+        if (p.additionalProperties != null && p.additionalProperties.dataType != null) {
+            return withDsGenerics(p.additionalProperties.dataType);
+        }
+        if (p.items != null) {
+            // deepObject case: items is the map schema itself, the value schema
+            // is one level deeper on items.additionalProperties. Resolving from
+            // items.dataType here would leak the \Ds\Map container placeholder.
+            if (p.items.additionalProperties != null
+                    && p.items.additionalProperties.dataType != null) {
+                return withDsGenerics(p.items.additionalProperties.dataType);
+            }
+            if (p.items.dataType != null) {
+                return withDsGenerics(p.items.dataType);
+            }
+        }
+        return "mixed";
     }
 
     /**

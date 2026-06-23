@@ -51,14 +51,30 @@ class Metadata(BaseModel):
             known.add(fname)
             if finfo.alias is not None:
                 known.add(finfo.alias)
-        extras: Dict[str, Any] = values.get("additional_properties") or {}
-        if not isinstance(extras, dict):
-            extras = {}
+        # The `additional_properties` key carries two distinct meanings and we
+        # must not conflate them:
+        #   1. Internal bucket — when re-validating a Python value we produced
+        #      ourselves (e.g. a prior `model_dump()` or kwargs), the captured
+        #      extras live under this key as a dict. We seed `extras` from it.
+        #   2. Real wire key — a server may legitimately send a property named
+        #      literally `additional_properties` (additionalProperties allows
+        #      any name). Inbound wire payloads are always flat, so such a
+        #      value is never the internal dict bucket and must be funnelled
+        #      into extras under its real name rather than dropped.
+        raw_bucket = values.get("additional_properties")
+        extras: Dict[str, Any] = (
+            dict(raw_bucket) if isinstance(raw_bucket, dict) else {}
+        )
         merged: Dict[str, Any] = {}
         for key, value in values.items():
             if key == "additional_properties":
-                continue
-            if key in known:
+                # Only swallow the internal dict bucket (already consumed as
+                # the seed above). A non-dict value is a real wire property and
+                # belongs in extras keyed under its real name.
+                if isinstance(value, dict):
+                    continue
+                extras[key] = value
+            elif key in known:
                 merged[key] = value
             else:
                 extras[key] = value

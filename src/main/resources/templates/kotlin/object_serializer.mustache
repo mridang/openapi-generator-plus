@@ -219,7 +219,54 @@ internal class ObjectSerializer(
         // SDKs for both default-valued and explicitly-nulled fields.
         val encoded = json.parseToJsonElement(
             json.encodeToString(serializer(unwrapped::class.java), unwrapped))
-        return json.encodeToString(JsonElement.serializer(), stripJsonNulls(encoded))
+        // Re-attach any free-form `additionalProperties` the model carries. The
+        // map is declared @Transient on the model so kotlinx-serialization
+        // ignores it during encoding; without this merge those extra keys would
+        // be silently dropped on the wire. Every other SDK round-trips
+        // additionalProperties (Java @JsonAnyGetter, Go map re-merge, Rust
+        // #[serde(flatten)], ...), so Kotlin must too. Declared properties take
+        // precedence on a key collision.
+        val merged = mergeAdditionalProperties(encoded, unwrapped)
+        return json.encodeToString(JsonElement.serializer(), stripJsonNulls(merged))
+    }
+
+    /**
+     * If [model] declares a free-form `additionalProperties` map (emitted by the
+     * model template for schemas with `additionalProperties: true`), fold its
+     * entries into [encoded] as top-level JSON members. Reads the map
+     * reflectively because the property is @Transient and thus invisible to the
+     * serializer. Declared object members already present in [encoded] are never
+     * overwritten. Returns [encoded] unchanged when the model has no such map or
+     * [encoded] is not a JSON object.
+     */
+    private fun mergeAdditionalProperties(encoded: JsonElement, model: Any): JsonElement {
+        if (encoded !is JsonObject) return encoded
+        val extras = readAdditionalProperties(model) ?: return encoded
+        if (extras.isEmpty()) return encoded
+        val merged = LinkedHashMap<String, JsonElement>(encoded)
+        for ((key, value) in extras) {
+            if (!merged.containsKey(key)) {
+                merged[key] = toJsonElementStatic(value)
+            }
+        }
+        return JsonObject(merged)
+    }
+
+    /**
+     * Reflectively read a model's `additionalProperties` map, or null when the
+     * model does not declare one. The accessor name follows Kotlin's property
+     * getter convention (`getAdditionalProperties`).
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun readAdditionalProperties(model: Any): Map<String, Any?>? {
+        return try {
+            val getter = model::class.java.getMethod("getAdditionalProperties")
+            getter.invoke(model) as? Map<String, Any?>
+        } catch (_: NoSuchMethodException) {
+            null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun toJsonElement(value: Any?): JsonElement = toJsonElementStatic(value)
@@ -262,7 +309,68 @@ internal class ObjectSerializer(
         // (Go encoding/json, Python json, etc.) whose parsers accept a `null`
         // payload on no-content responses without throwing.
         if (stripped.trim() == "null") return null
-        return json.decodeFromString<T>(stripped)
+        val decoded = json.decodeFromString<T>(stripped)
+        // Capture any JSON keys that are not declared properties of the model
+        // into its free-form `additionalProperties` map. The configured Json has
+        // ignoreUnknownKeys = true, so undeclared keys are dropped during
+        // decoding; this re-collects them so the model round-trips extras the
+        // same way the other SDKs do. No-op when the model has no such map.
+        if (decoded != null) {
+            populateAdditionalProperties(decoded, stripped)
+        }
+        return decoded
+    }
+
+    /**
+     * After decoding, drain JSON keys that do not correspond to a declared model
+     * property into the model's `additionalProperties` map (if it declares one).
+     * Declared keys are taken from the model serializer's descriptor element
+     * names (which honour @SerialName). Values are decoded to plain Kotlin types
+     * (maps/lists/primitives) so they re-serialize faithfully.
+     *
+     * Marked @PublishedApi internal so the inline reified [deserialize] above may
+     * call it; takes [Any] rather than a reified type because the work is purely
+     * reflective and type-erased.
+     */
+    @PublishedApi
+    internal fun populateAdditionalProperties(model: Any, rawJson: String) {
+        val target = readAdditionalPropertiesMutable(model) ?: return
+        val root = try {
+            json.parseToJsonElement(rawJson)
+        } catch (_: Exception) {
+            return
+        }
+        if (root !is JsonObject) return
+        val declared: Set<String> = try {
+            serializer(model::class.java).descriptor.let { descriptor ->
+                (0 until descriptor.elementsCount)
+                    .map { descriptor.getElementName(it) }
+                    .toSet()
+            }
+        } catch (_: Exception) {
+            emptySet()
+        }
+        for ((key, value) in root) {
+            if (key !in declared) {
+                target[key] = fromJsonElement(value)
+            }
+        }
+    }
+
+    /**
+     * Reflectively read a model's `additionalProperties` map as a mutable map for
+     * population during decode, or null when absent or not mutable.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun readAdditionalPropertiesMutable(model: Any): MutableMap<String, Any?>? {
+        return try {
+            val getter = model::class.java.getMethod("getAdditionalProperties")
+            getter.invoke(model) as? MutableMap<String, Any?>
+        } catch (_: NoSuchMethodException) {
+            null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun stringify(value: Any?): String {

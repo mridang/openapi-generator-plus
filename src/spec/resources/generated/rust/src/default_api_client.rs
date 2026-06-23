@@ -231,6 +231,16 @@ impl ApiClient for DefaultApiClient {
                     request_builder = request_builder
                         .body(Vec::<u8>::new())
                         .header("Content-Length", "0");
+                    // Also record the explicit `Content-Length: 0` in `merged`
+                    // (the header map the redirect loop seeds itself from), not
+                    // only on this builder. A 307/308 replay of a body-less
+                    // POST rebuilds the follow-up request from
+                    // `current_headers`, so setting it only on the builder
+                    // would lose the workaround on the redirected hop. The
+                    // redirect loop preserves a `Content-Length` of exactly
+                    // `0` even when there is no `next_body` (see below), since
+                    // an empty body's length is unconditionally zero.
+                    merged.insert("Content-Length".to_string(), "0".to_string());
                 }
             }
 
@@ -342,9 +352,16 @@ impl ApiClient for DefaultApiClient {
                         self.http_client.request(http_method, next_url.clone());
                     let mut redirect_headers = current_headers.clone();
                     if next_body.is_none() {
-                        redirect_headers.retain(|k, _v| {
+                        redirect_headers.retain(|k, v| {
                             let lk = k.to_lowercase();
-                            lk != "content-type" && lk != "content-length"
+                            // Drop Content-Type unconditionally when there is
+                            // no body. Drop Content-Length too, EXCEPT a
+                            // literal `0`: an original empty-body POST/PUT/PATCH
+                            // carries an explicit `Content-Length: 0` workaround
+                            // (for WAFs/servers that 411 on body-less POSTs)
+                            // and that header stays valid across a 307/308
+                            // replay, where the empty body is preserved.
+                            lk != "content-type" && (lk != "content-length" || v.trim() == "0")
                         });
                     }
                     for (k, v) in &redirect_headers {

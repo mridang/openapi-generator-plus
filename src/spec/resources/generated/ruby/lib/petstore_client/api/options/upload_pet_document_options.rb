@@ -12,6 +12,9 @@ module PetstoreClient
   module Api
     module Options
       # Options for the upload_pet_document operation.
+      # @param file [File]
+      # @param document_type [String]
+      # @param notes [String]
       class UploadPetDocumentOptions
         attr_reader :file, :document_type, :notes
 

@@ -24,6 +24,16 @@ namespace {{modelPackage}};
 
 {{#isEnum}}
 {{#isInteger}}
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * {{classname}} is an enumeration of allowed values.
+ */
+{{/description}}
 enum {{classname}}: int
 {
 {{#allowableValues}}
@@ -35,6 +45,16 @@ enum {{classname}}: int
 {{/isInteger}}
 {{^isInteger}}
 {{#isLong}}
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * {{classname}} is an enumeration of allowed values.
+ */
+{{/description}}
 enum {{classname}}: int
 {
 {{#allowableValues}}
@@ -45,6 +65,16 @@ enum {{classname}}: int
 }
 {{/isLong}}
 {{^isLong}}
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * {{classname}} is an enumeration of allowed values.
+ */
+{{/description}}
 enum {{classname}}: string
 {
 {{#allowableValues}}

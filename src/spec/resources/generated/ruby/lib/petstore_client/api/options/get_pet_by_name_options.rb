@@ -12,6 +12,7 @@ module PetstoreClient
   module Api
     module Options
       # Options for the get_pet_by_name operation.
+      # @param category [String]
       class GetPetByNameOptions
         attr_reader :category
 

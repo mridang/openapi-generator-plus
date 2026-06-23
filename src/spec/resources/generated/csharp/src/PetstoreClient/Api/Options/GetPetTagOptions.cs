@@ -8,13 +8,10 @@ namespace PetstoreClient.Api.Options;
 /// </summary>
 public sealed class GetPetTagOptions
 {
-    /// <summary></summary>
     public List<string>? Colors { get; init; }
 
-    /// <summary></summary>
     public List<string>? Sizes { get; init; }
 
-    /// <summary></summary>
     public string? Filter { get; init; }
 
 }
