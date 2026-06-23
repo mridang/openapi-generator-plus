@@ -41,6 +41,7 @@ pub struct EdgeCases {
     #[serde(
         rename = "retryAfter",
         skip_serializing_if = "Option::is_none",
+        default,
         with = "crate::proto_duration::option"
     )]
     pub retry_after: Option<chrono::Duration>,

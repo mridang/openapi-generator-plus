@@ -19,6 +19,7 @@ pub struct PetPassport {
     #[serde(
         rename = "thumbnail",
         skip_serializing_if = "Option::is_none",
+        default,
         with = "super::base64_serde::option"
     )]
     pub thumbnail: Option<Vec<u8>>,
@@ -27,6 +28,7 @@ pub struct PetPassport {
     #[serde(
         rename = "scans",
         skip_serializing_if = "Option::is_none",
+        default,
         with = "super::base64_serde::vec_option"
     )]
     pub scans: Option<Vec<Vec<u8>>>,
@@ -38,6 +40,7 @@ pub struct PetPassport {
     #[serde(
         rename = "biometricChip",
         skip_serializing_if = "Option::is_none",
+        default,
         with = "super::base64_serde::option"
     )]
     pub biometric_chip: Option<Vec<u8>>,

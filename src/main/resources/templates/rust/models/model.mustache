@@ -151,7 +151,12 @@ pub struct {{classname}} {
     pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
-    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration::option"{{/isArray}}{{/vendorExtensions.isDuration}})]
+    {{! An optional field with a custom `with =` (de)serializer needs `default`
+        too: serde's `with` overrides Option's built-in absent-as-None handling,
+        so without `default` an OMITTED byte/duration field fails to deserialize
+        with a "missing field" error instead of decoding to None. The enum
+        schema-default case already supplies its own `default = "default_..."`. }}
+    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, default, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, default, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, default, with = "crate::proto_duration::option"{{/isArray}}{{/vendorExtensions.isDuration}})]
     pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
 {{/required}}
 {{/isDiscriminator}}
