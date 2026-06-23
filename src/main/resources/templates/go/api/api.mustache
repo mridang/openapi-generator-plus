@@ -301,12 +301,33 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	var cookieParts []string
 {{#cookieParams}}
 {{#required}}
-	/* Required cookie param: non-pointer Options field, always present. */
-	cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
+	/* Required cookie param: non-pointer Options field, always present.
+	 * The serialized value is routed through isValidCookieValue (the same
+	 * RFC 6265 cookie-octet check the auth-cookie path in base_api applies)
+	 * so a CR/LF/control-char value fails closed before it can be folded
+	 * into the Cookie request header, preventing header injection. Unlike
+	 * the auth path (which panics on a programmer-supplied bad cookie),
+	 * an operation cookie is caller input, so we fail closed by returning
+	 * an error here, matching how this function reports every other
+	 * invalid-parameter condition. */
+	{
+		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", "{{baseName}}")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
+	}
 {{/required}}
 {{^required}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
+		/* Optional cookie param: same RFC 6265 validation as the required
+		 * branch above. Fail closed by returning an error so a CR/LF or
+		 * control-char value cannot be injected into the Cookie header. */
+		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", "{{baseName}}")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
 	}
 {{/required}}
 {{/cookieParams}}

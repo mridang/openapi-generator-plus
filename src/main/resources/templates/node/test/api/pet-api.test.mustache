@@ -296,6 +296,72 @@ describe('PetApi error handling', () => {
     }
   });
 
+  // Canonical #11 — a malformed 2xx response body must FAIL LOUD. The
+  // convenience method routes the body through ObjectSerializer.parseJson and
+  // the model deserializer; both throw, so the error propagates instead of the
+  // raw string being returned. Two failure modes are exercised: syntactically
+  // broken JSON (parse error) and well-formed JSON of the wrong shape (a Pet
+  // payload missing the required `name`, which the deserializer rejects).
+  test('malformed JSON 2xx body propagates the deserialize error', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{ not json');
+    try {
+      // The error propagates instead of the raw string being returned.
+      await expect(mockApi.getPetById(1)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  test('well-formed-but-invalid 2xx body fails loud, not returned raw', async () => {
+    // 200 with valid JSON whose shape violates the Pet contract (required
+    // `name` absent). The model deserializer must throw rather than hand back
+    // a partial object or the raw dict.
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"id":1,"photoUrls":["u"]}');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  // Canonical #6 — an operation cookie param carrying CR/LF (or any control
+  // char) must FAIL CLOSED with the RFC-6265 error before any HTTP call.
+  // deletePet's optional `api_key` cookie is the path; the guard mirrors the
+  // auth-cookie validation in BaseApi.
+  test('deletePet api_key cookie with CR/LF fails closed (RFC 6265)', async () => {
+    await expect(
+      api.deletePet(1, { apiKey: 'abc\r\nInjected: yes' }),
+    ).rejects.toThrow(/RFC 6265/);
+  });
+
+  test('deletePet api_key cookie with a bare control char fails closed', async () => {
+    await expect(
+      api.deletePet(1, { apiKey: 'abc\x00def' }),
+    ).rejects.toThrow(/RFC 6265/);
+  });
+
+  test('deletePet api_key cookie with a clean value is accepted', async () => {
+    // Control: a value with no forbidden characters must pass validation and
+    // reach the wire as a Cookie header (proves the guard is value-specific,
+    // not a blanket rejection of the cookie path).
+    let capturedCookie: string | undefined;
+    const server = http.createServer((req, res) => {
+      capturedCookie = req.headers['cookie'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const cfg = Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build();
+      const cookieApi = new PetApi(undefined, cfg);
+      await cookieApi.deletePet(1, { apiKey: 'session-abc123' });
+      expect(capturedCookie).toContain('api_key=session-abc123');
+    } finally {
+      server.close();
+    }
+  });
+
   // required-string-param-empty-string: a required STRING parameter must reject
   // the empty string the same way it rejects null, matching go/rust/swift/elixir.
   // Validation happens before any HTTP call, so no mock server is needed.

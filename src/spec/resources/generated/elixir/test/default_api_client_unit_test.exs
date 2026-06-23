@@ -778,5 +778,29 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       parsed = PetstoreClient.ObjectSerializer.convert_to_type(sanitized, "Duration.t()")
       assert %Duration{} = parsed
     end
+
+    # A NEGATIVE duration must serialize with a leading minus and round-trip
+    # back to the same signed total — the protobuf-JSON grammar allows `-?`.
+    test "negative duration round-trips with a leading minus sign" do
+      d = Duration.new!(second: -90)
+      pb = PetstoreClient.ObjectSerializer.stringify(d)
+      assert pb == "-90s"
+      parsed = PetstoreClient.ObjectSerializer.convert_to_type(pb, "Duration.t()")
+      assert %Duration{} = parsed
+      assert parsed.second == -90
+    end
+
+    # A sub-0.0001s magnitude must emit fixed-point fractional digits, never
+    # scientific notation (e.g. "0.00005s", not "5.0e-5s"). 50 microseconds is
+    # below 1e-4 seconds and exercises the fractional padding path.
+    test "sub-0.0001s magnitude emits fixed-point digits, no scientific notation" do
+      d = Duration.new!(microsecond: {50, 6})
+      pb = PetstoreClient.ObjectSerializer.stringify(d)
+      assert pb == "0.000050s"
+      refute pb =~ ~r/[eE]/, "duration must not use scientific notation: #{pb}"
+      parsed = PetstoreClient.ObjectSerializer.convert_to_type(pb, "Duration.t()")
+      assert {micros, _precision} = parsed.microsecond
+      assert micros == 50
+    end
   end
 end

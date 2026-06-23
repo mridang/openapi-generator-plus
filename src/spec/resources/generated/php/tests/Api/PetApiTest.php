@@ -361,6 +361,40 @@ test('form body encodes space as plus not percent twenty', function (): void {
     expect($captured->body)->not->toContain('%20');
 });
 
+// -- Canonical #6: operation cookie param fails closed on CR/LF (RFC 6265) --
+//
+// deletePet carries an `api_key` cookie param (DeletePetOptions::$apiKey). A
+// value carrying a CR/LF or other control character must be rejected at
+// serialization time with the RFC-6265 \InvalidArgumentException BEFORE the
+// value is folded into the Cookie request header — mirroring the auth-cookie
+// validation path so an operation cookie param can never enable header
+// injection. A clean value, by contrast, passes through unharmed.
+
+test('delete pet cookie param with CRLF fails closed', function (): void {
+    [$api] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->deletePet(1, new DeletePetOptions(apiKey: "abc\r\nInjected: yes")))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('delete pet cookie param with bare control char fails closed', function (): void {
+    [$api] = newBodyCapturingPetApi();
+
+    // A bare NUL is a forbidden RFC-6265 cookie-octet just like CR/LF.
+    expect(fn (): mixed => $api->deletePet(1, new DeletePetOptions(apiKey: "abc\x00def")))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('delete pet cookie param with a clean value is sent on the wire', function (): void {
+    // A well-formed value passes the RFC-6265 guard and reaches the Cookie
+    // header — proving the validation rejects only the forbidden octets.
+    [$api, $captured] = newHeaderCapturingPetApi();
+
+    $api->deletePet(1, new DeletePetOptions(apiKey: 'session-token-123'));
+
+    expect($captured->headers['Cookie'] ?? '')->toContain('api_key=session-token-123');
+});
+
 // -- Mock-based error handling tests --
 
 test('error handling not found', function (): void {
@@ -382,6 +416,32 @@ test('empty body for body returning op throws api exception', function (): void 
     $api = newPetApiForMock(200, 'application/json', '');
 
     expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
+});
+
+// -- Canonical #11: a malformed 2xx body fails loud --
+//
+// getPetById declares a typed (Pet) return. A 2xx response whose body is
+// non-empty but cannot deserialize into that type is a contract violation: the
+// deserialize error must PROPAGATE out of the convenience method rather than
+// the raw (un-parseable) string being handed back. ObjectSerializer wraps the
+// native serde failure in the SDK-owned SerializationException, which surfaces
+// here unswallowed.
+
+test('malformed 2xx body fails loud rather than returning the raw string', function (): void {
+    // Truncated JSON object — a valid-looking 2xx body that cannot decode.
+    $api = newPetApiForMock(200, 'application/json', '{"id":1,"name":');
+
+    $caught = null;
+    try {
+        $api->getPetById(1);
+        test()->fail('Expected the malformed body to raise, but it returned.');
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    // The deserialize error propagates as the SDK-owned exception; the raw
+    // un-parseable string is never handed back as a Pet.
+    expect($caught)->toBeInstanceOf(\PetstoreClient\SerializationException::class);
 });
 
 // -- Mock-based binary download test --

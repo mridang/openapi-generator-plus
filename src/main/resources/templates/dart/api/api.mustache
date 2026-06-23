@@ -346,20 +346,33 @@ class {{classname}} extends BaseApi {
 {{/headerParams}}
 {{#hasCookieParams}}
     final cookieParts = <String>[];
+    /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
+       base_api. Operation cookie params are interpolated straight into the
+       Cookie request header, so an attacker-controlled CR/LF/control-char
+       value would otherwise smuggle in extra headers. Validate every
+       assembled value the same way the auth-cookie path does and fail closed
+       with the same ArgumentError so header injection is impossible. */
+    final operationCookieValueRe = RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
+    void addCookiePart(String name, String value) {
+      if (!operationCookieValueRe.hasMatch(value)) {
+        throw ArgumentError("Cookie value for '$name' contains characters forbidden by RFC 6265");
+      }
+      cookieParts.add('$name=$value');
+    }
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-    cookieParts.add('{{baseName}}=${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+    addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-      cookieParts.add('{{baseName}}=${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+      addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      cookieParts.add('{{baseName}}=${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+      addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/cookieParams}}

@@ -27,7 +27,7 @@ from petstore_client.models.set_pet_avatar_thumbnail_request import (
 from ..api_client import ApiClient
 from ..api_result import ApiResult
 from ..configuration import Configuration
-from .base_api import BaseApi
+from .base_api import BaseApi, _is_valid_cookie_value
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from ..errors import ApiException
@@ -458,9 +458,20 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         cookie_parts = []
         if options is not None and options.api_key is not None:
-            cookie_parts.append(
-                f"api_key={ValueSerializer.serialize_styled('api_key', options.api_key, 'cookie', 'StrictStr', None, 'form', True)}"
+            # RFC 6265 — operation cookie values are interpolated straight into
+            # the Cookie request header, so they must pass the same cookie-octet
+            # validation that auth-provided cookies receive in the base client.
+            # A CR/LF or control char here would otherwise allow header
+            # injection; fail closed with the same error the auth-cookie path
+            # raises rather than emitting a malformed header.
+            cookie_value = ValueSerializer.serialize_styled(
+                "api_key", options.api_key, "cookie", "StrictStr", None, "form", True
             )
+            if not _is_valid_cookie_value(cookie_value):
+                raise ValueError(
+                    "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+                )
+            cookie_parts.append(f"api_key={cookie_value}")
         if cookie_parts:
             header_params["Cookie"] = "; ".join(cookie_parts)
         body = None

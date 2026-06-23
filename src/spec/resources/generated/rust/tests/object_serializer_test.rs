@@ -102,6 +102,37 @@ fn test_proto_duration_rejects_malformed() {
 }
 
 #[test]
+fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
+    // Regression: a sub-0.0001s magnitude must render as a plain decimal
+    // fraction (fixed-point, padded to a 3/6/9-digit grouping), NEVER in
+    // scientific notation ("5e-5s"). 50 microseconds is 50_000 nanoseconds,
+    // which trims to the six-digit grouping "0.000050s".
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    let tiny = Duration::microseconds(50);
+    let formatted = proto_duration::format(&tiny);
+    assert_eq!(
+        formatted, "0.000050s",
+        "sub-0.0001s magnitude must be fixed-point, got: {}",
+        formatted
+    );
+    assert!(
+        !formatted.contains('e') && !formatted.contains('E'),
+        "duration must never use scientific notation, got: {}",
+        formatted
+    );
+    // And it must round-trip back to the same magnitude.
+    assert_eq!(proto_duration::parse(&formatted).unwrap(), tiny);
+
+    // A single nanosecond keeps the full nine-digit grouping.
+    let one_nano = Duration::nanoseconds(1);
+    let nano_fmt = proto_duration::format(&one_nano);
+    assert_eq!(nano_fmt, "0.000000001s", "single-nanosecond magnitude");
+    assert!(!nano_fmt.contains('e') && !nano_fmt.contains('E'));
+}
+
+#[test]
 fn test_proto_duration_serde_round_trip() {
     use chrono::Duration;
     use petstore::proto_duration;

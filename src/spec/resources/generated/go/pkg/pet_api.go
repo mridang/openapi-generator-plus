@@ -450,7 +450,14 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 	headerParams := make(map[string]string)
 	var cookieParts []string
 	if options != nil && options.ApiKey != nil {
-		cookieParts = append(cookieParts, fmt.Sprintf("api_key=%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true)))
+		/* Optional cookie param: same RFC 6265 validation as the required
+		 * branch above. Fail closed by returning an error so a CR/LF or
+		 * control-char value cannot be injected into the Cookie header. */
+		cookieValue := fmt.Sprintf("%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true))
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling PetApi.DeletePet", "api_key")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("api_key=%s", cookieValue))
 	}
 	if len(cookieParts) > 0 {
 		headerParams["Cookie"] = strings.Join(cookieParts, "; ")

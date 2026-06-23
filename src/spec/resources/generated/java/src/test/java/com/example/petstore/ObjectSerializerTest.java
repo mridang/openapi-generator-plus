@@ -972,4 +972,129 @@ class ObjectSerializerTest {
           () -> serializer.resolveAnyOf("{}", candidates));
     }
   }
+
+  @Nested
+  @DisplayName("EnumRoundTripTests")
+  class EnumRoundTripTests {
+
+    @Test
+    @DisplayName("integer-backed enum serializes as a JSON number, not a string")
+    void integerEnumSerializesAsNumber() {
+      com.example.petstore.models.StockItem item =
+          new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_2);
+      String json = serializer.serialize(item);
+      assertTrue(
+          json.contains("\"priority\":2"),
+          "integer enum must serialize as a bare number, got: " + json);
+      assertFalse(
+          json.contains("\"priority\":\"2\""),
+          "integer enum must NOT serialize as a quoted string, got: " + json);
+    }
+
+    @Test
+    @DisplayName("integer-backed enum deserializes from a JSON number to the member")
+    void integerEnumDeserializesFromNumber() {
+      com.example.petstore.models.StockItem item =
+          serializer.deserialize(
+              "{\"priority\":2}",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.StockItem>() {}.getType());
+      assertNotNull(item);
+      assertEquals(com.example.petstore.models.Priority.NUMBER_2, item.priority);
+    }
+
+    @Test
+    @DisplayName("non-lowercase string enum preserves wire casing on round-trip")
+    void stringEnumPreservesWireCasing() {
+      com.example.petstore.models.StockItem item =
+          new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_1);
+      item.availability = com.example.petstore.models.Availability.ON_HOLD;
+      String json = serializer.serialize(item);
+      assertTrue(
+          json.contains("\"availability\":\"on-hold\""),
+          "string enum must preserve exact wire casing, got: " + json);
+
+      com.example.petstore.models.StockItem decoded =
+          serializer.deserialize(
+              "{\"priority\":1,\"availability\":\"Available\"}",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.StockItem>() {}.getType());
+      assertNotNull(decoded);
+      assertEquals(com.example.petstore.models.Availability.AVAILABLE, decoded.availability);
+    }
+
+    @Test
+    @DisplayName("referenced enum field rejects an unknown wire value")
+    void referencedEnumRejectsUnknownValue() {
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"priority\":1,\"availability\":\"banana\"}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.StockItem>() {}.getType()));
+    }
+  }
+
+  @Nested
+  @DisplayName("ByteArrayRoundTripTests")
+  class ByteArrayRoundTripTests {
+
+    @Test
+    @DisplayName("array-of-byte field round-trips through base64")
+    void byteArrayFieldRoundTrips() {
+      com.example.petstore.models.PetPassport passport =
+          new com.example.petstore.models.PetPassport();
+      passport.thumbnail = "thumb".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      passport.scans =
+          java.util.List.of(
+              "page-one".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+              "page-two".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+      String json = serializer.serialize(passport);
+      // Each scan element is base64-encoded on the wire.
+      assertTrue(
+          json.contains(
+              "\"scans\":[\""
+                  + java.util.Base64.getEncoder()
+                      .encodeToString("page-one".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                  + "\""),
+          "scans element must be base64-encoded, got: " + json);
+
+      com.example.petstore.models.PetPassport decoded =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.PetPassport>() {}.getType());
+      assertNotNull(decoded);
+      assertNotNull(decoded.scans);
+      assertEquals(2, decoded.scans.size());
+      assertEquals(
+          "page-one", new String(decoded.scans.get(0), java.nio.charset.StandardCharsets.UTF_8));
+      assertEquals(
+          "page-two", new String(decoded.scans.get(1), java.nio.charset.StandardCharsets.UTF_8));
+      assertNotNull(decoded.thumbnail);
+      assertEquals("thumb", new String(decoded.thumbnail, java.nio.charset.StandardCharsets.UTF_8));
+    }
+  }
+
+  @Nested
+  @DisplayName("NumberFromIntegralTests")
+  class NumberFromIntegralTests {
+
+    @Test
+    @DisplayName("double field deserializes from an integral JSON value")
+    void doubleFieldFromIntegralValue() {
+      com.example.petstore.models.PhotoMetadataLocation loc =
+          serializer.deserialize(
+              "{\"lat\":5,\"lng\":-3}",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.PhotoMetadataLocation>() {}.getType());
+      assertNotNull(loc);
+      assertNotNull(loc.lat);
+      assertNotNull(loc.lng);
+      assertEquals(5.0, loc.lat);
+      assertEquals(-3.0, loc.lng);
+    }
+  }
 }

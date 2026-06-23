@@ -431,6 +431,16 @@ class PetApi extends BaseApi
         if ($options !== null && $options->apiKey !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('api_key', $options->apiKey, 'cookie', 'string', null, 'form', true);
+            /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+             * forbidden octets before this value is folded into the Cookie
+             * request header. Mirrors the auth-cookie path in BaseApi so an
+             * operation cookie param fails closed with the same
+             * InvalidArgumentException instead of enabling header injection. */
+            if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+                throw new \InvalidArgumentException(
+                    "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+                );
+            }
             $cookieParts[] = 'api_key=' . $cookieValue;
         }
         if ($cookieParts !== []) {

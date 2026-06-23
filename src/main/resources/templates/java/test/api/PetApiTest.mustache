@@ -335,6 +335,18 @@ class PetApiTest {
     }
 
     @Test
+    void testMalformedBodyOnBodyReturningOperationThrows() throws Exception {
+        // A 200 whose body is not valid JSON for the declared return type must
+        // surface the deserialization failure loudly rather than handing back
+        // the raw, un-parsed string. Truncated JSON ("{" never closes) forces
+        // the parser to fail, and that error must propagate.
+        PetApi mockApi = newPetApiForMock(200, "application/json", "{ not-valid-json");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
     void testDownloadBinaryMock() throws Exception {
         PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 

@@ -26,9 +26,9 @@ class PhotoMetadataLocation {
   /// Creates a [PhotoMetadataLocation] from a JSON map.
   factory PhotoMetadataLocation.fromJson(Map<String, dynamic> json) {
     return PhotoMetadataLocation(
-      lat: json['lat'] as double?,
+      lat: (json['lat'] as num?)?.toDouble(),
 
-      lng: json['lng'] as double?,
+      lng: (json['lng'] as num?)?.toDouble(),
     );
   }
 

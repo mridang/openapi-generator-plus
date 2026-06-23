@@ -610,3 +610,241 @@ class TestDiscriminatorAutoInjection:
         json_str = '{"weightKg": 5.0}'
         with pytest.raises(SerializationError):
             ObjectSerializer().deserialize(json_str, 'PetFood')
+
+
+class TestIntegerBackedEnum:
+    """Scenario 1 — an integer-backed enum (Priority) must round-trip as a
+    JSON NUMBER, not a quoted string. The model template mixes `int` (not
+    `str`) into the enum so a member serializes to `2` and deserializing the
+    bare number `2` yields the member. The 7 SDKs that hard-coded String
+    backing emitted `"2"` here; Python now matches Dart's int backing."""
+
+    def test_member_value_is_an_int(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        # The enum mixes in int, so a member IS an int and equals its value.
+        assert Priority(2) == 2
+        assert isinstance(Priority(2).value, int)
+
+    def test_serializes_to_bare_number_not_quoted_string(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        out = ObjectSerializer().serialize(Priority(2))
+        # A JSON number, never the quoted "2" that `str, Enum` would emit.
+        assert out == '2'
+        assert out != '"2"'
+
+    def test_serializes_inside_dict_as_number(self) -> None:
+        import json
+        from {{packageName}}.models.priority import Priority
+        out = ObjectSerializer().serialize({'priority': Priority(3)})
+        assert json.loads(out)['priority'] == 3
+        assert ':"3"' not in out.replace(' ', '')
+
+    def test_deserializes_number_to_member(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        result = ObjectSerializer().deserialize('2', Priority)
+        assert result == Priority(2)
+        assert isinstance(result, Priority)
+
+    def test_unknown_int_value_rejected(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('99', Priority)
+
+    def test_round_trip_preserves_member(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        original = Priority(1)
+        restored = ObjectSerializer().deserialize(
+            ObjectSerializer().serialize(original), Priority
+        )
+        assert restored == original
+
+
+class TestNonLowercaseStringEnum:
+    """Scenario 2 — a string enum whose values are NOT all lowercase
+    (Availability: "Available"/"Sold"/"on-hold") must round-trip with the
+    wire casing preserved, and the hyphenated "on-hold" value (whose member
+    identifier is sanitized) must still serialize back to its exact wire
+    form. An unknown value is rejected on deserialize."""
+
+    def test_wire_casing_preserved_on_serialize(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        assert ObjectSerializer().serialize(Availability('Available')) == '"Available"'
+        assert ObjectSerializer().serialize(Availability('Sold')) == '"Sold"'
+
+    def test_hyphenated_value_round_trips_exactly(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        member = Availability('on-hold')
+        assert member.value == 'on-hold'
+        assert ObjectSerializer().serialize(member) == '"on-hold"'
+
+    def test_deserialize_yields_correct_member(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        result = ObjectSerializer().deserialize('"Available"', Availability)
+        assert result == Availability('Available')
+
+    def test_unknown_value_rejected(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('"unavailable"', Availability)
+
+
+class TestByteFormatBase64RoundTrip:
+    """Scenario 3 — a `format: byte` field round-trips through base64, both a
+    scalar byte field (PetPassport.thumbnail) and an array-of-byte field
+    (PetPassport.scans). `_sanitize_for_serialization` base64-encodes bytes;
+    `_deserialize` base64-decodes them back to raw bytes."""
+
+    def test_scalar_byte_serializes_to_base64(self) -> None:
+        import base64
+        raw = b'\x89PNG\r\n\x1a\n'
+        out = ObjectSerializer().serialize(raw)
+        # serialize wraps the base64 text in JSON quotes.
+        assert out.strip('"') == base64.b64encode(raw).decode('ascii')
+
+    def test_scalar_byte_round_trips(self) -> None:
+        raw = b'test-thumbnail-bytes'
+        wire = ObjectSerializer().serialize(raw)
+        restored = ObjectSerializer().deserialize(wire, bytes)
+        assert restored == raw
+
+    def test_array_of_byte_serializes_each_element_to_base64(self) -> None:
+        import base64
+        import json
+        # PhotoMetadata-style array-of-byte (PetPassport.scans): every element
+        # must be base64-encoded on the wire, not emitted as a raw/latin1 blob.
+        scans = [b'page-one', b'page-two', b'\x00\x01\x02']
+        out = ObjectSerializer().serialize(scans)
+        decoded = [base64.b64decode(s) for s in json.loads(out)]
+        assert decoded == scans
+
+    def test_scalar_byte_decodes_from_base64_string(self) -> None:
+        # The deserialize side of the scalar byte path: a base64 wire string
+        # decodes back to the original raw bytes.
+        import base64
+        raw = b'\x89PNG\r\n\x1a\n'
+        wire = '"' + base64.b64encode(raw).decode('ascii') + '"'
+        assert ObjectSerializer().deserialize(wire, bytes) == raw
+
+
+class TestNumberFieldFromIntegralJson:
+    """Scenario 4 — a double/number-typed field must deserialize from an
+    INTEGRAL JSON value (`{"lat":5}`, not `5.0`) without crashing. The
+    PhotoMetadataLocation.lat field is `format: double`; an integral wire
+    value is a legal JSON number for a float and must be coerced, not
+    rejected."""
+
+    def test_integral_value_coerced_to_float(self) -> None:
+        from {{packageName}}.models.photo_metadata_location import PhotoMetadataLocation
+        result = ObjectSerializer().deserialize('{"lat":5,"lng":-3}', 'PhotoMetadataLocation')
+        assert isinstance(result, PhotoMetadataLocation)
+        assert result.lat == 5.0
+        assert result.lng == -3.0
+
+    def test_fractional_value_still_parses(self) -> None:
+        result = ObjectSerializer().deserialize(
+            '{"lat":5.5,"lng":0.25}', 'PhotoMetadataLocation'
+        )
+        assert result.lat == 5.5
+        assert result.lng == 0.25
+
+
+class TestAdditionalPropertiesTopLevelRoundTrip:
+    """Scenario 5 — additionalProperties must round-trip: an extra JSON key is
+    captured on deserialize and re-serialized at the TOP level of the object,
+    NOT nested under an "additional_properties"/"additionalProperties" key.
+    Metadata carries `additionalProperties: {type: string}` alongside a fixed
+    `createdAt` field."""
+
+    def test_extra_key_captured_on_deserialize(self) -> None:
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu","tier":"gold"}',
+            'Metadata',
+        )
+        assert metadata is not None
+        assert metadata.additional_properties['region'] == 'eu'
+        assert metadata.additional_properties['tier'] == 'gold'
+
+    def test_extra_key_reserialized_at_top_level(self) -> None:
+        import json
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', 'Metadata'
+        )
+        data = json.loads(ObjectSerializer().serialize(metadata))
+        # The extra key sits at the TOP level, beside createdAt -- never nested.
+        assert data['region'] == 'eu'
+        assert 'additional_properties' not in data
+        assert 'additionalProperties' not in data
+
+    def test_full_round_trip_preserves_extra_keys(self) -> None:
+        import json
+        wire = '{"createdAt":"2024-01-01T00:00:00Z","region":"eu","tier":"gold"}'
+        metadata = ObjectSerializer().deserialize(wire, 'Metadata')
+        restored = ObjectSerializer().deserialize(
+            ObjectSerializer().serialize(metadata), 'Metadata'
+        )
+        assert restored.additional_properties['region'] == 'eu'
+        assert restored.additional_properties['tier'] == 'gold'
+
+
+class TestNestedContainerDeepRoundTrip:
+    """Scenario 7 — a nested container (array-of-array<int>) must deep-round-trip
+    to typed leaves. StockItem.matrix is `array<array<int>>` as a MODEL
+    property, exercising the recursive per-element deserialization path."""
+
+    def test_array_of_array_int_deserializes_to_typed_leaves(self) -> None:
+        from {{packageName}}.models.stock_item import StockItem
+        json_str = '{"priority":2,"matrix":[[1,2,3],[4,5],[]]}'
+        item = ObjectSerializer().deserialize(json_str, 'StockItem')
+        assert isinstance(item, StockItem)
+        assert item.matrix == [[1, 2, 3], [4, 5], []]
+        # Leaves are real ints, not strings or floats.
+        assert item.matrix[0][0] == 1
+        assert isinstance(item.matrix[0][0], int)
+
+    def test_nested_array_round_trips(self) -> None:
+        from {{packageName}}.models.stock_item import StockItem
+        original = ObjectSerializer().deserialize(
+            '{"priority":1,"matrix":[[7,8],[9]]}', 'StockItem'
+        )
+        restored = ObjectSerializer().deserialize(
+            ObjectSerializer().serialize(original), 'StockItem'
+        )
+        assert restored.matrix == [[7, 8], [9]]
+
+
+class TestReferencedEnumFieldRejection:
+    """Scenario 10 — a model field typed as a REFERENCED enum (`$ref`) must
+    reject an unknown wire value on deserialize. StockItem.availability is a
+    `$ref` to the Availability enum (distinct from Order.status, which is an
+    inline enum). An out-of-schema value fails the whole deserialize."""
+
+    def test_unknown_referenced_enum_value_rejected(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(
+                '{"priority":1,"availability":"teleported"}', 'StockItem'
+            )
+
+    def test_known_referenced_enum_value_accepted(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        item = ObjectSerializer().deserialize(
+            '{"priority":1,"availability":"on-hold"}', 'StockItem'
+        )
+        assert item.availability == Availability('on-hold')
+
+
+class TestSubMilliDurationNoScientificNotation:
+    """Scenario 9 (residual) — a sub-0.0001s duration magnitude must serialize
+    as a plain decimal with an `s` suffix, never in scientific notation
+    (`1e-06s`). A NEGATIVE duration is covered by TestDurationFormat above;
+    this guards the tiny-magnitude path where Python's default float repr
+    would otherwise switch to exponent form."""
+
+    def test_one_microsecond_is_plain_decimal(self) -> None:
+        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=1))
+        assert out == '0.000001s'
+        assert 'e' not in out.lower()
+
+    def test_negative_sub_milli_duration_is_plain_decimal(self) -> None:
+        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=-1))
+        assert out == '-0.000001s'
+        assert 'e' not in out.lower()

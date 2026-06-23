@@ -264,7 +264,18 @@ export class {{classname}} extends BaseApi {
     const cookieParts: string[] = [];
 {{#cookieParams}}
     if (options?.{{paramName}} != null) {
-      cookieParts.push(`{{baseName}}=${ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}})}`);
+      const {{paramName}}CookieValue = `${ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}})}`;
+      /* RFC 6265 — reject CR/LF and other control characters in the
+       * serialized cookie value before it is joined into the Cookie
+       * header. This mirrors the validation the auth-cookie path applies
+       * in the base client, so a forbidden value fails closed with the
+       * same error instead of being injected raw into the header. */
+      if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test({{paramName}}CookieValue)) {
+        throw new Error(
+          `Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265`
+        );
+      }
+      cookieParts.push(`{{baseName}}=${ {{paramName}}CookieValue }`);
     }
 {{/cookieParams}}
     if (cookieParts.length > 0) {

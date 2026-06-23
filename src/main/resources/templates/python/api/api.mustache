@@ -14,7 +14,7 @@ from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 from ..api_client import ApiClient
 from ..api_result import ApiResult
 from ..configuration import Configuration
-from .base_api import BaseApi
+from .base_api import BaseApi, _is_valid_cookie_value
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from ..errors import ApiException
@@ -296,7 +296,18 @@ class {{classname}}(BaseApi):
         cookie_parts = []
 {{#cookieParams}}
         if options is not None and options.{{paramName}} is not None:
-            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{vendorExtensions.isExplodeStrCap}})}')
+            # RFC 6265 — operation cookie values are interpolated straight into
+            # the Cookie request header, so they must pass the same cookie-octet
+            # validation that auth-provided cookies receive in the base client.
+            # A CR/LF or control char here would otherwise allow header
+            # injection; fail closed with the same error the auth-cookie path
+            # raises rather than emitting a malformed header.
+            cookie_value = ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{vendorExtensions.isExplodeStrCap}})
+            if not _is_valid_cookie_value(cookie_value):
+                raise ValueError(
+                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                )
+            cookie_parts.append(f'{{baseName}}={cookie_value}')
 {{/cookieParams}}
         if cookie_parts:
             header_params['Cookie'] = '; '.join(cookie_parts)

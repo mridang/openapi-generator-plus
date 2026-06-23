@@ -450,8 +450,16 @@ public class PetApi : BaseApi
         List<string> cookieParts = [];
         if (options != null && options.ApiKey != null)
         {
-            cookieParts.Add(
-                "api_key=" + ValueSerializer.SerializeStyled(
+            /* RFC 6265 header-injection guard. An operation-level cookie
+               parameter (in: cookie) is interpolated straight into the
+               Cookie request header, so it must clear the same name/value
+               validation that auth-provided cookies pass through in
+               BaseApi. A CR/LF or control character here would otherwise
+               splice an extra header into the request — fail closed with
+               the identical ArgumentException the auth-cookie path raises. */
+            string cookieName = "api_key";
+            string cookieValue = (string)
+                ValueSerializer.SerializeStyled(
                     "api_key",
                     options.ApiKey,
                     "cookie",
@@ -459,8 +467,18 @@ public class PetApi : BaseApi
                     null,
                     "form",
                     true
-                )
-            );
+                )!;
+            if (!IsValidCookieName(cookieName))
+            {
+                throw new ArgumentException(
+                    $"Cookie name '{cookieName}' contains characters forbidden by RFC 6265");
+            }
+            if (!IsValidCookieValue(cookieValue))
+            {
+                throw new ArgumentException(
+                    $"Cookie value for '{cookieName}' contains characters forbidden by RFC 6265");
+            }
+            cookieParts.Add(cookieName + "=" + cookieValue);
         }
         if (cookieParts.Count > 0)
         {

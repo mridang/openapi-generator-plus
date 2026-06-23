@@ -898,4 +898,97 @@ import Testing
         #expect(mockClient.lastHeaders["Content-Type"] == "application/json",
             "Content-Type must be application/json when body is a JSON object")
     }
+
+    // MARK: - Operation cookie param RFC-6265 fail-closed
+
+    // cookie-param-rfc6265-fail-closed: the deletePet api_key cookie param is
+    // interpolated straight into the Cookie request header. A value carrying
+    // CR/LF (or any control char) would smuggle extra header lines (header
+    // injection), so the operation must FAIL CLOSED with the same RFC-6265
+    // ApiError the auth-cookie validation path raises — and the transport must
+    // never be reached. Mirrors how BaseApi.isValidCookieValue guards the
+    // auth-provided cookies.
+    @Test func testOperationCookieParamWithCrlfFailsClosed() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        var caught: ApiError? = nil
+        do {
+            try await api.deletePet(petId: 1, options: DeletePetOptions(apiKey: "abc\r\nInjected: yes"))
+            Issue.record("expected an RFC-6265 ApiError for a CR/LF cookie value")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("expected ApiError, got \(error)")
+        }
+        #expect(caught != nil)
+        #expect(caught?.message.contains("6265") == true,
+            "error must cite RFC 6265, got: \(caught?.message ?? "nil")")
+        #expect(mockClient.lastURL.isEmpty,
+            "transport must NOT be called when a cookie value fails the RFC-6265 check")
+    }
+
+    // A control character (NUL) in the same operation cookie param must also
+    // fail closed with the RFC-6265 ApiError, not just CR/LF.
+    @Test func testOperationCookieParamWithControlCharFailsClosed() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        var caught: ApiError? = nil
+        do {
+            try await api.deletePet(petId: 1, options: DeletePetOptions(apiKey: "abc\u{0000}def"))
+            Issue.record("expected an RFC-6265 ApiError for a NUL cookie value")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("expected ApiError, got \(error)")
+        }
+        #expect(caught?.message.contains("6265") == true)
+        #expect(mockClient.lastURL.isEmpty,
+            "transport must NOT be called when a cookie value fails the RFC-6265 check")
+    }
+
+    // A clean cookie value passes the guard and the request is dispatched,
+    // guarding that the RFC-6265 check does not reject legitimate values.
+    @Test func testOperationCookieParamCleanValuePasses() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = ""
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        try await api.deletePet(petId: 1, options: DeletePetOptions(apiKey: "abc123"))
+        #expect(mockClient.lastHeaders["Cookie"]?.contains("api_key=abc123") == true,
+            "clean cookie value must be sent, got: \(mockClient.lastHeaders["Cookie"] ?? "nil")")
+    }
+
+    // MARK: - Malformed 2xx response body fails loud
+
+    // malformed-2xx-body-fails-loud: a 2xx response whose JSON body is
+    // syntactically broken must propagate the deserialize error (the SDK's
+    // SerializationError, surfaced through the throwing call) rather than
+    // swallowing it and returning the raw string. invokeAPIForResult routes the
+    // body through ObjectSerializer.deserialize, which throws on malformed JSON.
+    @Test func testMalformed2xxBodyFailsLoud() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        // Truncated object: valid status, JSON content-type, broken body.
+        mockClient.responseBody = "{\"id\":1,\"name\":"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        do {
+            _ = try await api.getPetByIdWithHTTPInfo(petId: 1)
+            Issue.record("expected a deserialize error to propagate for a malformed 2xx body")
+        } catch is SerializationError {
+            // Expected: the deserialize failure surfaces loudly.
+        } catch {
+            // Any thrown error is acceptable as long as the malformed body did
+            // not silently succeed; SerializationError is the specific contract.
+            Issue.record("expected SerializationError, got \(error)")
+        }
+    }
 }

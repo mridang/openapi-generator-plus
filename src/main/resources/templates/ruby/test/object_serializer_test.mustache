@@ -911,4 +911,167 @@ describe {{moduleName}}::ObjectSerializer do
       }).must_raise({{moduleName}}::SerializationError)
     end
   end
+
+  # ── integer-backed enum round-trips as a JSON NUMBER (canonical 1) ──
+  #
+  # Priority is a standalone `type: integer` enum (1/2/3). It must
+  # (de)serialize through the wire as a JSON number, never a quoted string:
+  # serialize(2) emits the bare token 2, and deserialize("2", 'Priority')
+  # yields the Integer member 2 — not "2". This guards the int-enum template
+  # path that several SDKs latently hard-coded as String-backed.
+  describe 'integer-backed enum round-trips as a JSON number' do
+    it 'serializes an integer enum value as a JSON number, not a string' do
+      json = {{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::Priority::NUMBER_2)
+      # The bare JSON token must be the number 2, never the quoted "2".
+      _(json).must_equal('2')
+      _(JSON.parse(json)).must_equal(2)
+      _(JSON.parse(json)).must_be_kind_of(Integer)
+    end
+
+    it 'deserializes a JSON number into the integer enum member' do
+      result = {{moduleName}}::ObjectSerializer.deserialize('2', 'Priority')
+      _(result).must_equal({{moduleName}}::Models::Priority::NUMBER_2)
+      _(result).must_be_kind_of(Integer)
+    end
+
+    it 'rejects an unknown integer enum value on deserialize' do
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('99', 'Priority')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+
+    it 'round-trips an integer-enum-typed model field as a number' do
+      # StockItem.priority references the Priority int enum. The field must
+      # survive the model round-trip as a JSON number on the wire and an
+      # Integer member in memory.
+      item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":3}', 'StockItem')
+      _(item).must_be_kind_of({{moduleName}}::Models::StockItem)
+      _(item.priority).must_equal({{moduleName}}::Models::Priority::NUMBER_3)
+      data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(item))
+      _(data['priority']).must_equal(3)
+      _(data['priority']).must_be_kind_of(Integer)
+    end
+  end
+
+  # ── non-lowercase string enum preserves wire casing (canonical 2) ──
+  #
+  # Availability is a standalone string enum whose values are NOT all
+  # lowercase ("Available", "Sold", "on-hold"). The wire casing must be
+  # preserved verbatim on both (de)serialize, a valid value round-trips to
+  # the right member, and an unknown value is rejected.
+  describe 'non-lowercase string enum preserves wire casing' do
+    it 'deserializes each declared value to its member, casing preserved' do
+      _({{moduleName}}::ObjectSerializer.deserialize('"Available"', 'Availability'))
+        .must_equal({{moduleName}}::Models::Availability::AVAILABLE)
+      _({{moduleName}}::ObjectSerializer.deserialize('"Sold"', 'Availability'))
+        .must_equal({{moduleName}}::Models::Availability::SOLD)
+      _({{moduleName}}::ObjectSerializer.deserialize('"on-hold"', 'Availability'))
+        .must_equal({{moduleName}}::Models::Availability::ON_HOLD)
+    end
+
+    it 'serializes a member with its original wire casing' do
+      json = {{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::Availability::AVAILABLE)
+      _(JSON.parse(json)).must_equal('Available')
+    end
+
+    it 'rejects an unknown string enum value on deserialize' do
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('"available"', 'Availability')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+  end
+
+  # ── referenced enum on a model field rejects unknown wire value (canonical 10) ──
+  #
+  # StockItem.availability is a property typed as the referenced Availability
+  # enum (not an inline enum like Pet.status). An unknown wire value for that
+  # field must surface the SDK serialization error rather than coercing to a
+  # default or sentinel — the referenced-enum-as-model-field path.
+  describe 'referenced enum model field rejects unknown value' do
+    it 'raises when a referenced-enum field carries an unknown value' do
+      json = '{"priority":1,"availability":"liquidated"}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'StockItem')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+
+    it 'accepts a known referenced-enum field value' do
+      item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
+      _(item.availability).must_equal({{moduleName}}::Models::Availability::SOLD)
+    end
+  end
+
+  # ── double field deserializes from an INTEGRAL JSON value (canonical 4) ──
+  #
+  # PhotoMetadataLocation.lat/lng are `type: number, format: double` (Ruby
+  # surface Float). A wire value carried as an integral JSON token ({"lat":5},
+  # not 5.0) must coerce to a Float without crashing — JSON omits the
+  # trailing .0 for whole numbers, so the deserializer must accept any
+  # Numeric, not strictly a Ruby Float.
+  describe 'double field accepts an integral JSON value' do
+    it 'coerces an integral JSON number into a Float' do
+      loc = {{moduleName}}::ObjectSerializer.deserialize('{"lat":5,"lng":-3}', 'PhotoMetadataLocation')
+      _(loc).must_be_kind_of({{moduleName}}::Models::PhotoMetadataLocation)
+      _(loc.lat).must_equal(5.0)
+      _(loc.lat).must_be_kind_of(Float)
+      _(loc.lng).must_equal(-3.0)
+      _(loc.lng).must_be_kind_of(Float)
+    end
+  end
+
+  # ── nested container deep-round-trips to typed leaves (canonical 7) ──
+  #
+  # StockItem.matrix is `Array<Array<Integer>>`. The deserializer must
+  # recurse per-element so every leaf is a typed Integer, and re-serialize
+  # the nested structure faithfully.
+  describe 'nested container deep round-trip' do
+    it 'deserializes array-of-array<int> to typed Integer leaves' do
+      json = '{"priority":1,"matrix":[[1,2],[3,4,5]]}'
+      item = {{moduleName}}::ObjectSerializer.deserialize(json, 'StockItem')
+      _(item.matrix).must_equal([[1, 2], [3, 4, 5]])
+      _(item.matrix.first.first).must_be_kind_of(Integer)
+      _(item.matrix.last.last).must_be_kind_of(Integer)
+    end
+
+    it 'round-trips the nested container back to the same shape' do
+      json = '{"priority":1,"matrix":[[7,8],[9]]}'
+      item = {{moduleName}}::ObjectSerializer.deserialize(json, 'StockItem')
+      data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(item))
+      _(data['matrix']).must_equal([[7, 8], [9]])
+    end
+  end
+
+  # ── format: byte ARRAY items round-trip through base64 (canonical 3, array) ──
+  #
+  # PetPassport.scans is `Array<String>` with format `byte[]`: every item is
+  # base64-decoded to raw bytes on deserialize and re-encoded on serialize.
+  # The scalar byte case (TestFormatModel.blob / top-level ByteArray) is
+  # covered above; this guards the per-item array transform.
+  describe 'format: byte array items round-trip through base64' do
+    it 'base64-decodes every scan item into raw bytes on deserialize' do
+      raw_a = "scan-a\x00".dup.force_encoding(Encoding::BINARY)
+      raw_b = "scan-b\xFF".dup.force_encoding(Encoding::BINARY)
+      json = %({"scans":["#{Base64.strict_encode64(raw_a)}","#{Base64.strict_encode64(raw_b)}"]})
+      passport = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetPassport')
+      _(passport).must_be_kind_of({{moduleName}}::Models::PetPassport)
+      _(passport.scans).must_equal([raw_a, raw_b])
+      _(passport.scans.first.encoding).must_equal(Encoding::BINARY)
+    end
+
+    it 're-encodes every scan item to base64 on serialize' do
+      raw_a = "\x01\x02".dup.force_encoding(Encoding::BINARY)
+      raw_b = "\xFE\xFF".dup.force_encoding(Encoding::BINARY)
+      model = {{moduleName}}::Models::PetPassport.new(scans: [raw_a, raw_b])
+      data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(model))
+      _(data['scans']).must_equal([Base64.strict_encode64(raw_a), Base64.strict_encode64(raw_b)])
+    end
+
+    it 'round-trips the scans array preserving bytes exactly' do
+      raw = (0..255).map(&:chr).join.dup.force_encoding(Encoding::BINARY)
+      model = {{moduleName}}::Models::PetPassport.new(scans: [raw])
+      json = {{moduleName}}::ObjectSerializer.serialize(model)
+      restored = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetPassport')
+      _(restored.scans).must_equal([raw])
+    end
+  end
 end

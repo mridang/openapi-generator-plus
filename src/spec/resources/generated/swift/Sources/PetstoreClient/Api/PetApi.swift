@@ -314,10 +314,23 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     var headerParams: [String: String] = [:]
     var cookieParts: [String] = []
+    /* Operation-level cookie params are interpolated straight into the
+     * Cookie request header, so the serialized value MUST pass the same
+     * RFC 6265 cookie-octet check that auth-provided cookies receive in
+     * BaseApi. Without it a value containing CR, LF, or other control
+     * characters would smuggle extra header lines into the request
+     * (header injection). Fail closed with the identical RFC 6265
+     * ApiError the auth-cookie path raises so behaviour is consistent. */
     if let options = options, let val = options.apiKey {
-      cookieParts.append(
-        "api_key=\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
-      )
+      let apiKeyCookieValue =
+        "\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
+      if !BaseApi.isValidCookieValue(apiKeyCookieValue) {
+        throw ApiError(
+          statusCode: 0,
+          message: "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+        )
+      }
+      cookieParts.append("api_key=\(apiKeyCookieValue)")
     }
     if !cookieParts.isEmpty {
       headerParams["Cookie"] = cookieParts.joined(separator: "; ")

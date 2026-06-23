@@ -28,6 +28,10 @@ import {
   DefaultsModeEnum,
   StockItem,
   Priority,
+  Availability,
+  PhotoMetadata,
+  PhotoMetadataLocation,
+  Metadata,
 } from "../src/models/index.js";
 import { uuid, isUuid } from "../src/brand.js";
 import { Temporal } from "temporal-polyfill";
@@ -1097,6 +1101,237 @@ describe("ObjectSerializer", () => {
       };
       const pet = ObjectSerializer.deserialize(wire, Pet);
       expect(pet?.status).toBe(PetStatusEnum.Available);
+    });
+  });
+
+  describe("Canonical #1 — integer-backed enum round-trips as a JSON NUMBER", () => {
+    // Priority is `type: integer` enum [1,2,3]. The wire form must be a bare
+    // JSON number (2), never the quoted string "2" nor the reverse-mapped
+    // member-name "NUMBER_2"; a server validating `type: integer` rejects a
+    // string. Deserializing the number 2 must yield the Priority.NUMBER_2
+    // member (which is === 2 for a numeric TS enum).
+    test("serialize emits the int enum field as an unquoted JSON number", () => {
+      const item = new StockItem({ priority: Priority.NUMBER_2 });
+      const text = ObjectSerializer.serialize(item);
+      expect(text).toContain('"priority":2');
+      expect(text).not.toContain('"priority":"2"');
+      expect(text).not.toContain("NUMBER_2");
+      const parsed = JSON.parse(text) as { priority: unknown };
+      expect(parsed.priority).toBe(2);
+      expect(typeof parsed.priority).toBe("number");
+    });
+
+    test("deserialize of the JSON number 2 yields the Priority member", () => {
+      const item = ObjectSerializer.deserialize({ priority: 2 }, StockItem);
+      expect(item!.priority).toBe(Priority.NUMBER_2);
+      expect(item!.priority).toBe(2);
+    });
+
+    test("round-trip: serialize then deserialize preserves the int enum member", () => {
+      const original = new StockItem({ priority: Priority.NUMBER_3 });
+      const restored = ObjectSerializer.deserialize(
+        JSON.parse(ObjectSerializer.serialize(original)),
+        StockItem,
+      );
+      expect(restored!.priority).toBe(Priority.NUMBER_3);
+    });
+  });
+
+  describe("Canonical #2 — non-lowercase string enum preserves wire casing", () => {
+    // Availability is a string enum whose values are NOT all lowercase
+    // ("Available", "Sold") and one of which is not a legal identifier
+    // ("on-hold"). The wire bytes must preserve the exact declared casing/
+    // hyphenation, deserialize must map the wire string to the right member,
+    // and an out-of-schema value must be rejected.
+    test("serialize preserves the exact wire casing of each member", () => {
+      const available = new StockItem({
+        priority: Priority.NUMBER_1,
+        availability: Availability.Available,
+      });
+      expect(
+        JSON.parse(ObjectSerializer.serialize(available)).availability,
+      ).toBe("Available");
+
+      const sold = new StockItem({
+        priority: Priority.NUMBER_1,
+        availability: Availability.Sold,
+      });
+      expect(JSON.parse(ObjectSerializer.serialize(sold)).availability).toBe(
+        "Sold",
+      );
+
+      const onHold = new StockItem({
+        priority: Priority.NUMBER_1,
+        availability: Availability.OnHold,
+      });
+      expect(JSON.parse(ObjectSerializer.serialize(onHold)).availability).toBe(
+        "on-hold",
+      );
+    });
+
+    test("deserialize maps the wire string back to the right member", () => {
+      const item = ObjectSerializer.deserialize(
+        { priority: 1, availability: "Available" },
+        StockItem,
+      );
+      expect(item!.availability).toBe(Availability.Available);
+
+      const hyphen = ObjectSerializer.deserialize(
+        { priority: 1, availability: "on-hold" },
+        StockItem,
+      );
+      expect(hyphen!.availability).toBe(Availability.OnHold);
+    });
+
+    test("deserialize rejects an unknown availability wire value", () => {
+      expect(() =>
+        ObjectSerializer.deserialize(
+          { priority: 1, availability: "available" },
+          StockItem,
+        ),
+      ).toThrow(SerializationError);
+    });
+
+    test("round-trip preserves the member through serialize then deserialize", () => {
+      const original = new StockItem({
+        priority: Priority.NUMBER_2,
+        availability: Availability.OnHold,
+      });
+      const restored = ObjectSerializer.deserialize(
+        JSON.parse(ObjectSerializer.serialize(original)),
+        StockItem,
+      );
+      expect(restored!.availability).toBe(Availability.OnHold);
+    });
+  });
+
+  describe("Canonical #3 — array-of-byte field round-trips through base64", () => {
+    // 3 (array variant) — PetPassport.scans is Array<Buffer> where each
+    // element is `format: byte`. The model holds Buffers; the wire holds an
+    // array of base64 strings. (The scalar byte field is covered above in
+    // ByteArrayBufferRoundTrip.)
+    test("serialize encodes each scan Buffer to base64 in the wire array", () => {
+      const passport = new PetPassport({
+        scans: [
+          Buffer.from("page-one", "utf-8"),
+          Buffer.from("page-two", "utf-8"),
+        ] as unknown as PetPassport["scans"],
+      });
+      const parsed = JSON.parse(ObjectSerializer.serialize(passport)) as Record<
+        string,
+        unknown
+      >;
+      expect(parsed["scans"]).toEqual([
+        Buffer.from("page-one", "utf-8").toString("base64"),
+        Buffer.from("page-two", "utf-8").toString("base64"),
+      ]);
+    });
+
+    test("deserialize decodes each base64 scan string to a Buffer", () => {
+      const wire = {
+        scans: [
+          Buffer.from("alpha", "utf-8").toString("base64"),
+          Buffer.from("beta", "utf-8").toString("base64"),
+        ],
+      };
+      const passport = ObjectSerializer.deserialize(wire, PetPassport);
+      const scans = (passport as PetPassport).scans as unknown as Buffer[];
+      expect(scans).toHaveLength(2);
+      expect(Buffer.isBuffer(scans[0])).toBe(true);
+      expect(scans[0]!.toString("utf-8")).toBe("alpha");
+      expect(scans[1]!.toString("utf-8")).toBe("beta");
+    });
+
+    test("round-trip preserves raw scan bytes", () => {
+      const original = [
+        Buffer.from([0x00, 0xff, 0x10]),
+        Buffer.from([0xab, 0xcd]),
+      ];
+      const passport = new PetPassport({
+        scans: original as unknown as PetPassport["scans"],
+      });
+      const restored = ObjectSerializer.deserialize(
+        JSON.parse(ObjectSerializer.serialize(passport)),
+        PetPassport,
+      );
+      const scans = (restored as PetPassport).scans as unknown as Buffer[];
+      expect(Buffer.compare(scans[0]!, original[0]!)).toBe(0);
+      expect(Buffer.compare(scans[1]!, original[1]!)).toBe(0);
+    });
+  });
+
+  describe("Canonical #4 — double field deserializes from an INTEGRAL JSON value", () => {
+    // PhotoMetadataLocation.lat/lng are `type: number, format: double`. A
+    // server emitting a whole-number coordinate sends {"lat":5}, not 5.0 (JSON
+    // has no distinct float literal). The double field must accept the integral
+    // value without crashing, since JS numbers are uniformly doubles.
+    test("an integral lat value deserializes into a number field", () => {
+      const loc = ObjectSerializer.deserialize(
+        { lat: 5, lng: -3 },
+        PhotoMetadataLocation,
+      );
+      expect(loc!.lat).toBe(5);
+      expect(typeof loc!.lat).toBe("number");
+      expect(loc!.lng).toBe(-3);
+    });
+
+    test("an integral double inside a nested model field deserializes", () => {
+      // location is a $ref to PhotoMetadataLocation nested under PhotoMetadata,
+      // so the integral coordinate must survive the nested decode too.
+      const meta = ObjectSerializer.deserialize(
+        { caption: "x", location: { lat: 0, lng: 42 } },
+        PhotoMetadata,
+      );
+      expect(meta!.location).toBeInstanceOf(PhotoMetadataLocation);
+      expect(meta!.location!.lat).toBe(0);
+      expect(meta!.location!.lng).toBe(42);
+    });
+
+    test("a fractional double still deserializes alongside the integral case", () => {
+      const loc = ObjectSerializer.deserialize(
+        { lat: 12.5, lng: 5 },
+        PhotoMetadataLocation,
+      );
+      expect(loc!.lat).toBe(12.5);
+      expect(loc!.lng).toBe(5);
+    });
+  });
+
+  describe("Canonical #5 — additionalProperties re-serialize at the TOP level", () => {
+    // Metadata declares additionalProperties: string. An extra property carried
+    // on the model (via its `[key: string]: unknown` index signature) must be
+    // re-emitted at the TOP level of the JSON object on serialize — never
+    // nested under an "additionalProperties"/"additional_properties" wrapper
+    // key. (Node's serialize walks the instance with JSON.stringify, so extra
+    // own keys land flat alongside the declared fields.)
+    test("an extra property serializes flat at the top level, not nested", () => {
+      const meta = new Metadata({
+        createdAt: new Date("2024-01-01T00:00:00Z"),
+      });
+      (meta as unknown as Record<string, unknown>)["region"] = "eu-west";
+      const parsed = JSON.parse(ObjectSerializer.serialize(meta)) as Record<
+        string,
+        unknown
+      >;
+      expect(parsed["region"]).toBe("eu-west");
+      // Declared field still present alongside the extra key.
+      expect(parsed).toHaveProperty("createdAt");
+      // The extra key sits at the top level — never under a wrapper.
+      expect(parsed).not.toHaveProperty("additionalProperties");
+      expect(parsed).not.toHaveProperty("additional_properties");
+    });
+
+    test("multiple extra properties all land at the top level", () => {
+      const meta = new Metadata();
+      (meta as unknown as Record<string, unknown>)["a"] = "one";
+      (meta as unknown as Record<string, unknown>)["b"] = "two";
+      const parsed = JSON.parse(ObjectSerializer.serialize(meta)) as Record<
+        string,
+        unknown
+      >;
+      expect(parsed["a"]).toBe("one");
+      expect(parsed["b"]).toBe("two");
+      expect(parsed).not.toHaveProperty("additionalProperties");
     });
   });
 });

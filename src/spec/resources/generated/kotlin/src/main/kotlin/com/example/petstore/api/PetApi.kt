@@ -305,9 +305,20 @@ class PetApi : BaseApi {
         val headerParams = mutableMapOf<String, String>()
         val cookieParts = mutableListOf<String>()
         if (options?.apiKey != null) {
-            cookieParts.add(
-                "api_key=" + ValueSerializer.serializeStyled("api_key", options!!.apiKey, "cookie", "String", null, "form", true),
-            )
+            // RFC 6265 — validate the assembled cookie name/value before it is
+            // joined into the Cookie header, exactly as the auth-cookie path in
+            // BaseApi does. A CR/LF or other control character in the serialized
+            // value must fail closed here to prevent request-header injection,
+            // rather than being interpolated raw into the Cookie header.
+            val cookieName = "api_key"
+            val cookieValue = ValueSerializer.serializeStyled("api_key", options!!.apiKey, "cookie", "String", null, "form", true) as String
+            require(isValidCookieName(cookieName)) {
+                "Cookie name '$cookieName' contains characters forbidden by RFC 6265"
+            }
+            require(isValidCookieValue(cookieValue)) {
+                "Cookie value for '$cookieName' contains characters forbidden by RFC 6265"
+            }
+            cookieParts.add("$cookieName=$cookieValue")
         }
         if (cookieParts.isNotEmpty()) {
             headerParams["Cookie"] = cookieParts.joinToString("; ")

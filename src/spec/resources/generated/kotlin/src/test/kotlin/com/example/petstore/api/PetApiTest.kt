@@ -758,5 +758,61 @@ class PetApiTest {
                 runBlocking { api.getPetById(1L) }
             }
         }
+
+        @Test
+        @DisplayName("deletePet cookie param with CR/LF fails closed with the RFC 6265 error")
+        fun testDeletePetCookieCrlfFailsClosed() {
+            // Parity rule 6: an operation cookie param value (the deletePet
+            // api_key cookie) carrying a CR/LF or other control character must
+            // fail closed at serialization time with the RFC 6265 error, exactly
+            // like the auth-cookie validation path, rather than being
+            // interpolated raw into the Cookie header (request-header injection).
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(), config)
+
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        api.deletePet(
+                            1L,
+                            DeletePetOptions(apiKey = "session\r\nInjected: 1", auth = basicAuth),
+                        )
+                    }
+                }
+            assertTrue(
+                ex.message!!.contains("RFC 6265"),
+                "cookie injection must fail with the RFC 6265 error, got: ${ex.message}",
+            )
+        }
+
+        @Test
+        @DisplayName("malformed 2xx body fails loud rather than returning the raw string")
+        fun testMalformedSuccessBodyFailsLoud() {
+            // Parity rule 11: a 2xx response whose body is not valid JSON for the
+            // declared return type must propagate the deserialize error, never be
+            // silently returned as the raw response string.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "{not valid json",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                runBlocking { api.getPetById(1L) }
+            }
+        }
     }
 }

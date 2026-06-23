@@ -616,10 +616,29 @@ defmodule PetstoreClient.Api.PetApi do
 
     cookie_parts =
       if not is_nil(options) and not is_nil(options.api_key) do
-        cookie_parts ++
-          [
-            "api_key=#{PetstoreClient.ValueSerializer.serialize_styled("api_key", options.api_key, :cookie, "String.t()", nil, "form", true)}"
-          ]
+        # RFC 6265 — operation-level cookie params are interpolated raw into the
+        # Cookie header just like auth-provided cookies in BaseApi, so they must
+        # pass the same cookie-value validation. A CR/LF/control-char value is a
+        # programmer error and would otherwise enable header injection; fail
+        # closed with the identical ArgumentError the auth-cookie path raises.
+        cookie_value =
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "api_key",
+            options.api_key,
+            :cookie,
+            "String.t()",
+            nil,
+            "form",
+            true
+          )
+          |> to_string()
+
+        unless cookie_value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
+          raise ArgumentError,
+                "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+        end
+
+        cookie_parts ++ ["api_key=#{cookie_value}"]
       else
         cookie_parts
       end

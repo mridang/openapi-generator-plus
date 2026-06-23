@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -135,6 +136,39 @@ func TestDuration_RoundTrip(t *testing.T) {
 		}
 		if got != orig {
 			t.Errorf("round-trip mismatch: original=%v wire=%q parsed=%v", orig, wire, got)
+		}
+	}
+}
+
+// Scenario 9: a sub-0.0001s magnitude must render as a plain fixed-point decimal
+// (e.g. 0.000050s), never in scientific/exponential notation (no '5e-05s'),
+// because protobuf-JSON duration is fixed-point seconds. The negative case is
+// also asserted to keep the sign on a tiny magnitude.
+func TestMarshalDurationProtoJSON_SubMilliNoScientificNotation(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		d    time.Duration
+		want string
+	}{
+		{50 * time.Microsecond, "0.000050s"},
+		{-(50 * time.Microsecond), "-0.000050s"},
+		{time.Nanosecond, "0.000000001s"},
+	}
+	for _, c := range cases {
+		got := {{packageName}}.MarshalDurationProtoJSON(c.d)
+		if got != c.want {
+			t.Errorf("MarshalDurationProtoJSON(%v) = %q, want %q", c.d, got, c.want)
+		}
+		if strings.ContainsAny(got, "eE") {
+			t.Errorf("duration %v must not render in scientific notation, got %q", c.d, got)
+		}
+		// The tiny magnitude must round-trip back to the same value.
+		back, err := {{packageName}}.UnmarshalDurationProtoJSON(got)
+		if err != nil {
+			t.Fatalf("round-trip parse failed for %q: %v", got, err)
+		}
+		if back != c.d {
+			t.Errorf("round-trip mismatch for %v: wire=%q parsed=%v", c.d, got, back)
 		}
 	}
 }

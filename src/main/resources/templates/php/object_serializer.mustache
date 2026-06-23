@@ -615,8 +615,17 @@ class ObjectSerializer
                 self::assertRequiredPresent($decoded, $class);
                 self::assertPrimitiveTypes($decoded, $class);
                 self::assertNoUnknownProperties($decoded, $class);
+                /* Canonical #4: pass the JSON format so Symfony widens an
+                 * integral JSON value to a `float` property (e.g. {"lat":5}
+                 * into a `?float $lat`). validateAndDenormalize only applies
+                 * the int->float widening when the format string contains
+                 * "json"; called without a format it raises
+                 * NotNormalizableValueException for the integral value. The
+                 * body always arrives as decoded JSON here, so naming the
+                 * format is correct and matches the int-from-double widening
+                 * the other SDKs perform. */
                 /** @var object $result */
-                $result = self::getSerializer()->denormalize($decoded, $class);
+                $result = self::getSerializer()->denormalize($decoded, $class, JsonEncoder::FORMAT);
                 return self::captureAdditionalProperties($result, $decoded);
             } catch (\Throwable $e) {
                 throw new SerializationException($e->getMessage(), 0, $e);
@@ -629,8 +638,11 @@ class ObjectSerializer
                 self::assertPrimitiveTypes($data, $class);
                 self::assertNoUnknownProperties($data, $class);
             }
+            /* Pass the JSON format so Symfony widens an integral JSON value
+             * to a `float` property (Canonical #4); see the string-data
+             * branch above for the full rationale. */
             /** @var object $result */
-            $result = self::getSerializer()->denormalize($data, $class);
+            $result = self::getSerializer()->denormalize($data, $class, JsonEncoder::FORMAT);
             if (is_array($data)) {
                 $result = self::captureAdditionalProperties($result, $data);
             }

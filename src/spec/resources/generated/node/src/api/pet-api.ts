@@ -396,9 +396,20 @@ export class PetApi extends BaseApi {
     const headerParams: Record<string, string> = {};
     const cookieParts: string[] = [];
     if (options?.apiKey != null) {
-      cookieParts.push(
-        `api_key=${ValueSerializer.serializeStyled("api_key", options.apiKey, "cookie", "string", null, "form", true)}`,
-      );
+      const apiKeyCookieValue = `${ValueSerializer.serializeStyled("api_key", options.apiKey, "cookie", "string", null, "form", true)}`;
+      /* RFC 6265 — reject CR/LF and other control characters in the
+       * serialized cookie value before it is joined into the Cookie
+       * header. This mirrors the validation the auth-cookie path applies
+       * in the base client, so a forbidden value fails closed with the
+       * same error instead of being injected raw into the header. */
+      if (
+        !/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(apiKeyCookieValue)
+      ) {
+        throw new Error(
+          `Cookie value for 'api_key' contains characters forbidden by RFC 6265`,
+        );
+      }
+      cookieParts.push(`api_key=${apiKeyCookieValue}`);
     }
     if (cookieParts.length > 0) {
       headerParams["Cookie"] = cookieParts.join("; ");

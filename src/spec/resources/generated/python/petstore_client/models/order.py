@@ -19,6 +19,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
 from enum import Enum

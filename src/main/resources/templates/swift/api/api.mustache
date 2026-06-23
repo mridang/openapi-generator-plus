@@ -328,20 +328,48 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/headerParams}}
 {{#hasCookieParams}}
         var cookieParts: [String] = []
+        /* Operation-level cookie params are interpolated straight into the
+         * Cookie request header, so the serialized value MUST pass the same
+         * RFC 6265 cookie-octet check that auth-provided cookies receive in
+         * BaseApi. Without it a value containing CR, LF, or other control
+         * characters would smuggle extra header lines into the request
+         * (header injection). Fail closed with the identical RFC 6265
+         * ApiError the auth-cookie path raises so behaviour is consistent. */
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-        cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
+        let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+        if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+            throw ApiError(
+                statusCode: 0,
+                message: "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+            )
+        }
+        cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
+            let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+            if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+                throw ApiError(
+                    statusCode: 0,
+                    message: "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                )
+            }
+            cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
+            let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+            if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+                throw ApiError(
+                    statusCode: 0,
+                    message: "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                )
+            }
+            cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/cookieParams}}

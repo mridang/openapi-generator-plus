@@ -849,4 +849,195 @@ class ObjectSerializerTest {
             }
         }
     }
+
+    @Nested
+    @DisplayName("FixtureModelRegressionTests")
+    inner class FixtureModelRegressionTests {
+
+        @Test
+        @DisplayName("integer-backed enum (Priority) round-trips as a JSON NUMBER, not a string")
+        fun integerBackedEnumSerializesAsNumber() {
+            // Priority is an integer-backed enum (enum: 1, 2, 3). Seven SDKs
+            // hard-coded the int-enum path as String-backed; the corrected
+            // Kotlin Serializer encodes the backing int via encodeInt, so the
+            // wire form is a bare JSON number (2), never the quoted string
+            // ("2"). Carried on a StockItem.priority field (required).
+            val item = {{modelPackage}}.StockItem(priority = {{modelPackage}}.Priority.NUMBER_2)
+            val json = serializer.serialize(item)
+            assertTrue(json.contains("\"priority\":2"), "priority must serialize as a JSON number, got: $json")
+            assertFalse(json.contains("\"priority\":\"2\""), "priority must NOT be a quoted string, got: $json")
+
+            // Deserialize the number back into the enum member.
+            val decoded = serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":2}")
+            assertNotNull(decoded)
+            assertEquals({{modelPackage}}.Priority.NUMBER_2, decoded!!.priority)
+        }
+
+        @Test
+        @DisplayName("non-lowercase string enum (Availability) round-trips with wire casing preserved")
+        fun nonLowercaseStringEnumPreservesWireCasing() {
+            // Availability is a non-lowercase string enum (Available, Sold,
+            // on-hold). The @SerialName wire form must be preserved verbatim,
+            // including the sanitized "on-hold" variant whose hyphen is not a
+            // legal identifier character.
+            val available = serializer.serialize(
+                {{modelPackage}}.StockItem(
+                    priority = {{modelPackage}}.Priority.NUMBER_1,
+                    availability = {{modelPackage}}.Availability.AVAILABLE,
+                ),
+            )
+            assertTrue(available.contains("\"availability\":\"Available\""), "expected Available casing, got: $available")
+
+            val onHold = serializer.serialize(
+                {{modelPackage}}.StockItem(
+                    priority = {{modelPackage}}.Priority.NUMBER_1,
+                    availability = {{modelPackage}}.Availability.ON_HOLD,
+                ),
+            )
+            assertTrue(onHold.contains("\"availability\":\"on-hold\""), "expected on-hold wire form, got: $onHold")
+
+            // Deserializing "Available" yields the right member.
+            val decoded = serializer.deserialize<{{modelPackage}}.StockItem>(
+                "{\"priority\":1,\"availability\":\"Sold\"}",
+            )
+            assertNotNull(decoded)
+            assertEquals({{modelPackage}}.Availability.SOLD, decoded!!.availability)
+        }
+
+        @Test
+        @DisplayName("unknown Availability wire value is rejected on deserialize")
+        fun unknownAvailabilityValueRejected() {
+            // An undeclared enum value must fail loud rather than coerce to null
+            // or a default.
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.StockItem>(
+                    "{\"priority\":1,\"availability\":\"out-of-stock\"}",
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("a model field typed as a referenced enum (Color) rejects an unknown wire value")
+        fun referencedEnumFieldRejectsUnknownValue() {
+            // EdgeCases.favoriteColor is a $ref to the standalone Color enum
+            // component (red/green/blue) rather than an inline property enum.
+            // The referenced-enum deserialize path must validate-and-throw on an
+            // undeclared value, exactly like the inline-enum path.
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"favoriteColor\":\"purple\"}")
+            }
+            // Control: a declared value still decodes.
+            val ok = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"favoriteColor\":\"green\"}")
+            assertNotNull(ok)
+            assertEquals({{modelPackage}}.Color.GREEN, ok!!.favoriteColor)
+        }
+
+        @Test
+        @DisplayName("format:byte fields round-trip through base64 (scalar and array)")
+        fun byteFieldsRoundTripThroughBase64() {
+            // PetPassport carries both a scalar byte field (thumbnail) and an
+            // array-of-byte field (scans). Each must wire-encode as a base64
+            // JSON string, and decode back to the original bytes.
+            val thumb = "test-thumbnail".toByteArray(Charsets.UTF_8)
+            val scanA = "scan-a".toByteArray(Charsets.UTF_8)
+            val scanB = "scan-b".toByteArray(Charsets.UTF_8)
+            val passport = {{modelPackage}}.PetPassport(
+                thumbnail = thumb,
+                scans = listOf(scanA, scanB),
+            )
+            val json = serializer.serialize(passport)
+            // "test-thumbnail" base64 is "dGVzdC10aHVtYm5haWw=" (matches the spec example).
+            assertTrue(
+                json.contains("\"thumbnail\":\"dGVzdC10aHVtYm5haWw=\""),
+                "thumbnail must serialize as base64, got: $json",
+            )
+
+            val decoded = serializer.deserialize<{{modelPackage}}.PetPassport>(json)
+            assertNotNull(decoded)
+            assertArrayEquals(thumb, decoded!!.thumbnail)
+            assertNotNull(decoded.scans)
+            assertEquals(2, decoded.scans!!.size)
+            assertArrayEquals(scanA, decoded.scans!![0])
+            assertArrayEquals(scanB, decoded.scans!![1])
+        }
+
+        @Test
+        @DisplayName("a double-typed field deserializes from an INTEGRAL JSON value without crashing")
+        fun doubleFieldAcceptsIntegralJsonValue() {
+            // PhotoMetadataLocation.lat/lng are format:double. A server that
+            // emits a whole number ({"lat":5} rather than 5.0) must still decode
+            // into a Double rather than throwing a numeric-type mismatch.
+            val loc = serializer.deserialize<{{modelPackage}}.PhotoMetadataLocation>(
+                "{\"lat\":5,\"lng\":-122}",
+            )
+            assertNotNull(loc)
+            assertEquals(5.0, loc!!.lat)
+            assertEquals(-122.0, loc.lng)
+        }
+
+        @Test
+        @DisplayName("additionalProperties round-trips at the TOP level, not nested under a key")
+        fun additionalPropertiesRoundTripAtTopLevel() {
+            // Metadata declares `additionalProperties: true` and carries the
+            // extras in a @Transient map. An extra JSON key seen on deserialize
+            // must be captured and re-serialized as a TOP-LEVEL member, never
+            // nested under an "additionalProperties" wrapper key.
+            val decoded = serializer.deserialize<{{modelPackage}}.Metadata>(
+                "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"region\":\"emea\",\"tier\":\"gold\"}",
+            )
+            assertNotNull(decoded)
+            assertEquals("emea", decoded!!.additionalProperties["region"])
+            assertEquals("gold", decoded.additionalProperties["tier"])
+
+            val reserialized = serializer.serialize(decoded)
+            assertTrue(reserialized.contains("\"region\":\"emea\""), "extra key must re-emit at top level, got: $reserialized")
+            assertTrue(reserialized.contains("\"tier\":\"gold\""), "extra key must re-emit at top level, got: $reserialized")
+            assertFalse(
+                reserialized.contains("\"additionalProperties\""),
+                "extras must NOT nest under an additionalProperties key, got: $reserialized",
+            )
+        }
+
+        @Test
+        @DisplayName("a nested array-of-array<int> container deep-round-trips to typed leaves")
+        fun nestedContainerDeepRoundTrips() {
+            // StockItem.matrix is array<array<int>>. The recursive per-element
+            // deserialization path must rebuild typed Int leaves rather than
+            // leaving raw JsonElements or collapsing the inner arrays.
+            val item = {{modelPackage}}.StockItem(
+                priority = {{modelPackage}}.Priority.NUMBER_3,
+                matrix = listOf(listOf(1, 2), listOf(3, 4, 5)),
+            )
+            val json = serializer.serialize(item)
+            val decoded = serializer.deserialize<{{modelPackage}}.StockItem>(json)
+            assertNotNull(decoded)
+            assertEquals(listOf(listOf(1, 2), listOf(3, 4, 5)), decoded!!.matrix)
+        }
+
+        @Test
+        @DisplayName("format:duration round-trips, including a negative and a sub-0.0001s magnitude")
+        fun durationRoundTripsNegativeAndSmallMagnitude() {
+            // EdgeCases.retryAfter is format:duration, wire-encoded as a
+            // protobuf-JSON google.protobuf.Duration ("-?\\d+(\\.\\d{1,9})?s").
+            // A negative duration keeps its sign, and a sub-0.0001s magnitude
+            // (1 microsecond) must emit fixed-point digits, never scientific
+            // notation.
+            val negative = java.time.Duration.ofSeconds(-90)
+            val negJson = serializer.serialize({{modelPackage}}.EdgeCases(retryAfter = negative))
+            assertTrue(negJson.contains("\"retryAfter\":\"-90s\""), "negative duration must keep its sign, got: $negJson")
+            val negDecoded = serializer.deserialize<{{modelPackage}}.EdgeCases>(negJson)
+            assertNotNull(negDecoded)
+            assertEquals(negative, negDecoded!!.retryAfter)
+
+            // 1 microsecond = 0.000001s — well below 0.0001s. Must NOT render as
+            // 1.0E-6 or similar.
+            val tiny = java.time.Duration.ofNanos(1_000)
+            val tinyJson = serializer.serialize({{modelPackage}}.EdgeCases(retryAfter = tiny))
+            assertFalse(tinyJson.contains("E"), "duration must not use scientific notation, got: $tinyJson")
+            assertFalse(tinyJson.contains("e-"), "duration must not use scientific notation, got: $tinyJson")
+            val tinyDecoded = serializer.deserialize<{{modelPackage}}.EdgeCases>(tinyJson)
+            assertNotNull(tinyDecoded)
+            assertEquals(tiny, tinyDecoded!!.retryAfter)
+        }
+    }
 }

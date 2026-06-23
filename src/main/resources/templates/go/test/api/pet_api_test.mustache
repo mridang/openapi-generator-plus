@@ -780,3 +780,78 @@ func TestPetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
 		t.Fatal("expected non-nil result from GetPetById")
 	}
 }
+
+// ── Scenario 6: an operation cookie param with CR/LF fails closed (RFC 6265) ──
+//
+// DeletePet carries an optional api_key cookie param (DeletePetOptions.ApiKey).
+// A value containing a CR/LF or other control character must be rejected with the
+// RFC-6265 error BEFORE any request is sent, so it cannot be smuggled into the
+// Cookie header — mirroring the auth-cookie validation assertions.
+func TestPetApi_CookieParamWithCRLFFailsClosed(t *testing.T) {
+	t.Parallel()
+	var called bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	for _, bad := range []string{"abc\r\ndef", "abc\ndef", "abc\rdef", "abc\x00def"} {
+		injected := bad
+		err := api.DeletePet(int64(1), &options.DeletePetOptions{ApiKey: &injected})
+		if err == nil {
+			t.Fatalf("expected DeletePet to fail closed for cookie value %q", bad)
+		}
+		if !strings.Contains(err.Error(), "RFC 6265") {
+			t.Errorf("expected the RFC 6265 cookie-validation error for %q, got: %v", bad, err)
+		}
+	}
+	if called {
+		t.Error("expected no HTTP request to be sent when the cookie value is rejected")
+	}
+}
+
+// A well-formed api_key cookie value passes validation and the call proceeds.
+func TestPetApi_CookieParamValidValuePasses(t *testing.T) {
+	t.Parallel()
+	var sawCookie string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawCookie = r.Header.Get("Cookie")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	good := "session-abc123"
+	if err := api.DeletePet(int64(1), &options.DeletePetOptions{ApiKey: &good}); err != nil {
+		t.Fatalf("DeletePet failed for a valid cookie value: %v", err)
+	}
+	if !strings.Contains(sawCookie, "api_key=session-abc123") {
+		t.Errorf("expected the api_key cookie on the wire, got %q", sawCookie)
+	}
+}
+
+// ── Scenario 11: a malformed 2xx body fails loud ──
+//
+// A 200 response whose JSON body is malformed must surface the deserialize error
+// to the caller rather than silently returning the raw string / a zero-valued
+// model. GetPetById returns a *Pet; a truncated JSON body must propagate an error.
+func TestPetApi_Malformed2xxBodyFailsLoud(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		// Truncated / malformed JSON for a 2xx response.
+		_, _ = w.Write([]byte(`{"id":1,"name":"Rex","photoUrls":[`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetById(int64(1), nil)
+	if err == nil {
+		t.Fatal("expected a deserialization error to propagate for a malformed 2xx body, got nil")
+	}
+}

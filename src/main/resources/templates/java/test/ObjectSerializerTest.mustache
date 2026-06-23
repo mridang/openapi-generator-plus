@@ -922,4 +922,137 @@ class ObjectSerializerTest {
                     () -> serializer.resolveAnyOf("{}", candidates));
         }
     }
+
+    @Nested
+    @DisplayName("EnumRoundTripTests")
+    class EnumRoundTripTests {
+
+        {{! Priority is an integer-backed enum: its wire value is a JSON NUMBER }}
+        {{! (2, never the string "2"). StockItem.priority carries the reference. }}
+        @Test
+        @DisplayName("integer-backed enum serializes as a JSON number, not a string")
+        void integerEnumSerializesAsNumber() {
+            {{modelPackage}}.StockItem item =
+                    new {{modelPackage}}.StockItem({{modelPackage}}.Priority.NUMBER_2);
+            String json = serializer.serialize(item);
+            assertTrue(json.contains("\"priority\":2"),
+                    "integer enum must serialize as a bare number, got: " + json);
+            assertFalse(json.contains("\"priority\":\"2\""),
+                    "integer enum must NOT serialize as a quoted string, got: " + json);
+        }
+
+        @Test
+        @DisplayName("integer-backed enum deserializes from a JSON number to the member")
+        void integerEnumDeserializesFromNumber() {
+            {{modelPackage}}.StockItem item =
+                    serializer.deserialize(
+                            "{\"priority\":2}",
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.StockItem>() {}.getType());
+            assertNotNull(item);
+            assertEquals({{modelPackage}}.Priority.NUMBER_2, item.priority);
+        }
+
+        {{! Availability is a non-lowercase string enum: the wire casing }}
+        {{! ("Available"/"Sold"/"on-hold") must survive a round-trip exactly. }}
+        @Test
+        @DisplayName("non-lowercase string enum preserves wire casing on round-trip")
+        void stringEnumPreservesWireCasing() {
+            {{modelPackage}}.StockItem item =
+                    new {{modelPackage}}.StockItem({{modelPackage}}.Priority.NUMBER_1);
+            item.availability = {{modelPackage}}.Availability.ON_HOLD;
+            String json = serializer.serialize(item);
+            assertTrue(json.contains("\"availability\":\"on-hold\""),
+                    "string enum must preserve exact wire casing, got: " + json);
+
+            {{modelPackage}}.StockItem decoded =
+                    serializer.deserialize(
+                            "{\"priority\":1,\"availability\":\"Available\"}",
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.StockItem>() {}.getType());
+            assertNotNull(decoded);
+            assertEquals({{modelPackage}}.Availability.AVAILABLE, decoded.availability);
+        }
+
+        {{! A referenced enum field (StockItem.availability -> Availability) must }}
+        {{! reject a value the schema never declared, failing loudly rather than }}
+        {{! coercing to null or a default constant. }}
+        @Test
+        @DisplayName("referenced enum field rejects an unknown wire value")
+        void referencedEnumRejectsUnknownValue() {
+            assertThrows(
+                    ObjectSerializer.SerializationException.class,
+                    () ->
+                            serializer.deserialize(
+                                    "{\"priority\":1,\"availability\":\"banana\"}",
+                                    new com.fasterxml.jackson.core.type.TypeReference<
+                                            {{modelPackage}}.StockItem>() {}.getType()));
+        }
+    }
+
+    @Nested
+    @DisplayName("ByteArrayRoundTripTests")
+    class ByteArrayRoundTripTests {
+
+        {{! A format:byte ARRAY field (PetPassport.scans: List<byte[]>) must }}
+        {{! round-trip each element through base64. The scalar byte case is }}
+        {{! covered by the api test's getPetAvatarThumbnail; this guards the }}
+        {{! array-of-byte form. }}
+        @Test
+        @DisplayName("array-of-byte field round-trips through base64")
+        void byteArrayFieldRoundTrips() {
+            {{modelPackage}}.PetPassport passport = new {{modelPackage}}.PetPassport();
+            passport.thumbnail = "thumb".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            passport.scans =
+                    java.util.List.of(
+                            "page-one".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            "page-two".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+            String json = serializer.serialize(passport);
+            // Each scan element is base64-encoded on the wire.
+            assertTrue(json.contains("\"scans\":[\"" + java.util.Base64.getEncoder()
+                            .encodeToString("page-one".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                            + "\""),
+                    "scans element must be base64-encoded, got: " + json);
+
+            {{modelPackage}}.PetPassport decoded =
+                    serializer.deserialize(
+                            json,
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.PetPassport>() {}.getType());
+            assertNotNull(decoded);
+            assertNotNull(decoded.scans);
+            assertEquals(2, decoded.scans.size());
+            assertEquals("page-one",
+                    new String(decoded.scans.get(0), java.nio.charset.StandardCharsets.UTF_8));
+            assertEquals("page-two",
+                    new String(decoded.scans.get(1), java.nio.charset.StandardCharsets.UTF_8));
+            assertNotNull(decoded.thumbnail);
+            assertEquals("thumb",
+                    new String(decoded.thumbnail, java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
+    @Nested
+    @DisplayName("NumberFromIntegralTests")
+    class NumberFromIntegralTests {
+
+        {{! A double/number-typed field (PhotoMetadataLocation.lat: Double) must }}
+        {{! accept an INTEGRAL JSON value ({"lat":5}, not 5.0) without crashing, }}
+        {{! widening it to the floating-point type. }}
+        @Test
+        @DisplayName("double field deserializes from an integral JSON value")
+        void doubleFieldFromIntegralValue() {
+            {{modelPackage}}.PhotoMetadataLocation loc =
+                    serializer.deserialize(
+                            "{\"lat\":5,\"lng\":-3}",
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.PhotoMetadataLocation>() {}.getType());
+            assertNotNull(loc);
+            assertNotNull(loc.lat);
+            assertNotNull(loc.lng);
+            assertEquals(5.0, loc.lat);
+            assertEquals(-3.0, loc.lng);
+        }
+    }
 }

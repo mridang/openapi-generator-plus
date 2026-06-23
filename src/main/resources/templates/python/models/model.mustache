@@ -256,6 +256,15 @@ from __future__ import annotations
 import re
 import warnings
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer, model_validator
+{{! The strict scalar aliases are imported unconditionally because the
+    codegen `imports` set (rendered in the footer below) only records strict
+    types referenced directly by a property's dataType. A strict type nested
+    inside a container annotation (e.g. List of List of StrictInt) is missed
+    there, so without this line the forward-ref annotation cannot resolve and
+    model_rebuild leaves the model "not fully defined". Importing the four
+    aliases here is harmless when unused and keeps any nested-strict field
+    resolvable; the footer may re-import a subset, which Python tolerates. }}
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
 {{#hasEnums}}

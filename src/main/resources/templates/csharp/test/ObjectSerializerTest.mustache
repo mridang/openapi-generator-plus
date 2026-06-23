@@ -1086,4 +1086,273 @@ public class ObjectSerializerTest
                     _ => (object?)null));
         }
     }
+
+    {{! Scenario 1 — integer-backed enum wire form. }}
+    {{! Priority is an integer-backed enum (NUMBER_1=1, NUMBER_2=2, ...). It }}
+    {{! must round-trip as a JSON NUMBER (2, not "2"): the generated }}
+    {{! PriorityConverter writes WriteNumberValue and reads a JSON number. }}
+    {{! Carried inside the shared StockItem fixture (Priority is required). }}
+    {{! Canonical across all 12 SDKs. }}
+    public class IntegerBackedEnumTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void PrioritySerializesAsJsonNumberNotString()
+        {
+            var item = new StockItem(Priority.NUMBER_2);
+            var json = _serializer.Serialize(item);
+            // The wire form is a bare number, never a quoted string.
+            Assert.Contains("\"priority\":2", json);
+            Assert.DoesNotContain("\"priority\":\"2\"", json);
+        }
+
+        [Fact]
+        public void PriorityDeserializesFromJsonNumber()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":3}");
+            Assert.NotNull(item);
+            Assert.Equal(Priority.NUMBER_3, item!.Priority);
+        }
+
+        [Fact]
+        public void PriorityRoundTripsThroughJsonNumber()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
+            var back = _serializer.Serialize(item);
+            Assert.Contains("\"priority\":1", back);
+        }
+
+        [Fact]
+        public void PriorityRejectsUnknownIntegerValue()
+        {
+            // A number outside the declared members must hard-fail with the
+            // SDK-owned SerializationException (the converter throws a
+            // JsonException, which the serializer wraps).
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":99}"));
+        }
+
+        [Fact]
+        public void PriorityRejectsStringWireValue()
+        {
+            // An integer-backed enum must reject a quoted "2" — the converter
+            // requires a JSON number token.
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":\"2\"}"));
+        }
+    }
+
+    {{! Scenario 2 — non-lowercase string enum preserves wire casing. }}
+    {{! Availability is a string enum whose wire values are NOT lowercased }}
+    {{! ("Available", "Sold", "on-hold"): the C# member OnHold maps to the }}
+    {{! hyphenated wire token. The generated AvailabilityConverter must emit }}
+    {{! and parse the exact wire casing and reject unknown values. Exercised }}
+    {{! through the shared StockItem fixture. Canonical across all 12 SDKs. }}
+    public class NonLowercaseStringEnumTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void AvailabilitySerializesPreservingWireCasing()
+        {
+            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.Available };
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"availability\":\"Available\"", json);
+        }
+
+        [Fact]
+        public void AvailabilitySerializesHyphenatedWireValue()
+        {
+            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.OnHold };
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"availability\":\"on-hold\"", json);
+        }
+
+        [Fact]
+        public void AvailabilityDeserializesFromWireCasing()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"Available\"}");
+            Assert.NotNull(item);
+            Assert.Equal(Availability.Available, item!.Availability);
+        }
+
+        [Fact]
+        public void AvailabilityDeserializesHyphenatedWireValue()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"on-hold\"}");
+            Assert.Equal(Availability.OnHold, item!.Availability);
+        }
+
+        [Fact]
+        public void AvailabilityRoundTripsAllWireValues()
+        {
+            foreach (var (wire, member) in new[]
+            {
+                ("Available", Availability.Available),
+                ("Sold", Availability.Sold),
+                ("on-hold", Availability.OnHold),
+            })
+            {
+                var payload = "{\"priority\":1,\"availability\":\"" + wire + "\"}";
+                var item = _serializer.Deserialize<StockItem>(payload);
+                Assert.Equal(member, item!.Availability);
+                Assert.Contains("\"availability\":\"" + wire + "\"", _serializer.Serialize(item));
+            }
+        }
+
+        [Fact]
+        public void AvailabilityRejectsUnknownWireValue()
+        {
+            // A lowercased "available" is NOT a declared wire value and must
+            // hard-fail rather than silently mapping to a member.
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"available\"}"));
+        }
+    }
+
+    {{! Scenario 3 — format:byte round-trips through base64. }}
+    {{! A byte[] field (PetPassport.Thumbnail / BiometricChip) and an }}
+    {{! array-of-byte field (PetPassport.Scans, List<byte[]>) must serialize }}
+    {{! as base64 strings and decode back to the original bytes. }}
+    {{! System.Text.Json base64-encodes byte[] by default. Canonical across }}
+    {{! all 12 SDKs. }}
+    public class ByteFormatBase64Tests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void ScalarByteFieldRoundTripsThroughBase64()
+        {
+            var bytes = new byte[] { 0x01, 0x02, 0x03, 0xFF };
+            var passport = new PetPassport { Thumbnail = bytes };
+            var json = _serializer.Serialize(passport);
+            // base64 of {1,2,3,255} is "AQID/w==".
+            Assert.Contains("\"thumbnail\":\"AQID/w==\"", json);
+
+            var decoded = _serializer.Deserialize<PetPassport>(json);
+            Assert.NotNull(decoded);
+            Assert.Equal(bytes, decoded!.Thumbnail);
+        }
+
+        [Fact]
+        public void ArrayOfByteFieldRoundTripsThroughBase64()
+        {
+            var scans = new List<byte[]>
+            {
+                new byte[] { 0x00, 0x10, 0x20 },
+                new byte[] { 0xDE, 0xAD, 0xBE, 0xEF },
+            };
+            var passport = new PetPassport { Scans = scans };
+            var json = _serializer.Serialize(passport);
+            // Each element is an independent base64 string.
+            Assert.Contains("\"ABAg\"", json);
+            Assert.Contains("\"3q2+7w==\"", json);
+
+            var decoded = _serializer.Deserialize<PetPassport>(json);
+            Assert.NotNull(decoded);
+            Assert.NotNull(decoded!.Scans);
+            Assert.Equal(2, decoded.Scans!.Count);
+            Assert.Equal(scans[0], decoded.Scans[0]);
+            Assert.Equal(scans[1], decoded.Scans[1]);
+        }
+    }
+
+    {{! Scenario 4 — a double-typed field accepts an INTEGRAL JSON value. }}
+    {{! PhotoMetadataLocation.Lat is a double; a payload carrying {"lat":5} }}
+    {{! (a bare integer, not 5.0) must decode without crashing — System.Text }}
+    {{! .Json widens the integer to the double. Canonical across all 12 SDKs. }}
+    public class NumberFieldFromIntegralJsonTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DoubleFieldDecodesFromIntegralJsonNumber()
+        {
+            var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5,\"lng\":-3}");
+            Assert.NotNull(loc);
+            Assert.Equal(5.0, loc!.Lat);
+            Assert.Equal(-3.0, loc.Lng);
+        }
+
+        [Fact]
+        public void DoubleFieldStillDecodesFromFractionalJsonNumber()
+        {
+            var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5.5}");
+            Assert.NotNull(loc);
+            Assert.Equal(5.5, loc!.Lat);
+        }
+    }
+
+    {{! Scenario 5 — additionalProperties flatten to the TOP level. }}
+    {{! An unmapped JSON key is captured on deserialize (via [JsonExtensionData] }}
+    {{! on Metadata.AdditionalProperties) and, crucially, re-serialized at the }}
+    {{! TOP level of the object — NOT nested under an "additionalProperties" }}
+    {{! wrapper key. Canonical across all 12 SDKs. }}
+    public class AdditionalPropertiesTopLevelTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void UnknownKeyIsCapturedOnDeserialize()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"createdAt\":\"2024-01-01T00:00:00Z\",\"region\":\"emea\"}");
+            Assert.NotNull(meta);
+            Assert.NotNull(meta!.AdditionalProperties);
+            Assert.Equal("emea", meta.AdditionalProperties!["region"].ToString());
+        }
+
+        [Fact]
+        public void CapturedExtraKeyReserializesAtTopLevelNotNested()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}");
+            var json = _serializer.Serialize(meta);
+            // The extra keys appear at the top level of the object verbatim.
+            Assert.Contains("\"region\":\"emea\"", json);
+            Assert.Contains("\"tier\":\"gold\"", json);
+            // They must NOT be wrapped under an additionalProperties /
+            // additional_properties container key.
+            Assert.DoesNotContain("additionalProperties", json);
+            Assert.DoesNotContain("additional_properties", json);
+        }
+
+        [Fact]
+        public void ExtraKeyRoundTripsValuePreserved()
+        {
+            var original = "{\"region\":\"emea\"}";
+            var meta = _serializer.Deserialize<Metadata>(original);
+            var back = _serializer.Deserialize<Metadata>(_serializer.Serialize(meta));
+            Assert.Equal("emea", back!.AdditionalProperties!["region"].ToString());
+        }
+    }
+
+    {{! Scenario 7 — nested container deep-round-trips to typed leaves. }}
+    {{! StockItem.Matrix is List<List<int>> (an array of integer arrays). It }}
+    {{! must decode to typed int leaves (not raw JsonElement) and re-encode }}
+    {{! identically. Canonical across all 12 SDKs. }}
+    public class NestedContainerDeepRoundTripTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void ArrayOfIntArraysDeserializesToTypedLeaves()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"matrix\":[[1,2],[3,4,5]]}");
+            Assert.NotNull(item);
+            Assert.NotNull(item!.Matrix);
+            Assert.Equal(2, item.Matrix!.Count);
+            Assert.Equal(new List<int> { 1, 2 }, item.Matrix[0]);
+            Assert.Equal(new List<int> { 3, 4, 5 }, item.Matrix[1]);
+            // Leaves are real ints, not boxed JsonElement.
+            Assert.IsType<int>(item.Matrix[0][0]);
+        }
+
+        [Fact]
+        public void ArrayOfIntArraysRoundTripsIdentically()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":2,\"matrix\":[[7,8],[9]]}");
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"matrix\":[[7,8],[9]]", json);
+        }
+    }
 }

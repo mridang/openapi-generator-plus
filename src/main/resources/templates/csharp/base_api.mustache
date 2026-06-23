@@ -481,7 +481,12 @@ public abstract class BaseApi
     }
 
     /// <summary>RFC 6265 cookie-name validation (RFC 7230 token).</summary>
-    private static bool IsValidCookieName(string name)
+    /// <remarks>
+    /// Exposed to derived API classes so operation-level cookie parameters
+    /// (in: cookie) are validated with the identical rules as auth-provided
+    /// cookies, keeping the Cookie header free of header-injection vectors.
+    /// </remarks>
+    protected static bool IsValidCookieName(string name)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -500,7 +505,13 @@ public abstract class BaseApi
     }
 
     /// <summary>RFC 6265 cookie-value validation (cookie-octet*).</summary>
-    private static bool IsValidCookieValue(string value)
+    /// <remarks>
+    /// Exposed to derived API classes so operation-level cookie parameters
+    /// (in: cookie) are validated with the identical rules as auth-provided
+    /// cookies, rejecting CR/LF and control characters that would otherwise
+    /// allow header injection into the Cookie request header.
+    /// </remarks>
+    protected static bool IsValidCookieValue(string value)
     {
         if (value == null)
         {

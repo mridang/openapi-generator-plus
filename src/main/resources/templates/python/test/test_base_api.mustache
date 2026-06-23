@@ -441,6 +441,15 @@ class VendorJsonApiClient(CapturingApiClient):
         return ApiHttpResponse(status_code=200, body='{"title":"Not Found"}', headers={'Content-Type': 'application/problem+json'})
 
 
+class MalformedJsonApiClient(CapturingApiClient):
+    """API client that returns a 2xx with a malformed JSON body."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        # A 200 whose Content-Type promises JSON but whose body is truncated.
+        return ApiHttpResponse(status_code=200, body='{"id": 1, ', headers={'Content-Type': 'application/json'})
+
+
 class TestContentTypeDeserialization:
 
     async def test_skips_deserialization_for_non_json_content_type(self) -> None:
@@ -459,6 +468,37 @@ class TestContentTypeDeserialization:
                                  ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['title'] == 'Not Found'
+
+
+class TestMalformedSuccessBodyFailsLoud:
+    """Scenario 11 — a 2xx response whose JSON body is malformed must FAIL
+    LOUD: the deserialize error propagates rather than silently returning the
+    raw (unparsed) string. A truncated body on a `Content-Type: application/json`
+    200 must surface as the SDK's SerializationError, never as the raw text."""
+
+    async def test_truncated_json_body_propagates_serialization_error(self) -> None:
+        from {{packageName}}.object_serializer import SerializationError
+        client = MalformedJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(SerializationError):
+            await stub.call('GET', '/test/echo', {}, {}, None,
+                            ['application/json'], 'application/json', 'object')
+
+    async def test_malformed_body_not_returned_as_raw_string(self) -> None:
+        # The failure mode we guard against: swallowing the parse error and
+        # handing back the raw, undecoded body string. It must raise instead.
+        from {{packageName}}.object_serializer import SerializationError
+        client = MalformedJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        raised = False
+        try:
+            await stub.call('GET', '/test/echo', {}, {}, None,
+                            ['application/json'], 'application/json', 'object')
+        except SerializationError:
+            raised = True
+        assert raised, 'malformed 2xx body must raise, not return the raw string'
 
 
 class TestHeaderFlowThrough:

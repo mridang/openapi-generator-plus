@@ -44,7 +44,7 @@ class DryFood {
     return DryFood(
       foodType: json['foodType'] as String,
 
-      weightKg: json['weightKg'] as double,
+      weightKg: (json['weightKg'] as num).toDouble(),
     );
   }
 

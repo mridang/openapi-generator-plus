@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
 
 void main() {
   group('pubspec manifest', () {
@@ -64,6 +65,38 @@ void main() {
 
       final restored = jsonDecode(serialized) as Map<String, dynamic>;
       expect(restored['createdAt'], equals('2024-01-15T10:30:00+00:00'));
+    });
+
+    // -- AdditionalPropertiesRoundTripTests (canonical scenario 5) --
+    //
+    // Metadata declares `additionalProperties: {type: string}`, so any JSON
+    // key beyond the declared `createdAt` must be captured into the model's
+    // additionalProperties map on fromJson, and re-emitted at the TOP level on
+    // toJson (NOT nested under an "additionalProperties"/"additional_properties"
+    // key). This exercises the real Metadata.fromJson / toJson, not raw
+    // jsonDecode.
+    test('Metadata captures unknown keys and re-serializes them at top level', () {
+      final source = <String, dynamic>{
+        'createdAt': '2024-01-15T10:30:00+00:00',
+        'customField': 'customValue',
+        'region': 'eu',
+      };
+
+      final model = Metadata.fromJson(source);
+      // Declared field is read normally.
+      expect(model.createdAt, isNotNull);
+      // Unknown keys are captured into the additionalProperties map.
+      expect(model.additionalProperties['customField'], equals('customValue'));
+      expect(model.additionalProperties['region'], equals('eu'));
+      // The capture bucket is NOT itself populated with a declared key.
+      expect(model.additionalProperties.containsKey('createdAt'), isFalse);
+
+      final wire = model.toJson();
+      // Re-serialized at the TOP level, flat — never nested under a bucket key.
+      expect(wire['customField'], equals('customValue'));
+      expect(wire['region'], equals('eu'));
+      expect(wire.containsKey('additionalProperties'), isFalse);
+      expect(wire.containsKey('additional_properties'), isFalse);
     });
   });
 }

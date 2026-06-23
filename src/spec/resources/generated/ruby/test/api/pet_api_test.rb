@@ -338,6 +338,21 @@ describe PetstoreClient::Api::PetApi do
         thread.join(2)
       end
     end
+
+    # malformed-2xx-body-fails-loud (canonical 11): a 200 response whose body
+    # is present but NOT valid JSON for the declared model must propagate the
+    # deserialize failure, never return the raw string or a silent nil. The
+    # SDK wraps the parse error as SerializationError; the convenience method
+    # must let it surface so a corrupt-upstream bug is loud at the call site.
+    it 'raises when a 2xx body is malformed JSON for the declared model' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"id":1,"name":')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise PetstoreClient::SerializationError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
   end
 
   # path-double-encoding: a styled path-param value containing reserved

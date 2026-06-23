@@ -490,6 +490,27 @@ impl PetApi {
                     "form",
                     true,
                 ) {
+                    // header-injection guard: see the required-branch comment
+                    // above. The serialized value is interpolated raw into the
+                    // Cookie header (no percent-encoding per RFC 6265), so a
+                    // CR/LF/control-char value is rejected here, failing closed
+                    // by returning the SDK's typed error and mirroring the
+                    // auth-cookie RFC 6265 check in BaseApi.
+                    // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+                    let cookie_value_valid = v.chars().all(|c| {
+                        let o = c as u32;
+                        o == 0x21
+                            || (0x23..=0x2B).contains(&o)
+                            || (0x2D..=0x3A).contains(&o)
+                            || (0x3C..=0x5B).contains(&o)
+                            || (0x5D..=0x7E).contains(&o)
+                    });
+                    if !cookie_value_valid {
+                        return Err(format!(
+                            "cookie value for '{}' contains characters forbidden by RFC 6265 when calling PetApi.delete_pet",
+                            "api_key"
+                        ).into());
+                    }
                     cookie_parts.push(format!("api_key={}", v));
                 }
             }

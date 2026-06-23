@@ -414,13 +414,27 @@ class {{classname}} {
       {{name}}: parseProtobufDuration(json['{{baseName}}'] as String),
 {{/vendorExtensions.isDuration}}
 {{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{! A `double`-typed field (type:number, or format:float / format:double) must
+    accept an integral JSON value (e.g. 5 vs 5.0): `as double` throws on an int,
+    so coerce via num.toDouble(). `number`, `float` and `double` all map to the
+    Dart `double` type but surface as distinct codegen flags, so each must be
+    handled; only a genuinely non-numeric primitive falls through to a plain
+    cast. }}
 {{#isNumber}}
-      {{! A `double` field must accept an integral JSON value (e.g. 5 vs 5.0):
-          `as double` throws on an int, so coerce via num.toDouble(). }}
       {{name}}: (json['{{baseName}}'] as num).toDouble(),
 {{/isNumber}}
 {{^isNumber}}
+{{#isFloat}}
+      {{name}}: (json['{{baseName}}'] as num).toDouble(),
+{{/isFloat}}
+{{^isFloat}}
+{{#isDouble}}
+      {{name}}: (json['{{baseName}}'] as num).toDouble(),
+{{/isDouble}}
+{{^isDouble}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
+{{/isDouble}}
+{{/isFloat}}
 {{/isNumber}}
 {{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
@@ -516,15 +530,28 @@ class {{classname}} {
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? {{#isNumber}}(json['{{baseName}}'] as num?)?.toDouble(){{/isNumber}}{{^isNumber}}json['{{baseName}}'] as {{{dataType}}}?{{/isNumber}} : {{{defaultValue}}},
+      {{name}}: json.containsKey('{{baseName}}') ? {{#isNumber}}(json['{{baseName}}'] as num?)?.toDouble(){{/isNumber}}{{^isNumber}}{{#isFloat}}(json['{{baseName}}'] as num?)?.toDouble(){{/isFloat}}{{^isFloat}}{{#isDouble}}(json['{{baseName}}'] as num?)?.toDouble(){{/isDouble}}{{^isDouble}}json['{{baseName}}'] as {{{dataType}}}?{{/isDouble}}{{/isFloat}}{{/isNumber}} : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
+{{! A `double`-typed field (type:number, or format:float / format:double) must
+    accept an integral JSON value: coerce via num. The three flags are distinct
+    but all map to the Dart `double` type, so each routes through toDouble();
+    only a non-numeric primitive falls through to a plain nullable cast. }}
 {{#isNumber}}
-      {{! A `double` field must accept an integral JSON value: coerce via num. }}
       {{name}}: (json['{{baseName}}'] as num?)?.toDouble(),
 {{/isNumber}}
 {{^isNumber}}
+{{#isFloat}}
+      {{name}}: (json['{{baseName}}'] as num?)?.toDouble(),
+{{/isFloat}}
+{{^isFloat}}
+{{#isDouble}}
+      {{name}}: (json['{{baseName}}'] as num?)?.toDouble(),
+{{/isDouble}}
+{{^isDouble}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/isDouble}}
+{{/isFloat}}
 {{/isNumber}}
 {{/defaultValue}}
 {{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}

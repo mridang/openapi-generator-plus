@@ -190,3 +190,22 @@ async fn test_store_api_get_grouped_categories_typed_leaves() {
         "leaf name mismatch"
     );
 }
+
+// malformed-2xx-fails-loud (behavior 11): a 2xx response whose body is not
+// valid JSON for the operation's declared return type must propagate the
+// deserialization error, NOT silently hand back the raw body string. The
+// convenience method returns Err rather than a defaulted/empty value.
+#[tokio::test]
+async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        "this is not valid json at all",
+    );
+
+    let result = api.get_order_by_id(1).await;
+    assert!(
+        result.is_err(),
+        "a malformed 2xx body must fail loud, not return the raw string"
+    );
+}

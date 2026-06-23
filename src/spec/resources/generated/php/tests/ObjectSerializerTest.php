@@ -3,13 +3,19 @@
 declare(strict_types=1);
 
 use PetstoreClient\ObjectSerializer;
+use PetstoreClient\Models\Availability;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Defaults;
 use PetstoreClient\Models\DefaultsModeEnum;
 use PetstoreClient\Models\EdgeCases;
+use PetstoreClient\Models\Metadata;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
 use PetstoreClient\Models\Pet;
+use PetstoreClient\Models\PetPassport;
+use PetstoreClient\Models\PhotoMetadataLocation;
+use PetstoreClient\Models\Priority;
+use PetstoreClient\Models\StockItem;
 use PetstoreClient\Models\TreeNode;
 
 // -- toPathValue --
@@ -924,6 +930,180 @@ test('resolveAnyOf throws when no variant matches', function (): void {
     ];
     expect(fn (): mixed => ObjectSerializer::resolveAnyOf([], $candidates))
         ->toThrow(\UnexpectedValueException::class);
+});
+
+// -- Canonical #1: integer-backed enum round-trips as a JSON NUMBER --
+//
+// Priority is an `enum Priority: int` (NUMBER_1=1, NUMBER_2=2, NUMBER_3=3).
+// On the wire it MUST serialize to a bare JSON number (2), never the quoted
+// string "2", and a JSON number on deserialize must resolve back to the enum
+// case. StockItem carries a required Priority field, so the round-trip is
+// exercised through a real model rather than the bare enum.
+
+test('integer-backed enum serializes as a JSON number not a string', function (): void {
+    $item = new StockItem(Priority::NUMBER_2);
+    $json = ObjectSerializer::serialize($item);
+    // The raw JSON text must contain the bare number, never the quoted form.
+    expect($json)->toContain('"priority":2');
+    expect($json)->not->toContain('"priority":"2"');
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    // json_decode keeps the JSON number as a PHP int (not a string).
+    expect($data['priority'])->toBe(2);
+});
+
+test('integer-backed enum deserializes from a JSON number', function (): void {
+    $json = '{"priority":2}';
+    /** @var StockItem $item */
+    $item = ObjectSerializer::deserialize($json, StockItem::class);
+    expect($item)->toBeInstanceOf(StockItem::class);
+    expect($item->priority)->toBe(Priority::NUMBER_2);
+});
+
+// -- Canonical #2: non-lowercase string enum preserves wire casing --
+//
+// Availability is an `enum Availability: string` whose cases keep their
+// non-lowercase wire spellings: AVAILABLE='Available', SOLD='Sold',
+// ON_HOLD='on-hold'. Serialization must emit the exact wire token, a matching
+// wire value must deserialize to the right case, and an unknown value must be
+// rejected (the unknown-enum-on-deserialize contract, scenario #10, applied to
+// a non-lowercase string enum).
+
+test('non-lowercase string enum round-trips with wire casing preserved', function (): void {
+    foreach (
+        [
+        [Availability::AVAILABLE, 'Available'],
+        [Availability::SOLD, 'Sold'],
+        [Availability::ON_HOLD, 'on-hold'],
+        ] as [$case, $wire]
+    ) {
+        $item = new StockItem(Priority::NUMBER_1, $case);
+        $json = ObjectSerializer::serialize($item);
+        expect($json)->toContain('"availability":"' . $wire . '"');
+        /** @var StockItem $back */
+        $back = ObjectSerializer::deserialize($json, StockItem::class);
+        expect($back->availability)->toBe($case);
+    }
+});
+
+test('non-lowercase string enum deserializes Available to the right member', function (): void {
+    $json = '{"priority":1,"availability":"Available"}';
+    /** @var StockItem $item */
+    $item = ObjectSerializer::deserialize($json, StockItem::class);
+    expect($item->availability)->toBe(Availability::AVAILABLE);
+});
+
+test('unknown availability wire value is rejected on deserialize', function (): void {
+    // "available" (lowercase) is NOT a declared case; only "Available" is.
+    $json = '{"priority":1,"availability":"available"}';
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, StockItem::class))
+        ->toThrow(\PetstoreClient\SerializationException::class);
+});
+
+// -- Canonical #3: format:byte fields round-trip through base64 on a model --
+//
+// PetPassport carries BOTH a scalar `format: byte` field (thumbnail) and an
+// array-of-byte field (scans: array<string format:byte>). The property holds
+// the base64 wire string; the model exposes byte-getters that base64-decode.
+// The serialize/deserialize round-trip must preserve the base64 wire form, and
+// the byte-getters must hand back the decoded raw bytes.
+
+test('byte fields round-trip through base64 on a model', function (): void {
+    $thumb = base64_encode('thumb-bytes');
+    $scanA = base64_encode("scan-A\x00\xff");
+    $scanB = base64_encode('scan-B');
+
+    $passport = new PetPassport(
+        thumbnail: $thumb,
+        scans: new \Ds\Vector([$scanA, $scanB]),
+    );
+
+    $json = ObjectSerializer::serialize($passport);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    // Scalar byte field and each array element stay base64 on the wire.
+    expect($data['thumbnail'])->toBe($thumb);
+    expect($data['scans'])->toBe([$scanA, $scanB]);
+
+    /** @var PetPassport $back */
+    $back = ObjectSerializer::deserialize($json, PetPassport::class);
+    expect($back)->toBeInstanceOf(PetPassport::class);
+    expect($back->thumbnail)->toBe($thumb);
+    // The byte-getter decodes the scalar back to raw bytes.
+    expect($back->getThumbnailAsBytes())->toBe('thumb-bytes');
+    /** @var \Ds\Vector<string> $scans */
+    $scans = $back->scans;
+    expect($scans)->toBeInstanceOf(\Ds\Vector::class);
+    expect($scans->toArray())->toBe([$scanA, $scanB]);
+});
+
+// -- Canonical #4: a double field deserializes from an INTEGRAL JSON value --
+//
+// PhotoMetadataLocation.lat/lng are `number, format: double` (PHP `?float`). A
+// server that writes a whole number ({"lat":5}, not 5.0) must deserialize
+// without crashing — the integral JSON number widens to a float.
+
+test('double field deserializes from an integral JSON value', function (): void {
+    $json = '{"lat":5,"lng":-8}';
+    /** @var PhotoMetadataLocation $loc */
+    $loc = ObjectSerializer::deserialize($json, PhotoMetadataLocation::class);
+    expect($loc)->toBeInstanceOf(PhotoMetadataLocation::class);
+    expect($loc->lat)->toBe(5.0);
+    expect($loc->lng)->toBe(-8.0);
+});
+
+// -- Canonical #5: additionalProperties re-serialize at the TOP level --
+//
+// Metadata declares an open `additionalProperties` map. An undeclared wire key
+// must be CAPTURED on deserialize into $additionalProperties, and on serialize
+// it must be flattened back to a TOP-LEVEL JSON key — never nested under an
+// "additionalProperties"/"additional_properties" wrapper. (MetadataTest covers
+// the capture side; this pins the flatten-on-serialize half of the contract.)
+
+test('additional property re-serializes at the top level not nested', function (): void {
+    $json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}';
+    /** @var Metadata $meta */
+    $meta = ObjectSerializer::deserialize($json, Metadata::class);
+    expect($meta->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
+    expect($meta->additionalProperties->get('customField'))->toBe('hello');
+
+    $out = ObjectSerializer::serialize($meta);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($out, true);
+    // The captured extra key is emitted at the TOP level, with its value.
+    expect($data)->toHaveKey('customField');
+    expect($data['customField'])->toBe('hello');
+    // It must NOT be nested under a wrapper key.
+    expect($data)->not->toHaveKey('additionalProperties');
+    expect($data)->not->toHaveKey('additional_properties');
+});
+
+// -- Canonical #7: a nested container deep-round-trips to typed leaves --
+//
+// StockItem.matrix is `array<array<int>>` -> `\Ds\Vector<\Ds\Vector<int>>`.
+// Deserializing a nested JSON array must build typed inner Vectors whose leaves
+// are PHP ints (not raw arrays / not strings), and serialize must round-trip it
+// back to the same nested JSON shape.
+
+test('nested array-of-array deep-round-trips to typed int leaves', function (): void {
+    $json = '{"priority":1,"matrix":[[1,2,3],[4,5]]}';
+    /** @var StockItem $item */
+    $item = ObjectSerializer::deserialize($json, StockItem::class);
+    expect($item)->toBeInstanceOf(StockItem::class);
+    /** @var \Ds\Vector<\Ds\Vector<int>> $matrix */
+    $matrix = $item->matrix;
+    expect($matrix)->toBeInstanceOf(\Ds\Vector::class);
+    expect($matrix->count())->toBe(2);
+    expect($matrix[0])->toBeInstanceOf(\Ds\Vector::class);
+    // Leaves are typed ints, deeply.
+    expect($matrix[0]->toArray())->toBe([1, 2, 3]);
+    expect($matrix[0][0])->toBeInt();
+    expect($matrix[1]->toArray())->toBe([4, 5]);
+
+    // Round-trips back to the same nested JSON shape.
+    /** @var array<string, mixed> $data */
+    $data = json_decode(ObjectSerializer::serialize($item), true);
+    expect($data['matrix'])->toBe([[1, 2, 3], [4, 5]]);
 });
 
 // -- F-BM-03 (WONTFIX for PHP): PHP's native #[\Deprecated] attribute does

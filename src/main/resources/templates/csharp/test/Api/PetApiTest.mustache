@@ -136,6 +136,33 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestDeletePetRejectsCrlfInCookieParam()
+    {
+        // RFC 6265 header-injection guard for an OPERATION-LEVEL cookie param.
+        // deletePet's api_key (in: cookie) is interpolated straight into the
+        // Cookie request header, so a value carrying CR/LF must FAIL CLOSED
+        // with the same ArgumentException the auth-cookie validation path
+        // raises — before any HTTP request is made — rather than splitting the
+        // header. Mirrors the ApiKeyAuthenticator cookie-CRLF assertions.
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => _api.DeletePetAsync(
+                1L,
+                new DeletePetOptions { Auth = _auth, ApiKey = "abc\r\nInjected: yes" }));
+        Assert.Contains("RFC 6265", ex.Message);
+    }
+
+    [Fact]
+    public async Task TestDeletePetRejectsControlCharInCookieParam()
+    {
+        // A bare control character (not only CR/LF) in the operation cookie
+        // value is equally forbidden by RFC 6265 and must fail closed.
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _api.DeletePetAsync(
+                1L,
+                new DeletePetOptions { Auth = _auth, ApiKey = "abc\x07def" }));
+    }
+
+    [Fact]
     public async Task TestSetPetAvatar()
     {
         var imageData = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 });
@@ -496,6 +523,21 @@ public class PetApiTest
         var ex = await Assert.ThrowsAsync<{{packageName}}.ApiException>(
             () => mockApi.GetPetByIdAsync(1L));
         Assert.Equal(200, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task TestMalformedSuccessBodyFailsLoud()
+    {
+        // A 2xx response carrying a body that is NOT valid JSON for the
+        // declared type must FAIL LOUD: the deserialization error propagates
+        // out of the convenience method rather than the raw string being
+        // returned (or swallowed into a null/partial Pet). The serializer
+        // raises the SDK-owned SerializationException, which surfaces to the
+        // caller. Canonical across all 12 SDKs.
+        var mockApi = NewPetApiForMock(200, "application/json", "{not valid json");
+
+        await Assert.ThrowsAsync<{{packageName}}.SerializationException>(
+            () => mockApi.GetPetByIdAsync(1L));
     }
 
     [Fact]

@@ -392,8 +392,12 @@ public abstract class BaseApi {
   /**
    * Returns true if the value is a valid RFC 6265 cookie name (token). Allowed chars: ALPHA / DIGIT
    * / "!#$%&'*+-.^_`|~".
+   *
+   * <p>Visible to generated API subclasses (different package) so that operation-level cookie
+   * parameters can be validated with the exact same RFC 6265 rule the auth-provided cookie path
+   * uses, rather than being interpolated into the Cookie header unchecked.
    */
-  private static boolean isValidCookieName(String name) {
+  protected static boolean isValidCookieName(String name) {
     if (name == null || name.isEmpty()) {
       return false;
     }
@@ -415,8 +419,13 @@ public abstract class BaseApi {
    * Returns true if the value is a valid RFC 6265 cookie value (cookie-octet*). Allowed: %x21 /
    * %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E. Excludes whitespace, DQUOTE, comma, semicolon,
    * backslash, controls. Empty value is allowed.
+   *
+   * <p>Visible to generated API subclasses (different package) so that operation-level cookie
+   * parameters can be validated with the exact same RFC 6265 rule the auth-provided cookie path
+   * uses. This is what makes a CR/LF or control-char value fail closed instead of being smuggled
+   * into the Cookie request header (header injection).
    */
-  private static boolean isValidCookieValue(String value) {
+  protected static boolean isValidCookieValue(String value) {
     if (value == null) {
       return false;
     }

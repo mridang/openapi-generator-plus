@@ -585,6 +585,201 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
+  # Integer-backed enum (Priority) must round-trip as a JSON NUMBER, not a
+  # quoted string. Priority is `type: integer` with enum [1, 2, 3]; the
+  # generated module maps atom -> int via value/1 and int -> atom via
+  # from_value/1. Serialize must emit the bare integer (2, never "2") and
+  # deserialize must invert it back to the member atom.
+  describe "integer-backed enum (Priority) round-trips as a JSON number" do
+    test "serialize emits the bare integer wire value" do
+      # StockItem.priority is typed "Priority", so sanitize routes the atom
+      # through Priority.value/1 and emits the int. matrix is omitted (nil)
+      # so only the required priority field surfaces.
+      item = %PetstoreClient.Models.StockItem{priority: :number_2}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))
+      assert data["priority"] == 2
+      assert is_integer(data["priority"])
+      refute data["priority"] == "2"
+    end
+
+    test "deserialize maps the JSON number back to the member atom" do
+      json = ~s({"priority":2})
+      item = PetstoreClient.ObjectSerializer.deserialize(json, "StockItem")
+      assert %PetstoreClient.Models.StockItem{} = item
+      assert item.priority == :number_2
+    end
+
+    test "convert_to_type inverts the integer wire value via from_value" do
+      assert PetstoreClient.ObjectSerializer.convert_to_type(3, "Priority") == :number_3
+    end
+  end
+
+  # Non-lowercase string enum (Availability) must round-trip with its wire
+  # casing preserved: "Available", "Sold", and the hyphenated "on-hold".
+  # The atom names are sanitized (:available / :sold / :on_hold) but value/1
+  # restores the exact wire string and from_value/1 inverts it. An unknown
+  # wire value is spec drift and must raise.
+  describe "non-lowercase string enum (Availability) round-trips with wire casing" do
+    test "serialize restores the exact non-lowercase wire string" do
+      item = %PetstoreClient.Models.StockItem{priority: :number_1, availability: :available}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))
+      assert data["availability"] == "Available"
+    end
+
+    test "serialize restores the hyphenated wire string" do
+      item = %PetstoreClient.Models.StockItem{priority: :number_1, availability: :on_hold}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))
+      assert data["availability"] == "on-hold"
+    end
+
+    test "deserialize maps the wire casing back to the member atom" do
+      item =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"priority":1,"availability":"Available"}),
+          "StockItem"
+        )
+
+      assert item.availability == :available
+    end
+
+    test "convert_to_type inverts each wire value via from_value" do
+      assert PetstoreClient.ObjectSerializer.convert_to_type("Available", "Availability") ==
+               :available
+
+      assert PetstoreClient.ObjectSerializer.convert_to_type("Sold", "Availability") == :sold
+
+      assert PetstoreClient.ObjectSerializer.convert_to_type("on-hold", "Availability") ==
+               :on_hold
+    end
+  end
+
+  # Scenario 10: a model field typed as a REFERENCED enum component must reject
+  # an unknown wire value on deserialize rather than mint an arbitrary atom.
+  # StockItem.availability is a $ref to the Availability enum; an out-of-spec
+  # value reaches atomize_enum via the field's declared type and raises.
+  describe "referenced enum field rejects unknown wire value" do
+    test "unknown Availability wire value on a model field raises SerializationError" do
+      assert_raise PetstoreClient.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"priority":1,"availability":"Discontinued"}),
+          "StockItem"
+        )
+      end
+    end
+
+    test "unknown Priority wire value on a model field raises SerializationError" do
+      assert_raise PetstoreClient.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"priority":99}), "StockItem")
+      end
+    end
+  end
+
+  # Scenario 7: a nested container property (array-of-array<int>) must
+  # deep-round-trip to typed integer leaves, not stop at the outer list.
+  # StockItem.matrix is typed "[[integer()]]"; convert_to_type peels each
+  # container level so every leaf is a strict integer.
+  describe "nested container (array-of-array int) deep round-trips" do
+    test "deserialize decodes every leaf to a typed integer" do
+      json = ~s({"priority":1,"matrix":[[1,2],[3,4,5]]})
+      item = PetstoreClient.ObjectSerializer.deserialize(json, "StockItem")
+      assert item.matrix == [[1, 2], [3, 4, 5]]
+      assert Enum.all?(List.flatten(item.matrix), &is_integer/1)
+    end
+
+    test "serialize re-emits the nested integer grid" do
+      item = %PetstoreClient.Models.StockItem{priority: :number_1, matrix: [[7, 8], [9]]}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))
+      assert data["matrix"] == [[7, 8], [9]]
+    end
+  end
+
+  # Scenario 4: a double/number-typed field must deserialize from an INTEGRAL
+  # JSON value (e.g. {"lat":5}, not 5.0) without crashing. PhotoMetadataLocation
+  # lat/lng are typed "float()"; convert_to_type's int->float clause coerces a
+  # JSON integer into a float so a server emitting a whole number does not trip
+  # the strict primitive guard.
+  describe "double field deserializes from an integral JSON value" do
+    test "integral lat/lng coerce to floats" do
+      json = ~s({"lat":5,"lng":-8})
+      loc = PetstoreClient.ObjectSerializer.deserialize(json, "PhotoMetadataLocation")
+      assert %PetstoreClient.Models.PhotoMetadataLocation{} = loc
+      assert loc.lat == 5.0
+      assert is_float(loc.lat)
+      assert loc.lng == -8.0
+      assert is_float(loc.lng)
+    end
+
+    test "convert_to_type coerces a bare integer to a float" do
+      assert PetstoreClient.ObjectSerializer.convert_to_type(5, "float()") == 5.0
+    end
+  end
+
+  # Scenario 5: additionalProperties round-trip. An undeclared wire key is
+  # captured on deserialize into the struct's additional_properties map and
+  # re-emitted at the TOP level on serialize (never nested under an
+  # "additionalProperties"/"additional_properties" key). Metadata declares
+  # additional_properties/0 == true with a single declared field createdAt.
+  describe "additionalProperties round-trip at the top level" do
+    test "deserialize captures an undeclared key into additional_properties" do
+      json = ~s({"createdAt":"2024-01-01T00:00:00Z","region":"eu","weight":42})
+      meta = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
+      assert %PetstoreClient.Models.Metadata{} = meta
+      assert meta.additional_properties["region"] == "eu"
+      assert meta.additional_properties["weight"] == 42
+    end
+
+    test "serialize re-emits the extra key at the top level" do
+      meta = %PetstoreClient.Models.Metadata{additional_properties: %{"region" => "eu"}}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(meta))
+      assert data["region"] == "eu"
+      refute Map.has_key?(data, "additionalProperties")
+      refute Map.has_key?(data, "additional_properties")
+    end
+
+    test "an extra key survives a full deserialize -> serialize round-trip" do
+      json = ~s({"region":"eu"})
+      meta = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(meta))
+      assert data["region"] == "eu"
+      refute Map.has_key?(data, "additional_properties")
+    end
+  end
+
+  # Scenario 3 (array-of-byte): a format:byte ARRAY field must round-trip
+  # through base64 just like a scalar byte field. PetPassport.scans is typed
+  # "[binary()]"; each element decodes from base64 on deserialize and re-encodes
+  # on serialize, symmetric with the scalar ByteArray path tested above.
+  describe "format: byte array field round-trips through base64" do
+    test "deserialize decodes each base64 scan element to raw bytes" do
+      raw_a = <<1, 2, 3>>
+      raw_b = <<255, 0, 128>>
+
+      json =
+        Jason.encode!(%{"scans" => [Base.encode64(raw_a), Base.encode64(raw_b)]})
+
+      passport = PetstoreClient.ObjectSerializer.deserialize(json, "PetPassport")
+      assert %PetstoreClient.Models.PetPassport{} = passport
+      assert passport.scans == [raw_a, raw_b]
+    end
+
+    test "serialize re-encodes each raw scan element to base64" do
+      raw = <<10, 20, 30>>
+      passport = %PetstoreClient.Models.PetPassport{scans: [raw]}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(passport))
+      assert data["scans"] == [Base.encode64(raw)]
+    end
+
+    test "scalar and array byte fields round-trip together" do
+      thumb = <<0, 1, 2>>
+      scan = <<3, 4, 5>>
+      passport = %PetstoreClient.Models.PetPassport{thumbnail: thumb, scans: [scan]}
+      json = PetstoreClient.ObjectSerializer.serialize(passport)
+      decoded = PetstoreClient.ObjectSerializer.deserialize(json, "PetPassport")
+      assert decoded.thumbnail == thumb
+      assert decoded.scans == [scan]
+    end
+  end
+
   # ── Gap K — discriminator auto-injection on subtype serialize ──
 
   describe "discriminator auto-injection" do

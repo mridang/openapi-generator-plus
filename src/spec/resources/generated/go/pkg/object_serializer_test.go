@@ -1000,3 +1000,235 @@ func TestResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
 		t.Errorf("expected a non-nil error when no anyOf variant matched")
 	}
 }
+
+// ── Scenario 1: integer-backed enum (Priority) round-trips as a JSON NUMBER ──
+//
+// The Priority enum is backed by int (type Priority int). Serializing a member
+// must emit a bare JSON number (2, not the quoted string "2"), and deserializing
+// the bare number must resolve back to the typed member. A String-backed
+// template would have quoted the value on the wire and broken this contract.
+
+func TestPriorityEnum_SerializesAsJSONNumber(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(models.PriorityNUMBER_2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != "2" {
+		t.Errorf("expected integer-backed enum to serialize as the bare number 2, got %q", string(data))
+	}
+	if strings.Contains(string(data), "\"") {
+		t.Errorf("integer-backed enum must not be quoted on the wire, got %q", string(data))
+	}
+}
+
+func TestPriorityEnum_DeserializesFromJSONNumber(t *testing.T) {
+	t.Parallel()
+	var p models.Priority
+	if err := deserialize([]byte("2"), &p); err != nil {
+		t.Fatalf("unexpected error deserializing integer enum: %v", err)
+	}
+	if p != models.PriorityNUMBER_2 {
+		t.Errorf("expected PriorityNUMBER_2, got %v", p)
+	}
+}
+
+func TestPriorityEnum_RejectsUnknownNumber(t *testing.T) {
+	t.Parallel()
+	var p models.Priority
+	if err := deserialize([]byte("99"), &p); err == nil {
+		t.Fatal("expected an error deserializing an undeclared integer enum value 99")
+	}
+}
+
+// ── Scenario 2: non-lowercase string enum (Availability) preserves wire casing ──
+//
+// Availability declares "Available", "Sold", and the hyphenated "on-hold". The
+// wire casing/spelling must round-trip exactly (no lowercasing, no identifier
+// mangling leaking to the wire), a known value must resolve to its member, and
+// an undeclared value must be rejected on deserialize.
+
+func TestAvailabilityEnum_PreservesWireCasingRoundTrip(t *testing.T) {
+	t.Parallel()
+	for _, v := range []models.Availability{
+		models.AvailabilityAvailable,
+		models.AvailabilitySold,
+		models.AvailabilityOnHold,
+	} {
+		data, err := serialize(v)
+		if err != nil {
+			t.Fatalf("unexpected error serializing %v: %v", v, err)
+		}
+		expected := "\"" + string(v) + "\""
+		if string(data) != expected {
+			t.Errorf("expected wire casing preserved as %s, got %q", expected, string(data))
+		}
+		var back models.Availability
+		if err := deserialize(data, &back); err != nil {
+			t.Fatalf("unexpected error round-tripping %v: %v", v, err)
+		}
+		if back != v {
+			t.Errorf("round-trip mismatch: expected %v, got %v", v, back)
+		}
+	}
+}
+
+func TestAvailabilityEnum_DeserializesKnownValue(t *testing.T) {
+	t.Parallel()
+	var a models.Availability
+	if err := deserialize([]byte("\"Available\""), &a); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if a != models.AvailabilityAvailable {
+		t.Errorf("expected AvailabilityAvailable, got %v", a)
+	}
+}
+
+func TestAvailabilityEnum_RejectsUnknownValue(t *testing.T) {
+	t.Parallel()
+	var a models.Availability
+	if err := deserialize([]byte("\"available\""), &a); err == nil {
+		t.Fatal("expected an error for the undeclared (wrong-cased) value \"available\"")
+	}
+}
+
+// ── Scenario 3: format:byte fields round-trip through base64 ──
+//
+// PetPassport.Thumbnail is a scalar byte field (*[]byte) and PetPassport.Scans
+// is an array-of-byte field (*[][]byte, mirroring PhotoMetadata-style scans).
+// Both must serialize to base64 JSON strings and decode back to the original
+// raw bytes, including bytes that are invalid UTF-8 (0x00, 0xFF).
+
+func TestByteField_ScalarRoundTripsThroughBase64(t *testing.T) {
+	t.Parallel()
+	raw := []byte{0x00, 0xFF, 0x10, 0x42}
+	passport := models.PetPassport{Thumbnail: &raw}
+
+	data, err := serialize(passport)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// encoding/json base64-encodes []byte; the raw bytes must NOT appear verbatim.
+	if !strings.Contains(string(data), "\"thumbnail\":\"AP8QQg==\"") {
+		t.Errorf("expected thumbnail base64 \"AP8QQg==\", got %s", string(data))
+	}
+
+	var back models.PetPassport
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("unexpected error deserializing byte field: %v", err)
+	}
+	if back.Thumbnail == nil || string(*back.Thumbnail) != string(raw) {
+		t.Errorf("scalar byte round-trip mismatch: got %v, want %v", back.Thumbnail, raw)
+	}
+}
+
+func TestByteField_ArrayRoundTripsThroughBase64(t *testing.T) {
+	t.Parallel()
+	scans := [][]byte{{0x01, 0x02}, {0xFE, 0xFF}}
+	passport := models.PetPassport{Scans: &scans}
+
+	data, err := serialize(passport)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var back models.PetPassport
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("unexpected error deserializing array-of-byte field: %v", err)
+	}
+	if back.Scans == nil {
+		t.Fatal("expected non-nil Scans after round-trip")
+	}
+	got := *back.Scans
+	if len(got) != 2 || string(got[0]) != string(scans[0]) || string(got[1]) != string(scans[1]) {
+		t.Errorf("array-of-byte round-trip mismatch: got %v, want %v", got, scans)
+	}
+}
+
+// ── Scenario 4: a double-typed field deserializes from an INTEGRAL JSON value ──
+//
+// PhotoMetadataLocation.Lat is a float64. A server emitting an integral value
+// ({"lat":5}) rather than {"lat":5.0} must deserialize cleanly into the float
+// field without a type-mismatch crash.
+
+func TestDoubleField_DeserializesFromIntegralJSON(t *testing.T) {
+	t.Parallel()
+	var loc models.PhotoMetadataLocation
+	if err := deserialize([]byte(`{"lat":5,"lng":-7}`), &loc); err != nil {
+		t.Fatalf("unexpected error deserializing integral value into double field: %v", err)
+	}
+	if loc.Lat == nil || *loc.Lat != 5.0 {
+		t.Errorf("expected lat 5.0, got %v", loc.Lat)
+	}
+	if loc.Lng == nil || *loc.Lng != -7.0 {
+		t.Errorf("expected lng -7.0, got %v", loc.Lng)
+	}
+}
+
+// ── Scenario 5: additionalProperties round-trips at the TOP level ──
+//
+// Metadata captures unknown JSON keys into its AdditionalProperties map on
+// deserialize, then re-emits them at the TOP level of the object on serialize —
+// NOT nested under an "additionalProperties"/"additional_properties" key.
+
+func TestAdditionalProperties_CapturedAndReSerializedAtTopLevel(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}`)
+
+	var metadata models.Metadata
+	if err := deserialize(input, &metadata); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if metadata.AdditionalProperties["customField"] != "customValue" {
+		t.Errorf("expected extra key 'customField' captured, got %v", metadata.AdditionalProperties["customField"])
+	}
+
+	data, err := serialize(metadata)
+	if err != nil {
+		t.Fatalf("unexpected error re-serializing: %v", err)
+	}
+	s := string(data)
+	if !strings.Contains(s, "\"customField\":\"customValue\"") {
+		t.Errorf("expected extra key re-emitted at top level, got %s", s)
+	}
+	// It must NOT be nested under an additionalProperties wrapper key.
+	if strings.Contains(s, "additionalProperties") || strings.Contains(s, "additional_properties") {
+		t.Errorf("extra keys must be flattened to the top level, not nested, got %s", s)
+	}
+}
+
+// ── Scenario 7: a nested container deep-round-trips to typed leaves ──
+//
+// StockItem.Matrix is an array-of-array of int32. Deserializing a nested JSON
+// array must produce real typed int32 leaves (not raw any/float64), and
+// re-serializing must reproduce the structure.
+
+func TestNestedContainer_ArrayOfArrayDeepRoundTrips(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"priority":1,"matrix":[[1,2,3],[4,5]]}`)
+
+	var item models.StockItem
+	if err := deserialize(input, &item); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item.Matrix == nil {
+		t.Fatal("expected non-nil Matrix")
+	}
+	matrix := *item.Matrix
+	if len(matrix) != 2 || len(matrix[0]) != 3 || len(matrix[1]) != 2 {
+		t.Fatalf("unexpected matrix shape: %v", matrix)
+	}
+	// Leaves must be typed int32, exercised here by direct int32 comparison.
+	var want int32 = 5
+	if matrix[1][1] != want {
+		t.Errorf("expected typed int32 leaf 5, got %v", matrix[1][1])
+	}
+
+	data, err := serialize(item)
+	if err != nil {
+		t.Fatalf("unexpected error re-serializing: %v", err)
+	}
+	if !strings.Contains(string(data), "\"matrix\":[[1,2,3],[4,5]]") {
+		t.Errorf("expected nested container re-serialized, got %s", string(data))
+	}
+}

@@ -135,6 +135,59 @@ fn test_pet_location_free_form_json_round_trips() {
     );
 }
 
+// -- date-time serializes in a consistent UTC-offset form and round-trips
+// (behavior 8) --
+//
+// `Metadata.createdAt` is a `chrono::DateTime<Utc>`. The wire form must be a
+// single, consistent RFC-3339 representation carrying an explicit UTC offset
+// (`+00:00`/`Z`), and parsing that representation back must yield the same
+// instant. A `Z`-suffixed input and a `+00:00` input denote the same instant,
+// so they must serialize identically after a round-trip.
+#[test]
+fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
+    use chrono::{DateTime, Utc};
+
+    let json_data = r#"{"createdAt":"2024-01-15T10:30:00Z"}"#;
+    let metadata: Metadata =
+        serde_json::from_str(json_data).expect("failed to deserialize Metadata");
+
+    let created = metadata
+        .created_at
+        .expect("expected createdAt to be present");
+    let expected: DateTime<Utc> = "2024-01-15T10:30:00Z"
+        .parse()
+        .expect("reference instant must parse");
+    assert_eq!(created, expected, "deserialized instant mismatch");
+
+    // Serialize and confirm a single, explicit UTC-offset wire form.
+    let data = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized Metadata");
+    let wire = parsed["createdAt"]
+        .as_str()
+        .expect("createdAt must serialize as a JSON string");
+    assert!(
+        wire.ends_with('Z') || wire.ends_with("+00:00"),
+        "date-time must carry an explicit UTC offset, got: {}",
+        wire
+    );
+
+    // The wire form must itself parse back to the same instant: a stable,
+    // self-consistent representation.
+    let reparsed: DateTime<Utc> = wire.parse().expect("serialized wire form must re-parse");
+    assert_eq!(reparsed, expected, "round-tripped instant must be unchanged");
+
+    // A `+00:00`-suffixed input denotes the same instant and must serialize
+    // identically, proving the offset form is normalized, not echoed verbatim.
+    let alt: Metadata = serde_json::from_str(r#"{"createdAt":"2024-01-15T10:30:00+00:00"}"#)
+        .expect("failed to deserialize alternate-offset Metadata");
+    let alt_data = serde_json::to_string(&alt).expect("failed to serialize alternate Metadata");
+    assert_eq!(
+        alt_data, data,
+        "equivalent UTC instants must serialize to the same wire form"
+    );
+}
+
 // manifest-description-missing: the published Cargo.toml must carry a
 // non-empty `description` (wired from the spec's appDescription) so the crate
 // does not publish with an empty description on crates.io.

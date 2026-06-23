@@ -215,6 +215,47 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  # RFC-6265 cookie-value validation on an operation cookie param. deletePet
+  # declares an `api_key` cookie param that is interpolated raw into the Cookie
+  # header; a value carrying CR/LF or a control char is a header-injection
+  # vector and must FAIL CLOSED with the same ArgumentError the auth-cookie
+  # path raises, before any request reaches the wire. A clean value passes.
+  test "delete_pet cookie api_key with CRLF fails closed with ArgumentError" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+    auth = %{auth_headers: %{"Authorization" => "Bearer t"}}
+
+    for bad <- ["a\r\nX-Injected: yes", "a\rb", "a\nb", "a" <> <<0>> <> "b"] do
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.Api.PetApi.delete_pet(
+          api, 1,
+          %{{moduleName}}.Api.Options.DeletePetOptions{api_key: bad, auth: auth}
+        )
+      end
+    end
+
+    # No request reached the wire for any rejected value.
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "delete_pet cookie api_key with a clean value is accepted" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+    auth = %{auth_headers: %{"Authorization" => "Bearer t"}}
+
+    {:ok, _result} =
+      {{moduleName}}.Api.PetApi.delete_pet(
+        api, 1,
+        %{{moduleName}}.Api.Options.DeletePetOptions{api_key: "session-abc123", auth: auth}
+      )
+
+    refute PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
   defp new_pet_api_for_mock(status, content_type, body) do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)

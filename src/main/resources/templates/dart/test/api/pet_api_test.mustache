@@ -314,6 +314,61 @@ void main() {
       }
     });
 
+    /* operation-cookie-param-crlf-fails-closed (canonical scenario 6): the
+     * deletePet `api_key` cookie param is interpolated straight into the
+     * Cookie request header. A value carrying CR/LF (or any control char)
+     * would smuggle in extra headers, so the generated op validates every
+     * assembled cookie value against the RFC 6265 cookie-value grammar and
+     * fails closed with an ArgumentError BEFORE any request is sent — mirroring
+     * the auth-cookie validation path. */
+    test('deletePet cookie param with CR/LF fails closed with RFC 6265 error', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      await expectLater(
+        api.deletePet(1, const DeletePetOptions(apiKey: 'sess\r\nInjected: yes')),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // A control character (not just CR/LF) is rejected the same way.
+      await expectLater(
+        api.deletePet(1, const DeletePetOptions(apiKey: 'sess\x00ion')),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    /* malformed-2xx-body-fails-loud (canonical scenario 11): a 200 response
+     * carrying a JSON content-type but an undecodable body must propagate the
+     * deserialize failure (SerializationError) rather than silently handing
+     * back the raw string. getPetById deserializes into Pet, so a garbage body
+     * must surface loudly. */
+    test('malformed 2xx JSON body propagates a deserialize error', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{ this is not valid json ::: }')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await expectLater(
+          api.getPetById(1, null),
+          throwsA(isA<SerializationError>()),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
     /* per-call-auth-override: an Authenticator passed to the BASE operation
      * method (not just WithHTTPInfo) must be applied to the outgoing request.
      * The default header carries one token; the per-call authenticator carries

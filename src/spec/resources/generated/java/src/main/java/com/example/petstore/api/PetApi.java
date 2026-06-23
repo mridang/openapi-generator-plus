@@ -607,10 +607,25 @@ public class PetApi extends BaseApi {
     Map<String, String> headerParams = new HashMap<>();
     java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
     if (options != null && options.apiKey() != null) {
-      cookieJoiner.add(
-          "api_key="
-              + ValueSerializer.serializeStyled(
+      String apiKeyCookieValue =
+          String.valueOf(
+              ValueSerializer.serializeStyled(
                   "api_key", options.apiKey(), "cookie", "String", null, "form", true));
+      /* RFC 6265 — validate the operation cookie name and the assembled
+       * value with the SAME rule the auth-provided cookie path applies in
+       * BaseApi. Without this, a CR/LF or control-char value supplied at
+       * the call site would be interpolated straight into the Cookie
+       * request header (header injection). Fail closed instead, mirroring
+       * the auth-cookie path's IllegalArgumentException. */
+      if (!isValidCookieName("api_key")) {
+        throw new IllegalArgumentException(
+            "Cookie name 'api_key' contains characters forbidden by RFC 6265");
+      }
+      if (!isValidCookieValue(apiKeyCookieValue)) {
+        throw new IllegalArgumentException(
+            "Cookie value for 'api_key' contains characters forbidden by RFC 6265");
+      }
+      cookieJoiner.add("api_key=" + apiKeyCookieValue);
     }
     if (cookieJoiner.length() > 0) {
       headerParams.put("Cookie", cookieJoiner.toString());

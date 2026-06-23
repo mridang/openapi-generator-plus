@@ -823,4 +823,210 @@ import Testing
     #expect(category?.id == 1)
     #expect(category?.name == "Dogs")
   }
+
+  // MARK: - integer-backed enum (Priority) round-trips as a JSON NUMBER
+
+  // Priority is an Int-backed enum (NUMBER_1=1, NUMBER_2=2, NUMBER_3=3).
+  // Serializing a Priority must emit a bare JSON number (2), NOT a quoted
+  // string ("2"); deserializing the number 2 must yield the matching member.
+  // StockItem.priority is a required Priority field, exercising the enum via
+  // a real model rather than in isolation.
+  @Test func testIntegerEnumSerializesAsJsonNumber() throws {
+    let item = StockItem(priority: .NUMBER_2)
+    let json = try ObjectSerializer.serialize(item)
+    #expect(
+      json.contains("\"priority\":2"),
+      "integer enum must serialize as a bare JSON number, got: \(json)")
+    #expect(
+      !json.contains("\"priority\":\"2\""),
+      "integer enum must NOT serialize as a quoted string, got: \(json)")
+  }
+
+  @Test func testIntegerEnumDeserializesFromJsonNumber() throws {
+    let json = "{\"priority\":2}"
+    let item = try ObjectSerializer.deserialize(json, as: StockItem.self)
+    #expect(
+      item?.priority == .NUMBER_2,
+      "the JSON number 2 must decode to Priority.NUMBER_2")
+  }
+
+  @Test func testIntegerEnumRoundTripPreservesMember() throws {
+    let original = StockItem(priority: .NUMBER_3)
+    let json = try ObjectSerializer.serialize(original)
+    let decoded = try ObjectSerializer.deserialize(json, as: StockItem.self)
+    #expect(decoded?.priority == .NUMBER_3)
+  }
+
+  // MARK: - non-lowercase string enum (Availability) wire-casing preserved
+
+  // Availability declares available="Available", sold="Sold",
+  // onHold="on-hold" — the wire casing differs from the Swift case names.
+  // Serializing must emit the declared raw value verbatim, deserializing the
+  // raw value must yield the matching member, and an unknown value must be
+  // rejected (not coerced to a default/unknown variant).
+  @Test func testNonLowercaseStringEnumSerializesWireCasing() throws {
+    let item = StockItem(priority: .NUMBER_1, availability: .available)
+    let json = try ObjectSerializer.serialize(item)
+    #expect(
+      json.contains("\"availability\":\"Available\""),
+      "wire casing 'Available' must be preserved, got: \(json)")
+  }
+
+  @Test func testNonLowercaseStringEnumSerializesHyphenatedWireCasing() throws {
+    let item = StockItem(priority: .NUMBER_1, availability: .onHold)
+    let json = try ObjectSerializer.serialize(item)
+    #expect(
+      json.contains("\"availability\":\"on-hold\""),
+      "hyphenated wire value 'on-hold' must be preserved, got: \(json)")
+  }
+
+  @Test func testNonLowercaseStringEnumDeserializesWireCasing() throws {
+    let json = "{\"priority\":1,\"availability\":\"Available\"}"
+    let item = try ObjectSerializer.deserialize(json, as: StockItem.self)
+    #expect(
+      item?.availability == .available,
+      "'Available' must decode to Availability.available")
+  }
+
+  @Test func testNonLowercaseStringEnumRejectsUnknownValue() {
+    // An out-of-vocabulary wire value must fail loudly rather than be
+    // silently mapped to a default/unknown member.
+    let json = "{\"priority\":1,\"availability\":\"Reserved\"}"
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: StockItem.self)
+    }
+  }
+
+  // MARK: - format:byte round-trips through base64 (scalar + array)
+
+  // PetPassport.thumbnail is a `format: byte` scalar (Swift `Data`); Swift's
+  // JSONEncoder/JSONDecoder map `Data` to a base64 JSON string by default, so
+  // the field must round-trip through base64 and preserve the exact bytes —
+  // including 0x00 (would terminate a C string) and 0xFF (invalid UTF-8).
+  @Test func testFormatByteScalarRoundTripsThroughBase64() throws {
+    let original = Data([0x00, 0xFF, 0x42, 0x10])
+    let passport = PetPassport(thumbnail: original)
+    let json = try ObjectSerializer.serialize(passport)
+    #expect(
+      json.contains("\"\(original.base64EncodedString())\""),
+      "byte field must serialize as a base64 string, got: \(json)")
+    let decoded = try ObjectSerializer.deserialize(json, as: PetPassport.self)
+    #expect(
+      decoded?.thumbnail == original,
+      "byte field must round-trip the exact bytes")
+  }
+
+  // PetPassport.scans is an array-of-byte (`[Data]`); each element must
+  // independently round-trip through base64 with its bytes intact.
+  @Test func testFormatByteArrayRoundTripsThroughBase64() throws {
+    let a = Data([0x01, 0x02, 0x00])
+    let b = Data([0xFE, 0xFF])
+    let passport = PetPassport(scans: [a, b])
+    let json = try ObjectSerializer.serialize(passport)
+    // Foundation's JSONEncoder escapes the base64 padding/`/` characters
+    // per its default slash-escaping, so compare against the JSON-escaped
+    // form (`/` -> `\/`) rather than the raw base64.
+    let aEncoded = a.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
+    let bEncoded = b.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
+    #expect(
+      json.contains("\"\(aEncoded)\""),
+      "first scan must serialize as base64, got: \(json)")
+    #expect(
+      json.contains("\"\(bEncoded)\""),
+      "second scan must serialize as base64, got: \(json)")
+    let decoded = try ObjectSerializer.deserialize(json, as: PetPassport.self)
+    #expect(
+      decoded?.scans == [a, b],
+      "array-of-byte must round-trip each element's bytes exactly")
+  }
+
+  // MARK: - double field deserializes from an INTEGRAL JSON value
+
+  // PhotoMetadataLocation.lat/lng are `Double?`. A JSON payload that supplies
+  // an integral value ({"lat":5}, no decimal point) must decode into the
+  // Double field without crashing — Foundation widens the integer to 5.0.
+  @Test func testDoubleFieldDeserializesFromIntegralJsonValue() throws {
+    let json = "{\"lat\":5,\"lng\":-3}"
+    let location = try ObjectSerializer.deserialize(json, as: PhotoMetadataLocation.self)
+    #expect(
+      location?.lat == 5.0,
+      "integral JSON value 5 must widen to Double 5.0")
+    #expect(
+      location?.lng == -3.0,
+      "integral JSON value -3 must widen to Double -3.0")
+  }
+
+  // MARK: - additionalProperties round-trips at the TOP level
+
+  // Metadata declares additionalProperties: an extra JSON key not in the
+  // schema must be captured on deserialise and re-emitted at the TOP level of
+  // the payload on serialise — NOT nested under an "additionalProperties" or
+  // "additional_properties" wrapper key.
+  @Test func testAdditionalPropertiesCapturedAndReEmittedAtTopLevel() throws {
+    let json = "{\"extra\":\"kept\",\"count\":7}"
+    let metadata = try ObjectSerializer.deserialize(json, as: Metadata.self)
+    #expect(
+      metadata?.additionalProperties["extra"]?.value as? String == "kept",
+      "unknown string key must be captured as an additional property")
+
+    let reserialized = try ObjectSerializer.serialize(metadata!)
+    #expect(
+      reserialized.contains("\"extra\":\"kept\""),
+      "additional property must be re-emitted at the top level, got: \(reserialized)")
+    #expect(
+      reserialized.contains("\"count\":7"),
+      "numeric additional property must be re-emitted at the top level, got: \(reserialized)")
+    #expect(
+      !reserialized.contains("additionalProperties")
+        && !reserialized.contains("additional_properties"),
+      "additional properties must NOT be nested under a wrapper key, got: \(reserialized)")
+  }
+
+  // MARK: - nested container (array-of-array<int>) deep round-trip
+
+  // StockItem.matrix is `[[Int]]?` — a nested container. It must deep-decode
+  // to typed Int leaves (not raw JSON) and deep-encode back, preserving the
+  // grid structure exactly.
+  @Test func testNestedArrayOfArrayDeepRoundTrips() throws {
+    let original = StockItem(priority: .NUMBER_1, matrix: [[1, 2, 3], [4, 5], []])
+    let json = try ObjectSerializer.serialize(original)
+    let decoded = try ObjectSerializer.deserialize(json, as: StockItem.self)
+    #expect(
+      decoded?.matrix == [[1, 2, 3], [4, 5], []],
+      "nested array-of-array must deep-round-trip to typed Int leaves")
+    // Pin the typed-leaf contract: the inner element is a real Int.
+    let leaf: Int? = decoded?.matrix?.first?.first
+    #expect(leaf == 1)
+  }
+
+  // MARK: - format:duration sub-0.0001s magnitude (no scientific notation)
+
+  // A sub-0.0001s duration (50 microseconds = 0.00005s) must encode in fixed
+  // decimal-fraction form ("0.000050s"), never in scientific notation
+  // ("5e-05s"), and must round-trip back to the same magnitude. The negative
+  // and whole/fractional cases are covered above; this pins the small-
+  // magnitude formatting that a naive %g/String(describing:) would corrupt.
+  @Test func testDurationFormatSubTenThousandthNoScientificNotation() throws {
+    let out = ObjectSerializer.encodeDuration(0.00005)
+    #expect(
+      !out.lowercased().contains("e"),
+      "sub-0.0001s duration must not use scientific notation, got: \(out)")
+    #expect(out.hasSuffix("s"))
+    let parsed = try ObjectSerializer.decodeDuration(out)
+    #expect(
+      abs(parsed - 0.00005) < 1e-9,
+      "sub-0.0001s duration must round-trip, got: \(out) -> \(parsed)")
+  }
+
+  @Test func testDurationFormatNegativeSubTenThousandthNoScientificNotation() throws {
+    let out = ObjectSerializer.encodeDuration(-0.00005)
+    #expect(out.hasPrefix("-"), "negative magnitude must keep its sign, got: \(out)")
+    #expect(
+      !out.lowercased().contains("e"),
+      "negative sub-0.0001s duration must not use scientific notation, got: \(out)")
+    let parsed = try ObjectSerializer.decodeDuration(out)
+    #expect(
+      abs(parsed - (-0.00005)) < 1e-9,
+      "negative sub-0.0001s duration must round-trip, got: \(out) -> \(parsed)")
+  }
 }

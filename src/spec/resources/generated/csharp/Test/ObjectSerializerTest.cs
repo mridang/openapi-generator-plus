@@ -1079,4 +1079,242 @@ public class ObjectSerializerTest
                     _ => (object?)null));
         }
     }
+
+    public class IntegerBackedEnumTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void PrioritySerializesAsJsonNumberNotString()
+        {
+            var item = new StockItem(Priority.NUMBER_2);
+            var json = _serializer.Serialize(item);
+            // The wire form is a bare number, never a quoted string.
+            Assert.Contains("\"priority\":2", json);
+            Assert.DoesNotContain("\"priority\":\"2\"", json);
+        }
+
+        [Fact]
+        public void PriorityDeserializesFromJsonNumber()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":3}");
+            Assert.NotNull(item);
+            Assert.Equal(Priority.NUMBER_3, item!.Priority);
+        }
+
+        [Fact]
+        public void PriorityRoundTripsThroughJsonNumber()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
+            var back = _serializer.Serialize(item);
+            Assert.Contains("\"priority\":1", back);
+        }
+
+        [Fact]
+        public void PriorityRejectsUnknownIntegerValue()
+        {
+            // A number outside the declared members must hard-fail with the
+            // SDK-owned SerializationException (the converter throws a
+            // JsonException, which the serializer wraps).
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":99}"));
+        }
+
+        [Fact]
+        public void PriorityRejectsStringWireValue()
+        {
+            // An integer-backed enum must reject a quoted "2" — the converter
+            // requires a JSON number token.
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":\"2\"}"));
+        }
+    }
+
+    public class NonLowercaseStringEnumTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void AvailabilitySerializesPreservingWireCasing()
+        {
+            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.Available };
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"availability\":\"Available\"", json);
+        }
+
+        [Fact]
+        public void AvailabilitySerializesHyphenatedWireValue()
+        {
+            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.OnHold };
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"availability\":\"on-hold\"", json);
+        }
+
+        [Fact]
+        public void AvailabilityDeserializesFromWireCasing()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"Available\"}");
+            Assert.NotNull(item);
+            Assert.Equal(Availability.Available, item!.Availability);
+        }
+
+        [Fact]
+        public void AvailabilityDeserializesHyphenatedWireValue()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"on-hold\"}");
+            Assert.Equal(Availability.OnHold, item!.Availability);
+        }
+
+        [Fact]
+        public void AvailabilityRoundTripsAllWireValues()
+        {
+            foreach (var (wire, member) in new[]
+            {
+                ("Available", Availability.Available),
+                ("Sold", Availability.Sold),
+                ("on-hold", Availability.OnHold),
+            })
+            {
+                var payload = "{\"priority\":1,\"availability\":\"" + wire + "\"}";
+                var item = _serializer.Deserialize<StockItem>(payload);
+                Assert.Equal(member, item!.Availability);
+                Assert.Contains("\"availability\":\"" + wire + "\"", _serializer.Serialize(item));
+            }
+        }
+
+        [Fact]
+        public void AvailabilityRejectsUnknownWireValue()
+        {
+            // A lowercased "available" is NOT a declared wire value and must
+            // hard-fail rather than silently mapping to a member.
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"available\"}"));
+        }
+    }
+
+    public class ByteFormatBase64Tests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void ScalarByteFieldRoundTripsThroughBase64()
+        {
+            var bytes = new byte[] { 0x01, 0x02, 0x03, 0xFF };
+            var passport = new PetPassport { Thumbnail = bytes };
+            var json = _serializer.Serialize(passport);
+            // base64 of {1,2,3,255} is "AQID/w==".
+            Assert.Contains("\"thumbnail\":\"AQID/w==\"", json);
+
+            var decoded = _serializer.Deserialize<PetPassport>(json);
+            Assert.NotNull(decoded);
+            Assert.Equal(bytes, decoded!.Thumbnail);
+        }
+
+        [Fact]
+        public void ArrayOfByteFieldRoundTripsThroughBase64()
+        {
+            var scans = new List<byte[]>
+            {
+                new byte[] { 0x00, 0x10, 0x20 },
+                new byte[] { 0xDE, 0xAD, 0xBE, 0xEF },
+            };
+            var passport = new PetPassport { Scans = scans };
+            var json = _serializer.Serialize(passport);
+            // Each element is an independent base64 string.
+            Assert.Contains("\"ABAg\"", json);
+            Assert.Contains("\"3q2+7w==\"", json);
+
+            var decoded = _serializer.Deserialize<PetPassport>(json);
+            Assert.NotNull(decoded);
+            Assert.NotNull(decoded!.Scans);
+            Assert.Equal(2, decoded.Scans!.Count);
+            Assert.Equal(scans[0], decoded.Scans[0]);
+            Assert.Equal(scans[1], decoded.Scans[1]);
+        }
+    }
+
+    public class NumberFieldFromIntegralJsonTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DoubleFieldDecodesFromIntegralJsonNumber()
+        {
+            var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5,\"lng\":-3}");
+            Assert.NotNull(loc);
+            Assert.Equal(5.0, loc!.Lat);
+            Assert.Equal(-3.0, loc.Lng);
+        }
+
+        [Fact]
+        public void DoubleFieldStillDecodesFromFractionalJsonNumber()
+        {
+            var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5.5}");
+            Assert.NotNull(loc);
+            Assert.Equal(5.5, loc!.Lat);
+        }
+    }
+
+    public class AdditionalPropertiesTopLevelTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void UnknownKeyIsCapturedOnDeserialize()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"createdAt\":\"2024-01-01T00:00:00Z\",\"region\":\"emea\"}");
+            Assert.NotNull(meta);
+            Assert.NotNull(meta!.AdditionalProperties);
+            Assert.Equal("emea", meta.AdditionalProperties!["region"].ToString());
+        }
+
+        [Fact]
+        public void CapturedExtraKeyReserializesAtTopLevelNotNested()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}");
+            var json = _serializer.Serialize(meta);
+            // The extra keys appear at the top level of the object verbatim.
+            Assert.Contains("\"region\":\"emea\"", json);
+            Assert.Contains("\"tier\":\"gold\"", json);
+            // They must NOT be wrapped under an additionalProperties /
+            // additional_properties container key.
+            Assert.DoesNotContain("additionalProperties", json);
+            Assert.DoesNotContain("additional_properties", json);
+        }
+
+        [Fact]
+        public void ExtraKeyRoundTripsValuePreserved()
+        {
+            var original = "{\"region\":\"emea\"}";
+            var meta = _serializer.Deserialize<Metadata>(original);
+            var back = _serializer.Deserialize<Metadata>(_serializer.Serialize(meta));
+            Assert.Equal("emea", back!.AdditionalProperties!["region"].ToString());
+        }
+    }
+
+    public class NestedContainerDeepRoundTripTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void ArrayOfIntArraysDeserializesToTypedLeaves()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"matrix\":[[1,2],[3,4,5]]}");
+            Assert.NotNull(item);
+            Assert.NotNull(item!.Matrix);
+            Assert.Equal(2, item.Matrix!.Count);
+            Assert.Equal(new List<int> { 1, 2 }, item.Matrix[0]);
+            Assert.Equal(new List<int> { 3, 4, 5 }, item.Matrix[1]);
+            // Leaves are real ints, not boxed JsonElement.
+            Assert.IsType<int>(item.Matrix[0][0]);
+        }
+
+        [Fact]
+        public void ArrayOfIntArraysRoundTripsIdentically()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":2,\"matrix\":[[7,8],[9]]}");
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"matrix\":[[7,8],[9]]", json);
+        }
+    }
 }

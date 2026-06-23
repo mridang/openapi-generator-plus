@@ -394,3 +394,169 @@ fn test_defaults_explicit_null_is_preserved() {
         defaults.retries
     );
 }
+
+// -- integer-backed enum round-trips as a JSON NUMBER (behavior 1) --
+//
+// `Priority` is an integer-backed enum (serde_repr). It must serialize as a
+// bare JSON number (2, not "2") and deserialize from a number back to the
+// matching member. `StockItem.priority` is a REQUIRED field of this type, so
+// the round-trip is exercised both bare and nested inside its owning model.
+#[test]
+fn test_priority_int_enum_serializes_as_json_number() {
+    let data = serde_json::to_string(&Priority::NUMBER_2).expect("failed to serialize Priority");
+    assert_eq!(
+        data, "2",
+        "integer-backed enum must serialize as a bare JSON number, got: {}",
+        data
+    );
+
+    // Nested inside StockItem the value is still a number, never a string.
+    let item = StockItem::new(Priority::NUMBER_3);
+    let nested = serde_json::to_string(&item).expect("failed to serialize StockItem");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&nested).expect("failed to parse serialized StockItem");
+    assert_eq!(
+        parsed["priority"],
+        serde_json::json!(3),
+        "StockItem.priority must serialize as a JSON number, got: {}",
+        nested
+    );
+}
+
+#[test]
+fn test_priority_int_enum_deserializes_from_json_number() {
+    let priority: Priority =
+        serde_json::from_str("2").expect("failed to deserialize Priority from number");
+    assert_eq!(priority, Priority::NUMBER_2);
+
+    let item: StockItem =
+        serde_json::from_str(r#"{"priority":1}"#).expect("failed to deserialize StockItem");
+    assert_eq!(item.priority, Priority::NUMBER_1);
+}
+
+// -- non-lowercase string enum preserves wire casing (behavior 2) --
+//
+// `Availability` is a string enum whose wire values are NOT lowercased
+// ("Available", "Sold", "on-hold"). Serialization must emit the exact wire
+// casing, deserialization of a declared value must yield the right member,
+// and an unknown value must be rejected (no silent fallback).
+#[test]
+fn test_availability_string_enum_round_trips_with_wire_casing() {
+    for (member, wire) in [
+        (Availability::Available, "\"Available\""),
+        (Availability::Sold, "\"Sold\""),
+        (Availability::OnHold, "\"on-hold\""),
+    ] {
+        let data = serde_json::to_string(&member).expect("failed to serialize Availability");
+        assert_eq!(
+            data, wire,
+            "Availability must preserve wire casing, got: {}",
+            data
+        );
+        let back: Availability =
+            serde_json::from_str(wire).expect("failed to deserialize Availability");
+        assert_eq!(back, member);
+    }
+}
+
+#[test]
+fn test_availability_string_enum_rejects_unknown_value() {
+    let result: Result<Availability, _> = serde_json::from_str("\"available\"");
+    assert!(
+        result.is_err(),
+        "a lowercased (non-wire-casing) value must be rejected, not coerced"
+    );
+    let result: Result<Availability, _> = serde_json::from_str("\"Discontinued\"");
+    assert!(
+        result.is_err(),
+        "an unknown Availability value must fail to deserialize"
+    );
+}
+
+// -- format:byte round-trips through base64 (behavior 3) --
+//
+// `PetPassport.thumbnail` is a scalar `format: byte` field and
+// `PetPassport.scans` is an array of `format: byte`. Both must serialize as
+// base64 strings on the wire and decode back to the original raw bytes.
+#[test]
+fn test_pet_passport_byte_fields_round_trip_through_base64() {
+    let mut passport = PetPassport::new();
+    passport.thumbnail = Some(vec![0xDE, 0xAD, 0xBE, 0xEF]);
+    passport.scans = Some(vec![vec![0x01, 0x02, 0x03], vec![0xFF, 0xFE]]);
+
+    let data = serde_json::to_string(&passport).expect("failed to serialize PetPassport");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized PetPassport");
+
+    // The scalar byte field is a base64 string on the wire, not a JSON array.
+    assert_eq!(
+        parsed["thumbnail"],
+        serde_json::json!("3q2+7w=="),
+        "thumbnail must serialize as a base64 string, got: {}",
+        data
+    );
+    // The array-of-byte field is a JSON array of base64 strings.
+    assert_eq!(
+        parsed["scans"],
+        serde_json::json!(["AQID", "//4="]),
+        "scans must serialize as an array of base64 strings, got: {}",
+        data
+    );
+
+    let restored: PetPassport =
+        serde_json::from_str(&data).expect("failed to deserialize PetPassport");
+    assert_eq!(
+        restored.thumbnail,
+        Some(vec![0xDE, 0xAD, 0xBE, 0xEF]),
+        "thumbnail bytes must survive the base64 round-trip"
+    );
+    assert_eq!(
+        restored.scans,
+        Some(vec![vec![0x01, 0x02, 0x03], vec![0xFF, 0xFE]]),
+        "scans bytes must survive the base64 round-trip"
+    );
+}
+
+// -- double-typed field accepts an INTEGRAL JSON value (behavior 4) --
+//
+// `PhotoMetadataLocation.lat` is an `f64`. A JSON payload that supplies an
+// integral value (`{"lat":5}`, not `5.0`) must deserialize without crashing
+// and yield the equivalent float.
+#[test]
+fn test_photo_metadata_location_double_from_integral_json() {
+    let json_data = r#"{"lat":5,"lng":-7}"#;
+
+    let location: PhotoMetadataLocation =
+        serde_json::from_str(json_data).expect("integral JSON number must deserialize into f64");
+
+    assert_eq!(location.lat, Some(5.0), "lat must coerce 5 -> 5.0");
+    assert_eq!(location.lng, Some(-7.0), "lng must coerce -7 -> -7.0");
+}
+
+// -- nested container deep-round-trips to typed leaves (behavior 7) --
+//
+// `StockItem.matrix` is `Vec<Vec<i32>>` (array-of-array<int>). A nested JSON
+// payload must decode all the way down to typed `i32` leaves and re-serialize
+// to the same nested shape.
+#[test]
+fn test_stock_item_matrix_nested_array_round_trips_typed_leaves() {
+    let json_data = r#"{"priority":1,"matrix":[[1,2,3],[4,5]]}"#;
+
+    let item: StockItem =
+        serde_json::from_str(json_data).expect("failed to deserialize StockItem with matrix");
+
+    let matrix = item.matrix.as_ref().expect("expected matrix to be present");
+    assert_eq!(matrix.len(), 2, "outer matrix length mismatch");
+    // The leaves are genuine i32 values: arithmetic only compiles on typed leaves.
+    assert_eq!(matrix[0], vec![1i32, 2, 3], "first row mismatch");
+    assert_eq!(matrix[1], vec![4i32, 5], "second row mismatch");
+
+    let reserialized: serde_json::Value =
+        serde_json::from_str(&serde_json::to_string(&item).expect("failed to serialize"))
+            .expect("re-parsed JSON");
+    assert_eq!(
+        reserialized["matrix"],
+        serde_json::json!([[1, 2, 3], [4, 5]]),
+        "nested matrix must round-trip to the same shape"
+    );
+}

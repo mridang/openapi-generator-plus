@@ -257,17 +257,23 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
         $escapedParam = preg_quote($parameter->getName(), '/');
         /* The inner capture must span nested generics. A field typed
          * `\Ds\Vector<\Ds\Vector<int>>|null $matrix` carries two levels
-         * of `<...>`; a non-greedy or `[^>]+` capture stops at the first
-         * `>` (after `int`) and the whole match then fails because the
-         * following char is `>` rather than the required `|null`/space.
-         * The greedy `(.+)` captures everything between the first `<`
-         * and the final `>` — including any nested `<...>` — and the
-         * trailing `(?:\|null)?\s+\$name` anchor (with `.+` backtracking)
-         * pins the close to the last `>` that precedes the parameter
-         * name, matching ObjectSerializer::deserializeInternal's own
-         * greedy container regex. */
+         * of `<...>`; the inner capture has to keep the whole
+         * `\Ds\Vector<int>` so denormalizeParameter routes it back through
+         * the serializer and rebuilds the inner container.
+         *
+         * The container-type token before the first `<` is matched with
+         * `[^\s<]+` rather than `\S+`. A greedy `\S+` swallows the inner
+         * `<` too (it is non-space), so for `\Ds\Vector<\Ds\Vector<int>>`
+         * the engine settles on `\S+` = `\Ds\Vector<\Ds\Vector` and the
+         * `(.+)` group captures only `int>` — collapsing the nested
+         * container to a bare `int` and leaving the inner rows as raw
+         * arrays. Forbidding `<` in the leading token pins the first `<`
+         * to the OUTERMOST container so `(.+)` greedily captures the full
+         * `\Ds\Vector<int>` (up to the last `>` before the param name),
+         * matching ObjectSerializer::deserializeInternal's own greedy
+         * container regex. */
         if (!preg_match(
-            '/@param\s+\S+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+            '/@param\s+[^\s<]+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
             $doc,
             $matches,
         )) {

@@ -436,9 +436,28 @@ class PetApi extends BaseApi {
 
     final headerParams = <String, String>{};
     final cookieParts = <String>[];
+    /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
+       base_api. Operation cookie params are interpolated straight into the
+       Cookie request header, so an attacker-controlled CR/LF/control-char
+       value would otherwise smuggle in extra headers. Validate every
+       assembled value the same way the auth-cookie path does and fail closed
+       with the same ArgumentError so header injection is impossible. */
+    final operationCookieValueRe = RegExp(
+      r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
+    );
+    void addCookiePart(String name, String value) {
+      if (!operationCookieValueRe.hasMatch(value)) {
+        throw ArgumentError(
+          "Cookie value for '$name' contains characters forbidden by RFC 6265",
+        );
+      }
+      cookieParts.add('$name=$value');
+    }
+
     if (options != null && options.apiKey != null) {
-      cookieParts.add(
-        'api_key=${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}',
+      addCookiePart(
+        'api_key',
+        '${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}',
       );
     }
     if (cookieParts.isNotEmpty) {
