@@ -99,20 +99,28 @@ import Testing
     // MARK: - anyOf without discriminator: PetTreatment
 
     @Test func testPetTreatmentDeserializeMedication() throws {
-        // Medication schema has fields: drugName (required), dosage (optional)
+        // Medication schema has fields: drugName (required), dosage (optional).
+        // A medication-only payload must still decode to exactly the Medication
+        // variant, with no Surgery variant retained.
         let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
         let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-        let val = treatment.value()
-        #expect(val != nil)
+        let medication = treatment.value(as: Medication.self)
+        #expect(medication?.drugName == "Amoxicillin")
+        #expect(medication?.dosage == "250mg")
+        #expect(treatment.value(as: Surgery.self) == nil)
     }
 
     @Test func testPetTreatmentDeserializeSurgery() throws {
+        // A surgery-only payload must still decode to exactly the Surgery
+        // variant, with no Medication variant retained.
         let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
 
         let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-        let val = treatment.value()
-        #expect(val != nil)
+        let surgery = treatment.value(as: Surgery.self)
+        #expect(surgery?.procedureName == "Spay")
+        #expect(surgery?.durationMinutes == 45)
+        #expect(treatment.value(as: Medication.self) == nil)
     }
 
     @Test func testPetTreatmentNoMatchThrows() {
@@ -132,7 +140,40 @@ import Testing
         let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
 
         let data = try JSONEncoder().encode(treatment)
-        #expect(!(data.isEmpty))
+        let roundTripped = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(roundTripped?["drugName"] as? String == "Amoxicillin")
+        #expect(roundTripped?["dosage"] as? String == "250mg")
+    }
+
+    /// PetTreatment is a non-discriminated anyOf documented as matching a
+    /// medication, a surgery, OR BOTH. A payload satisfying both variants must
+    /// retain BOTH — the Medication data and the Surgery data are all accessible
+    /// — and re-serialise losslessly so all four fields survive the round trip,
+    /// rather than silently dropping the variant that lost the first-match race.
+    @Test func testPetTreatmentRetainsAllMatchingVariantsLosslessly() throws {
+        let jsonData = Data(
+            "{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\",\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8
+        )
+
+        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+
+        // Both variants are retained and accessible, not just the first match.
+        let medication = treatment.value(as: Medication.self)
+        #expect(medication?.drugName == "Amoxicillin")
+        #expect(medication?.dosage == "250mg")
+        let surgery = treatment.value(as: Surgery.self)
+        #expect(surgery?.procedureName == "Spay")
+        #expect(surgery?.durationMinutes == 45)
+        #expect(treatment.values().count == 2)
+
+        // Re-serialise and confirm ALL FOUR fields survive the round trip with
+        // no silent drop of the co-satisfied variant.
+        let data = try JSONEncoder().encode(treatment)
+        let roundTripped = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(roundTripped?["drugName"] as? String == "Amoxicillin")
+        #expect(roundTripped?["dosage"] as? String == "250mg")
+        #expect(roundTripped?["procedureName"] as? String == "Spay")
+        #expect(roundTripped?["durationMinutes"] as? Int == 45)
     }
 
     // MARK: - allOf: PetWithOwner extends Pet fields

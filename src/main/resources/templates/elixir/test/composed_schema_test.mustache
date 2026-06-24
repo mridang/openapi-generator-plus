@@ -114,6 +114,56 @@ defmodule {{moduleName}}.ComposedSchemaTest do
       assert byte_size(serialized) > 0
     end
 
+    test "anyOf retains all matching variants (medication and surgery) losslessly" do
+      # PetTreatment is documented as matching a medication, a surgery, OR
+      # BOTH. A payload satisfying both variants at once must retain the
+      # data of BOTH — not silently drop the second variant's fields on the
+      # first match. The decoded value is an AnyOfComposite holding each
+      # matched variant struct, and re-serializing it must emit the union of
+      # all four fields so the co-satisfied payload round-trips losslessly.
+      json =
+        ~s({"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45})
+
+      result = {{moduleName}}.ObjectSerializer.deserialize(json, "PetTreatment")
+
+      # Both variant structs are retained on the composite.
+      assert %{{moduleName}}.AnyOfComposite{instances: instances} = result
+
+      medication =
+        Enum.find(instances, &match?(%{{moduleName}}.Models.Medication{}, &1))
+
+      surgery =
+        Enum.find(instances, &match?(%{{moduleName}}.Models.Surgery{}, &1))
+
+      refute is_nil(medication)
+      refute is_nil(surgery)
+
+      # Medication data accessible.
+      assert medication.drug_name == "Amoxicillin"
+      assert medication.dosage == "250mg"
+
+      # Surgery data accessible.
+      assert surgery.procedure_name == "Spay"
+      assert surgery.duration_minutes == 45
+
+      # Every matched variant's field is also flattened onto the composite.
+      assert {{moduleName}}.AnyOfComposite.get(result, :drug_name) == "Amoxicillin"
+      assert {{moduleName}}.AnyOfComposite.get(result, :dosage) == "250mg"
+      assert {{moduleName}}.AnyOfComposite.get(result, :procedure_name) == "Spay"
+      assert {{moduleName}}.AnyOfComposite.get(result, :duration_minutes) == 45
+
+      # Re-serialize: ALL FOUR fields survive the round-trip; nothing dropped.
+      serialized = {{moduleName}}.ObjectSerializer.serialize(result)
+      assert serialized =~ "drugName"
+      assert serialized =~ "Amoxicillin"
+      assert serialized =~ "dosage"
+      assert serialized =~ "250mg"
+      assert serialized =~ "procedureName"
+      assert serialized =~ "Spay"
+      assert serialized =~ "durationMinutes"
+      assert serialized =~ "45"
+    end
+
     test "raises for anyOf payload matching no variant" do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty

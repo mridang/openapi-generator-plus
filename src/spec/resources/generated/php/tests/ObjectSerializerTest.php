@@ -941,6 +941,26 @@ test('resolveAnyOf throws when no variant matches', function (): void {
         ->toThrow(\UnexpectedValueException::class);
 });
 
+test('resolveAnyOfAll collects every matching variant not just the first', function (): void {
+    /* anyOf matches one OR MORE schemas: a payload co-satisfying several
+     * variants must retain all of them so the round-trip is lossless. */
+    $candidates = [
+        fn (mixed $data): mixed => 'A',
+        fn (mixed $data): mixed => throw new \RuntimeException('B does not match'),
+        fn (mixed $data): mixed => 'C',
+    ];
+    expect(ObjectSerializer::resolveAnyOfAll(['k' => 'v'], $candidates))->toBe(['A', 'C']);
+});
+
+test('resolveAnyOfAll throws when no variant matches', function (): void {
+    $candidates = [
+        fn (mixed $data): mixed => throw new \RuntimeException('no match'),
+        fn (mixed $data): mixed => throw new \RuntimeException('still no match'),
+    ];
+    expect(fn (): mixed => ObjectSerializer::resolveAnyOfAll([], $candidates))
+        ->toThrow(\UnexpectedValueException::class);
+});
+
 // -- Canonical #1: integer-backed enum round-trips as a JSON NUMBER --
 //
 // Priority is an `enum Priority: int` (NUMBER_1=1, NUMBER_2=2, NUMBER_3=3).

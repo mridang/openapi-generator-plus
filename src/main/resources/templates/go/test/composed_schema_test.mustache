@@ -138,6 +138,8 @@ func TestPetFood_SerializeDryFood(t *testing.T) {
 
 func TestPetTreatment_DeserializeMedication(t *testing.T) {
 	t.Parallel()
+	// Single-variant payload: only the Medication variant validates, so only
+	// it is retained and the Surgery slot stays nil.
 	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`)
 
 	var treatment models.PetTreatment
@@ -150,10 +152,21 @@ func TestPetTreatment_DeserializeMedication(t *testing.T) {
 	if val == nil {
 		t.Fatal("expected non-nil value")
 	}
+	if treatment.Medication == nil {
+		t.Fatal("expected Medication variant to be retained")
+	}
+	if treatment.Medication.DrugName != "Amoxicillin" {
+		t.Errorf("expected drugName 'Amoxicillin', got %q", treatment.Medication.DrugName)
+	}
+	if treatment.Surgery != nil {
+		t.Error("expected Surgery variant to be nil for a medication-only payload")
+	}
 }
 
 func TestPetTreatment_DeserializeSurgery(t *testing.T) {
 	t.Parallel()
+	// Single-variant payload: only the Surgery variant validates (the Medication
+	// variant requires drugName, which is absent), so only Surgery is retained.
 	jsonData := []byte(`{"procedureName":"Spay","durationMinutes":45}`)
 
 	var treatment models.PetTreatment
@@ -165,6 +178,72 @@ func TestPetTreatment_DeserializeSurgery(t *testing.T) {
 	val := treatment.Value()
 	if val == nil {
 		t.Fatal("expected non-nil value")
+	}
+	if treatment.Surgery == nil {
+		t.Fatal("expected Surgery variant to be retained")
+	}
+	if treatment.Surgery.ProcedureName != "Spay" {
+		t.Errorf("expected procedureName 'Spay', got %q", treatment.Surgery.ProcedureName)
+	}
+	if treatment.Medication != nil {
+		t.Error("expected Medication variant to be nil for a surgery-only payload")
+	}
+}
+
+// TestPetTreatment_RetainsAllMatchingVariantsLosslessly pins the retain-all
+// contract for a non-discriminated anyOf. PetTreatment is documented as matching
+// a medication, a surgery, OR BOTH. A payload that satisfies BOTH variants at
+// once must keep the fields of EVERY matched variant (not just the first), and
+// must re-serialize to the UNION of all retained fields with no silent drop.
+func TestPetTreatment_RetainsAllMatchingVariantsLosslessly(t *testing.T) {
+	t.Parallel()
+	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}`)
+
+	var treatment models.PetTreatment
+	if err := json.Unmarshal(jsonData, &treatment); err != nil {
+		t.Fatalf("failed to deserialize co-satisfied PetTreatment: %v", err)
+	}
+
+	// Both variants must be retained and fully readable.
+	if treatment.Medication == nil {
+		t.Fatal("expected Medication variant to be retained")
+	}
+	if treatment.Surgery == nil {
+		t.Fatal("expected Surgery variant to be retained")
+	}
+	if treatment.Medication.DrugName != "Amoxicillin" {
+		t.Errorf("expected drugName 'Amoxicillin', got %q", treatment.Medication.DrugName)
+	}
+	if treatment.Medication.Dosage == nil || *treatment.Medication.Dosage != "250mg" {
+		t.Errorf("expected dosage '250mg', got %v", treatment.Medication.Dosage)
+	}
+	if treatment.Surgery.ProcedureName != "Spay" {
+		t.Errorf("expected procedureName 'Spay', got %q", treatment.Surgery.ProcedureName)
+	}
+	if treatment.Surgery.DurationMinutes == nil || *treatment.Surgery.DurationMinutes != 45 {
+		t.Errorf("expected durationMinutes 45, got %v", treatment.Surgery.DurationMinutes)
+	}
+
+	// Re-serialize: the JSON must contain ALL FOUR fields — the co-satisfied data
+	// round-trips losslessly with no silent drop of either variant.
+	data, err := json.Marshal(treatment)
+	if err != nil {
+		t.Fatalf("failed to serialize co-satisfied PetTreatment: %v", err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("failed to parse serialized JSON: %v", err)
+	}
+	for _, field := range []string{"drugName", "dosage", "procedureName", "durationMinutes"} {
+		if _, ok := parsed[field]; !ok {
+			t.Errorf("expected field %q in re-serialized JSON, got %s", field, string(data))
+		}
+	}
+	if parsed["drugName"] != "Amoxicillin" {
+		t.Errorf("expected drugName 'Amoxicillin', got %v", parsed["drugName"])
+	}
+	if parsed["procedureName"] != "Spay" {
+		t.Errorf("expected procedureName 'Spay', got %v", parsed["procedureName"])
 	}
 }
 

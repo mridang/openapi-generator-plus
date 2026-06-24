@@ -208,6 +208,23 @@ module {{moduleName}}
     def self.sanitize_for_serialization(object, visited = nil)
       return sanitize_for_serialization(object.actual_instance, visited) if object.respond_to?(:actual_instance)
 
+      # Retain-all anyOf composite: a non-discriminated anyOf payload that
+      # satisfied more than one variant is held as the set of matched variant
+      # instances (see the anyOf module's Composite). Serialize each retained
+      # variant through its own ATTRIBUTE_MAP / OPENAPI_FORMATS path and merge
+      # the JSON-key hashes, so the encoded body carries the UNION of every
+      # variant's fields — the co-satisfied data round-trips losslessly instead
+      # of collapsing to whichever variant happened to match first.
+      if object.respond_to?(:anyof_matched_instances)
+        # @type var merged: Hash[untyped, untyped]
+        merged = {}
+        object.anyof_matched_instances.each do |instance|
+          part = sanitize_for_serialization(instance, visited)
+          merged.merge!(part) if part.is_a?(Hash)
+        end
+        return merged
+      end
+
       case object
       when nil
         nil

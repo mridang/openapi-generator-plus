@@ -9,9 +9,53 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 /// PetTreatment A treatment that can match a medication, a surgery, or both
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PetTreatment {
-    Medication(Medication),
-    Surgery(Surgery),
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+pub struct PetTreatment {
+    /// The `Medication` view of this anyOf, present when the payload
+    /// satisfied that member schema. Flattened on serialize so its fields
+    /// merge into the composite object.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub medication: Option<Medication>,
+    /// The `Surgery` view of this anyOf, present when the payload
+    /// satisfied that member schema. Flattened on serialize so its fields
+    /// merge into the composite object.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub surgery: Option<Surgery>,
+}
+
+impl PetTreatment {
+    /// Returns true when at least one anyOf member was retained — i.e. the
+    /// value decoded as (or was built from) one or more variants.
+    pub fn matches_any(&self) -> bool {
+        if self.medication.is_some() {
+            return true;
+        }
+        if self.surgery.is_some() {
+            return true;
+        }
+        false
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PetTreatment {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let mut composite = PetTreatment::default();
+        if let Ok(variant) = serde_json::from_value::<Medication>(value.clone()) {
+            composite.medication = Some(variant);
+        }
+        if let Ok(variant) = serde_json::from_value::<Surgery>(value.clone()) {
+            composite.surgery = Some(variant);
+        }
+        if !composite.matches_any() {
+            return Err(D::Error::custom(
+                "PetTreatment: anyOf payload matched no member schema",
+            ));
+        }
+        Ok(composite)
+    }
 }

@@ -28,20 +28,54 @@ class PetTreatment
         ];
     }
 
-    private mixed $actualInstance;
+    /**
+     * Every anyOf variant that matched at deserialize, in declaration order.
+     *
+     * Non-discriminated anyOf matches when the data satisfies one OR MORE of
+     * the listed schemas, so a payload that co-satisfies several variants
+     * retains all of them here — keeping only the first would silently drop the
+     * other variants' fields and break a lossless round-trip.
+     *
+     * @var array<int, mixed>
+     */
+    private array $actualInstances;
 
-    public function __construct(mixed $actualInstance = null)
+    /**
+     * @param array<int, mixed> $actualInstances the matched anyOf variants
+     */
+    public function __construct(array $actualInstances = [])
     {
-        $this->actualInstance = $actualInstance;
+        $this->actualInstances = $actualInstances;
     }
 
+    /**
+     * The first matched anyOf variant.
+     *
+     * Retained for the common single-variant case and for callers that only
+     * need one instance; use {@see getActualInstances} to access every variant
+     * a co-satisfying payload matched.
+     */
     public function getActualInstance(): mixed
     {
-        return $this->actualInstance;
+        return $this->actualInstances[0] ?? null;
+    }
+
+    /**
+     * Every matched anyOf variant, in declaration order.
+     *
+     * A payload that co-satisfied multiple variants returns one element per
+     * matched schema; serializing this wrapper re-emits the union of all their
+     * fields (see ObjectSerializer::sanitizeForSerialization).
+     *
+     * @return array<int, mixed>
+     */
+    public function getActualInstances(): array
+    {
+        return $this->actualInstances;
     }
 
     public static function build(mixed $data): self
     {
-        return new self(\PetstoreClient\ObjectSerializer::resolveAnyOf($data, self::anyOfCandidates()));
+        return new self(\PetstoreClient\ObjectSerializer::resolveAnyOfAll($data, self::anyOfCandidates()));
     }
 }

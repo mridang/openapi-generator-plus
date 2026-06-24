@@ -18,38 +18,86 @@ import 'surgery.dart';
 
 /// PetTreatment A treatment that can match a medication, a surgery, or both
 class PetTreatment {
-  final Object? _value;
+  /* anyOf is NOT exclusive: a wire payload may satisfy several variants at
+     once (e.g. a body carrying both Medication and Surgery fields). Retaining
+     only the first match would silently drop the co-satisfied variants' data
+     and lose it on re-encode. We therefore keep EVERY variant that decodes
+     successfully and merge their field-sets on toJson, so the round-trip is
+     lossless. */
+  final List<Object?> _values;
 
-  const PetTreatment._(this._value);
+  const PetTreatment._(this._values);
 
-  /// Returns the underlying value of the union type.
-  Object? get value => _value;
+  /// Returns the first decoded variant, for back-compat with single-variant
+  /// callers. Use [values] or [valueOf] to reach every retained variant.
+  Object? get value => _values.isEmpty ? null : _values.first;
 
-  /// Converts this union type to a JSON value.
-  Object? toJson() {
-    final v = _value;
-    if (v == null) return null;
-    if (v is Map) return v;
-    try {
-      return (v as dynamic).toJson();
-    } catch (_) {
-      return v;
+  /// Returns every variant that successfully decoded from the wire payload.
+  /// For a co-satisfied anyOf this holds more than one element.
+  List<Object?> get values => List.unmodifiable(_values);
+
+  /// Returns the retained variant of type [T], or null if no decoded variant
+  /// is a [T]. Lets callers reach a specific variant in a multi-match union.
+  T? valueOf<T>() {
+    for (final v in _values) {
+      if (v is T) return v;
     }
+    return null;
   }
 
-  /// Creates a [PetTreatment] from a JSON value.
+  /// Converts this union type to a JSON value, merging the field-sets of all
+  /// retained variants so co-satisfied data round-trips without loss. A lone
+  /// non-map variant is emitted verbatim.
+  Object? toJson() {
+    if (_values.isEmpty) return null;
+    if (_values.length == 1) {
+      final v = _values.first;
+      if (v == null) return null;
+      if (v is Map) return v;
+      try {
+        return (v as dynamic).toJson();
+      } catch (_) {
+        return v;
+      }
+    }
+    final merged = <String, dynamic>{};
+    for (final v in _values) {
+      if (v == null) continue;
+      Object? encoded;
+      if (v is Map) {
+        encoded = v;
+      } else {
+        try {
+          encoded = (v as dynamic).toJson();
+        } catch (_) {
+          encoded = v;
+        }
+      }
+      if (encoded is Map) {
+        encoded.forEach((key, dynamic val) => merged[key as String] = val);
+      }
+    }
+    return merged;
+  }
+
+  /// Creates a [PetTreatment] from a JSON value, retaining every variant that
+  /// decodes so a payload satisfying several variants keeps all their data.
   factory PetTreatment.fromJson(Map<String, dynamic> json) {
+    final decoded = <Object?>[];
     try {
-      return PetTreatment._(Medication.fromJson(json));
+      decoded.add(Medication.fromJson(json));
     } catch (_) {}
     try {
-      return PetTreatment._(Surgery.fromJson(json));
+      decoded.add(Surgery.fromJson(json));
     } catch (_) {}
-    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
-       matched the wire shape — surface a SerializationError rather than
-       a silently-empty union. */
-    throw SerializationError(
-      'Data does not match any anyOf schemas for PetTreatment',
-    );
+    if (decoded.isEmpty) {
+      /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+         matched the wire shape — surface a SerializationError rather than
+         a silently-empty union. */
+      throw SerializationError(
+        'Data does not match any anyOf schemas for PetTreatment',
+      );
+    }
+    return PetTreatment._(decoded);
   }
 }

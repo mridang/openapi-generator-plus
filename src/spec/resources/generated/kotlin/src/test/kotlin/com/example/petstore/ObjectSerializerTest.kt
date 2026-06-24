@@ -25,6 +25,16 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import kotlin.uuid.Uuid
 
+// File-scoped fixture for the StrictModuleTests (M7): a unevaluatedProperties:false
+// model that carries a @Contextual field. Declared at file scope because Kotlin
+// prohibits a (non-inner) nested class inside a JUnit @Nested inner class.
+@Serializable
+private data class ContextualStrict(
+    @Contextual
+    @SerialName("ts")
+    val ts: OffsetDateTime,
+)
+
 class ObjectSerializerTest {
     private val serializer = ObjectSerializer()
 
@@ -1155,14 +1165,9 @@ class ObjectSerializerTest {
         // defect was that it built a BARE Json {} with no serializersModule, so a
         // @Contextual property had no serializer and decoding threw
         // "serializer not found". The fix reuses
-        // ObjectSerializer.contextualSerializersModule.
-        @Serializable
-        data class ContextualStrict(
-            @Contextual
-            @SerialName("ts")
-            val ts: OffsetDateTime,
-        )
-
+        // ObjectSerializer.contextualSerializersModule. The fixture type
+        // ContextualStrict is declared at file scope: Kotlin prohibits a
+        // (non-inner) nested class inside a JUnit @Nested inner class.
         @Test
         @DisplayName("a bare strict Json without the contextual module fails on a @Contextual field")
         fun bareStrictJsonMissesContextualSerializer() {

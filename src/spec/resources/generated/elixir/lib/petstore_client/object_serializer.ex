@@ -35,6 +35,41 @@ defmodule PetstoreClient.DeserializationError do
   defexception [:message]
 end
 
+defmodule PetstoreClient.AnyOfComposite do
+  @moduledoc """
+  Container holding EVERY `anyOf` variant a payload satisfied at once.
+
+  A non-discriminated `anyOf` documents its variants as independently
+  satisfiable: a single wire payload may satisfy more than one of them
+  simultaneously (e.g. an object carrying the fields of both a Medication
+  and a Surgery). Returning only the first matching variant — as the
+  earlier `resolve_any_of/2` did — silently dropped the fields belonging
+  to the other matched variants, so a co-satisfied payload could not
+  round-trip: re-encoding emitted only the first variant's fields.
+
+  This struct retains the full list of successfully-decoded variant
+  structs in `instances` (in `openapi_any_of/0` declaration order). On
+  serialize, `ObjectSerializer.sanitize_for_serialization/1` merges the
+  sanitized field maps of every retained instance, so the union of all
+  matched variants' fields round-trips losslessly.
+
+  The decoded fields of every retained variant are also flattened onto
+  the struct itself (snake_case field atoms, later instances winning on
+  key collision) so callers can read e.g. `composite.drug_name` and
+  `composite.procedure_name` directly off one value, mirroring the bare
+  single-variant struct's field access.
+  """
+  defstruct instances: [], fields: %{}
+
+  @type t :: %__MODULE__{instances: [struct()], fields: %{atom() => term()}}
+
+  # Read a flattened decoded field by its snake_case atom name. Returns nil
+  # for an absent field, like a bare struct's missing optional property.
+  @doc "Fetch a flattened variant field by its snake_case atom name."
+  @spec get(t(), atom()) :: term()
+  def get(%__MODULE__{fields: fields}, key) when is_atom(key), do: Map.get(fields, key)
+end
+
 defmodule PetstoreClient.ObjectSerializer do
   @moduledoc false
   # Internal serde plumbing: JSON serialization/deserialization and parameter
@@ -293,6 +328,24 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def sanitize_for_serialization(%{__struct__: _module, actual_instance: inner}) do
     sanitize_for_serialization(inner)
+  end
+
+  # anyOf retain-all: a composite holds every variant the payload matched.
+  # Emit the UNION of all retained variants' fields by merging each
+  # instance's sanitized field map, so a co-satisfied payload round-trips
+  # losslessly (no variant's fields are silently dropped on re-encode).
+  # Earlier instances are merged first so later ones win on key collision,
+  # matching the flatten order used when the composite was built.
+  def sanitize_for_serialization(%PetstoreClient.AnyOfComposite{instances: instances}) do
+    Enum.reduce(instances, %{}, fn instance, acc ->
+      sanitized = sanitize_for_serialization(instance)
+
+      if is_map(sanitized) do
+        Map.merge(acc, sanitized)
+      else
+        acc
+      end
+    end)
   end
 
   def sanitize_for_serialization(%{__struct__: module} = struct) do
@@ -713,10 +766,70 @@ defmodule PetstoreClient.ObjectSerializer do
 
   @doc false
   # Attempt to deserialize data against a list of candidate schemas using
-  # anyOf semantics. Delegates to `resolve_one_of/2`.
+  # anyOf semantics, RETAINING EVERY variant that successfully validates.
+  #
+  # A non-discriminated `anyOf` documents its variants as independently
+  # satisfiable, so a single payload may satisfy more than one at once. The
+  # earlier first-match behaviour (delegating to `resolve_one_of/2`) silently
+  # dropped the fields of every later-matching variant, breaking the
+  # round-trip for a co-satisfied payload. This collects all matches:
+  #
+  #   * zero matches  -> raise SchemaMismatchError (contract violation, loud)
+  #   * one match     -> return that bare variant struct (backward compatible;
+  #                      a medication-only or surgery-only payload is unchanged)
+  #   * many matches  -> return an `AnyOfComposite` retaining each matched
+  #                      variant, whose serialize merges the union of their
+  #                      fields for a lossless round-trip
   @spec resolve_any_of(term(), [function()]) :: term()
   def resolve_any_of(data, candidates) do
-    resolve_one_of(data, candidates)
+    matches =
+      Enum.reduce(candidates, [], fn candidate, acc ->
+        try do
+          result = candidate.(data)
+
+          if fields_overlap?(data, result) do
+            [result | acc]
+          else
+            acc
+          end
+        rescue
+          _ -> acc
+        end
+      end)
+      |> Enum.reverse()
+
+    case matches do
+      [] ->
+        # A payload satisfying none of the declared variants is a contract
+        # violation and must fail loudly rather than be silently dropped.
+        raise PetstoreClient.SchemaMismatchError,
+          message: "No oneOf/anyOf variant matched the JSON"
+
+      [single] ->
+        single
+
+      multiple ->
+        %PetstoreClient.AnyOfComposite{
+          instances: multiple,
+          fields: flatten_variant_fields(multiple)
+        }
+    end
+  end
+
+  # Flatten every retained variant struct's declared fields into one map of
+  # snake_case field atom => decoded value, dropping nil-valued fields and the
+  # struct's own `__struct__` key. Variants are merged in declaration order so
+  # a later variant wins on a colliding key (the same precedence the composite
+  # serializer applies). This lets a caller read any matched variant's field
+  # directly off the composite (e.g. `composite.fields[:drug_name]`).
+  defp flatten_variant_fields(instances) do
+    Enum.reduce(instances, %{}, fn instance, acc ->
+      instance
+      |> Map.from_struct()
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Map.new()
+      |> then(&Map.merge(acc, &1))
+    end)
   end
 
   @doc """

@@ -64,7 +64,10 @@ describe 'Composed Schema' do
   end
 
   describe 'anyOf without discriminator: PetTreatment' do
-    it 'deserializes Medication from anyOf' do
+    it 'deserializes a medication-only payload to the bare Medication variant' do
+      # Single-variant match: exactly one variant decodes, so build returns
+      # that bare instance (NOT a composite) — existing single-variant callers
+      # are unaffected by the retain-all change.
       json = '{"drugName":"Amoxicillin","dosage":"500mg"}'
       result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetTreatment')
 
@@ -72,19 +75,47 @@ describe 'Composed Schema' do
       _(result.drug_name).must_equal('Amoxicillin')
     end
 
-    it 'deserializes Surgery from anyOf' do
+    it 'deserializes a surgery-only payload to the bare Surgery variant' do
       json = '{"procedureName":"Spay","durationMinutes":45}'
       result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetTreatment')
 
       _(result).must_be_kind_of(PetstoreClient::Models::Surgery)
+      _(result.procedure_name).must_equal('Spay')
+      _(result.duration_minutes).must_equal(45)
     end
 
-    it 'serializes round-trip for anyOf' do
+    it 'anyOf retains all matching variants (medication and surgery) losslessly' do
+      # PetTreatment is documented as "a medication, a surgery, OR BOTH". A
+      # payload satisfying BOTH variants at once must retain BOTH — the old
+      # first-match build silently dropped the Surgery fields and lost them on
+      # re-encode. Assert every field of both variants is reachable on the
+      # decoded value, then re-serialize and assert all four fields survive the
+      # round-trip (no silent drop).
+      json = '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}'
+      result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetTreatment')
+
+      # Both variants' data are accessible off the single decoded value.
+      _(result.drug_name).must_equal('Amoxicillin')
+      _(result.dosage).must_equal('250mg')
+      _(result.procedure_name).must_equal('Spay')
+      _(result.duration_minutes).must_equal(45)
+
+      # Re-serialize: the union of ALL FOUR fields round-trips losslessly.
+      serialized = PetstoreClient::ObjectSerializer.serialize(result)
+      reparsed = JSON.parse(serialized)
+      _(reparsed['drugName']).must_equal('Amoxicillin')
+      _(reparsed['dosage']).must_equal('250mg')
+      _(reparsed['procedureName']).must_equal('Spay')
+      _(reparsed['durationMinutes']).must_equal(45)
+    end
+
+    it 'serializes round-trip for a single-variant anyOf payload' do
       json = '{"drugName":"Amoxicillin","dosage":"500mg"}'
       result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetTreatment')
       serialized = PetstoreClient::ObjectSerializer.serialize(result)
 
       _(serialized).wont_be_empty
+      _(serialized).must_include('Amoxicillin')
     end
 
     it 'raises for anyOf payload matching no variant' do

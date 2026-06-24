@@ -147,6 +147,16 @@ class ObjectSerializer:
         """
         try:
             if isinstance(obj, BaseModel):
+                if hasattr(obj, "anyof_merged_dump"):
+                    # anyOf retain-all: emit the union of every retained
+                    # variant's fields so co-satisfied data round-trips
+                    # losslessly instead of dropping all but the first variant.
+                    return json.dumps(
+                        obj.anyof_merged_dump(),
+                        default=str,
+                        ensure_ascii=False,
+                        allow_nan=False,
+                    )
                 if hasattr(obj, "actual_instance"):
                     return self.serialize(obj.actual_instance)
                 return obj.model_dump_json(by_alias=True, exclude_none=True)
@@ -410,8 +420,16 @@ class ObjectSerializer:
     def _deserialize_composed(self, data: Any, klass: type) -> Any:
         """Deserialize data for oneOf/anyOf composed schemas.
 
-        Tries each candidate schema and wraps the first successful
-        result in the composed model.
+        oneOf and a discriminated union keep FIRST-match semantics: the first
+        candidate the payload validates against is wrapped and returned.
+
+        anyOf without a discriminator uses RETAIN-ALL (lossless) semantics: a
+        payload may satisfy several variants at once (the schema is documented
+        as matching one variant, another, OR BOTH), so EVERY successfully
+        decoded variant is retained and passed to the composed model as a list.
+        On re-encode the union of all retained variants' fields is emitted, so
+        co-satisfied data round-trips with no silent drop. A payload matching a
+        single variant still decodes correctly (the list has one element).
 
         Gap AU: when the composed schema declares a discriminator, route
         through `get_discriminator_value` so missing / empty / unknown
@@ -419,22 +437,30 @@ class ObjectSerializer:
         instead of silently wrapping the raw dict in `actual_instance`.
         """
         # The model emits any_of_schemas / one_of_schemas as a declared-order
-        # tuple so that trialling candidates below honours the "first declared
-        # variant wins" contract promised by the model validators. Iterating a
-        # set here would visit candidates in hash order and resolve ambiguous
-        # payloads non-deterministically.
-        schemas: tuple[str, ...] = (
-            getattr(klass, "any_of_schemas", None)
-            or getattr(klass, "one_of_schemas", None)
-            or ()
-        )
+        # tuple so that trialling candidates below honours declaration order.
+        # Iterating a set here would visit candidates in hash order and resolve
+        # ambiguous payloads non-deterministically.
+        any_of_schemas: tuple[str, ...] = getattr(klass, "any_of_schemas", None) or ()
+        one_of_schemas: tuple[str, ...] = getattr(klass, "one_of_schemas", None) or ()
         if hasattr(klass, "get_discriminator_value") and isinstance(data, dict):
             mapped = klass.get_discriminator_value(data)
             if mapped:
                 instance = self._deserialize(data, mapped)
                 return klass(instance)
 
-        for schema_name in schemas:
+        if any_of_schemas:
+            # Retain-all: collect every variant the payload satisfies.
+            matched: list = []
+            for schema_name in any_of_schemas:
+                try:
+                    matched.append(self._deserialize(data, schema_name))
+                except Exception:
+                    continue
+            if matched:
+                return klass(matched)
+            return klass(data)
+
+        for schema_name in one_of_schemas:
             try:
                 instance = self._deserialize(data, schema_name)
                 return klass(instance)

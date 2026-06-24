@@ -493,30 +493,71 @@ func (o *{{classname}}) Value() any {
 {{#isDeprecated}}
 // Deprecated: This schema is deprecated.
 {{/isDeprecated}}
+// anyOf-retain-all: a non-discriminated anyOf is documented as matching ANY
+// subset of its variants — including SEVERAL at once. A first-match union
+// would keep only the first variant that decoded and silently drop the fields
+// of every other co-satisfied variant on re-encode, losing data. To make the
+// round-trip lossless this wrapper RETAINS every variant that successfully
+// decodes (each stored in its own typed slot) and, on encode, emits the UNION
+// of all retained variants' fields by merging their JSON objects.
 type {{classname}} struct {
-	value any
+{{#anyOf}}
+	{{#pascalcase}}{{{.}}}{{/pascalcase}} *{{{.}}}
+{{/anyOf}}
 }
 
-// MarshalJSON implements the json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface. It merges the fields of
+// every retained variant into a single JSON object so that co-satisfied data
+// round-trips losslessly. Earlier variants are merged first; a key present in a
+// later variant overrides the same key from an earlier one.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
-	return json.Marshal(o.value)
+	merged := map[string]json.RawMessage{}
+{{#anyOf}}
+	if o.{{#pascalcase}}{{{.}}}{{/pascalcase}} != nil {
+		part, err := json.Marshal(o.{{#pascalcase}}{{{.}}}{{/pascalcase}})
+		if err != nil {
+			return nil, err
+		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(part, &fields); err != nil {
+			return nil, err
+		}
+		for k, v := range fields {
+			merged[k] = v
+		}
+	}
+{{/anyOf}}
+	return json.Marshal(merged)
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface. It retains EVERY
+// variant that decodes successfully rather than stopping at the first match,
+// so a payload satisfying several variants keeps all of their fields.
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	matched := false
 {{#anyOf}}
 	var {{#goVarName}}{{{.}}}{{/goVarName}} {{{.}}}
 	if err := json.Unmarshal(data, &{{#goVarName}}{{{.}}}{{/goVarName}}); err == nil {
-		o.value = {{#goVarName}}{{{.}}}{{/goVarName}}
-		return nil
+		o.{{#pascalcase}}{{{.}}}{{/pascalcase}} = &{{#goVarName}}{{{.}}}{{/goVarName}}
+		matched = true
 	}
 {{/anyOf}}
-	return fmt.Errorf("data does not match any anyOf schemas for {{classname}}")
+	if !matched {
+		return fmt.Errorf("data does not match any anyOf schemas for {{classname}}")
+	}
+	return nil
 }
 
-// Value returns the underlying value of the union type.
+// Value returns the first retained variant of the union type, preserving the
+// single-variant accessor used by callers. Use the per-variant fields to read
+// every retained variant when a payload satisfies more than one.
 func (o *{{classname}}) Value() any {
-	return o.value
+{{#anyOf}}
+	if o.{{#pascalcase}}{{{.}}}{{/pascalcase}} != nil {
+		return *o.{{#pascalcase}}{{{.}}}{{/pascalcase}}
+	}
+{{/anyOf}}
+	return nil
 }
 {{/-first}}
 {{/anyOf}}

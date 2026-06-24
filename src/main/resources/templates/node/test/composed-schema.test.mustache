@@ -157,6 +157,66 @@ describe('Composed Schema', () => {
     expect(serialized).toBeDefined();
   });
 
+  test('anyOf retains all matching variants (medication and surgery) losslessly', () => {
+    // PetTreatment is a non-discriminated anyOf of Medication (drugName,
+    // dosage) and Surgery (procedureName, durationMinutes), documented as
+    // matching a medication, a surgery, OR BOTH. A payload satisfying BOTH
+    // variants at once must retain every variant's data — a first-match
+    // wrapper would keep only Medication and silently drop the Surgery fields,
+    // losing them on re-encode.
+    const data = {
+      drugName: 'Amoxicillin',
+      dosage: '250mg',
+      procedureName: 'Spay',
+      durationMinutes: 45,
+    };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+
+    // Both variants are retained and accessible, not just the first.
+    const matched = result!.getMatchedInstances();
+    const medication = matched.find((m) => m instanceof Medication) as
+      | Medication
+      | undefined;
+    const surgery = matched.find((m) => m instanceof Surgery) as
+      | Surgery
+      | undefined;
+    expect(medication).toBeInstanceOf(Medication);
+    expect(surgery).toBeInstanceOf(Surgery);
+    expect(medication!.drugName).toBe('Amoxicillin');
+    expect(medication!.dosage).toBe('250mg');
+    expect(surgery!.procedureName).toBe('Spay');
+    expect(surgery!.durationMinutes).toBe(45);
+
+    // Re-serialize: the JSON still contains ALL FOUR fields — the
+    // co-satisfied data round-trips with no silent drop.
+    const serialized = ObjectSerializer.serialize(result!);
+    const reparsed = JSON.parse(serialized) as Record<string, unknown>;
+    expect(reparsed.drugName).toBe('Amoxicillin');
+    expect(reparsed.dosage).toBe('250mg');
+    expect(reparsed.procedureName).toBe('Spay');
+    expect(reparsed.durationMinutes).toBe(45);
+  });
+
+  test('anyOf single-variant payloads still decode correctly', () => {
+    // The both-variants retention must not break the single-variant case: a
+    // medication-only and a surgery-only payload each still decode, exposing
+    // exactly one matched variant.
+    const medicationOnly = ObjectSerializer.deserialize(
+      { drugName: 'Amoxicillin', dosage: '500mg' },
+      PetTreatment,
+    );
+    expect(medicationOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(medicationOnly!.getActualInstance()).toBeInstanceOf(Medication);
+
+    const surgeryOnly = ObjectSerializer.deserialize(
+      { procedureName: 'Spay', durationMinutes: 45 },
+      PetTreatment,
+    );
+    expect(surgeryOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(surgeryOnly!.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
   // -- allOf: PetWithOwner --
 
   test('allOf: PetWithOwner deserializes all properties', () => {

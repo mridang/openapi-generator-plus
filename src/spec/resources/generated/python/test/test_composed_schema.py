@@ -93,6 +93,67 @@ class TestAnyOfPetTreatment:
         with pytest.raises(Exception):
             ObjectSerializer().deserialize(json_str, "PetTreatment")
 
+    def test_anyof_retains_all_matching_variants_losslessly(self) -> None:
+        """anyOf retains all matching variants (medication and surgery)
+        losslessly.
+
+        PetTreatment is a non-discriminated anyOf of Medication and Surgery,
+        documented as matching a medication, a surgery, OR BOTH. A payload that
+        satisfies BOTH variants at once must retain BOTH -- the Medication data
+        AND the Surgery data must all be accessible on the decoded value, not
+        just the first variant -- and must re-serialize to JSON containing ALL
+        FOUR fields so the co-satisfied data round-trips with no silent drop.
+        """
+        json_str = (
+            '{"drugName":"Amoxicillin","dosage":"250mg",'
+            '"procedureName":"Spay","durationMinutes":45}'
+        )
+        result = ObjectSerializer().deserialize(json_str, "PetTreatment")
+        assert result is not None
+
+        # BOTH variants are retained on the decoded value, not just the first.
+        medications = [m for m in result.matched_instances if isinstance(m, Medication)]
+        surgeries = [s for s in result.matched_instances if isinstance(s, Surgery)]
+        assert len(medications) == 1
+        assert len(surgeries) == 1
+        assert medications[0].drug_name == "Amoxicillin"
+        assert medications[0].dosage == "250mg"
+        assert surgeries[0].procedure_name == "Spay"
+        assert surgeries[0].duration_minutes == 45
+
+        # Re-serialize: all four fields survive the round-trip (lossless).
+        serialized = ObjectSerializer().serialize(result)
+        assert "Amoxicillin" in serialized
+        assert "250mg" in serialized
+        assert "Spay" in serialized
+        assert "45" in serialized
+        for field in ("drugName", "dosage", "procedureName", "durationMinutes"):
+            assert field in serialized
+
+    def test_anyof_single_variant_still_round_trips(self) -> None:
+        """Retain-all must not regress the single-variant case: a
+        medication-only and a surgery-only payload each still decode to exactly
+        one retained variant and serialize back without leaking the other
+        variant's fields.
+        """
+        med = ObjectSerializer().deserialize(
+            '{"drugName":"Amoxicillin","dosage":"500mg"}', "PetTreatment"
+        )
+        assert isinstance(med.actual_instance, Medication)
+        assert len(med.matched_instances) == 1
+        med_json = ObjectSerializer().serialize(med)
+        assert "drugName" in med_json
+        assert "procedureName" not in med_json
+
+        surg = ObjectSerializer().deserialize(
+            '{"procedureName":"Spay","durationMinutes":45}', "PetTreatment"
+        )
+        assert isinstance(surg.actual_instance, Surgery)
+        assert len(surg.matched_instances) == 1
+        surg_json = ObjectSerializer().serialize(surg)
+        assert "procedureName" in surg_json
+        assert "drugName" not in surg_json
+
 
 class TestOneOfNonDiscriminatorValidator:
     """oneof-multiple-match: the non-discriminator oneOf validator now uses

@@ -104,7 +104,16 @@ fn test_pet_food_serialize_dry_food() {
     assert_eq!(parsed["foodType"], "dry");
 }
 
-// -- anyOf without discriminator: PetTreatment --
+// -- anyOf without discriminator: PetTreatment (RETAIN-ALL, lossless) --
+//
+// `PetTreatment` is a non-discriminated anyOf of `Medication`
+// (drugName, dosage) and `Surgery` (procedureName, durationMinutes),
+// documented as matching a medication, a surgery, OR BOTH. Unlike a oneOf
+// (exactly one), an anyOf payload may satisfy SEVERAL members at once, so the
+// composite RETAINS every variant that decodes rather than keeping only the
+// first. It is modelled as a struct with one `Option<Variant>` per member,
+// flattened on serialize so the wire payload is the union of all retained
+// variants' fields.
 
 #[test]
 fn test_pet_treatment_deserialize_medication() {
@@ -112,7 +121,17 @@ fn test_pet_treatment_deserialize_medication() {
 
     let treatment: PetTreatment =
         serde_json::from_str(json_data).expect("failed to deserialize PetTreatment as Medication");
-    let _ = treatment;
+
+    let medication = treatment
+        .medication
+        .as_ref()
+        .expect("medication-only payload must retain the Medication variant");
+    assert_eq!(medication.drug_name, "Amoxicillin");
+    assert_eq!(medication.dosage.as_deref(), Some("500mg"));
+    assert!(
+        treatment.surgery.is_none(),
+        "a medication-only payload must not fabricate a Surgery variant"
+    );
 }
 
 #[test]
@@ -121,15 +140,73 @@ fn test_pet_treatment_deserialize_surgery() {
 
     let treatment: PetTreatment =
         serde_json::from_str(json_data).expect("failed to deserialize PetTreatment as Surgery");
-    let _ = treatment;
+
+    let surgery = treatment
+        .surgery
+        .as_ref()
+        .expect("surgery-only payload must retain the Surgery variant");
+    assert_eq!(surgery.procedure_name, "Spay");
+    assert_eq!(surgery.duration_minutes, Some(45));
+    assert!(
+        treatment.medication.is_none(),
+        "a surgery-only payload must not fabricate a Medication variant"
+    );
+}
+
+#[test]
+fn test_pet_treatment_retains_all_matching_variants_losslessly() {
+    /* anyOf is RETAIN-ALL: a payload satisfying BOTH Medication and Surgery
+     * at once must keep the data of EVERY matched variant, not just the first.
+     * Re-serializing must emit the UNION of all retained fields so the
+     * co-satisfied payload round-trips with no silent drop. */
+    let json_data = r#"{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"#;
+
+    let treatment: PetTreatment = serde_json::from_str(json_data)
+        .expect("failed to deserialize PetTreatment satisfying both variants");
+
+    // BOTH variants are retained and all their fields are accessible.
+    let medication = treatment
+        .medication
+        .as_ref()
+        .expect("both-variants payload must retain the Medication variant");
+    assert_eq!(medication.drug_name, "Amoxicillin");
+    assert_eq!(medication.dosage.as_deref(), Some("250mg"));
+
+    let surgery = treatment
+        .surgery
+        .as_ref()
+        .expect("both-variants payload must retain the Surgery variant");
+    assert_eq!(surgery.procedure_name, "Spay");
+    assert_eq!(surgery.duration_minutes, Some(45));
+
+    // Re-serialize: the union of ALL four fields must survive the round-trip.
+    let data = serde_json::to_string(&treatment).expect("failed to serialize PetTreatment");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized PetTreatment");
+    assert_eq!(
+        parsed["drugName"], "Amoxicillin",
+        "drugName must survive the round-trip, got: {data}"
+    );
+    assert_eq!(
+        parsed["dosage"], "250mg",
+        "dosage must survive the round-trip, got: {data}"
+    );
+    assert_eq!(
+        parsed["procedureName"], "Spay",
+        "procedureName must survive the round-trip, got: {data}"
+    );
+    assert_eq!(
+        parsed["durationMinutes"], 45,
+        "durationMinutes must survive the round-trip, got: {data}"
+    );
 }
 
 #[test]
 fn test_pet_treatment_no_match_errors() {
     /* oneof-nondiscriminator-no-match-silent: a payload matching neither
-     * Medication nor Surgery must surface as a deserialization error. With
-     * `#[serde(untagged)]` serde tries every variant and returns Err when
-     * none deserialize. */
+     * Medication nor Surgery must surface as a deserialization error. anyOf
+     * requires AT LEAST ONE member to match, so the hand-rolled Deserialize
+     * returns Err when none decode. */
     let json_data = r#"{"unrelatedKey":"value","anotherUnknown":123}"#;
     let result = serde_json::from_str::<PetTreatment>(json_data);
     assert!(

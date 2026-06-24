@@ -123,7 +123,11 @@ class ComposedSchemaTest {
                     Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
 
             assertThat(result.getActualInstance()).isInstanceOf(Medication.class);
-            assertThat(((Medication) result.getActualInstance()).drugName).isEqualTo("Amoxicillin");
+            // getActualInstance() is @Nullable (empty union -> null); a successfully
+            // deserialized anyOf always has >= 1 retained variant, so assert non-null
+            // before the cast to satisfy NullAway.
+            assertThat(((Medication) Objects.requireNonNull(result.getActualInstance())).drugName)
+                    .isEqualTo("Amoxicillin");
         }
 
         @Test
@@ -145,6 +149,50 @@ class ComposedSchemaTest {
 
             String serialized = serializer.serialize(result);
             assertThat(serialized).isNotEmpty();
+        }
+
+        @Test
+        @DisplayName("anyOf retains all matching variants (medication and surgery) losslessly")
+        void testRetainsAllMatchingVariants() {
+            // anyOf is inclusive: PetTreatment is documented as matching a
+            // medication, a surgery, OR BOTH. A payload that satisfies both
+            // variants at once must retain every variant — not just the first
+            // match — so the co-satisfied data round-trips without silent loss.
+            String json =
+                    "{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\","
+                            + "\"procedureName\":\"Spay\",\"durationMinutes\":45}";
+            PetTreatment result =
+                    Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
+
+            // Both variants are retained and accessible, not just the first.
+            Medication medication =
+                    result.getInstances().stream()
+                            .filter(Medication.class::isInstance)
+                            .map(Medication.class::cast)
+                            .findFirst()
+                            .orElseThrow();
+            Surgery surgery =
+                    result.getInstances().stream()
+                            .filter(Surgery.class::isInstance)
+                            .map(Surgery.class::cast)
+                            .findFirst()
+                            .orElseThrow();
+            assertThat(medication.drugName).isEqualTo("Amoxicillin");
+            assertThat(medication.dosage).isEqualTo("250mg");
+            assertThat(surgery.procedureName).isEqualTo("Spay");
+            assertThat(surgery.durationMinutes).isEqualTo(45);
+
+            // Re-serializing emits the union of both variants' fields, so all
+            // four fields survive the round-trip with no silent drop.
+            String serialized = serializer.serialize(result);
+            assertThat(serialized).contains("drugName");
+            assertThat(serialized).contains("Amoxicillin");
+            assertThat(serialized).contains("dosage");
+            assertThat(serialized).contains("250mg");
+            assertThat(serialized).contains("procedureName");
+            assertThat(serialized).contains("Spay");
+            assertThat(serialized).contains("durationMinutes");
+            assertThat(serialized).contains("45");
         }
     }
 

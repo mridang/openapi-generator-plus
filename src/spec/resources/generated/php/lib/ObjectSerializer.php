@@ -145,6 +145,27 @@ class ObjectSerializer
         }
 
         if (is_object($data)) {
+            /* anyOf retain-all: a non-discriminated anyOf wrapper holds EVERY
+             * variant that matched at deserialize (see resolveAnyOfAll). Merge
+             * the sanitized field-set of each retained variant so the union of
+             * all variants' fields round-trips losslessly — a payload that
+             * co-satisfied two variants re-emits both variants' fields rather
+             * than silently dropping all but the first. Later variants win on a
+             * key collision, but anyOf branches that share a wire key carry the
+             * same value for it, so the merge is order-insensitive in practice. */
+            if (method_exists($data, 'getActualInstances')) {
+                /** @var array<int, mixed> $instances */
+                $instances = $data->getActualInstances();
+                $merged = [];
+                foreach ($instances as $instance) {
+                    $sanitized = self::sanitizeForSerialization($instance);
+                    if (is_array($sanitized)) {
+                        $merged = array_merge($merged, $sanitized);
+                    }
+                }
+                return $merged;
+            }
+
             if (method_exists($data, 'getActualInstance')) {
                 return self::sanitizeForSerialization($data->getActualInstance());
             }
@@ -1026,6 +1047,45 @@ class ObjectSerializer
     public static function resolveAnyOf(mixed $data, array $candidates): mixed
     {
         return self::resolveOneOf($data, $candidates);
+    }
+
+    /**
+     * Resolve an anyOf schema by collecting EVERY candidate that successfully
+     * deserializes, not just the first. The OAS `anyOf` keyword matches when
+     * the data satisfies one OR MORE of the listed schemas, so a payload that
+     * co-satisfies several variants must retain all of them — returning only
+     * the first would silently drop the other variants' fields and break a
+     * lossless round-trip. Each retained variant is held independently; the
+     * union of their fields is re-emitted on serialize via
+     * {@see sanitizeForSerialization} (which merges the field-set of every
+     * variant exposed through getActualInstances()).
+     *
+     * @param mixed           $data       the data to match
+     * @param array<callable> $candidates list of deserializer closures
+     *
+     * @return array<int, mixed> every successfully deserialized variant, in
+     *         declaration order
+     *
+     * @throws \UnexpectedValueException when the data matches no candidate
+     *         schema. Throws rather than returning an empty list so a
+     *         shape-mismatch surfaces loudly, mirroring {@see resolveOneOf}.
+     */
+    public static function resolveAnyOfAll(mixed $data, array $candidates): array
+    {
+        $matched = [];
+        foreach ($candidates as $candidate) {
+            try {
+                $matched[] = $candidate($data);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+        if ($matched === []) {
+            throw new \UnexpectedValueException(
+                'JSON did not match any schema in the oneOf/anyOf union'
+            );
+        }
+        return $matched;
     }
 
     /**

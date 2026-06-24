@@ -132,6 +132,41 @@ void main() {
       expect(serialized, isNotEmpty);
     });
 
+    test('PetTreatment retains all matching variants (medication and surgery) '
+        'losslessly', () {
+      // anyOf is documented as matching a medication, a surgery, OR BOTH. A
+      // payload satisfying both variants at once must retain BOTH — keeping
+      // only the first match would silently drop the surgery fields and lose
+      // them on re-encode.
+      final json = <String, dynamic>{
+        'drugName': 'Amoxicillin',
+        'dosage': '250mg',
+        'procedureName': 'Spay',
+        'durationMinutes': 45,
+      };
+
+      final treatment = PetTreatment.fromJson(json);
+
+      // Both variants are accessible on the decoded value, not just the first.
+      final medication = treatment.valueOf<Medication>();
+      final surgery = treatment.valueOf<Surgery>();
+      expect(medication, isNotNull);
+      expect(surgery, isNotNull);
+      expect(medication!.drugName, equals('Amoxicillin'));
+      expect(medication.dosage, equals('250mg'));
+      expect(surgery!.procedureName, equals('Spay'));
+      expect(surgery.durationMinutes, equals(45));
+
+      // Re-serialize: the JSON still carries ALL FOUR fields, so the
+      // co-satisfied data round-trips with no silent drop.
+      final restored =
+          jsonDecode(jsonEncode(treatment.toJson())) as Map<String, dynamic>;
+      expect(restored['drugName'], equals('Amoxicillin'));
+      expect(restored['dosage'], equals('250mg'));
+      expect(restored['procedureName'], equals('Spay'));
+      expect(restored['durationMinutes'], equals(45));
+    });
+
     // allOf: PetWithOwner extends Pet fields
 
     test('PetWithOwner deserialize', () {

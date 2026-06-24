@@ -20,18 +20,38 @@ import kotlinx.serialization.UseSerializers
 
 /** A treatment that can match a medication, a surgery, or both */
 /*
- * anyOf wrapper. Same defect as the non-discriminated oneOf wrapper: the
- * default object serializer expected a `{"actualInstance": ...}` envelope and
- * silently dropped the bare variant payload, leaving [actualInstance] null.
- * The hand-written serializer tries each declared variant (first match wins)
- * and emits the bare variant on serialize, matching the resolveAnyOf contract
- * used by the other SDKs.
+ * anyOf wrapper (lossless retain-all). A non-discriminated anyOf is documented
+ * as matching any one OR several of its declared variants at once, so a payload
+ * that satisfies more than one variant must retain ALL of them — dropping the
+ * extras and keeping only the first match loses data on re-encode.
+ *
+ * This wrapper holds EVERY variant that successfully decodes in [instances].
+ * On decode each declared variant is tried leniently (a variant matches when
+ * its own required fields are present; sibling keys it does not declare are
+ * ignored, NOT rejected) and every match is retained. On encode the JSON
+ * objects of all retained variants are MERGED into a single union object, so a
+ * co-satisfied payload round-trips losslessly with no silent field drop.
+ *
+ * [actualInstance] exposes the first retained variant for callers that treat
+ * the union as a single value (e.g. format:byte variants, which are mutually
+ * exclusive scalar/array shapes that cannot be merged).
  */
 @Serializable(with = PetTreatment.Serializer::class)
 class PetTreatment(
     @Contextual
-    val actualInstance: Any? = null,
+    val instances: List<Any?> = emptyList(),
 ) {
+    // Convenience constructor for the common single-variant case; keeps the
+    // historical `PetTreatment(actualInstance = x)` call-site working.
+    constructor(actualInstance: Any?) : this(
+        if (actualInstance == null) emptyList() else listOf(actualInstance),
+    )
+
+    // The first retained variant, or null when none decoded. Callers that expect
+    // a single wrapped value (byte/scalar variants) read this.
+    val actualInstance: Any?
+        get() = instances.firstOrNull()
+
     internal object Serializer : kotlinx.serialization.KSerializer<PetTreatment> {
         override val descriptor =
             kotlinx.serialization.descriptors.buildClassSerialDescriptor("PetTreatment")
@@ -46,11 +66,11 @@ class PetTreatment(
                     ?: throw kotlinx.serialization.SerializationException(
                         "PetTreatment can only be serialized to JSON",
                     )
-            val instance =
-                value.actualInstance
-                    ?: throw kotlinx.serialization.SerializationException(
-                        "PetTreatment has no actualInstance to serialize",
-                    )
+            if (value.instances.isEmpty()) {
+                throw kotlinx.serialization.SerializationException(
+                    "PetTreatment has no instance to serialize",
+                )
+            }
             // format:byte variants travel on the wire as base64 strings, NOT as JSON
             // int-arrays. The reified serializer<ByteArray>() / serializer<List<ByteArray>>()
             // used by the generic loop below resolve kotlinx's built-in ByteArraySerializer,
@@ -58,47 +78,68 @@ class PetTreatment(
             // (an @file:UseSerializers directive only rewrites lexically-typed properties at
             // compile time, not a runtime reified lookup). Route ByteArray / List<ByteArray>
             // instances through Base64ByteArraySerializer explicitly, ahead of the generic
-            // variant loop, so the byte variant is base64-encoded on the wire.
-            when (instance) {
+            // variant loop, so the byte variant is base64-encoded on the wire. Byte/scalar
+            // variants are mutually exclusive and cannot be merged, so only the first
+            // retained instance is consulted here.
+            val firstInstance = value.instances.first()
+            when (firstInstance) {
                 is ByteArray -> {
-                    jsonEncoder.encodeSerializableValue(Base64ByteArraySerializer, instance)
+                    jsonEncoder.encodeSerializableValue(Base64ByteArraySerializer, firstInstance)
                     return
                 }
                 is List<*> -> {
-                    if (instance.isNotEmpty() && instance.all { it is ByteArray }) {
+                    if (firstInstance.isNotEmpty() && firstInstance.all { it is ByteArray }) {
                         jsonEncoder.encodeSerializableValue(
                             kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
-                            instance as List<ByteArray>,
+                            firstInstance as List<ByteArray>,
                         )
                         return
                     }
                 }
-                else -> { /* not a byte variant; fall through to the generic loop */ }
+                else -> { /* not a byte variant; fall through to the merge loop */ }
             }
-            // Encode the wrapped value with the first variant serializer that accepts
-            // it; a value matching no variant fails loud. encodeSerializableValue is
-            // an Encoder member, so no extra import is needed.
-            try {
-                jsonEncoder.encodeSerializableValue(
-                    kotlinx.serialization.serializer<Medication>(),
-                    instance as Medication,
+            // Encode every retained variant to its JSON object and MERGE the fields
+            // into one union object, so a payload that co-satisfied several variants
+            // re-encodes losslessly. A variant that does not encode to a JSON object
+            // (or that no declared serializer accepts) is skipped. encodeSerializableValue
+            // is an Encoder member, so no extra import is needed.
+            val merged = linkedMapOf<String, kotlinx.serialization.json.JsonElement>()
+            for (instance in value.instances) {
+                var element: kotlinx.serialization.json.JsonElement? = null
+                if (element == null) {
+                    try {
+                        element =
+                            jsonEncoder.json.encodeToJsonElement(
+                                kotlinx.serialization.serializer<Medication>(),
+                                instance as Medication,
+                            )
+                    } catch (_: Exception) {
+                        // wrapped value is not this variant; try the next
+                    }
+                }
+                if (element == null) {
+                    try {
+                        element =
+                            jsonEncoder.json.encodeToJsonElement(
+                                kotlinx.serialization.serializer<Surgery>(),
+                                instance as Surgery,
+                            )
+                    } catch (_: Exception) {
+                        // wrapped value is not this variant; try the next
+                    }
+                }
+                val obj = element as? kotlinx.serialization.json.JsonObject
+                if (obj != null) {
+                    merged.putAll(obj)
+                }
+            }
+            if (merged.isEmpty()) {
+                throw kotlinx.serialization.SerializationException(
+                    "Unsupported PetTreatment variant: " +
+                        "${value.instances.first()!!::class.simpleName}",
                 )
-                return
-            } catch (_: Exception) {
-                // wrapped value is not this variant; try the next
             }
-            try {
-                jsonEncoder.encodeSerializableValue(
-                    kotlinx.serialization.serializer<Surgery>(),
-                    instance as Surgery,
-                )
-                return
-            } catch (_: Exception) {
-                // wrapped value is not this variant; try the next
-            }
-            throw kotlinx.serialization.SerializationException(
-                "Unsupported PetTreatment variant: ${instance::class.simpleName}",
-            )
+            jsonEncoder.encodeJsonElement(kotlinx.serialization.json.JsonObject(merged))
         }
 
         override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): PetTreatment {
@@ -108,40 +149,41 @@ class PetTreatment(
                         "PetTreatment can only be deserialized from JSON",
                     )
             val element = jsonDecoder.decodeJsonElement()
-            // Decode variants with a STRICT Json (ignoreUnknownKeys = false) rather
-            // than the SDK's lenient decoder. Two variants that differ ONLY by an
-            // optional field would otherwise both decode against the first variant —
-            // the lenient decoder silently drops the discriminating extra key — so the
-            // union mis-resolves to whichever variant is declared first. Strict
-            // decoding rejects a payload carrying keys the candidate variant does not
-            // declare, so each variant only matches a payload shaped exactly like it.
-            // The contextual module is copied so @Contextual variant fields still
-            // resolve their serializers.
-            val strictJson =
+            // Decode variants LENIENTLY (ignoreUnknownKeys = true) so a payload that
+            // co-satisfies several variants matches EACH of them: every variant picks
+            // up the fields it declares and ignores sibling keys it does not. A variant
+            // only fails when one of its OWN required fields is absent, so a
+            // single-variant payload still matches just that one variant. The
+            // contextual module is copied so @Contextual variant fields still resolve
+            // their serializers.
+            val lenientJson =
                 kotlinx.serialization.json.Json(jsonDecoder.json) {
-                    ignoreUnknownKeys = false
+                    ignoreUnknownKeys = true
                 }
-            // Try each declared variant against the raw payload; the first that
-            // decodes without error wins. A payload matching no variant fails loud.
+            // Retain EVERY declared variant that decodes against the raw payload.
+            val retained = mutableListOf<Any?>()
             try {
-                return PetTreatment(
-                    strictJson.decodeFromJsonElement(
+                retained.add(
+                    lenientJson.decodeFromJsonElement(
                         kotlinx.serialization.serializer<Medication>(),
                         element,
                     ),
                 )
             } catch (_: Exception) {
-                // variant did not match; fall through to the next
+                // variant did not match; try the next
             }
             try {
-                return PetTreatment(
-                    strictJson.decodeFromJsonElement(
+                retained.add(
+                    lenientJson.decodeFromJsonElement(
                         kotlinx.serialization.serializer<Surgery>(),
                         element,
                     ),
                 )
             } catch (_: Exception) {
-                // variant did not match; fall through to the next
+                // variant did not match; try the next
+            }
+            if (retained.isNotEmpty()) {
+                return PetTreatment(instances = retained)
             }
             // Base64 fallback for format:byte variants. A base64 scalar arrives as a
             // JSON STRING and an array of base64 values as a JSON array of strings --
@@ -152,17 +194,21 @@ class PetTreatment(
             // mis-parsed element-by-element into a List<ByteArray>.
             try {
                 return PetTreatment(
-                    strictJson.decodeFromJsonElement(Base64ByteArraySerializer, element),
+                    instances =
+                        listOf<Any?>(lenientJson.decodeFromJsonElement(Base64ByteArraySerializer, element)),
                 )
             } catch (_: Exception) {
                 // not a base64 scalar; try the array-of-base64 form
             }
             try {
                 return PetTreatment(
-                    strictJson.decodeFromJsonElement(
-                        kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
-                        element,
-                    ),
+                    instances =
+                        listOf<Any?>(
+                            lenientJson.decodeFromJsonElement(
+                                kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
+                                element,
+                            ),
+                        ),
                 )
             } catch (_: Exception) {
                 // not an array of base64 values either; fall through to fail loud

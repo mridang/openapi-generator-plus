@@ -8,6 +8,7 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import javax.annotation.Nullable;
 
 /** A treatment that can match a medication, a surgery, or both. */
 @SuppressWarnings({
@@ -31,25 +32,93 @@ public class PetTreatment {
 
   private static final Class<?>[] ANY_OF_SCHEMAS = {Medication.class, Surgery.class};
 
-  private Object actualInstance;
+  /* anyOf is inclusive: a payload may satisfy several variants at once
+   * (e.g. an object whose fields cover both Medication and Surgery). Unlike
+   * oneOf — which picks exactly one variant — every variant that
+   * successfully decodes is retained here so a co-satisfying payload
+   * round-trips losslessly instead of silently dropping the variants past
+   * the first match. The list preserves schema declaration order. */
+  private final java.util.List<Object> instances = new java.util.ArrayList<>();
 
   /**
-   * Wraps a concrete variant of this union.
+   * Wraps a single concrete variant of this union.
    *
    * @param value the concrete variant instance
    */
   public PetTreatment(Object value) {
-    this.actualInstance = value;
+    this.instances.add(value);
   }
 
   /**
-   * Returns the wrapped concrete variant instance.
+   * Wraps every concrete variant that this union matched.
    *
-   * @return the concrete variant instance
+   * @param values the concrete variant instances, in schema declaration order
+   */
+  public PetTreatment(java.util.List<Object> values) {
+    this.instances.addAll(values);
+  }
+
+  /**
+   * Returns the value used to re-encode this union.
+   *
+   * <p>For a payload that matched a single variant this is that variant instance. For an anyOf
+   * payload that satisfied several variants at once this is the union of all their fields (see
+   * {@link #mergedValue()}), so the value round-trips losslessly through Jackson's
+   * {@code @JsonValue} serialization. Use {@link #getInstances()} to access each retained variant
+   * as its concrete type.
+   *
+   * @return the single matched variant, or the merged field-set when several variants matched;
+   *     {@code null} only if none were retained
    */
   @JsonValue
+  @Nullable
   public Object getActualInstance() {
-    return actualInstance;
+    if (instances.isEmpty()) {
+      return null;
+    }
+    if (instances.size() == 1) {
+      return instances.get(0);
+    }
+    return mergedValue();
+  }
+
+  /**
+   * Returns every concrete variant instance that this union matched.
+   *
+   * <p>For an anyOf a payload may satisfy more than one variant; all of them are retained so the
+   * value can be re-encoded without data loss.
+   *
+   * @return the matched concrete variant instances, in schema declaration order
+   */
+  public java.util.List<Object> getInstances() {
+    return java.util.Collections.unmodifiableList(instances);
+  }
+
+  /* Re-encode as the union of every retained variant's fields. When the
+   * payload satisfied several object variants their serialized field-sets
+   * are merged (earlier-declared variants win on key collisions) so no
+   * co-satisfied field is dropped on round-trip. A single non-object
+   * variant (e.g. a scalar or byte[]) is emitted as-is. */
+  private Object mergedValue() {
+    com.fasterxml.jackson.databind.ObjectMapper mapper =
+        new com.fasterxml.jackson.databind.ObjectMapper();
+    com.fasterxml.jackson.databind.node.ObjectNode merged = mapper.getNodeFactory().objectNode();
+    for (Object instance : instances) {
+      com.fasterxml.jackson.databind.JsonNode node = mapper.valueToTree(instance);
+      if (node instanceof com.fasterxml.jackson.databind.node.ObjectNode objectNode) {
+        for (java.util.Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> entry :
+            objectNode.properties()) {
+          if (!merged.has(entry.getKey())) {
+            merged.set(entry.getKey(), entry.getValue());
+          }
+        }
+      } else {
+        /* A non-object variant cannot be merged into a field-set; emit the
+         * first such variant verbatim to preserve scalar/array unions. */
+        return instance;
+      }
+    }
+    return merged;
   }
 
   static class PetTreatmentDeserializer
@@ -60,14 +129,20 @@ public class PetTreatment {
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
         throws java.io.IOException {
       com.fasterxml.jackson.databind.JsonNode node = p.readValueAsTree();
+      java.util.List<Object> matched = new java.util.ArrayList<>();
       for (Class<?> schema : ANY_OF_SCHEMAS) {
-        try {
-          Object value = ctxt.readTreeAsValue(node, schema);
-          return new PetTreatment(value);
-        } catch (Exception ignored) {
-          /* This union variant did not match; try the next. A total
-          no-match throws after the loop. */
+        /* anyOf is inclusive: keep scanning and retain EVERY variant that
+        decodes. tryDecodeVariant probes one variant and returns null when
+        it does not match, so the non-matching exception is converted to a
+        sentinel here rather than swallowed in an empty catch. A total
+        no-match (matched stays empty) throws after the loop. */
+        Object value = tryDecodeVariant(ctxt, node, schema);
+        if (value != null) {
+          matched.add(value);
         }
+      }
+      if (!matched.isEmpty()) {
+        return new PetTreatment(matched);
       }
       /* No schema in the union matched — throw rather than silently
        * fall back to a raw Object. Five SDKs throw (Python, Swift,
@@ -78,6 +153,21 @@ public class PetTreatment {
           p,
           PetTreatment.class,
           "JSON did not match any schema in the PetTreatment union: " + node);
+    }
+
+    /* Probe a single anyOf variant. Returns the decoded value, or null when the
+    node does not satisfy this variant — converting the (expected) mismatch
+    to a sentinel so the caller's loop has no empty catch to swallow. */
+    @Nullable
+    private static Object tryDecodeVariant(
+        com.fasterxml.jackson.databind.DeserializationContext ctxt,
+        com.fasterxml.jackson.databind.JsonNode node,
+        Class<?> schema) {
+      try {
+        return ctxt.readTreeAsValue(node, schema);
+      } catch (Exception variantDidNotMatch) {
+        return null;
+      }
     }
   }
 }

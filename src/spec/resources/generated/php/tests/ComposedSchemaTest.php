@@ -82,10 +82,77 @@ test('any of serialize round trip', function (): void {
 test('any of no matching variant throws', function (): void {
     // oneof-nondiscriminator-no-match-silent: a body matching neither
     // Medication nor Surgery must throw rather than yield a silently-empty
-    // union. resolveAnyOf throws UnexpectedValueException on union no-match.
+    // union. resolveAnyOfAll throws UnexpectedValueException on union no-match.
     $data = ['unrelatedKey' => 'value', 'anotherUnknown' => 123];
     expect(fn () => PetTreatment::build($data))
         ->toThrow(\UnexpectedValueException::class);
+});
+
+test('any of retains all matching variants (medication and surgery) losslessly', function (): void {
+    // anyOf matches one OR MORE schemas: a payload that co-satisfies BOTH
+    // Medication and Surgery must retain BOTH variants, not silently keep the
+    // first and drop the rest. Deserialize a body satisfying both at once.
+    $data = [
+        'drugName' => 'Amoxicillin',
+        'dosage' => '250mg',
+        'procedureName' => 'Spay',
+        'durationMinutes' => 45,
+    ];
+    $result = PetTreatment::build($data);
+
+    // Both variants are accessible — locate each by type rather than position.
+    $instances = $result->getActualInstances();
+    expect($instances)->toHaveCount(2);
+
+    $medication = null;
+    $surgery = null;
+    foreach ($instances as $instance) {
+        if ($instance instanceof Medication) {
+            $medication = $instance;
+        }
+        if ($instance instanceof Surgery) {
+            $surgery = $instance;
+        }
+    }
+
+    expect($medication)->toBeInstanceOf(Medication::class);
+    expect($medication->drugName)->toBe('Amoxicillin');
+    expect($medication->dosage)->toBe('250mg');
+
+    expect($surgery)->toBeInstanceOf(Surgery::class);
+    expect($surgery->procedureName)->toBe('Spay');
+    expect($surgery->durationMinutes)->toBe(45);
+
+    // Re-serialize the WRAPPER: the union of all retained variants' fields must
+    // round-trip — all four fields present, nothing silently dropped.
+    $serialized = ObjectSerializer::serialize($result);
+    expect($serialized)->toContain('drugName');
+    expect($serialized)->toContain('dosage');
+    expect($serialized)->toContain('procedureName');
+    expect($serialized)->toContain('durationMinutes');
+    /** @var array<string, mixed> $roundTripped */
+    $roundTripped = json_decode($serialized, true);
+    expect($roundTripped)->toMatchArray([
+        'drugName' => 'Amoxicillin',
+        'dosage' => '250mg',
+        'procedureName' => 'Spay',
+        'durationMinutes' => 45,
+    ]);
+});
+
+test('any of single variant still round-trips after retain-all', function (): void {
+    // The retain-all change must not regress the single-variant case: a
+    // medication-only payload still decodes and serializes as just Medication.
+    $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+    $result = PetTreatment::build($data);
+    expect($result->getActualInstances())->toHaveCount(1);
+    expect($result->getActualInstance())->toBeInstanceOf(Medication::class);
+
+    $serialized = ObjectSerializer::serialize($result);
+    /** @var array<string, mixed> $roundTripped */
+    $roundTripped = json_decode($serialized, true);
+    expect($roundTripped)->toMatchArray(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
+    expect($roundTripped)->not->toHaveKey('procedureName');
 });
 
 // -- allOf: PetWithOwner --

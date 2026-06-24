@@ -12,16 +12,67 @@ import { Surgery } from "./surgery.js";
  */
 export type PetTreatmentType = Medication | Surgery;
 
+/**
+ * Non-discriminated `anyOf` composite. Unlike `oneOf`, an `anyOf` payload may
+ * satisfy more than one variant at once (the documented "a medication, a
+ * surgery, OR BOTH" case). A first-match wrapper would silently drop the
+ * fields of every variant after the first and lose them on re-encode. This
+ * composite instead RETAINS EVERY variant that successfully validated, so the
+ * co-satisfied data round-trips losslessly: {@link getMatchedInstances}
+ * exposes all of them and {@link toJSON} emits the union of their fields.
+ * {@link getActualInstance} returns the first matched variant for backward
+ * compatibility with callers that expect a single instance.
+ */
 export class PetTreatment {
   static readonly ANY_OF_SCHEMAS: string[] = ["Medication", "Surgery"];
 
-  private actualInstance: PetTreatmentType;
+  /**
+   * Marks this wrapper as a lossless `anyOf` composite. The serializer checks
+   * this flag: rather than unwrapping to a single inner instance (as it does
+   * for `oneOf`), it lets {@link toJSON} merge every retained variant.
+   */
+  readonly __isAnyOfComposite = true as const;
 
-  constructor(instance: PetTreatmentType) {
-    this.actualInstance = instance;
+  private matchedInstances: PetTreatmentType[];
+
+  /**
+   * Accepts either a single matched variant (back-compat with callers that
+   * construct the wrapper around one instance) or the full array of every
+   * variant that validated. At least one instance is always retained.
+   */
+  constructor(instance: PetTreatmentType | PetTreatmentType[]) {
+    this.matchedInstances = Array.isArray(instance) ? instance : [instance];
   }
 
+  /**
+   * The first matched variant. Retained for backward compatibility with
+   * callers that assume a single instance; prefer {@link getMatchedInstances}
+   * when more than one variant may have matched.
+   */
   getActualInstance(): PetTreatmentType {
-    return this.actualInstance;
+    return this.matchedInstances[0];
+  }
+
+  /**
+   * Every variant that successfully validated against the payload, in
+   * declaration order. For a payload satisfying only one variant this holds a
+   * single element; for a co-satisfied payload it holds all matches.
+   */
+  getMatchedInstances(): PetTreatmentType[] {
+    return this.matchedInstances;
+  }
+
+  /**
+   * Merge the own-enumerable fields of every retained variant into a single
+   * plain object. Used by {@link ObjectSerializer.serialize} so re-encoding a
+   * co-satisfied composite emits the UNION of all variants' fields (lossless
+   * round-trip), not just the first variant's.
+   */
+  toJSON(): Record<string, unknown> {
+    const merged: Record<string, unknown> = {};
+    for (const inst of this.matchedInstances) {
+      Object.assign(merged, inst as unknown as Record<string, unknown>);
+    }
+    return merged;
   }
 }

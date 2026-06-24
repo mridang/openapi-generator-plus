@@ -201,30 +201,47 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("union variants decode strictly - a foreign key is not silently dropped onto the first variant")
-        fun testStrictUnionDecodeRejectsForeignKeys() {
-            // Regression for M6: the wrapper used to decode each variant with the
-            // SDK's lenient Json (ignoreUnknownKeys = true). A payload carrying a
-            // key that belongs to a LATER variant would silently lose that key and
-            // mis-resolve to whichever variant is declared first (Medication here).
-            // Strict variant decoding (ignoreUnknownKeys = false) rejects the
-            // foreign key, so an ambiguous payload that names BOTH variants' fields
-            // no longer collapses onto the first variant. Medication owns drugName;
-            // procedureName is Surgery's required key. Under the old lenient path
-            // this resolved to Medication (dropping procedureName); under strict
-            // decoding neither variant matches the combined shape, so it fails loud.
-            val ambiguous = """{"drugName":"Amoxicillin","procedureName":"Spay"}"""
-            assertThrows(Exception::class.java) {
-                json.decodeFromString<PetTreatment>(ambiguous)
-            }
+        @DisplayName("anyOf retains all matching variants (medication and surgery) losslessly")
+        fun testAnyOfRetainsAllMatchingVariantsLosslessly() {
+            // PetTreatment is a non-discriminated anyOf documented as matching a
+            // medication, a surgery, OR BOTH. A payload that satisfies BOTH
+            // variants at once must retain BOTH — keeping only the first match
+            // (the previous defect) would silently drop the surgery fields and
+            // lose them on re-encode.
+            val both =
+                """{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"""
 
-            // A clean, unambiguous payload for the SECOND-declared variant must
-            // still resolve correctly — strict decoding does not regress genuine
-            // single-variant matches.
-            val cleanSurgery = """{"procedureName":"Spay","durationMinutes":45}"""
-            val resolved = json.decodeFromString<PetTreatment>(cleanSurgery)
-            assertTrue(resolved.actualInstance is Surgery)
-            assertEquals("Spay", (resolved.actualInstance as Surgery).procedureName)
+            val result = json.decodeFromString<PetTreatment>(both)
+
+            // BOTH variants are retained and accessible — not just the first.
+            val medication = result.instances.filterIsInstance<Medication>().single()
+            val surgery = result.instances.filterIsInstance<Surgery>().single()
+            assertEquals("Amoxicillin", medication.drugName)
+            assertEquals("250mg", medication.dosage)
+            assertEquals("Spay", surgery.procedureName)
+            assertEquals(45, surgery.durationMinutes)
+
+            // Re-serialize: the union of all retained variants' fields must
+            // survive, so the co-satisfied payload round-trips with no drop.
+            val encoded = json.encodeToString(result)
+            assertTrue(encoded.contains("\"drugName\":\"Amoxicillin\""))
+            assertTrue(encoded.contains("\"dosage\":\"250mg\""))
+            assertTrue(encoded.contains("\"procedureName\":\"Spay\""))
+            assertTrue(encoded.contains("\"durationMinutes\":45"))
+
+            // Single-variant behaviour still works: a medication-only payload
+            // retains only Medication, and a surgery-only payload only Surgery.
+            val medOnly = json.decodeFromString<PetTreatment>(
+                """{"drugName":"Amoxicillin","dosage":"500mg"}""")
+            assertEquals(1, medOnly.instances.size)
+            assertTrue(medOnly.actualInstance is Medication)
+            assertEquals("Amoxicillin", (medOnly.actualInstance as Medication).drugName)
+
+            val surgeryOnly = json.decodeFromString<PetTreatment>(
+                """{"procedureName":"Spay","durationMinutes":45}""")
+            assertEquals(1, surgeryOnly.instances.size)
+            assertTrue(surgeryOnly.actualInstance is Surgery)
+            assertEquals("Spay", (surgeryOnly.actualInstance as Surgery).procedureName)
         }
     }
 

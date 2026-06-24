@@ -234,6 +234,54 @@ module {{moduleName}}
     # @see {{url}} {{description}}
 {{/externalDocumentation}}
     module {{classname}}
+      # Composite returned by {{classname}}.build when an anyOf payload
+      # satisfies MORE THAN ONE variant at once.
+      #
+      # A non-discriminated anyOf is documented as "match variant A, variant
+      # B, OR BOTH". The old build returned the FIRST non-throwing variant and
+      # silently dropped every other variant's fields, so a co-satisfying
+      # payload lost data on re-encode. This composite instead RETAINS every
+      # variant that decoded, exposes the union of their attributes (so a
+      # caller reads any matched variant's fields off the one returned value),
+      # and re-emits the union of all their fields on serialize — making the
+      # round-trip lossless. A payload that matches a single variant is
+      # returned as that bare variant instance (not wrapped), so existing
+      # single-variant callers are unaffected.
+      class Composite
+        # The matched variant instances, in declared anyOf order. Read by
+        # ::{{moduleName}}::ObjectSerializer#sanitize_for_serialization, which
+        # merges each instance's own (format-correct) serialized hash so the
+        # encoded JSON carries the union of every retained variant's fields.
+        attr_reader :anyof_matched_instances
+
+        # @param instances [Array<Object>] the successfully-decoded variant
+        #   instances to retain (at least two; a single match is never wrapped)
+        def initialize(instances)
+          @anyof_matched_instances = instances
+        end
+
+        # Read an attribute off whichever retained variant declares it.
+        #
+        # Each retained variant is a Dry::Struct exposing reader methods for
+        # its own attributes, so a co-satisfied payload's fields are all
+        # reachable off the single composite (e.g. both +drug_name+ from one
+        # variant and +procedure_name+ from another). The first retained
+        # variant that responds wins; nil is returned for an unknown name
+        # rather than raising, matching an omittable attribute reader.
+        def method_missing(name, *args, &block)
+          instance = @anyof_matched_instances.find { |inst| inst.respond_to?(name) }
+          return instance.public_send(name, *args, &block) if instance
+
+          super
+        end
+
+        # Mirror {method_missing}: report responding to any attribute that a
+        # retained variant declares, so +respond_to?+ stays truthful.
+        def respond_to_missing?(name, include_private = false)
+          @anyof_matched_instances.any? { |inst| inst.respond_to?(name, include_private) } || super
+        end
+      end
+
       class << self
         {{#anyOf}}
         {{#-first}}
@@ -250,16 +298,33 @@ module {{moduleName}}
         {{/anyOf}}
         # Builds the object
         # @param data [Object] data to be matched against the list of anyOf items
-        # @return [Object] Returns the model or the data itself
+        # @return [Object] Returns a single variant when exactly one matches, a
+        #   {Composite} retaining every variant when more than one matches, or
+        #   the raw data for an +AnyType+ union
         def build(data)
+          # Retain-all lossless anyOf: collect EVERY variant that decodes,
+          # not just the first. A non-discriminated anyOf documents "A, B, OR
+          # BOTH"; returning only the first match silently dropped the other
+          # variants' fields and lost them on re-encode. We keep each match so
+          # a co-satisfied payload round-trips losslessly.
+          matched = [] #: Array[untyped]
           openapi_any_of.each do |klass_name|
             next if klass_name == :AnyType
 
             result = ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
-            return result unless result.nil?
+            matched << result unless result.nil?
           rescue StandardError
             next
           end
+
+          # Exactly one variant matched — return it bare so single-variant
+          # callers see the same plain instance as before (no wrapper).
+          return matched.first if matched.length == 1
+
+          # More than one variant matched — wrap them in a Composite that
+          # exposes the union of their fields and re-emits all of them on
+          # encode, so the co-satisfied data is never silently dropped.
+          return Composite.new(matched) if matched.length > 1
 
           return data if openapi_any_of.include?(:AnyType)
 

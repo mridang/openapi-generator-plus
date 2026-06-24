@@ -28,7 +28,11 @@ internal class ObjectSerializer
 
     /// <summary>
     /// Serialize an object to a JSON string.
-    /// Unwraps oneOf/anyOf wrapper objects by serializing their ActualInstance.
+    /// Unwraps a oneOf wrapper by serializing its single <c>ActualInstance</c>.
+    /// An anyOf wrapper (identified by a <c>MatchedInstances</c> property) is
+    /// serialized through its own converter instead, so the inclusive union of
+    /// every retained variant's fields is emitted and a co-satisfied payload
+    /// round-trips losslessly rather than collapsing to the first variant.
     /// </summary>
     /// <exception cref="SerializationException">
     /// Thrown when the value cannot be serialized to JSON. The underlying
@@ -40,12 +44,20 @@ internal class ObjectSerializer
     {
         if (value != null)
         {
-            System.Reflection.PropertyInfo? actualProp = value
-                .GetType()
-                .GetProperty("ActualInstance");
-            if (actualProp != null)
+            System.Type valueType = value.GetType();
+            /* An anyOf wrapper carries a MatchedInstances list and must be
+             * serialized through its own JsonConverter so the union of every
+             * retained variant's fields is emitted. Unwrapping it to a single
+             * ActualInstance here would drop the co-matched variants' data. */
+            bool isAnyOfWrapper = valueType.GetProperty("MatchedInstances") != null;
+            if (!isAnyOfWrapper)
             {
-                value = actualProp.GetValue(value);
+                System.Reflection.PropertyInfo? actualProp = valueType
+                    .GetProperty("ActualInstance");
+                if (actualProp != null)
+                {
+                    value = actualProp.GetValue(value);
+                }
             }
         }
         try

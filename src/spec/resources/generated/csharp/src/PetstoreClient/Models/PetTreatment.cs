@@ -16,9 +16,41 @@ namespace PetstoreClient.Models;
 /// A treatment that can match a medication, a surgery, or both
 /// </summary>
 [JsonConverter(typeof(PetTreatmentConverter))]
-public class PetTreatment(object value)
+public class PetTreatment
 {
-    public object? ActualInstance { get; set; } = value;
+    /// <summary>
+    /// Every union variant that successfully validated against the payload.
+    /// Because anyOf is inclusive (a payload may satisfy several variants at
+    /// once), the wrapper retains ALL matching variants rather than the first.
+    /// This keeps a co-satisfied payload lossless: on re-encode the union of
+    /// every retained variant's fields is emitted, so no variant's data is
+    /// silently dropped.
+    /// </summary>
+    public IReadOnlyList<object> MatchedInstances { get; }
+
+    /// <summary>
+    /// The first matching variant. Retained for backwards compatibility and
+    /// for the common single-variant case; callers that need every co-matched
+    /// variant should read <see cref="MatchedInstances"/>.
+    /// </summary>
+    public object? ActualInstance => MatchedInstances.Count > 0 ? MatchedInstances[0] : null;
+
+    /// <summary>
+    /// Construct a wrapper holding a single variant instance. Preserves the
+    /// existing <c>new PetTreatment(variant)</c> call sites.
+    /// </summary>
+    public PetTreatment(object value)
+    {
+        MatchedInstances = new List<object> { value };
+    }
+
+    /// <summary>
+    /// Construct a wrapper retaining every variant that matched the payload.
+    /// </summary>
+    public PetTreatment(IReadOnlyList<object> matchedInstances)
+    {
+        MatchedInstances = matchedInstances;
+    }
 
     private sealed class PetTreatmentConverter : JsonConverter<PetTreatment>
     {
@@ -26,10 +58,15 @@ public class PetTreatment(object value)
         {
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
-            try { return new PetTreatment(JsonSerializer.Deserialize<Medication>(raw, options)!); }
+            List<object> matched = new List<object>();
+            try { matched.Add(JsonSerializer.Deserialize<Medication>(raw, options)!); }
             catch (JsonException) { }
-            try { return new PetTreatment(JsonSerializer.Deserialize<Surgery>(raw, options)!); }
+            try { matched.Add(JsonSerializer.Deserialize<Surgery>(raw, options)!); }
             catch (JsonException) { }
+            if (matched.Count > 0)
+            {
+                return new PetTreatment(matched);
+            }
             /* No schema in the union matched — throw rather than silently
              * fall back to a raw JsonElement. Five SDKs throw on no-match
              * (Python, Swift, Dart, Go, Rust); we align the other seven
@@ -41,7 +78,36 @@ public class PetTreatment(object value)
 
         public override void Write(Utf8JsonWriter writer, PetTreatment value, JsonSerializerOptions options)
         {
-            JsonSerializer.Serialize(writer, value.ActualInstance, options);
+            /* anyOf is inclusive, so emit the union of every retained variant's
+             * fields. Serialize each matched variant to its own JSON object and
+             * merge their properties into a single object; the first variant
+             * to supply a key wins on a collision, and distinct fields from
+             * every variant are preserved so a co-satisfied payload round-trips
+             * losslessly. */
+            if (value.MatchedInstances.Count == 1)
+            {
+                JsonSerializer.Serialize(writer, value.MatchedInstances[0], options);
+                return;
+            }
+            writer.WriteStartObject();
+            HashSet<string> written = new HashSet<string>(StringComparer.Ordinal);
+            foreach (object instance in value.MatchedInstances)
+            {
+                using JsonDocument part = JsonDocument.Parse(
+                    JsonSerializer.Serialize(instance, options));
+                if (part.RootElement.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                foreach (JsonProperty property in part.RootElement.EnumerateObject())
+                {
+                    if (written.Add(property.Name))
+                    {
+                        property.WriteTo(writer);
+                    }
+                }
+            }
+            writer.WriteEndObject();
         }
     }
 }

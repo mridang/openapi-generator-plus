@@ -126,6 +126,33 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void AnyOfRetainsAllMatchingVariantsLosslessly()
+    {
+        // PetTreatment is a non-discriminated anyOf of Medication and Surgery,
+        // documented as matching a medication, a surgery, OR BOTH. A payload
+        // that satisfies BOTH variants at once must retain BOTH — not just the
+        // first match — and re-serialize losslessly with every field intact.
+        var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\",\"procedureName\":\"Spay\",\"durationMinutes\":45}";
+        var result = _serializer.Deserialize<PetTreatment>(json);
+        Assert.NotNull(result);
+
+        // Both variants are retained and accessible on the decoded value.
+        var medication = result!.MatchedInstances.OfType<Medication>().Single();
+        var surgery = result.MatchedInstances.OfType<Surgery>().Single();
+        Assert.Equal("Amoxicillin", medication.DrugName);
+        Assert.Equal("250mg", medication.Dosage);
+        Assert.Equal("Spay", surgery.ProcedureName);
+        Assert.Equal(45, surgery.DurationMinutes);
+
+        // Re-serialize: the co-satisfied data round-trips with no silent drop.
+        var serialized = _serializer.Serialize(result);
+        Assert.Contains("\"drugName\":\"Amoxicillin\"", serialized);
+        Assert.Contains("\"dosage\":\"250mg\"", serialized);
+        Assert.Contains("\"procedureName\":\"Spay\"", serialized);
+        Assert.Contains("\"durationMinutes\":45", serialized);
+    }
+
+    [Fact]
     public void AnyOfNoMatchThrows()
     {
         // oneof-nondiscriminator-no-match-silent: a payload matching neither

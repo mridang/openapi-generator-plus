@@ -257,7 +257,18 @@ export class ObjectSerializer {
     if (obj === null || obj === undefined) {
       return 'null';
     }
-    if (typeof obj === 'object' && 'actualInstance' in (obj as Record<string, unknown>)) {
+    /**
+     * Unwrap a `oneOf` wrapper to its single inner instance. An `anyOf`
+     * composite is left intact: it carries the `__isAnyOfComposite` marker and
+     * its own `toJSON`, which merges every retained variant so the emitted
+     * JSON is the union of all matched variants' fields (lossless round-trip).
+     * Unwrapping it would collapse the union back to one variant.
+     */
+    if (
+      typeof obj === 'object' &&
+      'actualInstance' in (obj as Record<string, unknown>) &&
+      !('__isAnyOfComposite' in (obj as Record<string, unknown>))
+    ) {
       obj = (obj as Record<string, unknown>).actualInstance;
     }
     try {
@@ -372,6 +383,18 @@ export class ObjectSerializer {
             `Missing discriminator property '${discProp}' in payload.`
           );
         }
+        /**
+         * anyOf vs oneOf retention. A `oneOf` is mutually exclusive, so the
+         * first matching variant wins and resolution stops. A non-discriminated
+         * `anyOf` may be co-satisfied by several variants at once ("a
+         * medication, a surgery, OR BOTH"); returning on the first match would
+         * silently drop the other variants' fields and lose them on re-encode.
+         * For `anyOf` we therefore collect EVERY variant that validates and
+         * hand them all to the composite wrapper, which retains them and emits
+         * their union on serialize (lossless round-trip).
+         */
+        const isAnyOf = anyOfSchemas !== undefined;
+        const matched: unknown[] = [];
         for (const schemaName of schemas) {
           const schemaCls = (models as Record<string, unknown>)[schemaName] as ClassConstructor<unknown> | undefined;
           if (schemaCls) {
@@ -391,12 +414,24 @@ export class ObjectSerializer {
                  * canonical used by the other SDKs.
                  */
                 new (schemaCls as unknown as new (i: unknown) => unknown)(instance);
-                return new (cls as unknown as new (i: unknown) => T)(instance);
+                if (isAnyOf) {
+                  matched.push(instance);
+                } else {
+                  return new (cls as unknown as new (i: unknown) => T)(instance);
+                }
               }
             } catch {
               continue;
             }
           }
+        }
+        /**
+         * anyOf: hand the wrapper every variant that validated. The composite
+         * retains all of them so co-satisfied fields survive a round-trip. A
+         * single-variant payload still works — `matched` holds one element.
+         */
+        if (isAnyOf && matched.length > 0) {
+          return new (cls as unknown as new (i: unknown) => T)(matched);
         }
         /**
          * 4.7 — oneOf/anyOf without a discriminator and no variant matched

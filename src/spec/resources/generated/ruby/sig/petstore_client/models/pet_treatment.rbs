@@ -1,5 +1,11 @@
 module PetstoreClient::Models
   module PetTreatment
+    class Composite
+      attr_reader anyof_matched_instances: Array[untyped]
+      def initialize: (Array[untyped]) -> void
+      def method_missing: (Symbol, *untyped) ?{ (*untyped) -> untyped } -> untyped
+      def respond_to_missing?: (Symbol, ?bool) -> bool
+    end
     def self.openapi_any_of: () -> Array[Symbol]
     def self.build: (untyped) -> untyped
   end
