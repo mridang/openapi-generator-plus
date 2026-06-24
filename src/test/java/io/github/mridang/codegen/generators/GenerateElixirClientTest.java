@@ -36,17 +36,17 @@ class GenerateElixirClientTest {
    * modules must define a {@code @type t} atom-union so references to them
    * resolve.
    *
-   * <p>Generates into an isolated temp directory so the assertions hold against
-   * freshly-rendered output regardless of the checked-in goldens' state.
+   * <p>Asserts against the committed golden tree (the same output the {@code
+   * generate} test rewrites). It deliberately does NOT regenerate into a JUnit
+   * {@code @TempDir}: the Elixir post-process runs the formatter in Docker, which
+   * leaves root-owned {@code _build/.mix} artifacts that JUnit's temp-dir cleanup
+   * cannot delete on the CI container. A READ lock on the shared resource orders
+   * it after {@code generate}'s READ_WRITE regeneration.
    */
   @Test
-  void typespecsReferenceOnlyDefinedTypes(@org.junit.jupiter.api.io.TempDir Path tempDir)
-      throws IOException {
-    ClientGenerator.generateClient(
-        "elixir-plus",
-        Map.of("packageName", "petstore_client", "moduleName", "PetstoreClient"),
-        tempDir);
-    final Path libDir = tempDir.resolve("lib/petstore_client");
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void typespecsReferenceOnlyDefinedTypes() throws IOException {
+    final Path libDir = OUTPUT_DIR.resolve("lib/petstore_client");
 
     // (a) Per-operation options module type, not a literal Options.t().
     final String petApi = Files.readString(libDir.resolve("api/pet_api.ex"));
