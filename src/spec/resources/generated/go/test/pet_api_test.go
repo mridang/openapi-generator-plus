@@ -10,7 +10,9 @@
 package petstore_test
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -324,6 +326,58 @@ func TestPetApi_SetPetAvatar(t *testing.T) {
 
 	if err := api.SetPetAvatar(int64(1), f); err != nil {
 		t.Fatalf("SetPetAvatar failed: %v", err)
+	}
+}
+
+// TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType is the canonical
+// binary-request-body regression (finding C1). setPetAvatar declares a request
+// body of type:string format:binary with Content-Type image/jpeg, so the *os.File
+// contents must go on the wire as the EXACT raw bytes under the declared
+// Content-Type — never json.Marshal'd to the literal "{}", never base64-encoded,
+// never a JSON int-array, and never with the Content-Type overridden to
+// application/octet-stream or application/json.
+func TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType(t *testing.T) {
+	t.Parallel()
+	// A non-trivial payload: the JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
+	payload := []byte{0xFF, 0xD8, 0xFF, 0xE0}
+
+	var capturedBody []byte
+	var capturedContentType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedContentType = r.Header.Get("Content-Type")
+		capturedBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	f, err := os.CreateTemp("", "pet-avatar-*")
+	if err != nil {
+		t.Fatalf("CreateTemp failed: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+	})
+	if _, err := f.Write(payload); err != nil {
+		t.Fatalf("write temp failed: %v", err)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		t.Fatalf("seek temp failed: %v", err)
+	}
+
+	if err := api.SetPetAvatar(int64(1), f); err != nil {
+		t.Fatalf("SetPetAvatar failed: %v", err)
+	}
+
+	// (1) The body bytes must be EXACTLY the raw payload.
+	if !bytes.Equal(capturedBody, payload) {
+		t.Errorf("expected raw body bytes %v, got %v (string %q)", payload, capturedBody, string(capturedBody))
+	}
+	// (2) The Content-Type must be exactly the declared image/jpeg.
+	if capturedContentType != "image/jpeg" {
+		t.Errorf("expected Content-Type image/jpeg, got %q", capturedContentType)
 	}
 }
 

@@ -152,6 +152,44 @@ class TestPetApi:
 
         assert True
 
+    async def test_set_pet_avatar_streams_raw_bytes_with_declared_content_type(self) -> None:
+        # Regression: setPetAvatar declares a request body of type:string
+        # format:binary with the declared Content-Type image/jpeg. The SDK must
+        # put the RAW bytes on the wire unchanged — NOT a JSON int-array like
+        # [255,216,...], NOT base64, NOT JSON-marshaled in any way — and must
+        # send the declared Content-Type (image/jpeg), NOT override it to
+        # application/octet-stream or application/json. Capture the outgoing
+        # request body and Content-Type header and assert both.
+        payload = b'\xFF\xD8\xFF\xE0'  # JPEG SOI marker
+        captured: Dict[str, Any] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_PUT(self) -> None:
+                length = int(self.headers.get('Content-Length', 0))
+                captured['body'] = self.rfile.read(length)
+                captured['content_type'] = self.headers.get('Content-Type')
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder() \
+            .base_url(f'http://127.0.0.1:{port}') \
+            .build()
+        api = PetApi(config=config)
+
+        await api.set_pet_avatar(1, payload)
+
+        assert captured.get('body') == payload
+        assert captured.get('content_type') == 'image/jpeg'
+
     async def test_get_pet_avatar(self) -> None:
         result = await self.api.get_pet_avatar(1)
 

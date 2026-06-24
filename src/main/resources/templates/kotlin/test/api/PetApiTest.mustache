@@ -340,16 +340,26 @@ class PetApiTest {
     inner class MockTests {
 
         @Test
-        @DisplayName("setPetAvatar sends binary body")
+        @DisplayName("setPetAvatar streams raw bytes with declared content type")
         fun testSetPetAvatarMock() {
+            // setPetAvatar (PUT /pet/{petId}/avatar) takes a type:string
+            // format:binary body with a DECLARED Content-Type of image/jpeg.
+            // The raw bytes must reach the wire UNCHANGED -- not JSON-marshaled
+            // (no int-array like [255,216,...], no literal "{}"), not base64 --
+            // and the outgoing Content-Type must stay image/jpeg, NOT be
+            // overridden to application/octet-stream or application/json.
             var capturedMethod: String? = null
             var capturedPath: String? = null
             var capturedBodyBytes: ByteArray? = null
+            var capturedContentType: String? = null
             val engine =
                 MockEngine { request ->
                     capturedMethod = request.method.value
                     capturedPath = request.url.encodedPath
                     capturedBodyBytes = request.body.toByteArray()
+                    capturedContentType =
+                        request.body.contentType?.toString()
+                            ?: request.headers["Content-Type"]
                     respond(content = "", status = HttpStatusCode.NoContent, headers = headersOf())
                 }
             val config =
@@ -359,12 +369,18 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
+            // JPEG SOI marker (0xFF 0xD8 0xFF 0xE0) -- a known, non-trivial
+            // payload that would be visibly corrupted by any JSON/base64 encoding.
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
             runBlocking { api.setPetAvatar(1L, imageData) }
 
             assertEquals("PUT", capturedMethod)
             assertTrue(capturedPath!!.contains("/pet/1/avatar"))
-            assertEquals(4, capturedBodyBytes!!.size)
+            // (1) the body bytes are EXACTLY the raw JPEG bytes, byte-for-byte.
+            assertNotNull(capturedBodyBytes)
+            assertArrayEquals(imageData, capturedBodyBytes)
+            // (2) the declared Content-Type is preserved as image/jpeg.
+            assertEquals("image/jpeg", capturedContentType)
         }
 
         @Test

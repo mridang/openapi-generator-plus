@@ -357,7 +357,16 @@ class DefaultApiClient internal constructor(
                 )
             }
             body is ByteArray -> {
-                builder.header(HttpHeaders.ContentType, ContentType.Application.OctetStream)
+                // A type:string format:binary request body (e.g. setPetAvatar
+                // with image/jpeg) must stream the raw bytes unchanged and keep
+                // the DECLARED Content-Type. Do NOT force application/octet-stream
+                // here -- that would discard the caller's declared media type
+                // (image/jpeg, application/pdf, ...) and mislabel the payload.
+                // The declared type was placed into mergedHeaders["Content-Type"]
+                // by the calling operation; honour it, falling back to
+                // application/octet-stream only when no type was declared.
+                val contentType = mergedHeaders["Content-Type"] ?: ContentType.Application.OctetStream.toString()
+                builder.contentType(ContentType.parse(contentType))
                 builder.setBody(body)
             }
             else -> {

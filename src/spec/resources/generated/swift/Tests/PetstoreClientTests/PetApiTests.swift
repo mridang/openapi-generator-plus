@@ -143,6 +143,38 @@ final class PetApiTests {
     try await api.setPetAvatar(petId: 1, body: imageData)
   }
 
+  // binary-body-raw-bytes: a request body declared type:string format:binary
+  // (operation setPetAvatar, declared Content-Type image/jpeg) must be
+  // transmitted as the EXACT raw bytes with the declared Content-Type — never
+  // JSON-marshaled to a numeric array ([255,216,...]), never base64-encoded,
+  // and the Content-Type must never be overridden to application/octet-stream
+  // or application/json. Captures the outgoing request and asserts both the
+  // raw body bytes and the Content-Type header.
+  @Test func testSetPetAvatarStreamsRawBytesWithDeclaredContentType() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = ""
+    mockClient.responseHeaders = ["Content-Type": "image/jpeg"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    // JPEG SOI marker (0xFF 0xD8 0xFF 0xE0) — a known, non-trivial payload.
+    let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
+
+    // setPetAvatar is a convenience method that parses the (empty) response;
+    // capture-only, mirroring the neighbouring request-capture tests.
+    try? await api.setPetAvatar(petId: 1, body: imageData)
+
+    #expect(
+      mockClient.lastBody == imageData,
+      "binary body must be the exact raw bytes, got: \(mockClient.lastBody.map { Array($0) } ?? [])"
+    )
+    #expect(
+      mockClient.lastHeaders["Content-Type"] == "image/jpeg",
+      "declared Content-Type must be preserved, got: \(mockClient.lastHeaders["Content-Type"] ?? "nil")"
+    )
+  }
+
   @Test func testGetPetAvatar() async throws {
     let api = petApiForIntegration()
 

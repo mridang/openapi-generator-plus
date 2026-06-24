@@ -640,6 +640,43 @@ describe("BaseApi body serialization", () => {
     );
     expect(client.capturedBody).toBeDefined();
   });
+
+  // Canonical binary-request-body regression: setPetAvatar (PUT
+  // /pet/{petId}/avatar) declares a type:string format:binary body with a
+  // declared Content-Type of image/jpeg. The raw bytes must reach the wire
+  // UNCHANGED — never JSON-marshaled to a `[255,216,...]` int-array, never the
+  // literal "{}", never base64 — and the declared Content-Type must survive
+  // intact, never overridden to application/octet-stream or application/json.
+  // The CapturingApiClient records exactly what BaseApi hands to the transport,
+  // so these assertions check the real outgoing request for the actual
+  // operation, not a synthetic call().
+  test("setPetAvatar streams raw bytes with declared content type", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const petApi = new PetApi(client, config);
+    // JPEG SOI marker + APP0 segment start: a known, non-trivial payload.
+    const payload = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+    try {
+      await petApi.setPetAvatar(1, payload);
+    } catch {
+      // setPetAvatar returns void; the capturing client returns '{}' as the
+      // body, so nothing should throw here, but mirror the neighbouring
+      // capture tests and stay capture-only regardless.
+    }
+    // (1) The body is the EXACT raw bytes — the same Buffer instance, byte for
+    // byte — not a JSON int-array, not "{}", not base64, not JSON-marshaled.
+    expect(Buffer.isBuffer(client.capturedBody)).toBe(true);
+    expect(Buffer.from(client.capturedBody as Buffer)).toEqual(payload);
+    expect((client.capturedBody as Buffer).toString("latin1")).toBe(
+      payload.toString("latin1"),
+    );
+    // (2) The declared Content-Type is preserved verbatim, not overridden.
+    expect(client.capturedHeaders["Content-Type"]).toBe("image/jpeg");
+    expect(client.capturedHeaders["Content-Type"]).not.toBe(
+      "application/octet-stream",
+    );
+    expect(client.capturedHeaders["Content-Type"]).not.toBe("application/json");
+  });
 });
 
 describe("BaseApi content-type deserialization guard", () => {

@@ -452,6 +452,7 @@ class PetApiTest {
     private static final class CapturingApiClient implements ApiClient {
         @javax.annotation.Nullable Object capturedBody;
         @javax.annotation.Nullable String capturedUrl;
+        @javax.annotation.Nullable java.util.Map<String, String> capturedHeaders;
 
         @Override
         public {{invokerPackage}}.ApiHttpResponse sendRequest(
@@ -461,6 +462,7 @@ class PetApiTest {
                 @javax.annotation.Nullable Object body) {
             this.capturedBody = body;
             this.capturedUrl = url;
+            this.capturedHeaders = headers;
             return new {{invokerPackage}}.ApiHttpResponse(
                     200, "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
                     java.util.Map.of("Content-Type", "application/json"));
@@ -587,5 +589,39 @@ class PetApiTest {
         assertThat(wire).doesNotContain("tags=x,y");
         assertThat(wire).doesNotContain("tags%5B%5D");
         assertThat(wire).doesNotContain("%20");
+    }
+
+    @Test
+    void setPetAvatarStreamsRawBytesWithDeclaredContentType() throws Exception {
+        // A request body declared `type: string, format: binary` with a declared
+        // Content-Type of image/jpeg must ride the wire as the RAW bytes, with the
+        // declared Content-Type preserved. It must NEVER be JSON-marshaled (a JSON
+        // int-array like [255,216,255,224] or the literal "{}"), base64-encoded, or
+        // have its Content-Type overridden to application/octet-stream or
+        // application/json.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        // JPEG SOI marker — a known, non-trivial binary payload including a
+        // high-bit byte (0xFF) that a JSON encoder would mangle.
+        byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
+        petApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+
+        // The SDK hands the transport the raw InputStream body unchanged.
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody).isInstanceOf(InputStream.class);
+        byte[] wireBytes = ((InputStream) capturing.capturedBody).readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+
+        // Not JSON-marshaled, not a JSON int-array, not base64, not "{}".
+        String wireText = new String(wireBytes, StandardCharsets.ISO_8859_1);
+        assertThat(wireText).doesNotContain("[255");
+        assertThat(wireText).doesNotContain("{}");
+
+        // The declared Content-Type rides the wire verbatim.
+        assertNotNull(capturing.capturedHeaders);
+        assertThat(capturing.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
     }
 }

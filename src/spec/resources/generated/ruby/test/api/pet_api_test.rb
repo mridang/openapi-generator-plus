@@ -78,6 +78,77 @@ describe PetstoreClient::Api::PetApi do
     it 'uploads binary image data' do
       @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
     end
+
+    # Canonical regression (finding C1): setPetAvatar declares a request body of
+    # `type: string, format: binary` with a declared Content-Type of image/jpeg.
+    # The raw bytes must hit the wire UNCHANGED — not JSON-marshaled into "{}",
+    # not turned into a JSON int-array like [255,216,...], not base64-encoded —
+    # and the outgoing Content-Type must stay exactly "image/jpeg", never
+    # overridden to application/octet-stream or application/json.
+    #
+    # A one-shot TCP server captures the real outgoing body and Content-Type
+    # off the wire, exercising the operation's request_body construction plus
+    # BaseApi#serialize_body end-to-end rather than a helper in isolation.
+    def capture_avatar_request
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured_body = Queue.new
+      captured_content_type = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        content_length = 0
+        content_type = ''
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          elsif line.downcase.start_with?('content-type:')
+            content_type = line.split(':', 2).last.strip
+          end
+          break if line.strip.empty?
+        end
+        captured_content_type << content_type
+        captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = PetstoreClient::Api::PetApi.new(nil, config)
+      [api, server, thread, captured_body, captured_content_type]
+    end
+
+    it 'streams raw bytes with the declared content type' do
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        # JPEG SOI marker — a known, non-trivial binary payload. The high bytes
+        # (0xFF) and the non-printable run make every wrong encoding distinct
+        # from the raw form.
+        raw = "\xFF\xD8\xFF\xE0".b
+        api.set_pet_avatar(1, StringIO.new(raw))
+
+        content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        # (1) The body is the exact raw bytes — not JSON-marshaled, not a JSON
+        # int-array, not base64.
+        _(sent).must_equal raw
+        _(sent).wont_include '[255'
+        _(sent).wont_include '255,216'
+        _(sent).wont_equal '{}'
+        _(sent).wont_equal '//j/4A==' # base64 of the four bytes
+
+        # (2) The declared Content-Type is preserved verbatim.
+        _(content_type).must_equal 'image/jpeg'
+        _(content_type).wont_match(/octet-stream/)
+        _(content_type).wont_match(/application\/json/)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
   end
 
   describe '#get_pet_avatar' do

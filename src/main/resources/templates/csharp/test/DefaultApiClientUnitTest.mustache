@@ -475,6 +475,43 @@ public class DefaultApiClientUnitTest
         Assert.Contains("名前.png", wireText);
     }
 
+    [Fact]
+    public async Task SetPetAvatarStreamsRawBytesWithDeclaredContentType()
+    {
+        // Canonical cross-SDK regression (finding C1): the setPetAvatar request
+        // body is type:string format:binary with a declared Content-Type of
+        // image/jpeg. It MUST go on the wire as the exact raw bytes, with the
+        // declared Content-Type preserved — NOT JSON-marshaled, NOT base64, NOT
+        // a JSON int-array like [255,216,...], and NOT overridden to
+        // application/octet-stream or application/json.
+        //
+        // This drives the REAL DefaultApiClient and inspects the actual
+        // HttpRequestMessage, because the bug lived here: StreamContent (like
+        // ByteArrayContent) defaults its Content-Type to null, so a guard of
+        // `request.Content.Headers.ContentType != null` silently dropped the
+        // declared image/jpeg, sending the binary body with no Content-Type.
+        byte[]? wireBytes = null;
+        string? contentTypeHeader = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            contentTypeHeader = req.Content!.Headers.ContentType?.ToString();
+            wireBytes = await req.Content.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        // JPEG SOI marker — a known, non-trivial binary payload.
+        byte[] payload = { 0xFF, 0xD8, 0xFF, 0xE0 };
+        using var body = new MemoryStream(payload);
+        await client.SendRequestAsync(
+            "PUT", new Uri("http://example.com/pet/1/avatar"),
+            new Dictionary<string, string> { { "Content-Type", "image/jpeg" } }, body);
+
+        Assert.NotNull(wireBytes);
+        Assert.Equal(payload, wireBytes);
+        Assert.Equal("image/jpeg", contentTypeHeader);
+    }
+
     // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
 
     [Fact]

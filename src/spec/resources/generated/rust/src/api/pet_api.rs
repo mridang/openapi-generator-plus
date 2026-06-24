@@ -1678,7 +1678,14 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&body)?.into_bytes());
+        // Binary (`type: string, format: binary`) request body. The parameter is
+        // `Vec<u8>` (raw bytes) and must be streamed UNCHANGED — JSON-serializing
+        // it would emit a byte array like `[255,216,...]` and base64 would
+        // re-encode it, either of which corrupts the payload. The raw octets are
+        // handed straight to invoke_api with the declared Content-Type
+        // (image/jpeg) preserved; serialize_body
+        // passes image/* and application/octet-stream bodies through verbatim.
+        let request_body = Some(body);
         let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {

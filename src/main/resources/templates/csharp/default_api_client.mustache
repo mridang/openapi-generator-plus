@@ -321,9 +321,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 contentType != null
                 && body is not Dictionary<string, object>
                 && body is not string
-                && request.Content.Headers.ContentType != null
             )
             {
+                /* Apply the declared Content-Type to byte[]/Stream bodies. Both
+                 * ByteArrayContent and StreamContent default their ContentType to
+                 * null, so a format:binary body (e.g. image/jpeg) would otherwise
+                 * go on the wire with NO Content-Type header — the declared type
+                 * silently discarded. We must NOT gate this on the header being
+                 * non-null, and we must NOT JSON-marshal/base64 the bytes: the raw
+                 * stream is sent verbatim with the declared Content-Type preserved.
+                 * StringContent (text) and multipart (Dictionary) set their own
+                 * Content-Type and are excluded above. */
                 request.Content.Headers.ContentType =
                     System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
             }

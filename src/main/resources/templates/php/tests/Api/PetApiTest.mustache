@@ -290,6 +290,9 @@ function newBodyCapturingPetApi(): array
 {
     $captured = new \stdClass();
     $captured->body = '';
+    /** @var array<string, string> $hdrs */
+    $hdrs = [];
+    $captured->headers = $hdrs;
 
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
         public function __construct(private readonly \stdClass $captured)
@@ -299,6 +302,7 @@ function newBodyCapturingPetApi(): array
         public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \{{invokerPackage}}\ApiHttpResponse
         {
             $this->captured->body = is_string($body) ? $body : '';
+            $this->captured->headers = $headers;
             return new \{{invokerPackage}}\ApiHttpResponse(
                 200,
                 '{"code":200,"type":"ok","message":"saved"}',
@@ -359,6 +363,39 @@ test('form body encodes space as plus not percent twenty', function (): void {
     expect($captured->body)->toContain('nickname=Good+Boy');
     expect($captured->body)->toContain('note=likes+long+walks');
     expect($captured->body)->not->toContain('%20');
+});
+
+// -- Canonical: a type:string format:binary body streams raw, not JSON --
+//
+// setPetAvatar (PUT /pet/{petId}/avatar) declares a type:string format:binary
+// request body with Content-Type image/jpeg. The bytes must reach the wire
+// EXACTLY as supplied — never JSON-marshaled (the literal "{}"), never a JSON
+// int-array ([255,216,...]), never base64 — and the outgoing Content-Type must
+// stay the declared image/jpeg, never overridden to application/octet-stream
+// or application/json. The body is serialized before it reaches the ApiClient,
+// so the body-capturing fake client observes the exact bytes and headers.
+
+test('setPetAvatar streams raw bytes with declared content type', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    // A 4-byte JPEG SOI/APP0 marker: a known, non-trivial binary payload.
+    $rawBytes = "\xFF\xD8\xFF\xE0";
+    $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+    file_put_contents($tmpFile, $rawBytes);
+    $body = new \SplFileObject($tmpFile, 'r');
+
+    $api->setPetAvatar(1, $body);
+    unlink($tmpFile);
+
+    // (1) The body on the wire is the raw bytes, byte-for-byte — not a JSON
+    //     int-array, not "{}", not base64, not JSON-marshaled in any way.
+    expect($captured->body)->toBe($rawBytes);
+    expect($captured->body)->not->toBe('{}');
+    expect($captured->body)->not->toContain('[255');
+    expect($captured->body)->not->toBe(base64_encode($rawBytes));
+
+    // (2) The outgoing Content-Type is exactly the declared image/jpeg.
+    expect($captured->headers['Content-Type'] ?? '')->toBe('image/jpeg');
 });
 
 // -- Canonical #6: operation cookie param fails closed on CR/LF (RFC 6265) --

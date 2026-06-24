@@ -501,6 +501,64 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  # binary-request-body-fidelity: setPetAvatar declares a request body of
+  # type:string format:binary with declared Content-Type image/jpeg. The raw
+  # bytes must reach the wire UNCHANGED — never JSON-marshaled into an int-array
+  # ([255,216,...]), never the literal "{}", never base64-encoded — and the
+  # outgoing Content-Type must stay image/jpeg, never overridden to
+  # application/octet-stream or application/json. This client records both the
+  # request body and headers so the assertions can inspect what actually went
+  # on the wire.
+  defmodule BodyCapturingApiClient do
+    @behaviour {{moduleName}}.ApiClient
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> %{body: nil, headers: %{}} end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured(name), do: Agent.get(name, & &1)
+
+    @impl true
+    def send_request(_method, _url, headers, body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> %{body: body, headers: headers} end)
+      {{! Empty body deserializes to nil for any return type, so this }}
+      {{! body-capturing test doesn't trip required-field deserialization. }}
+      %{{moduleName}}.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+    end
+  end
+
+  test "set_pet_avatar streams raw bytes with declared content type" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    # JPEG SOI marker — a known, non-trivial byte payload.
+    payload = <<0xFF, 0xD8, 0xFF, 0xE0>>
+
+    {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, payload)
+
+    captured = BodyCapturingApiClient.captured(name)
+
+    # (1) the body must be the EXACT raw bytes — not a JSON int-array, not "{}",
+    # not base64, not JSON-marshaled in any way.
+    assert captured.body == payload
+    refute captured.body == "{}"
+    refute captured.body == Base.encode64(payload)
+    refute captured.body == Jason.encode!(:binary.bin_to_list(payload))
+
+    # (2) the Content-Type must be exactly the declared image/jpeg.
+    assert captured.headers["Content-Type"] == "image/jpeg"
+    refute captured.headers["Content-Type"] == "application/octet-stream"
+    refute captured.headers["Content-Type"] == "application/json"
+
+    Agent.stop(name)
+  end
+
   # apiresult-rawbody-nullability: ApiResult.raw_body is typed String.t() (never
   # nil) because ApiHttpResponse.body is always populated. Even an empty 200 body
   # surfaces raw_body as a binary, not nil.

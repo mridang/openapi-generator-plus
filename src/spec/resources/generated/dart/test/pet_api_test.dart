@@ -185,6 +185,52 @@ void main() {
       await api.setPetAvatar(1, Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]));
     });
 
+    /* binary-request-body-streamed-raw (canonical scenario C1): setPetAvatar's
+     * request body is declared `type: string, format: binary` with a declared
+     * Content-Type of `image/jpeg`. The raw bytes must reach the wire UNCHANGED
+     * — NOT JSON-marshaled (`{}`), NOT a JSON int-array (`[255,216,...]`), NOT
+     * base64 — and the outgoing Content-Type must be exactly the declared
+     * `image/jpeg`, NOT overridden to application/octet-stream or
+     * application/json. We capture the outgoing request against a local mock
+     * (the same idiom used by the query-string capture test above) and assert
+     * both the exact body bytes and the Content-Type header. */
+    test('setPetAvatar streams raw bytes with declared content type', () async {
+      List<int>? capturedBody;
+      String? capturedContentType;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        capturedContentType = request.headers.contentType?.toString();
+        final builder = BytesBuilder();
+        await for (final chunk in request) {
+          builder.add(chunk);
+        }
+        capturedBody = builder.takeBytes();
+        request.response
+          ..statusCode = 204
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
+        final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+        await api.setPetAvatar(1, payload);
+
+        // (1) The body bytes are EXACTLY the raw payload — not a JSON
+        // int-array, not "{}", not base64, not JSON-marshaled.
+        expect(capturedBody, equals([0xFF, 0xD8, 0xFF, 0xE0]));
+        // (2) The outgoing Content-Type is exactly the declared image/jpeg,
+        // not overridden to octet-stream or application/json.
+        expect(capturedContentType, equals('image/jpeg'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('getPetAvatar', () async {
       final api = _newPetApiForIntegration();
 

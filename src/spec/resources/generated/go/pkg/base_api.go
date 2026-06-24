@@ -256,6 +256,23 @@ func serializeBody(body any, contentType string) ([]byte, error) {
 		if str, ok := body.(string); ok {
 			return []byte(str), nil
 		}
+		/* A binary body (type:string format:binary) is an *os.File or io.Reader.
+		 * Stream the RAW bytes unchanged so they go on the wire byte-for-byte
+		 * under the declared Content-Type — never fall through to serialize(),
+		 * which would json.Marshal an *os.File handle to the literal "{}". The
+		 * *os.File is rewound first, mirroring the multipart file-part idiom. */
+		if f, ok := body.(*os.File); ok {
+			if f == nil {
+				return nil, nil
+			}
+			if _, err := f.Seek(0, io.SeekStart); err != nil {
+				return nil, fmt.Errorf("failed to rewind binary body file: %w", err)
+			}
+			return io.ReadAll(f)
+		}
+		if r, ok := body.(io.Reader); ok {
+			return io.ReadAll(r)
+		}
 	}
 
 	if contentType == "text/plain" {

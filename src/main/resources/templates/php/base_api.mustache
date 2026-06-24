@@ -343,6 +343,25 @@ class BaseApi
         }
 
         if (str_starts_with($contentType ?? '', 'image/') || $contentType === 'application/octet-stream') {
+            /* A type:string format:binary body (e.g. setPetAvatar's image/jpeg
+             * upload) must go on the wire as the RAW bytes under its DECLARED
+             * Content-Type — never JSON-encoded, base64'd, or wrapped. When the
+             * caller hands us an \SplFileObject we read its contents into the
+             * byte string here so the transport sees a plain string body and
+             * streams it verbatim (the non-array, is_string branch in both the
+             * Default and PSR-18 clients). This mirrors the multipart file-part
+             * idiom, which reads the same \SplFileObject via file_get_contents.
+             * A raw stream resource is likewise drained to its bytes; an
+             * already-string body passes through untouched. */
+            if ($body instanceof \SplFileObject) {
+                $path = $body->getRealPath();
+                $contents = @file_get_contents($path !== false ? $path : $body->getPathname());
+                return $contents !== false ? $contents : '';
+            }
+            if (is_resource($body)) {
+                $contents = stream_get_contents($body);
+                return $contents !== false ? $contents : '';
+            }
             return $body;
         }
 

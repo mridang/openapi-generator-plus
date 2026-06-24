@@ -366,6 +366,108 @@ fn new_pet_api_for_capture() -> (PetApi, std::sync::mpsc::Receiver<String>, Stri
     (PetApi::new(Arc::new(client), config, None), rx, base_url)
 }
 
+/// Like `new_pet_api_for_capture`, but records the raw request as `Vec<u8>`
+/// rather than a lossy UTF-8 String. A binary request body (e.g. raw JPEG bytes
+/// 0xFF 0xD8 ...) is NOT valid UTF-8, so `String::from_utf8_lossy` would replace
+/// those octets with U+FFFD and the test could no longer prove the exact bytes
+/// reached the wire. Capturing raw bytes lets the test split off the body after
+/// the `\r\n\r\n` header terminator and compare it octet-for-octet.
+fn new_pet_api_for_byte_capture() -> (PetApi, std::sync::mpsc::Receiver<Vec<u8>>, String) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
+            let _ = tx.send(buf[..n].to_vec());
+            let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            break;
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let client = DefaultApiClient::new(None);
+    (PetApi::new(Arc::new(client), config, None), rx, base_url)
+}
+
+/// Splits a captured raw HTTP request into its header block and body, returning
+/// both as byte slices. The body is everything after the first `\r\n\r\n`.
+fn split_http_request(raw: &[u8]) -> (&[u8], &[u8]) {
+    let sep = b"\r\n\r\n";
+    for i in 0..raw.len().saturating_sub(sep.len() - 1) {
+        if &raw[i..i + sep.len()] == sep {
+            return (&raw[..i], &raw[i + sep.len()..]);
+        }
+    }
+    (raw, &[])
+}
+
+/// binary-request-body-raw-bytes (Finding C1): the fixture operation
+/// `setPetAvatar` (PUT /pet/{petId}/avatar) declares a `type: string,
+/// format: binary` request body with Content-Type `image/jpeg`. The raw bytes
+/// must reach the wire UNCHANGED — not JSON-marshaled into a `[255,216,...]`
+/// byte array, not base64-encoded, not the literal `{}` — and the declared
+/// `image/jpeg` Content-Type must be preserved (never overridden to
+/// application/octet-stream or application/json). This asserts BOTH the exact
+/// body bytes and the Content-Type header.
+#[tokio::test]
+async fn test_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_type() {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+
+    // JPEG SOI marker + APP0 — a known, non-trivial payload that is NOT valid
+    // UTF-8, so any String round-trip or JSON re-encoding would be detectable.
+    let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
+
+    // set_pet_avatar returns `()` and never deserializes the response body, so
+    // it cannot fail on the capture mock's JSON 200 — but ignore the result
+    // regardless: this is a request-capture test, not a response test.
+    let _ = api.set_pet_avatar(1, image_bytes.clone()).await;
+
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+
+    // (1) The body bytes must be EXACTLY the raw JPEG octets — not a JSON byte
+    // array, not base64, not `{}`.
+    assert_eq!(
+        body, image_bytes.as_slice(),
+        "binary request body must stream the raw bytes unchanged, got: {:?}",
+        body
+    );
+    assert!(
+        !body.starts_with(b"["),
+        "binary body must not be a JSON byte array like [255,216,...], got: {:?}",
+        body
+    );
+
+    // (2) The outgoing Content-Type must be exactly the declared `image/jpeg`,
+    // never overridden to application/octet-stream or application/json. (hyper
+    // lowercases header names on the wire, so match case-insensitively.)
+    assert!(
+        header_text.contains("content-type: image/jpeg"),
+        "declared Content-Type image/jpeg must be preserved, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+    assert!(
+        !header_text.contains("application/octet-stream")
+            && !header_text.contains("content-type: application/json"),
+        "Content-Type must not be overridden, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+}
+
 /// per-call-auth-override: an Authenticator passed to the BASE operation method
 /// (not just `with_http_info`) must be applied to the outgoing request. The
 /// default header carries one token; the per-call authenticator carries a
