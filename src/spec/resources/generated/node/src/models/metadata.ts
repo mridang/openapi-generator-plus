@@ -26,6 +26,17 @@ export class Metadata {
   @Type(() => Date)
   createdAt?: Date;
 
+  /**
+   * The schema-declared wire-key names. Its PRESENCE marks this model as
+   * declaring `additionalProperties`: undeclared wire keys are free-form data
+   * that must SURVIVE a round-trip. ObjectSerializer reads this set and
+   * re-attaches any json key NOT listed here after plainToInstance (which, with
+   * excludeExtraneousValues, would otherwise silently drop them — data loss).
+   * Models without this static intentionally discard extras.
+   */
+  static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string> =
+    new Set(["createdAt"]);
+
   [key: string]: unknown;
 
   constructor(data?: Partial<Metadata>) {

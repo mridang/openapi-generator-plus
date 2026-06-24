@@ -466,7 +466,28 @@ export class ObjectSerializer {
         typeof instance === "object" &&
         typeof cls === "function"
       ) {
-        return new (cls as unknown as new (i: unknown) => T)(instance);
+        const built = new (cls as unknown as new (i: unknown) => T)(instance);
+        /**
+         * H11: a model declaring `additionalProperties` carries free-form wire
+         * keys on an index signature. plainToInstance(excludeExtraneousValues)
+         * drops every key without an @Expose decorator — the index signature is
+         * not exposed — so those extras would be silently lost on a round-trip.
+         * Re-attach any json key NOT in the model's declared-key set so free-form
+         * data survives. Models without the marker intentionally discard extras.
+         */
+        const declaredKeys = (
+          cls as { __additionalPropertiesDeclaredKeys?: ReadonlySet<string> }
+        ).__additionalPropertiesDeclaredKeys;
+        if (declaredKeys && json && typeof json === "object") {
+          for (const [key, value] of Object.entries(
+            json as Record<string, unknown>,
+          )) {
+            if (!declaredKeys.has(key)) {
+              (built as Record<string, unknown>)[key] = value;
+            }
+          }
+        }
+        return built;
       }
       return instance;
     } catch (e) {

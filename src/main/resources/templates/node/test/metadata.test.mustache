@@ -79,3 +79,32 @@ describe('Metadata model (typed additionalProperties)', () => {
     expect(typeof additionalValue).toBe('string');
   });
 });
+
+describe('Metadata additionalProperties round-trip (H11)', () => {
+  test('undeclared wire keys survive deserialize instead of being dropped', () => {
+    // H11: Metadata declares `additionalProperties: {type: string}`, so keys
+    // beyond the declared `createdAt` are free-form data that must SURVIVE a
+    // round-trip. plainToInstance(excludeExtraneousValues) drops every key
+    // without an @Expose decorator — the index signature is not exposed — so
+    // without the re-attach those extras are silently lost (data corruption).
+    const wire = {
+      createdAt: '2020-01-02T03:04:05.000Z',
+      region: 'eu-west',
+      tier: 'gold',
+    };
+    const restored = ObjectSerializer.deserialize(wire, Metadata) as Metadata &
+      Record<string, unknown>;
+
+    expect(restored.createdAt).toBeInstanceOf(Date);
+    expect(restored.region).toBe('eu-west');
+    expect(restored.tier).toBe('gold');
+
+    // And they survive a full serialize -> parse -> deserialize round-trip.
+    const roundTripped = ObjectSerializer.deserialize(
+      ObjectSerializer.parseJson(ObjectSerializer.serialize(restored)),
+      Metadata,
+    ) as Metadata & Record<string, unknown>;
+    expect(roundTripped.region).toBe('eu-west');
+    expect(roundTripped.tier).toBe('gold');
+  });
+});
