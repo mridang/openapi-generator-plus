@@ -31,36 +31,27 @@ export class EdgeCases {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "freeFormAny" })
   freeFormAny?: unknown;
-  /** @example null */
   @Expose({ name: "favoriteColor" })
   favoriteColor?: Color;
   /**
    * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
-   * @example null
    */
   @Expose({ name: "permissionsNote" })
   permissionsNote?: string;
-  /** @example null */
   @Expose({ name: "and" })
   and?: boolean;
-  /** @example null */
   @Expose({ name: "or" })
   or?: boolean;
-  /** @example null */
   @Expose({ name: "not" })
   not?: boolean;
-  /** @example null */
   @Expose({ name: "class" })
   class?: string;
-  /** @example null */
   @Expose({ name: "return" })
   return?: string;
   /**
    * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
-   * @example null
    */
   @Expose({ name: "retryAfter" })
   /*
@@ -81,7 +72,6 @@ export class EdgeCases {
   retryAfter?: Temporal.Duration;
   /**
    * Absolute expiry instant
-   * @example null
    */
   @Expose({ name: "expiresAt" })
   @Type(() => Date)

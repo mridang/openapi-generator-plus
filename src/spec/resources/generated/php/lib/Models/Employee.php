@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Employee
 {
-    /** @example null */
     #[SerializedName('name')]
     public string $name;
 
-    /** @example null */
     #[SerializedName('department')]
     public ?\PetstoreClient\Models\Department $department = null;
 

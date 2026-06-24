@@ -23,50 +23,31 @@ import java.time.OffsetDateTime
 /** Edge-case property shapes mirrored from real protobuf-derived specs. */
 @Serializable
 data class EdgeCases(
-    /** Example: `null` */
     @SerialName("freeFormAny")
     val freeFormAny: @Contextual Any? = null,
-    /** Example: `null` */
     @SerialName("favoriteColor")
     val favoriteColor: Color? = null,
-    /**
-     * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
-     *
-     * Example: `null`
-     */
+    /** Required permission is "user.grant.write" for <admin> & owner roles (don't skip it) */
     @SerialName("permissionsNote")
     val permissionsNote: String? = null,
-    /** Example: `null` */
     @SerialName("and")
     @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val and: Boolean? = null,
-    /** Example: `null` */
     @SerialName("or")
     @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val or: Boolean? = null,
-    /** Example: `null` */
     @SerialName("not")
     @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val not: Boolean? = null,
-    /** Example: `null` */
     @SerialName("class")
     val _class: String? = null,
-    /** Example: `null` */
     @SerialName("return")
     val _return: String? = null,
-    /**
-     * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
-     *
-     * Example: `null`
-     */
+    /** Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
     @SerialName("retryAfter")
     @Contextual
     val retryAfter: Duration? = null,
-    /**
-     * Absolute expiry instant
-     *
-     * Example: `null`
-     */
+    /** Absolute expiry instant */
     @SerialName("expiresAt")
     @Contextual
     val expiresAt: OffsetDateTime? = null,

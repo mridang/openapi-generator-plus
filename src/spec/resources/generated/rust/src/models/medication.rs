@@ -11,10 +11,8 @@ use serde::{Deserialize, Serialize};
 /// Medication is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Medication {
-    /// Example: `null`
     #[serde(rename = "drugName")]
     pub drug_name: String,
-    /// Example: `null`
     #[serde(rename = "dosage", skip_serializing_if = "Option::is_none")]
     pub dosage: Option<String>,
 }

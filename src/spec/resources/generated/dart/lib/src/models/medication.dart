@@ -15,10 +15,8 @@ import '../object_serializer.dart';
 
 /// Medication is a model class generated from the OpenAPI schema.
 class Medication {
-  /// Example: `null`
   final String drugName;
 
-  /// Example: `null`
   final String? dosage;
 
   const Medication({required this.drugName, this.dosage});

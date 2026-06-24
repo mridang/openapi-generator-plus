@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Medication
 {
-    /** @example null */
     #[SerializedName('drugName')]
     public string $drugName;
 
-    /** @example null */
     #[SerializedName('dosage')]
     public ?string $dosage = null;
 

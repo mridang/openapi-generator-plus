@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class WetFood
 {
-    /** @example null */
     #[SerializedName('volumeMl')]
     public int $volumeMl;
 
-    /** @example null */
     #[SerializedName('foodType')]
     public string $foodType = 'wet';
 

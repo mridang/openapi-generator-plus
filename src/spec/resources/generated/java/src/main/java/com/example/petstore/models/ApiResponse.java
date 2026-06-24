@@ -28,17 +28,17 @@ import javax.annotation.Nullable;
 })
 public class ApiResponse {
 
-  /** Example: {@code null} */
+  /** The {@code code} property. */
   @JsonProperty("code")
   @Nullable
   public Integer code;
 
-  /** Example: {@code null} */
+  /** The {@code type} property. */
   @JsonProperty("type")
   @Nullable
   public String type;
 
-  /** Example: {@code null} */
+  /** The {@code message} property. */
   @JsonProperty("message")
   @Nullable
   public String message;

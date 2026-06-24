@@ -17,37 +17,27 @@ import 'color.dart';
 
 /// EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
 class EdgeCases {
-  /// Example: `null`
   final Object? freeFormAny;
 
-  /// Example: `null`
   final Color? favoriteColor;
 
   /// Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
-  /// Example: `null`
   final String? permissionsNote;
 
-  /// Example: `null`
   final bool? and;
 
-  /// Example: `null`
   final bool? or;
 
-  /// Example: `null`
   final bool? not;
 
-  /// Example: `null`
   final String? class_;
 
-  /// Example: `null`
   final String? return_;
 
   /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
-  /// Example: `null`
   final Duration? retryAfter;
 
   /// Absolute expiry instant
-  /// Example: `null`
   final DateTime? expiresAt;
 
   const EdgeCases({

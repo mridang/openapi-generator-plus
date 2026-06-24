@@ -22,13 +22,10 @@ export class Defaults {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "retries" })
   retries?: number = 3;
-  /** @example null */
   @Expose({ name: "mode" })
   mode?: DefaultsModeEnum = DefaultsModeEnum.Medium;
-  /** @example null */
   @Expose({ name: "label" })
   label?: string = "untitled";
 

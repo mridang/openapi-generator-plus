@@ -24,15 +24,12 @@ export class StockItem {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "priority" })
   priority!: Priority;
-  /** @example null */
   @Expose({ name: "availability" })
   availability?: Availability;
   /**
    * Quantity grid as an array of integer arrays
-   * @example null
    */
   @Expose({ name: "matrix" })
   matrix?: Array<Array<number>>;

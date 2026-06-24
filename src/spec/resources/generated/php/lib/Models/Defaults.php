@@ -25,15 +25,12 @@ enum DefaultsModeEnum: string
 
 class Defaults
 {
-    /** @example null */
     #[SerializedName('retries')]
     public int $retries = 3;
 
-    /** @example null */
     #[SerializedName('mode')]
     public DefaultsModeEnum $mode = DefaultsModeEnum::MEDIUM;
 
-    /** @example null */
     #[SerializedName('label')]
     public ?string $label = 'untitled';
 

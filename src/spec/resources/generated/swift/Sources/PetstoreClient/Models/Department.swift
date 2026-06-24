@@ -9,9 +9,7 @@ import Foundation
 
 /// Department is a model class generated from the OpenAPI schema.
 public struct Department: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var name: String
-  /// Example: `null`
   @Indirect public var lead: Employee?
 
   enum CodingKeys: String, CodingKey {

@@ -9,12 +9,9 @@ import Foundation
 
 /// StockItem is a model class generated from the OpenAPI schema.
 public struct StockItem: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var priority: Priority
-  /// Example: `null`
   public var availability: Availability?
   /// Quantity grid as an array of integer arrays
-  /// Example: `null`
   public var matrix: [[Int]]?
 
   enum CodingKeys: String, CodingKey {

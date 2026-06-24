@@ -81,6 +81,44 @@ class TestDateTimeSubSecondPrecision:
         assert restored.taken_at == instant
 
 
+class TestContainerDatetimeAwareDecodeRule:
+    """M11 — the top-level / container ``datetime`` decode path enforces the
+    SAME tz-awareness rule that model fields apply via pydantic AwareDatetime.
+
+    dateutil.parser.parse would otherwise return a NAIVE datetime for an
+    offset-less string, letting a container-typed value (List[datetime] /
+    Dict[str, datetime]) slip through naive while the identical value on a
+    model field is rejected. Both paths must decode by one consistent rule.
+    """
+
+    def test_container_datetime_accepts_offset_aware(self) -> None:
+        result = ObjectSerializer()._deserialize(
+            "2024-01-01T12:30:45+00:00", "datetime"
+        )
+        assert isinstance(result, datetime.datetime)
+        assert result.tzinfo is not None
+
+    def test_container_datetime_accepts_zulu(self) -> None:
+        result = ObjectSerializer()._deserialize("2024-01-01T12:30:45Z", "datetime")
+        assert result.tzinfo is not None
+
+    def test_container_datetime_rejects_naive(self) -> None:
+        # The bug: a naive (offset-less) instant used to be accepted on this
+        # path while AwareDatetime model fields reject it. It must now raise.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize("2024-01-01T12:30:45", "datetime")
+
+    def test_awaredatetime_alias_rejects_naive(self) -> None:
+        # The 'AwareDatetime' type name resolves to the same decode rule.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize("2024-01-01T12:30:45", "AwareDatetime")
+
+    def test_list_of_datetime_rejects_naive_element(self) -> None:
+        # The container path (List[datetime]) shares the same rule element-wise.
+        with pytest.raises((ValueError, SerializationError)):
+            ObjectSerializer()._deserialize(["2024-01-01T12:30:45"], "List[datetime]")
+
+
 class TestNonAsciiSerialization:
     def test_accented_character_not_unicode_escaped(self) -> None:
         result = ObjectSerializer().serialize("café")

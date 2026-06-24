@@ -27,11 +27,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 })
 public class WetFood extends PetFood {
 
-  /** Example: {@code null} */
+  /** The {@code foodType} property. */
   @JsonProperty("foodType")
   public String foodType = "wet";
 
-  /** Example: {@code null} */
+  /** The {@code volumeMl} property. */
   @JsonProperty("volumeMl")
   public Integer volumeMl;
 

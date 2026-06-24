@@ -73,17 +73,17 @@ public class Defaults {
     }
   }
 
-  /** Example: {@code null} */
+  /** The {@code retries} property. */
   @JsonProperty("retries")
   @Nullable
   public Integer retries = 3;
 
-  /** Example: {@code null} */
+  /** The {@code mode} property. */
   @JsonProperty("mode")
   @Nullable
   public ModeEnum mode = ModeEnum.MEDIUM;
 
-  /** Example: {@code null} */
+  /** The {@code label} property. */
   @JsonProperty("label")
   @Nullable
   public String label = "untitled";

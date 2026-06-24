@@ -32,21 +32,16 @@ pub struct PetWithOwner {
     /// Example: `doggie`
     #[serde(rename = "name")]
     pub name: String,
-    /// Example: `null`
     #[serde(rename = "category", skip_serializing_if = "Option::is_none")]
     pub category: Option<Category>,
-    /// Example: `null`
     #[serde(rename = "photoUrls")]
     pub photo_urls: std::collections::HashSet<String>,
-    /// Example: `null`
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
     /// pet status in the store
-    /// Example: `null`
     #[deprecated]
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<PetWithOwnerStatusEnum>,
-    /// Example: `null`
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
     pub location: Option<Vec<crate::json_value::JsonValue>>,
     /// Absolute URL to the pet's public profile page
@@ -61,14 +56,12 @@ pub struct PetWithOwner {
     /// Example: `https://example.com/pets/{id}/photos{?size}`
     #[serde(rename = "linkTemplate", skip_serializing_if = "Option::is_none")]
     pub link_template: Option<String>,
-    /// Example: `null`
     #[serde(rename = "ownerEmail", skip_serializing_if = "Option::is_none")]
     pub owner_email: Option<String>,
     /// Pet weight in kilograms (decimal precision)
     /// Example: `12.345`
     #[serde(rename = "weightKg", skip_serializing_if = "Option::is_none")]
     pub weight_kg: Option<f64>,
-    /// Example: `null`
     #[serde(rename = "ownerName")]
     pub owner_name: String,
 }

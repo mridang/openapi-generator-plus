@@ -36,7 +36,6 @@ class Pet
     #[SerializedName('name')]
     public string $name;
 
-    /** @example null */
     #[SerializedName('category')]
     public ?\PetstoreClient\Models\Category $category = null;
 
@@ -50,7 +49,6 @@ class Pet
 
     /**
      * pet status in the store
-     * @example null
      * @deprecated This property is deprecated.
      */
     #[SerializedName('status')]

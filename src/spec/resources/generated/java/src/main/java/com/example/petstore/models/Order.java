@@ -89,7 +89,7 @@ public class Order {
   @Nullable
   public Integer quantity;
 
-  /** Example: {@code null} */
+  /** The {@code shipDate} property. */
   @JsonProperty("shipDate")
   @Nullable
   public OffsetDateTime shipDate;
@@ -103,7 +103,7 @@ public class Order {
   @Nullable
   public StatusEnum status = StatusEnum.PLACED;
 
-  /** Example: {@code null} */
+  /** The {@code complete} property. */
   @JsonProperty("complete")
   @Nullable
   public Boolean complete;

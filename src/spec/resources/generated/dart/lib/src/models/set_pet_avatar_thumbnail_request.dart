@@ -67,12 +67,19 @@ class SetPetAvatarThumbnailRequest {
     }
   }
 
+  /// Value-equality on the decoded payload. The wrapped value may be a
+  /// [Uint8List] (byte variant) or a [List] (array variant), whose built-in
+  /// `==` is identity — so two unions decoded from identical wire bytes would
+  /// otherwise compare unequal. `DeepCollectionEquality` compares those
+  /// element-wise (and falls back to `==` for scalar/object variants), so
+  /// equal payloads compare equal and hash equally.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is SetPetAvatarThumbnailRequest && _value == other._value;
+    return other is SetPetAvatarThumbnailRequest &&
+        const DeepCollectionEquality().equals(_value, other._value);
   }
 
   @override
-  int get hashCode => _value.hashCode;
+  int get hashCode => const DeepCollectionEquality().hash(_value);
 }

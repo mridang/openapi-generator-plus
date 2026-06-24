@@ -81,12 +81,10 @@ module PetstoreClient
       attribute :pet_id, Types::Any.optional.meta(omittable: true)
       # @example 7
       attribute :quantity, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :ship_date, Types::Any.optional.meta(omittable: true)
       # Order Status
       # @example approved
       attribute :status, Types::String.enum('placed', 'approved', 'delivered').optional.meta(omittable: true).default('placed')
-      # @example null
       attribute :complete, Types::Any.optional.meta(omittable: true)
     end
   end

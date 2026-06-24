@@ -28,22 +28,22 @@ import javax.annotation.Nullable;
 })
 public class Photo {
 
-  /** Example: {@code null} */
+  /** The {@code id} property. */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
-  /** Example: {@code null} */
+  /** The {@code caption} property. */
   @JsonProperty("caption")
   @Nullable
   public String caption;
 
-  /** Example: {@code null} */
+  /** The {@code isPrimary} property. */
   @JsonProperty("isPrimary")
   @Nullable
   public Boolean isPrimary;
 
-  /** Example: {@code null} */
+  /** The {@code url} property. */
   @JsonProperty("url")
   @Nullable
   public String url;

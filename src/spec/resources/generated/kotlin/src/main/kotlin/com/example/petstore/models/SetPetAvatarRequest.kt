@@ -18,11 +18,7 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class SetPetAvatarRequest(
-    /**
-     * Base64-encoded image data
-     *
-     * Example: `null`
-     */
+    /** Base64-encoded image data */
     @SerialName("data")
     val _data: ByteArray,
     /** Example: `image/jpeg` */

@@ -11,10 +11,8 @@ use serde::{Deserialize, Serialize};
 /// TreeNode is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct TreeNode {
-    /// Example: `null`
     #[serde(rename = "value")]
     pub value: String,
-    /// Example: `null`
     #[serde(rename = "child", skip_serializing_if = "Option::is_none")]
     pub child: Option<Box<TreeNode>>,
 }

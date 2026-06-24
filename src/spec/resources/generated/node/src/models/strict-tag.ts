@@ -22,10 +22,8 @@ export class StrictTag {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "id" })
   id?: number;
-  /** @example null */
   @Expose({ name: "name" })
   name?: string;
 

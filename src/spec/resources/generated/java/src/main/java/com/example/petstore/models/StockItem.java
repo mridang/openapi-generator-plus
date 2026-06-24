@@ -30,20 +30,16 @@ import javax.annotation.Nullable;
 })
 public class StockItem {
 
-  /** Example: {@code null} */
+  /** The {@code priority} property. */
   @JsonProperty("priority")
   public Priority priority;
 
-  /** Example: {@code null} */
+  /** The {@code availability} property. */
   @JsonProperty("availability")
   @Nullable
   public Availability availability;
 
-  /**
-   * Quantity grid as an array of integer arrays
-   *
-   * <p>Example: {@code null}
-   */
+  /** Quantity grid as an array of integer arrays */
   @JsonProperty("matrix")
   @Nullable
   public List<List<Integer>> matrix = new ArrayList<>();

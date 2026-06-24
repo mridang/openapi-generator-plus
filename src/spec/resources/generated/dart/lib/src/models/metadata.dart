@@ -15,7 +15,6 @@ import '../object_serializer.dart';
 
 /// Metadata is a model class generated from the OpenAPI schema.
 class Metadata {
-  /// Example: `null`
   final DateTime? createdAt;
 
   /// Additional properties not defined in the schema.

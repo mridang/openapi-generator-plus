@@ -21,18 +21,14 @@ import java.time.OffsetDateTime
 
 @Serializable
 data class PhotoMetadata(
-    /** Example: `null` */
     @SerialName("caption")
     val caption: String? = null,
-    /** Example: `null` */
     @SerialName("isPrimary")
     @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val isPrimary: Boolean? = null,
-    /** Example: `null` */
     @SerialName("takenAt")
     @Contextual
     val takenAt: OffsetDateTime? = null,
-    /** Example: `null` */
     @SerialName("location")
     val location: PhotoMetadataLocation? = null,
 )

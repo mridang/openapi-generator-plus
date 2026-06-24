@@ -22,11 +22,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
  */
 class Tag
 {
-    /** @example null */
     #[SerializedName('id')]
     public ?int $id = null;
 
-    /** @example null */
     #[SerializedName('name')]
     public ?string $name = null;
 

@@ -29,22 +29,22 @@ import javax.annotation.Nullable;
 })
 public class PhotoMetadata {
 
-  /** Example: {@code null} */
+  /** The {@code caption} property. */
   @JsonProperty("caption")
   @Nullable
   public String caption;
 
-  /** Example: {@code null} */
+  /** The {@code isPrimary} property. */
   @JsonProperty("isPrimary")
   @Nullable
   public Boolean isPrimary;
 
-  /** Example: {@code null} */
+  /** The {@code takenAt} property. */
   @JsonProperty("takenAt")
   @Nullable
   public OffsetDateTime takenAt;
 
-  /** Example: {@code null} */
+  /** The {@code location} property. */
   @JsonProperty("location")
   @Nullable
   public PhotoMetadataLocation location;

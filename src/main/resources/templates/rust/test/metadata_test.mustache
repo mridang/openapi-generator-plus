@@ -263,3 +263,40 @@ fn test_cargo_manifest_declares_non_empty_description() {
         "description must not be empty"
     );
 }
+
+// L1 example-null-doc-pollution: a property whose schema declares no `example`
+// must NOT emit a `/// Example: `null`` doc line. OpenAPI Generator core seeds
+// CodegenProperty.example with the bare string "null" when the spec omits an
+// example, and that string is truthy in Mustache, so an unguarded model
+// template would stamp a false null-example claim onto nearly every field. The
+// Rust generator nulls that literal out before rendering, so no generated model
+// source should carry the bogus doc text. Scan every model file to guard the
+// whole crate, not just one struct.
+#[test]
+fn test_generated_models_have_no_null_example_doc() {
+    let models_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/models");
+    let entries =
+        std::fs::read_dir(&models_dir).expect("failed to read src/models directory");
+
+    let mut scanned = 0usize;
+    for entry in entries {
+        let path = entry.expect("failed to read directory entry").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        let contents =
+            std::fs::read_to_string(&path).expect("failed to read model source file");
+        scanned += 1;
+        assert!(
+            !contents.contains("Example: `null`"),
+            "generated model {:?} must not contain a `Example: `null`` doc line",
+            path
+        );
+    }
+
+    assert!(
+        scanned > 0,
+        "expected at least one generated model source file to scan"
+    );
+}

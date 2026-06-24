@@ -40,8 +40,6 @@ public class TreeNode : IEquatable<TreeNode>
         this.Value = value;
     }
 
-    /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("value")]
     public required string Value
@@ -52,7 +50,6 @@ public class TreeNode : IEquatable<TreeNode>
 
     private readonly string _value = null!;
 
-    /// <example>null</example>
     [JsonPropertyName("child")]
     public TreeNode? Child { get; set; }
 

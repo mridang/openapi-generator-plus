@@ -663,13 +663,16 @@ internal class ObjectSerializer(
 
             private fun format(value: Duration): String {
                 // Derive whole seconds and a non-negative nanosecond remainder
-                // from a single signed total so the sign stays coherent (mirrors
-                // the protobuf-JSON encoders in the other SDKs).
-                val totalNanos = value.toNanos()
-                val sign = if (totalNanos < 0) "-" else ""
-                val absNanos = Math.abs(totalNanos)
-                val secs = absNanos / 1_000_000_000L
-                val nanos = absNanos % 1_000_000_000L
+                // from Duration.abs() so the sign stays coherent (mirrors the
+                // protobuf-JSON encoders in the other SDKs). Using getSeconds() /
+                // getNano() — NOT toNanos() — avoids the ArithmeticException
+                // toNanos() throws once the duration exceeds ~292 years (Long
+                // nanosecond overflow); parse() accepts arbitrarily large second
+                // counts, so a value that deserializes fine must also re-serialize.
+                val sign = if (value.isNegative) "-" else ""
+                val abs = value.abs()
+                val secs = abs.seconds
+                val nanos = abs.nano.toLong()
                 if (nanos == 0L) {
                     return "$sign${secs}s"
                 }
@@ -783,6 +786,25 @@ internal class ObjectSerializer(
                 is JsonArray -> element.map { fromJsonElement(it) }
             }
 
+        // The contextual (de)serializers for OpenAPI formats (date-time, date,
+        // decimal, uuid, uri, duration, free-form Any). Exposed @PublishedApi
+        // internal so a generated model's strict parser — e.g. parseStrict() on
+        // an unevaluatedProperties:false model with a @Contextual field — can
+        // reuse it. Building a bare `Json {}` without this module throws
+        // "serializer not found" for any @Contextual property, so the strict
+        // path must copy the same module the SDK uses for normal decoding.
+        @PublishedApi
+        internal val contextualSerializersModule: SerializersModule =
+            SerializersModule {
+                contextual(OffsetDateTimeSerializer)
+                contextual(LocalDateSerializer)
+                contextual(BigDecimalSerializer)
+                contextual(UuidSerializer)
+                contextual(KtorUrlSerializer)
+                contextual(DurationSerializer)
+                contextual(Any::class, AnySerializer)
+            }
+
         private fun createDefaultJson(): Json =
             Json {
                 ignoreUnknownKeys = true
@@ -808,16 +830,7 @@ internal class ObjectSerializer(
                 // Gap AJ: removed `coerceInputValues = true` for the same
                 // reason — coercing missing values to defaults masked the
                 // required-field violation. Default is false (strict).
-                serializersModule =
-                    SerializersModule {
-                        contextual(OffsetDateTimeSerializer)
-                        contextual(LocalDateSerializer)
-                        contextual(BigDecimalSerializer)
-                        contextual(UuidSerializer)
-                        contextual(KtorUrlSerializer)
-                        contextual(DurationSerializer)
-                        contextual(Any::class, AnySerializer)
-                    }
+                serializersModule = contextualSerializersModule
             }
     }
 }

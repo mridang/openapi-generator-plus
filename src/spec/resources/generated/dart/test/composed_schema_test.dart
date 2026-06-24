@@ -243,5 +243,63 @@ void main() {
         expect(req.toJson(), equals(wire));
       },
     );
+
+    test('SetPetAvatarThumbnailRequest byte unions decoded from identical wire '
+        'bytes are value-equal and hash equally', () {
+      // M5 regression: the scalar `byte` variant decodes to a fresh Uint8List
+      // per call, whose built-in `==` is identity. Two unions built from the
+      // SAME base64 wire string must still compare equal and hash equally —
+      // otherwise they wrongly collide in Sets/Maps. The union ==/hashCode
+      // must use DeepCollectionEquality, like the rest of the SDK.
+      final wire = base64Encode(Uint8List.fromList(<int>[0x01, 0x02, 0x03]));
+
+      final a = SetPetAvatarThumbnailRequest.fromJson(wire);
+      final b = SetPetAvatarThumbnailRequest.fromJson(wire);
+
+      // Distinct underlying Uint8List instances (identity-unequal)...
+      expect(identical(a.value, b.value), isFalse);
+      // ...but the unions are value-equal and hash-consistent.
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+      // Usable as a Set key without duplicating.
+      expect(<SetPetAvatarThumbnailRequest>{a, b}, hasLength(1));
+    });
+
+    test(
+      'SetPetAvatarThumbnailRequest array unions decoded from identical wire '
+      'bytes are value-equal and hash equally',
+      () {
+        // M5 regression for the ARRAY variant (List<Uint8List>): nested byte
+        // lists are still identity-compared by Dart's built-in `==`, so the
+        // union must deep-compare them too.
+        final wire = <String>[
+          base64Encode(Uint8List.fromList(<int>[1, 2])),
+          base64Encode(Uint8List.fromList(<int>[3, 4])),
+        ];
+
+        final a = SetPetAvatarThumbnailRequest.fromJson(wire);
+        final b = SetPetAvatarThumbnailRequest.fromJson(wire);
+
+        expect(identical(a.value, b.value), isFalse);
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      },
+    );
+
+    test(
+      'SetPetAvatarThumbnailRequest unions with differing bytes are unequal',
+      () {
+        // Sanity: deep-equality must still distinguish genuinely different
+        // payloads — the fix must not collapse all unions to "equal".
+        final a = SetPetAvatarThumbnailRequest.fromJson(
+          base64Encode(Uint8List.fromList(<int>[1, 2, 3])),
+        );
+        final b = SetPetAvatarThumbnailRequest.fromJson(
+          base64Encode(Uint8List.fromList(<int>[9, 9, 9])),
+        );
+
+        expect(a, isNot(equals(b)));
+      },
+    );
   });
 }

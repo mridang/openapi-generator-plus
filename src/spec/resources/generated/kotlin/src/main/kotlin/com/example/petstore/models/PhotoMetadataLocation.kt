@@ -18,11 +18,9 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class PhotoMetadataLocation(
-    /** Example: `null` */
     @SerialName("lat")
     @Serializable(with = com.example.petstore.StrictDoubleSerializer::class)
     val lat: Double? = null,
-    /** Example: `null` */
     @SerialName("lng")
     @Serializable(with = com.example.petstore.StrictDoubleSerializer::class)
     val lng: Double? = null,

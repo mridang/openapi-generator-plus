@@ -18,14 +18,11 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class Defaults(
-    /** Example: `null` */
     @SerialName("retries")
     @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val retries: Int? = 3,
-    /** Example: `null` */
     @SerialName("mode")
     val mode: ModeEnum? = ModeEnum.MEDIUM,
-    /** Example: `null` */
     @SerialName("label")
     val label: String? = "untitled",
 ) {

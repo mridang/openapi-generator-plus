@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 /// PetPassport is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PetPassport {
-    /// Example: `null`
     #[serde(rename = "pet", skip_serializing_if = "Option::is_none")]
     pub pet: Option<Pet>,
     /// Base64-encoded primary thumbnail
@@ -24,7 +23,6 @@ pub struct PetPassport {
     )]
     pub thumbnail: Option<Vec<u8>>,
     /// Base64-encoded scans of each passport page
-    /// Example: `null`
     #[serde(
         rename = "scans",
         skip_serializing_if = "Option::is_none",
@@ -32,11 +30,9 @@ pub struct PetPassport {
         with = "super::base64_serde::vec_option"
     )]
     pub scans: Option<Vec<Vec<u8>>>,
-    /// Example: `null`
     #[serde(rename = "issuedAt", skip_serializing_if = "Option::is_none")]
     pub issued_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-    /// Example: `null`
     #[serde(
         rename = "biometricChip",
         skip_serializing_if = "Option::is_none",

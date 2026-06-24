@@ -37,11 +37,9 @@ class Order
     #[SerializedName('quantity')]
     public ?int $quantity = null;
 
-    /** @example null */
     #[SerializedName('shipDate')]
     public ?\DateTime $shipDate = null;
 
-    /** @example null */
     #[SerializedName('complete')]
     public ?bool $complete = null;
 

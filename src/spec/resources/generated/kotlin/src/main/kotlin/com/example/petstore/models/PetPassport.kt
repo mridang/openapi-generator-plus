@@ -22,7 +22,6 @@ import kotlin.collections.List
 
 @Serializable
 data class PetPassport(
-    /** Example: `null` */
     @SerialName("pet")
     val pet: Pet? = null,
     /**
@@ -32,22 +31,13 @@ data class PetPassport(
      */
     @SerialName("thumbnail")
     val thumbnail: ByteArray? = null,
-    /**
-     * Base64-encoded scans of each passport page
-     *
-     * Example: `null`
-     */
+    /** Base64-encoded scans of each passport page */
     @SerialName("scans")
     val scans: List<ByteArray>? = mutableListOf(),
-    /** Example: `null` */
     @SerialName("issuedAt")
     @Contextual
     val issuedAt: OffsetDateTime? = null,
-    /**
-     * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-     *
-     * Example: `null`
-     */
+    /** Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream */
     @SerialName("biometricChip")
     val biometricChip: ByteArray? = null,
 ) {

@@ -1051,9 +1051,6 @@ class PetApi extends BaseApi
         if ($name === '') {
             throw new \InvalidArgumentException("Missing the required parameter 'name' when calling getPetByName");
         }
-        if ($options->category === '') {
-            throw new \InvalidArgumentException("Missing the required parameter 'category' when calling getPetByName");
-        }
         $path = '/pet/byName/{name}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(
@@ -1076,7 +1073,8 @@ class PetApi extends BaseApi
         $path = str_replace('{' . 'name' . '}', $pathValue, $path);
         $queryParams = [];
         /* Required query param: always present (non-nullable on the Options
-         * object and empty-guarded above), so it is emitted unconditionally. */
+         * object), so it is emitted unconditionally. An empty string is a
+         * legitimate value and is sent as-is. */
         $queryParams['category'] = ValueSerializer::serializeStyled('category', $options->category, 'query', 'string', null, 'form', true);
         $headerParams = [];
         $requestBody = null;
@@ -1616,9 +1614,6 @@ class PetApi extends BaseApi
      */
     public function setPetPreferencesWithHttpInfo(int $petId, SetPetPreferencesOptions $options): ApiResult
     {
-        if ($options->nickname === '') {
-            throw new \InvalidArgumentException("Missing the required parameter 'nickname' when calling setPetPreferences");
-        }
         $path = '/pet/{petId}/preferences';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(

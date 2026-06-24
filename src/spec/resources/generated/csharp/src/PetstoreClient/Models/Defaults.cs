@@ -59,15 +59,12 @@ public class Defaults : IEquatable<Defaults>
         }
     }
 
-    /// <example>null</example>
     [JsonPropertyName("retries")]
     public int? Retries { get; set; } = 3;
 
-    /// <example>null</example>
     [JsonPropertyName("mode")]
     public ModeEnum? Mode { get; set; } = ModeEnum.Medium;
 
-    /// <example>null</example>
     [JsonPropertyName("label")]
     public string? Label { get; set; } = "untitled";
 

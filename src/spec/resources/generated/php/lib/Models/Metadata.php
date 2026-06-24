@@ -17,7 +17,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Metadata
 {
-    /** @example null */
     #[SerializedName('createdAt')]
     public ?\DateTime $createdAt = null;
 

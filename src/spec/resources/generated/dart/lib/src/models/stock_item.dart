@@ -18,14 +18,11 @@ import 'priority.dart';
 
 /// StockItem is a model class generated from the OpenAPI schema.
 class StockItem {
-  /// Example: `null`
   final Priority priority;
 
-  /// Example: `null`
   final Availability? availability;
 
   /// Quantity grid as an array of integer arrays
-  /// Example: `null`
   final List<List<int>>? matrix;
 
   const StockItem({required this.priority, this.availability, this.matrix});

@@ -40,8 +40,6 @@ public class Medication : IEquatable<Medication>
         this.DrugName = drugName;
     }
 
-    /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("drugName")]
     public required string DrugName
@@ -52,7 +50,6 @@ public class Medication : IEquatable<Medication>
 
     private readonly string _drugName = null!;
 
-    /// <example>null</example>
     [JsonPropertyName("dosage")]
     public string? Dosage { get; set; }
 

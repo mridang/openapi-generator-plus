@@ -37,26 +37,20 @@ data class Pet(
     /** Example: `doggie` */
     @SerialName("name")
     val name: String,
-    /** Example: `null` */
     @SerialName("category")
     val category: Category? = null,
-    /** Example: `null` */
     @SerialName("photoUrls")
     val photoUrls: Set<String> = mutableSetOf(),
-    /** Example: `null` */
     @SerialName("tags")
     val tags: List<Tag>? = mutableListOf(),
     /**
      * pet status in the store
-     *
-     * Example: `null`
      *
      * @deprecated This property is deprecated.
      */
     @Deprecated("This property is deprecated.")
     @SerialName("status")
     val status: StatusEnum? = null,
-    /** Example: `null` */
     @SerialName("location")
     val location: List<@Contextual Any>? = mutableListOf(),
     /**

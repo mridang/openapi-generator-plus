@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct SetPetAvatarRequest {
     /// Base64-encoded image data
-    /// Example: `null`
     #[serde(rename = "data", with = "super::base64_serde")]
     pub data: Vec<u8>,
     /// Example: `image/jpeg`

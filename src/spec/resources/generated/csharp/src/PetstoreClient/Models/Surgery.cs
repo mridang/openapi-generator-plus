@@ -40,8 +40,6 @@ public class Surgery : IEquatable<Surgery>
         this.ProcedureName = procedureName;
     }
 
-    /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("procedureName")]
     public required string ProcedureName
@@ -52,7 +50,6 @@ public class Surgery : IEquatable<Surgery>
 
     private readonly string _procedureName = null!;
 
-    /// <example>null</example>
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }
 

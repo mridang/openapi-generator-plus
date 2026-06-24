@@ -17,7 +17,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class PetPassport
 {
-    /** @example null */
     #[SerializedName('pet')]
     public ?\PetstoreClient\Models\Pet $pet = null;
 
@@ -31,18 +30,15 @@ class PetPassport
     /**
      * Base64-encoded scans of each passport page
      * @var \Ds\Vector<string>|null
-     * @example null
      */
     #[SerializedName('scans')]
     public ?\Ds\Vector $scans = null;
 
-    /** @example null */
     #[SerializedName('issuedAt')]
     public ?\DateTime $issuedAt = null;
 
     /**
      * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-     * @example null
      */
     #[SerializedName('biometricChip')]
     public ?string $biometricChip = null;

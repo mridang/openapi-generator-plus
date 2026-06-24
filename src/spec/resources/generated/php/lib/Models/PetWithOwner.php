@@ -36,7 +36,6 @@ class PetWithOwner
     #[SerializedName('name')]
     public string $name;
 
-    /** @example null */
     #[SerializedName('category')]
     public ?\PetstoreClient\Models\Category $category = null;
 
@@ -50,7 +49,6 @@ class PetWithOwner
 
     /**
      * pet status in the store
-     * @example null
      * @deprecated This property is deprecated.
      */
     #[SerializedName('status')]
@@ -81,7 +79,6 @@ class PetWithOwner
     #[SerializedName('linkTemplate')]
     public ?string $linkTemplate = null;
 
-    /** @example null */
     #[SerializedName('ownerEmail')]
     public ?string $ownerEmail = null;
 
@@ -92,7 +89,6 @@ class PetWithOwner
     #[SerializedName('weightKg')]
     public ?float $weightKg = null;
 
-    /** @example null */
     #[SerializedName('ownerName')]
     public string $ownerName;
 

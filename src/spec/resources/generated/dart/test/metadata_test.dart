@@ -122,4 +122,37 @@ void main() {
       },
     );
   });
+
+  group('Model doc comments', () {
+    test('no generated model claims a literal `null` example', () {
+      // L1 regression: when the spec declares no example, the codegen fills
+      // the property example with the literal string `null`, which is truthy
+      // in Mustache. Without a guard, nearly every field would carry a false
+      // `/// Example: `null`` doc line. The model template gates that line so
+      // it is emitted ONLY for a genuine example. Assert NO generated model
+      // file contains the polluting doc text.
+      final modelsDir = Directory('${Directory.current.path}/lib/src/models');
+      expect(
+        modelsDir.existsSync(),
+        isTrue,
+        reason: 'generated models directory must exist',
+      );
+
+      final offenders = <String>[];
+      for (final entity in modelsDir.listSync()) {
+        if (entity is File && entity.path.endsWith('.dart')) {
+          final contents = entity.readAsStringSync();
+          if (contents.contains('Example: `null`')) {
+            offenders.add(entity.path);
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason: 'these models stamp a false null example: $offenders',
+      );
+    });
+  });
 }

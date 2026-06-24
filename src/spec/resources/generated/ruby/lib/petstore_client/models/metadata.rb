@@ -74,7 +74,6 @@ module PetstoreClient
       # original JSON key; values are typed via ADDITIONAL_PROPERTIES_TYPE
       # when one is declared.
       attribute :additional_properties, Types::Hash.optional.meta(omittable: true)
-      # @example null
       attribute :created_at, Types::Any.optional.meta(omittable: true)
     end
   end

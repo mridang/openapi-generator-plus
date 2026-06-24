@@ -79,18 +79,14 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
-      # @example null
       attribute :pet, Types::Any.optional.meta(omittable: true)
       # Base64-encoded primary thumbnail
       # @example dGVzdC10aHVtYm5haWw=
       attribute :thumbnail, Types::Any.optional.meta(omittable: true)
       # Base64-encoded scans of each passport page
-      # @example null
       attribute :scans, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :issued_at, Types::Any.optional.meta(omittable: true)
       # Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-      # @example null
       attribute :biometric_chip, Types::Any.optional.meta(omittable: true)
     end
   end

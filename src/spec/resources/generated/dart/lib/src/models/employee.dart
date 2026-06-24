@@ -17,10 +17,8 @@ import 'department.dart';
 
 /// Employee is a model class generated from the OpenAPI schema.
 class Employee {
-  /// Example: `null`
   final String name;
 
-  /// Example: `null`
   final Department? department;
 
   const Employee({required this.name, this.department});

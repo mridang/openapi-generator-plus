@@ -28,11 +28,11 @@ import javax.annotation.Nullable;
 })
 public class TreeNode {
 
-  /** Example: {@code null} */
+  /** The {@code value} property. */
   @JsonProperty("value")
   public String value;
 
-  /** Example: {@code null} */
+  /** The {@code child} property. */
   @JsonProperty("child")
   @Nullable
   public TreeNode child;

@@ -71,7 +71,6 @@ public class Order : IEquatable<Order>
     [JsonPropertyName("quantity")]
     public int? Quantity { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("shipDate")]
     public DateTimeOffset? ShipDate { get; set; }
 
@@ -82,7 +81,6 @@ public class Order : IEquatable<Order>
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; } = StatusEnum.Placed;
 
-    /// <example>null</example>
     [JsonPropertyName("complete")]
     public bool? Complete { get; set; }
 

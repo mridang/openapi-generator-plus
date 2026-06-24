@@ -21,51 +21,41 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
  */
 class EdgeCases
 {
-    /** @example null */
     #[SerializedName('freeFormAny')]
     public mixed $freeFormAny = null;
 
-    /** @example null */
     #[SerializedName('favoriteColor')]
     public ?\PetstoreClient\Models\Color $favoriteColor = null;
 
     /**
      * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
-     * @example null
      */
     #[SerializedName('permissionsNote')]
     public ?string $permissionsNote = null;
 
-    /** @example null */
     #[SerializedName('and')]
     public ?bool $and_ = null;
 
-    /** @example null */
     #[SerializedName('or')]
     public ?bool $or_ = null;
 
-    /** @example null */
     #[SerializedName('not')]
     public ?bool $not = null;
 
-    /** @example null */
     #[SerializedName('class')]
     public ?string $class_ = null;
 
-    /** @example null */
     #[SerializedName('return')]
     public ?string $return_ = null;
 
     /**
      * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
-     * @example null
      */
     #[SerializedName('retryAfter')]
     public ?\DateInterval $retryAfter = null;
 
     /**
      * Absolute expiry instant
-     * @example null
      */
     #[SerializedName('expiresAt')]
     public ?\DateTime $expiresAt = null;

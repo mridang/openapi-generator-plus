@@ -83,28 +83,18 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
-      # @example null
       attribute :free_form_any, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :favorite_color, Types::Any.optional.meta(omittable: true)
       # Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
-      # @example null
       attribute :permissions_note, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :_and, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :_or, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :_not, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :_class, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :_return, Types::Any.optional.meta(omittable: true)
       # Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
-      # @example null
       attribute :retry_after, Types::Any.optional.meta(omittable: true)
       # Absolute expiry instant
-      # @example null
       attribute :expires_at, Types::Any.optional.meta(omittable: true)
     end
   end

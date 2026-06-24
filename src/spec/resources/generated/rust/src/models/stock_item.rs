@@ -11,14 +11,11 @@ use serde::{Deserialize, Serialize};
 /// StockItem is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct StockItem {
-    /// Example: `null`
     #[serde(rename = "priority")]
     pub priority: Priority,
-    /// Example: `null`
     #[serde(rename = "availability", skip_serializing_if = "Option::is_none")]
     pub availability: Option<Availability>,
     /// Quantity grid as an array of integer arrays
-    /// Example: `null`
     #[serde(rename = "matrix", skip_serializing_if = "Option::is_none")]
     pub matrix: Option<Vec<Vec<i32>>>,
 }

@@ -30,64 +30,52 @@ import javax.annotation.Nullable;
 })
 public class EdgeCases {
 
-  /** Example: {@code null} */
+  /** The {@code freeFormAny} property. */
   @JsonProperty("freeFormAny")
   @Nullable
   public Object freeFormAny;
 
-  /** Example: {@code null} */
+  /** The {@code favoriteColor} property. */
   @JsonProperty("favoriteColor")
   @Nullable
   public Color favoriteColor;
 
-  /**
-   * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
-   *
-   * <p>Example: {@code null}
-   */
+  /** Required permission is "user.grant.write" for <admin> & owner roles (don't skip it) */
   @JsonProperty("permissionsNote")
   @Nullable
   public String permissionsNote;
 
-  /** Example: {@code null} */
+  /** The {@code and} property. */
   @JsonProperty("and")
   @Nullable
   public Boolean and;
 
-  /** Example: {@code null} */
+  /** The {@code or} property. */
   @JsonProperty("or")
   @Nullable
   public Boolean or;
 
-  /** Example: {@code null} */
+  /** The {@code not} property. */
   @JsonProperty("not")
   @Nullable
   public Boolean not;
 
-  /** Example: {@code null} */
+  /** The {@code _class} property. */
   @JsonProperty("class")
   @Nullable
   public String _class;
 
-  /** Example: {@code null} */
+  /** The {@code _return} property. */
   @JsonProperty("return")
   @Nullable
   public String _return;
 
-  /**
-   * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
-   *
-   * <p>Example: {@code null}
-   */
+  /** Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
   @JsonProperty("retryAfter")
   @Nullable
   public Duration retryAfter;
 
-  /**
-   * Absolute expiry instant
-   *
-   * <p>Example: {@code null}
-   */
+  /** Absolute expiry instant */
   @JsonProperty("expiresAt")
   @Nullable
   public OffsetDateTime expiresAt;

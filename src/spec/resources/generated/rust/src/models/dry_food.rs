@@ -11,14 +11,12 @@ use serde::{Deserialize, Serialize};
 /// DryFood is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct DryFood {
-    /// Example: `null`
     // Discriminator field — always present on the wire so the parent
     // untagged enum can dispatch. Initialised by `new()` to the
     // mapping value; left as a plain (non-Option) field so callers
     // can read it without unwrapping.
     #[serde(rename = "foodType")]
     pub food_type: String,
-    /// Example: `null`
     #[serde(rename = "weightKg")]
     pub weight_kg: f64,
 }

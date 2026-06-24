@@ -28,12 +28,12 @@ import javax.annotation.Nullable;
 })
 public class PhotoMetadataLocation {
 
-  /** Example: {@code null} */
+  /** The {@code lat} property. */
   @JsonProperty("lat")
   @Nullable
   public Double lat;
 
-  /** Example: {@code null} */
+  /** The {@code lng} property. */
   @JsonProperty("lng")
   @Nullable
   public Double lng;

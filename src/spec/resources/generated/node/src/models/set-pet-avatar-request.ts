@@ -24,7 +24,6 @@ export class SetPetAvatarRequest {
 
   /**
    * Base64-encoded image data
-   * @example null
    */
   @Expose({ name: "data" })
   /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */

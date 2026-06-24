@@ -22,10 +22,8 @@ export class TreeNode {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "value" })
   value!: string;
-  /** @example null */
   @Expose({ name: "child" })
   @Type(() => TreeNode)
   child?: TreeNode;

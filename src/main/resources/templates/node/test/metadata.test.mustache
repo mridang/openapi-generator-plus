@@ -17,6 +17,26 @@ describe('package.json manifest', () => {
   });
 });
 
+describe('generated model docblocks (L1 parity)', () => {
+  test('no generated model carries a literal "@example null" / "Example: null" doc line', () => {
+    // A property whose schema example is the JSON null literal must not leak a
+    // useless `@example null` JSDoc line into the generated model. The shared
+    // codegen nulls such an example so the template's example section is
+    // falsy and emits nothing; this asserts that contract holds across every
+    // generated model file rather than re-appearing as documentation noise.
+    const modelsDir = path.resolve(__dirname, '..', 'src', 'models');
+    const modelFiles = fs
+      .readdirSync(modelsDir)
+      .filter((f) => f.endsWith('.ts') && f !== 'index.ts');
+    expect(modelFiles.length).toBeGreaterThan(0);
+    for (const file of modelFiles) {
+      const source = fs.readFileSync(path.join(modelsDir, file), 'utf-8');
+      expect(source).not.toMatch(/@example\s+null\b/);
+      expect(source).not.toMatch(/Example:\s+null\b/);
+    }
+  });
+});
+
 describe('Metadata model (typed additionalProperties)', () => {
   test('serializes empty metadata', () => {
     const metadata = new Metadata();

@@ -22,10 +22,8 @@ export class Medication {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "drugName" })
   drugName!: string;
-  /** @example null */
   @Expose({ name: "dosage" })
   dosage?: string;
 

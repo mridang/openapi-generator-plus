@@ -50,4 +50,32 @@ import Testing
         let data = try JSONEncoder().encode(metadata)
         #expect(!(data.isEmpty))
     }
+
+    @Test func testNoNullExampleDocLine() throws {
+        // Cross-SDK parity guard (L1): a property whose schema carries no example
+        // must not emit a placeholder example doc line whose body is the literal
+        // "null". The codegen supplies the string "null" as the example when the
+        // spec declares none, and "null" is truthy in Mustache, so a naive
+        // example section would stamp "Example: null" / "@example null" onto
+        // nearly every property. The Swift model template never emits a scalar
+        // example doc line, so no generated model should contain that text; this
+        // asserts the invariant against every generated model source.
+        let modelsDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/{{packageName}}/Models")
+
+        let modelFiles = try FileManager.default.contentsOfDirectory(
+            at: modelsDir, includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "swift" }
+        #expect(!(modelFiles.isEmpty))
+
+        let forbidden = ["Example: null", "@example null"]
+        for file in modelFiles {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for needle in forbidden {
+                #expect(
+                    !(source.contains(needle)),
+                    "\(file.lastPathComponent) contains a null example doc line: \(needle)")
+            }
+        }
+    }
 }

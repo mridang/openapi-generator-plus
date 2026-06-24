@@ -69,7 +69,6 @@ module PetstoreClient
       end
 
       # Base64-encoded image data
-      # @example null
       attribute :data, Types::Required
       # @example image/jpeg
       attribute :mime_type, Types::Required

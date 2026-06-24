@@ -23,10 +23,8 @@ export class Department {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "name" })
   name!: string;
-  /** @example null */
   @Expose({ name: "lead" })
   @Type(() => Employee)
   lead?: Employee;

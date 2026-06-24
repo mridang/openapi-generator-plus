@@ -69,11 +69,8 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
-      # @example null
       attribute :retries, Types::Any.optional.meta(omittable: true).default(3)
-      # @example null
       attribute :mode, Types::String.enum('low', 'medium', 'high').optional.meta(omittable: true).default('medium')
-      # @example null
       attribute :label, Types::Any.optional.meta(omittable: true).default('untitled')
     end
   end

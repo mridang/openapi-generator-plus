@@ -15,13 +15,10 @@ import '../object_serializer.dart';
 
 /// ApiResponse is a model class generated from the OpenAPI schema.
 class ApiResponse {
-  /// Example: `null`
   final int? code;
 
-  /// Example: `null`
   final String? type_;
 
-  /// Example: `null`
   final String? message;
 
   const ApiResponse({this.code, this.type_, this.message});

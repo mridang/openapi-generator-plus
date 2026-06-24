@@ -88,24 +88,22 @@ public class PetWithOwner {
   @JsonProperty("name")
   public String name;
 
-  /** Example: {@code null} */
+  /** The {@code category} property. */
   @JsonProperty("category")
   @Nullable
   public Category category;
 
-  /** Example: {@code null} */
+  /** The {@code photoUrls} property. */
   @JsonProperty("photoUrls")
   public Set<String> photoUrls = new LinkedHashSet<>();
 
-  /** Example: {@code null} */
+  /** The {@code tags} property. */
   @JsonProperty("tags")
   @Nullable
   public List<Tag> tags = new ArrayList<>();
 
   /**
    * pet status in the store
-   *
-   * <p>Example: {@code null}
    *
    * @deprecated This property is deprecated.
    */
@@ -114,7 +112,7 @@ public class PetWithOwner {
   @Nullable
   public StatusEnum status;
 
-  /** Example: {@code null} */
+  /** The {@code location} property. */
   @JsonProperty("location")
   @Nullable
   public List<Object> location = new ArrayList<>();
@@ -146,7 +144,7 @@ public class PetWithOwner {
   @Nullable
   public String linkTemplate;
 
-  /** Example: {@code null} */
+  /** The {@code ownerEmail} property. */
   @JsonProperty("ownerEmail")
   @Nullable
   public String ownerEmail;
@@ -160,7 +158,7 @@ public class PetWithOwner {
   @Nullable
   public BigDecimal weightKg;
 
-  /** Example: {@code null} */
+  /** The {@code ownerName} property. */
   @JsonProperty("ownerName")
   public String ownerName;
 

@@ -53,21 +53,18 @@ fn default_label() -> Option<String> {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Defaults {
-    /// Example: `null`
     #[serde(
         rename = "retries",
         default = "default_retries",
         skip_serializing_if = "Option::is_none"
     )]
     pub retries: Option<i32>,
-    /// Example: `null`
     #[serde(
         rename = "mode",
         default = "default_mode",
         skip_serializing_if = "Option::is_none"
     )]
     pub mode: Option<DefaultsModeEnum>,
-    /// Example: `null`
     #[serde(
         rename = "label",
         default = "default_label",

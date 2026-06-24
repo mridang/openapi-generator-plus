@@ -15,10 +15,8 @@ import '../object_serializer.dart';
 
 /// WetFood is a model class generated from the OpenAPI schema.
 class WetFood {
-  /// Example: `null`
   final String foodType;
 
-  /// Example: `null`
   final int volumeMl;
 
   const WetFood({this.foodType = 'wet', required this.volumeMl});

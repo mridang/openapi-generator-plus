@@ -13,11 +13,9 @@ namespace PetstoreClient.Models;
 
 public class StrictTag : IEquatable<StrictTag>
 {
-    /// <example>null</example>
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 

@@ -292,6 +292,14 @@ class ObjectSerializer:
         # path so each element is correctly base64-decoded.
         if name == "bytes":
             return None
+        # ``datetime`` / ``AwareDatetime`` carry an OAS ``format: date-time``
+        # payload whose decode rule must reject NAIVE (offset-less) instants for
+        # parity with the AwareDatetime model fields. A plain
+        # ``TypeAdapter(list[datetime])`` accepts naive values, so keep these on
+        # the recursive element-wise path where the ``datetime.datetime`` branch
+        # of ``_deserialize`` applies the consistent tz-awareness rule.
+        if name in ("datetime", "AwareDatetime"):
+            return None
         if name in self._NATIVE_TYPES_MAPPING:
             return self._NATIVE_TYPES_MAPPING[name]
         resolved = getattr(petstore_client.models, name, None)
@@ -367,7 +375,21 @@ class ObjectSerializer:
         elif klass == datetime.date:
             return parse(data).date()
         elif klass == datetime.datetime:
-            return parse(data)
+            # Item 5 — the top-level / container date-time decode path must
+            # apply the SAME tz-awareness rule that model fields enforce via
+            # pydantic AwareDatetime. dateutil.parser.parse happily returns a
+            # NAIVE datetime for an offset-less string like '2024-01-01T00:00:00',
+            # which would let a container-typed value (e.g. List[datetime] /
+            # Dict[str, datetime]) slip through naive while the identical value
+            # on a model field is rejected. Reject naive results here so both
+            # paths decode by one consistent AwareDatetime rule.
+            parsed = parse(data) if not isinstance(data, datetime.datetime) else data
+            if parsed.tzinfo is None or parsed.tzinfo.utcoffset(parsed) is None:
+                raise ValueError(
+                    "Naive datetime is not allowed; an offset-aware date-time "
+                    "(AwareDatetime) is required"
+                )
+            return parsed
         elif klass == datetime.time:
             if isinstance(data, datetime.time):
                 return data

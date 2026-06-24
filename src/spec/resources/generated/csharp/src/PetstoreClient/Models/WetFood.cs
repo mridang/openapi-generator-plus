@@ -40,11 +40,8 @@ public class WetFood : PetFood, IEquatable<WetFood>
         this.VolumeMl = volumeMl;
     }
 
-    /// <example>null</example>
     [JsonPropertyName("foodType")]
     public string FoodType { get; set; } = "wet";
-
-    /// <example>null</example>
 
     [JsonRequired]
     [JsonPropertyName("volumeMl")]

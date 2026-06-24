@@ -18,10 +18,8 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class TreeNode(
-    /** Example: `null` */
     @SerialName("value")
     val _value: String,
-    /** Example: `null` */
     @SerialName("child")
     val child: TreeNode? = null,
 )

@@ -13,7 +13,6 @@ namespace PetstoreClient.Models;
 
 public class Metadata : IEquatable<Metadata>
 {
-    /// <example>null</example>
     [JsonPropertyName("createdAt")]
     public DateTimeOffset? CreatedAt { get; set; }
 

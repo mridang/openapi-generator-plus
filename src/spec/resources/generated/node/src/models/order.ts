@@ -31,7 +31,6 @@ export class Order {
   /** @example 7 */
   @Expose({ name: "quantity" })
   quantity?: number;
-  /** @example null */
   @Expose({ name: "shipDate" })
   @Type(() => Date)
   shipDate?: Date;
@@ -41,7 +40,6 @@ export class Order {
    */
   @Expose({ name: "status" })
   status?: OrderStatusEnum = OrderStatusEnum.Placed;
-  /** @example null */
   @Expose({ name: "complete" })
   complete?: boolean;
 

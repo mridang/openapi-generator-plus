@@ -670,9 +670,8 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) =>
         ObjectSerializer.deserializeArray(json, (x: unknown) =>
-          ObjectSerializer.deserializeMap(
-            x,
-            (x: unknown) => new Date(x as string),
+          ObjectSerializer.deserializeMap(x, (x: unknown) =>
+            x === null || x === undefined ? null : new Date(x as string),
           ),
         ),
       null,

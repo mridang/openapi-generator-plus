@@ -17,19 +17,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Photo
 {
-    /** @example null */
     #[SerializedName('id')]
     public ?int $id = null;
 
-    /** @example null */
     #[SerializedName('caption')]
     public ?string $caption = null;
 
-    /** @example null */
     #[SerializedName('isPrimary')]
     public ?bool $isPrimary = null;
 
-    /** @example null */
     #[SerializedName('url')]
     public ?string $url = null;
 

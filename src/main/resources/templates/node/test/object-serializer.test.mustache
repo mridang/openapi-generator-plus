@@ -711,6 +711,46 @@ describe('ObjectSerializer', () => {
     });
   });
 
+  describe('NullableDateLeafDeserializer (M9)', () => {
+    // The leaf deserializer the generator emits for a date/date-time element
+    // of a nested container is a null-guarded `new Date(...)` arrow. A null (or
+    // absent) wire value must yield null: `new Date(null)` would yield the
+    // epoch Date(0) and `new Date(undefined)` an Invalid Date, either of which
+    // silently corrupts a nullable timestamp container. This mirrors the exact
+    // arrow text emitted by deserialize_arg.mustache.
+    const dateLeaf = (x: unknown) =>
+      x === null || x === undefined ? null : new Date(x as string);
+
+    test('deserializeMap preserves a null value for a Date leaf instead of epoch', () => {
+      const out = ObjectSerializer.deserializeMap(
+        { a: '2024-01-02T03:04:05.123Z', b: null },
+        dateLeaf,
+      );
+      expect(out.a).toBeInstanceOf(Date);
+      expect((out.a as unknown as Date).getTime()).toBe(
+        new Date('2024-01-02T03:04:05.123Z').getTime(),
+      );
+      expect(out.b).toBeNull();
+      // Guard against the regression: a null must not become the epoch Date(0).
+      expect(out.b).not.toBeInstanceOf(Date);
+      expect(Object.keys(out).sort()).toEqual(['a', 'b']);
+    });
+
+    test('deserializeArray preserves null Date leaves and index alignment', () => {
+      const out = ObjectSerializer.deserializeArray(
+        ['2020-01-02T03:04:05.123Z', null, '2021-06-15T00:00:00.000Z'],
+        dateLeaf,
+      );
+      expect(out.length).toBe(3);
+      expect(out[0]).toBeInstanceOf(Date);
+      expect(out[1]).toBeNull();
+      expect(out[2]).toBeInstanceOf(Date);
+      expect((out[0] as unknown as Date).getTime()).toBe(
+        new Date('2020-01-02T03:04:05.123Z').getTime(),
+      );
+    });
+  });
+
   describe('DiscriminatorAutoInjectionTests', () => {
     test('dry subtype serialization includes discriminator without caller setting it', () => {
       const dry = new DryFood({ weightKg: 2.5 });

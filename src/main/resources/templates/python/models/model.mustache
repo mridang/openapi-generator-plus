@@ -358,34 +358,55 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         if not isinstance(values, dict):
             return values
         known: Set[str] = set()
+        # `aliases` holds only the WIRE aliases that differ from the Python
+        # field name (e.g. 'createdAt' for the field 'created_at'). Their
+        # presence in the incoming mapping is the PATH signal that this dict is
+        # a flat WIRE payload rather than field-name kwargs / re-validation.
+        aliases: Set[str] = set()
         for fname, finfo in cls.model_fields.items():
             known.add(fname)
             if finfo.alias is not None:
                 known.add(finfo.alias)
+                if finfo.alias != fname:
+                    aliases.add(finfo.alias)
         # The `additional_properties` key carries two distinct meanings and we
-        # must not conflate them:
-        #   1. Internal bucket — when re-validating a Python value we produced
-        #      ourselves (e.g. a prior `model_dump()` or kwargs), the captured
-        #      extras live under this key as a dict. We seed `extras` from it.
+        # must distinguish them by the call PATH / declared field, NOT by the
+        # value's runtime type (a dict value is ambiguous — see below):
+        #   1. Internal bucket — the declared `additional_properties` field.
+        #      When re-validating a value we produced ourselves or constructing
+        #      from field-name kwargs (e.g. `Metadata(additional_properties=
+        #      {...})`), the captured extras arrive under this field name and
+        #      must be spread back out, never nested.
         #   2. Real wire key — a server may legitimately send a property named
-        #      literally `additional_properties` (additionalProperties allows
-        #      any name). Inbound wire payloads are always flat, so such a
-        #      value is never the internal dict bucket and must be funnelled
+        #      literally `additional_properties` whose value is itself a dict
+        #      (additionalProperties allows any name). This must be funnelled
         #      into extras under its real name rather than dropped.
+        # A flat wire payload addresses declared fields by their WIRE ALIAS, so
+        # a mapping that carries any aliased key is a wire payload and its
+        # `additional_properties` entry is a real wire property. Only when the
+        # mapping uses field NAMES (no wire alias present) do we treat an
+        # `additional_properties` dict as the internal bucket to seed from.
+        # This keys the decision on the path, so a dict-valued wire property is
+        # preserved instead of being silently swallowed by an `isinstance` test.
+        is_wire_payload = bool(aliases & values.keys())
         raw_bucket = values.get('additional_properties')
-        extras: Dict[str, Any] = dict(raw_bucket) if isinstance(raw_bucket, dict) else {}
+        extras: Dict[str, Any] = (
+            dict(raw_bucket)
+            if not is_wire_payload and isinstance(raw_bucket, dict)
+            else {}
+        )
         merged: Dict[str, Any] = {}
         for key, value in values.items():
-            if key == 'additional_properties':
-                # Only swallow the internal dict bucket (already consumed as
-                # the seed above). A non-dict value is a real wire property and
-                # belongs in extras keyed under its real name.
-                if isinstance(value, dict):
-                    continue
-                extras[key] = value
-            elif key in known:
+            if key == 'additional_properties' and not is_wire_payload and isinstance(value, dict):
+                # Internal bucket on the field-name path: already consumed as
+                # the seed above, so drop the wrapper key here.
+                continue
+            if key in known and key != 'additional_properties':
                 merged[key] = value
             else:
+                # Everything else — including a real wire property literally
+                # named `additional_properties` — lands in extras under its own
+                # name so no data is lost.
                 extras[key] = value
         merged['additional_properties'] = extras
         return merged

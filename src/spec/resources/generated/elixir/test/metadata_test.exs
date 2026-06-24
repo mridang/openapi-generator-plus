@@ -43,6 +43,29 @@ defmodule PetstoreClient.Models.MetadataTest do
     end
   end
 
+  # L1 parity: a property whose schema example is the JSON null literal must
+  # not leak a useless `Example: null` / `@example null` doc line into the
+  # generated model. The Elixir model template only emits example doc lines
+  # from `vendorExtensions.pluralExamples` (rendered as `## <summary>` blocks),
+  # so the null-literal placeholder never appears; this asserts that contract
+  # holds across every generated model source rather than re-appearing as
+  # documentation noise. It is a parity assertion that should already pass and
+  # stay passing.
+  describe "generated model docblocks (L1 parity)" do
+    test "no generated model carries a literal \"Example: null\" / \"@example null\" doc line" do
+      model_files =
+        Path.wildcard(Path.join([File.cwd!(), "lib", "**", "models", "*.ex"]))
+
+      assert model_files != []
+
+      for path <- model_files do
+        source = File.read!(path)
+        refute String.contains?(source, "Example: null"), "#{path} contains 'Example: null'"
+        refute String.contains?(source, "@example null"), "#{path} contains '@example null'"
+      end
+    end
+  end
+
   # manifest-description-missing: the Hex package manifest must carry a
   # non-empty description so the package does not publish with an empty
   # description field.

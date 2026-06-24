@@ -18,10 +18,8 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class WetFood(
-    /** Example: `null` */
     @SerialName("foodType")
     val foodType: String = "wet",
-    /** Example: `null` */
     @SerialName("volumeMl")
     @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val volumeMl: Int,

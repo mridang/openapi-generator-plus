@@ -108,11 +108,9 @@ public class PetWithOwner : IEquatable<PetWithOwner>
 
     private readonly string _name = null!;
 
-    /// <example>null</example>
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
-    /// <example>null</example>
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
     public required HashSet<string> PhotoUrls
@@ -123,20 +121,17 @@ public class PetWithOwner : IEquatable<PetWithOwner>
 
     private readonly HashSet<string> _photoUrls = null!;
 
-    /// <example>null</example>
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
 
     /// <summary>
     /// pet status in the store
     /// </summary>
-    /// <example>null</example>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("location")]
     public List<object>? Location { get; set; }
 
@@ -161,7 +156,6 @@ public class PetWithOwner : IEquatable<PetWithOwner>
     [JsonPropertyName("linkTemplate")]
     public string? LinkTemplate { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("ownerEmail")]
     public string? OwnerEmail { get; set; }
 
@@ -171,8 +165,6 @@ public class PetWithOwner : IEquatable<PetWithOwner>
     /// <example>12.345</example>
     [JsonPropertyName("weightKg")]
     public decimal? WeightKg { get; set; }
-
-    /// <example>null</example>
 
     [JsonRequired]
     [JsonPropertyName("ownerName")]

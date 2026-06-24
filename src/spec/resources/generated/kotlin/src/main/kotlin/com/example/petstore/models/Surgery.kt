@@ -18,10 +18,8 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class Surgery(
-    /** Example: `null` */
     @SerialName("procedureName")
     val procedureName: String,
-    /** Example: `null` */
     @SerialName("durationMinutes")
     @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val durationMinutes: Int? = null,

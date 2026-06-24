@@ -18,11 +18,9 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class StrictTag(
-    /** Example: `null` */
     @SerialName("id")
     @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val id: Long? = null,
-    /** Example: `null` */
     @SerialName("name")
     val name: String? = null,
 ) {
@@ -36,6 +34,11 @@ data class StrictTag(
                 kotlinx.serialization.json.Json {
                     ignoreUnknownKeys = false
                     isLenient = false
+                    // Reuse the SDK's configured contextual serializers (date-time, date,
+                    // uuid, decimal, duration, uri, free-form Any). A bare `Json {}` carries
+                    // no serializersModule, so a model with a @Contextual field would throw
+                    // "serializer not found" here even though normal decoding handles it.
+                    serializersModule = com.example.petstore.ObjectSerializer.contextualSerializersModule
                 }
             try {
                 return strict.decodeFromString(serializer(), raw)

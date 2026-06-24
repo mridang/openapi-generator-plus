@@ -11,10 +11,8 @@ use serde::{Deserialize, Serialize};
 /// Department is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Department {
-    /// Example: `null`
     #[serde(rename = "name")]
     pub name: String,
-    /// Example: `null`
     #[serde(rename = "lead", skip_serializing_if = "Option::is_none")]
     pub lead: Option<Box<Employee>>,
 }

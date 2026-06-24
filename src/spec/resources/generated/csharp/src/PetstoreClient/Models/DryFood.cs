@@ -40,11 +40,8 @@ public class DryFood : PetFood, IEquatable<DryFood>
         this.WeightKg = weightKg;
     }
 
-    /// <example>null</example>
     [JsonPropertyName("foodType")]
     public string FoodType { get; set; } = "dry";
-
-    /// <example>null</example>
 
     [JsonRequired]
     [JsonPropertyName("weightKg")]

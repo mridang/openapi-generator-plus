@@ -15,10 +15,8 @@ import '../object_serializer.dart';
 
 /// StrictTag is a model class generated from the OpenAPI schema.
 class StrictTag {
-  /// Example: `null`
   final int? id;
 
-  /// Example: `null`
   final String? name;
 
   const StrictTag({this.id, this.name});

@@ -40,19 +40,16 @@ public class StockItem : IEquatable<StockItem>
         this.Priority = priority;
     }
 
-    /// <example>null</example>
     [JsonRequired]
     [JsonPropertyName("priority")]
     public required Priority Priority { get; init; }
 
-    /// <example>null</example>
     [JsonPropertyName("availability")]
     public Availability? Availability { get; set; }
 
     /// <summary>
     /// Quantity grid as an array of integer arrays
     /// </summary>
-    /// <example>null</example>
     [JsonPropertyName("matrix")]
     public List<List<int>>? Matrix { get; set; }
 

@@ -44,7 +44,6 @@ public class SetPetAvatarRequest : IEquatable<SetPetAvatarRequest>
     /// <summary>
     /// Base64-encoded image data
     /// </summary>
-    /// <example>null</example>
 
     [JsonRequired]
     [JsonPropertyName("data")]

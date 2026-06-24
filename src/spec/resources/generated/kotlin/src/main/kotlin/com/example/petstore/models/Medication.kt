@@ -18,10 +18,8 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class Medication(
-    /** Example: `null` */
     @SerialName("drugName")
     val drugName: String,
-    /** Example: `null` */
     @SerialName("dosage")
     val dosage: String? = null,
 )

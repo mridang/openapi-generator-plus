@@ -16,7 +16,6 @@ import '../object_serializer.dart';
 /// SetPetAvatarRequest is a model class generated from the OpenAPI schema.
 class SetPetAvatarRequest {
   /// Base64-encoded image data
-  /// Example: `null`
   final Uint8List data;
 
   /// Example: `image/jpeg`

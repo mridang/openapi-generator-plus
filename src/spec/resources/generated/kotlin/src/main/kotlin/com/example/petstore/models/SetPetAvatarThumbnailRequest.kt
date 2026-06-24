@@ -110,12 +110,25 @@ class SetPetAvatarThumbnailRequest(
                         "SetPetAvatarThumbnailRequest can only be deserialized from JSON",
                     )
             val element = jsonDecoder.decodeJsonElement()
+            // Decode variants with a STRICT Json (ignoreUnknownKeys = false) rather
+            // than the SDK's lenient decoder. Two variants that differ ONLY by an
+            // optional field would otherwise both decode against the first variant —
+            // the lenient decoder silently drops the discriminating extra key — so the
+            // union mis-resolves to whichever variant is declared first. Strict
+            // decoding rejects a payload carrying keys the candidate variant does not
+            // declare, so each variant only matches a payload shaped exactly like it.
+            // The contextual module is copied so @Contextual variant fields still
+            // resolve their serializers.
+            val strictJson =
+                kotlinx.serialization.json.Json(jsonDecoder.json) {
+                    ignoreUnknownKeys = false
+                }
             // Try each declared variant against the raw payload; the first that
             // decodes without error wins. A payload matching no variant is spec
             // drift and fails loud rather than yielding an empty wrapper.
             try {
                 return SetPetAvatarThumbnailRequest(
-                    jsonDecoder.json.decodeFromJsonElement(
+                    strictJson.decodeFromJsonElement(
                         kotlinx.serialization.serializer<ByteArray>(),
                         element,
                     ),
@@ -125,7 +138,7 @@ class SetPetAvatarThumbnailRequest(
             }
             try {
                 return SetPetAvatarThumbnailRequest(
-                    jsonDecoder.json.decodeFromJsonElement(
+                    strictJson.decodeFromJsonElement(
                         kotlinx.serialization.serializer<List<ByteArray>>(),
                         element,
                     ),
@@ -144,14 +157,14 @@ class SetPetAvatarThumbnailRequest(
             // unaffected (they have already failed loud above).
             try {
                 return SetPetAvatarThumbnailRequest(
-                    jsonDecoder.json.decodeFromJsonElement(Base64ByteArraySerializer, element),
+                    strictJson.decodeFromJsonElement(Base64ByteArraySerializer, element),
                 )
             } catch (_: Exception) {
                 // not a base64 scalar; try the array-of-base64 form
             }
             try {
                 return SetPetAvatarThumbnailRequest(
-                    jsonDecoder.json.decodeFromJsonElement(
+                    strictJson.decodeFromJsonElement(
                         kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
                         element,
                     ),

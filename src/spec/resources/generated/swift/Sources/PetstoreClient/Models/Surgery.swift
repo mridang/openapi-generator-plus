@@ -9,9 +9,7 @@ import Foundation
 
 /// Surgery is a model class generated from the OpenAPI schema.
 public struct Surgery: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var procedureName: String
-  /// Example: `null`
   public var durationMinutes: Int?
 
   enum CodingKeys: String, CodingKey {

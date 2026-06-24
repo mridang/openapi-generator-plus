@@ -9,9 +9,7 @@ import Foundation
 
 /// Employee is a model class generated from the OpenAPI schema.
 public struct Employee: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var name: String
-  /// Example: `null`
   @Indirect public var department: Department?
 
   enum CodingKeys: String, CodingKey {

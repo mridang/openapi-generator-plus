@@ -11,10 +11,8 @@ use serde::{Deserialize, Serialize};
 /// Employee is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Employee {
-    /// Example: `null`
     #[serde(rename = "name")]
     pub name: String,
-    /// Example: `null`
     #[serde(rename = "department", skip_serializing_if = "Option::is_none")]
     pub department: Option<Box<Department>>,
 }

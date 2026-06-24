@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class TreeNode
 {
-    /** @example null */
     #[SerializedName('value')]
     public string $value;
 
-    /** @example null */
     #[SerializedName('child')]
     public ?\PetstoreClient\Models\TreeNode $child = null;
 

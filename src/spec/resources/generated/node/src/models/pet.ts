@@ -36,25 +36,20 @@ export class Pet {
   /** @example doggie */
   @Expose({ name: "name" })
   name!: string;
-  /** @example null */
   @Expose({ name: "category" })
   @Type(() => Category)
   category?: Category;
-  /** @example null */
   @Expose({ name: "photoUrls" })
   photoUrls!: Set<string>;
-  /** @example null */
   @Expose({ name: "tags" })
   @Type(() => Tag)
   tags?: Array<Tag>;
   /**
    * pet status in the store
-   * @example null
    * @deprecated This property is deprecated.
    */
   @Expose({ name: "status" })
   status?: PetStatusEnum;
-  /** @example null */
   @Expose({ name: "location" })
   location?: Array<unknown>;
   /**

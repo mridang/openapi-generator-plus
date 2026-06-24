@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class StrictTag
 {
-    /** @example null */
     #[SerializedName('id')]
     public ?int $id = null;
 
-    /** @example null */
     #[SerializedName('name')]
     public ?string $name = null;
 

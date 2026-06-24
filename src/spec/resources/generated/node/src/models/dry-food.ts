@@ -22,10 +22,8 @@ export class DryFood {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "foodType" })
   foodType: string = "dry";
-  /** @example null */
   @Expose({ name: "weightKg" })
   weightKg!: number;
 

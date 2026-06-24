@@ -44,13 +44,10 @@ enum DefaultsModeEnum {
 }
 
 class Defaults {
-  /// Example: `null`
   final int? retries;
 
-  /// Example: `null`
   final DefaultsModeEnum? mode;
 
-  /// Example: `null`
   final String? label;
 
   const Defaults({

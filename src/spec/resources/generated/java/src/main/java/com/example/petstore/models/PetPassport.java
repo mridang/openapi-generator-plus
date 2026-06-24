@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 })
 public class PetPassport {
 
-  /** Example: {@code null} */
+  /** The {@code pet} property. */
   @JsonProperty("pet")
   @Nullable
   public Pet pet;
@@ -45,24 +45,18 @@ public class PetPassport {
   @Nullable
   public byte[] thumbnail;
 
-  /**
-   * Base64-encoded scans of each passport page
-   *
-   * <p>Example: {@code null}
-   */
+  /** Base64-encoded scans of each passport page */
   @JsonProperty("scans")
   @Nullable
   public List<byte[]> scans = new ArrayList<>();
 
-  /** Example: {@code null} */
+  /** The {@code issuedAt} property. */
   @JsonProperty("issuedAt")
   @Nullable
   public OffsetDateTime issuedAt;
 
   /**
    * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-   *
-   * <p>Example: {@code null}
    */
   @JsonProperty("biometricChip")
   @Nullable

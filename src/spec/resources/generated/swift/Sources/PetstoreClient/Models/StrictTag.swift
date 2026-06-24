@@ -9,9 +9,7 @@ import Foundation
 
 /// StrictTag is a model class generated from the OpenAPI schema.
 public struct StrictTag: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var id: Int64?
-  /// Example: `null`
   public var name: String?
 
   enum CodingKeys: String, CodingKey {

@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 })
 public class Metadata {
 
-  /** Example: {@code null} */
+  /** The {@code createdAt} property. */
   @JsonProperty("createdAt")
   @Nullable
   public OffsetDateTime createdAt;

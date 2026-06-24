@@ -28,11 +28,11 @@ import javax.annotation.Nullable;
 })
 public class Department {
 
-  /** Example: {@code null} */
+  /** The {@code name} property. */
   @JsonProperty("name")
   public String name;
 
-  /** Example: {@code null} */
+  /** The {@code lead} property. */
   @JsonProperty("lead")
   @Nullable
   public Employee lead;

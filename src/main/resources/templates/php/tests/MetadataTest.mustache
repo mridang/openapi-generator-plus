@@ -72,3 +72,23 @@ test('composer manifest has a description', function (): void {
     expect($composer)->toHaveKey('description');
     expect($composer['description'])->toBeString();
 });
+
+test('generated models never claim a null example', function (): void {
+    /* L1 regression: when a property declares no example the base codegen
+     * supplies the literal string "null" as the example value, which is truthy
+     * in Mustache. A bare example doc section would therefore stamp a false
+     * "@example null" onto nearly every property. The model template omits the
+     * scalar example doc line entirely (only real, structured named examples are
+     * rendered), so no generated model may contain that misleading text. */
+    $modelsDir = __DIR__ . '/../lib/Models';
+    expect(is_dir($modelsDir))->toBeTrue();
+
+    $files = glob($modelsDir . '/*.php');
+    expect($files)->not->toBeEmpty();
+
+    foreach ($files as $file) {
+        $source = (string) file_get_contents($file);
+        expect($source)->not->toContain('@example null');
+        expect($source)->not->toContain('Example: null');
+    }
+});

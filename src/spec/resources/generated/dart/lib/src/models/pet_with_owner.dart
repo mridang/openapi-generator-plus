@@ -53,21 +53,16 @@ class PetWithOwner {
   /// Example: `doggie`
   final String name;
 
-  /// Example: `null`
   final Category? category;
 
-  /// Example: `null`
   final Set<String> photoUrls;
 
-  /// Example: `null`
   final List<Tag>? tags;
 
   /// pet status in the store
-  /// Example: `null`
   @Deprecated('This property is deprecated.')
   final PetWithOwnerStatusEnum? status;
 
-  /// Example: `null`
   final List<Object>? location;
 
   /// Absolute URL to the pet's public profile page
@@ -82,14 +77,12 @@ class PetWithOwner {
   /// Example: `https://example.com/pets/{id}/photos{?size}`
   final String? linkTemplate;
 
-  /// Example: `null`
   final String? ownerEmail;
 
   /// Pet weight in kilograms (decimal precision)
   /// Example: `12.345`
   final double? weightKg;
 
-  /// Example: `null`
   final String ownerName;
 
   const PetWithOwner({

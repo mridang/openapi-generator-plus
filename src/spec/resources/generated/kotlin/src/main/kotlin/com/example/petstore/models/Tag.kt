@@ -24,11 +24,9 @@ import kotlinx.serialization.UseSerializers
 @Deprecated("This schema is deprecated.")
 @Serializable
 data class Tag(
-    /** Example: `null` */
     @SerialName("id")
     @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val id: Long? = null,
-    /** Example: `null` */
     @SerialName("name")
     val name: String? = null,
 )

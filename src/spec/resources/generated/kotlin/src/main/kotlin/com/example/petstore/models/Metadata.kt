@@ -20,7 +20,6 @@ import java.time.OffsetDateTime
 
 @Serializable
 data class Metadata(
-    /** Example: `null` */
     @SerialName("createdAt")
     @Contextual
     val createdAt: OffsetDateTime? = null,

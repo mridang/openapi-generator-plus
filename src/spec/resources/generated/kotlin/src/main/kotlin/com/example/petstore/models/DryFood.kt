@@ -18,10 +18,8 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class DryFood(
-    /** Example: `null` */
     @SerialName("foodType")
     val foodType: String = "dry",
-    /** Example: `null` */
     @SerialName("weightKg")
     @Serializable(with = com.example.petstore.StrictDoubleSerializer::class)
     val weightKg: Double,

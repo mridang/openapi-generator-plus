@@ -22,10 +22,8 @@ export class WetFood {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "foodType" })
   foodType: string = "wet";
-  /** @example null */
   @Expose({ name: "volumeMl" })
   volumeMl!: number;
 

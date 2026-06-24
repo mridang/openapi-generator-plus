@@ -12,10 +12,8 @@ use serde::{Deserialize, Serialize};
 #[deprecated]
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Tag {
-    /// Example: `null`
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
-    /// Example: `null`
     #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }

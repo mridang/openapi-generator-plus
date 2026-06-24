@@ -9,9 +9,7 @@ import Foundation
 
 /// TreeNode is a model class generated from the OpenAPI schema.
 public struct TreeNode: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var value: String
-  /// Example: `null`
   @Indirect public var child: TreeNode?
 
   enum CodingKeys: String, CodingKey {

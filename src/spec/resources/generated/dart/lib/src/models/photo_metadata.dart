@@ -17,16 +17,12 @@ import 'photo_metadata_location.dart';
 
 /// PhotoMetadata is a model class generated from the OpenAPI schema.
 class PhotoMetadata {
-  /// Example: `null`
   final String? caption;
 
-  /// Example: `null`
   final bool? isPrimary;
 
-  /// Example: `null`
   final DateTime? takenAt;
 
-  /// Example: `null`
   final PhotoMetadataLocation? location;
 
   const PhotoMetadata({

@@ -1105,5 +1105,111 @@ class ObjectSerializerTest {
             assertNotNull(tinyDecoded)
             assertEquals(tiny, tinyDecoded!!.retryAfter)
         }
+
+        @Test
+        @DisplayName("format:duration past the ~292-year Long-nanosecond limit re-serializes instead of overflowing")
+        fun durationBeyondNanoRangeRoundTrips() {
+            // Regression for M3: the old encoder derived seconds from
+            // Duration.toNanos(), which throws ArithmeticException once the
+            // duration exceeds ~292 years (Long nanosecond overflow). parse()
+            // accepts an arbitrarily large second count, so a value that
+            // deserializes cleanly must also re-serialize. The encoder now uses
+            // Duration.abs().seconds / .nano, which never overflows. Decode a
+            // 10-billion-second duration (~317 years, beyond the toNanos range)
+            // and assert the round-trip back to the wire form succeeds.
+            val huge = "10000000000s"
+            val decoded =
+                serializer.deserialize<com.example.petstore.models.EdgeCases>(
+                    "{\"retryAfter\":\"$huge\"}",
+                )
+            assertNotNull(decoded)
+            assertEquals(java.time.Duration.ofSeconds(10_000_000_000L), decoded!!.retryAfter)
+            // Re-serialize: this is the call that previously threw on toNanos().
+            val reEncoded = serializer.serialize(decoded!!)
+            assertTrue(
+                reEncoded.contains("\"retryAfter\":\"$huge\""),
+                "duration past the nanosecond range must re-serialize, got: $reEncoded",
+            )
+
+            // The negative side of the range must survive too.
+            val negHuge = "-10000000000s"
+            val negDecoded =
+                serializer.deserialize<com.example.petstore.models.EdgeCases>(
+                    "{\"retryAfter\":\"$negHuge\"}",
+                )
+            assertNotNull(negDecoded)
+            val negReEncoded = serializer.serialize(negDecoded!!)
+            assertTrue(
+                negReEncoded.contains("\"retryAfter\":\"$negHuge\""),
+                "negative duration past the nanosecond range must re-serialize, got: $negReEncoded",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("StrictModuleTests")
+    inner class StrictModuleTests {
+        // Mirrors a unevaluatedProperties:false model that carries a @Contextual
+        // field (date-time / uuid / decimal / duration). The generated
+        // parseStrict() builds a STRICT Json (ignoreUnknownKeys = false); the M7
+        // defect was that it built a BARE Json {} with no serializersModule, so a
+        // @Contextual property had no serializer and decoding threw
+        // "serializer not found". The fix reuses
+        // ObjectSerializer.contextualSerializersModule.
+        @Serializable
+        data class ContextualStrict(
+            @Contextual
+            @SerialName("ts")
+            val ts: OffsetDateTime,
+        )
+
+        @Test
+        @DisplayName("a bare strict Json without the contextual module fails on a @Contextual field")
+        fun bareStrictJsonMissesContextualSerializer() {
+            // Reproduces the M7 defect: ignoreUnknownKeys = false alone, with no
+            // serializersModule, cannot resolve the @Contextual OffsetDateTime.
+            val bare =
+                kotlinx.serialization.json.Json {
+                    ignoreUnknownKeys = false
+                    isLenient = false
+                }
+            assertThrows(Exception::class.java) {
+                bare.decodeFromString(
+                    ContextualStrict.serializer(),
+                    "{\"ts\":\"2024-01-01T00:00:00Z\"}",
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("a strict Json reusing the SDK contextual module decodes a @Contextual field")
+        fun strictJsonWithSdkModuleDecodesContextual() {
+            // The fix: parseStrict() copies ObjectSerializer.contextualSerializersModule
+            // into the strict Json, so the @Contextual OffsetDateTime resolves and
+            // the unknown-key rejection still applies.
+            val strict =
+                kotlinx.serialization.json.Json {
+                    ignoreUnknownKeys = false
+                    isLenient = false
+                    serializersModule = ObjectSerializer.contextualSerializersModule
+                }
+            val decoded =
+                strict.decodeFromString(
+                    ContextualStrict.serializer(),
+                    "{\"ts\":\"2024-01-01T00:00:00Z\"}",
+                )
+            assertEquals(
+                OffsetDateTime.parse("2024-01-01T00:00:00Z"),
+                decoded.ts,
+            )
+
+            // The strict contract still rejects an undeclared key.
+            assertThrows(Exception::class.java) {
+                strict.decodeFromString(
+                    ContextualStrict.serializer(),
+                    "{\"ts\":\"2024-01-01T00:00:00Z\",\"extra\":1}",
+                )
+            }
+        }
     }
 }

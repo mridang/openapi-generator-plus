@@ -28,11 +28,11 @@ import javax.annotation.Nullable;
 })
 public class Medication {
 
-  /** Example: {@code null} */
+  /** The {@code drugName} property. */
   @JsonProperty("drugName")
   public String drugName;
 
-  /** Example: {@code null} */
+  /** The {@code dosage} property. */
   @JsonProperty("dosage")
   @Nullable
   public String dosage;

@@ -21,17 +21,11 @@ import kotlin.collections.List
 
 @Serializable
 data class StockItem(
-    /** Example: `null` */
     @SerialName("priority")
     val priority: Priority,
-    /** Example: `null` */
     @SerialName("availability")
     val availability: Availability? = null,
-    /**
-     * Quantity grid as an array of integer arrays
-     *
-     * Example: `null`
-     */
+    /** Quantity grid as an array of integer arrays */
     @SerialName("matrix")
     val matrix: List<List<Int>>? = mutableListOf(),
 )

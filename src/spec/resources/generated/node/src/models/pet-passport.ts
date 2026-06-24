@@ -23,7 +23,6 @@ export class PetPassport {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "pet" })
   @Type(() => Pet)
   pet?: Pet;
@@ -46,7 +45,6 @@ export class PetPassport {
   thumbnail?: Buffer;
   /**
    * Base64-encoded scans of each passport page
-   * @example null
    */
   @Expose({ name: "scans" })
   /*
@@ -74,13 +72,11 @@ export class PetPassport {
     { toPlainOnly: true },
   )
   scans?: Array<Buffer>;
-  /** @example null */
   @Expose({ name: "issuedAt" })
   @Type(() => Date)
   issuedAt?: Date;
   /**
    * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-   * @example null
    */
   @Expose({ name: "biometricChip" })
   /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */

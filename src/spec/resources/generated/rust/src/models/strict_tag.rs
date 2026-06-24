@@ -15,10 +15,8 @@ use serde::{Deserialize, Serialize};
 // field name when deserializing, surfacing strict-mode violations.
 #[serde(deny_unknown_fields)]
 pub struct StrictTag {
-    /// Example: `null`
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
-    /// Example: `null`
     #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }

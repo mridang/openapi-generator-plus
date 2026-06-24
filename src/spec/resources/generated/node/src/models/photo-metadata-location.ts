@@ -22,10 +22,8 @@ export class PhotoMetadataLocation {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "lat" })
   lat?: number;
-  /** @example null */
   @Expose({ name: "lng" })
   lng?: number;
 

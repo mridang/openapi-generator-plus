@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Surgery
 {
-    /** @example null */
     #[SerializedName('procedureName')]
     public string $procedureName;
 
-    /** @example null */
     #[SerializedName('durationMinutes')]
     public ?int $durationMinutes = null;
 

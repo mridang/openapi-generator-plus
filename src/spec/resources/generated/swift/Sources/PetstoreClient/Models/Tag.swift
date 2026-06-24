@@ -10,9 +10,7 @@ import Foundation
 /// Tag Tags are deprecated, use categories instead
 @available(*, deprecated, message: "This schema is deprecated.")
 public struct Tag: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var id: Int64?
-  /// Example: `null`
   public var name: String?
 
   enum CodingKeys: String, CodingKey {

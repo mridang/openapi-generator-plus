@@ -69,12 +69,9 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
-      # @example null
       attribute :priority, Types::Required
-      # @example null
       attribute :availability, Types::Any.optional.meta(omittable: true)
       # Quantity grid as an array of integer arrays
-      # @example null
       attribute :matrix, Types::Any.optional.meta(omittable: true)
     end
   end

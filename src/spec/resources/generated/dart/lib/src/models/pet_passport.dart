@@ -17,7 +17,6 @@ import 'pet.dart';
 
 /// PetPassport is a model class generated from the OpenAPI schema.
 class PetPassport {
-  /// Example: `null`
   final Pet? pet;
 
   /// Base64-encoded primary thumbnail
@@ -25,14 +24,11 @@ class PetPassport {
   final Uint8List? thumbnail;
 
   /// Base64-encoded scans of each passport page
-  /// Example: `null`
   final List<Uint8List>? scans;
 
-  /// Example: `null`
   final DateTime? issuedAt;
 
   /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-  /// Example: `null`
   final Uint8List? biometricChip;
 
   const PetPassport({

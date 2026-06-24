@@ -71,13 +71,9 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
-      # @example null
       attribute :id, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :caption, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :is_primary, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :url, Types::Any.optional.meta(omittable: true)
     end
   end

@@ -15,16 +15,12 @@ import '../object_serializer.dart';
 
 /// Photo is a model class generated from the OpenAPI schema.
 class Photo {
-  /// Example: `null`
   final int? id;
 
-  /// Example: `null`
   final String? caption;
 
-  /// Example: `null`
   final bool? isPrimary;
 
-  /// Example: `null`
   final String? url;
 
   const Photo({this.id, this.caption, this.isPrimary, this.url});

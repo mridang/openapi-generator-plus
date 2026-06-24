@@ -11,6 +11,9 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"petstore/pkg/models"
@@ -67,6 +70,27 @@ func TestMetadata_DeserializeWithAdditionalProperties(t *testing.T) {
 	err := json.Unmarshal(jsonData, &metadata)
 	if err != nil {
 		t.Fatalf("failed to deserialize Metadata with additional properties: %v", err)
+	}
+}
+
+// TestMetadata_NoExampleNullDocLine guards against a known cross-SDK defect
+// where a property whose example is the JSON literal `null` leaked into the
+// generated source as a placeholder doc line such as `Example: null` or
+// `@example null`. Such a line carries no information and pollutes the model.
+// The Go model template never emits example doc lines in that form, so this is
+// a parity assertion that should already pass and stay passing.
+func TestMetadata_NoExampleNullDocLine(t *testing.T) {
+	t.Parallel()
+	modelPath := filepath.Join("..", "pkg", "models", "metadata.go")
+	source, err := os.ReadFile(modelPath)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", modelPath, err)
+	}
+	content := string(source)
+	for _, forbidden := range []string{"Example: null", "@example null"} {
+		if strings.Contains(content, forbidden) {
+			t.Errorf("generated model %s must not contain the doc line %q", modelPath, forbidden)
+		}
 	}
 }
 

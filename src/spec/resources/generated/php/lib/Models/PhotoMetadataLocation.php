@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class PhotoMetadataLocation
 {
-    /** @example null */
     #[SerializedName('lat')]
     public ?float $lat = null;
 
-    /** @example null */
     #[SerializedName('lng')]
     public ?float $lng = null;
 

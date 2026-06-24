@@ -97,4 +97,18 @@ class MetadataTest {
     assertThat(matcher.find()).as("pom.xml must declare a <description>").isTrue();
     assertThat(matcher.group(1).trim()).as("description must not be empty").isNotEmpty();
   }
+
+  @Test
+  void testModelDoesNotDocumentNullExample() throws IOException {
+    Path model =
+        Path.of("src", "main", "java")
+            .resolve(Path.of("com.example.petstore.models".replace('.', '/')))
+            .resolve("Tag.java");
+    assertThat(Files.exists(model)).as("the Tag model must be generated at %s", model).isTrue();
+    String source = Files.readString(model);
+    assertThat(source)
+        .as("a no-example property must not document a literal null example")
+        .doesNotContain("Example: {@code null}")
+        .doesNotContain("Example: null");
+  }
 }

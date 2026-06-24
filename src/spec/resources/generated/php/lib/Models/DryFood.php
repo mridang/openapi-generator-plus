@@ -17,11 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class DryFood
 {
-    /** @example null */
     #[SerializedName('weightKg')]
     public float $weightKg;
 
-    /** @example null */
     #[SerializedName('foodType')]
     public string $foodType = 'dry';
 

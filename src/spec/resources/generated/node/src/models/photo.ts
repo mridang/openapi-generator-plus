@@ -22,16 +22,12 @@ export class Photo {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "id" })
   id?: number;
-  /** @example null */
   @Expose({ name: "caption" })
   caption?: string;
-  /** @example null */
   @Expose({ name: "isPrimary" })
   isPrimary?: boolean;
-  /** @example null */
   @Expose({ name: "url" })
   url?: string;
 

@@ -53,14 +53,12 @@ class Order {
   /// Example: `7`
   final int? quantity;
 
-  /// Example: `null`
   final DateTime? shipDate;
 
   /// Order Status
   /// Example: `approved`
   final OrderStatusEnum? status;
 
-  /// Example: `null`
   final bool? complete;
 
   const Order({

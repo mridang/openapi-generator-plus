@@ -22,7 +22,6 @@ export class Metadata {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "createdAt" })
   @Type(() => Date)
   createdAt?: Date;

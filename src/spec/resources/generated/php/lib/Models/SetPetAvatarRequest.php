@@ -19,7 +19,6 @@ class SetPetAvatarRequest
 {
     /**
      * Base64-encoded image data
-     * @example null
      */
     #[SerializedName('data')]
     public string $data;

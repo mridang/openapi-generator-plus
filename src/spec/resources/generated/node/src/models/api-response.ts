@@ -22,13 +22,10 @@ export class ApiResponse {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "code" })
   code?: number;
-  /** @example null */
   @Expose({ name: "type" })
   type?: string;
-  /** @example null */
   @Expose({ name: "message" })
   message?: string;
 

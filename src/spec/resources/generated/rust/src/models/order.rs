@@ -44,7 +44,6 @@ pub struct Order {
     /// Example: `7`
     #[serde(rename = "quantity", skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i32>,
-    /// Example: `null`
     #[serde(rename = "shipDate", skip_serializing_if = "Option::is_none")]
     pub ship_date: Option<chrono::DateTime<chrono::Utc>>,
     /// Order Status
@@ -55,7 +54,6 @@ pub struct Order {
         skip_serializing_if = "Option::is_none"
     )]
     pub status: Option<OrderStatusEnum>,
-    /// Example: `null`
     #[serde(rename = "complete", skip_serializing_if = "Option::is_none")]
     pub complete: Option<bool>,
 }

@@ -36,25 +36,20 @@ export class PetWithOwner {
   /** @example doggie */
   @Expose({ name: "name" })
   name!: string;
-  /** @example null */
   @Expose({ name: "category" })
   @Type(() => Category)
   category?: Category;
-  /** @example null */
   @Expose({ name: "photoUrls" })
   photoUrls!: Set<string>;
-  /** @example null */
   @Expose({ name: "tags" })
   @Type(() => Tag)
   tags?: Array<Tag>;
   /**
    * pet status in the store
-   * @example null
    * @deprecated This property is deprecated.
    */
   @Expose({ name: "status" })
   status?: PetWithOwnerStatusEnum;
-  /** @example null */
   @Expose({ name: "location" })
   location?: Array<unknown>;
   /**
@@ -75,7 +70,6 @@ export class PetWithOwner {
    */
   @Expose({ name: "linkTemplate" })
   linkTemplate?: string;
-  /** @example null */
   @Expose({ name: "ownerEmail" })
   ownerEmail?: Email;
   /**
@@ -84,7 +78,6 @@ export class PetWithOwner {
    */
   @Expose({ name: "weightKg" })
   weightKg?: Decimal;
-  /** @example null */
   @Expose({ name: "ownerName" })
   ownerName!: string;
 

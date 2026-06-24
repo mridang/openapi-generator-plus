@@ -16,37 +16,24 @@ public enum PetWithOwnerStatusEnum: String, Codable, Sendable, CaseIterable {
 }
 
 public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
-  /// Example: `10`
   public var id: Int64?
-  /// Example: `doggie`
   public var name: String
-  /// Example: `null`
   public var category: Category?
-  /// Example: `null`
   public var photoUrls: Set<String>
-  /// Example: `null`
   public var tags: [Tag]?
   /// pet status in the store
-  /// Example: `null`
   @available(*, deprecated, message: "This property is deprecated.")
   public var status: PetWithOwnerStatusEnum?
-  /// Example: `null`
   public var location: [AnyCodable]?
   /// Absolute URL to the pet's public profile page
-  /// Example: `https://example.com/pets/fido`
   public var homepageUrl: String?
   /// Optionally-relative thumbnail location
-  /// Example: `/assets/thumb-fido.png`
   public var thumbnailRef: String?
   /// RFC 6570 template for related-resource links
-  /// Example: `https://example.com/pets/{id}/photos{?size}`
   public var linkTemplate: String?
-  /// Example: `null`
   public var ownerEmail: String?
   /// Pet weight in kilograms (decimal precision)
-  /// Example: `12.345`
   public var weightKg: Double?
-  /// Example: `null`
   public var ownerName: String
 
   enum CodingKeys: String, CodingKey {

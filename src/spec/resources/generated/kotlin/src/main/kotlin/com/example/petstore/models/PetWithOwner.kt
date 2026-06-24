@@ -33,26 +33,20 @@ data class PetWithOwner(
     /** Example: `doggie` */
     @SerialName("name")
     val name: String,
-    /** Example: `null` */
     @SerialName("category")
     val category: Category? = null,
-    /** Example: `null` */
     @SerialName("photoUrls")
     val photoUrls: Set<String> = mutableSetOf(),
-    /** Example: `null` */
     @SerialName("tags")
     val tags: List<Tag>? = mutableListOf(),
     /**
      * pet status in the store
-     *
-     * Example: `null`
      *
      * @deprecated This property is deprecated.
      */
     @Deprecated("This property is deprecated.")
     @SerialName("status")
     val status: StatusEnum? = null,
-    /** Example: `null` */
     @SerialName("location")
     val location: List<@Contextual Any>? = mutableListOf(),
     /**
@@ -77,7 +71,6 @@ data class PetWithOwner(
      */
     @SerialName("linkTemplate")
     val linkTemplate: String? = null,
-    /** Example: `null` */
     @SerialName("ownerEmail")
     val ownerEmail: String? = null,
     /**
@@ -88,7 +81,6 @@ data class PetWithOwner(
     @SerialName("weightKg")
     @Contextual
     val weightKg: BigDecimal? = null,
-    /** Example: `null` */
     @SerialName("ownerName")
     val ownerName: String,
 ) {

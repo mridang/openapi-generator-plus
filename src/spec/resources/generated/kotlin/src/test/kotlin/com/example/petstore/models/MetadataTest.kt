@@ -119,4 +119,28 @@ class MetadataTest {
             "POM description must not be empty",
         )
     }
+
+    @Test
+    @DisplayName("example-doc-null-pollution: generated models never emit a literal `Example: null` doc line")
+    fun testNoNullExampleDocPollution() {
+        // L1 regression: OpenAPI Generator supplies the literal string "null" as
+        // a property's example when the spec declares none, and that string is
+        // truthy in Mustache — so a bare example section would stamp a false
+        // `Example: null` doc line onto nearly every property. The shared codegen
+        // now nulls such a placeholder example, so the template's example section
+        // is falsy and emits nothing for it. Scan every generated model source and
+        // assert none contains the false doc text. Gradle runs tests with the
+        // project root as the working directory.
+        val modelPackagePath = "com.example.petstore.models".replace('.', '/')
+        val modelDir = java.io.File("src/main/kotlin/$modelPackagePath")
+        assertTrue(modelDir.isDirectory, "generated model directory must exist: ${modelDir.path}")
+        val kotlinFiles = modelDir.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+        assertTrue(kotlinFiles.isNotEmpty(), "expected at least one generated model file")
+        val offenders = kotlinFiles.filter { it.readText().contains("Example: `null`") }
+        assertTrue(
+            offenders.isEmpty(),
+            "no generated model may carry a false `Example: null` doc line, found in: " +
+                offenders.joinToString(", ") { it.name },
+        )
+    }
 }

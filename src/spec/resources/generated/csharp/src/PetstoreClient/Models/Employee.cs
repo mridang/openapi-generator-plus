@@ -40,8 +40,6 @@ public class Employee : IEquatable<Employee>
         this.Name = name;
     }
 
-    /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("name")]
     public required string Name
@@ -52,7 +50,6 @@ public class Employee : IEquatable<Employee>
 
     private readonly string _name = null!;
 
-    /// <example>null</example>
     [JsonPropertyName("department")]
     public Department? Department { get; set; }
 

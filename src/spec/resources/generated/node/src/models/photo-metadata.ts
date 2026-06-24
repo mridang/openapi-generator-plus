@@ -23,17 +23,13 @@ export class PhotoMetadata {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
-  /** @example null */
   @Expose({ name: "caption" })
   caption?: string;
-  /** @example null */
   @Expose({ name: "isPrimary" })
   isPrimary?: boolean;
-  /** @example null */
   @Expose({ name: "takenAt" })
   @Type(() => Date)
   takenAt?: Date;
-  /** @example null */
   @Expose({ name: "location" })
   @Type(() => PhotoMetadataLocation)
   location?: PhotoMetadataLocation;

@@ -9,13 +9,9 @@ import Foundation
 
 /// Photo is a model class generated from the OpenAPI schema.
 public struct Photo: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var id: Int64?
-  /// Example: `null`
   public var caption: String?
-  /// Example: `null`
   public var isPrimary: Bool?
-  /// Example: `null`
   public var url: String?
 
   enum CodingKeys: String, CodingKey {

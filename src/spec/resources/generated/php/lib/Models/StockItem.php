@@ -18,18 +18,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class StockItem
 {
-    /** @example null */
     #[SerializedName('priority')]
     public \PetstoreClient\Models\Priority $priority;
 
-    /** @example null */
     #[SerializedName('availability')]
     public ?\PetstoreClient\Models\Availability $availability = null;
 
     /**
      * Quantity grid as an array of integer arrays
      * @var \Ds\Vector<\Ds\Vector<int>>|null
-     * @example null
      */
     #[SerializedName('matrix')]
     public ?\Ds\Vector $matrix = null;

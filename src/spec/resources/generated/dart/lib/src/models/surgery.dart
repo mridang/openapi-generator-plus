@@ -15,10 +15,8 @@ import '../object_serializer.dart';
 
 /// Surgery is a model class generated from the OpenAPI schema.
 class Surgery {
-  /// Example: `null`
   final String procedureName;
 
-  /// Example: `null`
   final int? durationMinutes;
 
   const Surgery({required this.procedureName, this.durationMinutes});

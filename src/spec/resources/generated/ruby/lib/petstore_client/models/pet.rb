@@ -92,17 +92,12 @@ module PetstoreClient
       attribute :id, Types::Any.optional.meta(omittable: true)
       # @example doggie
       attribute :name, Types::Required
-      # @example null
       attribute :category, Types::Any.optional.meta(omittable: true)
-      # @example null
       attribute :photo_urls, Types::Required
-      # @example null
       attribute :tags, Types::Any.optional.meta(omittable: true)
       # pet status in the store
-      # @example null
       # @deprecated This property is deprecated.
       attribute :status, Types::String.enum('available', 'pending', 'sold').optional.meta(omittable: true)
-      # @example null
       attribute :location, Types::Any.optional.meta(omittable: true)
       # Absolute URL to the pet's public profile page
       # @example https://example.com/pets/fido

@@ -207,6 +207,33 @@ class ComposedSchemaTest {
                 json.decodeFromString<PetTreatment>(jsonString)
             }
         }
+
+        @Test
+        @DisplayName("union variants decode strictly - a foreign key is not silently dropped onto the first variant")
+        fun testStrictUnionDecodeRejectsForeignKeys() {
+            // Regression for M6: the wrapper used to decode each variant with the
+            // SDK's lenient Json (ignoreUnknownKeys = true). A payload carrying a
+            // key that belongs to a LATER variant would silently lose that key and
+            // mis-resolve to whichever variant is declared first (Medication here).
+            // Strict variant decoding (ignoreUnknownKeys = false) rejects the
+            // foreign key, so an ambiguous payload that names BOTH variants' fields
+            // no longer collapses onto the first variant. Medication owns drugName;
+            // procedureName is Surgery's required key. Under the old lenient path
+            // this resolved to Medication (dropping procedureName); under strict
+            // decoding neither variant matches the combined shape, so it fails loud.
+            val ambiguous = """{"drugName":"Amoxicillin","procedureName":"Spay"}"""
+            assertThrows(Exception::class.java) {
+                json.decodeFromString<PetTreatment>(ambiguous)
+            }
+
+            // A clean, unambiguous payload for the SECOND-declared variant must
+            // still resolve correctly — strict decoding does not regress genuine
+            // single-variant matches.
+            val cleanSurgery = """{"procedureName":"Spay","durationMinutes":45}"""
+            val resolved = json.decodeFromString<PetTreatment>(cleanSurgery)
+            assertTrue(resolved.actualInstance is Surgery)
+            assertEquals("Spay", (resolved.actualInstance as Surgery).procedureName)
+        }
     }
 
     @Nested

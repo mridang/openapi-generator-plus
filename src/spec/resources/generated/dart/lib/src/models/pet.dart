@@ -52,21 +52,16 @@ class Pet {
   /// Example: `doggie`
   final String name;
 
-  /// Example: `null`
   final Category? category;
 
-  /// Example: `null`
   final Set<String> photoUrls;
 
-  /// Example: `null`
   final List<Tag>? tags;
 
   /// pet status in the store
-  /// Example: `null`
   @Deprecated('This property is deprecated.')
   final PetStatusEnum? status;
 
-  /// Example: `null`
   final List<Object>? location;
 
   /// Absolute URL to the pet's public profile page

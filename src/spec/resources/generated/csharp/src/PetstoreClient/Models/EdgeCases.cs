@@ -16,52 +16,42 @@ namespace PetstoreClient.Models;
 /// </summary>
 public class EdgeCases : IEquatable<EdgeCases>
 {
-    /// <example>null</example>
     [JsonPropertyName("freeFormAny")]
     public object? FreeFormAny { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("favoriteColor")]
     public Color? FavoriteColor { get; set; }
 
     /// <summary>
     /// <![CDATA[Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)]]>
     /// </summary>
-    /// <example>null</example>
     [JsonPropertyName("permissionsNote")]
     public string? PermissionsNote { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("and")]
     public bool? And { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("or")]
     public bool? Or { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("not")]
     public bool? Not { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("class")]
     public string? Class { get; set; }
 
-    /// <example>null</example>
     [JsonPropertyName("return")]
     public string? Return { get; set; }
 
     /// <summary>
     /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
     /// </summary>
-    /// <example>null</example>
     [JsonPropertyName("retryAfter")]
     public TimeSpan? RetryAfter { get; set; }
 
     /// <summary>
     /// Absolute expiry instant
     /// </summary>
-    /// <example>null</example>
     [JsonPropertyName("expiresAt")]
     public DateTimeOffset? ExpiresAt { get; set; }
 

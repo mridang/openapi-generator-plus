@@ -19,10 +19,8 @@ import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class Department(
-    /** Example: `null` */
     @SerialName("name")
     val name: String,
-    /** Example: `null` */
     @SerialName("lead")
     val lead: Employee? = null,
 )

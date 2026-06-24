@@ -16,11 +16,8 @@ public enum DefaultsModeEnum: String, Codable, Sendable, CaseIterable {
 }
 
 public struct Defaults: Codable, Sendable, Equatable, Hashable {
-  /// Example: `null`
   public var retries: Int?
-  /// Example: `null`
   public var mode: DefaultsModeEnum?
-  /// Example: `null`
   public var label: String?
 
   enum CodingKeys: String, CodingKey {

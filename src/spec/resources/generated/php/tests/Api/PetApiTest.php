@@ -290,6 +290,7 @@ function newBodyCapturingPetApi(): array
 {
     $captured = new \stdClass();
     $captured->body = '';
+    $captured->url = '';
     /** @var array<string, string> $hdrs */
     $hdrs = [];
     $captured->headers = $hdrs;
@@ -302,6 +303,7 @@ function newBodyCapturingPetApi(): array
         public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiHttpResponse
         {
             $this->captured->body = is_string($body) ? $body : '';
+            $this->captured->url = $url;
             $this->captured->headers = $headers;
             return new \PetstoreClient\ApiHttpResponse(
                 200,
@@ -606,15 +608,31 @@ test('options class is immutable: construction works but property writes throw',
 //
 // getPetByName has a simple-style string path param (name) plus a REQUIRED
 // query param (category). Both are non-nullable in the generated signature /
-// Options object, so the missing-value case in PHP is an empty string. The
-// client must throw a clear \InvalidArgumentException before any request is
-// dispatched rather than silently sending an empty value on the wire.
+// Options object, so presence is already enforced by the PHP type. Only the
+// PATH param is empty-guarded: an empty path segment would collapse the URL
+// (/pet//search), so the client throws \InvalidArgumentException before
+// dispatch. A required QUERY param, by contrast, may legitimately carry an
+// empty string — the type already guarantees the caller supplied it — so the
+// empty value is serialized and sent on the wire rather than being rejected as
+// "missing".
 
-test('get pet by name throws when required query param is empty', function (): void {
-    [$api] = newBodyCapturingPetApi();
+test('get pet by name sends an empty required query param on the wire', function (): void {
+    // M10 regression: an empty string on a REQUIRED query param is a legitimate
+    // value (the non-nullable type already enforces presence), so the call must
+    // NOT throw an InvalidArgumentException and the param must reach the wire as
+    // 'category='. The capturing client returns a canned non-Pet body, so the
+    // Pet-typed result may fail to deserialize — that is irrelevant here; we
+    // assert on the captured request, not the response.
+    [$api, $captured] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->getPetByName('Rex', new GetPetByNameOptions(category: '')))
-        ->toThrow(\InvalidArgumentException::class);
+    try {
+        $api->getPetByName('Rex', new GetPetByNameOptions(category: ''));
+    } catch (\Throwable $e) {
+        // Response deserialization of the canned body is not under test; the URL
+        // is captured during sendRequest, before any deserialization happens.
+    }
+
+    expect($captured->url)->toContain('category=');
 });
 
 test('get pet by name throws when required path param is empty', function (): void {

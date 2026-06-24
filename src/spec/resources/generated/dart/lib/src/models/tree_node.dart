@@ -15,10 +15,8 @@ import '../object_serializer.dart';
 
 /// TreeNode is a model class generated from the OpenAPI schema.
 class TreeNode {
-  /// Example: `null`
   final String value;
 
-  /// Example: `null`
   final TreeNode? child;
 
   const TreeNode({required this.value, this.child});

@@ -27,11 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 })
 public class SetPetAvatarRequest {
 
-  /**
-   * Base64-encoded image data
-   *
-   * <p>Example: {@code null}
-   */
+  /** Base64-encoded image data */
   @JsonProperty("data")
   public byte[] data;
 

@@ -32,7 +32,6 @@ data class Order(
     @SerialName("quantity")
     @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val quantity: Int? = null,
-    /** Example: `null` */
     @SerialName("shipDate")
     @Contextual
     val shipDate: OffsetDateTime? = null,
@@ -43,7 +42,6 @@ data class Order(
      */
     @SerialName("status")
     val status: StatusEnum? = StatusEnum.PLACED,
-    /** Example: `null` */
     @SerialName("complete")
     @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val complete: Boolean? = null,

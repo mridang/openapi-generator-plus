@@ -2042,8 +2042,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * addresses that would pollute generated documentation.
      */
     private static void sanitizeByteArrayExample(CodegenProperty prop) {
+        // Drop placeholder example values that the generator synthesises when the
+        // spec declares no real example: the literal string "null" and the Java
+        // byte-array toString artefact ("[B@1a2b3c"). Both are truthy in Mustache,
+        // so leaving them in place would stamp a false `Example: null` (or garbage)
+        // doc line onto nearly every property in every language. Nulling the
+        // example here (universally, for all 12 generators) makes the templates'
+        // `{{#example}}` sections fall through cleanly with no per-language guard.
         Optional.ofNullable(prop.example)
-                .filter(ex -> ex.matches("\\[B@[0-9a-fA-F]+"))
+                .filter(ex -> "null".equals(ex) || ex.matches("\\[B@[0-9a-fA-F]+"))
                 .ifPresent(ignored -> prop.example = null);
     }
 

@@ -82,4 +82,27 @@ class MetadataTest {
         assertThat(matcher.find()).as("pom.xml must declare a <description>").isTrue();
         assertThat(matcher.group(1).trim()).as("description must not be empty").isNotEmpty();
     }
+
+    @Test
+    void testModelDoesNotDocumentNullExample() throws IOException {
+        {{! example-null-doc-pollution: when a property declares no example, the }}
+        {{! codegen leaves CodegenProperty.example as the literal string "null", }}
+        {{! which is truthy in Mustache. The model template guards the example }}
+        {{! Javadoc with a section, so a real example still renders, but the bogus }}
+        {{! "null" must never reach the generated source as a doc comment. Tag's }}
+        {{! id and name properties carry no example, so Tag.java is the canary. }}
+        {{! Surefire runs tests with the project root as the working directory. }}
+        Path model =
+                Path.of("src", "main", "java")
+                        .resolve(Path.of("{{modelPackage}}".replace('.', '/')))
+                        .resolve("Tag.java");
+        assertThat(Files.exists(model))
+                .as("the Tag model must be generated at %s", model)
+                .isTrue();
+        String source = Files.readString(model);
+        assertThat(source)
+                .as("a no-example property must not document a literal null example")
+                .doesNotContain("Example: {@code null}")
+                .doesNotContain("Example: null");
+    }
 }
