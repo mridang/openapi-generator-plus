@@ -977,6 +977,68 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Builds the precise PHPDoc type string for a return property, descending
+     * the full item tree so a nested container documents its real inner value
+     * type instead of collapsing it to {@code mixed}. The outer container
+     * carries no generics in {@code property.dataType} (e.g. {@code \Ds\Vector}),
+     * so each level wraps its element/value type in the appropriate generic
+     * argument list:
+     *
+     * <ul>
+     *   <li>an array of {@code T} becomes {@code \Ds\Vector<T>};</li>
+     *   <li>a map of {@code T} becomes {@code \Ds\Map<string, T>};</li>
+     *   <li>a leaf scalar/model is its own {@code dataType}.</li>
+     * </ul>
+     *
+     * Because the recursion uses each level's own {@code items} property, a
+     * {@code list<list<int>>} is documented as
+     * {@code \Ds\Vector<\Ds\Vector<int>>} rather than the lossy
+     * {@code \Ds\Vector<\Ds\Vector>} (which {@link #withDsGenerics} would then
+     * have widened to {@code \Ds\Vector<\Ds\Vector<mixed>>}). The final
+     * {@link #withDsGenerics} pass still fills in default generics for any bare
+     * leaf {@code \Ds\*} container that genuinely has no element schema.
+     *
+     * <p>The outer container name comes from {@code outerType} ({@code
+     * op.returnType}) rather than {@code property.dataType} so any earlier
+     * rewrite of the resolved return type — notably the {@code \SplFileObject ->
+     * string} binary-response collapse — is preserved at the top level. Inner
+     * value types are taken from the property item tree, which is left
+     * unmutated by that rewrite.
+     */
+    @Nullable
+    static String phpDocReturnType(@Nullable String outerType, @Nullable CodegenProperty property) {
+        if (outerType == null) {
+            return null;
+        }
+        if (property == null) {
+            return withDsGenerics(outerType);
+        }
+        if (property.isArray && property.items != null) {
+            return withDsGenerics(outerType + "<" + phpDocItemType(property.items) + ">");
+        }
+        if (property.isMap && property.items != null) {
+            return withDsGenerics(outerType + "<string, " + phpDocItemType(property.items) + ">");
+        }
+        return withDsGenerics(outerType);
+    }
+
+    /**
+     * Recursive worker for {@link #phpDocReturnType(String, CodegenProperty)}
+     * that produces the un-{@code withDsGenerics}-normalised PHPDoc string for a
+     * single property, wrapping array elements and map values in their generic
+     * argument lists and recursing into {@code items} for nested containers.
+     */
+    private static String phpDocItemType(CodegenProperty property) {
+        if (property.isArray && property.items != null) {
+            return property.dataType + "<" + phpDocItemType(property.items) + ">";
+        }
+        if (property.isMap && property.items != null) {
+            return property.dataType + "<string, " + phpDocItemType(property.items) + ">";
+        }
+        return property.dataType;
+    }
+
+    /**
      * Honour URI subformat discrimination — {@code format: uri-reference}
      * and {@code format: uri-template} stay as plain {@code string} per
      * {@link AbstractBetterCodegen#keepStringForUriSubformats}, only the
@@ -1097,23 +1159,19 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     if (op.bodyParam != null) {
                         collectEnumRefParamImports(List.of(op.bodyParam), enumParamImports);
                     }
-                    // Build the PHPDoc return type once, applying nested \Ds\*
-                    // generics, so the @return / @var tags are PHPStan-valid even
-                    // when the array element / map value is itself a \Ds\*
-                    // container (e.g. \Ds\Vector<\Ds\Map>). Kept separate from the
-                    // runtime deserialize descriptor, which needs the precise
-                    // value type, so dataType is not mutated here.
-                    final CodegenProperty rp = op.returnProperty;
-                    String phpDoc = null;
-                    if (rp != null && rp.isArray && rp.items != null) {
-                        phpDoc = op.returnType + "<" + rp.items.dataType + ">";
-                    } else if (rp != null && rp.isMap && rp.items != null) {
-                        phpDoc = op.returnType + "<string, " + rp.items.dataType + ">";
-                    } else if (op.returnType != null) {
-                        phpDoc = op.returnType;
-                    }
+                    // Build the PHPDoc return type once by descending the full
+                    // return item tree, applying nested \Ds\* generics, so the
+                    // @return / @var tags are PHPStan-valid AND precise even when
+                    // the array element / map value is itself a container. A
+                    // list<list<int>> is documented as
+                    // \Ds\Vector<\Ds\Vector<int>>, not the lossy
+                    // \Ds\Vector<\Ds\Vector<mixed>> the old single-level build
+                    // produced. Kept separate from the runtime deserialize
+                    // descriptor, which needs the precise value type, so dataType
+                    // is not mutated here.
+                    final String phpDoc = phpDocReturnType(op.returnType, op.returnProperty);
                     if (phpDoc != null) {
-                        op.vendorExtensions.put("phpDocReturnType", withDsGenerics(phpDoc));
+                        op.vendorExtensions.put("phpDocReturnType", phpDoc);
                     }
                 }
             }

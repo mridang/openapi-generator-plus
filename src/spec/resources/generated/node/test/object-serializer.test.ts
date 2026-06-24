@@ -32,6 +32,7 @@ import {
   PhotoMetadata,
   PhotoMetadataLocation,
   Metadata,
+  StrictTag,
 } from "../src/models/index.js";
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
@@ -578,6 +579,48 @@ describe("ObjectSerializer", () => {
       expect(category as unknown as Record<string, unknown>).not.toHaveProperty(
         "anotherExtra",
       );
+    });
+  });
+
+  describe("DeserializeStrictModelRejectsUnknownKeys (L11)", () => {
+    // A model declaring unevaluatedProperties:false (StrictTag) is STRICT:
+    // an undeclared wire key is a contract violation that the real
+    // deserialize path must REJECT, not silently drop via
+    // excludeExtraneousValues. Without the __strictDeclaredKeys gate this
+    // payload would deserialize cleanly and lose the extra key, leaving the
+    // OAS 3.1 strict contract unenforced.
+
+    test("deserialize throws on an undeclared wire key for a strict model", () => {
+      const json: Record<string, unknown> = {
+        id: 7,
+        name: "Important",
+        unexpected: "reject-me",
+      };
+      expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
+        DeserializationError,
+      );
+      expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
+        /Unknown property 'unexpected'/,
+      );
+    });
+
+    test("deserialize accepts a strict model when every key is declared", () => {
+      const json: Record<string, unknown> = { id: 9, name: "Fine" };
+      const tag = ObjectSerializer.deserialize(json, StrictTag);
+      expect(tag).toBeDefined();
+      expect((tag as StrictTag).id).toBe(9);
+      expect((tag as StrictTag).name).toBe("Fine");
+    });
+
+    test("fromJsonStrict and __strictDeclaredKeys agree on the declared set", () => {
+      // The deserialize gate keys off the same static set fromJsonStrict
+      // validates against, so both reject the identical undeclared key.
+      expect(StrictTag.__strictDeclaredKeys.has("id")).toBe(true);
+      expect(StrictTag.__strictDeclaredKeys.has("name")).toBe(true);
+      expect(StrictTag.__strictDeclaredKeys.has("unexpected")).toBe(false);
+      expect(() =>
+        StrictTag.fromJsonStrict({ id: 1, name: "x", unexpected: true }),
+      ).toThrow(/Unknown property 'unexpected'/);
     });
   });
 

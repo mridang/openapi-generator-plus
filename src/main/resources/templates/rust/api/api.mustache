@@ -560,7 +560,7 @@ impl {{classname}} {
             multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}})));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-            multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::serialize(&opts.{{paramName}})?));
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(&opts.{{paramName}})?));
 {{/isPrimitiveType}}
 {{/isFile}}
 {{/isArray}}
@@ -584,7 +584,7 @@ impl {{classname}} {
                 multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val)));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-                multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::serialize(val)?));
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(val)?));
 {{/isPrimitiveType}}
 {{/isFile}}
 {{/isArray}}

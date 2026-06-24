@@ -11,15 +11,21 @@ ruby '>= 3.4'
 # fail on the toolchain-free Alpine base.
 gem 'bigdecimal', '3.1.8'
 
+# base64, json and set are default gems that Ruby is unbundling from the
+# standard library (base64 is no longer a default gem on Ruby 3.4+). The
+# generated runtime requires all three, so declare them as runtime
+# dependencies rather than relying on them being preinstalled.
+gem 'base64', '~> 0.3'
 gem 'dry-struct', '~> 1.6'
 gem 'dry-types', '~> 1.7'
 gem 'faraday', '~> 2.0'
 gem 'faraday-follow_redirects', '~> 0.3'
 gem 'iso8601', '~> 0.13'
+gem 'json', '~> 2.6'
+gem 'set', '~> 1.1'
 gem 'tod', '~> 3.1'
 
 group :development, :test do
-  gem 'base64', '~> 0.3'
   gem 'better_coverage', '~> 1.1'
   gem 'docker-api', '~> 2.4'
   gem 'minitest', '~> 5.0'

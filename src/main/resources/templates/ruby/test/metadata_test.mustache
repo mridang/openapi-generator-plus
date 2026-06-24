@@ -78,4 +78,22 @@ describe 'gem manifest' do
     _(spec.description).must_be_kind_of(String)
     _(spec.description.strip).wont_be_empty
   end
+
+  # default-gem-undeclared: base64, json and set are required by the
+  # generated runtime (object serializer, base API, authenticators) but
+  # are default gems that Ruby is unbundling from the standard library
+  # (base64 is no longer a default gem on Ruby 3.4+). They must be
+  # declared explicitly so the gem keeps working once they are removed.
+  it 'declares the default gems used by the runtime' do
+    gemspec_path = File.join(File.expand_path('..', __dir__), '{{gemName}}.gemspec')
+    _(File.exist?(gemspec_path)).must_equal(true)
+
+    spec = Gem::Specification.load(gemspec_path)
+    _(spec).wont_be_nil
+
+    declared = spec.dependencies.map(&:name)
+    %w[base64 json set].each do |gem_name|
+      _(declared).must_include(gem_name)
+    end
+  end
 end

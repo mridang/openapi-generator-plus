@@ -28,13 +28,28 @@ export class StrictTag {
   name?: string;
 
   /**
+   * Gap L11 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+   * The schema-declared wire-key names. Its PRESENCE marks this model as
+   * strict: ObjectSerializer.deserialize reads this set and REJECTS any wire
+   * key not listed here, instead of silently dropping it via plainToInstance's
+   * excludeExtraneousValues. Mirrors {@link fromJsonStrict}'s declared set so
+   * the deserialize path enforces the same strict contract the convenience
+   * constructor does. Models without this static accept unknown keys (and
+   * drop them).
+   */
+  static readonly __strictDeclaredKeys: ReadonlySet<string> = new Set([
+    "id",
+    "name",
+  ]);
+
+  /**
    * Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
    * Constructs an instance from a JSON-like payload and throws on any key not
    * declared above. Callers should prefer this over `new StrictTag(data)`
    * when validating untrusted input.
    */
   static fromJsonStrict(raw: Record<string, unknown>): StrictTag {
-    const declared = new Set<string>(["id", "name"]);
+    const declared = StrictTag.__strictDeclaredKeys;
     for (const key of Object.keys(raw)) {
       if (!declared.has(key)) {
         throw new Error(

@@ -40,7 +40,9 @@ pub(crate) struct InvokeApiParams<'a> {
     /// Multipart/form-data fields. When set, the request is sent as
     /// `multipart/form-data` and `body` is ignored. File parts carry their
     /// bytes via `MultipartValue::Bytes`, repeated fields via
-    /// `MultipartValue::List`, and every other part via `MultipartValue::Text`.
+    /// `MultipartValue::List`, object parts via `MultipartValue::Json` (which
+    /// carries `Content-Type: application/json`), and scalar form fields via
+    /// `MultipartValue::Text`.
     /// Serialization (boundary, per-part Content-Type from the field-name
     /// extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
     /// preservation) is performed by the API client's `serialize_multipart_body`.

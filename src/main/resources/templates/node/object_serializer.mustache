@@ -447,6 +447,31 @@ export class ObjectSerializer {
         );
       }
 
+      /**
+       * Gap L11: a model declaring `unevaluatedProperties:false` (OAS 3.1 /
+       * JSON Schema 2020-12) is STRICT — an undeclared wire key is a contract
+       * violation that must be REJECTED, not silently dropped. plainToInstance
+       * with excludeExtraneousValues discards every non-@Expose key, so without
+       * this gate the strict contract would be unenforced on the real
+       * deserialize path (the model's own fromJsonStrict was never reached).
+       * The static `__strictDeclaredKeys` set (present only on strict models)
+       * lists the allowed wire keys; reject any json key not in it before
+       * building the instance. Models without the marker are non-strict and
+       * accept extras as before.
+       */
+      const strictKeys = (cls as { __strictDeclaredKeys?: ReadonlySet<string> })
+        .__strictDeclaredKeys;
+      if (strictKeys && json && typeof json === 'object' && !Array.isArray(json)) {
+        for (const key of Object.keys(json as Record<string, unknown>)) {
+          if (!strictKeys.has(key)) {
+            throw new DeserializationError(
+              `Unknown property '${key}' on ${cls.name} ` +
+                `(unevaluatedProperties:false).`
+            );
+          }
+        }
+      }
+
       const instance = plainToInstance(cls, json, { excludeExtraneousValues: true });
       /**
        * Gap S: re-run the model constructor on the plain-instance so the

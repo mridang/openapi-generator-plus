@@ -23,6 +23,13 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 3.1'
   s.metadata['rubygems_mfa_required'] = 'true'
 
+  # base64, json and set are default gems that Ruby is unbundling from
+  # the standard library (base64 is no longer a default gem on Ruby
+  # 3.4+). The generated runtime requires all three, so declare them
+  # explicitly rather than relying on them being preinstalled.
+  s.add_dependency 'base64', '~> 0.3'
+  s.add_dependency 'json', '~> 2.6'
+  s.add_dependency 'set', '~> 1.1'
   s.add_dependency 'dry-struct', '~> 1.6'
   s.add_dependency 'dry-types', '~> 1.7'
   s.add_dependency 'faraday', '~> 2.0'

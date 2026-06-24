@@ -62,10 +62,6 @@ func (o EdgeCases) MarshalJSON() ([]byte, error) {
 func (o *EdgeCases) UnmarshalJSON(data []byte) error {
 	type Alias EdgeCases
 	aux := &Alias{}
-	/* default-on-deserialize: pre-seed optional fields that declare a schema
-	 * default. json.Unmarshal leaves a struct field untouched when its key is
-	 * absent from the payload, so a pre-set default survives while a present
-	 * value overwrites it — matching the default-application of the other SDKs. */
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}

@@ -30,7 +30,18 @@ class {{className}}(
 {{#description}}
     /** {{{description}}} */
 {{/description}}
-    val {{paramName}}: {{{dataType}}}? = null,
+{{! defaulted-body-param: a schema default on an optional param must surface as
+    the Kotlin parameter default ONLY for a body param, whose value the SDK
+    serializes and sends — there the default is the value the caller gets when
+    they omit the argument, mirroring how model properties carry their default.
+    A query/header/form/cookie param is the opposite: its default is applied
+    server-side, and the omit-on-unset contract (an absent optional param must
+    send NO key at all, see the allowEmptyValue tests) requires it stay null so
+    nothing is materialised onto the wire. `defaultValue` is the codegen literal;
+    a string body default is the bare token and must be quoted to form a valid
+    String literal, while numeric/boolean/enum-reference defaults are already
+    valid Kotlin expressions and are emitted verbatim. }}
+    val {{paramName}}: {{{dataType}}}? = {{#isBodyParam}}{{#defaultValue}}{{#isString}}"{{{defaultValue}}}"{{/isString}}{{^isString}}{{{defaultValue}}}{{/isString}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isBodyParam}}{{^isBodyParam}}null{{/isBodyParam}},
 {{/optionalParams}}
 {{#hasAuthField}}
     val auth: {{authFieldType}}? = null,

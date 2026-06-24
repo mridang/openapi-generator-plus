@@ -704,6 +704,17 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
      * lets the template suppress the derive and generate a matching
      * {@code Default} impl, so {@code ..Default::default()} struct-update syntax
      * observes the same schema defaults {@code new()} promises.
+     *
+     * <p>The discriminator field is the same hazard on the REQUIRED side. A
+     * discriminated-oneOf child (e.g. {@code DryFood}) carries its discriminator
+     * ({@code foodType}) as a required, non-{@code Option} {@code String} that
+     * {@code new()} seeds with the oneOf mapping value ({@code "dry"}). Whether
+     * the discriminator lands in {@code optionalVars} (when demoted) or stays in
+     * {@code requiredVars} (when not), the derived {@code Default} sets it to the
+     * type default — an EMPTY {@code String} ({@code ""}) — diverging from
+     * {@code new()} and breaking parent round-trip: the parent's untagged enum
+     * can no longer dispatch on the blank discriminator. So a discriminator in
+     * {@code requiredVars} must also force the hand-written {@code Default} impl.
      */
     @Override
     public org.openapitools.codegen.model.ModelsMap postProcessModels(
@@ -712,9 +723,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         for (final ModelMap modelMap : result.getModels()) {
             final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
             final boolean hasDefaultedOptionalVars =
-                    model.optionalVars != null
-                            && model.optionalVars.stream()
-                                    .anyMatch(p -> p.defaultValue != null || p.isDiscriminator);
+                    (model.optionalVars != null
+                                    && model.optionalVars.stream()
+                                            .anyMatch(
+                                                    p ->
+                                                            p.defaultValue != null
+                                                                    || p.isDiscriminator))
+                            || (model.requiredVars != null
+                                    && model.requiredVars.stream()
+                                            .anyMatch(p -> p.isDiscriminator));
             modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars);
         }
         return result;

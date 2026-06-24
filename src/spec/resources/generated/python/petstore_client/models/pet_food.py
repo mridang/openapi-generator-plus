@@ -105,9 +105,9 @@ class PetFood(BaseModel):
             super().__init__(**kwargs)
 
 
+from petstore_client._types import LaxFloat
 from petstore_client.models.dry_food import DryFood
 from petstore_client.models.wet_food import WetFood
-from pydantic import StrictFloat
 from pydantic import StrictInt
 from pydantic import StrictStr
 

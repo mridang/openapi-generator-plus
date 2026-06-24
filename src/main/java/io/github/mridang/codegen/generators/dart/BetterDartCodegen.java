@@ -557,8 +557,27 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
-        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        tagDuration(property);
         propagateEnumRefBackingType(property);
+    }
+
+    /**
+     * Sets the {@code isDuration} vendor-extension flag on the property and on
+     * every nested container leaf ({@code items}). The model template's
+     * scalar duration branch keys off {@code vendorExtensions.isDuration}, and
+     * the array/map {@code toJson} and {@code deserialize_arg} leaf branches
+     * read the same flag off {@code items}; OpenAPI Generator only carries
+     * {@code dataFormat} on the leaf node, so the flag must be lifted onto the
+     * whole items chain for a {@code List<Duration>} / {@code Map<String,
+     * Duration>} (or nested) field to serialise via {@code
+     * formatProtobufDuration} rather than dumping a raw {@code Duration}.
+     */
+    private void tagDuration(CodegenProperty property) {
+        if (property == null) {
+            return;
+        }
+        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        tagDuration(property.items);
     }
 
     /**

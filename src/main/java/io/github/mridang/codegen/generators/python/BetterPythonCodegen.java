@@ -97,8 +97,14 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // Item 8: pydantic 2 strict primitives — kills lax JSON coercion
         typeMapping.put("integer", "StrictInt");
         typeMapping.put("long", "StrictInt");
-        typeMapping.put("float", "StrictFloat");
-        typeMapping.put("double", "StrictFloat");
+        // `format: float`/`double` → LaxFloat, a StrictFloat that additionally
+        // accepts an integral JSON number (`5` for a double). JSON has one
+        // number type, so a server may legitimately emit `5` for a double
+        // field; bare StrictFloat rejects it because the parsed Python value
+        // is an `int`. LaxFloat widens only that lossless `int -> float` case
+        // and keeps the rest of StrictFloat's strictness (rejects str/bool).
+        typeMapping.put("float", "LaxFloat");
+        typeMapping.put("double", "LaxFloat");
         // A bare `type: number` (no `format`) is a decimal-precision surface
         // per the typed-everywhere policy: decimal.Decimal in Python (matching
         // BigDecimal in Java/Kotlin and branded Decimal in Node). `format:
@@ -119,9 +125,15 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // alias and its helpers live in the dependency-free `_duration` module.
         typeMapping.put("duration", "ProtobufDuration");
         typeMapping.put("UUID", "uuid.UUID");
-        // Item 1: format: uri → pydantic.HttpUrl (uri-reference/uri-template
-        // are downgraded back to StrictStr in postProcessModelProperty).
-        typeMapping.put("URI", "HttpUrl");
+        // Item 1: format: uri → UrlStr, a `str` whose AfterValidator asserts
+        // the value is a valid absolute http(s) URL but returns it verbatim.
+        // pydantic.HttpUrl validates AND normalizes (lowercases host, strips a
+        // default port, appends a trailing slash), which makes the JSON
+        // round-trip lossy — `https://example.com` would re-encode as
+        // `https://example.com/`. UrlStr keeps the wire value byte-identical
+        // while still rejecting non-URLs. (uri-reference/uri-template are
+        // downgraded to StrictStr in postProcessModelProperty.)
+        typeMapping.put("URI", "UrlStr");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "object");
         typeMapping.put("array", "List");
@@ -142,6 +154,14 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // `from <pkg>.models.ProtobufDuration import ...`.
                                 // Its real import comes from getPropertyTypeImportMap.
                                 "ProtobufDuration",
+                                // LaxFloat (format: float/double) and UrlStr
+                                // (format: uri) are package-qualified Annotated
+                                // aliases living in `<pkg>._types`; treat them
+                                // as primitives so the generic-import machinery
+                                // does not try to emit a `<pkg>.models.X` import.
+                                // Their real imports come from
+                                // getPropertyTypeImportMap.
+                                "LaxFloat", "UrlStr",
                                 "uuid.UUID", "List", "Dict", "Set",
                                 "Tuple", "Optional",
                                 // Pydantic 2 native types treated as primitives so the
@@ -303,6 +323,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/unprocessable_entity_exception.mustache", errorsPath, "unprocessable_entity_exception.py"),
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsPath, "internal_server_error_exception.py"),
             new SupportingFileSpec("_duration.mustache", packagePath, "_duration.py"),
+            new SupportingFileSpec("_types.mustache", packagePath, "_types.py"),
             new SupportingFileSpec("object_serializer.mustache", packagePath, "object_serializer.py"),
             new SupportingFileSpec("value_serializer.mustache", packagePath, "value_serializer.py"),
             new SupportingFileSpec("header_selector.mustache", packagePath, "header_selector.py"),
@@ -637,7 +658,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected Set<String> getNumericDataTypes() {
-        return Set.of("int", "float", "StrictInt", "StrictFloat", "Decimal");
+        // LaxFloat is the `format: float`/`double` mapping (a StrictFloat that
+        // also accepts an integral JSON number); it is numeric like StrictFloat.
+        return Set.of(
+                "int", "float", "StrictInt", "StrictFloat", "LaxFloat", "Decimal");
     }
 
     /**
@@ -789,6 +813,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         map.put(
                 "ProtobufDuration",
                 "from " + packageName + "._duration import ProtobufDuration");
+        // LaxFloat (format: float/double) and UrlStr (format: uri) are
+        // package-qualified Annotated aliases in `<pkg>._types`, so their
+        // imports likewise depend on the per-run packageName and cannot live in
+        // the static TYPE_IMPORTS map.
+        map.put("LaxFloat", "from " + packageName + "._types import LaxFloat");
+        map.put("UrlStr", "from " + packageName + "._types import UrlStr");
         return map;
     }
 

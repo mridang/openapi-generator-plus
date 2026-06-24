@@ -58,7 +58,7 @@ This SDK leans on pydantic 2's native typed surfaces:
 | `integer`                          | `pydantic.StrictInt`              |
 | `number`                           | `pydantic.StrictFloat`            |
 | `boolean`                          | `pydantic.StrictBool`             |
-| `string`, `format: uri`            | `pydantic.HttpUrl`                |
+| `string`, `format: uri`            | URL-validated `str` (round-trips verbatim) |
 | `string`, `format: uri-reference`  | `pydantic.StrictStr` (may be relative) |
 | `string`, `format: uri-template`   | `pydantic.StrictStr` (RFC 6570)   |
 | `string`, `format: email`          | `pydantic.EmailStr`               |

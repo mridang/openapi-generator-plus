@@ -122,6 +122,13 @@ class ObjectSerializer:
         "StrictFloat": float,
         "StrictBool": bool,
         "StrictStr": str,
+        # LaxFloat (format: float/double) and UrlStr (format: uri) are the
+        # SDK's own Annotated aliases over float/str. They normally appear only
+        # as scalar model-field annotations resolved by pydantic, but mapping
+        # them here keeps a container element type-name string (e.g. an inner
+        # 'LaxFloat' of a List[...]) resolvable on the hand-rolled fallback path.
+        "LaxFloat": float,
+        "UrlStr": str,
     }
 
     def __init__(self) -> None:
@@ -250,7 +257,9 @@ class ObjectSerializer:
             return str(obj)
         elif isinstance(obj, uuid.UUID):
             return str(obj)
-        elif isinstance(obj, (list, tuple, dict)) or hasattr(obj, "__dict__"):
+        elif isinstance(obj, (list, tuple, set, frozenset, dict)) or hasattr(
+            obj, "__dict__"
+        ):
             if _visited is None:
                 _visited = set()
             obj_id = id(obj)
@@ -268,6 +277,21 @@ class ObjectSerializer:
                     sanitized = tuple(
                         cls._sanitize_for_serialization(item, _visited) for item in obj
                     )
+                elif isinstance(obj, (set, frozenset)):
+                    # JSON has no set type, so a set/frozenset must emit as a
+                    # JSON ARRAY — not the Python repr string ('{1, 2, 3}') the
+                    # bare `str(obj)` fallback used to produce. Sets are
+                    # unordered; sort when the elements are mutually comparable
+                    # so the wire form is deterministic, and fall back to
+                    # insertion/hash order for mixed-type sets that can't be
+                    # ordered (sorting would raise TypeError there).
+                    items = [
+                        cls._sanitize_for_serialization(item, _visited) for item in obj
+                    ]
+                    try:
+                        sanitized = sorted(items)
+                    except TypeError:
+                        sanitized = items
                 elif isinstance(obj, dict):
                     sanitized = {
                         key: cls._sanitize_for_serialization(val, _visited)

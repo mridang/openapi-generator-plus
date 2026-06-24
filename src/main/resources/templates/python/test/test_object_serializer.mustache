@@ -151,6 +151,116 @@ class TestDeserializationErrorWrapping:
         assert exc_info.value.cause is not None
 
 
+class TestStrictFloatAcceptsIntegralWireValue:
+    """A `format: double`/`float` field decodes an integral JSON number.
+
+    JSON has a single number type, so a server may emit `5` (no decimal point)
+    for a field declared `format: double`. Bare pydantic StrictFloat rejects
+    that because the parsed Python type is `int`; the SDK's LaxFloat alias
+    widens the lossless `int -> float` case while keeping the rest of the
+    StrictFloat strictness (str/bool still rejected). DryFood.weight_kg
+    (format: double → StrictFloat → LaxFloat) is the fixture shape.
+    """
+
+    def test_integral_json_decodes_to_float(self) -> None:
+        try:
+            restored = ObjectSerializer().deserialize(
+                '{"foodType": "dry", "weightKg": 5}', 'DryFood'
+            )
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'integral double value was rejected: {exc}')
+        assert restored is not None
+        assert restored.weight_kg == 5.0
+        assert isinstance(restored.weight_kg, float)
+
+    def test_fractional_json_still_decodes(self) -> None:
+        try:
+            restored = ObjectSerializer().deserialize(
+                '{"foodType": "dry", "weightKg": 1.5}', 'DryFood'
+            )
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'fractional double value was rejected: {exc}')
+        assert restored is not None
+        assert restored.weight_kg == 1.5
+
+    def test_string_value_still_rejected(self) -> None:
+        # LaxFloat only widens int -> float; a string is still a wire-type bug.
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(
+                '{"foodType": "dry", "weightKg": "5"}', 'DryFood'
+            )
+
+
+class TestUriRoundTripsByteIdentical:
+    """A `format: uri` field round-trips its wire value byte-identical.
+
+    pydantic.HttpUrl validates AND normalizes (appends a trailing slash to a
+    host-only URL, strips a default port, lowercases the host), which makes the
+    JSON round-trip lossy. The SDK maps `format: uri` to UrlStr — a validated
+    `str` that returns the value verbatim — so the URL survives unchanged.
+    Pet.homepage_url (format: uri) is the fixture shape.
+    """
+
+    def test_host_only_url_keeps_no_trailing_slash(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "https://example.com"}'
+        try:
+            restored = ObjectSerializer().deserialize(wire, 'Pet')
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'absolute URL was rejected: {exc}')
+        assert restored is not None
+        # HttpUrl would have mutated this to 'https://example.com/'.
+        assert restored.homepage_url == 'https://example.com'
+        reserialized = ObjectSerializer().serialize(restored)
+        assert '"https://example.com"' in reserialized
+        assert 'https://example.com/' not in reserialized
+
+    def test_default_port_and_host_case_preserved(self) -> None:
+        url = 'http://Example.COM:80/Path'
+        wire = (
+            '{"name": "Fido", "photoUrls": [], "homepageUrl": "' + url + '"}'
+        )
+        try:
+            restored = ObjectSerializer().deserialize(wire, 'Pet')
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'absolute URL was rejected: {exc}')
+        assert restored is not None
+        # HttpUrl would lowercase the host and strip the :80 default port.
+        assert restored.homepage_url == url
+
+    def test_non_url_string_rejected(self) -> None:
+        # UrlStr still validates: a non-URL value is a real error.
+        wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "not a url"}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(wire, 'Pet')
+
+
+class TestSetSanitization:
+    """`_sanitize_for_serialization` emits a set/frozenset as a JSON array.
+
+    JSON has no set type; a set must serialize as a JSON ARRAY, not the Python
+    repr string ('{1, 2, 3}') the bare `str(obj)` fallback used to produce.
+    """
+
+    def test_set_serializes_as_json_array(self) -> None:
+        result = ObjectSerializer().serialize({'values': {3, 1, 2}})
+        # Sorted for determinism, emitted as a JSON array (not '{1, 2, 3}').
+        assert '"values": [1, 2, 3]' in result
+        assert '{1, 2, 3}' not in result
+
+    def test_frozenset_serializes_as_json_array(self) -> None:
+        result = ObjectSerializer().serialize({'values': frozenset({'b', 'a'})})
+        assert '"values": ["a", "b"]' in result
+
+    def test_top_level_set_serializes_as_json_array(self) -> None:
+        result = ObjectSerializer().serialize({2, 1, 3})
+        assert result == '[1, 2, 3]'
+
+    def test_sanitize_set_returns_list(self) -> None:
+        sanitized = ObjectSerializer._sanitize_for_serialization({1, 2, 3})
+        assert isinstance(sanitized, list)
+        assert sorted(sanitized) == [1, 2, 3]
+
+
 class TestStringify:
     def test_none_returns_empty_string(self) -> None:
         assert ObjectSerializer.stringify(None) == ''

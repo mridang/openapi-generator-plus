@@ -1727,6 +1727,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         modelMap.put(flagName, true);
                         result.put(flagName, true);
                     }
+                } else if ("hasOptionalDefault".equals(key)) {
+                    // True when at least one optional (non-required) property
+                    // declares a schema default. Used to guard the
+                    // "pre-seed optional defaults" comment in the Go
+                    // UnmarshalJSON template so it is only emitted when there
+                    // is actually a default to pre-seed.
+                    final boolean hasOptionalDefault =
+                            model.vars.stream()
+                                    .anyMatch(
+                                            p ->
+                                                    !p.required
+                                                            && p.defaultValue != null
+                                                            && !p.defaultValue.isEmpty());
+                    if (hasOptionalDefault) {
+                        modelMap.put(flagName, true);
+                        result.put(flagName, true);
+                    }
                 }
             }
         }
@@ -2612,6 +2629,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      *   <li>{@code "oneOfAnyOf"} — set the flag if the model's {@code oneOf}
      *       or {@code anyOf} list is non-empty. Example: Go uses
      *       {@code "oneOfAnyOf"} → {@code "hasFmtImport"}.</li>
+     *   <li>{@code "hasOptionalDefault"} — set the flag if any optional
+     *       (non-required) property declares a schema default. Example: Go
+     *       uses it to guard the "pre-seed optional defaults" comment.</li>
      * </ul>
      *
      * Default is an empty map (no flags set).

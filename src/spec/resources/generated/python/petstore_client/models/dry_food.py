@@ -30,7 +30,7 @@ class DryFood(BaseModel):
     """
 
     food_type: StrictStr = Field(alias="foodType", default="dry")
-    weight_kg: StrictFloat = Field(alias="weightKg")
+    weight_kg: LaxFloat = Field(alias="weightKg")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
@@ -43,7 +43,7 @@ class DryFood(BaseModel):
     )
 
 
-from pydantic import StrictFloat
+from petstore_client._types import LaxFloat
 from pydantic import StrictStr
 
 DryFood.model_rebuild(raise_errors=False)

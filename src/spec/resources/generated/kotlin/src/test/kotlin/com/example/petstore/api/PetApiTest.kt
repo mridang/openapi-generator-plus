@@ -729,6 +729,17 @@ class PetApiTest {
             val findOpts = FindPetsByStatusOptions(status = "available")
             assertEquals("available", findOpts.status)
             assertNull(findOpts.filter)
+
+            // A defaulted OPTIONAL QUERY param does NOT materialise its schema
+            // default onto the Options object: `status` declares
+            // `default: available`, yet the zero-arg constructor must leave it
+            // null so the omit-on-unset contract holds (an absent optional query
+            // param sends no key — the server applies the default, not the SDK;
+            // see the allowEmptyValue tests in BaseApiTest). Only body params
+            // carry their default into the constructor.
+            val defaultedOpts = FindPetsByStatusOptions()
+            assertNull(defaultedOpts.status)
+            assertNull(defaultedOpts.filter)
         }
 
         @Test

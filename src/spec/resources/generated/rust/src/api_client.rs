@@ -29,8 +29,14 @@ pub enum RequestBody {
 pub enum MultipartValue {
     /// Raw bytes (sent as file upload).
     Bytes(Vec<u8>),
-    /// Text value.
+    /// Plain text value (a scalar form field). Written without a part
+    /// `Content-Type` header — multipart text defaults to text/plain.
     Text(String),
+    /// A JSON document for an object-typed part. The OAS `encoding.contentType`
+    /// for a model part is `application/json`, so this part MUST carry a
+    /// `Content-Type: application/json` header on the wire; a server that
+    /// content-negotiates the part otherwise parses the JSON as text/plain.
+    Json(String),
     /// A list of values for the same field name.
     List(Vec<MultipartValue>),
 }

@@ -296,7 +296,7 @@ class StoreApi extends BaseApi
     /**
      * Returns categories grouped into an array of string-keyed maps.
 
-     * @return \Ds\Vector<\Ds\Map<array-key, mixed>>
+     * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>
      * @throws \PetstoreClient\ApiException
      */
     public function getGroupedCategories()
@@ -315,14 +315,14 @@ class StoreApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Vector<\Ds\Map<array-key, mixed>> $result */
+        /** @var \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>> $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>>
+     * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>>
      * @throws \PetstoreClient\ApiException
      */
     public function getGroupedCategoriesWithHttpInfo(): ApiResult
@@ -332,7 +332,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>> $result */
+        /** @var ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -402,7 +402,7 @@ class StoreApi extends BaseApi
     /**
      * Returns a matrix as an array of integer arrays.
 
-     * @return \Ds\Vector<\Ds\Vector<mixed>>
+     * @return \Ds\Vector<\Ds\Vector<int>>
      * @throws \PetstoreClient\ApiException
      */
     public function getMatrix()
@@ -421,14 +421,14 @@ class StoreApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Vector<\Ds\Vector<mixed>> $result */
+        /** @var \Ds\Vector<\Ds\Vector<int>> $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\Ds\Vector<\Ds\Vector<mixed>>>
+     * @return ApiResult<\Ds\Vector<\Ds\Vector<int>>>
      * @throws \PetstoreClient\ApiException
      */
     public function getMatrixWithHttpInfo(): ApiResult
@@ -438,7 +438,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\Ds\Vector<\Ds\Vector<mixed>>> $result */
+        /** @var ApiResult<\Ds\Vector<\Ds\Vector<int>>> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -650,7 +650,7 @@ class StoreApi extends BaseApi
     /**
      * Returns swatches grouped as an array of string-keyed enum maps.
 
-     * @return \Ds\Vector<\Ds\Map<array-key, mixed>>
+     * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>
      * @throws \PetstoreClient\ApiException
      */
     public function getSwatchGroups()
@@ -669,14 +669,14 @@ class StoreApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Vector<\Ds\Map<array-key, mixed>> $result */
+        /** @var \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>> $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>>
+     * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>>
      * @throws \PetstoreClient\ApiException
      */
     public function getSwatchGroupsWithHttpInfo(): ApiResult
@@ -686,7 +686,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>> $result */
+        /** @var ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -703,7 +703,7 @@ class StoreApi extends BaseApi
     /**
      * Returns timestamps grouped as an array of string-keyed maps.
 
-     * @return \Ds\Vector<\Ds\Map<array-key, mixed>>
+     * @return \Ds\Vector<\Ds\Map<string, \DateTime>>
      * @throws \PetstoreClient\ApiException
      */
     public function getTimestampGroups()
@@ -722,14 +722,14 @@ class StoreApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Vector<\Ds\Map<array-key, mixed>> $result */
+        /** @var \Ds\Vector<\Ds\Map<string, \DateTime>> $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>>
+     * @return ApiResult<\Ds\Vector<\Ds\Map<string, \DateTime>>>
      * @throws \PetstoreClient\ApiException
      */
     public function getTimestampGroupsWithHttpInfo(): ApiResult
@@ -739,7 +739,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\Ds\Vector<\Ds\Map<array-key, mixed>>> $result */
+        /** @var ApiResult<\Ds\Vector<\Ds\Map<string, \DateTime>>> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,

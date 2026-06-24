@@ -608,7 +608,24 @@ class {{classname}} {
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}
+{{! A container of temporal/uuid/duration leaves holds Dart objects
+    (DateTime/UuidValue/Duration) that jsonEncode cannot serialise, so each
+    leaf must be projected to its wire form here — mirroring the scalar path
+    above and the deserialize_arg leaf branches — instead of dumping the raw
+    list. A `date` (format:date) leaf is already a String so it passes through
+    via the plain toList(). }}
+{{#isDateTime}}
+    json['{{baseName}}'] = {{name}}.map((e) => formatDateTimeOffset(e)).toList();
+{{/isDateTime}}
+{{#isUuid}}
+    json['{{baseName}}'] = {{name}}.map((e) => e.toString()).toList();
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+    json['{{baseName}}'] = {{name}}.map((e) => formatProtobufDuration(e)).toList();
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
     json['{{baseName}}'] = {{name}}.toList();
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
     json['{{baseName}}'] = {{name}}.map((e) => e.toJson()).toList();
@@ -640,7 +657,25 @@ class {{classname}} {
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}
+{{#items}}
+{{! A map whose VALUES are temporal/uuid/duration leaves holds Dart objects
+    that jsonEncode cannot serialise, so each value is projected to its wire
+    form here — mirroring the scalar/array paths and the deserialize_arg leaf
+    branches. A `date` (format:date) value is already a String, and any other
+    leaf passes through, via the plain assignment. }}
+{{#isDateTime}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
+{{/isDateTime}}
+{{#isUuid}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, v.toString()));
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
     json['{{baseName}}'] = {{name}};
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/items}}
 {{/isMap}}
 {{^isMap}}
     json['{{baseName}}'] = {{name}}.toJson();
@@ -663,7 +698,22 @@ class {{classname}} {
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}
+{{! Optional counterpart of the required array branch: a container of
+    temporal/uuid/duration leaves holds Dart objects jsonEncode cannot encode,
+    so each leaf is projected to its wire form. A `date` leaf is already a
+    String and passes through the plain toList(). }}
+{{#isDateTime}}
+      json['{{baseName}}'] = {{name}}?.map((e) => formatDateTimeOffset(e)).toList();
+{{/isDateTime}}
+{{#isUuid}}
+      json['{{baseName}}'] = {{name}}?.map((e) => e.toString()).toList();
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+      json['{{baseName}}'] = {{name}}?.map((e) => formatProtobufDuration(e)).toList();
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
       json['{{baseName}}'] = {{name}}?.toList();
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
       json['{{baseName}}'] = {{name}}?.map((e) => e.toJson()).toList();
@@ -695,7 +745,24 @@ class {{classname}} {
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}
+{{#items}}
+{{! Optional counterpart of the required map branch: a map whose VALUES are
+    temporal/uuid/duration leaves holds Dart objects jsonEncode cannot encode,
+    so each value is projected to its wire form. A `date` value is already a
+    String, and any other leaf passes through, via the plain assignment. }}
+{{#isDateTime}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
+{{/isDateTime}}
+{{#isUuid}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, v.toString()));
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
+{{/vendorExtensions.isDuration}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
       json['{{baseName}}'] = {{name}};
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/items}}
 {{/isMap}}
 {{^isMap}}
       json['{{baseName}}'] = {{name}}?.toJson();

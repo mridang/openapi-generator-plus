@@ -29,8 +29,8 @@ class PhotoMetadataLocation(BaseModel):
     PhotoMetadataLocation
     """
 
-    lat: Optional[StrictFloat] = Field(default=None, alias="lat")
-    lng: Optional[StrictFloat] = Field(default=None, alias="lng")
+    lat: Optional[LaxFloat] = Field(default=None, alias="lat")
+    lng: Optional[LaxFloat] = Field(default=None, alias="lng")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
@@ -43,6 +43,6 @@ class PhotoMetadataLocation(BaseModel):
     )
 
 
-from pydantic import StrictFloat
+from petstore_client._types import LaxFloat
 
 PhotoMetadataLocation.model_rebuild(raise_errors=False)

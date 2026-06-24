@@ -184,7 +184,9 @@ class PetWithOwner {
     if (category != null) {
       json['category'] = category?.toJson();
     }
+
     json['photoUrls'] = photoUrls.toList();
+
     if (tags != null) {
       json['tags'] = tags?.map((e) => e.toJson()).toList();
     }

@@ -51,7 +51,7 @@ class Pet(BaseModel):
         default=None, alias="status", description="pet status in the store"
     )
     location: Optional[List[object]] = Field(default=None, alias="location")
-    homepage_url: Optional[HttpUrl] = Field(
+    homepage_url: Optional[UrlStr] = Field(
         default=None,
         alias="homepageUrl",
         description="Absolute URL to the pet's public profile page",
@@ -100,10 +100,10 @@ class Pet(BaseModel):
 
 
 from decimal import Decimal
+from petstore_client._types import UrlStr
 from petstore_client.models.category import Category
 from petstore_client.models.tag import Tag
 from pydantic import EmailStr
-from pydantic import HttpUrl
 from pydantic import StrictInt
 from pydantic import StrictStr
 

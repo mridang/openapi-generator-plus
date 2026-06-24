@@ -329,7 +329,7 @@ impl PetApi {
         );
         multipart.insert(
             "metadata".to_string(),
-            MultipartValue::Text(object_serializer::serialize(&opts.metadata)?),
+            MultipartValue::Json(object_serializer::serialize(&opts.metadata)?),
         );
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);

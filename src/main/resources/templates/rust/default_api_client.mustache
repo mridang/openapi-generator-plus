@@ -582,7 +582,8 @@ pub fn serialize_multipart_body(
 /// Appends a single multipart field (recursing into List variants) to the
 /// in-progress body buffer. Bytes parts are written as file uploads with a
 /// filename directive derived from the field name; text parts are written
-/// without a Content-Type header.
+/// without a Content-Type header; JSON object parts carry an explicit
+/// `Content-Type: application/json` header (their OAS `encoding.contentType`).
 fn append_multipart_field(
     out: &mut Vec<u8>,
     boundary: &str,
@@ -628,6 +629,21 @@ fn append_multipart_field(
             out.extend_from_slice(safe_name.as_bytes());
             out.extend_from_slice(b"\"\r\n\r\n");
             out.extend_from_slice(text.as_bytes());
+            out.extend_from_slice(b"\r\n");
+        }
+        MultipartValue::Json(json) => {
+            /* An object-typed part: the OAS `encoding.contentType` is
+             * `application/json`, so the part MUST advertise that media type.
+             * Without the explicit header a server treats the part as
+             * text/plain and may refuse to parse the JSON body. */
+            out.extend_from_slice(b"--");
+            out.extend_from_slice(boundary.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
+            out.extend_from_slice(safe_name.as_bytes());
+            out.extend_from_slice(b"\"\r\n");
+            out.extend_from_slice(b"Content-Type: application/json\r\n\r\n");
+            out.extend_from_slice(json.as_bytes());
             out.extend_from_slice(b"\r\n");
         }
         MultipartValue::List(items) => {
@@ -968,14 +984,16 @@ mod tests {
     // Cross-SDK parity: the addPetPhotos operation sends a multipart/form-data
     // body whose `metadata` part is a MODEL (PhotoMetadata). The generated
     // operation builds that part with exactly the call exercised below —
-    // `MultipartValue::Text(object_serializer::serialize(&metadata)?)` — so the
+    // `MultipartValue::Json(object_serializer::serialize(&metadata)?)` — so the
     // model part is encoded through the SDK's CONFIGURED serializer. That means
     // the part JSON carries the WIRE property names declared by the schema
     // (`isPrimary`, `takenAt`) rather than the snake_case Rust field idents
     // (`is_primary`, `taken_at`), and the `format: date-time` field is rendered
-    // with chrono's RFC 3339 wire form (millisecond fraction preserved). This
-    // test reconstructs the operation's part-building path end-to-end through
-    // `serialize_multipart_body` (the lowest-level multipart writer the
+    // with chrono's RFC 3339 wire form (millisecond fraction preserved). The
+    // object part also advertises `Content-Type: application/json` (its OAS
+    // `encoding.contentType`) so the server parses it as JSON, not text/plain.
+    // This test reconstructs the operation's part-building path end-to-end
+    // through `serialize_multipart_body` (the lowest-level multipart writer the
     // operation ultimately drives) and asserts on the captured body bytes.
     #[test]
     fn test_multipart_model_part_uses_wire_property_names_and_datetime_format() {
@@ -994,12 +1012,12 @@ mod tests {
         };
 
         // Serialize the model part through the CONFIGURED serializer — the same
-        // call the generated add_pet_photos emits — then wrap it as the text
-        // part the operation hands to the multipart writer.
+        // call the generated add_pet_photos emits — then wrap it as the JSON
+        // object part the operation hands to the multipart writer.
         let part_json = object_serializer::serialize(&metadata)
             .expect("model part must serialize through the configured serializer");
         let mut fields = std::collections::HashMap::new();
-        fields.insert("metadata".to_string(), MultipartValue::Text(part_json));
+        fields.insert("metadata".to_string(), MultipartValue::Json(part_json));
         let body = serialize_multipart_body(&fields, "BOUNDARY");
         let body_str = String::from_utf8_lossy(&body);
 
@@ -1034,11 +1052,20 @@ mod tests {
             body_str
         );
 
-        // (3) The captured part is the text part for the `metadata` field —
+        // (3) The captured part is the part for the `metadata` field —
         // confirm it is wired as a form field (not a file part).
         assert!(
             body_str.contains("name=\"metadata\""),
             "metadata model part must be emitted under the `metadata` field name, body: {}",
+            body_str
+        );
+
+        // (4) The object part advertises its OAS `encoding.contentType`
+        // (`application/json`) so a content-negotiating server parses the JSON
+        // rather than treating the part as text/plain.
+        assert!(
+            body_str.contains("Content-Type: application/json\r\n"),
+            "JSON object part must carry a `Content-Type: application/json` header, body: {}",
             body_str
         );
     }

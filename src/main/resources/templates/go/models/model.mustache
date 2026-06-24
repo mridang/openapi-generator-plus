@@ -393,6 +393,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
+{{#hasOptionalDefault}}
 	/* default-on-deserialize: pre-seed optional fields that declare a schema
 	 * default. json.Unmarshal leaves a struct field untouched when its key is
 	 * absent from the payload, so a pre-set default survives while a present
@@ -405,6 +406,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{/defaultValue}}
 {{/required}}
 {{/vars}}
+{{/hasOptionalDefault}}
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
