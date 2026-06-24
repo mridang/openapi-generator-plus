@@ -1062,6 +1062,65 @@ class ObjectSerializer
     }
 
     /**
+     * Resolve the scalar `format: byte` branch of a oneOf/anyOf union.
+     *
+     * The wire form for `format: byte` is a base64 STRING. This candidate is
+     * invoked by {@see resolveOneOf} with already-decoded PHP data (the
+     * composed model's build() json_decodes the body before dispatching), so
+     * it receives a PHP string for the scalar branch and returns it unchanged
+     * as the union's actual instance — the same wire-form-in-place convention
+     * the bare scalar byte field uses, so serializing the union re-emits the
+     * base64 string verbatim. A non-string payload (e.g. a decoded JSON array)
+     * throws so {@see resolveOneOf} falls through to the next declared branch;
+     * this is what keeps a scalar base64 string from being mis-parsed as the
+     * array variant when both byte branches exist.
+     */
+    public static function decodeByteOneOfScalar(mixed $data): string
+    {
+        if (!is_string($data)) {
+            throw new \InvalidArgumentException(
+                'Expected a base64 string for the scalar byte variant but got '
+                . get_debug_type($data)
+            );
+        }
+        return $data;
+    }
+
+    /**
+     * Resolve the array `format: byte` branch of a oneOf/anyOf union.
+     *
+     * Each element travels on the wire as a base64 STRING. This candidate is
+     * invoked by {@see resolveOneOf} with already-decoded PHP data, so it
+     * receives a PHP array of strings for the array branch, validates every
+     * element is a string, and returns a {@see \Ds\Vector} holding the base64
+     * strings unchanged — serializing the union re-emits the array of base64
+     * strings verbatim. A non-array payload, or one with a non-string element,
+     * throws so {@see resolveOneOf} falls through to the next branch.
+     *
+     * @return \Ds\Vector<string>
+     */
+    public static function decodeByteOneOfArray(mixed $data): \Ds\Vector
+    {
+        if (!is_array($data)) {
+            throw new \InvalidArgumentException(
+                'Expected an array of base64 strings for the array byte variant'
+                . ' but got ' . get_debug_type($data)
+            );
+        }
+        $items = [];
+        foreach ($data as $element) {
+            if (!is_string($element)) {
+                throw new \InvalidArgumentException(
+                    'Expected every array byte element to be a base64 string but got '
+                    . get_debug_type($element)
+                );
+            }
+            $items[] = $element;
+        }
+        return new \Ds\Vector($items);
+    }
+
+    /**
      * 4.8: format a \DateInterval as a protobuf-JSON duration string.
      *
      * google.protobuf.Duration is encoded as the number of seconds followed

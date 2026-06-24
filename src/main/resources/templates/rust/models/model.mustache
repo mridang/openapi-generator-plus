@@ -320,12 +320,43 @@ impl<'de> serde::Deserialize<'de> for {{classname}} {
 }
 {{/discriminator}}
 {{^discriminator}}
+{{! Non-discriminated oneOf. We iterate `composedSchemas.oneOf` (a list of
+    CodegenProperty, declaration-ordered) rather than the bare `oneOf` set of
+    type strings, because each property carries the byte/array metadata
+    (`isByteArray`, `isArray`, `items`) needed to route `format:byte` variants
+    through the base64 (de)serializer. Without this, a scalar `Vec<u8>` variant
+    would serialize to a JSON int-array `[1,2,3,4]` instead of the base64 string
+    `"AQIDBA=="`, and an array-of-byte variant to a JSON array of int-arrays
+    instead of an array of base64 strings.
+
+    Declaration order matters for serde's untagged dispatch: it tries variants
+    top-to-bottom and takes the first that deserializes. The spec declares the
+    scalar byte variant before the array variant, so a base64 STRING matches the
+    scalar `Vec<u8>` first (the base64::vec deserializer expects a JSON array and
+    rejects a string), never being mis-parsed element-by-element into a list. }}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum {{classname}} {
-{{#oneOf}}
-    {{#rustVariantName}}{{{.}}}{{/rustVariantName}}({{{.}}}),
-{{/oneOf}}
+{{#composedSchemas.oneOf}}
+{{#isByteArray}}
+    #[serde(with = "super::base64_serde")]
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items.isByteArray}}
+    #[serde(with = "super::base64_serde::vec")]
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/items.isByteArray}}
+{{/isArray}}
+{{^isArray}}
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/isArray}}
+{{/isByteArray}}
+{{/composedSchemas.oneOf}}
 }
 {{/discriminator}}
 {{/-first}}
@@ -341,12 +372,32 @@ pub enum {{classname}} {
 {{#isDeprecated}}
 #[deprecated]
 {{/isDeprecated}}
+{{! Like the non-discriminated oneOf above, iterate `composedSchemas.anyOf` so
+    `format:byte` variants are routed through the base64 (de)serializer rather
+    than serializing as JSON int-arrays. }}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum {{classname}} {
-{{#anyOf}}
-    {{#rustVariantName}}{{{.}}}{{/rustVariantName}}({{{.}}}),
-{{/anyOf}}
+{{#composedSchemas.anyOf}}
+{{#isByteArray}}
+    #[serde(with = "super::base64_serde")]
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items.isByteArray}}
+    #[serde(with = "super::base64_serde::vec")]
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/items.isByteArray}}
+{{/isArray}}
+{{^isArray}}
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/isArray}}
+{{/isByteArray}}
+{{/composedSchemas.anyOf}}
 }
 {{/-first}}
 {{/anyOf}}

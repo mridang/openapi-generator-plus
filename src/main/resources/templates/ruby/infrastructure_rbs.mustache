@@ -198,6 +198,7 @@ module {{moduleName}}
     PROTOBUF_DURATION_REGEX: Regexp
     def self.stringify: (untyped) -> String
     def self.serialize: (untyped) -> String
+    def self.encode_oneof_body: (untyped, String) -> untyped
     def self.deserialize: (untyped, String) -> untyped
     def self.to_path_value: (untyped) -> String
     def self.to_query_value: (untyped, ?Symbol?) -> untyped

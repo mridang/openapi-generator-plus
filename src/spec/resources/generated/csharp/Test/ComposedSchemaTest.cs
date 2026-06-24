@@ -162,6 +162,51 @@ public class ComposedSchemaTest
             () => _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json));
     }
 
+    [Fact]
+    public void SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64()
+    {
+        // Canonical regression (findings C2/R1/H12): the format:byte marker must
+        // survive inside the oneOf union wrapper. Both variants travel on the
+        // wire as base64 STRINGs, never as a JSON int-array [1,2,3,4] nor raw
+        // bytes. The scalar variant maps to byte[] and the array variant to
+        // List<byte[]>; System.Text.Json base64-encodes byte[] by default, so
+        // the wrapper inherits the exact wire form of the bare format:byte field.
+
+        // (1) Scalar variant — construct from raw bytes, assert the JSON value is
+        // the base64 string "AQIDBA==" (NOT [1,2,3,4]), and round-trips back.
+        var scalarBytes = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        var scalarRequest = new SetPetAvatarThumbnailRequest(scalarBytes);
+        var scalarJson = _serializer.Serialize(scalarRequest);
+        Assert.Equal("\"AQIDBA==\"", scalarJson);
+        Assert.DoesNotContain("[", scalarJson);
+
+        var decodedScalar = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(scalarJson);
+        Assert.NotNull(decodedScalar);
+        // Ordering: a scalar base64 string must resolve to the SCALAR variant
+        // (a single byte[]), NOT be mis-parsed element-by-element into a list.
+        Assert.IsType<byte[]>(decodedScalar!.ActualInstance);
+        Assert.Equal(scalarBytes, (byte[])decodedScalar.ActualInstance!);
+
+        // (2) Array variant — construct from a list of two byte payloads, assert
+        // the JSON is an array of base64 strings, and round-trips back.
+        var payloads = new List<byte[]>
+        {
+            new byte[] { 0x01, 0x02, 0x03, 0x04 },
+            new byte[] { 0x05, 0x06, 0x07, 0x08 },
+        };
+        var arrayRequest = new SetPetAvatarThumbnailRequest(payloads);
+        var arrayJson = _serializer.Serialize(arrayRequest);
+        Assert.Equal("[\"AQIDBA==\",\"BQYHCA==\"]", arrayJson);
+
+        var decodedArray = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(arrayJson);
+        Assert.NotNull(decodedArray);
+        Assert.IsType<List<byte[]>>(decodedArray!.ActualInstance);
+        var decodedPayloads = (List<byte[]>)decodedArray.ActualInstance!;
+        Assert.Equal(2, decodedPayloads.Count);
+        Assert.Equal(payloads[0], decodedPayloads[0]);
+        Assert.Equal(payloads[1], decodedPayloads[1]);
+    }
+
     // -- allOf: PetWithOwner --
 
     [Fact]

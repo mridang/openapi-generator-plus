@@ -47,4 +47,48 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
               "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
     end
   end
+
+  @doc """
+  Serialize a built union value to its JSON-ready (sanitized) form.
+
+  For a `oneOf` whose variants carry `format: byte` (descriptor `binary()`,
+  or `[binary()]` for an array of bytes), the native Elixir representation is
+  a bare `binary()` (raw bytes) or a list of them — which is indistinguishable
+  from a plain string at the generic serializer, so those raw bytes would
+  otherwise be written to the wire UNENCODED. `format: byte` mandates a base64
+  STRING on the wire, so re-encode each byte leaf here, mirroring the base64
+  decode the matching `build/1` variant performs (and the bare scalar
+  `format: byte` field path in `ObjectSerializer`). Non-byte unions fall
+  through to the generic serializer unchanged.
+  """
+  @spec serialize(term()) :: term()
+  def serialize(value) do
+    if byte_union?() do
+      encode_byte_variant(value)
+    else
+      PetstoreClient.ObjectSerializer.sanitize_for_serialization(value)
+    end
+  end
+
+  # True when at least one declared variant is a `format: byte` leaf
+  # (descriptor "binary()"/"ByteArray") or an array thereof ("[binary()]"
+  # etc.). Inspected at runtime from `openapi_one_of/0` so no per-variant
+  # codegen flag is required.
+  defp byte_union? do
+    Enum.any?(openapi_one_of(), fn type_name ->
+      String.contains?(Atom.to_string(type_name), "binary()") or
+        String.contains?(Atom.to_string(type_name), "ByteArray")
+    end)
+  end
+
+  # base64-encode a scalar byte value, or recurse over a list of them so each
+  # innermost `binary()` leaf becomes a base64 string. A non-binary value (or
+  # an already-typed model) falls back to the generic serializer.
+  defp encode_byte_variant(value) when is_binary(value), do: Base.encode64(value)
+
+  defp encode_byte_variant(value) when is_list(value),
+    do: Enum.map(value, &encode_byte_variant/1)
+
+  defp encode_byte_variant(value),
+    do: PetstoreClient.ObjectSerializer.sanitize_for_serialization(value)
 end

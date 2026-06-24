@@ -185,6 +185,64 @@ class ComposedSchemaTest {
     }
 
     @Test
+    @DisplayName("setPetAvatarThumbnail byte oneOf round-trips through base64")
+    void setPetAvatarThumbnailByteOneOfRoundTripsThroughBase64() {
+      byte[] payload = new byte[] {0x01, 0x02, 0x03, 0x04};
+      SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(payload);
+
+      String serialized = serializer.serialize(request);
+
+      // The wire form is the base64 STRING of the four bytes — base64 of
+      // [0x01,0x02,0x03,0x04] is "AQIDBA==". It must NOT be the int-array
+      // [1,2,3,4] nor the raw/toString-mangled bytes.
+      assertThat(serialized).isEqualTo("\"AQIDBA==\"");
+      assertThat(serialized).doesNotContain("[1,2,3,4]");
+      assertThat(serialized).doesNotContain("[1, 2, 3, 4]");
+
+      // Round-trip: the base64 string decodes back to the scalar byte[]
+      // variant (one value), recovering exactly the original four bytes —
+      // not mis-parsed element-by-element into a List<byte[]>.
+      SetPetAvatarThumbnailRequest restored =
+          Objects.requireNonNull(serializer.deserialize(serialized, ONE_OF_NO_DISCRIMINATOR_TYPE));
+      assertThat(restored.getActualInstance()).isInstanceOf(byte[].class);
+      assertThat((byte[]) restored.getActualInstance()).isEqualTo(payload);
+    }
+
+    @Test
+    @DisplayName("setPetAvatarThumbnail byte-array oneOf round-trips through base64 array")
+    void setPetAvatarThumbnailByteArrayOneOfRoundTripsThroughBase64Array() {
+      byte[] first = new byte[] {0x01, 0x02, 0x03, 0x04};
+      byte[] second = new byte[] {0x05, 0x06};
+      SetPetAvatarThumbnailRequest request =
+          new SetPetAvatarThumbnailRequest(java.util.List.of(first, second));
+
+      String serialized = serializer.serialize(request);
+
+      // base64 of [0x01,0x02,0x03,0x04] is "AQIDBA=="; of [0x05,0x06] is "BQY=".
+      assertThat(serialized).isEqualTo("[\"AQIDBA==\",\"BQY=\"]");
+
+      SetPetAvatarThumbnailRequest restored =
+          Objects.requireNonNull(serializer.deserialize(serialized, ONE_OF_NO_DISCRIMINATOR_TYPE));
+      @SuppressWarnings("unchecked")
+      java.util.List<byte[]> restoredList = (java.util.List<byte[]>) restored.getActualInstance();
+      assertThat(restoredList).hasSize(2);
+      assertThat(restoredList.get(0)).isEqualTo(first);
+      assertThat(restoredList.get(1)).isEqualTo(second);
+    }
+
+    @Test
+    @DisplayName("scalar base64 string resolves to the scalar variant, not a list")
+    void scalarBase64StringResolvesToScalarVariantNotList() {
+      String json = "\"AQIDBA==\"";
+      SetPetAvatarThumbnailRequest result =
+          Objects.requireNonNull(serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE));
+      assertThat(result.getActualInstance()).isInstanceOf(byte[].class);
+      assertThat(result.getActualInstance()).isNotInstanceOf(java.util.List.class);
+      assertThat((byte[]) result.getActualInstance())
+          .isEqualTo(new byte[] {0x01, 0x02, 0x03, 0x04});
+    }
+
+    @Test
     @DisplayName("throws when no oneOf variant matches (no silent raw accept)")
     void testNoMatchThrows() {
       // A JSON object matches neither the single-byte[] nor the

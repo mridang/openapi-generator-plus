@@ -397,9 +397,21 @@ public struct {{classname}}: Codable, @unchecked Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        if let encodable = _value as? Encodable {
+        /* A `format: byte` variant is represented as Data (scalar) or [Data]
+           (array). Encoding Data through its own Encodable conformance
+           (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
+           encoder's base64 data strategy. Routing it through the single-value
+           container instead applies the configured .base64 strategy, so a byte
+           variant rides the wire as a base64 string (and an array of byte values
+           as an array of base64 strings), matching the bare format:byte field. */
+        switch _value {
+        case let bytes as Data:
+            try container.encode(bytes)
+        case let byteArrays as [Data]:
+            try container.encode(byteArrays)
+        case let encodable as Encodable:
             try encodable.encode(to: encoder)
-        } else {
+        default:
             try container.encodeNil()
         }
     }
@@ -452,9 +464,21 @@ public struct {{classname}}: Codable, @unchecked Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        if let encodable = _value as? Encodable {
+        /* A `format: byte` variant is represented as Data (scalar) or [Data]
+           (array). Encoding Data through its own Encodable conformance
+           (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
+           encoder's base64 data strategy. Routing it through the single-value
+           container instead applies the configured .base64 strategy, so a byte
+           variant rides the wire as a base64 string (and an array of byte values
+           as an array of base64 strings), matching the bare format:byte field. */
+        switch _value {
+        case let bytes as Data:
+            try container.encode(bytes)
+        case let byteArrays as [Data]:
+            try container.encode(byteArrays)
+        case let encodable as Encodable:
             try encodable.encode(to: encoder)
-        } else {
+        default:
             try container.encodeNil()
         }
     }

@@ -33,6 +33,9 @@ import {
   PhotoMetadataLocation,
   Metadata,
 } from "../src/models/index.js";
+// SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
+// bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
+import type { SetPetAvatarThumbnailRequest } from "../src/models/index.js";
 import { uuid, isUuid } from "../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 
@@ -1257,6 +1260,84 @@ describe("ObjectSerializer", () => {
       const scans = (restored as PetPassport).scans as unknown as Buffer[];
       expect(Buffer.compare(scans[0]!, original[0]!)).toBe(0);
       expect(Buffer.compare(scans[1]!, original[1]!)).toBe(0);
+    });
+  });
+
+  describe("setPetAvatarThumbnail byte oneOf round-trips through base64", () => {
+    // SetPetAvatarThumbnailRequest is a non-discriminated `oneOf` of
+    //   [ scalar `format: byte`, array of `format: byte` ]
+    // rendered as the bare TypeScript union `Array<Buffer> | Buffer`. There is
+    // no wrapper class — the `format: byte` marker must survive INSIDE the
+    // union so each byte variant travels on the wire as a base64 STRING, the
+    // exact path the bare scalar `format: byte` field already uses. The bug
+    // guarded here: a byte variant emitted as a JSON int-array ([1,2,3,4]) or
+    // as raw/unencoded bytes, or a scalar base64 string mis-parsed
+    // element-by-element into a list on the way back.
+
+    // (1) SCALAR variant — a single Buffer.
+    test("scalar Buffer variant serializes to a base64 STRING, not an int-array", () => {
+      const request: SetPetAvatarThumbnailRequest = Buffer.from([
+        0x01, 0x02, 0x03, 0x04,
+      ]);
+      const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
+      // Must be the base64 string "AQIDBA==" — NOT the int-array [1,2,3,4],
+      // NOT the raw bytes, NOT a { type: 'Buffer', data: [...] } object.
+      expect(typeof wire).toBe("string");
+      expect(wire).toBe("AQIDBA==");
+      expect(Array.isArray(wire)).toBe(false);
+    });
+
+    test("scalar base64 string deserializes back to the original 4 bytes", () => {
+      // The union has no runtime decode wrapper, so the scalar variant decodes
+      // through the same base64 path the bare `format: byte` field uses:
+      // a JSON string -> Buffer.from(str, 'base64').
+      const original = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+      const wire = JSON.parse(
+        ObjectSerializer.serialize(original as SetPetAvatarThumbnailRequest),
+      ) as unknown;
+      expect(typeof wire).toBe("string");
+      const restored = Buffer.from(wire as string, "base64");
+      expect(Buffer.isBuffer(restored)).toBe(true);
+      expect(Buffer.compare(restored, original)).toBe(0);
+    });
+
+    // (2) ARRAY variant — a list of two byte payloads.
+    test("array-of-Buffer variant serializes to an array of base64 strings and round-trips", () => {
+      const payloads = [
+        Buffer.from([0x01, 0x02, 0x03, 0x04]),
+        Buffer.from([0x05, 0x06]),
+      ];
+      const request: SetPetAvatarThumbnailRequest = payloads;
+      const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
+      // An array of base64 strings, NOT an array of int-arrays nor raw bytes.
+      expect(Array.isArray(wire)).toBe(true);
+      expect(wire).toEqual(["AQIDBA==", "BQY="]);
+      const restored = (wire as string[]).map((s) => Buffer.from(s, "base64"));
+      expect(restored).toHaveLength(2);
+      expect(Buffer.compare(restored[0]!, payloads[0]!)).toBe(0);
+      expect(Buffer.compare(restored[1]!, payloads[1]!)).toBe(0);
+    });
+
+    // ORDERING — a scalar base64 string must resolve to the SCALAR variant
+    // (one Buffer), never be mis-parsed element-by-element into a list. The
+    // bare-union encoding keeps the two cases structurally distinct: a scalar
+    // is a JSON string, the array is a JSON array, so the wire form alone
+    // disambiguates and a scalar string can never decode as a list.
+    test("a scalar base64 wire value resolves to the scalar variant, not a list", () => {
+      const wire = JSON.parse(
+        ObjectSerializer.serialize(
+          Buffer.from([0x01, 0x02, 0x03, 0x04]) as SetPetAvatarThumbnailRequest,
+        ),
+      ) as unknown;
+      expect(Array.isArray(wire)).toBe(false);
+      expect(typeof wire).toBe("string");
+      const restored = Buffer.from(wire as string, "base64");
+      // One value, the original 4 bytes — not [0x01],[0x02],[0x03],[0x04].
+      expect(Buffer.isBuffer(restored)).toBe(true);
+      expect(restored).toHaveLength(4);
+      expect(
+        Buffer.compare(restored, Buffer.from([0x01, 0x02, 0x03, 0x04])),
+      ).toBe(0);
     });
   });
 

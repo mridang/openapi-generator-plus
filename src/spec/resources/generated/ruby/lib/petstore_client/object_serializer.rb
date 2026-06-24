@@ -58,6 +58,38 @@ module PetstoreClient
       raise SerializationError.new("Failed to serialize object to JSON: #{e.message}", e)
     end
 
+    # Apply a oneOf union's own pre-serialization transform to a request
+    # body before it hits the normal serialize path.
+    #
+    # A oneOf union resolves to a bare Ruby value (e.g. a +format: byte+
+    # variant collapses to a plain String / Array of Strings), so the union's
+    # wire-form rules — base64-encoding each byte variant, matching the bare
+    # scalar +format: byte+ field path — can no longer be recovered from the
+    # value alone on the serialize side. The API layer therefore routes a
+    # oneOf body through here with the declared body type so the union module
+    # can re-apply them. Non-union types and unions without such a transform
+    # return +value+ unchanged.
+    #
+    # @param value [Object, nil] the resolved request-body value
+    # @param type [String] the declared body type name (e.g. a union module)
+    # @return [Object, nil] the value ready for #serialize
+    def self.encode_oneof_body(value, type)
+      return value if value.nil?
+
+      klass = begin
+        ::PetstoreClient::Models.const_get(type)
+      rescue NameError
+        begin
+          PetstoreClient.const_get(type)
+        rescue NameError
+          nil
+        end
+      end
+      return value unless klass.respond_to?(:serialize_oneof)
+
+      klass.serialize_oneof(value)
+    end
+
     # Deserialize a JSON string to an object of the specified type.
     #
     # allow_nan: false rejects NaN/Infinity/-Infinity on decode (same

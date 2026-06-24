@@ -125,6 +125,76 @@ defmodule PetstoreClient.ComposedSchemaTest do
     end
   end
 
+  # -- oneOf of byte variants: SetPetAvatarThumbnailRequest --
+
+  # SetPetAvatarThumbnailRequest is a non-discriminated `oneOf` of
+  #   [ a scalar `format: byte` value, an array of `format: byte` values ].
+  # `format: byte` travels on the wire as a base64 STRING. The Elixir union
+  # holds the native byte form (a bare `binary()`, or a list of them); the
+  # `format: byte` marker must survive INSIDE the union so each byte variant
+  # round-trips through base64 — the exact path the bare scalar `format: byte`
+  # field already uses. Guards against: a scalar byte value emitted raw/
+  # unencoded (Elixir `binary()` is indistinguishable from a plain string at
+  # the generic serializer), and a scalar base64 string mis-parsed element-by-
+  # element into a list because the codegen lists the array variant first.
+  describe "setPetAvatarThumbnail byte oneOf round-trips through base64" do
+    test "scalar byte variant serializes to a base64 STRING, not raw bytes or an int-array" do
+      raw = <<0x01, 0x02, 0x03, 0x04>>
+
+      wire = PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize(raw)
+
+      # The wire value is the base64 STRING "AQIDBA==" — NOT the raw bytes,
+      # NOT a JSON int-array [1,2,3,4].
+      assert is_binary(wire)
+      assert wire == "AQIDBA=="
+      assert wire == Base.encode64(raw)
+      refute is_list(wire)
+
+      # Encoding the sanitized value as JSON yields a quoted base64 string,
+      # never a numeric array.
+      assert Jason.encode!(wire) == ~s("AQIDBA==")
+    end
+
+    test "scalar base64 string deserializes back to the original 4 bytes (scalar before array)" do
+      # A scalar base64 string must resolve to the SCALAR variant (one
+      # `binary()`), NOT be mis-parsed element-by-element into a list. The
+      # array variant "[binary()]" is listed first, so this also pins the
+      # ordering fix.
+      raw = <<0x01, 0x02, 0x03, 0x04>>
+
+      restored = PetstoreClient.Models.SetPetAvatarThumbnailRequest.build("AQIDBA==")
+
+      assert is_binary(restored)
+      refute is_list(restored)
+      assert restored == raw
+      assert byte_size(restored) == 4
+    end
+
+    test "scalar byte variant round-trips serialize -> deserialize -> identical bytes" do
+      raw = <<0x01, 0x02, 0x03, 0x04>>
+
+      wire = PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize(raw)
+      restored = PetstoreClient.Models.SetPetAvatarThumbnailRequest.build(wire)
+
+      assert restored == raw
+    end
+
+    test "array-of-byte variant serializes to an array of base64 strings and round-trips" do
+      first = <<0x01, 0x02, 0x03, 0x04>>
+      second = <<0x05, 0x06>>
+
+      wire = PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize([first, second])
+
+      # An array of base64 STRINGS — NOT an array of int-arrays nor raw bytes.
+      assert wire == ["AQIDBA==", "BQY="]
+      assert Enum.all?(wire, &is_binary/1)
+
+      restored = PetstoreClient.Models.SetPetAvatarThumbnailRequest.build(wire)
+
+      assert restored == [first, second]
+    end
+  end
+
   # -- allOf: PetWithOwner --
 
   describe "allOf PetWithOwner" do

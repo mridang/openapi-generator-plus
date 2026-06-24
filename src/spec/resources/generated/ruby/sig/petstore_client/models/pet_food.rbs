@@ -1,6 +1,7 @@
 module PetstoreClient::Models
   module PetFood
     def self.openapi_one_of: () -> Array[Symbol]
+    def self.serialize_oneof: (untyped) -> untyped
     def self.openapi_discriminator_name: () -> Symbol
     def self.openapi_discriminator_mapping: () -> Hash[String, Symbol]
     def self.build: (untyped) -> untyped

@@ -517,6 +517,70 @@ fn test_pet_passport_byte_fields_round_trip_through_base64() {
     );
 }
 
+// -- byte oneOf union round-trips through base64 (behavior 3, union path) --
+//
+// `SetPetAvatarThumbnailRequest` is a non-discriminated oneOf of a scalar
+// `format: byte` value and an array of `format: byte` values. `format: byte`
+// means the value travels on the wire as a base64 STRING (not a JSON int-array
+// `[1,2,3,4]`, not raw bytes). The byte marker must survive being wrapped in
+// the union: the scalar variant serializes to a base64 string and the array
+// variant to an array of base64 strings, and both decode back to the original
+// raw bytes. Ordering also matters — a scalar base64 string must deserialize
+// to the SCALAR variant (one value), never be mis-parsed element-by-element
+// into the array variant.
+#[test]
+fn test_set_pet_avatar_thumbnail_byte_one_of_round_trips_through_base64() {
+    // (1) Scalar variant: raw bytes serialize to the base64 string "AQIDBA==".
+    let scalar = SetPetAvatarThumbnailRequest::VecU8(vec![0x01, 0x02, 0x03, 0x04]);
+    let scalar_json = serde_json::to_string(&scalar).expect("failed to serialize scalar variant");
+    let scalar_value: serde_json::Value =
+        serde_json::from_str(&scalar_json).expect("failed to parse scalar variant JSON");
+    assert_eq!(
+        scalar_value,
+        serde_json::json!("AQIDBA=="),
+        "scalar byte variant must serialize as the base64 string \"AQIDBA==\", \
+         not a JSON int-array or raw bytes, got: {}",
+        scalar_json
+    );
+
+    // The scalar base64 string deserializes back to the SCALAR variant holding
+    // the original 4 bytes — NOT element-by-element into the array variant.
+    let restored_scalar: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(&scalar_json).expect("failed to deserialize scalar variant");
+    assert_eq!(
+        restored_scalar,
+        SetPetAvatarThumbnailRequest::VecU8(vec![0x01, 0x02, 0x03, 0x04]),
+        "a base64 string must round-trip to the scalar variant, not the array variant"
+    );
+
+    // (2) Array variant: a list of two byte payloads serializes to an array of
+    // base64 strings and round-trips back to the same two payloads.
+    let array = SetPetAvatarThumbnailRequest::VecVecU8(vec![
+        vec![0x01, 0x02, 0x03, 0x04],
+        vec![0xFF, 0xFE],
+    ]);
+    let array_json = serde_json::to_string(&array).expect("failed to serialize array variant");
+    let array_value: serde_json::Value =
+        serde_json::from_str(&array_json).expect("failed to parse array variant JSON");
+    assert_eq!(
+        array_value,
+        serde_json::json!(["AQIDBA==", "//4="]),
+        "array byte variant must serialize as an array of base64 strings, got: {}",
+        array_json
+    );
+
+    let restored_array: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(&array_json).expect("failed to deserialize array variant");
+    assert_eq!(
+        restored_array,
+        SetPetAvatarThumbnailRequest::VecVecU8(vec![
+            vec![0x01, 0x02, 0x03, 0x04],
+            vec![0xFF, 0xFE],
+        ]),
+        "the array of base64 strings must round-trip to the array variant"
+    );
+}
+
 // -- double-typed field accepts an INTEGRAL JSON value (behavior 4) --
 //
 // `PhotoMetadataLocation.lat` is an `f64`. A JSON payload that supplies an

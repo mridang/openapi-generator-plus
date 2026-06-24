@@ -20,8 +20,8 @@ class SetPetAvatarThumbnailRequest
     private static function oneOfCandidates(): array
     {
         return [
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('\Ds\Vector')),
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('string')),
+            fn (mixed $d): string => \PetstoreClient\ObjectSerializer::decodeByteOneOfScalar($d),
+            fn (mixed $d): \Ds\Vector => \PetstoreClient\ObjectSerializer::decodeByteOneOfArray($d),
         ];
     }
 
@@ -35,6 +35,78 @@ class SetPetAvatarThumbnailRequest
     public function getActualInstance(): mixed
     {
         return $this->actualInstance;
+    }
+
+    /**
+     * Wraps raw bytes as the scalar `format: byte` variant of this oneOf.
+     * The wire form for `format: byte` is a base64 STRING, so the bytes are
+     * base64-encoded before being stored as the actual instance; serializing
+     * the wrapper then emits the base64 string the server expects. This
+     * mirrors the scalar byte field accessor on the sibling request models.
+     */
+    public static function fromBytes(string $raw): self
+    {
+        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
+        return new self($encoded ?? '');
+    }
+
+    /**
+     * Returns the raw decoded bytes when the actual instance is the scalar
+     * `format: byte` variant (a base64 wire string), or null otherwise. The
+     * stored instance holds the base64-encoded wire form; this applies
+     * base64_decode so callers recover the underlying binary string.
+     */
+    public function getActualInstanceAsBytes(): ?string
+    {
+        if (!is_string($this->actualInstance)) {
+            return null;
+        }
+        return \PetstoreClient\ObjectSerializer::decodeBytes($this->actualInstance);
+    }
+
+    /**
+     * Wraps a list of raw byte payloads as the array `format: byte` variant
+     * of this oneOf. Each element is base64-encoded (the `format: byte` wire
+     * form is a base64 STRING) and stored in a \Ds\Vector; serializing the
+     * wrapper then emits an array of base64 strings.
+     *
+     * @param list<string> $raw
+     */
+    public static function fromByteList(array $raw): self
+    {
+        $encoded = [];
+        foreach ($raw as $element) {
+            $value = \PetstoreClient\ObjectSerializer::encodeBytes($element);
+            if ($value !== null) {
+                $encoded[] = $value;
+            }
+        }
+        return new self(new \Ds\Vector($encoded));
+    }
+
+    /**
+     * Returns the raw decoded bytes of each element when the actual instance
+     * is the array `format: byte` variant (a list of base64 wire strings), or
+     * null otherwise.
+     *
+     * @return list<string>|null
+     */
+    public function getActualInstanceAsByteList(): ?array
+    {
+        if (!($this->actualInstance instanceof \Ds\Vector)) {
+            return null;
+        }
+        $decoded = [];
+        foreach ($this->actualInstance as $element) {
+            if (!is_string($element)) {
+                continue;
+            }
+            $bytes = \PetstoreClient\ObjectSerializer::decodeBytes($element);
+            if ($bytes !== null) {
+                $decoded[] = $bytes;
+            }
+        }
+        return $decoded;
     }
 
     public static function build(mixed $data): self

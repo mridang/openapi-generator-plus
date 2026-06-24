@@ -544,6 +544,23 @@ defmodule {{moduleName}}.ObjectSerializer do
     Enum.map(data, fn item -> convert_to_type(item, sub_type) end)
   end
 
+  # An array descriptor ("[Inner]") given a NON-list payload is a type
+  # mismatch and must raise, not fall through to the model-name fallback
+  # below (which would hand the value back raw). This is load-bearing for a
+  # `oneOf` whose variants are a scalar and an array of the SAME leaf type
+  # (e.g. SetPetAvatarThumbnailRequest: oneOf [ format:byte, array of
+  # format:byte ]). The codegen lists the array variant "[binary()]" first,
+  # so a scalar base64 string is attempted against it before the scalar
+  # "binary()" variant. Without this raise the array attempt returned the
+  # raw base64 string (a non-nil "match"), and the union halted there — the
+  # scalar's base64 decode never ran, and the bytes were never recovered.
+  # Raising here makes the union's reduce_while rescue the mismatch and fall
+  # through to the scalar "binary()" clause, so a scalar resolves to the
+  # scalar variant (base64-decoded bytes), never mis-parsed element-by-
+  # element into a list.
+  def convert_to_type(data, "[" <> _rest),
+    do: raise(ArgumentError, "Expected a list for array type, got #{inspect(data)}")
+
   def convert_to_type(data, "%{String.t() => " <> rest) when is_map(data) do
     sub_type = String.replace_suffix(rest, "}", "")
 

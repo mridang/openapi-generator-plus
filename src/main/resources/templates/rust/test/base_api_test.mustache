@@ -734,14 +734,17 @@ async fn test_base_api_nil_options_omits_query_params() {
 }
 
 #[tokio::test]
-async fn test_base_api_allow_empty_value_includes_param_when_unset() {
+async fn test_base_api_allow_empty_value_omits_param_when_unset() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let opts = {{packageName}}::api::options::FindPetsByStatusOptions::new();
     let _ = api.find_pets_by_status(Some(&opts)).await;
     let url = client.captured_url.lock().unwrap();
-    assert!(url.contains("status="), "expected URL to contain status= for allowEmptyValue param with unset value, got: {}", url);
+    // An unset optional allowEmptyValue param must NOT emit a spurious empty key;
+    // the key rides the wire only when the caller supplies a value (see the
+    // empty-string test below).
+    assert!(!url.contains("status="), "expected no status= for allowEmptyValue param with unset value, got: {}", url);
 }
 
 #[tokio::test]

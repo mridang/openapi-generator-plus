@@ -51,6 +51,30 @@ class PetTreatment(
                     ?: throw kotlinx.serialization.SerializationException(
                         "PetTreatment has no actualInstance to serialize",
                     )
+            // format:byte variants travel on the wire as base64 strings, NOT as JSON
+            // int-arrays. The reified serializer<ByteArray>() / serializer<List<ByteArray>>()
+            // used by the generic loop below resolve kotlinx's built-in ByteArraySerializer,
+            // which emits an int-array and never consults the @file Base64ByteArraySerializer
+            // (an @file:UseSerializers directive only rewrites lexically-typed properties at
+            // compile time, not a runtime reified lookup). Route ByteArray / List<ByteArray>
+            // instances through Base64ByteArraySerializer explicitly, ahead of the generic
+            // variant loop, so the byte variant is base64-encoded on the wire.
+            when (instance) {
+                is ByteArray -> {
+                    jsonEncoder.encodeSerializableValue(Base64ByteArraySerializer, instance)
+                    return
+                }
+                is List<*> -> {
+                    if (instance.isNotEmpty() && instance.all { it is ByteArray }) {
+                        jsonEncoder.encodeSerializableValue(
+                            kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
+                            instance as List<ByteArray>,
+                        )
+                        return
+                    }
+                }
+                else -> { /* not a byte variant; fall through to the generic loop */ }
+            }
             // Encode the wrapped value with the first variant serializer that accepts
             // it; a value matching no variant fails loud. encodeSerializableValue is
             // an Encoder member, so no extra import is needed.
@@ -105,6 +129,30 @@ class PetTreatment(
                 )
             } catch (_: Exception) {
                 // variant did not match; fall through to the next
+            }
+            // Base64 fallback for format:byte variants. A base64 scalar arrives as a
+            // JSON STRING and an array of base64 values as a JSON array of strings --
+            // neither of which the generic loop above can decode, because the reified
+            // serializer<ByteArray>() expects a JSON int-array (its built-in wire form)
+            // rather than a base64 string. The scalar branch is tried FIRST so a lone
+            // base64 string deserializes to the scalar ByteArray variant and is never
+            // mis-parsed element-by-element into a List<ByteArray>.
+            try {
+                return PetTreatment(
+                    jsonDecoder.json.decodeFromJsonElement(Base64ByteArraySerializer, element),
+                )
+            } catch (_: Exception) {
+                // not a base64 scalar; try the array-of-base64 form
+            }
+            try {
+                return PetTreatment(
+                    jsonDecoder.json.decodeFromJsonElement(
+                        kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
+                        element,
+                    ),
+                )
+            } catch (_: Exception) {
+                // not an array of base64 values either; fall through to fail loud
             }
             throw kotlinx.serialization.SerializationException(
                 "No anyOf variant of PetTreatment matched the response body",

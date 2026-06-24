@@ -726,6 +726,61 @@ class TestByteFormatBase64RoundTrip:
         assert ObjectSerializer().deserialize(wire, bytes) == raw
 
 
+class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
+    """setPetAvatarThumbnail byte oneOf round-trips through base64.
+
+    SetPetAvatarThumbnailRequest is a non-discriminator oneOf of a scalar
+    `format: byte` value and an array of `format: byte` values. `format: byte`
+    means the payload travels on the wire as a base64 STRING — never a JSON
+    int-array and never raw/unencoded bytes. The byte marker must survive the
+    union wrapper on BOTH encode and decode: the scalar variant must serialize
+    to "AQIDBA==" (not [1,2,3,4]) and round-trip back to the original 4 bytes,
+    and the array variant's elements must each be base64-decoded on the way back
+    (the `List[bytes]` TypeAdapter fast path does NOT base64-decode, so the
+    inner-bytes element is routed through the recursive base64 path instead).
+    The scalar variant must also win over the array variant on decode so a lone
+    base64 string is not walked character-by-character into a list."""
+
+    def _model(self):
+        from {{packageName}}.models.set_pet_avatar_thumbnail_request import (
+            SetPetAvatarThumbnailRequest,
+        )
+        return SetPetAvatarThumbnailRequest
+
+    def test_scalar_variant_serializes_to_base64_string(self) -> None:
+        model = self._model()
+        req = model(bytes([0x01, 0x02, 0x03, 0x04]))
+        wire = ObjectSerializer().serialize(req)
+        # base64 STRING, NOT a JSON int-array [1,2,3,4] and NOT raw bytes.
+        assert wire == '"AQIDBA=="'
+
+    def test_scalar_variant_round_trips_to_original_bytes(self) -> None:
+        model = self._model()
+        raw = bytes([0x01, 0x02, 0x03, 0x04])
+        wire = ObjectSerializer().serialize(model(raw))
+        restored = ObjectSerializer().deserialize(wire, model)
+        assert restored.actual_instance == raw
+        # The scalar variant must win over the array variant: a lone base64
+        # string must NOT be mis-parsed element-by-element into a list.
+        assert not isinstance(restored.actual_instance, list)
+
+    def test_array_variant_serializes_to_base64_strings(self) -> None:
+        import json
+        model = self._model()
+        payloads = [bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x05, 0x06, 0x07, 0x08])]
+        wire = ObjectSerializer().serialize(model(payloads))
+        assert json.loads(wire) == ['AQIDBA==', 'BQYHCA==']
+
+    def test_array_variant_round_trips_to_original_payloads(self) -> None:
+        model = self._model()
+        payloads = [bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x05, 0x06, 0x07, 0x08])]
+        wire = ObjectSerializer().serialize(model(payloads))
+        restored = ObjectSerializer().deserialize(wire, model)
+        # Each element must be base64-DECODED back to its raw bytes, not left
+        # as the UTF-8 bytes of the base64 text (b'AQIDBA==').
+        assert restored.actual_instance == payloads
+
+
 class TestNumberFieldFromIntegralJson:
     """Scenario 4 — a double/number-typed field must deserialize from an
     INTEGRAL JSON value (`{"lat":5}`, not `5.0`) without crashing. The

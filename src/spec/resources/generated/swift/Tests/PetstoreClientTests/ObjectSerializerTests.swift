@@ -940,6 +940,78 @@ import Testing
       "array-of-byte must round-trip each element's bytes exactly")
   }
 
+  // MARK: - setPetAvatarThumbnail byte oneOf round-trips through base64
+
+  // SetPetAvatarThumbnailRequest is a oneOf of [ a scalar `format: byte`
+  // value, an array of `format: byte` values ]. `format: byte` means the
+  // value travels on the wire as a base64 STRING — NOT a JSON int-array
+  // [1,2,3,4] and NOT raw bytes. The union must carry the same base64
+  // (de)serialization the bare `Data` field uses, on BOTH directions, and
+  // resolve the scalar branch (`Data.self`) BEFORE the array branch
+  // (`[Data].self`) so a base64 string is recovered as ONE value rather
+  // than mis-parsed element-by-element into a list.
+  //
+  // The union is decoder-only (no public constructor), so the scenario is
+  // driven from the wire form: decode a base64 STRING and assert it lands on
+  // the scalar branch with the exact original bytes, then re-encode and
+  // assert it serializes back to that same base64 STRING (round-trip).
+  @Test func testSetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64() throws {
+    let original = Data([0x01, 0x02, 0x03, 0x04])
+    // Sanity-pin the base64 wire form the rest of the test relies on.
+    #expect(original.base64EncodedString() == "AQIDBA==")
+
+    // (1) SCALAR variant. A bare base64 string on the wire must decode to
+    // the scalar `Data` branch — a single value, NOT a list.
+    let scalarJson = "\"\(original.base64EncodedString())\""
+    let scalar = try ObjectSerializer.deserialize(
+      scalarJson, as: SetPetAvatarThumbnailRequest.self)
+    #expect(
+      scalar?.value(as: Data.self) == original,
+      "base64 string must resolve to the SCALAR Data variant with the exact 4 bytes")
+    #expect(
+      scalar?.value(as: [Data].self) == nil,
+      "scalar base64 string must NOT be mis-parsed element-by-element into a [Data] list")
+
+    // Re-encode the scalar variant: it must serialize back to the base64
+    // STRING "AQIDBA==", never a JSON int-array [1,2,3,4] or raw bytes.
+    let scalarReencoded = try ObjectSerializer.serialize(scalar!)
+    #expect(
+      scalarReencoded == "\"AQIDBA==\"",
+      "scalar byte variant must serialize as the base64 string, got: \(scalarReencoded)")
+    #expect(
+      !scalarReencoded.contains("[1,2,3,4]") && !scalarReencoded.contains("[1, 2, 3, 4]"),
+      "scalar byte variant must NOT serialize as a JSON int-array, got: \(scalarReencoded)")
+    // Round-trip the re-encoded form back to the original bytes.
+    let scalarRoundTripped = try ObjectSerializer.deserialize(
+      scalarReencoded, as: SetPetAvatarThumbnailRequest.self)
+    #expect(
+      scalarRoundTripped?.value(as: Data.self) == original,
+      "scalar byte variant must round-trip the exact bytes through base64")
+
+    // (2) ARRAY variant. Two byte payloads on the wire as an array of
+    // base64 strings must decode to the `[Data]` branch with both
+    // elements' bytes intact, and re-serialize back to the same array.
+    let p0 = Data([0xAA, 0xBB])
+    let p1 = Data([0x00, 0xFF, 0x10])
+    let arrayJson = "[\"\(p0.base64EncodedString())\",\"\(p1.base64EncodedString())\"]"
+    let array = try ObjectSerializer.deserialize(
+      arrayJson, as: SetPetAvatarThumbnailRequest.self)
+    #expect(
+      array?.value(as: [Data].self) == [p0, p1],
+      "array of base64 strings must resolve to the [Data] variant with both payloads")
+    let arrayReencoded = try ObjectSerializer.serialize(array!)
+    let p0Encoded = p0.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
+    let p1Encoded = p1.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
+    #expect(
+      arrayReencoded.contains("\"\(p0Encoded)\"") && arrayReencoded.contains("\"\(p1Encoded)\""),
+      "array byte variant must serialize as an array of base64 strings, got: \(arrayReencoded)")
+    let arrayRoundTripped = try ObjectSerializer.deserialize(
+      arrayReencoded, as: SetPetAvatarThumbnailRequest.self)
+    #expect(
+      arrayRoundTripped?.value(as: [Data].self) == [p0, p1],
+      "array byte variant must round-trip both payloads' bytes through base64")
+  }
+
   // MARK: - double field deserializes from an INTEGRAL JSON value
 
   // PhotoMetadataLocation.lat/lng are `Double?`. A JSON payload that supplies

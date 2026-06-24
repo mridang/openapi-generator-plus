@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SetPetAvatarThumbnailRequest {
-    VecVecU8(Vec<Vec<u8>>),
+    #[serde(with = "super::base64_serde")]
     VecU8(Vec<u8>),
+    #[serde(with = "super::base64_serde::vec")]
+    VecVecU8(Vec<Vec<u8>>),
 }

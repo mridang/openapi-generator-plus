@@ -618,7 +618,13 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        request_body = order
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(order, 'Order')
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,

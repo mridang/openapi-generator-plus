@@ -99,6 +99,72 @@ describe 'Composed Schema' do
     end
   end
 
+  describe 'setPetAvatarThumbnail byte oneOf round-trips through base64' do
+    # SetPetAvatarThumbnailRequest is a oneOf of [ a scalar `format: byte`
+    # value, an array of `format: byte` values ]. `format: byte` means the
+    # value travels on the wire as a base64 STRING — never a JSON int-array
+    # ([1,2,3,4]), never the raw/unencoded bytes. The union must therefore
+    # route each byte variant through the same base64 (de)serialization the
+    # bare scalar `format: byte` field uses, preserving declared variant order
+    # (scalar before array) so a base64 string is not mis-parsed element by
+    # element into a list.
+    #
+    # The serialize side mirrors the API request-body path: a oneOf body is
+    # routed through ObjectSerializer.encode_oneof_body before #serialize so
+    # the byte variant is base64-encoded (a bare String otherwise serializes
+    # as raw text). The deserialize side goes through the normal #deserialize
+    # entry point, which dispatches to the union's #build.
+
+    it 'serializes the scalar byte variant as a base64 string (not an int-array, not raw)' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
+      json = {{moduleName}}::ObjectSerializer.serialize(encoded)
+
+      _(json).must_equal('"AQIDBA=="')
+      _(json).wont_equal('[1,2,3,4]')
+      _(json).wont_include('[')
+    end
+
+    it 'deserializes a base64 string back to the original scalar bytes (round-trip)' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      result = {{moduleName}}::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+
+      _(result).must_be_kind_of(String)
+      _(result.bytes).must_equal([0x01, 0x02, 0x03, 0x04])
+      _(result.b).must_equal(raw.b)
+    end
+
+    it 'resolves a scalar base64 string to the SCALAR variant, not a list' do
+      # Ordering guard: the scalar candidate is trialled before the array
+      # candidate, so a lone base64 string decodes to one byte String — it is
+      # NOT mis-parsed character/element by element into an Array.
+      result = {{moduleName}}::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+
+      _(result).must_be_kind_of(String)
+      _(result).wont_be_kind_of(Array)
+    end
+
+    it 'serializes the array byte variant as an array of base64 strings' do
+      payload_a = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      payload_b = [0x05, 0x06, 0x07, 0x08].pack('C*')
+      encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body([payload_a, payload_b], 'SetPetAvatarThumbnailRequest')
+      json = {{moduleName}}::ObjectSerializer.serialize(encoded)
+
+      _(json).must_equal('["AQIDBA==","BQYHCA=="]')
+    end
+
+    it 'round-trips the array byte variant preserving both payloads exactly' do
+      payload_a = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      payload_b = [0x05, 0x06, 0x07, 0x08].pack('C*')
+      result = {{moduleName}}::ObjectSerializer.deserialize('["AQIDBA==","BQYHCA=="]', 'SetPetAvatarThumbnailRequest')
+
+      _(result).must_be_kind_of(Array)
+      _(result.length).must_equal(2)
+      _(result[0].bytes).must_equal([0x01, 0x02, 0x03, 0x04])
+      _(result[1].bytes).must_equal([0x05, 0x06, 0x07, 0x08])
+    end
+  end
+
   describe 'allOf: PetWithOwner' do
     it 'deserializes all properties from allOf composition' do
       json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'

@@ -37,13 +37,54 @@ module PetstoreClient
     module SetPetAvatarThumbnailRequest
       class << self
         # List of class defined in oneOf (OpenAPI v3)
+        #
+        # Rendered from +composedSchemas.oneOf+ rather than the +oneOf+ type
+        # name set: that set is hash-ordered and collapses every
+        # +format: byte+ variant to a bare +String+ / +Array<String>+, losing
+        # the base64 wire form. The +composedSchemas+ list preserves the
+        # declared variant order (so a scalar candidate is trialled before an
+        # array candidate and a base64 string is never mis-parsed element by
+        # element into a list) and exposes the per-variant +byte+ format, which
+        # we map to the +ByteArray+ / +Array<ByteArray>+ sentinels so
+        # ObjectSerializer.convert_to_type base64-decodes each byte variant
+        # exactly like the bare scalar +format: byte+ field path.
         def openapi_one_of
           %i[
-            Array<String>
-            String
+            ByteArray
+            Array<ByteArray>
           ]
         end
 
+        # Base64-encode each +format: byte+ variant before JSON serialization.
+        #
+        # The union resolves to a bare Ruby String (scalar) or Array of byte
+        # Strings (array variant); ObjectSerializer#sanitize_for_serialization
+        # cannot tell such a String apart from a plain text String, so the
+        # base64 encode that the bare scalar +format: byte+ field gets via
+        # OPENAPI_FORMATS would otherwise be skipped on this path. The API
+        # layer routes oneOf request bodies through here so a byte variant
+        # travels as the canonical base64 STRING (scalar) / array of base64
+        # strings (array) on both encode and decode.
+        #
+        # Unions with no +format: byte+ variant pass the value straight
+        # through to the normal serialization path, so this hook is a no-op for
+        # discriminated / model-ref unions whose resolved value is a model
+        # object rather than a bare byte String.
+        def serialize_oneof(value)
+          return value if value.nil?
+
+          # +format: byte+ scalar variant — base64-encode a bare byte String.
+          if value.is_a?(String)
+            return ::PetstoreClient::ObjectSerializer.apply_format_on_serialize(value, 'byte')
+          end
+
+          # +format: byte+ array variant — base64-encode every byte String.
+          if value.is_a?(Array)
+            return value.map { |item| ::PetstoreClient::ObjectSerializer.apply_format_on_serialize(item, 'byte') }
+          end
+
+          value
+        end
         # Builds the object
         # @param data [Object] data to be matched against the list of oneOf items
         # @return [Object] Returns the model or the data itself

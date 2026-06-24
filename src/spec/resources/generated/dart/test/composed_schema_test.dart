@@ -178,15 +178,44 @@ void main() {
     // (oneOf: [string/byte, array of string/byte]). Regression for the
     // value-less empty-stub that silently dropped the payload.
 
-    test('SetPetAvatarThumbnailRequest carries a single byte value', () {
-      final bytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
+    test(
+      'setPetAvatarThumbnail byte oneOf round-trips through base64 (scalar)',
+      () {
+        final bytes = Uint8List.fromList(<int>[0x01, 0x02, 0x03, 0x04]);
 
-      final req = SetPetAvatarThumbnailRequest.value(bytes);
+        final req = SetPetAvatarThumbnailRequest.value(bytes);
+        expect(req.value, equals(bytes));
+
+        // The scalar `format:byte` variant must travel as a base64 STRING,
+        // not a JSON int-array [1,2,3,4], not the raw bytes, not an empty
+        // map/object. base64('AQIDBA==') is the canonical wire form here.
+        final encoded = req.toJson();
+        expect(encoded, isA<String>());
+        expect(encoded, equals('AQIDBA=='));
+        expect(encoded, equals(base64Encode(bytes)));
+
+        // Deserializing that base64 string recovers exactly the 4 bytes.
+        final restored = SetPetAvatarThumbnailRequest.fromJson(encoded);
+        expect(restored.value, isA<Uint8List>());
+        expect(restored.value, equals(bytes));
+      },
+    );
+
+    test('setPetAvatarThumbnail byte oneOf resolves scalar before array on '
+        'decode', () {
+      // A scalar base64 string must deserialize to the SCALAR variant (one
+      // Uint8List), NOT be mis-parsed element-by-element into a List. The
+      // scalar branch is declared before the array branch so ordering holds.
+      final bytes = Uint8List.fromList(<int>[0x01, 0x02, 0x03, 0x04]);
+      final wire = base64Encode(bytes);
+
+      final req = SetPetAvatarThumbnailRequest.fromJson(wire);
+      expect(req.value, isA<Uint8List>());
+      // The scalar variant is a Uint8List (which IS a List<int>), so the
+      // meaningful ordering check is that it was NOT mis-parsed into the ARRAY
+      // variant (a List<Uint8List>) element-by-element.
+      expect(req.value, isNot(isA<List<Uint8List>>()));
       expect(req.value, equals(bytes));
-
-      // toJson must emit the base64 of the bytes, not an empty map/object.
-      final encoded = req.toJson();
-      expect(encoded, equals(base64Encode(bytes)));
     });
 
     test('SetPetAvatarThumbnailRequest round trips a single byte value', () {

@@ -265,3 +265,79 @@ func TestPetWithOwner_RoundTrip(t *testing.T) {
 		t.Fatalf("failed to deserialize after round-trip: %v", err)
 	}
 }
+
+// ── oneOf of byte variants: SetPetAvatarThumbnailRequest ──
+//
+// SetPetAvatarThumbnailRequest is a oneOf of [ a scalar format:byte value, an
+// array of format:byte values ]. format:byte travels on the wire as a base64
+// STRING, exactly like the bare scalar SetPetAvatarRequest.Data field. The
+// generated union models the variants as Go []byte and [][]byte, both of which
+// encoding/json natively base64-(de)serializes — so the format:byte marker is
+// preserved through the union wrapper and no int-array or raw-byte form ever
+// reaches the wire. These tests pin that contract and the scalar-vs-array
+// decode ordering.
+
+func TestSetPetAvatarThumbnailRequest_ByteOneOfRoundTripsThroughBase64(t *testing.T) {
+	t.Parallel()
+
+	// (1) Scalar variant: a base64 STRING on the wire decodes to the scalar
+	// []byte branch and re-encodes to the same base64 string. "AQIDBA==" is the
+	// base64 of the raw bytes {0x01,0x02,0x03,0x04}.
+	raw := []byte{0x01, 0x02, 0x03, 0x04}
+	scalarWire := []byte(`"AQIDBA=="`)
+
+	var scalar models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal(scalarWire, &scalar); err != nil {
+		t.Fatalf("failed to deserialize scalar byte variant: %v", err)
+	}
+
+	// Ordering: a scalar base64 string must resolve to the SCALAR []byte variant,
+	// NOT be mis-parsed element-by-element into the [][]byte array variant.
+	got, ok := scalar.Value().([]byte)
+	if !ok {
+		t.Fatalf("expected scalar []byte variant, got %T", scalar.Value())
+	}
+	if string(got) != string(raw) {
+		t.Errorf("scalar byte round-trip mismatch: got %v, want %v", got, raw)
+	}
+
+	scalarOut, err := json.Marshal(scalar)
+	if err != nil {
+		t.Fatalf("failed to serialize scalar byte variant: %v", err)
+	}
+	// The wire value must be the base64 STRING "AQIDBA==", NOT a JSON int-array
+	// [1,2,3,4] and NOT the raw/unencoded bytes.
+	if string(scalarOut) != `"AQIDBA=="` {
+		t.Errorf("expected scalar wire base64 \"AQIDBA==\", got %s", string(scalarOut))
+	}
+
+	// (2) Array variant: an array of base64 strings decodes to the [][]byte
+	// branch and round-trips back to the same two byte payloads.
+	first := []byte{0x01, 0x02}
+	second := []byte{0x03, 0x04}
+	arrayWire := []byte(`["AQI=","AwQ="]`)
+
+	var array models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal(arrayWire, &array); err != nil {
+		t.Fatalf("failed to deserialize array byte variant: %v", err)
+	}
+
+	gotArray, ok := array.Value().([][]byte)
+	if !ok {
+		t.Fatalf("expected [][]byte array variant, got %T", array.Value())
+	}
+	if len(gotArray) != 2 ||
+		string(gotArray[0]) != string(first) ||
+		string(gotArray[1]) != string(second) {
+		t.Errorf("array byte round-trip mismatch: got %v, want [%v %v]", gotArray, first, second)
+	}
+
+	arrayOut, err := json.Marshal(array)
+	if err != nil {
+		t.Fatalf("failed to serialize array byte variant: %v", err)
+	}
+	// Each element must be a base64 STRING, never an int-array.
+	if string(arrayOut) != `["AQI=","AwQ="]` {
+		t.Errorf("expected array wire of base64 strings [\"AQI=\",\"AwQ=\"], got %s", string(arrayOut))
+	}
+}

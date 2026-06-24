@@ -248,6 +248,17 @@ class ObjectSerializer:
         """
         if name.startswith('List[') or name.startswith('Dict['):
             return None
+        # ``bytes`` carries an OAS ``format: byte`` payload that travels on the
+        # wire as a base64 STRING. The dedicated ``klass is bytes`` branch in
+        # ``_deserialize`` base64-DECODES it; a plain ``TypeAdapter(bytes)``
+        # does NOT — it UTF-8-encodes the string verbatim, so the base64 text
+        # ``"AQIDBA=="`` would come back as the raw bytes of that text instead
+        # of ``b'\x01\x02\x03\x04'``. Returning None here keeps the inner
+        # ``bytes`` element of a ``List[bytes]`` / ``Dict[str, bytes]`` (and the
+        # byte branch of a oneOf/anyOf union) on the recursive element-wise
+        # path so each element is correctly base64-decoded.
+        if name == 'bytes':
+            return None
         if name in self._NATIVE_TYPES_MAPPING:
             return self._NATIVE_TYPES_MAPPING[name]
         resolved = getattr({{packageName}}.models, name, None)
@@ -275,6 +286,14 @@ class ObjectSerializer:
                 # types the adapter can't express (e.g. nested 'List[X]').
                 if inner is not None:
                     return _list_adapter(inner).validate_python(data)
+                # A ``str``/``bytes`` scalar is iterable, so an un-guarded
+                # comprehension would silently walk it character-by-character —
+                # e.g. inside a oneOf of [bytes, List[bytes]] the base64 STRING
+                # for the scalar variant would be mis-parsed element-by-element
+                # into a list. Reject non-sequence input here so the composed
+                # deserializer falls through to the scalar ``bytes`` variant.
+                if isinstance(data, (str, bytes)) or not isinstance(data, (list, tuple)):
+                    raise ValueError(f'Expected a list for {klass}, got {type(data).__name__}')
                 return [self._deserialize(item, sub_kls) for item in data]
 
             if klass.startswith('Dict['):

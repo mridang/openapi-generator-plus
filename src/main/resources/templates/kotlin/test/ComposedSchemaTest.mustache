@@ -256,4 +256,70 @@ class ComposedSchemaTest {
             assertEquals(original.ownerEmail, deserialized.ownerEmail)
         }
     }
+
+    @Nested
+    @DisplayName("oneOf with format:byte variants - SetPetAvatarThumbnailRequest")
+    inner class SetPetAvatarThumbnailRequestTests {
+
+        // SetPetAvatarThumbnailRequest is a oneOf of [ a scalar format:byte value,
+        // an array of format:byte values ]. format:byte means the value travels on
+        // the wire as a base64 STRING. A reified serializer<ByteArray>() resolves
+        // kotlinx's built-in ByteArraySerializer (a JSON int-array), so the wrapper
+        // must route the byte variants through Base64ByteArraySerializer explicitly
+        // on BOTH encode and decode -- this test pins that wire form.
+
+        @Test
+        @DisplayName("setPetAvatarThumbnail byte oneOf round-trips through base64")
+        fun testScalarByteVariantRoundTripsThroughBase64() {
+            val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
+            val request = SetPetAvatarThumbnailRequest(actualInstance = raw)
+
+            val encoded = json.encodeToString(request)
+            // The scalar byte variant must serialize to the base64 STRING
+            // "AQIDBA==" -- NOT a JSON int-array [1,2,3,4], NOT raw/unencoded
+            // bytes, NOT a [B@hash toString of the array.
+            assertEquals("\"AQIDBA==\"", encoded)
+            assertFalse(encoded.contains("[1,2,3,4]"))
+            assertFalse(encoded.contains("[1, 2, 3, 4]"))
+
+            // Round-trip: the base64 string must decode back to the SCALAR variant
+            // holding exactly the original 4 bytes -- never element-by-element into
+            // a List<ByteArray>.
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>(encoded)
+            assertTrue(restored.actualInstance is ByteArray)
+            assertArrayEquals(raw, restored.actualInstance as ByteArray)
+        }
+
+        @Test
+        @DisplayName("setPetAvatarThumbnail array byte oneOf round-trips through base64")
+        fun testArrayByteVariantRoundTripsThroughBase64() {
+            val first = byteArrayOf(0x01)
+            val second = byteArrayOf(0x02)
+            val request = SetPetAvatarThumbnailRequest(actualInstance = listOf(first, second))
+
+            val encoded = json.encodeToString(request)
+            // The array variant must serialize to a JSON array of base64 STRINGS.
+            assertEquals("[\"AQ==\",\"Ag==\"]", encoded)
+
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>(encoded)
+            @Suppress("UNCHECKED_CAST")
+            val payloads = restored.actualInstance as List<ByteArray>
+            assertEquals(2, payloads.size)
+            assertArrayEquals(first, payloads[0])
+            assertArrayEquals(second, payloads[1])
+        }
+
+        @Test
+        @DisplayName("a base64 scalar string deserializes to the scalar variant, not a list")
+        fun testScalarStringIsNotMisParsedAsList() {
+            // Ordering guard: a lone base64 string must resolve to the scalar
+            // ByteArray variant (one value), NOT be coerced element-by-element
+            // into a List<ByteArray>.
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>("\"AQIDBA==\"")
+
+            assertTrue(restored.actualInstance is ByteArray)
+            assertFalse(restored.actualInstance is List<*>)
+            assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), restored.actualInstance as ByteArray)
+        }
+    }
 }

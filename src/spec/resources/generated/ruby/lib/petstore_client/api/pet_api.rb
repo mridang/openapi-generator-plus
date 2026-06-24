@@ -163,7 +163,13 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        request_body = pet
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(pet, 'Pet')
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
@@ -308,7 +314,13 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        request_body = pet_treatment
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(pet_treatment, 'PetTreatment')
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
@@ -1172,7 +1184,13 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        request_body = body
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(body, 'File')
 
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
@@ -1223,7 +1241,13 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        request_body = set_pet_avatar_thumbnail_request
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(set_pet_avatar_thumbnail_request, 'SetPetAvatarThumbnailRequest')
 
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
@@ -1367,7 +1391,13 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        request_body = pet
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(pet, 'Pet')
 
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,

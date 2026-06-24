@@ -18,6 +18,7 @@ module {{moduleName}}::Models
 {{#-first}}
   module {{classname}}
     def self.openapi_one_of: () -> Array[Symbol]
+    def self.serialize_oneof: (untyped) -> untyped
 {{#discriminator}}
 {{#propertyName}}
     def self.openapi_discriminator_name: () -> Symbol

@@ -175,8 +175,12 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#set_pet_avatar_thumbnail' do
-    it 'uploads a base64 thumbnail via JSON' do
-      request = 'iVBORw0KGgoAAAANSUhEUg=='
+    it 'uploads a thumbnail from raw bytes (base64-encoded on the wire)' do
+      # SetPetAvatarThumbnailRequest is a oneOf [scalar format:byte, array of
+      # format:byte]. The caller supplies RAW bytes; the SDK base64-encodes
+      # the byte variant on the wire (the round-trip is asserted directly on
+      # the union in composed_schema_test). Here we only smoke the API call.
+      request = [0x89, 0x50, 0x4E, 0x47].pack('C*')
 
       @api.set_pet_avatar_thumbnail(1, request)
     end
