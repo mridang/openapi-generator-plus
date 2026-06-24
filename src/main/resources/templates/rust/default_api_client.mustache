@@ -809,6 +809,8 @@ mod tests {
         validate_multipart_filename, SENSITIVE_HEADER_NAMES,
     };
     use crate::api_client::MultipartValue;
+    use crate::models::PhotoMetadata;
+    use crate::object_serializer;
 
     // ── HTTPS->HTTP body-replay predicate (Gap 3.3) ──
     //
@@ -957,6 +959,86 @@ mod tests {
         assert!(
             body_str.contains("Content-Type: application/octet-stream\r\n"),
             "raw-bytes part with no extension must use application/octet-stream, got: {}",
+            body_str
+        );
+    }
+
+    // ── multipart-model-part-serialized-through-configured-serializer ──
+    //
+    // Cross-SDK parity: the addPetPhotos operation sends a multipart/form-data
+    // body whose `metadata` part is a MODEL (PhotoMetadata). The generated
+    // operation builds that part with exactly the call exercised below —
+    // `MultipartValue::Text(object_serializer::serialize(&metadata)?)` — so the
+    // model part is encoded through the SDK's CONFIGURED serializer. That means
+    // the part JSON carries the WIRE property names declared by the schema
+    // (`isPrimary`, `takenAt`) rather than the snake_case Rust field idents
+    // (`is_primary`, `taken_at`), and the `format: date-time` field is rendered
+    // with chrono's RFC 3339 wire form (millisecond fraction preserved). This
+    // test reconstructs the operation's part-building path end-to-end through
+    // `serialize_multipart_body` (the lowest-level multipart writer the
+    // operation ultimately drives) and asserts on the captured body bytes.
+    #[test]
+    fn test_multipart_model_part_uses_wire_property_names_and_datetime_format() {
+        use chrono::{DateTime, Utc};
+
+        // Build a PhotoMetadata exactly as a caller of add_pet_photos would,
+        // with the canonical millisecond-precision instant.
+        let taken_at: DateTime<Utc> = "2020-01-02T03:04:05.123Z"
+            .parse()
+            .expect("reference instant must parse");
+        let metadata = PhotoMetadata {
+            caption: None,
+            is_primary: Some(true),
+            taken_at: Some(taken_at),
+            location: None,
+        };
+
+        // Serialize the model part through the CONFIGURED serializer — the same
+        // call the generated add_pet_photos emits — then wrap it as the text
+        // part the operation hands to the multipart writer.
+        let part_json = object_serializer::serialize(&metadata)
+            .expect("model part must serialize through the configured serializer");
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("metadata".to_string(), MultipartValue::Text(part_json));
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+
+        // (1) The model part must use the WIRE property names from the schema,
+        // never the snake_case Rust field idents.
+        assert!(
+            body_str.contains("\"isPrimary\""),
+            "model part must use the wire key `isPrimary`, body: {}",
+            body_str
+        );
+        assert!(
+            body_str.contains("\"takenAt\""),
+            "model part must use the wire key `takenAt`, body: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("is_primary"),
+            "model part must NOT leak the snake_case ident `is_primary`, body: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("taken_at"),
+            "model part must NOT leak the snake_case ident `taken_at`, body: {}",
+            body_str
+        );
+
+        // (2) The `format: date-time` field must carry the proper RFC 3339
+        // wire form, with millisecond precision preserved (not truncated).
+        assert!(
+            body_str.contains("2020-01-02T03:04:05.123"),
+            "takenAt must serialize as an RFC 3339 date-time with millis, body: {}",
+            body_str
+        );
+
+        // (3) The captured part is the text part for the `metadata` field —
+        // confirm it is wired as a form field (not a file part).
+        assert!(
+            body_str.contains("name=\"metadata\""),
+            "metadata model part must be emitted under the `metadata` field name, body: {}",
             body_str
         );
     }

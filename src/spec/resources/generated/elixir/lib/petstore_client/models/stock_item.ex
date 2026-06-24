@@ -12,8 +12,8 @@ defmodule PetstoreClient.Models.StockItem do
   """
 
   @type t :: %__MODULE__{
-          priority: Priority,
-          availability: Availability | nil,
+          priority: PetstoreClient.Models.Priority.t(),
+          availability: PetstoreClient.Models.Availability.t() | nil,
           matrix: [[integer()]] | nil
         }
 

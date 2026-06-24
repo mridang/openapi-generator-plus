@@ -12,6 +12,9 @@ defmodule PetstoreClient.Models.Color do
   Values are exposed as atoms (e.g. `:red`) and as the canonical
   string form via `value/1` when wire interop is needed.
   """
+
+  @typedoc "One of the allowed enum atoms for Color."
+  @type t :: :red | :green | :blue
   @doc "Enum value `red`"
   def red, do: :red
 

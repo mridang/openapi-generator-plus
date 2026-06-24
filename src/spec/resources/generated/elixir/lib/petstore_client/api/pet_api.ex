@@ -180,8 +180,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet(t(), Pet, Options.t(), keyword()) ::
-          {:ok, Pet} | {:error, term()}
+  @spec add_pet(
+          t(),
+          PetstoreClient.Models.Pet.t(),
+          PetstoreClient.Api.Options.AddPetOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def add_pet(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
     case add_pet_with_http_info(api, pet, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -218,7 +223,12 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet` but returns the full `ApiResult`.
   """
-  @spec add_pet_with_http_info(t(), Pet, Options.t(), keyword()) ::
+  @spec add_pet_with_http_info(
+          t(),
+          PetstoreClient.Models.Pet.t(),
+          PetstoreClient.Api.Options.AddPetOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_with_http_info(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
     # Per-operation auth is sourced solely from the Options struct's optional
@@ -284,8 +294,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet_photos(t(), integer(), Options.t(), keyword()) ::
-          {:ok, [Photo]} | {:error, term()}
+  @spec add_pet_photos(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.AddPetPhotosOptions.t(),
+          keyword()
+        ) ::
+          {:ok, [PetstoreClient.Models.Photo.t()]} | {:error, term()}
   def add_pet_photos(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case add_pet_photos_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -322,7 +337,12 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet_photos` but returns the full `ApiResult`.
   """
-  @spec add_pet_photos_with_http_info(t(), integer(), Options.t(), keyword()) ::
+  @spec add_pet_photos_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.AddPetPhotosOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_photos_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -411,8 +431,14 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet_treatment(t(), integer(), PetTreatment, Options.t(), keyword()) ::
-          {:ok, PetTreatment} | {:error, term()}
+  @spec add_pet_treatment(
+          t(),
+          integer(),
+          PetstoreClient.Models.PetTreatment.t(),
+          PetstoreClient.Api.Options.AddPetTreatmentOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.PetTreatment.t()} | {:error, term()}
   def add_pet_treatment(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
     case add_pet_treatment_with_http_info(api, pet_id, pet_treatment, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -449,7 +475,13 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet_treatment` but returns the full `ApiResult`.
   """
-  @spec add_pet_treatment_with_http_info(t(), integer(), PetTreatment, Options.t(), keyword()) ::
+  @spec add_pet_treatment_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Models.PetTreatment.t(),
+          PetstoreClient.Api.Options.AddPetTreatmentOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_treatment_with_http_info(
         %__MODULE__{} = api,
@@ -541,7 +573,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec delete_pet(t(), integer(), Options.t(), keyword()) ::
+  @spec delete_pet(t(), integer(), PetstoreClient.Api.Options.DeletePetOptions.t(), keyword()) ::
           {:ok, nil} | {:error, term()}
   def delete_pet(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case delete_pet_with_http_info(api, pet_id, options, opts) do
@@ -563,7 +595,12 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `delete_pet` but returns the full `ApiResult`.
   """
-  @spec delete_pet_with_http_info(t(), integer(), Options.t(), keyword()) ::
+  @spec delete_pet_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.DeletePetOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     # Per-operation auth is sourced solely from the Options struct's optional
@@ -819,8 +856,12 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @deprecated "This operation is deprecated."
-  @spec find_pets_by_status(t(), Options.t(), keyword()) ::
-          {:ok, [Pet]} | {:error, term()}
+  @spec find_pets_by_status(
+          t(),
+          PetstoreClient.Api.Options.FindPetsByStatusOptions.t(),
+          keyword()
+        ) ::
+          {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, term()}
   def find_pets_by_status(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case find_pets_by_status_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -857,7 +898,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `find_pets_by_status` but returns the full `ApiResult`.
   """
-  @spec find_pets_by_status_with_http_info(t(), Options.t(), keyword()) ::
+  @spec find_pets_by_status_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.FindPetsByStatusOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def find_pets_by_status_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -943,7 +988,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_external_pet_info(t(), integer(), keyword()) ::
-          {:ok, Pet} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def get_external_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_external_pet_info_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1056,7 +1101,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_multi_server_pet_info(t(), integer(), keyword()) ::
-          {:ok, Pet} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def get_multi_server_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_multi_server_pet_info_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1411,7 +1456,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @deprecated "This operation is deprecated."
   @spec get_pet_by_id(t(), integer(), keyword()) ::
-          {:ok, Pet} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def get_pet_by_id(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_by_id_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1524,8 +1569,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_by_name(t(), String.t(), Options.t(), keyword()) ::
-          {:ok, Pet} | {:error, term()}
+  @spec get_pet_by_name(
+          t(),
+          String.t(),
+          PetstoreClient.Api.Options.GetPetByNameOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def get_pet_by_name(%__MODULE__{} = api, name, options, opts \\ []) do
     case get_pet_by_name_with_http_info(api, name, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1562,7 +1612,12 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_by_name` but returns the full `ApiResult`.
   """
-  @spec get_pet_by_name_with_http_info(t(), String.t(), Options.t(), keyword()) ::
+  @spec get_pet_by_name_with_http_info(
+          t(),
+          String.t(),
+          PetstoreClient.Api.Options.GetPetByNameOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_by_name_with_http_info(%__MODULE__{} = api, name, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -1667,7 +1722,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_pet_passport(t(), integer(), keyword()) ::
-          {:ok, PetPassport} | {:error, term()}
+          {:ok, PetstoreClient.Models.PetPassport.t()} | {:error, term()}
   def get_pet_passport(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_passport_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1917,8 +1972,14 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_tag(t(), integer(), String.t(), Options.t(), keyword()) ::
-          {:ok, Pet} | {:error, term()}
+  @spec get_pet_tag(
+          t(),
+          integer(),
+          String.t(),
+          PetstoreClient.Api.Options.GetPetTagOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options \\ nil, opts \\ []) do
     case get_pet_tag_with_http_info(api, pet_id, tag_name, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1955,7 +2016,13 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_tag` but returns the full `ApiResult`.
   """
-  @spec get_pet_tag_with_http_info(t(), integer(), String.t(), Options.t(), keyword()) ::
+  @spec get_pet_tag_with_http_info(
+          t(),
+          integer(),
+          String.t(),
+          PetstoreClient.Api.Options.GetPetTagOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_tag_with_http_info(
         %__MODULE__{} = api,
@@ -2120,7 +2187,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_staging_pet_info(t(), integer(), keyword()) ::
-          {:ok, Pet} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def get_staging_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_staging_pet_info_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2339,7 +2406,12 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec set_pet_avatar_thumbnail(t(), integer(), SetPetAvatarThumbnailRequest, keyword()) ::
+  @spec set_pet_avatar_thumbnail(
+          t(),
+          integer(),
+          PetstoreClient.Models.SetPetAvatarThumbnailRequest.t(),
+          keyword()
+        ) ::
           {:ok, nil} | {:error, term()}
   def set_pet_avatar_thumbnail(
         %__MODULE__{} = api,
@@ -2379,7 +2451,7 @@ defmodule PetstoreClient.Api.PetApi do
   @spec set_pet_avatar_thumbnail_with_http_info(
           t(),
           integer(),
-          SetPetAvatarThumbnailRequest,
+          PetstoreClient.Models.SetPetAvatarThumbnailRequest.t(),
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
@@ -2469,8 +2541,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec set_pet_preferences(t(), integer(), Options.t(), keyword()) ::
-          {:ok, ApiResponse} | {:error, term()}
+  @spec set_pet_preferences(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.SetPetPreferencesOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, term()}
   def set_pet_preferences(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case set_pet_preferences_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2507,7 +2584,12 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `set_pet_preferences` but returns the full `ApiResult`.
   """
-  @spec set_pet_preferences_with_http_info(t(), integer(), Options.t(), keyword()) ::
+  @spec set_pet_preferences_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.SetPetPreferencesOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def set_pet_preferences_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -2598,8 +2680,8 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec update_pet(t(), integer(), Pet, keyword()) ::
-          {:ok, Pet} | {:error, term()}
+  @spec update_pet(t(), integer(), PetstoreClient.Models.Pet.t(), keyword()) ::
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
   def update_pet(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
     case update_pet_with_http_info(api, pet_id, pet, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2636,7 +2718,7 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `update_pet` but returns the full `ApiResult`.
   """
-  @spec update_pet_with_http_info(t(), integer(), Pet, keyword()) ::
+  @spec update_pet_with_http_info(t(), integer(), PetstoreClient.Models.Pet.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def update_pet_with_http_info(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -2719,8 +2801,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec upload_pet_certificate(t(), integer(), Options.t(), keyword()) ::
-          {:ok, ApiResponse} | {:error, term()}
+  @spec upload_pet_certificate(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.UploadPetCertificateOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, term()}
   def upload_pet_certificate(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_certificate_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2758,7 +2845,12 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `upload_pet_certificate` but returns the full `ApiResult`.
   """
-  @spec upload_pet_certificate_with_http_info(t(), integer(), Options.t(), keyword()) ::
+  @spec upload_pet_certificate_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.UploadPetCertificateOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def upload_pet_certificate_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -2842,8 +2934,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec upload_pet_document(t(), integer(), Options.t(), keyword()) ::
-          {:ok, ApiResponse} | {:error, term()}
+  @spec upload_pet_document(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.UploadPetDocumentOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, term()}
   def upload_pet_document(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_document_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2880,7 +2977,12 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `upload_pet_document` but returns the full `ApiResult`.
   """
-  @spec upload_pet_document_with_http_info(t(), integer(), Options.t(), keyword()) ::
+  @spec upload_pet_document_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.UploadPetDocumentOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def upload_pet_document_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the

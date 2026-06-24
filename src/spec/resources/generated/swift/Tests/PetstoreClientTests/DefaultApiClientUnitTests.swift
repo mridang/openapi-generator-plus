@@ -343,6 +343,53 @@
         "expected application/octet-stream for raw bytes without extension, got: \(bodyStr)")
     }
 
+    // MARK: - Cross-cutting parity: model part uses configured serializer
+
+    // A multipart/form-data body that includes a MODEL part (the addPetPhotos
+    // metadata) must serialise that part through the SDK's CONFIGURED
+    // ObjectSerializer, so the JSON uses WIRE property names (isPrimary,
+    // takenAt — NOT snake_case is_primary/taken_at) and the SDK's date-time
+    // format. This guards the model-part branch of appendMultipartField against
+    // a regression to JSONSerialization (which would crash on a struct) or any
+    // alternate encoder that disagrees on key names or date encoding.
+    @Test func testMultipartModelPartUsesWireNamesAndDateFormat() throws {
+      let parser = ISO8601DateFormatter()
+      parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+      let instant = parser.date(from: "2020-01-02T03:04:05.123Z")!
+
+      let metadata = PhotoMetadata(isPrimary: true, takenAt: instant)
+      let formParts: [String: Any] = ["metadata": metadata]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+
+      // The model part is emitted as a JSON part.
+      #expect(
+        bodyStr.contains("name=\"metadata\""),
+        "expected the metadata model part in the body, got: \(bodyStr)")
+      #expect(
+        bodyStr.contains("Content-Type: application/json"),
+        "model part must be serialised as JSON, got: \(bodyStr)")
+
+      // WIRE property names — never snake_case.
+      #expect(
+        bodyStr.contains("\"isPrimary\""),
+        "model part must use wire name isPrimary, got: \(bodyStr)")
+      #expect(
+        bodyStr.contains("\"takenAt\""),
+        "model part must use wire name takenAt, got: \(bodyStr)")
+      #expect(
+        !bodyStr.contains("is_primary"),
+        "model part must NOT snake_case isPrimary, got: \(bodyStr)")
+      #expect(
+        !bodyStr.contains("taken_at"),
+        "model part must NOT snake_case takenAt, got: \(bodyStr)")
+
+      // The date-time carries the SDK format with the millisecond fraction.
+      #expect(
+        bodyStr.contains("2020-01-02T03:04:05.123"),
+        "takenAt must carry the SDK date-time string with .123 fraction, got: \(bodyStr)")
+    }
+
     // MARK: - Response charset handling (Gap H)
 
     @Test func testRespectsIsoLatin1Charset() async throws {

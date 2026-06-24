@@ -15,7 +15,7 @@ defmodule PetstoreClient.Models.PhotoMetadata do
           caption: String.t() | nil,
           is_primary: boolean() | nil,
           taken_at: DateTime.t() | nil,
-          location: PhotoMetadataLocation | nil
+          location: PetstoreClient.Models.PhotoMetadataLocation.t() | nil
         }
 
   defstruct [

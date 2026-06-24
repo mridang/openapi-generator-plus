@@ -1223,6 +1223,102 @@ void main() {
       }
     });
 
+    /* multipart-model-part-wire-format: a multipart/form-data body that
+     * carries a MODEL part (addPetPhotos sends a PhotoMetadata `metadata`
+     * part alongside the binary `files` parts) must serialize that part
+     * through the SDK's configured object serializer so it uses WIRE
+     * property names (`isPrimary`, `takenAt` — NOT snake_case
+     * `is_primary`/`taken_at`) and the SDK's canonical date-time format.
+     *
+     * In Dart this is enforced by routing the non-binary part value through
+     * `jsonEncode`, which invokes the model's generated `toJson()`; that
+     * body keys every field by its wire `baseName` and renders date-time
+     * values with `formatDateTimeOffset`. This is exercised end-to-end on
+     * the live operation path (BaseApi._buildMultipartBody via the real
+     * addPetPhotos operation) against a loopback server that captures the
+     * raw multipart bytes. The cross-language contract must hold byte-for-
+     * byte across all 12 SDKs. */
+    test(
+      'multipart model part serializes with wire keys and date-time format',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String receivedBody = '';
+        server.listen((request) async {
+          // Do NOT lowercase: the JSON keys (`isPrimary`, `takenAt`) are
+          // case-sensitive and must survive verbatim.
+          receivedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.addPetPhotos(
+            1,
+            AddPetPhotosOptions(
+              files: [
+                Uint8List.fromList([1, 2, 3]),
+              ],
+              metadata: PhotoMetadata(
+                isPrimary: true,
+                takenAt: DateTime.utc(2020, 1, 2, 3, 4, 5, 123),
+              ),
+            ),
+          );
+
+          // The model part must travel as a JSON object keyed by the WIRE
+          // property names, never the snake_case codegen field names.
+          expect(
+            receivedBody,
+            contains('"isPrimary"'),
+            reason:
+                'model part must use the wire key isPrimary, got: $receivedBody',
+          );
+          expect(
+            receivedBody,
+            isNot(contains('is_primary')),
+            reason:
+                'model part must NOT use snake_case is_primary, got: $receivedBody',
+          );
+          expect(
+            receivedBody,
+            contains('"takenAt"'),
+            reason:
+                'model part must use the wire key takenAt, got: $receivedBody',
+          );
+          expect(
+            receivedBody,
+            isNot(contains('taken_at')),
+            reason:
+                'model part must NOT use snake_case taken_at, got: $receivedBody',
+          );
+          // The boolean keeps its JSON form and the date-time carries the
+          // SDK's canonical ISO-8601 string (millisecond precision, UTC).
+          expect(
+            receivedBody,
+            contains('"isPrimary":true'),
+            reason:
+                'isPrimary must serialize as a JSON boolean, got: $receivedBody',
+          );
+          expect(
+            receivedBody,
+            contains('2020-01-02T03:04:05.123'),
+            reason:
+                'takenAt must carry the SDK date-time string, got: $receivedBody',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     /* enum-unknown-value-throws: deserializing an unknown enum value must
      * throw (the SDK surfaces the failure) rather than silently mapping it
      * to a default or an `unknown` sentinel — matching the throw-on-unknown

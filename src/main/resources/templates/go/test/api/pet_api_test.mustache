@@ -3,6 +3,7 @@ package {{packageName}}_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"mime"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"{{packageName}}/pkg"
 	pkgerrors "{{packageName}}/pkg/errors"
@@ -576,6 +578,97 @@ func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
 	}
 	if !strings.HasPrefix(metadataPartContentType, "application/json") {
 		t.Errorf("expected metadata part Content-Type application/json, got %q", metadataPartContentType)
+	}
+}
+
+// multipart-model-part-wire-keys: the PhotoMetadata model part of a
+// multipart/form-data body must be serialised through the same encoding/json
+// path the model defines, so its JSON carries the WIRE property names declared
+// in the spec (isPrimary, takenAt) rather than Go field names or snake_case
+// variants, and a date-time field renders in RFC 3339 with sub-second
+// precision. This is the cross-cutting parity scenario: build a PhotoMetadata
+// with IsPrimary=true and TakenAt=2020-01-02T03:04:05.123Z, send it as the
+// "metadata" part, capture the outgoing part body, and assert the wire keys and
+// date-time string.
+func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
+	t.Parallel()
+	var metadataPartBody string
+	var sawMetadataPart bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err == nil {
+			if boundary, ok := params["boundary"]; ok {
+				mr := multipart.NewReader(r.Body, boundary)
+				for {
+					part, perr := mr.NextPart()
+					if perr != nil {
+						break
+					}
+					if part.FormName() == "metadata" {
+						sawMetadataPart = true
+						body, _ := io.ReadAll(part)
+						metadataPartBody = string(body)
+					}
+				}
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	f := newTempFile(t, "photo1")
+
+	isPrimary := true
+	takenAt := time.Date(2020, 1, 2, 3, 4, 5, 123000000, time.UTC)
+	metadata := models.NewPhotoMetadata()
+	metadata.IsPrimary = &isPrimary
+	metadata.TakenAt = &takenAt
+
+	_, _ = api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+		Files:    []*os.File{f},
+		Metadata: *metadata,
+	})
+
+	if !sawMetadataPart {
+		t.Fatal("expected the multipart body to contain a 'metadata' part")
+	}
+
+	// The model part must use the spec's wire property names, never the
+	// snake_case variants that a misconfigured serialiser would emit.
+	if !strings.Contains(metadataPartBody, `"isPrimary"`) {
+		t.Errorf("expected metadata part to contain wire key \"isPrimary\", got %q", metadataPartBody)
+	}
+	if !strings.Contains(metadataPartBody, `"takenAt"`) {
+		t.Errorf("expected metadata part to contain wire key \"takenAt\", got %q", metadataPartBody)
+	}
+	if strings.Contains(metadataPartBody, "is_primary") {
+		t.Errorf("metadata part must not contain snake_case key \"is_primary\", got %q", metadataPartBody)
+	}
+	if strings.Contains(metadataPartBody, "taken_at") {
+		t.Errorf("metadata part must not contain snake_case key \"taken_at\", got %q", metadataPartBody)
+	}
+
+	// The date-time value must serialise in RFC 3339 with the millisecond
+	// fraction preserved, matching the model's encoding/json path.
+	if !strings.Contains(metadataPartBody, "2020-01-02T03:04:05.123Z") {
+		t.Errorf("expected metadata part to carry RFC 3339 date-time 2020-01-02T03:04:05.123Z, got %q", metadataPartBody)
+	}
+
+	// The part must be valid JSON decodable back into the model with the same
+	// wire keys (a structural cross-check that the keys above are real JSON
+	// fields, not substrings of some other value).
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(metadataPartBody), &decoded); err != nil {
+		t.Fatalf("metadata part is not valid JSON: %v (body %q)", err, metadataPartBody)
+	}
+	if _, ok := decoded["isPrimary"]; !ok {
+		t.Errorf("decoded metadata part missing wire key isPrimary: %v", decoded)
+	}
+	if _, ok := decoded["takenAt"]; !ok {
+		t.Errorf("decoded metadata part missing wire key takenAt: %v", decoded)
 	}
 }
 

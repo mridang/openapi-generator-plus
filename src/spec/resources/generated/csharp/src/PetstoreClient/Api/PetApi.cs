@@ -608,7 +608,6 @@ public class PetApi : BaseApi
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Pet>>> FindPetsByStatusWithHttpInfoAsync(FindPetsByStatusOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/findByStatus";
 
         Dictionary<string, object?> queryParams = [];
@@ -1257,7 +1256,6 @@ public class PetApi : BaseApi
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetPetTagWithHttpInfoAsync(long petId, string tagName, GetPetTagOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/tag/{tagName}";
         path = path.Replace(
             "{" + nameof(petId) + "}",

@@ -190,4 +190,59 @@ import Testing
     let restored = try JSONDecoder().decode(PetWithOwner.self, from: data)
     #expect(restored != nil)
   }
+
+  // MARK: - C3 — unevaluatedProperties:false rejects via CATCHABLE error
+
+  /// A strict model (`unevaluatedProperties: false`) that encounters an
+  /// undeclared JSON key must throw a CATCHABLE `DecodingError`, NOT call
+  /// `preconditionFailure`/`fatalError`. Crashing the host process on
+  /// untrusted server data is a DoS; a thrown error lets callers recover and
+  /// lets oneOf/anyOf `try?` fallthrough work. This guards against a
+  /// regression back to the process-aborting behaviour.
+  @Test func testStrictTagUnknownPropertyThrowsDecodingError() {
+    let jsonData = Data("{\"id\":1,\"name\":\"x\",\"surprise\":true}".utf8)
+    do {
+      _ = try JSONDecoder().decode(StrictTag.self, from: jsonData)
+      Issue.record("expected DecodingError for unevaluated property")
+    } catch let DecodingError.dataCorrupted(ctx) {
+      #expect(
+        ctx.debugDescription.contains("surprise"),
+        "error must surface the offending property name: \(ctx.debugDescription)")
+    } catch {
+      Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
+    }
+  }
+
+  /// A strict-model decode with only declared keys must still succeed —
+  /// the catchable rejection path must not over-reject valid payloads.
+  @Test func testStrictTagDeclaredPropertiesDecode() throws {
+    let jsonData = Data("{\"id\":7,\"name\":\"ok\"}".utf8)
+    let tag = try JSONDecoder().decode(StrictTag.self, from: jsonData)
+    #expect(tag.id == 7)
+    #expect(tag.name == "ok")
+  }
+
+  // MARK: - H10 — AnyCodable structural equality/hashing of free-form JSON
+
+  /// AnyCodable wraps arbitrary JSON. Equatable must compare arrays and
+  /// dictionaries STRUCTURALLY rather than falling to `default: false`, and
+  /// Hashable must fold their contents in (not collapse every container to
+  /// `combine(0)`). This guards the recursion added to `==`/`hash(into:)`.
+  @Test func testAnyCodableArrayEquatableAndHashable() {
+    let a = AnyCodable([1, "two", true])
+    let b = AnyCodable([1, "two", true])
+    let c = AnyCodable([1, "two", false])
+    #expect(a == b)
+    #expect(a != c)
+    #expect(a.hashValue == b.hashValue)
+  }
+
+  @Test func testAnyCodableDictionaryEquatableAndHashable() {
+    let a = AnyCodable(["k": 1, "s": "v"])
+    let b = AnyCodable(["s": "v", "k": 1])
+    let c = AnyCodable(["k": 2, "s": "v"])
+    #expect(a == b)
+    #expect(a != c)
+    #expect(a.hashValue == b.hashValue)
+  }
 }

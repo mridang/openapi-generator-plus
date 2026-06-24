@@ -332,6 +332,49 @@ class TestAuthInjection:
                         ['application/json'], 'application/json', None, per_call_auth)
         assert client.captured_headers.get('X-Client-Auth') == 'per-call-token'
 
+    async def test_get_auth_headers_runs_off_the_event_loop_thread(self) -> None:
+        # Regression (H5): on the async path, auth-header acquisition must be
+        # offloaded via asyncio.to_thread, not run inline on the event-loop
+        # thread. For OAuth, get_auth_headers acquires a threading.Lock and may
+        # perform a blocking HTTP token exchange; running it on the loop thread
+        # would freeze every other coroutine for the duration of the fetch.
+        # Record the thread get_auth_headers runs on and assert it is NOT the
+        # loop's running thread (i.e. it ran in a worker thread).
+        import asyncio
+        import threading
+
+        loop_thread_id = threading.get_ident()
+
+        class ThreadRecordingAuthenticator(Authenticator):
+            def __init__(self) -> None:
+                self.auth_thread_id: Optional[int] = None
+
+            def get_host(self) -> str:
+                return ''
+
+            def get_auth_headers(self) -> dict[str, str]:
+                self.auth_thread_id = threading.get_ident()
+                return {'X-Auth': 'v'}
+
+            def get_query_params(self) -> dict[str, str]:
+                return {}
+
+            def get_cookie_params(self) -> dict[str, str]:
+                return {}
+
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        auth = ThreadRecordingAuthenticator()
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None, auth)
+
+        # The header still reached the wire ...
+        assert client.captured_headers.get('X-Auth') == 'v'
+        # ... and it was computed off the event-loop thread.
+        assert auth.auth_thread_id is not None
+        assert auth.auth_thread_id != loop_thread_id
+
 
 class TestBodySerialization:
 

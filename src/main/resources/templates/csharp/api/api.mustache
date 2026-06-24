@@ -208,27 +208,16 @@ public class {{classname}} : BaseApi
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}})
     {
-{{#queryParams}}
-{{#-first}}
+{{! L10: only guard `options` against null when the Options arg is non-nullable
+    (i.e. the operation has at least one REQUIRED query/header/form/cookie
+    param). When every param is optional the arg is generated as
+    `Options? options = null`, so the natural no-arg call passes null on
+    purpose; an unconditional ThrowIfNull(options) would make that call throw.
+    In that all-optional case the per-param accesses below are already null-safe
+    (`options != null && options.X`), so no guard is needed here. }}
+{{#vendorExtensions.op.optionsParamRequired}}
         ArgumentNullException.ThrowIfNull(options);
-{{/-first}}
-{{/queryParams}}
-{{^queryParams}}
-{{#headerParams}}
-{{#-first}}
-        ArgumentNullException.ThrowIfNull(options);
-{{/-first}}
-{{/headerParams}}
-{{^headerParams}}
-{{#formParams}}
-{{#-first}}
-        ArgumentNullException.ThrowIfNull(options);
-{{/-first}}
-{{/formParams}}
-{{^formParams}}
-{{/formParams}}
-{{/headerParams}}
-{{/queryParams}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{#queryParams}}
 {{#required}}
         ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));

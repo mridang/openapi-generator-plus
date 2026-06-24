@@ -163,8 +163,15 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         let allowed: Set<String> = [{{#vars}}"{{baseName}}"{{^-last}}, {{/-last}}{{/vars}}]
         let extras = try decoder.container(keyedBy: AnyKey.self)
         for key in extras.allKeys where !allowed.contains(key.stringValue) {
-            preconditionFailure(
-                "Unknown property '\(key.stringValue)' on {{classname}} (unevaluatedProperties:false)")
+            /* Throw a CATCHABLE DecodingError rather than crashing the process
+               with preconditionFailure/fatalError. Untrusted server data must
+               never be able to abort the host application, and a thrown error
+               also lets oneOf/anyOf `try?` fallthrough work correctly. */
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: extras.codingPath + [key],
+                    debugDescription:
+                        "Unknown property '\(key.stringValue)' on {{classname}} (unevaluatedProperties:false)"))
         }
 {{/isUnevaluatedPropertiesFalse}}
     }

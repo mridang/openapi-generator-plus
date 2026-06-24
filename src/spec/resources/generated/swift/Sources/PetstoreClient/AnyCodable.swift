@@ -88,6 +88,20 @@ public struct AnyCodable: Codable, Equatable, Hashable, @unchecked Sendable, Cus
       return lhs == rhs
     case (let lhs as String, let rhs as String):
       return lhs == rhs
+    case (let lhs as [Any], let rhs as [Any]):
+      /* Free-form JSON arrays must compare structurally. Wrap each
+         element back into AnyCodable so the comparison recurses through
+         this same operator rather than falling to `default: false`. */
+      guard lhs.count == rhs.count else { return false }
+      return zip(lhs, rhs).allSatisfy { AnyCodable($0) == AnyCodable($1) }
+    case (let lhs as [String: Any], let rhs as [String: Any]):
+      /* Free-form JSON objects must compare structurally, key by key,
+         recursing through this operator for each value. */
+      guard lhs.count == rhs.count else { return false }
+      return lhs.allSatisfy { key, value in
+        guard let other = rhs[key] else { return false }
+        return AnyCodable(value) == AnyCodable(other)
+      }
     default:
       return false
     }
@@ -105,6 +119,20 @@ public struct AnyCodable: Codable, Equatable, Hashable, @unchecked Sendable, Cus
       hasher.combine(double)
     case let string as String:
       hasher.combine(string)
+    case let array as [Any]:
+      /* Recurse structurally so free-form arrays hash consistently with
+         Equatable. Wrapping each element in AnyCodable folds its hash
+         through this same routine. */
+      for element in array {
+        hasher.combine(AnyCodable(element))
+      }
+    case let dictionary as [String: Any]:
+      /* Combine each key with the recursively-hashed value. Sort the keys
+         so the hash is order-independent, matching dictionary equality. */
+      for key in dictionary.keys.sorted() {
+        hasher.combine(key)
+        hasher.combine(AnyCodable(dictionary[key]))
+      }
     default:
       hasher.combine(0)
     }

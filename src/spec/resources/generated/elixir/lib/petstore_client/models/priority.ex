@@ -12,6 +12,9 @@ defmodule PetstoreClient.Models.Priority do
   Values are exposed as atoms (e.g. `:number_1`) and as the canonical
   integer form via `value/1` when wire interop is needed.
   """
+
+  @typedoc "One of the allowed enum atoms for Priority."
+  @type t :: :number_1 | :number_2 | :number_3
   @doc "Enum value `number_1`"
   def number_1, do: :number_1
 

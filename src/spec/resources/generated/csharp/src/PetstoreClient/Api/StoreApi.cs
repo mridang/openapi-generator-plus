@@ -146,7 +146,6 @@ public class StoreApi : BaseApi
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Category>> GetBySwatchWithHttpInfoAsync(Swatch pathSwatch, GetBySwatchOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(options);
         string path = "/store/by-swatch/{pathSwatch}";
         path = path.Replace(
             "{" + nameof(pathSwatch) + "}",
@@ -564,7 +563,6 @@ public class StoreApi : BaseApi
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<StockItem>> GetStockItemWithHttpInfoAsync(GetStockItemOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(options);
         string path = "/store/stock-item";
 
         Dictionary<string, object?> queryParams = [];

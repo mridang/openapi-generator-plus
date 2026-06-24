@@ -13,7 +13,7 @@ defmodule PetstoreClient.Models.Employee do
 
   @type t :: %__MODULE__{
           name: String.t(),
-          department: Department | nil
+          department: PetstoreClient.Models.Department.t() | nil
         }
 
   @enforce_keys [

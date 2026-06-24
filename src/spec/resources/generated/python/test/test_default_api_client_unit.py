@@ -458,6 +458,53 @@ class TestMultipartContentType:
         assert b'filename="file"' in body
         assert b"Content-Type: application/octet-stream" in body
 
+    def test_multipart_model_part_serialized_through_object_serializer(self) -> None:
+        # cross-cutting parity: addPetPhotos sends a multipart/form-data body
+        # whose `metadata` field is a MODEL part (PhotoMetadata). That model
+        # part must be serialized through the SDK's configured ObjectSerializer
+        # (model_dump_json(by_alias=True, ...)) so it carries the WIRE property
+        # names declared by the field aliases (isPrimary, takenAt) and the SDK
+        # date-time string — NOT pydantic's snake_case attribute names
+        # (is_primary, taken_at) and NOT a Python repr. The model part is built
+        # at the lowest level by _build_multipart_body, so capture its bytes and
+        # assert on the embedded JSON. Routing through ObjectSerializer keeps the
+        # multipart model part byte-identical to a JSON request body, matching
+        # the other 11 SDKs.
+        import datetime
+        from petstore_client.models.photo_metadata import PhotoMetadata
+
+        instant = datetime.datetime(
+            2020, 1, 2, 3, 4, 5, 123000, tzinfo=datetime.timezone.utc
+        )
+        metadata = PhotoMetadata(isPrimary=True, takenAt=instant)
+
+        client = DefaultApiClient()
+        body = client._build_multipart_body({"metadata": metadata}, "boundary")
+        text = body.decode("utf-8")
+
+        # The model part is a JSON part.
+        assert 'name="metadata"' in text
+        assert "Content-Type: application/json" in text
+
+        # Extract the JSON object that follows the metadata part's blank line.
+        marker = text.index('name="metadata"')
+        json_start = text.index("{", marker)
+        json_end = text.index("}", json_start) + 1
+        part_json = text[json_start:json_end]
+        parsed = json.loads(part_json)
+
+        # WIRE keys present, snake_case attribute names absent.
+        assert "isPrimary" in parsed
+        assert "takenAt" in parsed
+        assert "is_primary" not in parsed
+        assert "taken_at" not in parsed
+
+        assert parsed["isPrimary"] is True
+        # takenAt carries a proper RFC 3339 date-time string (the SDK format),
+        # not a Python datetime repr or a date-only value.
+        assert parsed["takenAt"].startswith("2020-01-02T03:04:05")
+        assert ".123" in parsed["takenAt"]
+
 
 class TestProxyAuthentication:
     """Proxy URL with userinfo should produce a ``Proxy-Authorization`` header.

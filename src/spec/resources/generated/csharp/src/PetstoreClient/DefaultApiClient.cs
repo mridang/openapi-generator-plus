@@ -63,6 +63,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private readonly TransportOptions _transportOptions;
 
     /// <summary>
+    /// The SDK's configured JSON serializer. A multipart JSON model part MUST
+    /// be serialized through this — not a bare
+    /// <see cref="System.Text.Json.JsonSerializer"/> call — so the part uses
+    /// the identical options as the JSON-body path: the millisecond-precision
+    /// <c>DateTimeOffset</c> converter, the protobuf-duration converter,
+    /// null-property omission, and relaxed escaping. Without it a model part
+    /// (e.g. a <c>format:date-time</c> field) would diverge from the body the
+    /// same SDK sends on the JSON path, breaking cross-language wire parity.
+    /// </summary>
+    private readonly ObjectSerializer _serializer = new();
+
+    /// <summary>
     /// Set once <see cref="Dispose"/> has been called. Guards against
     /// use-after-close: a request issued on a disposed client surfaces a
     /// typed SDK <see cref="ApiException"/> rather than the raw
@@ -308,7 +320,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 byte[] bytes => new ByteArrayContent(bytes),
                 Stream stream => new StreamContent(stream),
-                Dictionary<string, object> formParts => BuildMultipartContent(formParts),
+                Dictionary<string, object> formParts => BuildMultipartContent(formParts, _serializer),
                 string text => new StringContent(
                     text,
                     Encoding.UTF8,
@@ -662,7 +674,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     private static MultipartFormDataContent BuildMultipartContent(
-        Dictionary<string, object> formParts
+        Dictionary<string, object> formParts,
+        ObjectSerializer serializer
     )
     {
         MultipartFormDataContent multipart = new();
@@ -670,7 +683,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             if (part.Value is byte[] || part.Value is string || part.Value is Stream)
             {
-                AddMultipartField(multipart, part.Key, part.Value);
+                AddMultipartField(multipart, part.Key, part.Value, serializer);
             }
             else if (part.Value is System.Collections.IList list)
             {
@@ -678,13 +691,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 {
                     if (item != null)
                     {
-                        AddMultipartField(multipart, part.Key, item);
+                        AddMultipartField(multipart, part.Key, item, serializer);
                     }
                 }
             }
             else
             {
-                AddMultipartField(multipart, part.Key, part.Value);
+                AddMultipartField(multipart, part.Key, part.Value, serializer);
             }
         }
         return multipart;
@@ -693,7 +706,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static void AddMultipartField(
         MultipartFormDataContent multipart,
         string name,
-        object value
+        object value,
+        ObjectSerializer serializer
     )
     {
         switch (value)
@@ -749,7 +763,19 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 else
                 {
                     ValidateMultipartFilename(name);
-                    string json = System.Text.Json.JsonSerializer.Serialize(value);
+                    /* Route the model part through the SDK's configured
+                       ObjectSerializer rather than a bare
+                       JsonSerializer.Serialize(value) call. The bare call would
+                       omit the SDK JsonSerializerOptions — the
+                       millisecond-precision DateTimeOffset converter, the
+                       protobuf-duration converter, null-property omission, and
+                       relaxed escaping — so a JSON model part (e.g. one with a
+                       format:date-time field) would diverge from the body the
+                       same SDK emits on the JSON-body path. Serializing here
+                       keeps the multipart part byte-identical to the JSON path
+                       and the wire property names (from [JsonPropertyName]) and
+                       date-time format consistent across the SDK. */
+                    string json = serializer.Serialize(value);
                     StringContent jsonContent = new(json, Encoding.UTF8, "application/json");
                     _ = jsonContent.Headers.Remove("Content-Disposition");
                     _ = jsonContent.Headers.TryAddWithoutValidation(

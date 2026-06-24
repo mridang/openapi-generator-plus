@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.OffsetDateTime
 
 class PetApiTest {
     companion object {
@@ -424,6 +425,57 @@ class PetApiTest {
 
             assertEquals("POST", capturedMethod)
             assertTrue(capturedPath!!.contains("/pet/1/certificate"))
+        }
+
+        @Test
+        @DisplayName("addPetPhotos serializes the model part with wire names via the configured serializer")
+        fun testAddPetPhotosModelPartWireNames() {
+            // Cross-cutting multipart parity: addPetPhotos sends a
+            // multipart/form-data body with a MODEL part (PhotoMetadata). That
+            // part MUST be rendered through the SDK's configured ObjectSerializer
+            // so it carries the WIRE property names (isPrimary, takenAt -- NOT
+            // snake_case is_primary/taken_at) and the SDK date-time format. We
+            // capture the outgoing multipart body and assert the JSON part keys
+            // and the date-time string.
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = "[]",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val files = listOf(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()))
+            val metadata =
+                PhotoMetadata(
+                    isPrimary = true,
+                    takenAt = OffsetDateTime.parse("2020-01-02T03:04:05.123Z"),
+                )
+            runBlocking { api.addPetPhotos(1L, AddPetPhotosOptions(files, metadata)) }
+
+            val body = capturedBody
+            assertNotNull(body)
+            // The model part uses WIRE property names from @SerialName, NOT the
+            // snake_case variants a naive serializer would emit.
+            assertTrue(body!!.contains("\"isPrimary\""), "model part must use wire key isPrimary")
+            assertTrue(body.contains("\"takenAt\""), "model part must use wire key takenAt")
+            assertFalse(body.contains("is_primary"), "model part must NOT use snake_case is_primary")
+            assertFalse(body.contains("taken_at"), "model part must NOT use snake_case taken_at")
+            // The contextual OffsetDateTime serializer renders an ISO-8601
+            // date-time string, not a struct/epoch.
+            assertTrue(
+                body.contains("2020-01-02T03:04:05.123Z"),
+                "takenAt must carry the SDK date-time string",
+            )
         }
 
         @Test

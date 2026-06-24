@@ -359,6 +359,45 @@ describe {{moduleName}}::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # ── Multipart model part serialised via ObjectSerializer (cross-SDK parity) ──
+  #
+  # A model passed as a multipart form field must be JSON-encoded through the
+  # configured ObjectSerializer, NOT JSON.generate(value.to_hash). Dry::Struct
+  # #to_hash yields snake_case attribute names (is_primary/taken_at) and raw
+  # Time/Date/Duration values, so a naive generate would emit the wrong wire
+  # keys and an unformatted date-time. Routing through ObjectSerializer.serialize
+  # produces the same wire keys (isPrimary/takenAt) and date-time formatting as
+  # the JSON-body path. addPetPhotos sends a PhotoMetadata model as the
+  # "metadata" part — here we build that part directly and assert the wire form.
+  it 'serialises a multipart model part with wire keys and formatted date-time' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    metadata = {{moduleName}}::Models::PhotoMetadata.new(
+      is_primary: true,
+      taken_at: Time.utc(2020, 1, 2, 3, 4, 5, 123_000)
+    )
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'metadata' => metadata })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::UTF_8)
+    # Wire property names, not the snake_case Ruby attribute names.
+    _(body_str).must_include '"isPrimary":true'
+    _(body_str).must_include '"takenAt"'
+    _(body_str).wont_include 'is_primary'
+    _(body_str).wont_include 'taken_at'
+    # The date-time carries the SDK's millisecond-precision wire format.
+    _(body_str).must_include '"takenAt":"2020-01-02T03:04:05.123'
+    # The part still declares application/json.
+    _(body_str).must_include 'Content-Type: application/json'
+    stubs.verify_stubbed_calls
+  end
+
   # ── Per-part MIME sniffing (Gap J) ──
 
   it 'sets image/png Content-Type for .png upload' do

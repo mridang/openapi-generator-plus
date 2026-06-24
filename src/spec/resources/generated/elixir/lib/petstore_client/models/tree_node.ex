@@ -13,7 +13,7 @@ defmodule PetstoreClient.Models.TreeNode do
 
   @type t :: %__MODULE__{
           value: String.t(),
-          child: TreeNode | nil
+          child: PetstoreClient.Models.TreeNode.t() | nil
         }
 
   @enforce_keys [

@@ -1,5 +1,7 @@
 package io.github.mridang.codegen.generators.elixir;
 
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
@@ -667,6 +669,66 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                     "client_id", "client_secret", "redirect_uri", "[]");
         }
         return List.of();
+    }
+
+    /**
+     * Registers the {@code elixirTypespec} Mustache lambda. The shared codegen
+     * emits a model/operation data type as a bare module ALIAS in typespec
+     * position (e.g. {@code Category}, {@code [Tag]}, {@code Order}). A bare
+     * alias is not a valid type — Elixir's compiler and Dialyzer flag it as an
+     * undefined/unknown type. This lambda rewrites any bare model alias into the
+     * fully-qualified struct type {@code PetstoreClient.Models.<Name>.t()},
+     * recursing through list wrappers ({@code [Tag]} becomes
+     * {@code [PetstoreClient.Models.Tag.t()]}). Stdlib/primitive descriptors
+     * (anything already carrying {@code (}, a {@code %{...}} map, {@code nil},
+     * or {@code term()}) pass through unchanged so {@code integer()},
+     * {@code String.t()}, {@code DateTime.t()}, {@code MapSet.t(...)},
+     * {@code %{String.t() => any()}} and the like are left intact. The lambda is
+     * the single source of truth for typespec rendering shared by
+     * {@code models/model.mustache} and {@code api/api.mustache}.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "elixirTypespec",
+                        (fragment, writer) ->
+                                writer.write(toModuleTypespec(fragment.execute(), moduleName)));
+    }
+
+    /**
+     * Rewrites a single Elixir type descriptor into valid typespec form.
+     *
+     * <p>A descriptor that is already a stdlib/primitive type (it contains a
+     * parenthesis like {@code integer()}/{@code String.t()}/{@code MapSet.t(_)},
+     * is a {@code %{...}} map, or is {@code nil}/{@code term()}) is returned
+     * verbatim. A list wrapper {@code [Inner]} is rewritten by recursing on its
+     * inner descriptor. Anything else is a bare model alias and is qualified to
+     * {@code <moduleName>.Models.<Alias>.t()}. An empty fragment yields the empty
+     * string so {@code {{^returnType}}nil{{/returnType}}} fallbacks are
+     * unaffected.
+     */
+    static String toModuleTypespec(@Nullable String rawType, String moduleName) {
+        if (rawType == null) {
+            return "";
+        }
+        final String t = rawType.trim();
+        if (t.isEmpty()) {
+            return "";
+        }
+        // List wrapper: [Inner] -> [<transformed Inner>]. This also covers
+        // nested arrays such as [[integer()]].
+        if (t.startsWith("[") && t.endsWith("]")) {
+            return "[" + toModuleTypespec(t.substring(1, t.length() - 1), moduleName) + "]";
+        }
+        // Already a valid stdlib/primitive descriptor — leave untouched.
+        // A parenthesis covers integer()/String.t()/Date.t()/MapSet.t(...);
+        // a brace covers %{...} map descriptors; nil/term() are bare but valid.
+        if (t.indexOf('(') >= 0 || t.indexOf('{') >= 0 || "nil".equals(t) || "term()".equals(t)) {
+            return t;
+        }
+        // Bare PascalCase model alias — qualify to a struct typespec.
+        return moduleName + ".Models." + t + ".t()";
     }
 
     /**

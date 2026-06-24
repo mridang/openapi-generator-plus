@@ -117,6 +117,27 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestFindPetsByStatusNoArgsDoesNotThrow()
+    {
+        // L10 regression: findPetsByStatus has ONLY optional params, so the
+        // Options arg is generated as `FindPetsByStatusOptions? options = null`.
+        // The natural no-arg call must therefore work — the generated
+        // WithHttpInfoAsync must NOT call ArgumentNullException.ThrowIfNull on a
+        // deliberately-null Options. The old template emitted an unconditional
+        // throw whenever the op had any query/header/form param, so the no-arg
+        // call threw ArgumentNullException before reaching the transport.
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        var result = await api.FindPetsByStatusAsync();
+
+        Assert.NotNull(result);
+        // The omitted optional 'status' key must be absent from the wire.
+        Assert.DoesNotContain("status=", client.CapturedUrl!.AbsoluteUri);
+    }
+
+    [Fact]
     public async Task TestGetPetById()
     {
         var result = await _api.GetPetByIdAsync(1L);

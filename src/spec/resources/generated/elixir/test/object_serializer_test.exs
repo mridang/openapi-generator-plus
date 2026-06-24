@@ -135,6 +135,39 @@ defmodule PetstoreClient.ObjectSerializerTest do
       decoded = PetstoreClient.ObjectSerializer.deserialize(json, "PhotoMetadata")
       assert DateTime.compare(decoded.taken_at, instant) == :eq
     end
+
+    test "multipart model part is serialized through the configured serializer with wire names" do
+      # Cross-SDK parity regression: addPetPhotos sends a multipart/form-data
+      # body whose `metadata` part is a PhotoMetadata MODEL. That part must go
+      # through the SDK's configured ObjectSerializer so it carries WIRE
+      # property names (isPrimary / takenAt), NOT the snake_case struct field
+      # names (is_primary / taken_at), and the date-time uses the SDK's
+      # ISO-8601 format with sub-second precision preserved. We drive the
+      # lowest-level multipart-building path (DefaultApiClient.build_multipart_body,
+      # the exact function prepare_body/2 uses for multipart bodies) so the
+      # assertion captures the genuine outgoing wire body.
+      {:ok, instant, _} = DateTime.from_iso8601("2020-01-02T03:04:05.123Z")
+      metadata = %PetstoreClient.Models.PhotoMetadata{is_primary: true, taken_at: instant}
+
+      body =
+        PetstoreClient.DefaultApiClient.build_multipart_body(
+          %{"metadata" => metadata},
+          "boundary123"
+        )
+
+      # The model part is emitted as an application/json part.
+      assert String.contains?(body, "Content-Type: application/json")
+
+      # WIRE property names appear; snake_case struct field names do NOT.
+      assert String.contains?(body, "\"isPrimary\":true")
+      assert String.contains?(body, "\"takenAt\":")
+      refute String.contains?(body, "is_primary"), "must use wire name isPrimary: #{body}"
+      refute String.contains?(body, "taken_at"), "must use wire name takenAt: #{body}"
+
+      # The date-time carries the proper ISO-8601 string with milliseconds.
+      assert String.contains?(body, "\"takenAt\":\"2020-01-02T03:04:05.123Z\""),
+             "takenAt must be the wire date-time string: #{body}"
+    end
   end
 
   describe "NonAsciiSerialization" do

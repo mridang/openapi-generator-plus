@@ -12,6 +12,9 @@ defmodule PetstoreClient.Models.Availability do
   Values are exposed as atoms (e.g. `:available`) and as the canonical
   string form via `value/1` when wire interop is needed.
   """
+
+  @typedoc "One of the allowed enum atoms for Availability."
+  @type t :: :available | :sold | :on_hold
   @doc "Enum value `available`"
   def available, do: :available
 

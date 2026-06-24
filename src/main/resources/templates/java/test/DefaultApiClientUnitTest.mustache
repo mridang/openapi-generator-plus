@@ -636,6 +636,39 @@ class DefaultApiClientUnitTest {
             + part);
   }
 
+  {{! -- Cross-cutting parity: a model part in a multipart/form-data body must }}
+  {{! -- be serialized through the SDK-configured Jackson mapper, so it uses the }}
+  {{! -- WIRE property names declared by the model's JsonProperty annotations }}
+  {{! -- (isPrimary, takenAt) and the SDK date-time format -- never snake_case }}
+  {{! -- is_primary/taken_at, and never an epoch timestamp. addPetPhotos sends a }}
+  {{! -- PhotoMetadata part this way; rendering the part bytes locks the contract. }}
+
+  @Test
+  void multipartModelPartUsesWirePropertyNamesAndDateTimeFormat() throws Exception {
+    {{modelPackage}}.PhotoMetadata metadata = new {{modelPackage}}.PhotoMetadata();
+    metadata.isPrimary = true;
+    metadata.takenAt = java.time.OffsetDateTime.parse("2020-01-02T03:04:05.123Z");
+
+    String part = renderMultipartPart("metadata", metadata);
+
+    assertTrue(
+        part.contains("Content-Type: application/json"),
+        "model multipart part must declare Content-Type: application/json, got: " + part);
+    assertTrue(
+        part.contains("\"isPrimary\":true"),
+        "model part must use the wire property name isPrimary, got: " + part);
+    assertFalse(
+        part.contains("is_primary"),
+        "model part must NOT snake_case the wire name to is_primary, got: " + part);
+    assertTrue(
+        part.contains("\"takenAt\":\"2020-01-02T03:04:05.123Z\""),
+        "model part must use the wire name takenAt with the ISO-8601 date-time string, got: "
+            + part);
+    assertFalse(
+        part.contains("taken_at"),
+        "model part must NOT snake_case the wire name to taken_at, got: " + part);
+  }
+
   {{! -- Parity regression: a non-ASCII multipart field NAME must be preserved }}
   {{! -- verbatim as UTF-8 bytes, never transliterated or percent-encoded. }}
 

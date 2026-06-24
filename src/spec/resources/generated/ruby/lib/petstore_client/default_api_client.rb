@@ -480,7 +480,14 @@ module PetstoreClient
                  "Content-Type: #{part_mime}\r\n\r\n"
         header.b + data.b + "\r\n".b
       elsif value.respond_to?(:to_hash)
-        json_str = JSON.generate(value.to_hash)
+        # Route the model part through the configured ObjectSerializer
+        # rather than JSON.generate(value.to_hash). Dry::Struct#to_hash
+        # yields snake_case attribute names (is_primary/taken_at) and raw
+        # Time/Date/Duration/byte values, so a naive generate would emit
+        # the wrong wire keys and unformatted date-times. ObjectSerializer
+        # walks ATTRIBUTE_MAP + OPENAPI_FORMATS to produce the same wire
+        # keys (isPrimary/takenAt) and formatting as the JSON-body path.
+        json_str = ObjectSerializer.serialize(value)
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n" \
           "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
       else

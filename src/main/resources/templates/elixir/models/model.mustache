@@ -10,6 +10,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
   Values are exposed as atoms (e.g. `:{{#allowableValues}}{{#enumVars}}{{#-first}}{{nameLowercase}}{{/-first}}{{/enumVars}}{{/allowableValues}}`) and as the canonical
   {{#isInteger}}integer{{/isInteger}}{{#isLong}}integer{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}} form via `value/1` when wire interop is needed.
   """
+
+  @typedoc "One of the allowed enum atoms for {{classname}}."
+  @type t :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}
 {{#allowableValues}}
 {{#enumVars}}
   @doc "Enum value `{{nameLowercase}}`"
@@ -309,7 +312,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   @type t :: %__MODULE__{
   {{#vars}}
-          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
   {{/vars}}
   {{#isAdditionalPropertiesTrue}}
           additional_properties: %{String.t() => any()}

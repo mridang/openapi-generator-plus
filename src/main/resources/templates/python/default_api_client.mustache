@@ -890,7 +890,18 @@ class DefaultApiClient:
             )
             return header.encode('utf-8') + value + b'\r\n'
         elif hasattr(value, 'model_dump_json'):
-            json_str: str = value.model_dump_json(by_alias=True, exclude_none=True)
+            # Route the model part through the SDK's configured ObjectSerializer
+            # rather than pydantic's model_dump_json directly. ObjectSerializer
+            # applies the SDK's canonical wire form: WIRE property names (field
+            # aliases, e.g. `isPrimary`/`takenAt`, NOT snake_case) AND the SDK
+            # date-time format (millisecond precision, `...123Z`, NOT pydantic's
+            # native microsecond `...123000Z`). This keeps the JSON model part
+            # byte-identical to a JSON request body and matches the other 11
+            # SDKs, whose ObjectSerializer.serialize is the single source of
+            # truth for the model part of a multipart body. Imported lazily to
+            # avoid a module-load cycle (object_serializer imports models).
+            from {{packageName}}.object_serializer import ObjectSerializer
+            json_str: str = ObjectSerializer().serialize(value)
             disposition = cls._build_disposition(name, None)
             header = (
                 f'--{boundary}\r\n'

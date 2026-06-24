@@ -10,6 +10,7 @@
 using System.Net;
 using System.Text;
 using PetstoreClient;
+using PetstoreClient.Models;
 using Xunit;
 
 namespace Test;
@@ -958,6 +959,60 @@ public class DefaultApiClientUnitTest
     // real multipart/form-data operation to exercise BuildMultipartContent —
     // a plain Dictionary body routes through the JSON path, not multipart.
     // Deferred to the petstore-fixture wave (a multipart upload op).
+
+    // ---- H6 / cross-cutting: multipart MODEL part uses the configured serializer ----
+
+    [Fact]
+    public async Task MultipartModelPartUsesConfiguredSerializerWireKeysAndDateTimeFormat()
+    {
+        // Cross-language parity lock for the multipart MODEL-part path. A
+        // multipart/form-data body that carries a model object (here
+        // PhotoMetadata) must serialize that part through the SDK's CONFIGURED
+        // ObjectSerializer — NOT a bare JsonSerializer.Serialize(value) call.
+        // The configured serializer applies the SDK JsonSerializerOptions:
+        // millisecond-precision DateTimeOffset, protobuf-duration, null-omission
+        // and relaxed escaping. A bare call drops those options, so the model
+        // part diverges from the body the same SDK emits on the JSON path.
+        //
+        // The wire property names come from each model's [JsonPropertyName]
+        // attribute, so the part MUST carry the WIRE keys "isPrimary"/"takenAt"
+        // (never snake_case "is_primary"/"taken_at"), and the date-time MUST be
+        // rendered in the SDK's millisecond ISO-8601 form.
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var metadata = new PhotoMetadata
+        {
+            IsPrimary = true,
+            TakenAt = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero),
+        };
+        var formData = new Dictionary<string, object>
+        {
+            { "metadata", metadata },
+        };
+
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/pet/1/photos"),
+            new Dictionary<string, string>(), formData);
+
+        Assert.NotNull(wireText);
+        // Wire (camelCase) keys from [JsonPropertyName], never snake_case.
+        Assert.Contains("\"isPrimary\":true", wireText);
+        Assert.Contains("\"takenAt\":", wireText);
+        Assert.DoesNotContain("is_primary", wireText);
+        Assert.DoesNotContain("taken_at", wireText);
+        // The SDK DateTimeOffset converter emits yyyy-MM-dd'T'HH:mm:ss.fffzzz.
+        Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText);
+        // Null-omission from the configured options: the unset "caption" and
+        // "location" fields are dropped rather than emitted as null — proof the
+        // SDK JsonSerializerOptions are applied, not the bare default.
+        Assert.DoesNotContain("\"caption\"", wireText);
+        Assert.DoesNotContain("\"location\"", wireText);
+    }
 
     /// <summary>
     /// First request returns <paramref name="firstStatus"/> with a Location

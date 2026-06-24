@@ -687,3 +687,94 @@ describe("PetApi form-urlencoded body serialization", () => {
     }
   });
 });
+
+// Cross-SDK multipart parity — addPetPhotos sends a multipart/form-data body
+// whose `metadata` part is a PhotoMetadata MODEL serialized as JSON. That model
+// part must be routed through the configured ObjectSerializer so it carries the
+// WIRE property names (isPrimary, takenAt — never snake_case is_primary /
+// taken_at) and the SDK's own date-time format. A local capturing server records
+// the exact raw multipart bytes so the assertions inspect the on-the-wire JSON,
+// not just a round-trip status.
+describe("PetApi multipart model-part serialization", () => {
+  function captureMultipartBody(): Promise<{
+    api: PetApi;
+    getCapture: () => { body: string; contentType: string | undefined };
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let captured = { body: "", contentType: undefined as string | undefined };
+      const server = http.createServer((req, res) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          captured = {
+            body: Buffer.concat(chunks).toString("utf-8"),
+            contentType: req.headers["content-type"],
+          };
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end('[{"id":1,"url":"u"}]');
+        });
+      });
+      server.listen(0, "127.0.0.1", () => {
+        const addr = server.address() as { port: number };
+        const cfg = Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build();
+        resolve({
+          api: new PetApi(undefined, cfg),
+          getCapture: () => captured,
+          close: () => server.close(),
+        });
+      });
+    });
+  }
+
+  test("model part uses wire property names and SDK date-time format", async () => {
+    const { api, getCapture, close } = await captureMultipartBody();
+    try {
+      const files = [Buffer.from([0xff, 0xd8, 0xff])];
+      const metadata = new PhotoMetadata({
+        isPrimary: true,
+        takenAt: new Date("2020-01-02T03:04:05.123Z"),
+      });
+
+      // The convenience method deserializes the response body, so wrap it the
+      // same way the neighbouring capture tests do.
+      try {
+        await api.addPetPhotos(1, { files, metadata });
+      } catch {
+        // Deserialization of the canned response is irrelevant here; the
+        // assertions below inspect the OUTGOING multipart body only.
+      }
+
+      const { body, contentType } = getCapture();
+      expect(contentType).toContain("multipart/form-data");
+
+      // Isolate the JSON `metadata` part from the multipart body.
+      const metadataPart = body
+        .split(/--[^\r\n]+\r\n/)
+        .find((part) => part.includes('name="metadata"'));
+      expect(metadataPart).toBeDefined();
+      const jsonText = (metadataPart as string)
+        .split("\r\n\r\n")[1]
+        .replace(/\r\n[\s\S]*$/, "");
+      const modelPart = JSON.parse(jsonText) as Record<string, unknown>;
+
+      // Wire keys, not snake_case.
+      expect(modelPart).toHaveProperty("isPrimary", true);
+      expect(modelPart).toHaveProperty("takenAt");
+      expect(Object.keys(modelPart)).not.toContain("is_primary");
+      expect(Object.keys(modelPart)).not.toContain("taken_at");
+      expect(jsonText).toContain('"isPrimary"');
+      expect(jsonText).toContain('"takenAt"');
+      expect(jsonText).not.toContain("is_primary");
+      expect(jsonText).not.toContain("taken_at");
+
+      // date-time carries the SDK's offset format (the equivalent of the
+      // 2020-01-02T03:04:05.123Z input), not Date.toJSON()'s trailing `Z`.
+      expect(modelPart.takenAt).toBe("2020-01-02T03:04:05.123+00:00");
+    } finally {
+      close();
+    }
+  });
+});

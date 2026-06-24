@@ -130,6 +130,15 @@ class ObjectSerializer:
         forbids — Python's default allow_nan=True is non-spec-compliant).
         Aligns Python with the 10 SDKs that already reject non-finite
         floats both on encode and decode.
+
+        This is the single source of truth for turning a model into its JSON
+        wire form, used by BOTH the JSON request-body path and the model part
+        of a multipart/form-data body (see DefaultApiClient._multipart_part).
+        Pydantic ``model_dump_json(by_alias=True, ...)`` emits the configured
+        WIRE property names (field aliases such as ``isPrimary``/``takenAt``,
+        never the snake_case attribute names) and the model's declared
+        date-time / duration serializers, so the multipart model part is
+        byte-identical to a JSON request body for the same model.
         """
         try:
             if isinstance(obj, BaseModel):

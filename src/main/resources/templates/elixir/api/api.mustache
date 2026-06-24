@@ -141,8 +141,8 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{#isDeprecated}}
   @deprecated "This operation is deprecated."
   {{/isDeprecated}}
-  @spec {{operationId}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}Options.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
-          {:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}} | {:error, term()}
+  @spec {{operationId}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}} | {:error, term()}
   def {{operationId}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     case {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
 {{#returnType}}
@@ -182,7 +182,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @doc """
   Same as `{{operationId}}` but returns the full `ApiResult`.
   """
-  @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}Options.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+  @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, term()}
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
 {{#hasAuthMethods}}

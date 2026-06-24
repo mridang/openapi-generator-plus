@@ -12,7 +12,7 @@ defmodule PetstoreClient.Models.PetPassport do
   """
 
   @type t :: %__MODULE__{
-          pet: Pet | nil,
+          pet: PetstoreClient.Models.Pet.t() | nil,
           thumbnail: binary() | nil,
           scans: [binary()] | nil,
           issued_at: DateTime.t() | nil,

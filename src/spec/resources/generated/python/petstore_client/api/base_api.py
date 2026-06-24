@@ -169,7 +169,15 @@ class BaseApi:
         if header_params:
             headers.update(header_params)
         if effective_auth is not None:
-            headers.update(effective_auth.get_auth_headers())
+            # Offload auth-header acquisition to a worker thread. For OAuth this
+            # call acquires a threading.Lock and may perform a blocking HTTP
+            # token exchange; running it inline on the event-loop thread would
+            # freeze every other coroutine for the duration of the token fetch.
+            # The request send below is already offloaded via asyncio.to_thread,
+            # so offloading the auth step keeps the whole auth+send path off the
+            # loop thread and lets concurrent requests make progress.
+            auth_headers = await asyncio.to_thread(effective_auth.get_auth_headers)
+            headers.update(auth_headers)
             cookies = effective_auth.get_cookie_params()
             if cookies:
                 # RFC 6265 — don't URL-encode cookie name/value; most cookie

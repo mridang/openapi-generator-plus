@@ -646,6 +646,33 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void multipartModelPartUsesWirePropertyNamesAndDateTimeFormat() throws Exception {
+    com.example.petstore.models.PhotoMetadata metadata =
+        new com.example.petstore.models.PhotoMetadata();
+    metadata.isPrimary = true;
+    metadata.takenAt = java.time.OffsetDateTime.parse("2020-01-02T03:04:05.123Z");
+
+    String part = renderMultipartPart("metadata", metadata);
+
+    assertTrue(
+        part.contains("Content-Type: application/json"),
+        "model multipart part must declare Content-Type: application/json, got: " + part);
+    assertTrue(
+        part.contains("\"isPrimary\":true"),
+        "model part must use the wire property name isPrimary, got: " + part);
+    assertFalse(
+        part.contains("is_primary"),
+        "model part must NOT snake_case the wire name to is_primary, got: " + part);
+    assertTrue(
+        part.contains("\"takenAt\":\"2020-01-02T03:04:05.123Z\""),
+        "model part must use the wire name takenAt with the ISO-8601 date-time string, got: "
+            + part);
+    assertFalse(
+        part.contains("taken_at"),
+        "model part must NOT snake_case the wire name to taken_at, got: " + part);
+  }
+
+  @Test
   void multipartNonAsciiFieldNamePreservedAsUtf8() throws Exception {
     String fieldName = "imágé";
     String part = renderMultipartPart(fieldName, "value");

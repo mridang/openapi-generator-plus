@@ -13,7 +13,7 @@ defmodule PetstoreClient.Models.EdgeCases do
 
   @type t :: %__MODULE__{
           free_form_any: any() | nil,
-          favorite_color: Color | nil,
+          favorite_color: PetstoreClient.Models.Color.t() | nil,
           permissions_note: String.t() | nil,
           _and: boolean() | nil,
           _or: boolean() | nil,

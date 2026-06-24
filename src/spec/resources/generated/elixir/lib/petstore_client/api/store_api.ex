@@ -162,8 +162,13 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_by_swatch(t(), Swatch, Options.t(), keyword()) ::
-          {:ok, Category} | {:error, term()}
+  @spec get_by_swatch(
+          t(),
+          PetstoreClient.Models.Swatch.t(),
+          PetstoreClient.Api.Options.GetBySwatchOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.Category.t()} | {:error, term()}
   def get_by_swatch(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
     case get_by_swatch_with_http_info(api, path_swatch, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -200,7 +205,12 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_by_swatch` but returns the full `ApiResult`.
   """
-  @spec get_by_swatch_with_http_info(t(), Swatch, Options.t(), keyword()) ::
+  @spec get_by_swatch_with_http_info(
+          t(),
+          PetstoreClient.Models.Swatch.t(),
+          PetstoreClient.Api.Options.GetBySwatchOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_by_swatch_with_http_info(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -315,7 +325,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   """
   @spec get_defaults(t(), keyword()) ::
-          {:ok, Defaults} | {:error, term()}
+          {:ok, PetstoreClient.Models.Defaults.t()} | {:error, term()}
   def get_defaults(%__MODULE__{} = api, opts \\ []) do
     case get_defaults_with_http_info(api, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -403,7 +413,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   """
   @spec get_department(t(), keyword()) ::
-          {:ok, Department} | {:error, term()}
+          {:ok, PetstoreClient.Models.Department.t()} | {:error, term()}
   def get_department(%__MODULE__{} = api, opts \\ []) do
     case get_department_with_http_info(api, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -757,7 +767,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   """
   @spec get_order_by_id(t(), integer(), keyword()) ::
-          {:ok, Order} | {:error, term()}
+          {:ok, PetstoreClient.Models.Order.t()} | {:error, term()}
   def get_order_by_id(%__MODULE__{} = api, order_id, opts \\ []) do
     case get_order_by_id_with_http_info(api, order_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -869,8 +879,8 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_stock_item(t(), Options.t(), keyword()) ::
-          {:ok, StockItem} | {:error, term()}
+  @spec get_stock_item(t(), PetstoreClient.Api.Options.GetStockItemOptions.t(), keyword()) ::
+          {:ok, PetstoreClient.Models.StockItem.t()} | {:error, term()}
   def get_stock_item(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case get_stock_item_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -907,7 +917,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_stock_item` but returns the full `ApiResult`.
   """
-  @spec get_stock_item_with_http_info(t(), Options.t(), keyword()) ::
+  @spec get_stock_item_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetStockItemOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_stock_item_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
@@ -978,7 +992,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   """
   @spec get_swatch(t(), keyword()) ::
-          {:ok, Swatch} | {:error, term()}
+          {:ok, PetstoreClient.Models.Swatch.t()} | {:error, term()}
   def get_swatch(%__MODULE__{} = api, opts \\ []) do
     case get_swatch_with_http_info(api, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1243,7 +1257,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   """
   @spec get_tree(t(), keyword()) ::
-          {:ok, TreeNode} | {:error, term()}
+          {:ok, PetstoreClient.Models.TreeNode.t()} | {:error, term()}
   def get_tree(%__MODULE__{} = api, opts \\ []) do
     case get_tree_with_http_info(api, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1331,8 +1345,8 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec place_order(t(), Order | nil, keyword()) ::
-          {:ok, Order} | {:error, term()}
+  @spec place_order(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
+          {:ok, PetstoreClient.Models.Order.t()} | {:error, term()}
   def place_order(%__MODULE__{} = api, order \\ nil, opts \\ []) do
     case place_order_with_http_info(api, order, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1369,7 +1383,7 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `place_order` but returns the full `ApiResult`.
   """
-  @spec place_order_with_http_info(t(), Order | nil, keyword()) ::
+  @spec place_order_with_http_info(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
