@@ -562,6 +562,48 @@ class PetApiTest {
   }
 
   @Test
+  void findPetsByStatusOmittingStatusSendsNoStatusKeyInQuery() throws Exception {
+    // allowEmptyValue:true means the server tolerates an empty value WHEN the
+    // client chooses to send the key — it does not oblige the SDK to always
+    // send it. An omitted optional param must be left out of the query string
+    // entirely, never emitted as a spurious "status=" with an empty value.
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    // status is omitted (left null) — the only param on this call.
+    try {
+      petApi.findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (Exception ignored) {
+      // The capturing client returns no body, so deserialization of the
+      // List<Pet> result may fail; we only care about the captured URL.
+    }
+
+    assertNotNull(capturing.capturedUrl);
+    assertThat(capturing.capturedUrl).doesNotContain("status=");
+  }
+
+  @Test
+  void findPetsByStatusExplicitEmptyStatusSendsStatusKeyInQuery() throws Exception {
+    // The counterpart to the omit case: when the caller explicitly opts into
+    // an empty value (status=""), allowEmptyValue:true permits the key to ride
+    // the wire with an empty value, so "status=" must be present.
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    try {
+      petApi.findPetsByStatus(new FindPetsByStatusOptions().status(""));
+    } catch (Exception ignored) {
+      // The capturing client returns no body, so deserialization of the
+      // List<Pet> result may fail; we only care about the captured URL.
+    }
+
+    assertNotNull(capturing.capturedUrl);
+    assertThat(capturing.capturedUrl).contains("status=");
+  }
+
+  @Test
   void setPetPreferencesFormBodyIsCanonical() throws Exception {
     // Parity regression: application/x-www-form-urlencoded body must encode
     //   - a space as '+' (nickname="a b" -> nickname=a+b)

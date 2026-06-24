@@ -276,11 +276,8 @@ class {{classname}}(BaseApi):
             query_params['{{baseName}}'] = json.dumps(options.{{paramName}})
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-        if options is not None:
-            if options.{{paramName}} is not None:
-                query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
-            else:
-                query_params['{{baseName}}'] = ''
+        if options is not None and options.{{paramName}} is not None:
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if options is not None and options.{{paramName}} is not None:

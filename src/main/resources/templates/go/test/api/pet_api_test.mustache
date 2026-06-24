@@ -238,6 +238,44 @@ func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
 	}
 }
 
+// allowEmptyValue-omit-key-go: findPetsByStatus declares its optional "status"
+// query param with allowEmptyValue:true. allowEmptyValue lets the server tolerate
+// an empty value WHEN the client sends the key; it does not require the SDK to
+// always send the key. When the caller omits status (nil), the request URL must
+// carry no "status=" at all. When the caller supplies an explicit empty string,
+// the bare "status=" must appear. Both halves are asserted against the wire query.
+func TestPetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
+	t.Parallel()
+	var capturedQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	// (a) status omitted: the key must not appear on the wire.
+	if _, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{}); err != nil {
+		t.Fatalf("FindPetsByStatus with omitted status failed: %v", err)
+	}
+	if strings.Contains(capturedQuery, "status=") {
+		t.Errorf("expected no status= in the query when status is omitted, got %q", capturedQuery)
+	}
+
+	// (b) explicit empty value: the bare key "status=" must appear.
+	capturedQuery = ""
+	empty := ""
+	if _, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{Status: &empty}); err != nil {
+		t.Fatalf("FindPetsByStatus with explicit empty status failed: %v", err)
+	}
+	if !strings.Contains(capturedQuery, "status=") {
+		t.Errorf("expected status= in the query for an explicit empty value, got %q", capturedQuery)
+	}
+}
+
 func TestPetApi_GetPetPassport(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)

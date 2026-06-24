@@ -759,15 +759,11 @@ public class PetApi extends BaseApi {
       @Nullable FindPetsByStatusOptions options) {
     String path = "/pet/findByStatus";
     Map<String, Object> queryParams = new HashMap<>();
-    if (options != null) {
-      if (options.status() != null) {
-        queryParams.put(
-            "status",
-            ValueSerializer.serializeStyled(
-                "status", options.status(), "query", "String", null, "form", true));
-      } else {
-        queryParams.put("status", "");
-      }
+    if (options != null && options.status() != null) {
+      queryParams.put(
+          "status",
+          ValueSerializer.serializeStyled(
+              "status", options.status(), "query", "String", null, "form", true));
     }
     if (options != null && options.filter() != null) {
       queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
@@ -1371,15 +1367,11 @@ public class PetApi extends BaseApi {
           ValueSerializer.serializeStyled(
               "sizes", options.sizes(), "query", "List<String>", "ssv", "spaceDelimited", false));
     }
-    if (options != null) {
-      if (options.filter() != null) {
-        queryParams.put(
-            "filter",
-            ValueSerializer.serializeStyled(
-                "filter", options.filter(), "query", "String", null, "form", true));
-      } else {
-        queryParams.put("filter", "");
-      }
+    if (options != null && options.filter() != null) {
+      queryParams.put(
+          "filter",
+          ValueSerializer.serializeStyled(
+              "filter", options.filter(), "query", "String", null, "form", true));
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(

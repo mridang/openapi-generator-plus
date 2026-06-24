@@ -613,20 +613,16 @@ class PetApi extends BaseApi {
     var path = '/pet/findByStatus';
 
     final queryParams = <String, Object?>{};
-    if (options != null) {
-      if (options.status != null) {
-        queryParams['status'] = serializeStyled(
-          'status',
-          options.status,
-          'query',
-          'String',
-          '',
-          'form',
-          true,
-        );
-      } else {
-        queryParams['status'] = '';
-      }
+    if (options != null && options.status != null) {
+      queryParams['status'] = serializeStyled(
+        'status',
+        options.status,
+        'query',
+        'String',
+        '',
+        'form',
+        true,
+      );
     }
     if (options != null && options.filter != null) {
       serializeDeepObject(
@@ -1381,20 +1377,16 @@ class PetApi extends BaseApi {
         false,
       );
     }
-    if (options != null) {
-      if (options.filter != null) {
-        queryParams['filter'] = serializeStyled(
-          'filter',
-          options.filter,
-          'query',
-          'String',
-          '',
-          'form',
-          true,
-        );
-      } else {
-        queryParams['filter'] = '';
-      }
+    if (options != null && options.filter != null) {
+      queryParams['filter'] = serializeStyled(
+        'filter',
+        options.filter,
+        'query',
+        'String',
+        '',
+        'form',
+        true,
+      );
     }
 
     final headerParams = <String, String>{};

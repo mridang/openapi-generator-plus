@@ -554,20 +554,16 @@ export class PetApi extends BaseApi {
   ): Promise<ApiResult<Array<Pet>>> {
     const path = `/pet/findByStatus`;
     const queryParams: Record<string, unknown> = {};
-    if (options !== undefined) {
-      if (options.status != null) {
-        queryParams["status"] = ValueSerializer.serializeStyled(
-          "status",
-          options.status,
-          "query",
-          "string",
-          null,
-          "form",
-          true,
-        );
-      } else {
-        queryParams["status"] = "";
-      }
+    if (options?.status != null) {
+      queryParams["status"] = ValueSerializer.serializeStyled(
+        "status",
+        options.status,
+        "query",
+        "string",
+        null,
+        "form",
+        true,
+      );
     }
     if (options?.filter != null) {
       const deepObj = ValueSerializer.serializeDeepObject(
@@ -1271,20 +1267,16 @@ export class PetApi extends BaseApi {
         false,
       );
     }
-    if (options !== undefined) {
-      if (options.filter != null) {
-        queryParams["filter"] = ValueSerializer.serializeStyled(
-          "filter",
-          options.filter,
-          "query",
-          "string",
-          null,
-          "form",
-          true,
-        );
-      } else {
-        queryParams["filter"] = "";
-      }
+    if (options?.filter != null) {
+      queryParams["filter"] = ValueSerializer.serializeStyled(
+        "filter",
+        options.filter,
+        "query",
+        "string",
+        null,
+        "form",
+        true,
+      );
     }
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(

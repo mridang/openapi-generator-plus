@@ -388,12 +388,32 @@ test('sends no body when null', function (): void {
     expect(true)->toBeTrue();
 });
 
-test('allow empty value param included with default options', function (): void {
+test('findPetsByStatus omitting status sends no status= in query', function (): void {
+    // findPetsByStatus has an optional `status` query param declared
+    // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
+    // value IF the client chooses to send the key — it does NOT mean the SDK
+    // must always send the key. When the caller omits status (null), the built
+    // request URL must carry no `status` key at all rather than a spurious
+    // empty `status=` pair.
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $api = new PetApi($client, $config);
     try {
         $api->findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
+test('findPetsByStatus with explicit empty status sends status= in query', function (): void {
+    // When the caller explicitly supplies an empty value for the
+    // allowEmptyValue param, the key IS present with an empty value: `status=`.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(''));
     } catch (\Exception $e) {
         // Response deserialization may fail; we only care about the captured URL
     }

@@ -240,8 +240,6 @@ class {{classname}} : BaseApi {
             val _{{paramName}}Val = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
             if (_{{paramName}}Val != null) {
                 queryParams["{{baseName}}"] = _{{paramName}}Val
-            } else {
-                queryParams["{{baseName}}"] = ""
             }
         }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}

@@ -556,8 +556,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("allowEmptyValue param included when value is null in options")
-    void allowEmptyValueIncludedWhenNull() {
+    @DisplayName("allowEmptyValue param omitted when value is null in options")
+    void allowEmptyValueOmittedWhenNull() {
       var client = new CapturingApiClient();
       var config = new Configuration("http://localhost", Map.of());
       var api = new PetApi(client, config);
@@ -566,9 +566,11 @@ class BaseApiTest {
       } catch (Exception ignored) {
         // Response deserialization may fail; we only care about the captured URL
       }
-      assertTrue(
+      // A null optional allowEmptyValue value must NOT emit a spurious empty key;
+      // the key is sent only when the caller supplies a value (see the next test).
+      assertFalse(
           client.capturedUrl.contains("status="),
-          "Expected status= in URL for allowEmptyValue param with null value, got: "
+          "Expected no status= for allowEmptyValue param with null value, got: "
               + client.capturedUrl);
     }
 

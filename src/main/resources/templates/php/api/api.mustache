@@ -308,19 +308,21 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
-        } else {
-            $queryParams['{{baseName}}'] = '';
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
-        if ($options !== null) {
-            if ($options->{{paramName}} !== null) {
-                $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
-            } else {
-                $queryParams['{{baseName}}'] = '';
-            }
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options !== null && $options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
@@ -564,19 +566,21 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
-        } else {
-            $queryParams['{{baseName}}'] = '';
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
-        if ($options !== null) {
-            if ($options->{{paramName}} !== null) {
-                $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
-            } else {
-                $queryParams['{{baseName}}'] = '';
-            }
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options !== null && $options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}

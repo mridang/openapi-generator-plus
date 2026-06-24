@@ -289,14 +289,15 @@ defmodule {{moduleName}}.Api.{{classname}} do
       end
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
+    # allowEmptyValue means the server tolerates an empty value IF the caller
+    # chooses to send the key — it does NOT mean the SDK must always emit the
+    # key. An omitted optional param is dropped entirely (bare presence check,
+    # no else-branch) so no spurious "{{baseName}}=" appears on the wire; an
+    # explicit empty string still serialises through to a present empty value.
     query_params =
-      if not is_nil(options) do
-        if not is_nil(options.{{paramName}}) do
-          Map.put(query_params, "{{baseName}}",
-            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}))
-        else
-          Map.put(query_params, "{{baseName}}", "")
-        end
+      if not is_nil(options) and not is_nil(options.{{paramName}}) do
+        Map.put(query_params, "{{baseName}}",
+          {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}))
       else
         query_params
       end

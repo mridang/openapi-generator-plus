@@ -260,7 +260,7 @@ describe {{moduleName}}::Api::BaseApi do
       "Expected no status param when options is nil, got: #{client.captured_url}"
   end
 
-  it 'allow_empty_value param included when value is nil in options' do
+  it 'allow_empty_value param omitted when value is nil in options' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     api = {{moduleName}}::Api::PetApi.new(client, config)
@@ -269,9 +269,9 @@ describe {{moduleName}}::Api::BaseApi do
     rescue StandardError
       # Response deserialization may fail; we only care about the captured URL
     end
-    msg = 'Expected status= in URL for allowEmptyValue param ' \
-          "with nil value, got: #{client.captured_url}"
-    _(client.captured_url).must_include 'status=', msg
+    msg = 'Expected no status= in URL for allowEmptyValue param ' \
+          "with nil value (key omitted, not empty), got: #{client.captured_url}"
+    _(client.captured_url).wont_include 'status=', msg
   end
 
   it 'allow_empty_value param included when value is empty string' do

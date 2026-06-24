@@ -642,8 +642,12 @@ class BaseApiTest {
     @DisplayName("allowEmptyValue query params")
     inner class AllowEmptyValueQueryParams {
         @Test
-        @DisplayName("allowEmptyValue param included with default options")
-        fun allowEmptyValueIncludedWithDefaultOptions() {
+        @DisplayName("findPetsByStatus omitting status sends no status= in query")
+        fun allowEmptyValueOmittedWhenStatusUnset() {
+            // allowEmptyValue means the server tolerates an empty value IF the
+            // client chooses to send the key — it does NOT mean the SDK must
+            // always send the key. When the optional status is omitted, the
+            // query string must carry no status key at all.
             val client = CapturingApiClient()
             val config = Configuration.builder().baseUrl("http://localhost").build()
             val api = PetApi(client, config)
@@ -652,9 +656,9 @@ class BaseApiTest {
             } catch (_: Exception) {
                 // Response deserialization may fail; we only care about the captured URL
             }
-            assertTrue(
+            assertFalse(
                 client.capturedUrl.contains("status="),
-                "Expected status= in URL for allowEmptyValue param with null value, got: ${client.capturedUrl}",
+                "Expected no status= in URL when allowEmptyValue param is omitted, got: ${client.capturedUrl}",
             )
         }
 

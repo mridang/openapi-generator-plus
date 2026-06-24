@@ -696,8 +696,6 @@ impl PetApi {
                         }
                     }
                 }
-            } else {
-                query_params.push(("status".to_string(), String::new()));
             }
         }
         if let Some(opts) = options {
@@ -1537,8 +1535,6 @@ impl PetApi {
                         }
                     }
                 }
-            } else {
-                query_params.push(("filter".to_string(), String::new()));
             }
         }
 

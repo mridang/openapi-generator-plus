@@ -262,18 +262,12 @@ class {{classname}} extends BaseApi {
 {{^required}}
     if (options.{{paramName}} != null) {
       queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
-    } else {
-      queryParams['{{baseName}}'] = '';
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
-    if (options != null) {
-      if (options.{{paramName}} != null) {
-        queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
-      } else {
-        queryParams['{{baseName}}'] = '';
-      }
+    if (options != null && options.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}

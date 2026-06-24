@@ -462,7 +462,7 @@ class TestAllowEmptyValueQueryParams:
             f"Expected no status param when options is None, got: {client.captured_url}"
         )
 
-    async def test_allow_empty_value_param_included_when_null(self) -> None:
+    async def test_allow_empty_value_param_omitted_when_null(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         api = PetApi(api_client=client, config=config)
@@ -470,8 +470,10 @@ class TestAllowEmptyValueQueryParams:
             await api.find_pets_by_status(FindPetsByStatusOptions())
         except Exception:
             pass  # Response deserialization may fail; we only care about the captured URL
-        assert "status=" in client.captured_url, (
-            f"Expected status= in URL for allowEmptyValue param with null value, got: {client.captured_url}"
+        # A null optional allowEmptyValue value must NOT emit a spurious empty key; the
+        # key is sent only when the caller supplies a value (see the empty-string test).
+        assert "status=" not in client.captured_url, (
+            f"Expected no status= for allowEmptyValue param with null value, got: {client.captured_url}"
         )
 
     async def test_allow_empty_value_param_included_when_empty(self) -> None:

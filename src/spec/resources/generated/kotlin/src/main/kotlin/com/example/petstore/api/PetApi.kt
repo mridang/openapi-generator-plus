@@ -405,8 +405,6 @@ class PetApi : BaseApi {
             val _statusVal = ValueSerializer.serializeStyled("status", options.status, "query", "String", null, "form", true)
             if (_statusVal != null) {
                 queryParams["status"] = _statusVal
-            } else {
-                queryParams["status"] = ""
             }
         }
         if (options?.filter != null) {
@@ -846,8 +844,6 @@ class PetApi : BaseApi {
             val _filterVal = ValueSerializer.serializeStyled("filter", options.filter, "query", "String", null, "form", true)
             if (_filterVal != null) {
                 queryParams["filter"] = _filterVal
-            } else {
-                queryParams["filter"] = ""
             }
         }
         val headerParams = mutableMapOf<String, String>()

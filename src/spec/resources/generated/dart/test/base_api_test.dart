@@ -661,40 +661,43 @@ void main() {
       }
     });
 
-    test(
-      'allow_empty_value param included when value is null in options',
-      () async {
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        String capturedUrl = '';
-        server.listen((request) {
-          capturedUrl = request.uri.toString();
-          request.response
-            ..statusCode = 200
-            ..headers.contentType = ContentType.json
-            ..write('[]')
-            ..close();
-        });
+    /* allowEmptyValue-omit-key: findPetsByStatus declares its optional
+     * `status` query param with allowEmptyValue:true. allowEmptyValue means
+     * the server tolerates an empty value IF the client sends the key — it
+     * does NOT mean the SDK must always send the key. When the caller omits
+     * status (leaves it null), no `status=` may appear on the wire, exactly
+     * like any other absent optional query param. */
+    test('findPetsByStatus omitting status sends no status= in query', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String capturedUrl = '';
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         try {
-          final config = ConfigurationBuilder()
-              .baseUrl('http://localhost:${server.port}')
-              .build();
-          final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-          try {
-            await api.findPetsByStatus(FindPetsByStatusOptions());
-          } catch (_) {}
-          expect(
-            capturedUrl,
-            contains('status='),
-            reason:
-                'Expected status= in URL for allowEmptyValue param with null value, got: $capturedUrl',
-          );
-        } finally {
-          await server.close();
-        }
-      },
-    );
+          await api.findPetsByStatus(FindPetsByStatusOptions());
+        } catch (_) {}
+        expect(
+          capturedUrl,
+          isNot(contains('status=')),
+          reason:
+              'Expected no status param when status is omitted, got: $capturedUrl',
+        );
+      } finally {
+        await server.close();
+      }
+    });
 
     test(
       'includes empty value param in query string when value is empty string',

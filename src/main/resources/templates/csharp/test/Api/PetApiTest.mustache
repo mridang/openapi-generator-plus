@@ -72,6 +72,44 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestFindPetsByStatusOmittingStatusSendsNoStatusKey()
+    {
+        // allowEmptyValue-omitted-key regression: findPetsByStatus's optional
+        // 'status' query param is declared allowEmptyValue:true. That means the
+        // server tolerates an EMPTY value IF the client chooses to send the key
+        // — it does NOT mean the SDK must always send the key. When the caller
+        // OMITS status (null), the key must be absent from the wire entirely;
+        // the old template emitted a spurious "status=" via an else-branch that
+        // assigned the empty string. Canonical across all 12 SDKs.
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = null });
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        Assert.DoesNotContain("status=", url);
+    }
+
+    [Fact]
+    public async Task TestFindPetsByStatusExplicitEmptyStatusSendsStatusKey()
+    {
+        // The flip side of allowEmptyValue: when the caller EXPLICITLY supplies
+        // an empty string for status, the key MUST be present with an empty
+        // value ("status=") — the empty value is exactly what allowEmptyValue
+        // permits. Status is a nullable string, so the empty value is
+        // expressible.
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        Assert.Contains("status=", url);
+    }
+
+    [Fact]
     public async Task TestGetPetById()
     {
         var result = await _api.GetPetByIdAsync(1L);
@@ -391,6 +429,22 @@ public class PetApiTest
         {
             CapturedUrl = url;
             return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    private sealed class QueryCapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedUrl = url;
+            // An empty JSON array satisfies the List<Pet> return type so the
+            // convenience wrapper's deserialization and non-empty-body guard
+            // both pass; the URL is captured before any response handling.
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "[]",
                 new Dictionary<string, string> { { "Content-Type", "application/json" } }));
         }
     }

@@ -472,13 +472,9 @@ module PetstoreClient
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
-        unless options.nil?
-          if options.status.nil?
-            query_params['status'] = ''
-          else
-            query_params['status'] =
-              ::PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
-          end
+        unless options.nil? || options.status.nil?
+          query_params['status'] =
+            ::PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
         end
         query_params.merge!(::PetstoreClient::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.nil? || options.filter.nil?
         # @type var header_params: Hash[String, String]
@@ -1062,13 +1058,9 @@ module PetstoreClient
           query_params['sizes'] =
             ::PetstoreClient::ValueSerializer.serialize_styled('sizes', options.sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false)
         end
-        unless options.nil?
-          if options.filter.nil?
-            query_params['filter'] = ''
-          else
-            query_params['filter'] =
-              ::PetstoreClient::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true)
-          end
+        unless options.nil? || options.filter.nil?
+          query_params['filter'] =
+            ::PetstoreClient::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true)
         end
         # @type var header_params: Hash[String, String]
         header_params = {}

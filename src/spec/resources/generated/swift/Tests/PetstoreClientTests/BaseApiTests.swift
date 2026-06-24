@@ -534,7 +534,7 @@ import Testing
       "expected URL without status param when options is nil, got: \(mockClient.lastURL)")
   }
 
-  @Test func testAllowEmptyValueIncludesParamWhenNil() async throws {
+  @Test func testAllowEmptyValueOmitsParamWhenNil() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "[]"
 
@@ -543,10 +543,12 @@ import Testing
 
     let opts = FindPetsByStatusOptions()
     _ = try? await api.findPetsByStatus(options: opts)
+    // An optional allowEmptyValue param left nil must NOT emit a spurious empty
+    // key; the key is sent only when the caller supplies a value (see the
+    // explicit-empty-string case below).
     #expect(
-      mockClient.lastURL.contains("status="),
-      "expected URL to contain status= for allowEmptyValue param with nil value, got: \(mockClient.lastURL)"
-    )
+      !(mockClient.lastURL.contains("status=")),
+      "expected URL without status= when allowEmptyValue param is nil, got: \(mockClient.lastURL)")
   }
 
   @Test func testAllowEmptyValueIncludesParamInQueryString() async throws {

@@ -334,8 +334,9 @@ public class {{classname}} : BaseApi
         }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-        queryParams["{{baseName}}"] = options!.{{vendorExtensions.pascalName}} != null
-            ? ValueSerializer.SerializeStyled(
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
                 "{{baseName}}",
                 options.{{vendorExtensions.pascalName}},
                 "query",
@@ -343,8 +344,8 @@ public class {{classname}} : BaseApi
                 {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
                 "{{style}}",
                 {{isExplode}}
-            )
-            : "";
+            );
+        }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)

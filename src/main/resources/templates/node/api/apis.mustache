@@ -240,12 +240,8 @@ export class {{classname}} extends BaseApi {
     }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-    if (options !== undefined) {
-      if (options.{{paramName}} != null) {
-        queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
-      } else {
-        queryParams['{{baseName}}'] = '';
-      }
+    if (options?.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
     }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}

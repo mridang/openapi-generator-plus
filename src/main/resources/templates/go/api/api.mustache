@@ -250,12 +250,13 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	queryParams := make(map[string]any)
 {{#queryParams}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-	if options != nil {
-		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-			queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
-		} else {
-			queryParams["{{baseName}}"] = ""
-		}
+	/* allowEmptyValue means the server tolerates an empty value WHEN the client
+	 * sends the key; it does not require the SDK to always send the key. When the
+	 * caller omits the optional value, the key is omitted entirely (matching the
+	 * other optional query params above). An explicit empty value supplied by the
+	 * caller still flows through serializeStyled and emits the bare "key=". */
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
 	}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}

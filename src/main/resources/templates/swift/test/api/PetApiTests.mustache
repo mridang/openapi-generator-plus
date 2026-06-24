@@ -472,6 +472,44 @@ final class PetApiTests {
         #expect(mockClient.lastURL.contains("category=dog"))
     }
 
+    // query-allow-empty-omitted: findPetsByStatus.status is an optional query
+    // param declared allowEmptyValue:true. allowEmptyValue means the server
+    // tolerates an empty value IF the client sends the key — it does NOT mean
+    // the SDK must always send the key. When the caller omits status (nil), the
+    // key must be omitted entirely from the query string, never emitted as a
+    // spurious empty `status=` pair.
+    @Test func testFindPetsByStatusOmittedSendsNoStatusKey() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "[]"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.findPetsByStatus(options: FindPetsByStatusOptions())
+
+        #expect(!mockClient.lastURL.contains("status="),
+            "omitted allowEmptyValue param must not appear, got: \(mockClient.lastURL)")
+    }
+
+    // query-allow-empty-explicit: when the caller explicitly supplies an empty
+    // string for the allowEmptyValue status param, the key must be present with
+    // an empty value (`status=`). This is the one case allowEmptyValue exists
+    // for and is the complement of the omitted case above.
+    @Test func testFindPetsByStatusExplicitEmptySendsStatusKey() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "[]"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.findPetsByStatus(options: FindPetsByStatusOptions(status: ""))
+
+        #expect(mockClient.lastURL.contains("status="),
+            "explicit empty allowEmptyValue param must send the key, got: \(mockClient.lastURL)")
+    }
+
     // options-immutable-readback: an Options value is built once via its init
     // (named args + defaults) and its stored properties are immutable lets that
     // remain readable after construction. A param-bearing Options round-trips

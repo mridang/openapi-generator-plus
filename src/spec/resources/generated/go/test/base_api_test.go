@@ -562,8 +562,10 @@ func TestBaseApi_NonNilOptionsWithNilStatusIncludesParam(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
 	_, _ = api.FindPetsByStatus(&options.FindPetsByStatusOptions{})
-	if !strings.Contains(client.capturedURL, "status=") {
-		t.Errorf("expected URL to contain status= for allowEmptyValue param with nil value, got %q", client.capturedURL)
+	// A nil optional allowEmptyValue value must NOT emit a spurious empty key; the
+	// key is sent only when the caller supplies a value (see the empty-string test).
+	if strings.Contains(client.capturedURL, "status=") {
+		t.Errorf("expected no status= for allowEmptyValue param with nil value, got %q", client.capturedURL)
 	}
 }
 

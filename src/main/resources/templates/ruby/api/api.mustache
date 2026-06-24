@@ -330,13 +330,9 @@ module {{moduleName}}
         query_params = {}
 {{#queryParams}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-        unless options.nil?
-          if options.{{paramName}}.nil?
-            query_params['{{baseName}}'] = ''
-          else
-            query_params['{{baseName}}'] =
-              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
-          end
+        unless options.nil? || options.{{paramName}}.nil?
+          query_params['{{baseName}}'] =
+            ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
         end
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}

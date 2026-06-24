@@ -369,12 +369,26 @@ describe("BaseApi allowEmptyValue", () => {
     expect(client.capturedUrl).not.toContain("status=");
   });
 
-  test("includes allowEmptyValue param when options has null value", async () => {
+  test("findPetsByStatus omitting status sends no status= in query", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const petApi = new PetApi(client, config);
     try {
+      // status is allowEmptyValue but optional; omitting it must not emit the key
       await petApi.findPetsByStatus({});
+    } catch {
+      // Response deserialization may fail; we only care about the captured URL
+    }
+    expect(client.capturedUrl).not.toContain("status=");
+  });
+
+  test("findPetsByStatus with explicit empty status sends status= in query", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const petApi = new PetApi(client, config);
+    try {
+      // An explicitly provided empty value keeps the key with an empty value
+      await petApi.findPetsByStatus({ status: "" });
     } catch {
       // Response deserialization may fail; we only care about the captured URL
     }

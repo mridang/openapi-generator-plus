@@ -610,12 +610,13 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 	path := "/pet/findByStatus"
 
 	queryParams := make(map[string]any)
-	if options != nil {
-		if options.Status != nil {
-			queryParams["status"] = serializeStyled("status", options.Status, "query", "string", "", "form", true)
-		} else {
-			queryParams["status"] = ""
-		}
+	/* allowEmptyValue means the server tolerates an empty value WHEN the client
+	 * sends the key; it does not require the SDK to always send the key. When the
+	 * caller omits the optional value, the key is omitted entirely (matching the
+	 * other optional query params above). An explicit empty value supplied by the
+	 * caller still flows through serializeStyled and emits the bare "key=". */
+	if options != nil && options.Status != nil {
+		queryParams["status"] = serializeStyled("status", options.Status, "query", "string", "", "form", true)
 	}
 	if options != nil && options.Filter != nil {
 		for k, v := range serializeDeepObject("filter", options.Filter) {
@@ -1447,12 +1448,13 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 	if options != nil && options.Sizes != nil {
 		queryParams["sizes"] = serializeStyled("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false)
 	}
-	if options != nil {
-		if options.Filter != nil {
-			queryParams["filter"] = serializeStyled("filter", options.Filter, "query", "string", "", "form", true)
-		} else {
-			queryParams["filter"] = ""
-		}
+	/* allowEmptyValue means the server tolerates an empty value WHEN the client
+	 * sends the key; it does not require the SDK to always send the key. When the
+	 * caller omits the optional value, the key is omitted entirely (matching the
+	 * other optional query params above). An explicit empty value supplied by the
+	 * caller still flows through serializeStyled and emits the bare "key=". */
+	if options != nil && options.Filter != nil {
+		queryParams["filter"] = serializeStyled("filter", options.Filter, "query", "string", "", "form", true)
 	}
 
 	headerParams := make(map[string]string)

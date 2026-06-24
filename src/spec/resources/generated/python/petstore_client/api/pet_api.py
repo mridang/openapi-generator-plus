@@ -625,13 +625,10 @@ class PetApi(BaseApi):
         """
         path = "/pet/findByStatus"
         query_params: Dict[str, Any] = {}
-        if options is not None:
-            if options.status is not None:
-                query_params["status"] = ValueSerializer.serialize_styled(
-                    "status", options.status, "query", "StrictStr", None, "form", True
-                )
-            else:
-                query_params["status"] = ""
+        if options is not None and options.status is not None:
+            query_params["status"] = ValueSerializer.serialize_styled(
+                "status", options.status, "query", "StrictStr", None, "form", True
+            )
         if options is not None and options.filter is not None:
             query_params.update(
                 ValueSerializer.serialize_deep_object("filter", options.filter)
@@ -1347,13 +1344,10 @@ class PetApi(BaseApi):
                 "spaceDelimited",
                 False,
             )
-        if options is not None:
-            if options.filter is not None:
-                query_params["filter"] = ValueSerializer.serialize_styled(
-                    "filter", options.filter, "query", "StrictStr", None, "form", True
-                )
-            else:
-                query_params["filter"] = ""
+        if options is not None and options.filter is not None:
+            query_params["filter"] = ValueSerializer.serialize_styled(
+                "filter", options.filter, "query", "StrictStr", None, "form", True
+            )
         header_params: Dict[str, str] = {}
         body = None
 

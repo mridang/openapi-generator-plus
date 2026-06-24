@@ -623,4 +623,48 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     Agent.stop(name)
   end
+
+  # allowEmptyValue-omitted-key: find_pets_by_status declares an OPTIONAL query
+  # param `status` with allowEmptyValue:true. allowEmptyValue means the server
+  # tolerates an empty value IF the caller sends the key — it does NOT oblige the
+  # SDK to always emit the key. When status is omitted (nil) NO `status=` may
+  # appear on the wire; when the caller passes an explicit empty string the key
+  # is present with an empty value (`status=`).
+  test "find_pets_by_status omitting status sends no status= in query" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(
+        api,
+        %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: nil}
+      )
+
+    url = PathCapturingApiClient.captured_url(name)
+
+    refute String.contains?(url, "status="),
+           "Omitted allowEmptyValue param must not emit a spurious status= key, got: #{url}"
+
+    Agent.stop(name)
+  end
+
+  test "find_pets_by_status with explicit empty status sends status= with empty value" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(
+        api,
+        %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: ""}
+      )
+
+    url = PathCapturingApiClient.captured_url(name)
+
+    assert String.contains?(url, "status="),
+           "An explicit empty allowEmptyValue param must send status= (key present), got: #{url}"
+
+    Agent.stop(name)
+  end
 end

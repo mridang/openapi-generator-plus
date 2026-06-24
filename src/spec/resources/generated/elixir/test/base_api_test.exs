@@ -427,7 +427,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
-  test "allow_empty_value param included when value is nil in options" do
+  test "allow_empty_value param omitted when value is nil in options" do
     {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
@@ -439,9 +439,10 @@ defmodule PetstoreClient.Api.BaseApiTest do
       )
 
     url = CapturingApiClient.captured_url(name)
-
-    assert String.contains?(url, "status="),
-           "Expected status= in URL for allowEmptyValue param with nil value, got: #{url}"
+    # A nil optional allowEmptyValue value must NOT emit a spurious empty key; the
+    # key is sent only when the caller supplies a value (see the empty-string test).
+    refute String.contains?(url, "status="),
+           "Expected no status= for allowEmptyValue param with nil value, got: #{url}"
 
     Agent.stop(name)
   end

@@ -562,6 +562,44 @@ async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     );
 }
 
+/// allowEmptyValue-omitted: `status` is an OPTIONAL query parameter declared
+/// `allowEmptyValue: true`. allowEmptyValue means the server tolerates an empty
+/// value IF the client chooses to send the key — it does NOT mean the SDK must
+/// always send the key. So when the caller OMITS status (passes no value), the
+/// wire query string must carry no `status=` key at all.
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status_omitting_status_sends_no_status_in_query() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let _ = api.find_pets_by_status(None).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        !request_line.contains("status="),
+        "omitted allowEmptyValue param must send no 'status=' key, got request line: {}",
+        request_line
+    );
+}
+
+/// allowEmptyValue-explicit-empty: when the caller explicitly supplies an EMPTY
+/// value for the allowEmptyValue `status` parameter, the key IS present on the
+/// wire with an empty value (`status=`). This is the case allowEmptyValue exists
+/// for, and it must be distinguishable from the omitted case above.
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status_explicit_empty_status_sends_status_key() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = FindPetsByStatusOptions::new().status(String::new());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("status="),
+        "explicit empty allowEmptyValue param must send the 'status=' key, got request line: {}",
+        request_line
+    );
+}
+
 #[tokio::test]
 async fn test_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(

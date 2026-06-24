@@ -597,12 +597,12 @@ class PetApi extends BaseApi
     {
         $path = '/pet/findByStatus';
         $queryParams = [];
-        if ($options !== null) {
-            if ($options->status !== null) {
-                $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
-            } else {
-                $queryParams['status'] = '';
-            }
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious 'status=' appears on the wire. */
+        if ($options !== null && $options->status !== null) {
+            $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
         }
         if ($options !== null && $options->filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
@@ -1363,12 +1363,12 @@ class PetApi extends BaseApi
                 false,
             );
         }
-        if ($options !== null) {
-            if ($options->filter !== null) {
-                $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
-            } else {
-                $queryParams['filter'] = '';
-            }
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious 'filter=' appears on the wire. */
+        if ($options !== null && $options->filter !== null) {
+            $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
         }
         $headerParams = [];
         $requestBody = null;

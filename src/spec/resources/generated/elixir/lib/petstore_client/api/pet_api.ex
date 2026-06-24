@@ -877,26 +877,26 @@ defmodule PetstoreClient.Api.PetApi do
       end
 
     query_params = %{}
-
+    # allowEmptyValue means the server tolerates an empty value IF the caller
+    # chooses to send the key — it does NOT mean the SDK must always emit the
+    # key. An omitted optional param is dropped entirely (bare presence check,
+    # no else-branch) so no spurious "status=" appears on the wire; an
+    # explicit empty string still serialises through to a present empty value.
     query_params =
-      if not is_nil(options) do
-        if not is_nil(options.status) do
-          Map.put(
-            query_params,
+      if not is_nil(options) and not is_nil(options.status) do
+        Map.put(
+          query_params,
+          "status",
+          PetstoreClient.ValueSerializer.serialize_styled(
             "status",
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "status",
-              options.status,
-              :query,
-              "String.t()",
-              nil,
-              "form",
-              true
-            )
+            options.status,
+            :query,
+            "String.t()",
+            nil,
+            "form",
+            true
           )
-        else
-          Map.put(query_params, "status", "")
-        end
+        )
       else
         query_params
       end
@@ -2064,25 +2064,26 @@ defmodule PetstoreClient.Api.PetApi do
         query_params
       end
 
+    # allowEmptyValue means the server tolerates an empty value IF the caller
+    # chooses to send the key — it does NOT mean the SDK must always emit the
+    # key. An omitted optional param is dropped entirely (bare presence check,
+    # no else-branch) so no spurious "filter=" appears on the wire; an
+    # explicit empty string still serialises through to a present empty value.
     query_params =
-      if not is_nil(options) do
-        if not is_nil(options.filter) do
-          Map.put(
-            query_params,
+      if not is_nil(options) and not is_nil(options.filter) do
+        Map.put(
+          query_params,
+          "filter",
+          PetstoreClient.ValueSerializer.serialize_styled(
             "filter",
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "filter",
-              options.filter,
-              :query,
-              "String.t()",
-              nil,
-              "form",
-              true
-            )
+            options.filter,
+            :query,
+            "String.t()",
+            nil,
+            "form",
+            true
           )
-        else
-          Map.put(query_params, "filter", "")
-        end
+        )
       else
         query_params
       end

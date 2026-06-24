@@ -444,7 +444,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AllowEmptyValueParamIncludedWithDefaultOptions()
+    public async Task AllowEmptyValueParamOmittedWithDefaultOptions()
     {
         var client = new CapturingApiClient();
         var config = new Configuration("http://localhost");
@@ -457,7 +457,9 @@ public class BaseApiTest
         {
             // Response deserialization may fail; we only care about the captured URL
         }
-        Assert.Contains("status=", client.CapturedUrl!.ToString());
+        // An optional allowEmptyValue param that the caller omits must NOT emit a
+        // spurious empty key on the wire; the key is sent only when a value is supplied.
+        Assert.DoesNotContain("status=", client.CapturedUrl!.ToString());
     }
 
     [Fact]

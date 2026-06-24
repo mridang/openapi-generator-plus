@@ -450,14 +450,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let path = "/pet/findByStatus"
 
     var queryParams: [String: Any?] = [:]
-    if let options = options {
-      if let val = options.status {
-        queryParams["status"] = ValueSerializer.serializeStyled(
-          "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
-          style: "form", explode: true)
-      } else {
-        queryParams["status"] = ""
-      }
+    if let options = options, let val = options.status {
+      queryParams["status"] = ValueSerializer.serializeStyled(
+        "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
+        style: "form", explode: true)
     }
     if let options = options, let val = options.filter {
       if let dict = (val as Any) as? [String: Any] {
@@ -993,14 +989,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv",
         style: "spaceDelimited", explode: false)
     }
-    if let options = options {
-      if let val = options.filter {
-        queryParams["filter"] = ValueSerializer.serializeStyled(
-          "filter", value: val, location: "query", schemaType: "String", collectionFormat: "",
-          style: "form", explode: true)
-      } else {
-        queryParams["filter"] = ""
-      }
+    if let options = options, let val = options.filter {
+      queryParams["filter"] = ValueSerializer.serializeStyled(
+        "filter", value: val, location: "query", schemaType: "String", collectionFormat: "",
+        style: "form", explode: true)
     }
 
     let headerParams: [String: String] = [:]

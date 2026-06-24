@@ -612,8 +612,9 @@ public class PetApi : BaseApi
         string path = "/pet/findByStatus";
 
         Dictionary<string, object?> queryParams = [];
-        queryParams["status"] = options!.Status != null
-            ? ValueSerializer.SerializeStyled(
+        if (options != null && options.Status != null)
+        {
+            queryParams["status"] = ValueSerializer.SerializeStyled(
                 "status",
                 options.Status,
                 "query",
@@ -621,8 +622,8 @@ public class PetApi : BaseApi
                 null,
                 "form",
                 true
-            )
-            : "";
+            );
+        }
         if (options != null && options.Filter != null)
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
@@ -1298,8 +1299,9 @@ public class PetApi : BaseApi
                 false
             );
         }
-        queryParams["filter"] = options!.Filter != null
-            ? ValueSerializer.SerializeStyled(
+        if (options != null && options.Filter != null)
+        {
+            queryParams["filter"] = ValueSerializer.SerializeStyled(
                 "filter",
                 options.Filter,
                 "query",
@@ -1307,8 +1309,8 @@ public class PetApi : BaseApi
                 null,
                 "form",
                 true
-            )
-            : "";
+            );
+        }
         Dictionary<string, string> headerParams = [];
         return await InvokeApiForResultAsync<Pet>(
                 "GET",

@@ -283,22 +283,9 @@ public class {{classname}} extends BaseApi {
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-{{#vendorExtensions.op.optionsParamRequired}}
-        if (options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
-        } else {
-            queryParams.put("{{baseName}}", "");
         }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-        if (options != null) {
-            if (options.{{paramName}}() != null) {
-                queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
-            } else {
-                queryParams.put("{{baseName}}", "");
-            }
-        }
-{{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
