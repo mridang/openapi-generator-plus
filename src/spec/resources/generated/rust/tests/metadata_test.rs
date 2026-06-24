@@ -203,6 +203,54 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
     );
 }
 
+// -- date-time serialization preserves sub-second precision --
+//
+// `Metadata.createdAt` is a `chrono::DateTime<Utc>`. An instant carrying
+// millisecond sub-second precision (2020-01-02T03:04:05.123Z) must serialize
+// WITH the `.123` fraction intact — the encoder must NOT truncate to whole
+// seconds while the decoder happily accepts fractions (a lossy, asymmetric
+// round-trip). Milliseconds (3 digits) are the cross-SDK common denominator
+// every language's native date-time type supports, so `.123` is asserted
+// exactly. chrono's serde `Serialize` emits the smallest fractional form that
+// preserves the value, so a millisecond instant round-trips losslessly.
+#[test]
+fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
+    use chrono::{DateTime, Utc};
+
+    // The canonical instant with millisecond precision.
+    let instant: DateTime<Utc> = "2020-01-02T03:04:05.123Z"
+        .parse()
+        .expect("reference instant must parse");
+
+    let mut metadata = Metadata::new();
+    metadata.created_at = Some(instant);
+
+    // (1) The serialized date-time STRING must contain the `.123` fraction:
+    // the milliseconds were NOT truncated to whole seconds.
+    let data = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized Metadata");
+    let wire = parsed["createdAt"]
+        .as_str()
+        .expect("createdAt must serialize as a JSON string");
+    assert!(
+        wire.contains(".123"),
+        "date-time encoder must preserve millisecond precision, got: {}",
+        wire
+    );
+
+    // (2) Deserializing that JSON back must yield a date-time equal to the
+    // original instant — a lossless round-trip down to the millisecond.
+    let restored: Metadata = serde_json::from_str(&data).expect("failed to deserialize Metadata");
+    let restored_created = restored
+        .created_at
+        .expect("expected createdAt to be present after round-trip");
+    assert_eq!(
+        restored_created, instant,
+        "round-tripped instant must equal the original millisecond-precision value"
+    );
+}
+
 // manifest-description-missing: the published Cargo.toml must carry a
 // non-empty `description` (wired from the spec's appDescription) so the crate
 // does not publish with an empty description on crates.io.

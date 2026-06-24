@@ -178,15 +178,15 @@ defmodule PetstoreClient.ObjectSerializer do
   def stringify(true), do: "true"
   def stringify(false), do: "false"
 
-  # Truncate to second precision so the wire format matches the other 11 SDKs,
-  # whose date-time formatters emit no fractional seconds (HH:MM:SS).
-  def stringify(%DateTime{} = dt) do
-    dt |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-  end
+  # Emit sub-second precision so the wire format round-trips losslessly with
+  # the DateTime decoder (DateTime.from_iso8601/1 accepts fractional seconds).
+  # Truncating to whole seconds here would silently drop the milliseconds the
+  # decoder is willing to parse — an asymmetric, lossy round-trip. A
+  # 2020-01-02T03:04:05.123Z instant keeps its ".123" on the wire; a
+  # whole-second instant still serializes without a fractional component.
+  def stringify(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
 
-  def stringify(%NaiveDateTime{} = dt) do
-    dt |> NaiveDateTime.truncate(:second) |> NaiveDateTime.to_iso8601()
-  end
+  def stringify(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
 
   def stringify(%Date{} = d), do: Date.to_iso8601(d)
   # 4.8: ISO-8601 wire formatting for format:time (HH:MM:SS); protobuf-JSON
@@ -266,12 +266,13 @@ defmodule PetstoreClient.ObjectSerializer do
   end
 
   def sanitize_for_serialization(%Date{} = d), do: Date.to_iso8601(d)
-  # Truncate to second precision so the wire format matches the other 11 SDKs.
-  def sanitize_for_serialization(%DateTime{} = dt),
-    do: dt |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+  # Emit sub-second precision so the JSON body round-trips losslessly with the
+  # DateTime decoder, which accepts fractional seconds. Truncating to whole
+  # seconds here would drop the milliseconds the decoder parses back — a lossy,
+  # asymmetric round-trip. A 2020-01-02T03:04:05.123Z instant keeps its ".123".
+  def sanitize_for_serialization(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
 
-  def sanitize_for_serialization(%NaiveDateTime{} = dt),
-    do: dt |> NaiveDateTime.truncate(:second) |> NaiveDateTime.to_iso8601()
+  def sanitize_for_serialization(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
 
   # 4.8: serialize stdlib Time as an ISO-8601 string and Duration as a
   # protobuf-JSON "<seconds>s" string on the wire.

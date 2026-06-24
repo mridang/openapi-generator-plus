@@ -296,11 +296,11 @@ public class ObjectSerializerTest
         }
 
         [Fact]
-        public void SubsecondsDroppedFromSerializedDatetime()
+        public void SubsecondsPreservedInSerializedDatetime()
         {
             var dt = DateTimeOffset.Parse("2024-01-01T12:30:45.123+00:00", CultureInfo.InvariantCulture);
             var result = ObjectSerializer.Stringify(dt);
-            Assert.DoesNotContain(".123", result);
+            Assert.Contains(".123", result);
         }
 
         [Fact]
@@ -330,6 +330,27 @@ public class ObjectSerializerTest
             var serialized = ObjectSerializer.Stringify(original);
             var parsed = DateTimeOffset.Parse(serialized, CultureInfo.InvariantCulture);
             Assert.Equal(original.UtcDateTime, parsed.UtcDateTime);
+        }
+
+        /* Encoders previously truncated sub-second precision while the reader
+         * accepted fractions, making the JSON round-trip lossy. The instant
+         * 2020-01-02T03:04:05.123Z (UTC, millisecond precision) must serialize
+         * WITH the ".123" fraction and deserialize back to the same instant.
+         * Milliseconds (3 digits) are the cross-SDK common denominator every
+         * native date-time type supports. */
+        [Fact]
+        public void DateTimeSerializationPreservesSubSecondPrecision()
+        {
+            var serializer = new ObjectSerializer();
+            var instant = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero);
+            var metadata = new PhotoMetadata { TakenAt = instant };
+
+            string json = serializer.Serialize(metadata);
+            Assert.Contains(".123", json);
+
+            var roundTripped = serializer.Deserialize<PhotoMetadata>(json);
+            Assert.NotNull(roundTripped);
+            Assert.Equal(instant, roundTripped!.TakenAt);
         }
     }
 

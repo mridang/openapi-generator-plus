@@ -24,10 +24,13 @@ class TestDateTimeOffsetPreservation:
         result = ObjectSerializer.stringify(dt)
         assert "-08:00" in result
 
-    def test_subseconds_dropped_from_serialized_datetime(self) -> None:
+    def test_subseconds_preserved_in_serialized_datetime(self) -> None:
+        # The decoder (dateutil.parser.parse) accepts a fractional second, so
+        # the encoder must emit it too — truncating to whole seconds would make
+        # the wire round-trip lossy. We keep at least millisecond precision.
         dt = datetime.datetime.fromisoformat("2024-01-01T12:30:45.123000+00:00")
         result = ObjectSerializer.stringify(dt)
-        assert ".123" not in result
+        assert ".123" in result
 
     def test_date_only_serializes_as_iso8601_date(self) -> None:
         d = datetime.date(2024, 1, 1)
@@ -48,6 +51,34 @@ class TestDateTimeOffsetPreservation:
         serialized = ObjectSerializer.stringify(original)
         parsed = datetime.datetime.fromisoformat(serialized)
         assert original.utctimetuple() == parsed.utctimetuple()
+
+
+class TestDateTimeSubSecondPrecision:
+    """date-time serialization preserves sub-second precision.
+
+    A model carrying a ``format: date-time`` field (PhotoMetadata.takenAt)
+    must serialize a millisecond-precision instant WITH its fractional second
+    and round-trip back to the same millisecond — the encoder may not truncate
+    a fraction the decoder is willing to accept. Milliseconds (3 digits) is the
+    cross-SDK common denominator every native date-time type supports.
+    """
+
+    def test_model_datetime_preserves_milliseconds_and_round_trips(self) -> None:
+        from petstore_client.models.photo_metadata import PhotoMetadata
+
+        instant = datetime.datetime(
+            2020, 1, 2, 3, 4, 5, 123000, tzinfo=datetime.timezone.utc
+        )
+        model = PhotoMetadata(takenAt=instant)
+
+        serialized = ObjectSerializer().serialize(model)
+        # (1) the fractional-second component survived encoding.
+        assert ".123" in serialized
+
+        # (2) deserializing yields the same instant (lossless round-trip).
+        restored = ObjectSerializer().deserialize(serialized, "PhotoMetadata")
+        assert restored is not None
+        assert restored.taken_at == instant
 
 
 class TestNonAsciiSerialization:
@@ -449,8 +480,9 @@ class TestTimeFormat:
         assert ObjectSerializer.stringify(t) == "13:45:30"
 
     def test_stringify_time_drops_microseconds(self) -> None:
-        # Like datetime, we serialize with second precision so the wire
-        # format matches the other 11 SDKs which all emit HH:MM:SS.
+        # ``format: time`` serializes with second precision so the wire format
+        # matches the other 11 SDKs which all emit HH:MM:SS. (date-time keeps
+        # millisecond precision; this whole-second rule applies to time only.)
         t = datetime.time(13, 45, 30, 123456)
         assert ObjectSerializer.stringify(t) == "13:45:30"
 

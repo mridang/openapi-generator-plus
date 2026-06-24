@@ -43,7 +43,13 @@ module PetstoreClient
   #
   # @api private
   class ObjectSerializer # :nodoc:
-    DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%:z'
+    # %3N emits exactly three fractional-second digits (milliseconds), so a
+    # date-time carrying sub-second precision round-trips losslessly: the
+    # decode path (Time.parse) already accepts a fraction, and emitting one
+    # keeps the encode side symmetric. Milliseconds are the cross-SDK common
+    # denominator every native date-time type supports. Whole-second values
+    # render with a ".000" fraction, which RFC 3339 / ISO 8601 parsers accept.
+    DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%3N%:z'
 
     # Serialize an object to a JSON string.
     #

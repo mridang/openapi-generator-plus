@@ -378,7 +378,12 @@ internal class ObjectSerializer(
         return when (value) {
             is Boolean -> if (value) "true" else "false"
             is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
-            is TemporalAccessor -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value)
+            // ISO_OFFSET_DATE_TIME preserves sub-second precision on the
+            // query/path/header parameter wire form, matching the JSON-body
+            // encoder above. The prior `yyyy-MM-dd'T'HH:mm:ssxxx` pattern dropped
+            // milliseconds (no fractional-second field), so a date-time param
+            // carrying .123 was silently truncated to whole seconds.
+            is TemporalAccessor -> DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value)
             is Uuid -> value.toString()
             is Url -> value.toString()
             is Enum<*> -> {
@@ -459,8 +464,16 @@ internal class ObjectSerializer(
     companion object {
         private object OffsetDateTimeSerializer : KSerializer<OffsetDateTime> {
             override val descriptor = PrimitiveSerialDescriptor("OffsetDateTime", PrimitiveKind.STRING)
+            // Encode with ISO_OFFSET_DATE_TIME so sub-second precision survives
+            // the round-trip. The previous fixed `yyyy-MM-dd'T'HH:mm:ssxxx`
+            // pattern carried no fractional-second field, so a value like
+            // 2020-01-02T03:04:05.123Z was truncated to whole seconds on the
+            // wire even though deserialize() (also ISO_OFFSET_DATE_TIME) happily
+            // accepts the fraction — a lossy, asymmetric encode. ISO_OFFSET_DATE_TIME
+            // emits the fraction only when non-zero (e.g. ".123") and keeps the
+            // offset form (`Z` for UTC, `+05:30` otherwise) the decoder accepts.
             override fun serialize(encoder: Encoder, value: OffsetDateTime) =
-                encoder.encodeString(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value))
+                encoder.encodeString(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value))
             override fun deserialize(decoder: Decoder): OffsetDateTime =
                 OffsetDateTime.parse(decoder.decodeString(), DateTimeFormatter.ISO_OFFSET_DATE_TIME)
         }

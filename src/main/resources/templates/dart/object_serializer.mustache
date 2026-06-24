@@ -386,6 +386,17 @@ T resolveAnyOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic
 /// Public so model `toJson` bodies can share the exact same wire format as
 /// parameter serialization — a date-time value must serialize identically
 /// whether it travels in a path/query/header or in a request body.
+///
+/// Sub-second precision is preserved: [DateTime.parse] on the decode path
+/// accepts fractional seconds, so the encode path must emit them too,
+/// otherwise a value such as `2020-01-02T03:04:05.123Z` would round-trip
+/// lossily, silently truncating the milliseconds to whole seconds. The
+/// fraction is rendered with at least millisecond precision (3 digits) and
+/// extends to microsecond precision (6 digits) when the DateTime carries a
+/// non-zero microsecond component, mirroring Dart's own
+/// [DateTime.toIso8601String]. A value with no sub-second component emits no
+/// fractional part at all, keeping whole-second instants byte-identical to
+/// the previous output.
 String formatDateTimeOffset(DateTime date) {
   final y = date.year.toString().padLeft(4, '0');
   final mo = date.month.toString().padLeft(2, '0');
@@ -393,11 +404,33 @@ String formatDateTimeOffset(DateTime date) {
   final h = date.hour.toString().padLeft(2, '0');
   final mi = date.minute.toString().padLeft(2, '0');
   final s = date.second.toString().padLeft(2, '0');
+  final fraction = _formatSubSecond(date.millisecond, date.microsecond);
   final offset = date.timeZoneOffset;
   final sign = offset.isNegative ? '-' : '+';
   final hh = offset.inHours.abs().toString().padLeft(2, '0');
   final mm = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-  return '$y-$mo-${d}T$h:$mi:$s$sign$hh:$mm';
+  return '$y-$mo-${d}T$h:$mi:$s$fraction$sign$hh:$mm';
+}
+
+/// Renders the fractional-second component of a date-time as it should appear
+/// after the seconds field, including the leading dot.
+///
+/// Returns an empty string when both [millisecond] and [microsecond] are zero
+/// (a whole-second instant carries no fraction). When only milliseconds are
+/// present the fraction is 3 digits (e.g. `.123`); when microseconds are also
+/// present it widens to 6 digits (e.g. `.123456`). Keeping at least
+/// millisecond precision matches the cross-SDK common denominator that every
+/// language's native date-time type can represent.
+String _formatSubSecond(int millisecond, int microsecond) {
+  if (millisecond == 0 && microsecond == 0) {
+    return '';
+  }
+  final millis = millisecond.toString().padLeft(3, '0');
+  if (microsecond == 0) {
+    return '.$millis';
+  }
+  final micros = microsecond.toString().padLeft(3, '0');
+  return '.$millis$micros';
 }
 
 Object? _joinCollection(List<String> items, String collectionFormat) {

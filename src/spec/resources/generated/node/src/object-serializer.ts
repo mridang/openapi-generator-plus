@@ -661,7 +661,8 @@ export class ObjectSerializer {
 
   /**
    * Formats a Date as a deterministic ISO 8601 date-time in UTC, e.g.
-   * `2024-01-01T12:30:45+00:00`.
+   * `2024-01-01T12:30:45+00:00` or `2020-01-02T03:04:05.123+00:00` when the
+   * instant carries sub-second precision.
    *
    * A JS Date is an absolute instant with no stored timezone offset, so the
    * previous local-time formatting (getFullYear/getHours/getTimezoneOffset)
@@ -672,6 +673,15 @@ export class ObjectSerializer {
    * and emits `+00:00`; Go emits the RFC3339 `Z`). The explicit `+00:00`
    * suffix (rather than `Z`) keeps the offset-bearing shape the rest of the
    * stack expects while remaining a valid UTC designator.
+   *
+   * The encoder also preserves the millisecond fraction the decoder already
+   * accepts: a JS Date holds whole-millisecond precision (`getUTCMilliseconds`),
+   * so an instant like `2020-01-02T03:04:05.123Z` round-trips losslessly with
+   * its `.123` intact instead of being silently truncated to whole seconds.
+   * The `.SSS` group is emitted only when the milliseconds are non-zero, so a
+   * whole-second instant keeps its bare `…:45+00:00` shape. This matches the
+   * sub-second-preserving encoders in the other SDKs (Go RFC3339Nano,
+   * Python `.isoformat()`, Java `ISO_OFFSET_DATE_TIME`).
    */
   private static formatDateTimeOffset(date: Date): string {
     const pad = (n: number, w = 2): string => String(n).padStart(w, "0");
@@ -681,7 +691,9 @@ export class ObjectSerializer {
     const h = pad(date.getUTCHours());
     const mi = pad(date.getUTCMinutes());
     const s = pad(date.getUTCSeconds());
-    return `${y}-${mo}-${d}T${h}:${mi}:${s}+00:00`;
+    const ms = date.getUTCMilliseconds();
+    const frac = ms === 0 ? "" : `.${pad(ms, 3)}`;
+    return `${y}-${mo}-${d}T${h}:${mi}:${s}${frac}+00:00`;
   }
 
   /**

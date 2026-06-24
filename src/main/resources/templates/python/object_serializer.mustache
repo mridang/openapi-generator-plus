@@ -200,7 +200,13 @@ class ObjectSerializer:
             return obj
         elif isinstance(obj, datetime.datetime):
             dt = obj if obj.tzinfo is not None else obj.replace(tzinfo=timezone.utc)
-            return dt.isoformat(timespec='seconds')
+            # Emit with millisecond precision so a sub-second instant is not
+            # silently truncated to whole seconds on the wire. The decode path
+            # (dateutil.parser.parse) accepts the fraction, so dropping it on
+            # encode would make the round-trip lossy and asymmetric. timespec=
+            # 'milliseconds' always renders exactly three fractional digits,
+            # matching the cross-SDK common denominator.
+            return dt.isoformat(timespec='milliseconds')
         elif isinstance(obj, datetime.timedelta):
             # Must precede the datetime.date branch only because timedelta
             # is not a date subclass; ordered alongside the other temporal
@@ -400,7 +406,12 @@ class ObjectSerializer:
             return str(value.value)
         if isinstance(value, datetime.datetime):
             dt = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
-            return dt.isoformat(timespec='seconds')
+            # Preserve millisecond precision on the parameter path (query / path
+            # / header / form) for the same reason as the JSON-body path above:
+            # the decoder accepts the fraction, so truncating it here would make
+            # the wire round-trip lossy. timespec='milliseconds' renders exactly
+            # three fractional digits.
+            return dt.isoformat(timespec='milliseconds')
         if isinstance(value, datetime.timedelta):
             return _format_timedelta_protobuf(value)
         if isinstance(value, datetime.time):

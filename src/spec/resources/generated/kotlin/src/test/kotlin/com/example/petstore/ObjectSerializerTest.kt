@@ -57,11 +57,18 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("subseconds are dropped from serialized datetime")
-        fun subsecondsTruncated() {
-            val dt = OffsetDateTime.parse("2024-01-01T12:30:45.123+00:00")
+        @DisplayName("date-time serialization preserves sub-second precision")
+        fun subsecondsPreserved() {
+            // The instant 2020-01-02T03:04:05.123Z carries millisecond sub-second
+            // precision — 3 fractional digits, the cross-SDK common denominator.
+            // The parameter wire form (stringify) must emit the fraction so the
+            // decoder, which accepts it, is not handed a lossy whole-second value.
+            val dt = OffsetDateTime.parse("2020-01-02T03:04:05.123Z")
             val result = serializer.stringify(dt)
-            assertFalse(result.contains(".123"), "subseconds should not appear: $result")
+            assertTrue(result.contains(".123"), "milliseconds should be preserved: $result")
+            // Lossless round-trip: re-parsing yields the same instant.
+            val parsed = OffsetDateTime.parse(result)
+            assertEquals(dt.toInstant(), parsed.toInstant(), "instant should match after round-trip: $result")
         }
 
         @Test
@@ -979,6 +986,34 @@ class ObjectSerializerTest {
             assertEquals(2, decoded.scans!!.size)
             assertArrayEquals(scanA, decoded.scans!![0])
             assertArrayEquals(scanB, decoded.scans!![1])
+        }
+
+        @Test
+        @DisplayName("date-time serialization preserves sub-second precision")
+        fun dateTimeBodyPreservesSubSecondPrecision() {
+            // PhotoMetadata.takenAt is a @Contextual OffsetDateTime, so it
+            // wire-encodes through the JSON-body OffsetDateTimeSerializer. The
+            // instant 2020-01-02T03:04:05.123Z carries millisecond sub-second
+            // precision (3 fractional digits — the cross-SDK common denominator).
+            // The encoder must emit ".123" rather than truncating to whole
+            // seconds, since the decoder accepts the fraction (lossless round-trip).
+            val takenAt = OffsetDateTime.parse("2020-01-02T03:04:05.123Z")
+            val item =
+                com.example.petstore.models
+                    .PhotoMetadata(takenAt = takenAt)
+            val json = serializer.serialize(item)
+            assertTrue(
+                json.contains(".123"),
+                "milliseconds must NOT be truncated from the body date-time, got: $json",
+            )
+
+            val decoded = serializer.deserialize<com.example.petstore.models.PhotoMetadata>(json)
+            assertNotNull(decoded)
+            assertEquals(
+                takenAt.toInstant(),
+                decoded!!.takenAt!!.toInstant(),
+                "date-time must round-trip losslessly to the same millisecond",
+            )
         }
 
         @Test

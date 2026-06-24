@@ -32,11 +32,20 @@ public struct SerializationError: ZitadelError, LocalizedError {
 /// ObjectSerializer provides JSON serialization and deserialization using
 /// Foundation's JSONEncoder and JSONDecoder.
 internal enum ObjectSerializer {
-  /// Canonical encoder format: RFC 3339 with a numeric UTC offset, used for
-  /// every Date we *emit* (model encoding, path/query/header stringify).
+  /// Canonical encoder format: RFC 3339 with millisecond fractional seconds
+  /// and a numeric UTC offset, used for every Date we *emit* (model encoding,
+  /// path/query/header stringify).
+  ///
+  /// The `.SSS` fractional-second field is REQUIRED for a lossless round-trip:
+  /// `parseDate` accepts fractional seconds on the way in (via
+  /// `iso8601WithFractional`), so the encoder must also emit them. Without it
+  /// an instant like `2020-01-02T03:04:05.123Z` would serialize to whole
+  /// seconds (`2020-01-02T03:04:05+00:00`), silently dropping the `.123`
+  /// milliseconds — a lossy, asymmetric encode/decode. Millisecond precision
+  /// is the cross-SDK common denominator every native date-time type supports.
   private static let dateFormatter: DateFormatter = {
     let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxx"
+    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
     formatter.locale = Locale(identifier: "en_US_POSIX")
     /* Pin the zone to UTC so an absolute instant always serializes with a
      * `+00:00` offset. DateFormatter defaults an unset timeZone to the

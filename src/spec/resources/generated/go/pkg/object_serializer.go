@@ -18,7 +18,16 @@ import (
 	"time"
 )
 
-const defaultDateTimeFormat = "2006-01-02T15:04:05-07:00"
+// defaultDateTimeFormat is the layout used to render `format: date-time`
+// values on the parameter wire (path/query/header/cookie). It is
+// time.RFC3339Nano so sub-second precision is preserved end-to-end: a
+// time.Time carrying milliseconds (e.g. .123) serialises WITH the fraction
+// rather than being truncated to whole seconds, matching what the JSON body
+// path (encoding/json's time.Time marshaller) emits and what the decoder
+// accepts. RFC3339Nano also renders UTC as the "Z" designator (a literal
+// numeric "+00:00" only appears for genuinely offset zones), keeping the
+// wire form aligned with the body path and the other SDKs.
+const defaultDateTimeFormat = "2006-01-02T15:04:05.999999999Z07:00"
 const dateOnlyFormat = "2006-01-02"
 
 // stringifyDate formats a value as a date-only string (YYYY-MM-DD).

@@ -54,17 +54,41 @@ describe('ObjectSerializer', () => {
       expect(result).toMatch(/\+00:00$/);
     });
 
-    test('subseconds are dropped from serialized datetime', () => {
-      const date = new Date('2024-01-01T12:30:45.123Z');
+    test('date-time serialization preserves sub-second precision', () => {
+      // H4: the encoder must emit the millisecond fraction the decoder
+      // already accepts, so a sub-second instant round-trips losslessly
+      // instead of being silently truncated to whole seconds.
+      const date = new Date('2020-01-02T03:04:05.123Z');
       const result = ObjectSerializer.stringify(date);
-      expect(result).not.toContain('.123');
+      expect(result).toContain('.123');
+      expect(result).toBe('2020-01-02T03:04:05.123+00:00');
+      // Round-trip back to the same millisecond.
+      expect(new Date(result).getTime()).toBe(date.getTime());
     });
 
-    test('serialized datetime does not contain milliseconds', () => {
+    test('model date-time field preserves sub-second precision through JSON body', () => {
+      // H4 canonical: a model carrying a `format: date-time` field
+      // (PhotoMetadata.takenAt -> Date) must serialize and round-trip the
+      // millisecond fraction losslessly on the JSON-body path.
+      const takenAt = new Date('2020-01-02T03:04:05.123Z');
+      const meta = new PhotoMetadata({ caption: 'sub-second', takenAt });
+
+      const serialized = ObjectSerializer.serialize(meta);
+      expect(serialized).toContain('.123');
+
+      const back = ObjectSerializer.deserialize(
+        ObjectSerializer.parseJson(serialized),
+        PhotoMetadata,
+      );
+      expect(back!.takenAt!.getTime()).toBe(takenAt.getTime());
+    });
+
+    test('whole-second datetime omits the fractional component', () => {
       const date = new Date('2024-01-01T00:00:00.000Z');
       const result = ObjectSerializer.stringify(date);
-      // Should not contain decimal fractions
+      // A zero-millisecond instant keeps its bare seconds shape.
       expect(result).not.toMatch(/\.\d+/);
+      expect(result).toBe('2024-01-01T00:00:00+00:00');
     });
 
     test('serialized datetime string ends with an offset', () => {

@@ -270,7 +270,9 @@ import Testing
   @Test func testStringifyDate() {
     let date = Date(timeIntervalSince1970: 1_705_315_800)
     let result = ObjectSerializer.stringify(date)
-    #expect(result == "2024-01-15T10:50:00+00:00")
+    // The canonical encoder emits millisecond fractional seconds; a
+    // whole-second instant therefore serializes with a `.000` fraction.
+    #expect(result == "2024-01-15T10:50:00.000+00:00")
   }
 
   @Test func testStringifyNil() {
@@ -300,12 +302,35 @@ import Testing
     #expect(hasOffset, "should contain timezone offset: \(result)")
   }
 
-  @Test func testDateTimeSubsecondsDropped() {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    let date = formatter.date(from: "2024-01-01T12:30:45.123+00:00")!
-    let result = ObjectSerializer.stringify(date)
-    #expect(!result.contains(".123"), "subseconds should not appear: \(result)")
+  // date-time serialization preserves sub-second precision (canonical
+  // cross-SDK regression for finding H4). The encoder once truncated to whole
+  // seconds (format `yyyy-MM-dd'T'HH:mm:ssxxx`) while the decoder accepted
+  // fractions — a lossy, asymmetric round-trip. The instant
+  // 2020-01-02T03:04:05.123Z carries MILLISECOND precision (the cross-SDK
+  // common denominator); serializing the PhotoMetadata model that holds it
+  // must keep the `.123` fraction on the wire, and decoding that JSON back
+  // must recover the same millisecond instant.
+  @Test func testDateTimeSerializationPreservesSubSecondPrecision() throws {
+    let parser = ISO8601DateFormatter()
+    parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    let instant = parser.date(from: "2020-01-02T03:04:05.123Z")!
+
+    let metadata = PhotoMetadata(takenAt: instant)
+    let json = try ObjectSerializer.serialize(metadata)
+
+    // (1) the millisecond fraction must survive on the wire.
+    #expect(
+      json.contains(".123"),
+      "date-time must serialize WITH the .123 fraction (not truncated to whole seconds), got: \(json)"
+    )
+
+    // (2) decoding the JSON back must yield the same millisecond instant.
+    let decoded = try ObjectSerializer.deserialize(json, as: PhotoMetadata.self)
+    let roundTripped = decoded?.takenAt
+    #expect(roundTripped != nil, "decoded takenAt must not be nil: \(json)")
+    #expect(
+      abs((roundTripped?.timeIntervalSince1970 ?? 0) - instant.timeIntervalSince1970) < 0.0005,
+      "round-trip must preserve the same millisecond instant")
   }
 
   @Test func testDateOnlyStringIsIso8601() {
@@ -342,7 +367,10 @@ import Testing
     formatter.formatOptions = [.withInternetDateTime]
     let original = formatter.date(from: "2024-01-01T12:30:45+00:00")!
     let serialized = ObjectSerializer.stringify(original)
-    let parsed = formatter.date(from: serialized)
+    // The canonical encoder emits millisecond fractional seconds, so parse
+    // the round-tripped value through the serializer's own fraction-aware
+    // parser rather than a bare non-fractional ISO8601DateFormatter.
+    let parsed = ObjectSerializer.parseDate(serialized)
     #expect(parsed != nil, "should be able to parse back serialized datetime: \(serialized)")
     #expect(
       abs(original.timeIntervalSince1970 - (parsed?.timeIntervalSince1970 ?? 0)) < 1,

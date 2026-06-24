@@ -80,7 +80,19 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert String.contains?(result, "-08:00"), "should contain -08:00: #{result}"
     end
 
-    test "subseconds are not part of seconds-precision output" do
+    test "date-time serialization preserves sub-second precision" do
+      # 2020-01-02T03:04:05.123Z carries millisecond precision (the cross-SDK
+      # common denominator). The encoder must keep the ".123" so the wire form
+      # round-trips losslessly with the decoder, which accepts fractions.
+      {:ok, dt, _} = DateTime.from_iso8601("2020-01-02T03:04:05.123Z")
+      result = PetstoreClient.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, ".123"), "milliseconds must survive: #{result}"
+
+      {:ok, parsed, _} = DateTime.from_iso8601(result)
+      assert DateTime.compare(parsed, dt) == :eq
+    end
+
+    test "whole-second datetime serializes without a fractional component" do
       {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45+00:00")
       result = PetstoreClient.ObjectSerializer.stringify(dt)
       refute String.contains?(result, ".123")
@@ -108,6 +120,20 @@ defmodule PetstoreClient.ObjectSerializerTest do
       serialized = PetstoreClient.ObjectSerializer.stringify(original)
       {:ok, parsed, _} = DateTime.from_iso8601(serialized)
       assert DateTime.to_unix(original) == DateTime.to_unix(parsed)
+    end
+
+    test "model date-time field serialization preserves sub-second precision" do
+      # Canonical cross-SDK regression: a model carrying a format:date-time
+      # field (PhotoMetadata.takenAt) must keep millisecond precision through
+      # a full JSON-body serialize, and deserialize back to the same instant.
+      {:ok, instant, _} = DateTime.from_iso8601("2020-01-02T03:04:05.123Z")
+      model = %PetstoreClient.Models.PhotoMetadata{taken_at: instant}
+
+      json = PetstoreClient.ObjectSerializer.serialize(model)
+      assert String.contains?(json, ".123"), "milliseconds must survive in body: #{json}"
+
+      decoded = PetstoreClient.ObjectSerializer.deserialize(json, "PhotoMetadata")
+      assert DateTime.compare(decoded.taken_at, instant) == :eq
     end
   end
 

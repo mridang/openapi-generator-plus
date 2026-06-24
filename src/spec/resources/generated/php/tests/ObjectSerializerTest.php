@@ -245,10 +245,19 @@ test('negative offset preserved in serialized string', function (): void {
     expect($result)->toContain('-08:00');
 });
 
-test('subseconds dropped from serialized datetime', function (): void {
-    $dt = new \DateTimeImmutable('2024-01-01T12:30:45.123+00:00');
-    $result = ObjectSerializer::stringify($dt);
-    expect($result)->not->toContain('.123');
+test('date-time serialization preserves sub-second precision', function (): void {
+    /* H4: the encoder must emit the millisecond fraction the decoder accepts.
+     * The canonical instant 2020-01-02T03:04:05.123Z (UTC) carries millisecond
+     * sub-second precision — the cross-SDK common denominator every native
+     * date-time type supports. The serialized wire string must contain ".123"
+     * (the milliseconds were NOT truncated to whole seconds), and parsing it
+     * back must yield the same instant to the millisecond (lossless round-trip). */
+    $original = new \DateTimeImmutable('2020-01-02T03:04:05.123Z');
+    $serialized = ObjectSerializer::stringify($original);
+    expect($serialized)->toContain('.123');
+
+    $parsed = new \DateTimeImmutable($serialized);
+    expect($parsed->format('U.v'))->toBe($original->format('U.v'));
 });
 
 test('date only serializes without time component', function (): void {

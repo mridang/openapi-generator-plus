@@ -345,11 +345,18 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("subseconds are dropped from serialized datetime")
-    void subsecondsTruncated() {
-      OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45.123+00:00");
+    @DisplayName("date-time serialization preserves sub-second precision")
+    void subsecondsPreserved() {
+      // The decoder (JavaTimeModule) accepts a fractional second, so the
+      // parameter-path encoder must emit it too — truncating .123 to whole
+      // seconds is a lossy, asymmetric round-trip. Milliseconds (3 digits)
+      // is the cross-SDK common denominator, so assert the exact .123.
+      OffsetDateTime dt = OffsetDateTime.parse("2020-01-02T03:04:05.123Z");
       String result = ObjectSerializer.stringify(dt);
-      assertFalse(result.contains(".123"), "subseconds should not appear: " + result);
+      assertTrue(result.contains(".123"), "milliseconds must survive serialization: " + result);
+      OffsetDateTime parsed = OffsetDateTime.parse(result);
+      assertEquals(
+          dt.toInstant(), parsed.toInstant(), "instant should match after lossless round-trip");
     }
 
     @Test
@@ -1075,6 +1082,35 @@ class ObjectSerializerTest {
           "page-two", new String(decoded.scans.get(1), java.nio.charset.StandardCharsets.UTF_8));
       assertNotNull(decoded.thumbnail);
       assertEquals("thumb", new String(decoded.thumbnail, java.nio.charset.StandardCharsets.UTF_8));
+    }
+  }
+
+  @Nested
+  @DisplayName("DateTimeSubSecondTests")
+  class DateTimeSubSecondTests {
+
+    @Test
+    @DisplayName("date-time field serialization preserves sub-second precision")
+    void dateTimeFieldPreservesSubSeconds() {
+      com.example.petstore.models.PhotoMetadata metadata =
+          new com.example.petstore.models.PhotoMetadata();
+      metadata.takenAt = OffsetDateTime.parse("2020-01-02T03:04:05.123Z");
+
+      String json = serializer.serialize(metadata);
+      assertTrue(
+          json.contains(".123"), "milliseconds must NOT be truncated on serialize, got: " + json);
+
+      com.example.petstore.models.PhotoMetadata decoded =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.PhotoMetadata>() {}.getType());
+      assertNotNull(decoded);
+      assertNotNull(decoded.takenAt);
+      assertEquals(
+          metadata.takenAt.toInstant(),
+          decoded.takenAt.toInstant(),
+          "instant should match after lossless round-trip");
     }
   }
 

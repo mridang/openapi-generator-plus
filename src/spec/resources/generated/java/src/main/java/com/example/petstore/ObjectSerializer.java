@@ -135,7 +135,13 @@ public final class ObjectSerializer {
       return formatDuration(d);
     }
     if (value instanceof TemporalAccessor t) {
-      return DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(t);
+      /* ISO_OFFSET_DATE_TIME preserves any sub-second fraction (e.g. the
+      .123 milliseconds of 2020-01-02T03:04:05.123Z) and emits the
+      UTC designator as "Z". The decoder (JavaTimeModule) accepts the
+      fraction, so the encoder must emit it too — a fixed-pattern
+      formatter without a fractional field would silently truncate to
+      whole seconds, an asymmetric lossy round-trip. */
+      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
     }
     if (value instanceof Date d) {
       return new StdDateFormat().withColonInTimeZone(true).format(d);

@@ -41,8 +41,17 @@ use Symfony\Component\Serializer\Serializer;
  */
 class ObjectSerializer
 {
+    /* H4: emit sub-second precision on the wire. \DateTime::ATOM
+     * ("Y-m-d\TH:i:sP") has no fractional-second component, so a date-time
+     * carrying milliseconds (2020-01-02T03:04:05.123Z) serialized to whole
+     * seconds — a lossy, asymmetric round-trip, since the decoder
+     * (new \DateTime($wire)) happily parses the fraction back. RFC3339_EXTENDED
+     * ("Y-m-d\TH:i:s.vP") appends the 3-digit millisecond fraction (.v) while
+     * keeping the same numeric UTC offset (+00:00) the offset tests and the
+     * decoder already expect, so the fraction the decoder accepts is now also
+     * emitted and the round-trip is lossless to the millisecond. */
     /** @var string */
-    private const string DATE_TIME_FORMAT = \DateTime::ATOM;
+    private const string DATE_TIME_FORMAT = \DateTime::RFC3339_EXTENDED;
 
     private static ?Serializer $serializer = null;
 
