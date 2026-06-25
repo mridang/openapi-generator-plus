@@ -617,6 +617,44 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  # request-content-type-selector: setPetAvatar declares THREE request
+  # content-types (image/jpeg, image/png, application/json). The optional
+  # `:content_type` key in `opts` lets the caller choose among the declared
+  # types; when omitted it defaults to the FIRST declared type (image/jpeg), so
+  # existing call sites keep sending image/jpeg unchanged. With image/jpeg and
+  # image/png both being raw binary bodies, switching the selector only changes
+  # the outgoing Content-Type header — the same raw bytes are sent either way.
+  test "set_pet_avatar honours the selected request content type" do
+    payload = <<0xFF, 0xD8, 0xFF, 0xE0>>
+
+    # (1) No selector -> the first declared content-type (image/jpeg).
+    {:ok, default_name} = BodyCapturingApiClient.start()
+    default_config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    default_api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, default_config)
+
+    {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar(default_api, 5, payload)
+
+    default_captured = BodyCapturingApiClient.captured(default_name)
+    assert default_captured.headers["Content-Type"] == "image/jpeg"
+    assert default_captured.body == payload
+    Agent.stop(default_name)
+
+    # (2) Selector set to image/png with the SAME raw bytes -> image/png.
+    {:ok, png_name} = BodyCapturingApiClient.start()
+    png_config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    png_api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, png_config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.set_pet_avatar(png_api, 5, payload, content_type: "image/png")
+
+    png_captured = BodyCapturingApiClient.captured(png_name)
+    assert png_captured.headers["Content-Type"] == "image/png"
+    refute png_captured.headers["Content-Type"] == "image/jpeg"
+    # The selector only swaps the header; the raw bytes are unchanged.
+    assert png_captured.body == payload
+    Agent.stop(png_name)
+  end
+
   # apiresult-rawbody-nullability: ApiResult.raw_body is typed String.t() (never
   # nil) because ApiHttpResponse.body is always populated. Even an empty 200 body
   # surfaces raw_body as a binary, not nil.

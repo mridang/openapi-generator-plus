@@ -2294,7 +2294,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `body` - binary()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override), `:content_type` (select the request content-type among the declared types `image/jpeg`, `image/png`, `application/json`; defaults to `image/jpeg`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2374,6 +2374,28 @@ defmodule PetstoreClient.Api.PetApi do
     query_params = %{}
     header_params = %{}
     request_body = body
+    # multiple-declared-consumes: this operation declares more than one request
+    # content-type (image/jpeg, image/png, application/json). The caller MAY select among the declared
+    # types via the optional `:content_type` key in `opts`; when omitted it
+    # defaults to the FIRST declared content-type ("image/jpeg"), so existing
+    # callers keep sending the first type unchanged. An unrecognised value is
+    # rejected so a typo cannot send an undeclared Content-Type on the wire.
+    declared_content_types = ["image/jpeg", "image/png", "application/json"]
+
+    content_type =
+      case Keyword.get(opts, :content_type) do
+        nil ->
+          "image/jpeg"
+
+        selected ->
+          if selected in declared_content_types do
+            selected
+          else
+            raise ArgumentError,
+                  "Unsupported :content_type #{inspect(selected)} for PetApi.set_pet_avatar; " <>
+                    "declared content-types are #{inspect(declared_content_types)}"
+          end
+      end
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
@@ -2383,7 +2405,7 @@ defmodule PetstoreClient.Api.PetApi do
       header_params,
       request_body,
       [],
-      "image/jpeg",
+      content_type,
       nil,
       auth
     )
@@ -2926,7 +2948,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override), `:content_type` (select the request content-type among the declared types `multipart/form-data`, `application/octet-stream`; defaults to `multipart/form-data`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -3044,6 +3066,29 @@ defmodule PetstoreClient.Api.PetApi do
         do: Map.put(request_body, "notes", options.notes),
         else: request_body
 
+    # multiple-declared-consumes: this operation declares more than one request
+    # content-type (multipart/form-data, application/octet-stream). The caller MAY select among the declared
+    # types via the optional `:content_type` key in `opts`; when omitted it
+    # defaults to the FIRST declared content-type ("multipart/form-data"), so existing
+    # callers keep sending the first type unchanged. An unrecognised value is
+    # rejected so a typo cannot send an undeclared Content-Type on the wire.
+    declared_content_types = ["multipart/form-data", "application/octet-stream"]
+
+    content_type =
+      case Keyword.get(opts, :content_type) do
+        nil ->
+          "multipart/form-data"
+
+        selected ->
+          if selected in declared_content_types do
+            selected
+          else
+            raise ArgumentError,
+                  "Unsupported :content_type #{inspect(selected)} for PetApi.upload_pet_document; " <>
+                    "declared content-types are #{inspect(declared_content_types)}"
+          end
+      end
+
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
       :POST,
@@ -3052,7 +3097,7 @@ defmodule PetstoreClient.Api.PetApi do
       header_params,
       request_body,
       ["application/json"],
-      "multipart/form-data",
+      content_type,
       "ApiResponse",
       auth
     )

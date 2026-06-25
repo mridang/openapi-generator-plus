@@ -1607,8 +1607,8 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 // SetPetAvatar Set the pet's profile photo
 // Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
-func (a *PetApi) SetPetAvatar(petId int64, body *os.File) error {
-	result, err := a.SetPetAvatarWithHTTPInfo(petId, body)
+func (a *PetApi) SetPetAvatar(petId int64, body *os.File, requestContentType ...string) error {
+	result, err := a.SetPetAvatarWithHTTPInfo(petId, body, requestContentType...)
 	if err != nil {
 		return err
 	}
@@ -1617,7 +1617,7 @@ func (a *PetApi) SetPetAvatar(petId int64, body *os.File) error {
 }
 
 // SetPetAvatarWithHTTPInfo performs the SetPetAvatar operation and returns the full API result.
-func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResult[any], error) {
+func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestContentType ...string) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}/avatar"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1631,6 +1631,28 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResul
 	headerParams := make(map[string]string)
 
 	var requestBody any = body
+	/* This operation declares more than one request Content-Type. The optional
+	 * trailing requestContentType selector lets the caller choose among the
+	 * declared types; when omitted (or set to a type the operation does not
+	 * declare) it falls back to the first declared type, preserving the
+	 * historical behaviour of always sending "image/jpeg".
+	 * NOTE: this only changes the Content-Type header — the caller must still
+	 * supply a body the selected content-type accepts. The declared types are,
+	 * in order:
+	 *   - image/jpeg
+	 *   - image/png
+	 *   - application/json
+	 */
+	declaredConsumes := []string{"image/jpeg", "image/png", "application/json"}
+	requestContentTypeValue := declaredConsumes[0]
+	if len(requestContentType) > 0 {
+		for _, declared := range declaredConsumes {
+			if declared == requestContentType[0] {
+				requestContentTypeValue = requestContentType[0]
+				break
+			}
+		}
+	}
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "PUT",
@@ -1639,7 +1661,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResul
 		headerParams: headerParams,
 		body:         requestBody,
 		accepts:      []string{},
-		contentType:  "image/jpeg",
+		contentType:  requestContentTypeValue,
 		returnType:   "",
 		auth:         nil,
 	})
@@ -1994,8 +2016,8 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 // UploadPetDocument Attach a vet document or health record
 // Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
 
-func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentOptions) (*ApiResponse, error) {
-	result, err := a.UploadPetDocumentWithHTTPInfo(petId, options)
+func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResponse, error) {
+	result, err := a.UploadPetDocumentWithHTTPInfo(petId, options, requestContentType...)
 	if err != nil {
 		return nil, err
 	}
@@ -2010,7 +2032,7 @@ func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentO
 }
 
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
-func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResult[ApiResponse], error) {
 	if options == nil {
 		return nil, fmt.Errorf("missing required options when calling PetApi.UploadPetDocument")
 	}
@@ -2040,6 +2062,27 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 		}
 	}
 	var requestBody any = formBody
+	/* This operation declares more than one request Content-Type. The optional
+	 * trailing requestContentType selector lets the caller choose among the
+	 * declared types; when omitted (or set to a type the operation does not
+	 * declare) it falls back to the first declared type, preserving the
+	 * historical behaviour of always sending "multipart/form-data".
+	 * NOTE: this only changes the Content-Type header — the caller must still
+	 * supply a body the selected content-type accepts. The declared types are,
+	 * in order:
+	 *   - multipart/form-data
+	 *   - application/octet-stream
+	 */
+	declaredConsumes := []string{"multipart/form-data", "application/octet-stream"}
+	requestContentTypeValue := declaredConsumes[0]
+	if len(requestContentType) > 0 {
+		for _, declared := range declaredConsumes {
+			if declared == requestContentType[0] {
+				requestContentTypeValue = requestContentType[0]
+				break
+			}
+		}
+	}
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",
@@ -2048,7 +2091,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 		headerParams: headerParams,
 		body:         requestBody,
 		accepts:      []string{"application/json"},
-		contentType:  "multipart/form-data",
+		contentType:  requestContentTypeValue,
 		returnType:   "ApiResponse",
 		auth:         nil,
 	})

@@ -602,6 +602,22 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 }
                 op.vendorExtensions.put("deserializeReturnType", BYTE_RETURN_TYPE);
             }
+
+            // When an operation declares MORE THAN ONE request content-type
+            // (e.g. setPetAvatar's image/jpeg, image/png, application/json) the
+            // wire Content-Type collapses to the first declared type
+            // (effectiveConsumes) and the remaining types are unreachable. This
+            // flag lets the api template emit an OPTIONAL `content_type:` keyword
+            // selector so the caller can pick among the declared types; when
+            // unset it defaults to the first (current behaviour). Mustache cannot
+            // count list elements, so the "two-or-more" decision is computed here
+            // in the language-scoped codegen rather than in the template.
+            if (op.consumes != null && op.consumes.size() > 1) {
+                if (op.vendorExtensions == null) {
+                    op.vendorExtensions = new HashMap<>();
+                }
+                op.vendorExtensions.put("hasMultipleConsumes", true);
+            }
         }
         return objs;
     }

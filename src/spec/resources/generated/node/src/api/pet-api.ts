@@ -1371,10 +1371,15 @@ export class PetApi extends BaseApi {
    * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    * @param petId  (required)
    * @param body  (required)
+   * @param contentType optional request Content-Type; one of image/jpeg, image/png, application/json. Defaults to the first declared type (image/jpeg) when omitted.
    * @throws {ApiError} if fails to make API call
    */
-  async setPetAvatar(petId: number, body: Buffer): Promise<void> {
-    await this.setPetAvatarWithHttpInfo(petId, body);
+  async setPetAvatar(
+    petId: number,
+    body: Buffer,
+    contentType?: "image/jpeg" | "image/png" | "application/json",
+  ): Promise<void> {
+    await this.setPetAvatarWithHttpInfo(petId, body, contentType);
   }
 
   /**
@@ -1384,6 +1389,7 @@ export class PetApi extends BaseApi {
   async setPetAvatarWithHttpInfo(
     petId: number,
     body: Buffer,
+    contentType?: "image/jpeg" | "image/png" | "application/json",
   ): Promise<ApiResult<void>> {
     if (petId == null) {
       throw new Error(
@@ -1417,7 +1423,7 @@ export class PetApi extends BaseApi {
       headerParams,
       body,
       [],
-      "image/jpeg",
+      contentType ?? "image/jpeg",
       null,
       null,
     );
@@ -1730,6 +1736,7 @@ export class PetApi extends BaseApi {
    * Attach a vet document or health record
    * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
    * @param petId  (required)
+   * @param contentType optional request Content-Type; one of multipart/form-data, application/octet-stream. Defaults to the first declared type (multipart/form-data) when omitted.
    * @param options.file  (required)
    * @param options.documentType  (optional)
    * @param options.notes  (optional)
@@ -1739,10 +1746,12 @@ export class PetApi extends BaseApi {
   async uploadPetDocument(
     petId: number,
     options: UploadPetDocumentOptions,
+    contentType?: "multipart/form-data" | "application/octet-stream",
   ): Promise<ApiResponse> {
     const uploadPetDocumentResult = await this.uploadPetDocumentWithHttpInfo(
       petId,
       options,
+      contentType,
     );
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
@@ -1766,6 +1775,7 @@ export class PetApi extends BaseApi {
   async uploadPetDocumentWithHttpInfo(
     petId: number,
     options: UploadPetDocumentOptions,
+    contentType?: "multipart/form-data" | "application/octet-stream",
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new Error(
@@ -1810,7 +1820,7 @@ export class PetApi extends BaseApi {
       headerParams,
       formBody,
       ["application/json"],
-      "multipart/form-data",
+      contentType ?? "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
       null,
     );

@@ -92,6 +92,9 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
         """{{{summary}}}
 {{#notes}}
@@ -116,6 +119,9 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
         :param options: options for query, header, form, and cookie parameters
 {{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
+{{/vendorExtensions.hasMultipleConsumes}}
 {{#returnType}}
         :return: {{{returnType}}}
 {{/returnType}}
@@ -173,7 +179,7 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/cookieParams}}
-        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}})
+        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type=request_content_type{{/vendorExtensions.hasMultipleConsumes}})
 
 {{#returnType}}
         if result.data is None:
@@ -195,6 +201,9 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
         """{{{summary}}} (with HTTP info)
 {{#notes}}
@@ -209,6 +218,9 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
         :param options: options for query, header, form, and cookie parameters
 {{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
+{{/vendorExtensions.hasMultipleConsumes}}
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -325,6 +337,13 @@ class {{classname}}(BaseApi):
 {{^hasFormParams}}
         body = {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}None{{/bodyParam}}
 {{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        # This operation declares more than one request content type. The
+        # optional request_content_type selector overrides the Content-Type
+        # header; when omitted it defaults to the first declared type so the
+        # historical behaviour (and existing call sites) are unchanged.
+        content_type = request_content_type if request_content_type is not None else '{{vendorExtensions.op.effectiveConsumes}}'
+{{/vendorExtensions.hasMultipleConsumes}}
 
         return await self._invoke_api_for_result(
             '{{httpMethod}}',
@@ -333,7 +352,7 @@ class {{classname}}(BaseApi):
             header_params,
             body,
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
-            '{{vendorExtensions.op.effectiveConsumes}}',
+            {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
             {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}(options.auth if options is not None else None){{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
         )

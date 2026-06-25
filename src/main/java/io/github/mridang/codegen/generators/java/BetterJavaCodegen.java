@@ -26,6 +26,7 @@ import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 
 import org.slf4j.Logger;
@@ -157,6 +158,54 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     public GeneratorLanguage generatorLanguage() {
         return GeneratorLanguage.JAVA;
+    }
+
+    /**
+     * Derives the per-operation {@code hasMultipleConsumes} signal that the api
+     * template uses to decide whether to emit the optional request-content-type
+     * selector overloads.
+     *
+     * <p>An operation may declare more than one request {@code Content-Type}
+     * (e.g. {@code setPetAvatar} declares {@code image/jpeg}, {@code image/png}
+     * and {@code application/json}). The generated method historically pinned the
+     * request header to {@code effectiveConsumes} — the first declared type — so
+     * the remaining declared types were unreachable. When more than one type is
+     * declared, the template emits an additional overload carrying an OPTIONAL
+     * {@code requestContentType} argument that overrides the header; when it is
+     * omitted (or {@code null}) the method keeps sending the first declared type
+     * unchanged, so existing call sites compile and behave exactly as before.
+     *
+     * <p>Mustache cannot test "{@code consumes} has more than one element", so we
+     * derive that boolean here, mirroring the language-scoped pattern used by the
+     * Go and Python generators. This is a plain vendor-extension flag (not an
+     * {@code x-*} extension and not a shared cross-language decorator), scoped to
+     * the Java generator only.
+     *
+     * @param objs the operations map for the current api file
+     * @param allModels every model referenced by the operations
+     * @return the (possibly mutated) operations map, after delegating to the
+     *     superclass post-processing
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    if (op.vendorExtensions == null) {
+                        op.vendorExtensions = new HashMap<>();
+                    }
+                    final boolean hasMultipleConsumes =
+                            op.consumes != null && op.consumes.size() > 1;
+                    op.vendorExtensions.put("hasMultipleConsumes", hasMultipleConsumes);
+                }
+            }
+        }
+        return super.postProcessOperationsWithModels(objs, allModels);
     }
 
     /** {@inheritDoc} */

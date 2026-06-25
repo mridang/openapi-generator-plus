@@ -399,6 +399,43 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("setPetAvatar honours the selected request content type")
+        fun testSetPetAvatarHonoursSelectedContentType() {
+            // setPetAvatar declares THREE request content-types -- image/jpeg,
+            // image/png and application/json. The optional requestContentType
+            // selector lets the caller pick one of the declared types; left
+            // unset it defaults to the FIRST declared type (image/jpeg), so the
+            // pre-selector call signature keeps compiling and behaving unchanged.
+            // We capture the outgoing Content-Type for both paths with the SAME
+            // raw bytes and assert the header reflects the selection.
+            var capturedContentType: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedContentType =
+                        request.body.contentType?.toString()
+                            ?: request.headers["Content-Type"]
+                    respond(content = "", status = HttpStatusCode.NoContent, headers = headersOf())
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+
+            // (1) No selector -> first declared content-type (image/jpeg).
+            runBlocking { api.setPetAvatar(1L, imageData) }
+            assertEquals("image/jpeg", capturedContentType)
+
+            // (2) Selector set to image/png -> Content-Type is image/png, NOT
+            // image/jpeg, with the same raw bytes.
+            runBlocking { api.setPetAvatar(1L, imageData, "image/png") }
+            assertEquals("image/png", capturedContentType)
+        }
+
+        @Test
         @DisplayName("upload multipart sends correct request")
         fun testUploadMultipart() {
             var capturedMethod: String? = null

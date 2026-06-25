@@ -170,7 +170,6 @@ module PetstoreClient
         # (primitives, plain models) and for discriminated / model-ref unions,
         # whose resolved value already serializes correctly.
         request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(pet, 'Pet')
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -249,7 +248,6 @@ module PetstoreClient
         request_body = {}
         request_body['files'] = options.files
         request_body['metadata'] = options.metadata
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -321,7 +319,6 @@ module PetstoreClient
         # (primitives, plain models) and for discriminated / model-ref unions,
         # whose resolved value already serializes correctly.
         request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(pet_treatment, 'PetTreatment')
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -376,7 +373,6 @@ module PetstoreClient
         end
         header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
         request_body = nil
-
         invoke_api_for_result(
           :DELETE, path, query_params, header_params, request_body,
           [],
@@ -442,7 +438,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/octet-stream'],
@@ -492,7 +487,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -549,7 +543,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -606,7 +599,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -660,7 +652,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png'],
@@ -714,7 +705,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -779,7 +769,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -868,7 +857,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -922,7 +910,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -988,7 +975,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png', 'application/json'],
@@ -1077,7 +1063,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -1134,7 +1119,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -1149,9 +1133,10 @@ module PetstoreClient
       # @param pet_id [Integer]
       # @param body [File]
 
+      # @param content_type [String, nil] selects the request Content-Type among the declared types (image/jpeg, image/png, application/json); defaults to 'image/jpeg' when nil
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar(pet_id, body)
+      def set_pet_avatar(pet_id, body, content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
@@ -1162,12 +1147,12 @@ module PetstoreClient
                 "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
         end
 
-        set_pet_avatar_with_http_info(pet_id, body).data
+        set_pet_avatar_with_http_info(pet_id, body, content_type: content_type).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar_with_http_info(pet_id, body)
+      def set_pet_avatar_with_http_info(pet_id, body, content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
@@ -1191,11 +1176,20 @@ module PetstoreClient
         # (primitives, plain models) and for discriminated / model-ref unions,
         # whose resolved value already serializes correctly.
         request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(body, 'File')
+        # This operation declares multiple request content-types. The optional
+        # `content_type:` selector lets the caller choose among the declared
+        # types; when unset (or set to a type the operation does not declare) it
+        # falls back to the first declared type, preserving the historical
+        # behaviour of always sending 'image/jpeg'.
+        # NOTE: this only changes the Content-Type header — the caller must still
+        # supply a body the selected content-type accepts.
+        declared_consumes = ['image/jpeg', 'image/png', 'application/json']
+        resolved_content_type = declared_consumes.include?(content_type) ? content_type : declared_consumes.first
 
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           [],
-          'image/jpeg',
+          resolved_content_type,
           nil,
           nil
         )
@@ -1248,7 +1242,6 @@ module PetstoreClient
         # (primitives, plain models) and for discriminated / model-ref unions,
         # whose resolved value already serializes correctly.
         request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(set_pet_avatar_thumbnail_request, 'SetPetAvatarThumbnailRequest')
-
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           [],
@@ -1328,7 +1321,6 @@ module PetstoreClient
         request_body['nickname'] = options.nickname
         request_body['tags'] = options.tags unless options.tags.nil?
         request_body['note'] = options.note unless options.note.nil?
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -1398,7 +1390,6 @@ module PetstoreClient
         # (primitives, plain models) and for discriminated / model-ref unions,
         # whose resolved value already serializes correctly.
         request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(pet, 'Pet')
-
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           ['application/json'],
@@ -1466,7 +1457,6 @@ module PetstoreClient
         # @type var request_body: Hash[String, untyped]
         request_body = {}
         request_body['file'] = options.file
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -1482,9 +1472,10 @@ module PetstoreClient
 
       # @param options [UploadPetDocumentOptions] options for query, header, form, and cookie parameters
 
+      # @param content_type [String, nil] selects the request Content-Type among the declared types (multipart/form-data, application/octet-stream); defaults to 'multipart/form-data' when nil
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document(pet_id, options)
+      def upload_pet_document(pet_id, options, content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
@@ -1495,7 +1486,7 @@ module PetstoreClient
                 "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
         end
 
-        result = upload_pet_document_with_http_info(pet_id, options)
+        result = upload_pet_document_with_http_info(pet_id, options, content_type: content_type)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -1514,7 +1505,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document_with_http_info(pet_id, options)
+      def upload_pet_document_with_http_info(pet_id, options, content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
@@ -1536,11 +1527,20 @@ module PetstoreClient
         request_body['file'] = options.file
         request_body['documentType'] = options.document_type unless options.document_type.nil?
         request_body['notes'] = options.notes unless options.notes.nil?
+        # This operation declares multiple request content-types. The optional
+        # `content_type:` selector lets the caller choose among the declared
+        # types; when unset (or set to a type the operation does not declare) it
+        # falls back to the first declared type, preserving the historical
+        # behaviour of always sending 'multipart/form-data'.
+        # NOTE: this only changes the Content-Type header — the caller must still
+        # supply a body the selected content-type accepts.
+        declared_consumes = ['multipart/form-data', 'application/octet-stream']
+        resolved_content_type = declared_consumes.include?(content_type) ? content_type : declared_consumes.first
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
-          'multipart/form-data',
+          resolved_content_type,
           'ApiResponse',
           nil
         )

@@ -1490,15 +1490,20 @@ class PetApi extends BaseApi {
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
-  Future<void> setPetAvatar(int petId, Uint8List body) async {
-    await setPetAvatarWithHTTPInfo(petId, body);
+  Future<void> setPetAvatar(
+    int petId,
+    Uint8List body, [
+    String? requestContentType,
+  ]) async {
+    await setPetAvatarWithHTTPInfo(petId, body, requestContentType);
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
   Future<ApiResult<void>> setPetAvatarWithHTTPInfo(
     int petId,
-    Uint8List body,
-  ) async {
+    Uint8List body, [
+    String? requestContentType,
+  ]) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -1534,7 +1539,7 @@ class PetApi extends BaseApi {
       headerParams: headerParams,
       body: requestBody,
       accepts: [],
-      contentType: 'image/jpeg',
+      contentType: requestContentType ?? 'image/jpeg',
       returnType: '',
       auth: null,
     );
@@ -1861,9 +1866,14 @@ class PetApi extends BaseApi {
 
   Future<ApiResponse> uploadPetDocument(
     int petId,
-    UploadPetDocumentOptions options,
-  ) async {
-    final result = await uploadPetDocumentWithHTTPInfo(petId, options);
+    UploadPetDocumentOptions options, [
+    String? requestContentType,
+  ]) async {
+    final result = await uploadPetDocumentWithHTTPInfo(
+      petId,
+      options,
+      requestContentType,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1885,8 +1895,9 @@ class PetApi extends BaseApi {
   /// Performs the uploadPetDocument operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(
     int petId,
-    UploadPetDocumentOptions options,
-  ) async {
+    UploadPetDocumentOptions options, [
+    String? requestContentType,
+  ]) async {
     ArgumentError.checkNotNull(options.file, 'file');
 
     var path = '/pet/{petId}/documents';
@@ -1943,7 +1954,7 @@ class PetApi extends BaseApi {
       headerParams: headerParams,
       body: requestBody,
       accepts: ['application/json'],
-      contentType: 'multipart/form-data',
+      contentType: requestContentType ?? 'multipart/form-data',
       returnType: 'ApiResponse',
       auth: null,
 

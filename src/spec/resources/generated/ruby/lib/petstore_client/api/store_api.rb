@@ -48,7 +48,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :DELETE, path, query_params, header_params, request_body,
           [],
@@ -108,7 +107,6 @@ module PetstoreClient
         header_params = {}
         header_params['Preferred-Swatch'] = ::PetstoreClient::ValueSerializer.serialize_styled('Preferred-Swatch', options.preferred_swatch, :header, 'Swatch', nil, 'simple', false).to_s unless options.nil? || options.preferred_swatch.nil?
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -149,7 +147,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -190,7 +187,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -231,7 +227,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -272,7 +267,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -313,7 +307,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -366,7 +359,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -413,7 +405,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -454,7 +445,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -495,7 +485,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -536,7 +525,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -577,7 +565,6 @@ module PetstoreClient
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
@@ -625,7 +612,6 @@ module PetstoreClient
         # (primitives, plain models) and for discriminated / model-ref unions,
         # whose resolved value already serializes correctly.
         request_body = ::PetstoreClient::ObjectSerializer.encode_oneof_body(order, 'Order')
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],

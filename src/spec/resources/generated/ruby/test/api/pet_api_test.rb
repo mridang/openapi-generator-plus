@@ -149,6 +149,45 @@ describe PetstoreClient::Api::PetApi do
         thread.join(2)
       end
     end
+
+    # Canonical regression: setPetAvatar declares THREE request content-types
+    # (image/jpeg, image/png, application/json). Before the optional
+    # `content_type:` selector the wire Content-Type always collapsed to the
+    # first declared type (image/jpeg) and image/png was unreachable. The
+    # selector lets the caller choose among the declared types while staying
+    # backward compatible: an unspecified content_type still sends the first.
+    it 'honours the selected request content type' do
+      # (1) Backward compatible — no selector sends the FIRST declared type.
+      api, server, thread, _captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\x89PNG\r\n\x1A\n".b
+        api.set_pet_avatar(1, StringIO.new(raw))
+        _(captured_content_type.pop).must_equal 'image/jpeg'
+      ensure
+        server.close
+        thread.join(2)
+      end
+
+      # (2) Selector set to image/png sends Content-Type: image/png for the
+      # same raw bytes — NOT image/jpeg.
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\x89PNG\r\n\x1A\n".b
+        api.set_pet_avatar(1, StringIO.new(raw), content_type: 'image/png')
+
+        content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        _(content_type).must_equal 'image/png'
+        _(content_type).wont_equal 'image/jpeg'
+        # The raw bytes still hit the wire unchanged — the selector only swaps
+        # the Content-Type header, it does not re-encode the body.
+        _(sent).must_equal raw
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
   end
 
   describe '#get_pet_avatar' do

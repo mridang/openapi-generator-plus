@@ -1173,6 +1173,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     if (phpDoc != null) {
                         op.vendorExtensions.put("phpDocReturnType", phpDoc);
                     }
+                    // H3 request-content-type selector: the api template reads
+                    // vendorExtensions.op.hasMultipleConsumes, populated by the shared
+                    // operation-decorator pass (AbstractBetterCodegen) alongside
+                    // effectiveConsumes — no php-local flag needed.
                 }
             }
         }

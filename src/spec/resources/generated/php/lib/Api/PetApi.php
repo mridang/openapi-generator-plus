@@ -1467,19 +1467,21 @@ class PetApi extends BaseApi
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
+     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @throws \PetstoreClient\ApiException
      */
-    public function setPetAvatar(int $petId, \SplFileObject $body): void
+    public function setPetAvatar(int $petId, \SplFileObject $body, ?string $contentType = null): void
     {
-        $this->setPetAvatarWithHttpInfo($petId, $body);
+        $this->setPetAvatarWithHttpInfo($petId, $body, $contentType);
     }
 
     /**
 
+     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @return ApiResult<null>
      * @throws \PetstoreClient\ApiException
      */
-    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body): ApiResult
+    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body, ?string $contentType = null): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
@@ -1513,7 +1515,7 @@ class PetApi extends BaseApi
             $headerParams,
             $requestBody,
             [],
-            'image/jpeg',
+            $contentType ?? 'image/jpeg',
             null
         );
         return $result;
@@ -1819,12 +1821,13 @@ class PetApi extends BaseApi
 
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
 
+     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
      * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\ApiException
      */
-    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options)
+    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options, ?string $contentType = null)
     {
-        $apiResult = $this->uploadPetDocumentWithHttpInfo($petId, $options);
+        $apiResult = $this->uploadPetDocumentWithHttpInfo($petId, $options, $contentType);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1847,10 +1850,11 @@ class PetApi extends BaseApi
 
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
 
+     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\ApiException
      */
-    public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options): ApiResult
+    public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options, ?string $contentType = null): ApiResult
     {
         $path = '/pet/{petId}/documents';
         /** @var string $pathValue */
@@ -1891,7 +1895,7 @@ class PetApi extends BaseApi
             $headerParams,
             $requestBody,
             ['application/json'],
-            'multipart/form-data',
+            $contentType ?? 'multipart/form-data',
             '\PetstoreClient\Models\ApiResponse'
         );
         return $result;

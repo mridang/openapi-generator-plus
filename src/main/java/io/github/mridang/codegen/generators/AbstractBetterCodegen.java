@@ -2953,6 +2953,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final String effectiveProduces = effectiveMediaType(op.produces);
         d.put("effectiveConsumes", effectiveConsumes);
         d.put("effectiveProduces", effectiveProduces);
+        // H3 — true when the operation declares more than one request Content-Type
+        // (e.g. setPetAvatar: image/jpeg, image/png, application/json). Templates
+        // use it to emit an optional request-content-type selector that defaults to
+        // effectiveConsumes (the first declared type) so existing calls are unchanged.
+        d.put("hasMultipleConsumes", op.consumes != null && op.consumes.size() > 1);
 
         // O3 / O4 / O5 — Derived class names from operationId
         final String opId = op.operationId == null ? "" : op.operationId;

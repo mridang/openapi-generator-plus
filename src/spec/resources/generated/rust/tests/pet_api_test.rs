@@ -523,6 +523,68 @@ async fn test_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_typ
     );
 }
 
+/// optional-request-content-type-selector: the fixture operation `setPetAvatar`
+/// (PUT /pet/{petId}/avatar) declares THREE request content-types —
+/// `image/jpeg`, `image/png`, `application/json`. Before this change the
+/// operation always collapsed to the first (`image/jpeg`), leaving `image/png`
+/// unreachable. The generated `set_pet_avatar_with_content_type` method lets the
+/// caller pick a declared content-type; when omitted (the plain `set_pet_avatar`
+/// entry point) the first declared type is still sent, so existing call sites are
+/// unaffected.
+///
+/// This asserts BOTH cases with the SAME raw bytes:
+///   (1) no selector  -> Content-Type: image/jpeg (first declared, backward compatible);
+///   (2) selector "image/png" -> Content-Type: image/png (NOT image/jpeg).
+#[tokio::test]
+async fn test_pet_api_set_pet_avatar_honours_selected_request_content_type() {
+    // PNG signature bytes — a known, non-trivial payload that is NOT valid UTF-8,
+    // identical for both calls so only the selected Content-Type differs.
+    let image_bytes: Vec<u8> = vec![0x89, 0x50, 0x4E, 0x47];
+
+    // (1) Default path: no content-type selector -> first declared type.
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let _ = api.set_pet_avatar(1, image_bytes.clone()).await;
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+    assert_eq!(
+        body,
+        image_bytes.as_slice(),
+        "default path must stream the raw bytes unchanged, got: {:?}",
+        body
+    );
+    assert!(
+        header_text.contains("content-type: image/jpeg"),
+        "with no selector the first declared content-type (image/jpeg) must be sent, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+
+    // (2) Selector set to "image/png" with the SAME bytes -> image/png on the wire.
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let _ = api
+        .set_pet_avatar_with_content_type(1, image_bytes.clone(), "image/png")
+        .await;
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+    assert_eq!(
+        body,
+        image_bytes.as_slice(),
+        "selected-content-type path must stream the same raw bytes unchanged, got: {:?}",
+        body
+    );
+    assert!(
+        header_text.contains("content-type: image/png"),
+        "selecting image/png must send Content-Type: image/png, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+    assert!(
+        !header_text.contains("content-type: image/jpeg"),
+        "the selected image/png must NOT fall back to image/jpeg, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+}
+
 /// per-call-auth-override: an Authenticator passed to the BASE operation method
 /// (not just `with_http_info`) must be applied to the outgoing request. The
 /// default header carries one token; the per-call authenticator carries a

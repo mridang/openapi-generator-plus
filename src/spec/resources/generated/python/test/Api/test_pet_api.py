@@ -5,7 +5,7 @@
 import pytest
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Any, Dict
+from typing import Any, Dict, List
 from petstore_client.api.pet_api import PetApi
 from petstore_client.api.options.add_pet_options import AddPetOptions
 from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
@@ -199,6 +199,54 @@ class TestPetApi:
 
         assert captured.get("body") == payload
         assert captured.get("content_type") == "image/jpeg"
+
+    async def test_set_pet_avatar_honours_selected_request_content_type(self) -> None:
+        # setPetAvatar (PUT /pet/{petId}/avatar) declares request content types
+        # image/jpeg, image/png and application/json. The generated method now
+        # exposes an OPTIONAL request_content_type selector. Assert two cases:
+        #   (1) Called WITHOUT a selector, the request carries the FIRST declared
+        #       content type (image/jpeg) — backward compatible.
+        #   (2) Called WITH the selector set to 'image/png' and the same raw
+        #       bytes, the request carries Content-Type: image/png (NOT jpeg).
+        payload = b"\x89PNG\r\n\x1a\n"  # PNG signature
+        captured: List[Dict[str, Any]] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_PUT(self) -> None:
+                length = int(self.headers.get("Content-Length", 0))
+                captured.append(
+                    {
+                        "body": self.rfile.read(length),
+                        "content_type": self.headers.get("Content-Type"),
+                    }
+                )
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(
+            target=lambda: [server.handle_request(), server.handle_request()]
+        )
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
+        api = PetApi(config=config)
+
+        # (1) No selector — defaults to the first declared content type.
+        await api.set_pet_avatar(1, payload)
+        # (2) Selector set to image/png — overrides the Content-Type header.
+        await api.set_pet_avatar(1, payload, request_content_type="image/png")
+
+        assert len(captured) == 2
+        assert captured[0]["body"] == payload
+        assert captured[0]["content_type"] == "image/jpeg"
+        assert captured[1]["body"] == payload
+        assert captured[1]["content_type"] == "image/png"
 
     async def test_get_pet_avatar(self) -> None:
         result = await self.api.get_pet_avatar(1)

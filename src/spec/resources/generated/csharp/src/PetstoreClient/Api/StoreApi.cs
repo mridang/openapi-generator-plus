@@ -68,6 +68,7 @@ public class StoreApi : BaseApi
     /// Delete purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of the order to delete</param>
+
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task DeleteOrderAsync(long orderId)
     {
@@ -79,6 +80,7 @@ public class StoreApi : BaseApi
     /// Delete purchase order by ID (with HTTP info)
     /// </summary>
     /// <param name="orderId">ID of the order to delete</param>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId)
@@ -111,6 +113,7 @@ public class StoreApi : BaseApi
     /// </summary>
     /// <param name="pathSwatch"></param>
     /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+
     /// <returns><![CDATA[Category]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Category> GetBySwatchAsync(Swatch pathSwatch, GetBySwatchOptions? options = null)
@@ -142,6 +145,7 @@ public class StoreApi : BaseApi
     /// </summary>
     /// <param name="pathSwatch"></param>
     /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Category>> GetBySwatchWithHttpInfoAsync(Swatch pathSwatch, GetBySwatchOptions? options = null)
@@ -197,6 +201,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a model exercising schema defaults on deserialize.
     /// </summary>
+
     /// <returns><![CDATA[Defaults]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Defaults> GetDefaultsAsync()
@@ -226,6 +231,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a model exercising schema defaults on deserialize. (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Defaults>> GetDefaultsWithHttpInfoAsync()
@@ -251,6 +257,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a department (mutual-recursion codegen fixture).
     /// </summary>
+
     /// <returns><![CDATA[Department]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Department> GetDepartmentAsync()
@@ -280,6 +287,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a department (mutual-recursion codegen fixture). (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Department>> GetDepartmentWithHttpInfoAsync()
@@ -305,6 +313,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns categories grouped into an array of string-keyed maps.
     /// </summary>
+
     /// <returns><![CDATA[List<Dictionary<string, Category>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<Dictionary<string, Category>>> GetGroupedCategoriesAsync()
@@ -334,6 +343,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns categories grouped into an array of string-keyed maps. (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Dictionary<string, Category>>>> GetGroupedCategoriesWithHttpInfoAsync()
@@ -359,6 +369,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status
     /// </summary>
+
     /// <returns><![CDATA[Dictionary<string, int>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Dictionary<string, int>> GetInventoryAsync()
@@ -388,6 +399,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Dictionary<string, int>>> GetInventoryWithHttpInfoAsync()
@@ -413,6 +425,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a matrix as an array of integer arrays.
     /// </summary>
+
     /// <returns><![CDATA[List<List<int>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<List<int>>> GetMatrixAsync()
@@ -442,6 +455,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a matrix as an array of integer arrays. (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<List<int>>>> GetMatrixWithHttpInfoAsync()
@@ -468,6 +482,7 @@ public class StoreApi : BaseApi
     /// Find purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
+
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Order> GetOrderByIdAsync(long orderId)
@@ -498,6 +513,7 @@ public class StoreApi : BaseApi
     /// Find purchase order by ID (with HTTP info)
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(long orderId)
@@ -529,6 +545,7 @@ public class StoreApi : BaseApi
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
     /// </summary>
     /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+
     /// <returns><![CDATA[StockItem]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<StockItem> GetStockItemAsync(GetStockItemOptions? options = null)
@@ -559,6 +576,7 @@ public class StoreApi : BaseApi
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields. (with HTTP info)
     /// </summary>
     /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<StockItem>> GetStockItemWithHttpInfoAsync(GetStockItemOptions? options = null)
@@ -596,6 +614,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a bare enum (value-type response codegen fixture).
     /// </summary>
+
     /// <returns><![CDATA[Swatch]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Swatch> GetSwatchAsync()
@@ -625,6 +644,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a bare enum (value-type response codegen fixture). (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Swatch>> GetSwatchWithHttpInfoAsync()
@@ -650,6 +670,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns swatches grouped as an array of string-keyed enum maps.
     /// </summary>
+
     /// <returns><![CDATA[List<Dictionary<string, Swatch>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<Dictionary<string, Swatch>>> GetSwatchGroupsAsync()
@@ -679,6 +700,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Dictionary<string, Swatch>>>> GetSwatchGroupsWithHttpInfoAsync()
@@ -704,6 +726,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns timestamps grouped as an array of string-keyed maps.
     /// </summary>
+
     /// <returns><![CDATA[List<Dictionary<string, DateTimeOffset>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<Dictionary<string, DateTimeOffset>>> GetTimestampGroupsAsync()
@@ -733,6 +756,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Dictionary<string, DateTimeOffset>>>> GetTimestampGroupsWithHttpInfoAsync()
@@ -758,6 +782,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a self-referential tree (recursive-type codegen fixture)
     /// </summary>
+
     /// <returns><![CDATA[TreeNode]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<TreeNode> GetTreeAsync()
@@ -787,6 +812,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
     /// </summary>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<TreeNode>> GetTreeWithHttpInfoAsync()
@@ -813,6 +839,7 @@ public class StoreApi : BaseApi
     /// Place an order for a pet
     /// </summary>
     /// <param name="order"></param>
+
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Order> PlaceOrderAsync(Order? order)
@@ -843,6 +870,7 @@ public class StoreApi : BaseApi
     /// Place an order for a pet (with HTTP info)
     /// </summary>
     /// <param name="order"></param>
+
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(Order? order)

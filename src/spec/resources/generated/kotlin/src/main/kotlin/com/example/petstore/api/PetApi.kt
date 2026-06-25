@@ -137,6 +137,7 @@ class PetApi : BaseApi {
      * Add a new pet to the store
      * @param pet Create a new pet in the store (required)
      * @param options per-operation authenticator override
+
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -176,6 +177,7 @@ class PetApi : BaseApi {
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
      * @param petId  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return List<Photo>
      * @throws ApiException if fails to make API call
      */
@@ -229,6 +231,7 @@ class PetApi : BaseApi {
      * @param petId  (required)
      * @param petTreatment  (required)
      * @param options per-operation authenticator override
+
      * @return PetTreatment
      * @throws ApiException if fails to make API call
      */
@@ -277,6 +280,7 @@ class PetApi : BaseApi {
      * Deletes a pet
      * @param petId Pet id to delete (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @throws ApiException if fails to make API call
      */
 
@@ -340,6 +344,7 @@ class PetApi : BaseApi {
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
      * @param petId  (required)
      * @param documentId  (required)
+
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -387,6 +392,7 @@ class PetApi : BaseApi {
     /**
      * Finds Pets by status
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return List<Pet>
      * @throws ApiException if fails to make API call
      * @deprecated This operation is deprecated.
@@ -426,6 +432,7 @@ class PetApi : BaseApi {
     /**
      * Get external pet info
      * @param petId  (required)
+
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -477,6 +484,7 @@ class PetApi : BaseApi {
     /**
      * Get multi-server pet info
      * @param petId  (required)
+
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -529,6 +537,7 @@ class PetApi : BaseApi {
      * Get the pet's profile photo
      * Returns the raw image bytes of the pet's current avatar.
      * @param petId  (required)
+
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -565,6 +574,7 @@ class PetApi : BaseApi {
      * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param petId  (required)
+
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -603,6 +613,7 @@ class PetApi : BaseApi {
      * @param petId ID of pet to return (required)
      * Example — Small breed ID: `1`
      * Example — Large breed ID: `42`
+
      * @return Pet
      * @throws ApiException if fails to make API call
      * @deprecated This operation is deprecated.
@@ -656,6 +667,7 @@ class PetApi : BaseApi {
      * Look up a pet by name (simple string path param + required query)
      * @param name  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -710,6 +722,7 @@ class PetApi : BaseApi {
      * Get the pet's passport
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param petId  (required)
+
      * @return PetPassport
      * @throws ApiException if fails to make API call
      */
@@ -747,6 +760,7 @@ class PetApi : BaseApi {
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
      * @param petId  (required)
      * @param photoId  (required)
+
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -796,6 +810,7 @@ class PetApi : BaseApi {
      * @param petId  (required)
      * @param tagName  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -862,6 +877,7 @@ class PetApi : BaseApi {
     /**
      * Get staging pet info
      * @param petId  (required)
+
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -915,19 +931,24 @@ class PetApi : BaseApi {
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param petId  (required)
      * @param body  (required)
+
+     * @param requestContentType one of the declared request content-types; when null the first declared type is used (defaults to the first declared content-type)
+
      * @throws ApiException if fails to make API call
      */
 
     suspend fun setPetAvatar(
         petId: Long,
         body: ByteArray,
+        requestContentType: String? = null,
     ) {
-        setPetAvatarWithHttpInfo(petId, body)
+        setPetAvatarWithHttpInfo(petId, body, requestContentType)
     }
 
     suspend fun setPetAvatarWithHttpInfo(
         petId: Long,
         body: ByteArray,
+        requestContentType: String? = null,
     ): ApiResult<Unit> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling setPetAvatar"
@@ -950,7 +971,7 @@ class PetApi : BaseApi {
             headerParams,
             body,
             arrayOf(),
-            "image/jpeg",
+            requestContentType ?: "image/jpeg",
             null,
         )
     }
@@ -960,6 +981,7 @@ class PetApi : BaseApi {
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
      * @param petId  (required)
      * @param setPetAvatarThumbnailRequest  (required)
+
      * @throws ApiException if fails to make API call
      */
 
@@ -1005,6 +1027,7 @@ class PetApi : BaseApi {
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param petId  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */
@@ -1062,6 +1085,7 @@ class PetApi : BaseApi {
      * Update an existing pet
      * @param petId ID of pet to update (required)
      * @param pet Pet object that needs to be updated (required)
+
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -1108,6 +1132,7 @@ class PetApi : BaseApi {
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param petId  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */
@@ -1157,6 +1182,9 @@ class PetApi : BaseApi {
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param petId  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
+     * @param requestContentType one of the declared request content-types; when null the first declared type is used (defaults to the first declared content-type)
+
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */
@@ -1164,13 +1192,15 @@ class PetApi : BaseApi {
     suspend fun uploadPetDocument(
         petId: Long,
         options: UploadPetDocumentOptions,
+        requestContentType: String? = null,
     ): ApiResponse =
-        uploadPetDocumentWithHttpInfo(petId, options).data
+        uploadPetDocumentWithHttpInfo(petId, options, requestContentType).data
             ?: throw ApiException("Expected a response body for uploadPetDocument but the server returned an empty body")
 
     suspend fun uploadPetDocumentWithHttpInfo(
         petId: Long,
         options: UploadPetDocumentOptions,
+        requestContentType: String? = null,
     ): ApiResult<ApiResponse> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling uploadPetDocument"
@@ -1202,7 +1232,7 @@ class PetApi : BaseApi {
             headerParams,
             formBody,
             arrayOf("application/json"),
-            "multipart/form-data",
+            requestContentType ?: "multipart/form-data",
             null,
         )
     }

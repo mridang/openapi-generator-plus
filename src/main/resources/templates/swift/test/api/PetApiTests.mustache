@@ -161,6 +161,44 @@ final class PetApiTests {
             "declared Content-Type must be preserved, got: \(mockClient.lastHeaders["Content-Type"] ?? "nil")")
     }
 
+    /* setPetAvatar (PUT /pet/{petId}/avatar) declares request content-types
+     * image/jpeg, image/png and application/json. The optional
+     * requestContentType selector must:
+     *   (1) default to the first declared type (image/jpeg) when omitted, and
+     *   (2) override the Content-Type header to the selected declared type
+     *       (image/png) when supplied, for the same raw bytes. */
+    @Test func testSetPetAvatarHonoursSelectedRequestContentType() async throws {
+        let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
+
+        /* Case (1): no selector — backward compatible, first declared type. */
+        let defaultClient = MockApiClient()
+        defaultClient.responseStatusCode = 200
+        defaultClient.responseBody = ""
+        defaultClient.responseHeaders = ["Content-Type": "image/jpeg"]
+        let defaultConfig = ConfigurationBuilder().baseURL("https://example.com").build()
+        let defaultApi = PetApi(apiClient: defaultClient, config: defaultConfig)
+
+        try? await defaultApi.setPetAvatar(petId: 1, body: imageData)
+
+        #expect(defaultClient.lastHeaders["Content-Type"] == "image/jpeg",
+            "omitting the selector must send the first declared content-type, got: \(defaultClient.lastHeaders["Content-Type"] ?? "nil")")
+
+        /* Case (2): selector set to image/png — header switches, bytes unchanged. */
+        let pngClient = MockApiClient()
+        pngClient.responseStatusCode = 200
+        pngClient.responseBody = ""
+        pngClient.responseHeaders = ["Content-Type": "image/png"]
+        let pngConfig = ConfigurationBuilder().baseURL("https://example.com").build()
+        let pngApi = PetApi(apiClient: pngClient, config: pngConfig)
+
+        try? await pngApi.setPetAvatar(petId: 1, body: imageData, requestContentType: "image/png")
+
+        #expect(pngClient.lastBody == imageData,
+            "the raw bytes must be unchanged by the selector, got: \(pngClient.lastBody.map { Array($0) } ?? [])")
+        #expect(pngClient.lastHeaders["Content-Type"] == "image/png",
+            "the selected content-type must override the header, got: \(pngClient.lastHeaders["Content-Type"] ?? "nil")")
+    }
+
     @Test func testGetPetAvatar() async throws {
         let api = petApiForIntegration()
 

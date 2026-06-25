@@ -400,6 +400,40 @@ test('setPetAvatar streams raw bytes with declared content type', function (): v
     expect($captured->headers['Content-Type'] ?? '')->toBe('image/jpeg');
 });
 
+// -- Canonical: optional request-content-type selector (H3) --
+//
+// setPetAvatar (PUT /pet/{petId}/avatar) declares MULTIPLE request content
+// types — image/jpeg, image/png, application/json. The operation gains an
+// OPTIONAL trailing `?string $contentType = null` selector so the caller can
+// reach the non-first declared types instead of always collapsing to the
+// first. Two cases must hold:
+//   (1) omitting the selector keeps the FIRST declared type (image/jpeg) on
+//       the wire — backward compatible with every existing call site;
+//   (2) passing 'image/png' with the same raw bytes sends Content-Type:
+//       image/png, NOT image/jpeg. Both image/jpeg and image/png are raw
+//       binary bodies, so the body param is unchanged; only the header moves.
+
+test('setPetAvatar honours the selected request content type', function (): void {
+    $rawBytes = "\xFF\xD8\xFF\xE0";
+    $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+    file_put_contents($tmpFile, $rawBytes);
+
+    // (1) No selector -> the first declared content-type (image/jpeg).
+    [$api, $captured] = newBodyCapturingPetApi();
+    $body = new \SplFileObject($tmpFile, 'r');
+    $api->setPetAvatar(1, $body);
+    expect($captured->headers['Content-Type'] ?? '')->toBe('image/jpeg');
+
+    // (2) Selector 'image/png' with the same raw bytes -> image/png.
+    [$api, $captured] = newBodyCapturingPetApi();
+    $body = new \SplFileObject($tmpFile, 'r');
+    $api->setPetAvatar(1, $body, 'image/png');
+    expect($captured->headers['Content-Type'] ?? '')->toBe('image/png');
+    expect($captured->body)->toBe($rawBytes);
+
+    unlink($tmpFile);
+});
+
 // -- Canonical #6: operation cookie param fails closed on CR/LF (RFC 6265) --
 //
 // deletePet carries an `api_key` cookie param (DeletePetOptions::$apiKey). A

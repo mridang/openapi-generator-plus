@@ -130,7 +130,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
     * `options` - Optional parameters (query, header, form, cookie).
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override){{#consumes.1}}, `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`){{/consumes.1}}. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -373,11 +373,35 @@ defmodule {{moduleName}}.Api.{{classname}} do
     request_body = nil
 {{/bodyParam}}
 {{/hasFormParams}}
+{{#consumes.1}}
+    # multiple-declared-consumes: this operation declares more than one request
+    # content-type ({{#consumes}}{{mediaType}}{{^-last}}, {{/-last}}{{/consumes}}). The caller MAY select among the declared
+    # types via the optional `:content_type` key in `opts`; when omitted it
+    # defaults to the FIRST declared content-type ("{{vendorExtensions.op.effectiveConsumes}}"), so existing
+    # callers keep sending the first type unchanged. An unrecognised value is
+    # rejected so a typo cannot send an undeclared Content-Type on the wire.
+    declared_content_types = [{{#consumes}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/consumes}}]
 
+    content_type =
+      case Keyword.get(opts, :content_type) do
+        nil ->
+          "{{vendorExtensions.op.effectiveConsumes}}"
+
+        selected ->
+          if selected in declared_content_types do
+            selected
+          else
+            raise ArgumentError,
+                  "Unsupported :content_type #{inspect(selected)} for {{classname}}.{{operationId}}; " <>
+                    "declared content-types are #{inspect(declared_content_types)}"
+          end
+      end
+
+{{/consumes.1}}
     {{moduleName}}.Api.BaseApi.invoke_api_for_result(
       api, :{{httpMethod}}, path, query_params, header_params, request_body,
       [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
-      "{{vendorExtensions.op.effectiveConsumes}}",
+      {{#consumes.1}}content_type{{/consumes.1}}{{^consumes.1}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes.1}},
       {{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}},
       auth
     )

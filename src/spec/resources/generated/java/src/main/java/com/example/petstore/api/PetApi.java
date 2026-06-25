@@ -1474,6 +1474,38 @@ public class PetApi extends BaseApi {
   }
 
   /**
+   * Set the pet's profile photo
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code image/jpeg}, {@code image/png}, {@code application/json}). The selected value is sent
+   * as the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type, matching the overload without a selector.
+   *
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @throws ApiException if fails to make API call
+   */
+  public void setPetAvatar(Long petId, InputStream body, @Nullable String requestContentType) {
+    setPetAvatarWithHttpInfo(petId, body, requestContentType);
+  }
+
+  /**
+   * Set the pet's profile photo
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code image/jpeg}, {@code image/png}, {@code application/json}). The selected value is sent
+   * as the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type.
+   *
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Void> setPetAvatarWithHttpInfo(
+      Long petId, InputStream body, @Nullable String requestContentType) {
+    return setPetAvatarInternal(petId, body, requestContentType);
+  }
+
+  /**
    * Set the pet's profile photo Accepts either raw image bytes (image/jpeg or image/png) or a JSON
    * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    *
@@ -1483,6 +1515,11 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
+    return setPetAvatarInternal(petId, body, null);
+  }
+
+  private ApiResult<Void> setPetAvatarInternal(
+      Long petId, InputStream body, @Nullable String requestContentType) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling setPetAvatar");
@@ -1500,8 +1537,35 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    /* This operation declares more than one request content-type. The
+     * optional {@code requestContentType} selector lets the caller pick
+     * among the declared types; when unset (null) it defaults to the first
+     * declared type, preserving the historical single-type behaviour. An
+     * unrecognised selector is rejected client-side so a typo never rides
+     * the wire as an undeclared Content-Type. */
+    String effectiveRequestContentType = "image/jpeg";
+    if (requestContentType != null) {
+      java.util.List<String> declaredContentTypes =
+          java.util.List.of("image/jpeg", "image/png", "application/json");
+      if (!declaredContentTypes.contains(requestContentType)) {
+        throw new IllegalArgumentException(
+            "Unsupported request content-type '"
+                + requestContentType
+                + "' for setPetAvatar; declared types are "
+                + declaredContentTypes);
+      }
+      effectiveRequestContentType = requestContentType;
+    }
     return invokeApiForResult(
-        "PUT", path, queryParams, headerParams, body, new String[] {}, "image/jpeg", null, null);
+        "PUT",
+        path,
+        queryParams,
+        headerParams,
+        body,
+        new String[] {},
+        effectiveRequestContentType,
+        null,
+        null);
   }
 
   /**
@@ -1748,6 +1812,41 @@ public class PetApi extends BaseApi {
   }
 
   /**
+   * Attach a vet document or health record
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code multipart/form-data}, {@code application/octet-stream}). The selected value is sent as
+   * the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type, matching the overload without a selector.
+   *
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse uploadPetDocument(
+      Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
+    return requireBody(
+        uploadPetDocumentWithHttpInfo(petId, options, requestContentType), "uploadPetDocument");
+  }
+
+  /**
+   * Attach a vet document or health record
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code multipart/form-data}, {@code application/octet-stream}). The selected value is sent as
+   * the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type.
+   *
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
+      Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
+    return uploadPetDocumentInternal(petId, options, requestContentType);
+  }
+
+  /**
    * Attach a vet document or health record Accepts either a multipart upload with document
    * classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer
    * to stream bytes directly.
@@ -1760,6 +1859,11 @@ public class PetApi extends BaseApi {
    */
   public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
       Long petId, UploadPetDocumentOptions options) {
+    return uploadPetDocumentInternal(petId, options, null);
+  }
+
+  private ApiResult<ApiResponse> uploadPetDocumentInternal(
+      Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling uploadPetDocument");
@@ -1786,6 +1890,25 @@ public class PetApi extends BaseApi {
       formBody.put("notes", options.notes());
     }
 
+    /* This operation declares more than one request content-type. The
+     * optional {@code requestContentType} selector lets the caller pick
+     * among the declared types; when unset (null) it defaults to the first
+     * declared type, preserving the historical single-type behaviour. An
+     * unrecognised selector is rejected client-side so a typo never rides
+     * the wire as an undeclared Content-Type. */
+    String effectiveRequestContentType = "multipart/form-data";
+    if (requestContentType != null) {
+      java.util.List<String> declaredContentTypes =
+          java.util.List.of("multipart/form-data", "application/octet-stream");
+      if (!declaredContentTypes.contains(requestContentType)) {
+        throw new IllegalArgumentException(
+            "Unsupported request content-type '"
+                + requestContentType
+                + "' for uploadPetDocument; declared types are "
+                + declaredContentTypes);
+      }
+      effectiveRequestContentType = requestContentType;
+    }
     return invokeApiForResult(
         "POST",
         path,
@@ -1793,7 +1916,7 @@ public class PetApi extends BaseApi {
         headerParams,
         formBody,
         new String[] {"application/json"},
-        "multipart/form-data",
+        effectiveRequestContentType,
         uploadPetDocumentTypeRef,
         null);
   }

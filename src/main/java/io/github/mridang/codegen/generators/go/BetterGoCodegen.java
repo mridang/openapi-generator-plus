@@ -940,6 +940,24 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             anyRequiredOptionsParam(op);
                     op.vendorExtensions.put(
                             "hasRequiredOptionsParam", hasRequiredOptionsParam);
+
+                    // An operation may declare more than one request Content-Type
+                    // (e.g. setPetAvatar declares image/jpeg, image/png and
+                    // application/json). The generated method historically pinned
+                    // the header to effectiveConsumes (the first declared type),
+                    // leaving the other declared types unreachable.
+                    //
+                    // When more than one type is declared we expose an OPTIONAL
+                    // request-content-type selector on the generated method (a
+                    // trailing variadic `requestContentType ...string` argument).
+                    // Mustache cannot test "consumes has more than one element", so
+                    // derive that boolean here, mirroring the hasRequiredOptionsParam
+                    // pattern above. Existing call sites omit the variadic argument
+                    // and keep sending the first declared type unchanged.
+                    final boolean hasMultipleConsumes =
+                            op.consumes != null && op.consumes.size() > 1;
+                    op.vendorExtensions.put(
+                            "hasMultipleConsumes", hasMultipleConsumes);
                 }
             }
         }

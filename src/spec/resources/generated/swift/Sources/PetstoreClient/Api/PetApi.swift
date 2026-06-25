@@ -1077,13 +1077,19 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
 
-  public func setPetAvatar(petId: Int64, body: Data) async throws {
-    let result = try await setPetAvatarWithHTTPInfo(petId: petId, body: body)
+  ///   - requestContentType: Optional request Content-Type, chosen from the declared types (image/jpeg, image/png, application/json). Defaults to the first declared type (image/jpeg) when nil or unrecognized.
+
+  public func setPetAvatar(petId: Int64, body: Data, requestContentType: String? = nil) async throws
+  {
+    let result = try await setPetAvatarWithHTTPInfo(
+      petId: petId, body: body, requestContentType: requestContentType)
     _ = result
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
-  public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data) async throws -> ApiResult<Void> {
+  public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data, requestContentType: String? = nil)
+    async throws -> ApiResult<Void>
+  {
 
     var path = "/pet/{petId}/avatar"
     path = path.replacingOccurrences(
@@ -1098,6 +1104,15 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     let requestBody: Any? = body
 
+    /* This operation declares more than one request content-type. The
+     * optional `requestContentType` selector lets the caller pick one of
+     * the declared types; an unrecognized or nil value falls back to the
+     * first declared type, preserving the original behaviour. */
+    let declaredRequestContentTypes = ["image/jpeg", "image/png", "application/json"]
+    let effectiveRequestContentType =
+      requestContentType.flatMap { declaredRequestContentTypes.contains($0) ? $0 : nil }
+      ?? "image/jpeg"
+
     let params = InvokeAPIParams(
       method: "PUT",
       path: path,
@@ -1105,7 +1120,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       headerParams: headerParams,
       body: requestBody,
       accepts: [],
-      contentType: "image/jpeg",
+      contentType: effectiveRequestContentType,
       returnType: "",
       auth: nil
     )
@@ -1346,10 +1361,13 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
 
-  public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions) async throws
-    -> ApiResponse
-  {
-    let result = try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options)
+  ///   - requestContentType: Optional request Content-Type, chosen from the declared types (multipart/form-data, application/octet-stream). Defaults to the first declared type (multipart/form-data) when nil or unrecognized.
+
+  public func uploadPetDocument(
+    petId: Int64, options: UploadPetDocumentOptions, requestContentType: String? = nil
+  ) async throws -> ApiResponse {
+    let result = try await uploadPetDocumentWithHTTPInfo(
+      petId: petId, options: options, requestContentType: requestContentType)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -1362,9 +1380,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the uploadPetDocument operation and returns the full API result.
-  public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions)
-    async throws -> ApiResult<ApiResponse>
-  {
+  public func uploadPetDocumentWithHTTPInfo(
+    petId: Int64, options: UploadPetDocumentOptions, requestContentType: String? = nil
+  ) async throws -> ApiResult<ApiResponse> {
 
     var path = "/pet/{petId}/documents"
     path = path.replacingOccurrences(
@@ -1392,6 +1410,15 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
     let requestBody: Any? = formBody
 
+    /* This operation declares more than one request content-type. The
+     * optional `requestContentType` selector lets the caller pick one of
+     * the declared types; an unrecognized or nil value falls back to the
+     * first declared type, preserving the original behaviour. */
+    let declaredRequestContentTypes = ["multipart/form-data", "application/octet-stream"]
+    let effectiveRequestContentType =
+      requestContentType.flatMap { declaredRequestContentTypes.contains($0) ? $0 : nil }
+      ?? "multipart/form-data"
+
     let params = InvokeAPIParams(
       method: "POST",
       path: path,
@@ -1399,7 +1426,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       headerParams: headerParams,
       body: requestBody,
       accepts: ["application/json"],
-      contentType: "multipart/form-data",
+      contentType: effectiveRequestContentType,
       returnType: "ApiResponse",
       auth: nil
     )

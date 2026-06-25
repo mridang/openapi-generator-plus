@@ -237,6 +237,36 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestSetPetAvatarHonoursSelectedRequestContentType()
+    {
+        // setPetAvatar declares THREE request content-types — image/jpeg,
+        // image/png and application/json. The operation previously collapsed
+        // to the first declared type (image/jpeg) with no way to reach the
+        // others. The optional requestContentType selector lets the caller
+        // pick among the declared types; the chosen value becomes the request
+        // Content-Type header (set by HeaderSelector before SendRequestAsync,
+        // so the captured headers carry it). image/jpeg and image/png share
+        // the same raw-binary body, so the same bytes are sent for both — only
+        // the header changes. Canonical cross-SDK regression.
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+
+        // (1) No selector → backward-compatible: the FIRST declared type.
+        var defaultClient = new HeaderCapturingApiClient();
+        var defaultApi = new PetApi(defaultClient, config);
+        await defaultApi.SetPetAvatarAsync(
+            1L, new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }));
+        Assert.Equal("image/jpeg", defaultClient.CapturedHeaders["Content-Type"]);
+
+        // (2) Selector = image/png with the same raw bytes → Content-Type
+        // image/png, NOT image/jpeg.
+        var pngClient = new HeaderCapturingApiClient();
+        var pngApi = new PetApi(pngClient, config);
+        await pngApi.SetPetAvatarAsync(
+            1L, new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }), "image/png");
+        Assert.Equal("image/png", pngClient.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
     public async Task TestGetPetAvatar()
     {
         var result = await _api.GetPetAvatarAsync(1L);

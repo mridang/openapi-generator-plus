@@ -794,7 +794,64 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             fields.add(wrapperField("server", serverClassName, true));
         }
 
+        // Optional request content-type selector. An operation that declares
+        // MULTIPLE request content-types (e.g. setPetAvatar: image/jpeg,
+        // image/png, application/json) otherwise collapses to the first
+        // declared type (effectiveConsumes) with no way to reach the others.
+        // Expose an OPTIONAL trailing `contentType` parameter, typed as a
+        // union literal of the declared content-types, so the caller can pick
+        // among them. When omitted it defaults to the first declared type, so
+        // every existing positional call site keeps compiling unchanged.
+        // The parameter only changes the outgoing Content-Type header; for
+        // content-types whose body type differs from the operation's body
+        // param (e.g. setPetAvatar's application/json envelope) the caller is
+        // responsible for supplying a body the server accepts.
+        final List<String> declaredConsumes = declaredConsumes(op);
+        if (declaredConsumes.size() > 1) {
+            final StringBuilder union = new StringBuilder();
+            final List<Map<String, Object>> consumeOptions = new ArrayList<>();
+            for (int i = 0; i < declaredConsumes.size(); i++) {
+                final String mediaType = declaredConsumes.get(i);
+                if (i > 0) {
+                    union.append(" | ");
+                }
+                union.append('\'').append(mediaType).append('\'');
+                final Map<String, Object> co = new HashMap<>();
+                co.put("mediaType", mediaType);
+                consumeOptions.add(co);
+            }
+            fields.add(wrapperField("contentType", union.toString(), true));
+            d.put("hasContentTypeSelector", true);
+            d.put("contentTypeOptions", consumeOptions);
+        } else {
+            d.put("hasContentTypeSelector", false);
+        }
+
         d.put("requestWrapperFields", fields);
+    }
+
+    /**
+     * Returns the operation's declared request content-types in declaration
+     * order, de-duplicated. Reads {@code op.consumes} (a list of maps keyed by
+     * {@code mediaType}), which mirrors the spec's {@code requestBody.content}
+     * media-type keys. Returns an empty list when the operation declares no
+     * request body content-types.
+     */
+    private static List<String> declaredConsumes(CodegenOperation op) {
+        final List<String> out = new ArrayList<>();
+        if (op.consumes == null) {
+            return out;
+        }
+        for (final Map<String, String> consume : op.consumes) {
+            if (consume == null) {
+                continue;
+            }
+            final String mediaType = consume.get("mediaType");
+            if (mediaType != null && !mediaType.isEmpty() && !out.contains(mediaType)) {
+                out.add(mediaType);
+            }
+        }
+        return out;
     }
 
     private static String nullableType(String dataType, boolean isNullable) {

@@ -83,8 +83,8 @@ module PetstoreClient
       def get_pet_tag_with_http_info: (Integer pet_id, String tag_name, ?Options::GetPetTagOptions? options) -> ::PetstoreClient::ApiResult[Models::Pet]
       def get_staging_pet_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> Models::Pet
       def get_staging_pet_info_with_http_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> ::PetstoreClient::ApiResult[Models::Pet]
-      def set_pet_avatar: (Integer pet_id, File body) -> void
-      def set_pet_avatar_with_http_info: (Integer pet_id, File body) -> ::PetstoreClient::ApiResult[nil]
+      def set_pet_avatar: (Integer pet_id, File body, ?content_type: String?) -> void
+      def set_pet_avatar_with_http_info: (Integer pet_id, File body, ?content_type: String?) -> ::PetstoreClient::ApiResult[nil]
       def set_pet_avatar_thumbnail: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> void
       def set_pet_avatar_thumbnail_with_http_info: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> ::PetstoreClient::ApiResult[nil]
       def set_pet_preferences: (Integer pet_id, Options::SetPetPreferencesOptions options) -> Models::ApiResponse
@@ -93,8 +93,8 @@ module PetstoreClient
       def update_pet_with_http_info: (Integer pet_id, Models::Pet pet) -> ::PetstoreClient::ApiResult[Models::Pet]
       def upload_pet_certificate: (Integer pet_id, Options::UploadPetCertificateOptions options) -> Models::ApiResponse
       def upload_pet_certificate_with_http_info: (Integer pet_id, Options::UploadPetCertificateOptions options) -> ::PetstoreClient::ApiResult[Models::ApiResponse]
-      def upload_pet_document: (Integer pet_id, Options::UploadPetDocumentOptions options) -> Models::ApiResponse
-      def upload_pet_document_with_http_info: (Integer pet_id, Options::UploadPetDocumentOptions options) -> ::PetstoreClient::ApiResult[Models::ApiResponse]
+      def upload_pet_document: (Integer pet_id, Options::UploadPetDocumentOptions options, ?content_type: String?) -> Models::ApiResponse
+      def upload_pet_document_with_http_info: (Integer pet_id, Options::UploadPetDocumentOptions options, ?content_type: String?) -> ::PetstoreClient::ApiResult[Models::ApiResponse]
     end
   end
 end

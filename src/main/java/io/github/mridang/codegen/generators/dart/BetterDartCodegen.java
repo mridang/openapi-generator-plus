@@ -734,11 +734,50 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return true;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
+    @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         objs = super.postProcessOperationsWithModels(objs, allModels);
+
+        // Optional request-content-type selector (decision H3). An operation
+        // that declares MORE THAN ONE request Content-Type (e.g. setPetAvatar:
+        // image/jpeg, image/png, application/json) otherwise collapses to the
+        // first declared type (`effectiveConsumes`), leaving the others
+        // unreachable. We surface a Dart-scoped `hasMultipleConsumes` flag on
+        // the existing `op` decorator map so the api template can emit an
+        // OPTIONAL trailing `requestContentType` parameter for exactly those
+        // operations. When the caller leaves it null the call defaults to the
+        // first declared type (`effectiveConsumes`), so existing call sites
+        // keep compiling and sending the first type unchanged. This is a
+        // language-scoped, non-x-* decorator flag (it lives in the same `op`
+        // namespace as `effectiveConsumes`) and touches no shared codegen.
+        final Map<String, Object> operations =
+                (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    if (op.vendorExtensions == null) {
+                        op.vendorExtensions = new HashMap<>();
+                    }
+                    // The `op` decorator map (populated by the shared
+                    // populateOperationDecorators) already holds
+                    // effectiveConsumes; extend it in place so the api template
+                    // can read both keys from the same namespace.
+                    final Object existing = op.vendorExtensions.get("op");
+                    final Map<String, Object> opDeco =
+                            existing instanceof Map
+                                    ? (Map<String, Object>) existing
+                                    : new HashMap<>();
+                    final boolean hasMultipleConsumes =
+                            op.consumes != null && op.consumes.size() > 1;
+                    opDeco.put("hasMultipleConsumes", hasMultipleConsumes);
+                    op.vendorExtensions.put("op", opDeco);
+                }
+            }
+        }
 
         final List<Map<String, String>> imports =
                 (List<Map<String, String>>) objs.get("imports");

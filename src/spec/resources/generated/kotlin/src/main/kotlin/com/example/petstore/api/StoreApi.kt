@@ -42,6 +42,7 @@ class StoreApi : BaseApi {
     /**
      * Delete purchase order by ID
      * @param orderId ID of the order to delete (required)
+
      * @throws ApiException if fails to make API call
      */
 
@@ -77,6 +78,7 @@ class StoreApi : BaseApi {
      * Echoes a swatch supplied via path, query and header parameters.
      * @param pathSwatch  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return Category
      * @throws ApiException if fails to make API call
      */
@@ -133,6 +135,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a model exercising schema defaults on deserialize.
+
      * @return Defaults
      * @throws ApiException if fails to make API call
      */
@@ -159,6 +162,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a department (mutual-recursion codegen fixture).
+
      * @return Department
      * @throws ApiException if fails to make API call
      */
@@ -185,6 +189,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns categories grouped into an array of string-keyed maps.
+
      * @return List<Map<String, Category>>
      * @throws ApiException if fails to make API call
      */
@@ -211,6 +216,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns pet inventories by status
+
      * @return Map<String, Int>
      * @throws ApiException if fails to make API call
      */
@@ -237,6 +243,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a matrix as an array of integer arrays.
+
      * @return List<List<Int>>
      * @throws ApiException if fails to make API call
      */
@@ -264,6 +271,7 @@ class StoreApi : BaseApi {
     /**
      * Find purchase order by ID
      * @param orderId ID of order to return (required)
+
      * @return Order
      * @throws ApiException if fails to make API call
      */
@@ -299,6 +307,7 @@ class StoreApi : BaseApi {
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
      * @param options options for query, header, form, cookie parameters, and per-operation auth
+
      * @return StockItem
      * @throws ApiException if fails to make API call
      */
@@ -328,6 +337,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a bare enum (value-type response codegen fixture).
+
      * @return Swatch
      * @throws ApiException if fails to make API call
      */
@@ -354,6 +364,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns swatches grouped as an array of string-keyed enum maps.
+
      * @return List<Map<String, Swatch>>
      * @throws ApiException if fails to make API call
      */
@@ -380,6 +391,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns timestamps grouped as an array of string-keyed maps.
+
      * @return List<Map<String, OffsetDateTime>>
      * @throws ApiException if fails to make API call
      */
@@ -406,6 +418,7 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a self-referential tree (recursive-type codegen fixture)
+
      * @return TreeNode
      * @throws ApiException if fails to make API call
      */
@@ -433,6 +446,7 @@ class StoreApi : BaseApi {
     /**
      * Place an order for a pet
      * @param order  (optional)
+
      * @return Order
      * @throws ApiException if fails to make API call
      */

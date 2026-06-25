@@ -199,6 +199,48 @@ void main() {
       }
     });
 
+    /* optional-request-content-type-selector (decision H3): setPetAvatar
+     * declares THREE request Content-Types — image/jpeg, image/png and
+     * application/json. The operation otherwise collapses to the first
+     * (image/jpeg), leaving the others unreachable. The generated method now
+     * carries an OPTIONAL trailing `requestContentType` selector. We capture
+     * the outgoing Content-Type against a local mock and assert that:
+     *   (1) omitting the selector still sends the FIRST declared type
+     *       (image/jpeg) — backward compatible; and
+     *   (2) passing 'image/png' with the same raw bytes sends Content-Type
+     *       image/png, NOT image/jpeg. */
+    test('setPetAvatar honours the selected request content type', () async {
+      final captured = <String?>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        captured.add(request.headers.contentType?.toString());
+        await request.drain<void>();
+        request.response
+          ..statusCode = 204
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+
+        // (1) No selector — defaults to the first declared type (image/jpeg).
+        await api.setPetAvatar(1, payload);
+        // (2) Selector set to image/png — overrides the Content-Type header.
+        await api.setPetAvatar(1, payload, 'image/png');
+
+        expect(captured.length, equals(2));
+        expect(captured[0], equals('image/jpeg'));
+        expect(captured[1], equals('image/png'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('getPetAvatar', () async {
       final api = _newPetApiForIntegration();
 

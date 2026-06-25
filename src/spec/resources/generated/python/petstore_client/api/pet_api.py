@@ -1439,12 +1439,14 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         body: bytes,
+        request_content_type: Optional[str] = None,
     ) -> None:
         """Set the pet's profile photo
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
         :param pet_id:  (required)
         :param body:  (required)
 
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (image/jpeg, image/png, application/json); defaults to the first declared type when omitted.
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
@@ -1453,7 +1455,9 @@ class PetApi(BaseApi):
         if body is None:
             raise ValueError("Missing the required parameter 'body'")
 
-        result = await self.set_pet_avatar_with_http_info(pet_id, body)
+        result = await self.set_pet_avatar_with_http_info(
+            pet_id, body, request_content_type=request_content_type
+        )
 
         return result.data
 
@@ -1461,12 +1465,14 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         body: bytes,
+        request_content_type: Optional[str] = None,
     ) -> "ApiResult[None]":
         """Set the pet's profile photo (with HTTP info)
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
         :param pet_id:  (required)
         :param body:  (required)
 
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (image/jpeg, image/png, application/json); defaults to the first declared type when omitted.
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1488,6 +1494,13 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = body
+        # This operation declares more than one request content type. The
+        # optional request_content_type selector overrides the Content-Type
+        # header; when omitted it defaults to the first declared type so the
+        # historical behaviour (and existing call sites) are unchanged.
+        content_type = (
+            request_content_type if request_content_type is not None else "image/jpeg"
+        )
 
         return await self._invoke_api_for_result(
             "PUT",
@@ -1496,7 +1509,7 @@ class PetApi(BaseApi):
             header_params,
             body,
             [],
-            "image/jpeg",
+            content_type,
             None,
             None,
         )
@@ -1821,6 +1834,7 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: UploadPetDocumentOptions,
+        request_content_type: Optional[str] = None,
     ) -> ApiResponse:
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1828,6 +1842,7 @@ class PetApi(BaseApi):
 
         :param options: options for query, header, form, and cookie parameters
 
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
@@ -1837,7 +1852,9 @@ class PetApi(BaseApi):
         if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
-        result = await self.upload_pet_document_with_http_info(pet_id, options)
+        result = await self.upload_pet_document_with_http_info(
+            pet_id, options, request_content_type=request_content_type
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1856,6 +1873,7 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: UploadPetDocumentOptions,
+        request_content_type: Optional[str] = None,
     ) -> "ApiResult[ApiResponse]":
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1863,6 +1881,7 @@ class PetApi(BaseApi):
 
         :param options: options for query, header, form, and cookie parameters
 
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1890,6 +1909,15 @@ class PetApi(BaseApi):
             body["documentType"] = options.document_type
         if options is not None and options.notes is not None:
             body["notes"] = options.notes
+        # This operation declares more than one request content type. The
+        # optional request_content_type selector overrides the Content-Type
+        # header; when omitted it defaults to the first declared type so the
+        # historical behaviour (and existing call sites) are unchanged.
+        content_type = (
+            request_content_type
+            if request_content_type is not None
+            else "multipart/form-data"
+        )
 
         return await self._invoke_api_for_result(
             "POST",
@@ -1898,7 +1926,7 @@ class PetApi(BaseApi):
             header_params,
             body,
             ["application/json"],
-            "multipart/form-data",
+            content_type,
             "ApiResponse",
             None,
         )

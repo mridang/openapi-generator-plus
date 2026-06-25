@@ -663,4 +663,38 @@ class PetApiTest {
     assertNotNull(capturing.capturedHeaders);
     assertThat(capturing.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
   }
+
+  @Test
+  void setPetAvatarHonoursTheSelectedRequestContentType() throws Exception {
+    // setPetAvatar declares three request content-types
+    // (image/jpeg, image/png, application/json). The optional
+    // content-type selector must let the caller pick among them, with the
+    // chosen value sent as the Content-Type header. Omitting the selector
+    // must default to the FIRST declared type (image/jpeg) so existing
+    // call sites keep behaving exactly as before.
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+
+    // The same raw bytes are used in both cases; only the selector differs.
+    byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
+    // (1) No selector -> first declared content-type (image/jpeg).
+    CapturingApiClient defaultCapture = new CapturingApiClient();
+    PetApi defaultApi = new PetApi(defaultCapture, config);
+    defaultApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+    assertNotNull(defaultCapture.capturedHeaders);
+    assertThat(defaultCapture.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
+
+    // (2) Selector set to image/png -> Content-Type is image/png, not jpeg.
+    CapturingApiClient pngCapture = new CapturingApiClient();
+    PetApi pngApi = new PetApi(pngCapture, config);
+    pngApi.setPetAvatar(1L, new ByteArrayInputStream(payload), "image/png");
+    assertNotNull(pngCapture.capturedHeaders);
+    assertThat(pngCapture.capturedHeaders).containsEntry("Content-Type", "image/png");
+
+    // The raw bytes are unchanged regardless of the selected content-type.
+    assertThat(pngCapture.capturedBody).isInstanceOf(InputStream.class);
+    byte[] wireBytes =
+        ((InputStream) java.util.Objects.requireNonNull(pngCapture.capturedBody)).readAllBytes();
+    assertThat(wireBytes).isEqualTo(payload);
+  }
 }

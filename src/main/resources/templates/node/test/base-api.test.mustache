@@ -438,6 +438,45 @@ describe('BaseApi body serialization', () => {
     );
     expect(client.capturedHeaders['Content-Type']).not.toBe('application/json');
   });
+
+  // Optional request-content-type selector. setPetAvatar declares THREE
+  // request content-types (image/jpeg, image/png, application/json). Without a
+  // selector the operation collapses to the first declared type and the others
+  // are unreachable. The new OPTIONAL trailing `contentType` parameter lets the
+  // caller pick among the declared types; omitting it keeps the first declared
+  // type (image/jpeg) for backward compatibility. image/jpeg and image/png
+  // share the same raw-binary body, so the same payload is reused for both.
+  test('setPetAvatar honours the selected request content type', async () => {
+    const payload = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]);
+
+    // (1) No selector -> first declared content-type (image/jpeg), unchanged.
+    const defaultClient = new CapturingApiClient();
+    const defaultApi = new PetApi(
+      defaultClient,
+      new Configuration({ baseUrl: 'http://localhost' }),
+    );
+    try {
+      await defaultApi.setPetAvatar(1, payload);
+    } catch {
+      // setPetAvatar returns void; the capturing client returns '{}' so nothing
+      // should throw, but stay capture-only regardless.
+    }
+    expect(defaultClient.capturedHeaders['Content-Type']).toBe('image/jpeg');
+
+    // (2) Selector set to image/png with the same bytes -> image/png header.
+    const pngClient = new CapturingApiClient();
+    const pngApi = new PetApi(
+      pngClient,
+      new Configuration({ baseUrl: 'http://localhost' }),
+    );
+    try {
+      await pngApi.setPetAvatar(1, payload, 'image/png');
+    } catch {
+      // capture-only, as above.
+    }
+    expect(pngClient.capturedHeaders['Content-Type']).toBe('image/png');
+    expect(pngClient.capturedHeaders['Content-Type']).not.toBe('image/jpeg');
+  });
 });
 
 describe('BaseApi content-type deserialization guard', () => {

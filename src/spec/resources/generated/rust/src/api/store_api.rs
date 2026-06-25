@@ -56,6 +56,27 @@ impl StoreApi {
         &self,
         order_id: i64,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public delete_order_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the delete_order_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.delete_order_invoke(order_id, "application/json").await
+    }
+
+    /// Shared implementation for the delete_order operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn delete_order_invoke(
+        &self,
+        order_id: i64,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -89,7 +110,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec![],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "",
             auth: None,
         };
@@ -128,6 +149,29 @@ impl StoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
+    ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_by_swatch_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_by_swatch_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_by_swatch_invoke(path_swatch, options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_by_swatch operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_by_swatch_invoke(
+        &self,
+        path_swatch: Swatch,
+        options: Option<&GetBySwatchOptions>,
+
+        request_content_type: &str,
     ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/by-swatch/{pathSwatch}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
@@ -203,7 +247,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Category",
             auth: None,
         };
@@ -235,6 +279,26 @@ impl StoreApi {
     pub async fn get_defaults_with_http_info(
         &self,
     ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_defaults_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_defaults_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_defaults_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_defaults operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_defaults_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/defaults".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -252,7 +316,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Defaults",
             auth: None,
         };
@@ -286,6 +350,26 @@ impl StoreApi {
     pub async fn get_department_with_http_info(
         &self,
     ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_department_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_department_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_department_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_department operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_department_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/department".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -303,7 +387,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Department",
             auth: None,
         };
@@ -343,6 +427,29 @@ impl StoreApi {
         ApiResult<Vec<std::collections::HashMap<String, Category>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_grouped_categories_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_grouped_categories_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_grouped_categories_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_grouped_categories operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_grouped_categories_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, Category>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/grouped-categories".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -360,7 +467,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, Category>>",
             auth: None,
         };
@@ -400,6 +507,29 @@ impl StoreApi {
         ApiResult<std::collections::HashMap<String, i32>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_inventory_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_inventory_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_inventory_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_inventory operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_inventory_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<
+        ApiResult<std::collections::HashMap<String, i32>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/inventory".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -417,7 +547,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "std::collections::HashMap<String, i32>",
             auth: None,
         };
@@ -453,6 +583,26 @@ impl StoreApi {
     pub async fn get_matrix_with_http_info(
         &self,
     ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_matrix_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_matrix_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_matrix_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_matrix operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_matrix_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/matrix".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -470,7 +620,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Vec<Vec<i32>>",
             auth: None,
         };
@@ -509,6 +659,28 @@ impl StoreApi {
         &self,
         order_id: i64,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_order_by_id_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_order_by_id_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_order_by_id_invoke(order_id, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_order_by_id operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_order_by_id_invoke(
+        &self,
+        order_id: i64,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -542,7 +714,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Order",
             auth: None,
         };
@@ -578,6 +750,28 @@ impl StoreApi {
     pub async fn get_stock_item_with_http_info(
         &self,
         options: Option<&GetStockItemOptions>,
+    ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_stock_item_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_stock_item_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_stock_item_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_stock_item operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_stock_item_invoke(
+        &self,
+        options: Option<&GetStockItemOptions>,
+
+        request_content_type: &str,
     ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/stock-item".to_string();
 
@@ -621,7 +815,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "StockItem",
             auth: None,
         };
@@ -653,6 +847,26 @@ impl StoreApi {
     pub async fn get_swatch_with_http_info(
         &self,
     ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_swatch_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_swatch_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_swatch_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_swatch operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_swatch_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/swatch".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -670,7 +884,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Swatch",
             auth: None,
         };
@@ -710,6 +924,29 @@ impl StoreApi {
         ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_swatch_groups_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_swatch_groups_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_swatch_groups_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_swatch_groups operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_swatch_groups_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/swatch-groups".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -727,7 +964,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, Swatch>>",
             auth: None,
         };
@@ -769,6 +1006,29 @@ impl StoreApi {
         ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_timestamp_groups_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_timestamp_groups_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_timestamp_groups_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_timestamp_groups operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_timestamp_groups_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/timestamp-groups".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -786,7 +1046,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>",
             auth: None,
         };
@@ -818,6 +1078,26 @@ impl StoreApi {
     pub async fn get_tree_with_http_info(
         &self,
     ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public get_tree_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the get_tree_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.get_tree_invoke("application/json").await
+    }
+
+    /// Shared implementation for the get_tree operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_tree_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/tree".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -835,7 +1115,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "TreeNode",
             auth: None,
         };
@@ -871,6 +1151,27 @@ impl StoreApi {
         &self,
         order: Option<Order>,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        // `application/json` as request content-types.
+        // The public place_order_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the place_order_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.place_order_invoke(order, "application/json").await
+    }
+
+    /// Shared implementation for the place_order operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn place_order_invoke(
+        &self,
+        order: Option<Order>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/order".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -888,7 +1189,7 @@ impl StoreApi {
             body: request_body,
             multipart,
             accepts: vec!["application/json"],
-            content_type: "application/json",
+            content_type: request_content_type,
             return_type: "Order",
             auth: None,
         };

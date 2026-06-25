@@ -371,6 +371,67 @@ func TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType(t *testing.T)
 	}
 }
 
+// TestPetApi_SetPetAvatarHonoursSelectedRequestContentType is the canonical
+// optional-content-type-selector regression. setPetAvatar declares the request
+// content-types image/jpeg, image/png and application/json. The generated method
+// takes an OPTIONAL trailing requestContentType selector:
+//
+//	(1) Calling SetPetAvatar WITHOUT a selector sends the FIRST declared
+//	    content-type (image/jpeg) — backward compatible with prior call sites.
+//	(2) Calling SetPetAvatar with the selector set to "image/png" and the same
+//	    raw bytes sends Content-Type: image/png (NOT image/jpeg).
+func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
+	t.Parallel()
+	// The same raw bytes are sent in both cases; only the header changes.
+	payload := []byte{0xFF, 0xD8, 0xFF, 0xE0}
+
+	var capturedContentType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedContentType = r.Header.Get("Content-Type")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	// newTempFile resets the *os.File to the start so its contents stream as the
+	// raw request body; a fresh file is used per call to avoid a consumed reader.
+	makeFile := func() *os.File {
+		f, err := os.CreateTemp("", "pet-avatar-*")
+		if err != nil {
+			t.Fatalf("CreateTemp failed: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = f.Close()
+			_ = os.Remove(f.Name())
+		})
+		if _, err := f.Write(payload); err != nil {
+			t.Fatalf("write temp failed: %v", err)
+		}
+		if _, err := f.Seek(0, 0); err != nil {
+			t.Fatalf("seek temp failed: %v", err)
+		}
+		return f
+	}
+
+	// (1) No selector -> first declared content-type (image/jpeg).
+	if err := api.SetPetAvatar(int64(1), makeFile()); err != nil {
+		t.Fatalf("SetPetAvatar (default content-type) failed: %v", err)
+	}
+	if capturedContentType != "image/jpeg" {
+		t.Errorf("expected default Content-Type image/jpeg, got %q", capturedContentType)
+	}
+
+	// (2) Selector "image/png" -> Content-Type: image/png (NOT image/jpeg).
+	capturedContentType = ""
+	if err := api.SetPetAvatar(int64(1), makeFile(), "image/png"); err != nil {
+		t.Fatalf("SetPetAvatar (image/png selector) failed: %v", err)
+	}
+	if capturedContentType != "image/png" {
+		t.Errorf("expected selected Content-Type image/png, got %q", capturedContentType)
+	}
+}
+
 func TestPetApi_GetPetAvatar(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)

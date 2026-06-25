@@ -100,6 +100,9 @@ module {{moduleName}}
 {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
       # @param options [{{{dataType}}}] options for query, header, form, and cookie parameters
 {{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+      # @param content_type [String, nil] selects the request Content-Type among the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to '{{vendorExtensions.op.effectiveConsumes}}' when nil
+{{/vendorExtensions.hasMultipleConsumes}}
       # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
       # @raise [ApiError] if fails to make API call
 {{#isDeprecated}}
@@ -108,7 +111,7 @@ module {{moduleName}}
 {{#externalDocs}}
       # @see {{url}} {{{description}}}
 {{/externalDocs}}
-      def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+      def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#pathParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -199,7 +202,7 @@ module {{moduleName}}
 {{/required}}
 {{/cookieParams}}
 {{#returnType}}
-        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}})
+        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}})
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -216,13 +219,13 @@ module {{moduleName}}
         result.data
 {{/returnType}}
 {{^returnType}}
-        {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
+        {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
 {{/returnType}}
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#pathParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -399,11 +402,28 @@ module {{moduleName}}
         request_body = nil
 {{/bodyParam}}
 {{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        # This operation declares multiple request content-types. The optional
+        # `content_type:` selector lets the caller choose among the declared
+        # types; when unset (or set to a type the operation does not declare) it
+        # falls back to the first declared type, preserving the historical
+        # behaviour of always sending '{{vendorExtensions.op.effectiveConsumes}}'.
+        # NOTE: this only changes the Content-Type header — the caller must still
+        # supply a body the selected content-type accepts.
+        declared_consumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}]
+        resolved_content_type = declared_consumes.include?(content_type) ? content_type : declared_consumes.first
 
         invoke_api_for_result(
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+          resolved_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+{{^vendorExtensions.hasMultipleConsumes}}
+        invoke_api_for_result(
+          :{{httpMethod}}, path, query_params, header_params, request_body,
+          [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
           '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.hasMultipleConsumes}}
           {{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
           {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
         )

@@ -111,8 +111,8 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 {{#allParams}}{{#vendorExtensions.pluralExamples}}
 // Example for `{{paramName}}` — {{summary}}: {{value}}
 {{/vendorExtensions.pluralExamples}}{{/allParams}}
-func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
-	result, err := a.{{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}})
+func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
+	result, err := a.{{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType...{{/vendorExtensions.hasMultipleConsumes}})
 	if err != nil {
 		return {{#returnType}}nil, {{/returnType}}err
 	}
@@ -133,7 +133,7 @@ func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{
 }
 
 // {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
-func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
+func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
 {{#hasAuthMethods}}
 	/* Per-operation auth is sourced from the Options object's Auth field. A nil
 	 * options or a nil Auth falls back to the client's configured credentials. */
@@ -361,6 +361,30 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	var requestBody any
 {{/bodyParam}}
 {{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+	/* This operation declares more than one request Content-Type. The optional
+	 * trailing requestContentType selector lets the caller choose among the
+	 * declared types; when omitted (or set to a type the operation does not
+	 * declare) it falls back to the first declared type, preserving the
+	 * historical behaviour of always sending "{{vendorExtensions.op.effectiveConsumes}}".
+	 * NOTE: this only changes the Content-Type header — the caller must still
+	 * supply a body the selected content-type accepts. The declared types are,
+	 * in order:
+{{#consumes}}
+	 *   - {{{mediaType}}}
+{{/consumes}}
+	 */
+	declaredConsumes := []string{ {{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}} }
+	requestContentTypeValue := declaredConsumes[0]
+	if len(requestContentType) > 0 {
+		for _, declared := range declaredConsumes {
+			if declared == requestContentType[0] {
+				requestContentTypeValue = requestContentType[0]
+				break
+			}
+		}
+	}
+{{/vendorExtensions.hasMultipleConsumes}}
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "{{httpMethod}}",
@@ -369,7 +393,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		headerParams: headerParams,
 		body:         requestBody,
 		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
-		contentType:  "{{vendorExtensions.op.effectiveConsumes}}",
+		contentType:  {{#vendorExtensions.hasMultipleConsumes}}requestContentTypeValue{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
 		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
 		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}},
 	})

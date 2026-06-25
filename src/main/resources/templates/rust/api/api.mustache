@@ -164,6 +164,74 @@ impl {{classname}} {
 {{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        // {{#consumes}}`{{{mediaType}}}`{{^-last}}, {{/-last}}{{/consumes}} as request content-types.
+        // The public {{operationId}}_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // {{vendorExtensions.op.effectiveConsumes}} — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the {{operationId}}_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.{{operationId}}_invoke(
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}            {{paramName}},
+{{/isPath}}{{#isBody}}            {{paramName}},
+{{/isBody}}{{#isOptions}}            options,
+{{/isOptions}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+            "{{vendorExtensions.op.effectiveConsumes}}",
+        )
+        .await
+    }
+{{#consumes.1}}
+
+    /// Performs the {{operationId}} operation with an explicit request
+    /// Content-Type, returning the full API result.
+    ///
+    /// This operation declares more than one request content-type
+    /// ({{#consumes}}`{{{mediaType}}}`{{^-last}}, {{/-last}}{{/consumes}}). The
+    /// `request_content_type` argument selects which one is sent on the wire;
+    /// pass one of the declared values. The selector only sets the Content-Type
+    /// header — when the chosen content-type expects a different body shape than
+    /// the one this method's body parameter carries, the caller is responsible
+    /// for supplying a body the server accepts for that type.
+    pub async fn {{operationId}}_with_content_type(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+        request_content_type: &str,
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+        self.{{operationId}}_invoke(
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}            {{paramName}},
+{{/isPath}}{{#isBody}}            {{paramName}},
+{{/isBody}}{{#isOptions}}            options,
+{{/isOptions}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+            request_content_type,
+        )
+        .await
+    }
+{{/consumes.1}}
+
+    /// Shared implementation for the {{operationId}} operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn {{operationId}}_invoke(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+        request_content_type: &str,
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
 {{#hasAuthMethods}}
         // Per-operation auth is folded into the Options struct: source the
         // authenticator from `options.auth` when present, otherwise pass None so
@@ -679,7 +747,7 @@ impl {{classname}} {
             body: request_body,
             multipart,
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
-            content_type: "{{vendorExtensions.op.effectiveConsumes}}",
+            content_type: request_content_type,
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
             {{#hasAuthMethods}}auth,{{/hasAuthMethods}}{{^hasAuthMethods}}auth: None,{{/hasAuthMethods}}
         };
