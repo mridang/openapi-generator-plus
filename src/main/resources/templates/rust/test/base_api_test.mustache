@@ -1353,3 +1353,118 @@ async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
         "a configured apiKey authenticator must apply its api-key header to the secured request"
     );
 }
+
+// -- SECURITY-NONE: client credential suppressed for `security: []` ops --
+//
+// The fix this guards: an operation declared `security: []` is explicitly
+// unauthenticated. The generated method passes the no-auth SENTINEL (not None)
+// so BaseApi suppresses auth ENTIRELY — it must NOT fall back to the
+// client-level authenticator and leak its credential. `get_pet_by_id`
+// (GET /pet/{petId}) is a `security: []` operation; with a client-level
+// authenticator configured, the outbound request must carry no Authorization
+// header, no api-key header/query-param, and no auth cookie.
+//
+// A reflect-style endpoint (testEcho*) would otherwise echo the leaked
+// credential straight back to the caller, so this is exercised as a real
+// security regression guard, not a cosmetic header check.
+
+// Authenticator that simultaneously places a credential in EVERY transport
+// position (header, query param, cookie) so the SECURITY-NONE assertion can
+// prove suppression across all three at once.
+struct EverywhereAuthenticator;
+
+impl {{packageName}}::auth::Authenticator for EverywhereAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            let mut headers = HashMap::new();
+            headers.insert("Authorization".to_string(), "Bearer leaked-token".to_string());
+            headers.insert("X-API-Key".to_string(), "leaked-key".to_string());
+            headers
+        })
+    }
+
+    fn query_params(&self) -> HashMap<String, String> {
+        let mut q = HashMap::new();
+        q.insert("api_key".to_string(), "leaked-key".to_string());
+        q
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        let mut c = HashMap::new();
+        c.insert("session".to_string(), "leaked-session".to_string());
+        c
+    }
+}
+
+#[tokio::test]
+async fn test_base_api_security_none_op_suppresses_client_authenticator() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    // Client-level authenticator configured (no per-call override below).
+    let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> =
+        Arc::new(EverywhereAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+
+    // get_pet_by_id is declared `security: []` -> the SDK passes the no-auth
+    // sentinel, so NONE of the client credential's transport positions may
+    // appear on the wire.
+    let _ = api.get_pet_by_id(1, None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    let url = client.captured_url.lock().unwrap();
+
+    assert!(
+        headers.get("Authorization").is_none(),
+        "security: [] op must NOT carry an Authorization header, got: {:?}",
+        headers.get("Authorization")
+    );
+    assert!(
+        headers.get("X-API-Key").is_none(),
+        "security: [] op must NOT carry an api-key header, got: {:?}",
+        headers.get("X-API-Key")
+    );
+    assert!(
+        headers.get("Cookie").is_none(),
+        "security: [] op must NOT carry an auth cookie, got: {:?}",
+        headers.get("Cookie")
+    );
+    assert!(
+        !url.contains("api_key="),
+        "security: [] op must NOT carry an api-key query param, got URL: {}",
+        url
+    );
+}
+
+// SECURED counterpart (Wave A1 guard, no per-call override): a secured
+// operation with ONLY a client-level authenticator configured must STILL apply
+// the credential. This is the `auth == None -> fall back to client
+// authenticator` branch of the three-state contract; the sentinel change must
+// not regress it. `add_pet` is a secured operation.
+#[tokio::test]
+async fn test_base_api_secured_op_applies_client_authenticator() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> =
+        Arc::new(EverywhereAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+
+    // add_pet is secured and receives no per-call override (None) -> BaseApi
+    // must fall back to the client-level authenticator and apply its credential.
+    let pet = Pet::new("SecuredPet".to_string(), HashSet::new());
+    let _ = api.add_pet(pet, None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer leaked-token"),
+        "a secured op with a configured client authenticator must still send the credential (no over-suppression)"
+    );
+}

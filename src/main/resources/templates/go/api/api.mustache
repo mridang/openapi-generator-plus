@@ -395,7 +395,12 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
 		contentType:  {{#vendorExtensions.hasMultipleConsumes}}requestContentTypeValue{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
 		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
-		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}},
+		{{! security-none-sentinel: an operation declared `security: []` has no auth
+		    methods. It must pass the noAuth sentinel (not nil) so base_api applies
+		    NO authentication instead of falling back to the client-level
+		    authenticator and leaking its credential. A secured op passes the
+		    per-call override (or nil for no-override), unchanged. }}
+		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}noAuth{{/hasAuthMethods}},
 	})
 	if err != nil {
 		return nil, err

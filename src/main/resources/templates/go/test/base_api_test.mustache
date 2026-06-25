@@ -304,6 +304,53 @@ func TestBaseApi_ConfiguredAuthenticatorIsAppliedToSecuredRequest(t *testing.T) 
 	}
 }
 
+// ── security: [] suppresses the client authenticator (SECURITY-NONE) ──
+
+// security-none-suppresses-client-auth: an operation declared `security: []` in
+// the spec is explicitly unauthenticated. Even when the client is constructed
+// WITH an authenticator, the outbound request for such an operation must carry
+// NO auth material — no Authorization header, no api-key header or query param,
+// and no auth cookie. GetPetById is declared `security: []`, so invoking it must
+// strip the configured credential. This is the core of Wave A2: base_api sees
+// the noAuth sentinel passed by the unauthenticated operation and does NOT fall
+// back to the client-level authenticator. A capturing client records the exact
+// outbound headers/URL so the suppression can be asserted directly.
+func TestBaseApi_SecurityNoneSuppressesClientAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+
+	// A multi-vector authenticator: it would inject an Authorization header, an
+	// api-key header, an api-key query param, and a session cookie on a secured
+	// request. None of these may appear on a security:[] operation.
+	leaky := &baseApiAuth{
+		headers: map[string]string{
+			"Authorization": "Bearer secret-jwt",
+			"api-key":       "secret-api-key",
+		},
+		query:   map[string]string{"api_key": "secret-api-key"},
+		cookies: map[string]string{"session": "secret-session"},
+	}
+	api := {{packageName}}.NewPetApi(client, config, leaky)
+
+	// GetPetById is declared security:[] — the configured authenticator must be
+	// suppressed entirely.
+	_, _ = api.GetPetById(int64(1), nil)
+
+	if got, ok := client.capturedHeaders["Authorization"]; ok {
+		t.Errorf("security:[] operation leaked Authorization header = %q; client credential must be suppressed", got)
+	}
+	if got, ok := client.capturedHeaders["api-key"]; ok {
+		t.Errorf("security:[] operation leaked api-key header = %q; client credential must be suppressed", got)
+	}
+	if got, ok := client.capturedHeaders["Cookie"]; ok {
+		t.Errorf("security:[] operation leaked Cookie header = %q; client credential must be suppressed", got)
+	}
+	if strings.Contains(client.capturedURL, "api_key") || strings.Contains(client.capturedURL, "secret-api-key") {
+		t.Errorf("security:[] operation leaked api-key query param in URL = %q; client credential must be suppressed", client.capturedURL)
+	}
+}
+
 // ── Nil body ──
 
 func TestBaseApi_HandlesNilBody(t *testing.T) {
@@ -318,9 +365,10 @@ func TestBaseApi_HandlesNilBody(t *testing.T) {
 	}
 }
 
-// capturingApiClient captures the headers and body sent by BaseApi.
+// capturingApiClient captures the headers, URL, and body sent by BaseApi.
 type capturingApiClient struct {
 	capturedHeaders map[string]string
+	capturedURL     string
 	capturedBody    any
 }
 
@@ -334,6 +382,7 @@ func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers 
 	for k, v := range headers {
 		c.capturedHeaders[k] = v
 	}
+	c.capturedURL = url
 	c.capturedBody = body
 	return &{{packageName}}.ApiHttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }

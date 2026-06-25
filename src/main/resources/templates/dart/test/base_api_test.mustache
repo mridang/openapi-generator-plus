@@ -238,7 +238,10 @@ void main() {
             config: config,
             authenticator: auth);
 
-        await api.getPetById(1, null);
+        // deletePet is a secured op, so the client-level authenticator's query
+        // params ARE applied. (getPetById is security:[] and now correctly
+        // suppresses the client credential — it can't be used to test forwarding.)
+        await api.deletePet(1, null);
         expect(receivedQuery, contains('api_key=test123'));
       } finally {
         await server.close();
@@ -367,7 +370,8 @@ void main() {
             authenticator: clientAuth);
 
         // No `auth:` passed → falls back to client-level authenticator.
-        await api.getPetById(1, null);
+        // deletePet is a secured op (security:[] ops no longer fall back).
+        await api.deletePet(1, null);
         expect(receivedAuth, equals('Bearer client-level'));
       } finally {
         await server.close();
@@ -443,6 +447,71 @@ void main() {
         expect(receivedAuth, equals('Bearer secret-token'),
             reason:
                 'configured authenticator must reach the wire on a secured op');
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* security-none suppression (WAVE A2): an operation declared `security: []`
+     * in the spec is explicitly unauthenticated. Even when the client is
+     * configured WITH an authenticator, invoking such an operation must NOT
+     * attach the client credential — no Authorization header, no api-key header
+     * or query param, and no auth cookie may reach the wire. This guards
+     * against the cross-cutting bug where a `security: []` op passed `null` as
+     * its auth argument and base_api re-acquired the client authenticator,
+     * leaking the credential (notably to the request-reflecting test ops).
+     * getInventory is declared `security: []`, so it exercises the sentinel
+     * path. The configured authenticator sets a header, a query param, AND a
+     * cookie so all three credential channels are checked. */
+    test('client authenticator is suppressed on a security:[] operation',
+        () async {
+      String? receivedAuth;
+      String? receivedApiKeyHeader;
+      String? receivedCookie;
+      String? receivedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedAuth = request.headers.value('authorization');
+        receivedApiKeyHeader = request.headers.value('api-key');
+        receivedCookie = request.headers.value('cookie');
+        receivedQuery = request.uri.queryParameters['api-key'];
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        // Configure ALL three credential channels on the client authenticator.
+        final clientAuth = _BaseApiAuth(
+          headers: {
+            'Authorization': 'Bearer client-secret',
+            'api-key': 'header-key',
+          },
+          query: {'api-key': 'query-key'},
+          cookies: {'session': 'cookie-value'},
+        );
+        final api = StoreApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: clientAuth);
+
+        // getInventory is declared `security: []` → fully unauthenticated.
+        await api.getInventory();
+
+        expect(receivedAuth, isNull,
+            reason:
+                'no Authorization header may be sent on a security:[] op');
+        expect(receivedApiKeyHeader, isNull,
+            reason: 'no api-key header may be sent on a security:[] op');
+        expect(receivedCookie, isNull,
+            reason: 'no auth cookie may be sent on a security:[] op');
+        expect(receivedQuery, isNull,
+            reason: 'no api-key query param may be sent on a security:[] op');
       } finally {
         await server.close();
       }

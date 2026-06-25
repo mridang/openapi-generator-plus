@@ -423,7 +423,7 @@ public class {{classname}} extends BaseApi {
                 new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
                 {{#vendorExtensions.hasMultipleConsumes}}effectiveRequestContentType{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
                 {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}},
-                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}});
+                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}NO_AUTH{{/hasAuthMethods}});
     }
     {{/operation}}
 

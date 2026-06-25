@@ -12,7 +12,9 @@ impl UploadPetCertificateOptions {
     /// Every field of this struct is required and is taken as a constructor
     /// argument so it cannot be silently omitted. This struct has no optional
     /// fields and therefore no chained setters.
-    pub fn new(file: Vec<u8>) -> Self {
-        Self { file }
+    pub fn new(file: Vec<u8>, ) -> Self {
+        Self {
+            file,
+        }
     }
 }

@@ -23,7 +23,7 @@ from petstore_client.models.tree_node import TreeNode
 from ..api_client import ApiClient
 from ..api_result import ApiResult
 from ..configuration import Configuration
-from .base_api import BaseApi, _is_valid_cookie_value
+from .base_api import BaseApi, NO_AUTH, _is_valid_cookie_value
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from ..errors import ApiException
@@ -95,7 +95,7 @@ class StoreApi(BaseApi):
             [],
             "application/json",
             None,
-            None,
+            NO_AUTH,
         )
 
     async def get_by_swatch(
@@ -187,7 +187,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Category",
-            None,
+            NO_AUTH,
         )
 
     async def get_defaults(
@@ -235,7 +235,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Defaults",
-            None,
+            NO_AUTH,
         )
 
     async def get_department(
@@ -283,7 +283,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Department",
-            None,
+            NO_AUTH,
         )
 
     async def get_grouped_categories(
@@ -331,7 +331,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[Dict[str, Category]]",
-            None,
+            NO_AUTH,
         )
 
     async def get_inventory(
@@ -379,7 +379,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Dict[str, StrictInt]",
-            None,
+            NO_AUTH,
         )
 
     async def get_matrix(
@@ -427,7 +427,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[List[StrictInt]]",
-            None,
+            NO_AUTH,
         )
 
     async def get_order_by_id(
@@ -493,7 +493,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
-            None,
+            NO_AUTH,
         )
 
     async def get_stock_item(
@@ -551,7 +551,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "StockItem",
-            None,
+            NO_AUTH,
         )
 
     async def get_swatch(
@@ -599,7 +599,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Swatch",
-            None,
+            NO_AUTH,
         )
 
     async def get_swatch_groups(
@@ -647,7 +647,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[Dict[str, Swatch]]",
-            None,
+            NO_AUTH,
         )
 
     async def get_timestamp_groups(
@@ -695,7 +695,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[Dict[str, AwareDatetime]]",
-            None,
+            NO_AUTH,
         )
 
     async def get_tree(
@@ -743,7 +743,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "TreeNode",
-            None,
+            NO_AUTH,
         )
 
     async def place_order(
@@ -795,5 +795,5 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
-            None,
+            NO_AUTH,
         )

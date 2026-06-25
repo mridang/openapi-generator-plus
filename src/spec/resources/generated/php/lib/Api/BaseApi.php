@@ -23,6 +23,7 @@ use PetstoreClient\HeaderSelector;
 use PetstoreClient\ObjectSerializer;
 use PetstoreClient\TraceContextUtil;
 use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Auth\NoAuth;
 use PetstoreClient\Errors\BadRequestException;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ConflictException;
@@ -78,7 +79,11 @@ class BaseApi
      * @param string[]              $accepts      Acceptable response content types
      * @param string|null           $contentType  Request content type
      * @param string|null           $returnType   Return type for deserialization
-     * @param Authenticator|null    $auth         Optional authenticator for operation-specific auth
+     * @param Authenticator|null    $auth         Three-state auth selector: the NoAuth sentinel
+     *                                            suppresses all credentials (security:[] operation);
+     *                                            null falls back to the client authenticator (secured
+     *                                            op, no per-call override); a real Authenticator is a
+     *                                            per-call override
      *
      * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
@@ -104,7 +109,22 @@ class BaseApi
             $url = $base . $path;
         }
 
-        $effectiveAuth = $auth ?? $this->authenticator;
+        /* Three-state auth resolution (the heart of the security:[] fix):
+         *   - $auth IS the NoAuth sentinel  -> NO auth applied; do NOT fall
+         *     back to the client authenticator. The operation was declared
+         *     `security: []` (explicitly unauthenticated), so attaching the
+         *     client credential here would leak it (e.g. to a reflecting
+         *     testEcho* endpoint).
+         *   - $auth is null                 -> fall back to the client-level
+         *     authenticator (secured op with no per-call override).
+         *   - $auth is a real Authenticator -> use it (per-call override).
+         * The sentinel is compared by identity (`===`) so it can never be
+         * confused with a real authenticator instance. */
+        if ($auth === NoAuth::instance()) {
+            $effectiveAuth = null;
+        } else {
+            $effectiveAuth = $auth ?? $this->authenticator;
+        }
         if ($effectiveAuth instanceof Authenticator) {
             foreach ($effectiveAuth->getQueryParams() as $k => $v) {
                 $queryParams[$k] = $v;
@@ -206,7 +226,11 @@ class BaseApi
      * @param string[]              $accepts      Acceptable response content types
      * @param string|null           $contentType  Request content type
      * @param string|null           $returnType   Return type for deserialization
-     * @param Authenticator|null    $auth         Optional authenticator for operation-specific auth
+     * @param Authenticator|null    $auth         Three-state auth selector: the NoAuth sentinel
+     *                                            suppresses all credentials (security:[] operation);
+     *                                            null falls back to the client authenticator (secured
+     *                                            op, no per-call override); a real Authenticator is a
+     *                                            per-call override
      *
      * @return mixed Deserialized response or null
      * @throws ApiException

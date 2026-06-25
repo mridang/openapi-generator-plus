@@ -86,7 +86,18 @@ public abstract class BaseApi
     {
         ArgumentNullException.ThrowIfNull(queryParams);
         ArgumentNullException.ThrowIfNull(headerParams);
-        IAuthenticator? effectiveAuth = auth ?? Authenticator;
+        /* Three-state auth resolution (the no-auth sentinel disambiguates the
+           two meanings null used to carry):
+             - auth is the NoAuth sentinel  -> the operation is explicitly
+               unauthenticated (security: []); apply NO credential and do NOT
+               fall back to the client authenticator;
+             - auth is null                 -> no per-call override on a secured
+               operation; fall back to the client-level authenticator;
+             - auth is any real authenticator -> per-call override; use it.
+           Identity (reference) comparison against NoAuth.Instance is what
+           distinguishes the sentinel from a real authenticator. */
+        IAuthenticator? effectiveAuth =
+            ReferenceEquals(auth, NoAuth.Instance) ? null : (auth ?? Authenticator);
         string url;
         if (path.StartsWith("http://", StringComparison.Ordinal) || path.StartsWith("https://", StringComparison.Ordinal))
         {

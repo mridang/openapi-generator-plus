@@ -413,6 +413,71 @@ test('configured api-key header authenticator is applied to a secured operation'
     expect($client->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
 });
 
+// -- AUTH-SUPPRESSED (Wave A2) — security:[] operations --
+//
+// An operation declared `security: []` in the spec is explicitly
+// UNAUTHENTICATED. Even when the client is configured WITH an authenticator,
+// the generated method passes the NoAuth sentinel, so BaseApi must NOT fall
+// back to the client credential. getPetById is declared `security: []`. We
+// configure the client with BOTH a bearer (Authorization header) and an
+// api-key (X-API-Key header) authenticator, then drive getPetById through a
+// CapturingApiClient and assert NONE of the credentials reach the wire.
+
+test('configured bearer authenticator is suppressed on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+    expect($client->capturedUrl)->not->toContain('secret-jwt-token');
+});
+
+test('configured api-key authenticator is suppressed on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER);
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('X-API-Key');
+    expect($client->capturedUrl)->not->toContain('secret-api-key');
+});
+
+test('configured api-key query authenticator sends no api-key param on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'api_key', 'secret-api-key', ApiKeyLocation::QUERY);
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedUrl)->not->toContain('api_key=');
+    expect($client->capturedUrl)->not->toContain('secret-api-key');
+});
+
+test('configured cookie authenticator sets no cookie on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'session', 'secret-session', ApiKeyLocation::COOKIE);
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('Cookie');
+});
+
 test('serializes json body', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'POST',

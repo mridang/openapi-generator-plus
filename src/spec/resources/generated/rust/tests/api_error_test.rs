@@ -37,11 +37,7 @@ fn test_api_error_exposes_status_message_body_headers() {
         Some(r#"{"id":7,"name":"missing"}"#)
     );
     assert_eq!(
-        err.response_headers()
-            .as_ref()
-            .unwrap()
-            .get("content-type")
-            .unwrap(),
+        err.response_headers().as_ref().unwrap().get("content-type").unwrap(),
         "application/json"
     );
     // The parsed-JSON view of the body is a crate-internal detail; the public
@@ -128,9 +124,7 @@ fn test_api_error_fields_are_accessor_only() {
     assert_eq!(err.message(), "boom");
     assert_eq!(err.response_body(), Some("body"));
     assert_eq!(
-        err.response_headers()
-            .and_then(|h| h.get("x-trace"))
-            .map(String::as_str),
+        err.response_headers().and_then(|h| h.get("x-trace")).map(String::as_str),
         Some("abc"),
     );
 }
@@ -173,8 +167,12 @@ fn test_api_error_is_zitadel_error() {
 #[test]
 fn test_api_error_kind_is_zitadel_error() {
     // ApiErrorKind is the pattern-matching enum view of an ApiError.
-    let kind =
-        petstore::api_error::ApiErrorKind::from(ApiError::new(400, "bad".to_string(), None, None));
+    let kind = petstore::api_error::ApiErrorKind::from(ApiError::new(
+        400,
+        "bad".to_string(),
+        None,
+        None,
+    ));
     let branded = assert_is_zitadel_error(&kind);
     assert_eq!(kind.status_code(), 400);
     assert!(!branded.to_string().is_empty());

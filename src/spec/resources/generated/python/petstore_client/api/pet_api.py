@@ -27,7 +27,7 @@ from petstore_client.models.set_pet_avatar_thumbnail_request import (
 from ..api_client import ApiClient
 from ..api_result import ApiResult
 from ..configuration import Configuration
-from .base_api import BaseApi, _is_valid_cookie_value
+from .base_api import BaseApi, NO_AUTH, _is_valid_cookie_value
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from ..errors import ApiException
@@ -323,7 +323,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "multipart/form-data",
             "List[Photo]",
-            None,
+            NO_AUTH,
         )
 
     async def add_pet_treatment(
@@ -577,7 +577,7 @@ class PetApi(BaseApi):
             ["application/octet-stream"],
             "application/json",
             "bytes",
-            None,
+            NO_AUTH,
         )
 
     async def find_pets_by_status(
@@ -645,7 +645,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[Pet]",
-            None,
+            NO_AUTH,
         )
 
     async def get_external_pet_info(
@@ -717,7 +717,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            NO_AUTH,
         )
 
     async def get_multi_server_pet_info(
@@ -791,7 +791,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            NO_AUTH,
         )
 
     async def get_pet_avatar(
@@ -859,7 +859,7 @@ class PetApi(BaseApi):
             ["image/jpeg", "image/png"],
             "application/json",
             "bytes",
-            None,
+            NO_AUTH,
         )
 
     async def get_pet_avatar_thumbnail(
@@ -927,7 +927,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "bytes",
-            None,
+            NO_AUTH,
         )
 
     async def get_pet_by_id(
@@ -1010,7 +1010,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            NO_AUTH,
         )
 
     async def get_pet_by_name(
@@ -1092,7 +1092,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            NO_AUTH,
         )
 
     async def get_pet_passport(
@@ -1160,7 +1160,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "PetPassport",
-            None,
+            NO_AUTH,
         )
 
     async def get_pet_photo(
@@ -1246,7 +1246,7 @@ class PetApi(BaseApi):
             ["image/jpeg", "image/png", "application/json"],
             "application/json",
             "bytes",
-            None,
+            NO_AUTH,
         )
 
     async def get_pet_tag(
@@ -1360,7 +1360,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            NO_AUTH,
         )
 
     async def get_staging_pet_info(
@@ -1432,7 +1432,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            NO_AUTH,
         )
 
     async def set_pet_avatar(
@@ -1511,7 +1511,7 @@ class PetApi(BaseApi):
             [],
             content_type,
             None,
-            None,
+            NO_AUTH,
         )
 
     async def set_pet_avatar_thumbnail(
@@ -1583,7 +1583,7 @@ class PetApi(BaseApi):
             [],
             "application/json",
             None,
-            None,
+            NO_AUTH,
         )
 
     async def set_pet_preferences(
@@ -1669,7 +1669,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/x-www-form-urlencoded",
             "ApiResponse",
-            None,
+            NO_AUTH,
         )
 
     async def update_pet(
@@ -1745,7 +1745,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            NO_AUTH,
         )
 
     async def upload_pet_certificate(
@@ -1827,7 +1827,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "multipart/form-data",
             "ApiResponse",
-            None,
+            NO_AUTH,
         )
 
     async def upload_pet_document(
@@ -1928,5 +1928,5 @@ class PetApi(BaseApi):
             ["application/json"],
             content_type,
             "ApiResponse",
-            None,
+            NO_AUTH,
         )

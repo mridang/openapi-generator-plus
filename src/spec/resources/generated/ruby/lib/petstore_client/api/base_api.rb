@@ -23,6 +23,22 @@ module PetstoreClient
     # handles URL construction, header selection, body serialization, request
     # dispatch, and response deserialization.
     class BaseApi
+      # Sentinel marker meaning "this operation is explicitly unauthenticated"
+      # (declared `security: []` in the spec). It is a dedicated, identity-
+      # comparable value distinct from both +nil+ and any real authenticator,
+      # so base_api can tell three states apart:
+      #
+      #   * NO_AUTH                 -> suppress auth (do NOT fall back to the
+      #                                client authenticator)
+      #   * nil                     -> no per-call override; fall back to the
+      #                                client-level authenticator
+      #   * a real authenticator    -> per-call override; use it as-is
+      #
+      # Generated operation methods pass NO_AUTH for security:[] operations and
+      # nil for secured operations without a per-call override. Callers never
+      # construct or see this value.
+      NO_AUTH = ::Object.new.freeze
+
       # @return [Configuration]
       attr_reader :config
 
@@ -55,7 +71,21 @@ module PetstoreClient
                 "#{base}#{path}"
               end
 
-        effective_auth = auth || @authenticator
+        # Three-state auth resolution. `auth` carries the operation's intent:
+        #   * NO_AUTH               -> the operation is explicitly unauthenticated
+        #                              (security:[]); apply NO credential, and do
+        #                              NOT fall back to the client authenticator.
+        #   * nil                   -> secured operation with no per-call override;
+        #                              fall back to the client-level authenticator.
+        #   * a real authenticator  -> per-call override; use it as-is.
+        # equal? is identity comparison, so a real authenticator can never be
+        # mistaken for the sentinel.
+        # @type var effective_auth: untyped
+        effective_auth = if auth.equal?(NO_AUTH)
+                           nil
+                         else
+                           auth || @authenticator
+                         end
         effective_auth&.query_params&.each { |k, v| query_params[k] = v }
 
         query_string = build_query_string(query_params)

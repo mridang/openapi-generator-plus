@@ -422,6 +422,54 @@ class BaseApiTest {
                 "configured client-level authenticator must apply to a secured operation's outbound request",
             )
         }
+
+        @Test
+        @DisplayName("SECURITY-NONE: client authenticator is suppressed for an unauthenticated operation")
+        fun clientAuthenticatorSuppressedForSecurityNoneOperation() {
+            // An operation declared `security: []` is explicitly unauthenticated.
+            // Even when the client is constructed WITH an authenticator, invoking
+            // such an operation through the generated API class (here
+            // PetApi.getPetById, declared security: []) must NOT attach the client
+            // credential — the operation passes the NoAuth sentinel, which
+            // BaseApi resolves to "no auth" rather than falling back to the
+            // client-level authenticator. This guards against leaking the client
+            // credential to unauthenticated endpoints (e.g. the testEcho* ops that
+            // reflect the request back).
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            // Configure every auth surface the authenticator can populate:
+            // an Authorization header, an api-key header, an api-key query param,
+            // and an auth cookie. None of these may appear on the outbound request.
+            val authenticator =
+                TestAuthenticator(
+                    mapOf("Authorization" to "Bearer client-secret", "api-key" to "header-key"),
+                    mapOf("api_key" to "query-key"),
+                    mapOf("session" to "cookie-value"),
+                )
+            val api = PetApi(client, config, authenticator)
+            try {
+                runBlocking { api.getPetById(42L) }
+            } catch (_: Exception) {
+                // The capturing client returns {} which may fail Pet deserialization;
+                // we only assert on the (absence of) outbound credential.
+            }
+            assertFalse(
+                client.capturedHeaders.containsKey("Authorization"),
+                "unauthenticated operation must NOT carry the client Authorization header",
+            )
+            assertFalse(
+                client.capturedHeaders.containsKey("api-key"),
+                "unauthenticated operation must NOT carry the client api-key header",
+            )
+            assertFalse(
+                client.capturedUrl.contains("api_key="),
+                "unauthenticated operation must NOT carry the client api-key query param",
+            )
+            assertFalse(
+                client.capturedHeaders.containsKey("Cookie"),
+                "unauthenticated operation must NOT carry the client auth cookie",
+            )
+        }
     }
 
     @Nested

@@ -10,20 +10,17 @@ mod testcontainers_helper;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use petstore::api::options::*;
+use petstore::*;
 use petstore::api::*;
+use petstore::api::options::*;
 use petstore::errors::*;
 use petstore::models::*;
-use petstore::*;
 
 // -- Error dispatch via chasm --
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_400() {
-    let base_url = format!(
-        "{}/test/status/400",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/400", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -34,10 +31,7 @@ async fn test_base_api_error_dispatch_400() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_401() {
-    let base_url = format!(
-        "{}/test/status/401",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/401", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -48,10 +42,7 @@ async fn test_base_api_error_dispatch_401() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_403() {
-    let base_url = format!(
-        "{}/test/status/403",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/403", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -62,10 +53,7 @@ async fn test_base_api_error_dispatch_403() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_404() {
-    let base_url = format!(
-        "{}/test/status/404",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/404", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -76,10 +64,7 @@ async fn test_base_api_error_dispatch_404() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_409() {
-    let base_url = format!(
-        "{}/test/status/409",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/409", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -90,10 +75,7 @@ async fn test_base_api_error_dispatch_409() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_422() {
-    let base_url = format!(
-        "{}/test/status/422",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/422", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -104,10 +86,7 @@ async fn test_base_api_error_dispatch_422() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_500() {
-    let base_url = format!(
-        "{}/test/status/500",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/500", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -118,10 +97,7 @@ async fn test_base_api_error_dispatch_500() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_502() {
-    let base_url = format!(
-        "{}/test/status/502",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/502", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -134,10 +110,7 @@ async fn test_base_api_error_dispatch_502() {
 
 #[tokio::test]
 async fn test_base_api_parses_json_error_body() {
-    let base_url = format!(
-        "{}/test/status/400",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/400", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -145,8 +118,7 @@ async fn test_base_api_parses_json_error_body() {
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 400");
     let err = result.unwrap_err();
-    let bad_request = err
-        .downcast_ref::<BadRequestError>()
+    let bad_request = err.downcast_ref::<BadRequestError>()
         .expect("expected BadRequestError");
     // The parsed-JSON view of the body is a crate-internal detail; assert the
     // public surface instead — the raw body is present and is valid JSON, so
@@ -169,12 +141,7 @@ async fn test_base_api_handles_empty_200_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/empty", testcontainers_helper::chasm_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/empty", testcontainers_helper::chasm_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -189,12 +156,7 @@ async fn test_base_api_deserializes_json_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/echo", testcontainers_helper::chasm_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/echo", testcontainers_helper::chasm_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -212,15 +174,7 @@ async fn test_base_api_returns_raw_body_for_non_json() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!(
-                "{}/test/text-plain",
-                testcontainers_helper::chasm_http_url()
-            ),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/text-plain", testcontainers_helper::chasm_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -232,20 +186,12 @@ async fn test_base_api_returns_raw_body_for_non_json() {
 #[tokio::test]
 async fn test_base_api_returns_unit_when_return_type_is_void() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     // DeletePet is a void operation -- it should return Ok(()) for a 200 OK response
-    let result = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
-    assert!(
-        result.is_ok(),
-        "expected Ok(()) for void operation with 200 response, got: {:?}",
-        result.err()
-    );
+    let result = api.delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth)))).await;
+    assert!(result.is_ok(), "expected Ok(()) for void operation with 200 response, got: {:?}", result.err());
 }
 
 // -- Gap Z: URL trailing-slash collapse --
@@ -255,14 +201,10 @@ async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing() {
     // baseUrl='http://x/' + path='/y' must produce 'http://x/y', not
     // 'http://x//y' which most servers route to 404.
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost/")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost/").build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
-    let _ = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth)))).await;
     let captured = client.captured_url.lock().unwrap().clone();
     assert!(
         captured.starts_with("http://localhost/pet/"),
@@ -284,12 +226,7 @@ async fn test_base_api_forwards_auth_headers() {
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), "Bearer test-token".to_string());
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/echo", testcontainers_helper::chasm_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/echo", testcontainers_helper::chasm_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -306,12 +243,7 @@ async fn test_base_api_handles_nil_body() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/echo", testcontainers_helper::chasm_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/echo", testcontainers_helper::chasm_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -329,27 +261,13 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&petstore::api_client::RequestBody>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<
-                        petstore::api_response::ApiHttpResponse,
-                        Box<dyn std::error::Error + Send + Sync>,
-                    >,
-                > + Send
-                + '_,
-        >,
-    > {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
-                200,
-                "hello plain text".to_string(),
-                {
+            Ok(petstore::api_response::ApiHttpResponse::new(200, "hello plain text".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "text/plain".to_string());
                     h
-                },
-            ))
+                }))
         })
     }
 }
@@ -357,22 +275,20 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
 #[tokio::test]
 async fn test_base_api_skips_deserialization_for_non_json() {
     let client = Arc::new(PlainTextApiClient);
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client, config, None);
     /* Non-JSON responses should skip deserialization entirely.
      * The result should be Ok with data = None, not an error from serde. */
     let result = api.get_pet_by_id_with_http_info(1, None).await;
     match result {
         Ok(api_result) => {
-            assert!(
-                api_result.data().is_none(),
-                "expected data to be None for non-JSON response"
-            );
+            assert!(api_result.data().is_none(),
+                "expected data to be None for non-JSON response");
             assert_eq!(api_result.raw_body(), "hello plain text");
         }
-        Err(_) => { /* If the API returns an error, it should not be a deserialization error */ }
+        Err(_) => {
+            /* If the API returns an error, it should not be a deserialization error */
+        }
     }
 }
 
@@ -385,30 +301,13 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&petstore::api_client::RequestBody>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<
-                        petstore::api_response::ApiHttpResponse,
-                        Box<dyn std::error::Error + Send + Sync>,
-                    >,
-                > + Send
-                + '_,
-        >,
-    > {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
-                200,
-                r#"{"title":"Not Found"}"#.to_string(),
-                {
+            Ok(petstore::api_response::ApiHttpResponse::new(200, r#"{"title":"Not Found"}"#.to_string(), {
                     let mut h = HashMap::new();
-                    h.insert(
-                        "Content-Type".to_string(),
-                        "application/problem+json".to_string(),
-                    );
+                    h.insert("Content-Type".to_string(), "application/problem+json".to_string());
                     h
-                },
-            ))
+                }))
         })
     }
 }
@@ -416,9 +315,7 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
 #[tokio::test]
 async fn test_base_api_deserializes_vendor_json_mime_type() {
     let client = Arc::new(VendorJsonApiClient);
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client, config, None);
     /* The vendor JSON MIME type (application/problem+json) should be recognized as JSON.
      * The call may fail for other reasons (e.g. schema mismatch), but it should attempt
@@ -437,8 +334,9 @@ impl petstore::auth::Authenticator for NoopAuthenticator {
 
     fn auth_headers<'a>(
         &'a self,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
-    {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
         Box::pin(async move { HashMap::new() })
     }
 }
@@ -470,17 +368,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&petstore::api_client::RequestBody>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<
-                        petstore::api_response::ApiHttpResponse,
-                        Box<dyn std::error::Error + Send + Sync>,
-                    >,
-                > + Send
-                + '_,
-        >,
-    > {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         *self.captured_url.lock().unwrap() = url.to_string();
         *self.captured_headers.lock().unwrap() = headers.clone();
         *self.captured_body.lock().unwrap() = match body {
@@ -488,15 +376,11 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
             _ => None,
         };
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
-                200,
-                "{}".to_string(),
-                {
+            Ok(petstore::api_response::ApiHttpResponse::new(200, "{}".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
-                },
-            ))
+                }))
         })
     }
 }
@@ -506,24 +390,14 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
 #[tokio::test]
 async fn test_base_api_all_headers_flow_through() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(
-        headers.contains_key("Accept"),
-        "Expected Accept header from selector"
-    );
-    assert!(
-        headers.contains_key("Content-Type"),
-        "Expected Content-Type header from selector"
-    );
+    assert!(headers.contains_key("Accept"), "Expected Accept header from selector");
+    assert!(headers.contains_key("Content-Type"), "Expected Content-Type header from selector");
 }
 
 #[tokio::test]
@@ -554,19 +428,14 @@ async fn test_base_api_op_auth_none_falls_back_to_client_authenticator() {
     /* When `None` is passed for `auth`, the operation must fall back to the
      * authenticator that was wired into the BaseApi at construction time. */
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(NoopAuthenticator);
     let api = PetApi::new(client.clone(), config, Some(client_auth));
     let pet = Pet::new("FallbackPet".to_string(), HashSet::new());
     /* Passing None must succeed (no panic) and dispatch the request. */
     let _ = api.add_pet(pet, None).await;
     let body = client.captured_body.lock().unwrap();
-    assert!(
-        body.is_some(),
-        "expected request body to be captured when auth=None falls back to client authenticator"
-    );
+    assert!(body.is_some(), "expected request body to be captured when auth=None falls back to client authenticator");
 }
 
 // -- Header-emitting authenticator for per-call override verification --
@@ -582,8 +451,9 @@ impl petstore::auth::Authenticator for HeaderAuthenticator {
 
     fn auth_headers<'a>(
         &'a self,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
-    {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
         let value = self.value.clone();
         Box::pin(async move {
             let mut headers = HashMap::new();
@@ -598,20 +468,13 @@ async fn test_base_api_per_call_auth_overrides_client_authenticator() {
     /* When a per-call authenticator is supplied it must take precedence over
      * the client-level authenticator wired in at construction time. */
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
-    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(HeaderAuthenticator {
-        value: "client-level-token".to_string(),
-    });
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> =
+        Arc::new(HeaderAuthenticator { value: "client-level-token".to_string() });
     let api = PetApi::new(client.clone(), config, Some(client_auth));
-    let per_call = HeaderAuthenticator {
-        value: "per-call-token".to_string(),
-    };
+    let per_call = HeaderAuthenticator { value: "per-call-token".to_string() };
     let pet = Pet::new("OverridePet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(per_call))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(per_call)))).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("X-Client-Auth").map(|s| s.as_str()),
@@ -625,17 +488,12 @@ async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
     /* Passing None for both the op auth and the client authenticator is
      * permitted for endpoints that don't strictly require credentials. */
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("Anon".to_string(), HashSet::new());
     let _ = api.add_pet(pet, None).await;
     let body = client.captured_body.lock().unwrap();
-    assert!(
-        body.is_some(),
-        "expected request body to be captured when no authenticator at all"
-    );
+    assert!(body.is_some(), "expected request body to be captured when no authenticator at all");
 }
 
 // -- Body serialization tests --
@@ -643,22 +501,15 @@ async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
 #[tokio::test]
 async fn test_base_api_serializes_json_body() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
     let body = client.captured_body.lock().unwrap();
     assert!(body.is_some(), "expected body to be captured");
     let body_str = String::from_utf8(body.as_ref().unwrap().clone()).unwrap();
-    assert!(
-        body_str.contains("TestPet"),
-        "expected body to contain 'TestPet'"
-    );
+    assert!(body_str.contains("TestPet"), "expected body to contain 'TestPet'");
 }
 
 // The `serialize_body` unit tests were moved in-crate (see
@@ -676,9 +527,7 @@ async fn test_base_api_serializes_json_body() {
 #[tokio::test]
 async fn test_set_pet_preferences_form_body_wire_format() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
 
     // `note` is intentionally left unset (None) to exercise null-omission.
@@ -690,59 +539,25 @@ async fn test_set_pet_preferences_form_body_wire_format() {
     let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
 
     // Behavior 1: array -> repeated keys, never bracketed/comma-joined.
-    assert!(
-        body_str.contains("tags=fluffy"),
-        "missing first tag: {}",
-        body_str
-    );
-    assert!(
-        body_str.contains("tags=very+good"),
-        "missing second tag (space as +): {}",
-        body_str
-    );
-    assert!(
-        !body_str.contains('['),
-        "array must not be bracketed: {}",
-        body_str
-    );
-    assert!(
-        !body_str.contains("tags=fluffy%2C"),
-        "array must not be comma-joined: {}",
-        body_str
-    );
-    assert!(
-        !body_str.contains("tags=fluffy,"),
-        "array must not be comma-joined: {}",
-        body_str
-    );
+    assert!(body_str.contains("tags=fluffy"), "missing first tag: {}", body_str);
+    assert!(body_str.contains("tags=very+good"), "missing second tag (space as +): {}", body_str);
+    assert!(!body_str.contains('['), "array must not be bracketed: {}", body_str);
+    assert!(!body_str.contains("tags=fluffy%2C"), "array must not be comma-joined: {}", body_str);
+    assert!(!body_str.contains("tags=fluffy,"), "array must not be comma-joined: {}", body_str);
 
     // Behavior 2: the unset optional `note` is omitted entirely.
-    assert!(
-        !body_str.contains("note"),
-        "absent optional field must be omitted: {}",
-        body_str
-    );
+    assert!(!body_str.contains("note"), "absent optional field must be omitted: {}", body_str);
 
     // Behavior 3: spaces encode as `+`, never `%20`.
-    assert!(
-        body_str.contains("nickname=Good+Boy"),
-        "space must encode as +: {}",
-        body_str
-    );
-    assert!(
-        !body_str.contains("%20"),
-        "space must never encode as %20: {}",
-        body_str
-    );
+    assert!(body_str.contains("nickname=Good+Boy"), "space must encode as +: {}", body_str);
+    assert!(!body_str.contains("%20"), "space must never encode as %20: {}", body_str);
 }
 
 // -- form-urlencoded Content-Type set on the generated operation --
 #[tokio::test]
 async fn test_set_pet_preferences_sends_form_content_type() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let opts = SetPetPreferencesOptions::new("Rex".to_string());
     let _ = api.set_pet_preferences(1, Some(&opts)).await;
@@ -758,10 +573,7 @@ async fn test_set_pet_preferences_sends_form_content_type() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_418() {
-    let base_url = format!(
-        "{}/test/status/418",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/418", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -771,8 +583,7 @@ async fn test_base_api_error_dispatch_418() {
     let err = result.unwrap_err();
     assert!(
         err.downcast_ref::<ClientError>().is_some(),
-        "expected ClientError for unrecognized 4xx status, got: {:?}",
-        err
+        "expected ClientError for unrecognized 4xx status, got: {:?}", err
     );
 }
 
@@ -780,10 +591,7 @@ async fn test_base_api_error_dispatch_418() {
 
 #[tokio::test]
 async fn test_base_api_not_found_is_client_error() {
-    let base_url = format!(
-        "{}/test/status/404",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/404", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -791,8 +599,7 @@ async fn test_base_api_not_found_is_client_error() {
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 404");
     let err = result.unwrap_err();
-    let not_found = err
-        .downcast_ref::<NotFoundError>()
+    let not_found = err.downcast_ref::<NotFoundError>()
         .expect("expected NotFoundError");
     // NotFoundError contains a client_error field (ClientError), confirming hierarchy
     assert_eq!(not_found.client_error().api_error().status_code(), 404);
@@ -800,10 +607,7 @@ async fn test_base_api_not_found_is_client_error() {
 
 #[tokio::test]
 async fn test_base_api_internal_server_error_is_server_error() {
-    let base_url = format!(
-        "{}/test/status/500",
-        testcontainers_helper::chasm_http_url()
-    );
+    let base_url = format!("{}/test/status/500", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -811,8 +615,7 @@ async fn test_base_api_internal_server_error_is_server_error() {
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 500");
     let err = result.unwrap_err();
-    let ise = err
-        .downcast_ref::<InternalServerError>()
+    let ise = err.downcast_ref::<InternalServerError>()
         .expect("expected InternalServerError");
     // InternalServerError contains a server_error field (ServerError), confirming hierarchy
     assert_eq!(ise.server_error().api_error().status_code(), 500);
@@ -829,8 +632,9 @@ impl petstore::auth::Authenticator for CookieAuthenticator {
 
     fn auth_headers<'a>(
         &'a self,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
-    {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
         Box::pin(async move { HashMap::new() })
     }
 
@@ -844,22 +648,14 @@ impl petstore::auth::Authenticator for CookieAuthenticator {
 #[tokio::test]
 async fn test_base_api_sets_cookie_from_auth() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = CookieAuthenticator;
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
     if let Some(cookie) = headers.get("Cookie") {
-        assert!(
-            cookie.contains("session=abc123"),
-            "expected cookie to contain session=abc123, got: {}",
-            cookie
-        );
+        assert!(cookie.contains("session=abc123"), "expected cookie to contain session=abc123, got: {}", cookie);
     }
     // If no Cookie header, the authenticator may use a different mechanism - that's OK
 }
@@ -869,17 +665,12 @@ async fn test_base_api_sets_cookie_from_auth() {
 #[tokio::test]
 async fn test_base_api_empty_content_type_defaults_to_json() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let _ = api.get_pet_by_id(1, None).await;
     let headers = client.captured_headers.lock().unwrap();
     if let Some(ct) = headers.get("Content-Type") {
-        assert_eq!(
-            ct, "application/json",
-            "expected Content-Type to be application/json"
-        );
+        assert_eq!(ct, "application/json", "expected Content-Type to be application/json");
     }
 }
 
@@ -904,28 +695,14 @@ impl petstore::api_client::ApiClient for QueryCapturingApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&petstore::api_client::RequestBody>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<
-                        petstore::api_response::ApiHttpResponse,
-                        Box<dyn std::error::Error + Send + Sync>,
-                    >,
-                > + Send
-                + '_,
-        >,
-    > {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         *self.captured_url.lock().unwrap() = url.to_string();
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
-                200,
-                "{}".to_string(),
-                {
+            Ok(petstore::api_response::ApiHttpResponse::new(200, "{}".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
-                },
-            ))
+                }))
         })
     }
 }
@@ -933,59 +710,38 @@ impl petstore::api_client::ApiClient for QueryCapturingApiClient {
 #[tokio::test]
 async fn test_base_api_query_param_serialization() {
     let client = Arc::new(QueryCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
-    let opts =
-        petstore::api::options::FindPetsByStatusOptions::new().status("available".to_string());
+    let opts = petstore::api::options::FindPetsByStatusOptions::new().status("available".to_string());
     let _ = api.find_pets_by_status(Some(&opts)).await;
     let url = client.captured_url.lock().unwrap();
-    assert!(
-        url.contains("status=available"),
-        "expected URL to contain status=available, got: {}",
-        url
-    );
+    assert!(url.contains("status=available"), "expected URL to contain status=available, got: {}", url);
 }
 
 #[tokio::test]
 async fn test_base_api_query_param_empty_when_no_options() {
     let client = Arc::new(QueryCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let _ = api.get_pet_by_id(1, None).await;
     let url = client.captured_url.lock().unwrap();
-    assert!(
-        !url.contains("?"),
-        "expected URL without query string, got: {}",
-        url
-    );
+    assert!(!url.contains("?"), "expected URL without query string, got: {}", url);
 }
 
 #[tokio::test]
 async fn test_base_api_nil_options_omits_query_params() {
     let client = Arc::new(QueryCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let _ = api.find_pets_by_status(None).await;
     let url = client.captured_url.lock().unwrap();
-    assert!(
-        !url.contains("status="),
-        "expected URL without status param when options is None, got: {}",
-        url
-    );
+    assert!(!url.contains("status="), "expected URL without status param when options is None, got: {}", url);
 }
 
 #[tokio::test]
 async fn test_base_api_allow_empty_value_omits_param_when_unset() {
     let client = Arc::new(QueryCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let opts = petstore::api::options::FindPetsByStatusOptions::new();
     let _ = api.find_pets_by_status(Some(&opts)).await;
@@ -993,28 +749,18 @@ async fn test_base_api_allow_empty_value_omits_param_when_unset() {
     // An unset optional allowEmptyValue param must NOT emit a spurious empty key;
     // the key rides the wire only when the caller supplies a value (see the
     // empty-string test below).
-    assert!(
-        !url.contains("status="),
-        "expected no status= for allowEmptyValue param with unset value, got: {}",
-        url
-    );
+    assert!(!url.contains("status="), "expected no status= for allowEmptyValue param with unset value, got: {}", url);
 }
 
 #[tokio::test]
 async fn test_base_api_allow_empty_value_includes_param_in_query_string() {
     let client = Arc::new(QueryCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let opts = petstore::api::options::FindPetsByStatusOptions::new().status("".to_string());
     let _ = api.find_pets_by_status(Some(&opts)).await;
     let url = client.captured_url.lock().unwrap();
-    assert!(
-        url.contains("status="),
-        "expected URL to contain status= for empty string allowEmptyValue param, got: {}",
-        url
-    );
+    assert!(url.contains("status="), "expected URL to contain status= for empty string allowEmptyValue param, got: {}", url);
 }
 
 // -- Server variable overrides --
@@ -1024,8 +770,7 @@ fn test_base_api_server_variable_overrides_resolve() {
     let mut vars = HashMap::new();
     vars.insert("environment".to_string(), "staging".to_string());
     let config = ConfigurationBuilder::new()
-        .server(&petstore::servers::server_1(), &vars)
-        .unwrap()
+        .server(&petstore::servers::server_1(), &vars).unwrap()
         .build();
     assert_eq!(config.base_url(), "https://staging.example.com/api/v3");
 }
@@ -1033,8 +778,7 @@ fn test_base_api_server_variable_overrides_resolve() {
 #[test]
 fn test_base_api_default_server_variables_resolve() {
     let config = ConfigurationBuilder::new()
-        .server(&petstore::servers::server_1(), &HashMap::new())
-        .unwrap()
+        .server(&petstore::servers::server_1(), &HashMap::new()).unwrap()
         .build();
     assert_eq!(config.base_url(), "https://api.example.com/api/v3");
 }
@@ -1043,7 +787,8 @@ fn test_base_api_default_server_variables_resolve() {
 fn test_base_api_invalid_enum_value_returns_error() {
     let mut vars = HashMap::new();
     vars.insert("environment".to_string(), "invalid".to_string());
-    let result = ConfigurationBuilder::new().server(&petstore::servers::server_1(), &vars);
+    let result = ConfigurationBuilder::new()
+        .server(&petstore::servers::server_1(), &vars);
     assert!(result.is_err(), "expected error for invalid enum value");
 }
 
@@ -1052,14 +797,10 @@ fn test_base_api_api_request_uses_resolved_server_url() {
     let mut vars = HashMap::new();
     vars.insert("environment".to_string(), "staging".to_string());
     let config = ConfigurationBuilder::new()
-        .server(&petstore::servers::server_1(), &vars)
-        .unwrap()
+        .server(&petstore::servers::server_1(), &vars).unwrap()
         .build();
-    assert!(
-        config.base_url().starts_with("https://staging.example.com"),
-        "expected base URL to start with https://staging.example.com, got: {}",
-        config.base_url()
-    );
+    assert!(config.base_url().starts_with("https://staging.example.com"),
+        "expected base URL to start with https://staging.example.com, got: {}", config.base_url());
 }
 
 // -- Query serialization --
@@ -1067,34 +808,24 @@ fn test_base_api_api_request_uses_resolved_server_url() {
 #[tokio::test]
 async fn test_base_api_serializes_boolean_query_params() {
     let client = Arc::new(QueryCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let opts = petstore::api::options::FindPetsByStatusOptions::new().status("true".to_string());
     let _ = api.find_pets_by_status(Some(&opts)).await;
     let url = client.captured_url.lock().unwrap();
-    assert!(
-        url.contains("status=true"),
-        "expected URL to contain status=true, got: {}",
-        url
-    );
+    assert!(url.contains("status=true"),
+        "expected URL to contain status=true, got: {}", url);
 }
 
 #[tokio::test]
 async fn test_base_api_serializes_number_query_params() {
     let client = Arc::new(QueryCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let _ = api.get_pet_by_id(10, None).await;
     let url = client.captured_url.lock().unwrap();
-    assert!(
-        !url.contains("10.0"),
-        "should not contain 10.0, got: {}",
-        url
-    );
+    assert!(!url.contains("10.0"),
+        "should not contain 10.0, got: {}", url);
 }
 
 // -- BinaryResponseTests --
@@ -1111,25 +842,15 @@ impl petstore::api_client::ApiClient for BinaryResponseApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&petstore::api_client::RequestBody>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<
-                        petstore::api_response::ApiHttpResponse,
-                        Box<dyn std::error::Error + Send + Sync>,
-                    >,
-                > + Send
-                + '_,
-        >,
-    > {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         let body = self.body.clone();
         let ct = self.content_type.clone();
         Box::pin(async move {
             Ok(petstore::api_response::ApiHttpResponse::new(200, body, {
-                let mut h = HashMap::new();
-                h.insert("Content-Type".to_string(), ct);
-                h
-            }))
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), ct);
+                    h
+                }))
         })
     }
 }
@@ -1148,9 +869,7 @@ async fn test_binary_response_octet_stream_decoded_from_base64() {
         body: encoded.clone(),
         content_type: "application/octet-stream".to_string(),
     });
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client, config, None);
 
     let result = api
@@ -1159,8 +878,7 @@ async fn test_binary_response_octet_stream_decoded_from_base64() {
         .expect("binary response must surface as Ok");
 
     assert_eq!(
-        result.raw_body(),
-        encoded.as_str(),
+        result.raw_body(), encoded.as_str(),
         "raw_body must equal the transport-supplied base64 string"
     );
 
@@ -1178,18 +896,14 @@ async fn test_binary_response_image_png_decoded_from_base64() {
     use base64::Engine as _;
     /* PNG magic header -- another byte sequence with high bytes that would
      * be corrupted under a UTF-8 round-trip. */
-    let original: Vec<u8> = vec![
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
-    ];
+    let original: Vec<u8> = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d];
     let encoded = base64::engine::general_purpose::STANDARD.encode(&original);
 
     let client = Arc::new(BinaryResponseApiClient {
         body: encoded.clone(),
         content_type: "image/png".to_string(),
     });
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client, config, None);
 
     let result = api
@@ -1209,9 +923,7 @@ async fn test_binary_response_json_parsed_to_object() {
         body: r#"{"id":42,"name":"test"}"#.to_string(),
         content_type: "application/json".to_string(),
     });
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client, config, None);
     // The API may not deserialize cleanly to a Pet, but should not panic
     let _ = api.get_pet_by_id(42, None).await;
@@ -1223,9 +935,7 @@ async fn test_binary_response_text_plain_returns_string() {
         body: "hello world".to_string(),
         content_type: "text/plain".to_string(),
     });
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client, config, None);
     // Should not panic; deserialization failure acceptable for non-JSON
     let _ = api.get_pet_by_id(1, None).await;
@@ -1237,104 +947,68 @@ async fn test_binary_response_empty_body_no_panic() {
         body: "".to_string(),
         content_type: "application/octet-stream".to_string(),
     });
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client, config, None);
     let auth = NoopAuthenticator;
     // DeletePet is void -- empty body should not panic
-    let _ = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth)))).await;
 }
 
 // -- CrossOriginRedirectTests --
 
 #[test]
 fn test_cross_origin_redirect_same_origin_forwards_authorization() {
-    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"]
-        .iter()
-        .copied()
-        .collect();
+    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"].iter().copied().collect();
     let is_same_origin = true;
     let original: HashMap<String, String> = [
         ("Authorization".to_string(), "Bearer token123".to_string()),
         ("Accept".to_string(), "application/json".to_string()),
-    ]
-    .iter()
-    .cloned()
-    .collect();
+    ].iter().cloned().collect();
 
-    let forwarded: HashMap<String, String> = original
-        .into_iter()
+    let forwarded: HashMap<String, String> = original.into_iter()
         .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
         .collect();
 
-    assert_eq!(
-        forwarded.get("Authorization").map(|s| s.as_str()),
-        Some("Bearer token123"),
-        "Authorization should be forwarded on same-origin redirect"
-    );
+    assert_eq!(forwarded.get("Authorization").map(|s| s.as_str()), Some("Bearer token123"),
+        "Authorization should be forwarded on same-origin redirect");
 }
 
 #[test]
 fn test_cross_origin_redirect_drops_authorization() {
-    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"]
-        .iter()
-        .copied()
-        .collect();
+    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"].iter().copied().collect();
     let is_same_origin = false;
     let original: HashMap<String, String> = [
         ("Authorization".to_string(), "Bearer token123".to_string()),
         ("Accept".to_string(), "application/json".to_string()),
-    ]
-    .iter()
-    .cloned()
-    .collect();
+    ].iter().cloned().collect();
 
-    let forwarded: HashMap<String, String> = original
-        .into_iter()
+    let forwarded: HashMap<String, String> = original.into_iter()
         .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
         .collect();
 
-    assert!(
-        forwarded.get("Authorization").is_none(),
-        "Authorization should be dropped on cross-origin redirect"
-    );
-    assert!(
-        forwarded.get("Accept").is_some(),
-        "Accept should be forwarded on cross-origin redirect"
-    );
+    assert!(forwarded.get("Authorization").is_none(),
+        "Authorization should be dropped on cross-origin redirect");
+    assert!(forwarded.get("Accept").is_some(),
+        "Accept should be forwarded on cross-origin redirect");
 }
 
 #[test]
 fn test_cross_origin_redirect_drops_cookie() {
-    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"]
-        .iter()
-        .copied()
-        .collect();
+    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"].iter().copied().collect();
     let is_same_origin = false;
     let original: HashMap<String, String> = [
         ("Cookie".to_string(), "session=abc123".to_string()),
         ("Accept".to_string(), "application/json".to_string()),
-    ]
-    .iter()
-    .cloned()
-    .collect();
+    ].iter().cloned().collect();
 
-    let forwarded: HashMap<String, String> = original
-        .into_iter()
+    let forwarded: HashMap<String, String> = original.into_iter()
         .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
         .collect();
 
-    assert!(
-        forwarded.get("Cookie").is_none(),
-        "Cookie should be dropped on cross-origin redirect"
-    );
-    assert!(
-        forwarded.get("Accept").is_some(),
-        "Accept should be forwarded on cross-origin redirect"
-    );
+    assert!(forwarded.get("Cookie").is_none(),
+        "Cookie should be dropped on cross-origin redirect");
+    assert!(forwarded.get("Accept").is_some(),
+        "Accept should be forwarded on cross-origin redirect");
 }
 
 // -- NullBodyContentTypeTests --
@@ -1360,32 +1034,18 @@ impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
         _url: &str,
         headers: &HashMap<String, String>,
         body: Option<&petstore::api_client::RequestBody>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<
-                        petstore::api_response::ApiHttpResponse,
-                        Box<dyn std::error::Error + Send + Sync>,
-                    >,
-                > + Send
-                + '_,
-        >,
-    > {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         *self.captured_headers.lock().unwrap() = headers.clone();
         *self.captured_body.lock().unwrap() = match body {
             Some(petstore::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
             _ => None,
         };
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
-                200,
-                "{}".to_string(),
-                {
+            Ok(petstore::api_response::ApiHttpResponse::new(200, "{}".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
-                },
-            ))
+                }))
         })
     }
 }
@@ -1393,54 +1053,38 @@ impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
 #[tokio::test]
 async fn test_null_body_post_does_not_send_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     // delete_pet sends no body -- Content-Type should not be present
-    let _ = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(
-        headers.get("Content-Type").is_none(),
-        "Content-Type must NOT be sent when body is None"
-    );
+    assert!(headers.get("Content-Type").is_none(),
+        "Content-Type must NOT be sent when body is None");
 }
 
 #[tokio::test]
 async fn test_body_present_includes_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(
-        headers.get("Content-Type").is_some(),
-        "Content-Type must be sent when body is non-None"
-    );
+    assert!(headers.get("Content-Type").is_some(),
+        "Content-Type must be sent when body is non-None");
 }
 
 #[tokio::test]
 async fn test_get_request_with_no_body_omits_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let _ = api.get_pet_by_id(1, None).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(
-        headers.get("Content-Type").is_none(),
-        "Content-Type must NOT be sent when body is None (GET request)"
-    );
+    assert!(headers.get("Content-Type").is_none(),
+        "Content-Type must NOT be sent when body is None (GET request)");
 }
 
 // -- Proxy authentication propagation --
@@ -1472,11 +1116,8 @@ async fn test_base_api_routes_through_proxy_with_basic_auth() {
     /* Either Ok(any status) or Err -- both are acceptable shapes here.
      * The test verifies the proxy URL was parsed and applied without panic. */
     match result {
-        Ok(resp) => assert!(
-            resp.status_code() >= 200 && resp.status_code() < 600,
-            "got nonsensical status: {}",
-            resp.status_code()
-        ),
+        Ok(resp) => assert!(resp.status_code() >= 200 && resp.status_code() < 600,
+            "got nonsensical status: {}", resp.status_code()),
         Err(_) => { /* Squid may refuse -- acceptable for this fixture. */ }
     }
 }
@@ -1495,102 +1136,69 @@ fn make_api_error(code: u16) -> petstore::api_error::ApiError {
 #[test]
 fn test_api_error_kind_bad_request_variant() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(400).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::BadRequest(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::BadRequest(_)));
     assert_eq!(kind.status_code(), 400);
 }
 
 #[test]
 fn test_api_error_kind_unauthorized_variant() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(401).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::Unauthorized(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::Unauthorized(_)));
 }
 
 #[test]
 fn test_api_error_kind_forbidden_variant() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(403).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::Forbidden(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::Forbidden(_)));
 }
 
 #[test]
 fn test_api_error_kind_not_found_variant() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(404).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::NotFound(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::NotFound(_)));
 }
 
 #[test]
 fn test_api_error_kind_conflict_variant() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(409).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::Conflict(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::Conflict(_)));
 }
 
 #[test]
 fn test_api_error_kind_unprocessable_entity_variant() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(422).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::UnprocessableEntity(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::UnprocessableEntity(_)));
 }
 
 #[test]
 fn test_api_error_kind_internal_server_error_variant() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(500).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::InternalServerError(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::InternalServerError(_)));
 }
 
 #[test]
 fn test_api_error_kind_client_error_fallback() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(418).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::ClientError(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::ClientError(_)));
 }
 
 #[test]
 fn test_api_error_kind_server_error_fallback() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(503).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::ServerError(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::ServerError(_)));
 }
 
 #[test]
 fn test_api_error_kind_other_for_unrecognized_status() {
     let kind: petstore::api_error::ApiErrorKind = make_api_error(0).into();
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::Other(_, _)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::Other(_, _)));
 }
 
 #[test]
 fn test_api_error_kind_network_variant_carries_io_error() {
     let io_err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "down");
     let kind = petstore::api_error::ApiErrorKind::Network(io_err);
-    assert!(matches!(
-        kind,
-        petstore::api_error::ApiErrorKind::Network(_)
-    ));
+    assert!(matches!(kind, petstore::api_error::ApiErrorKind::Network(_)));
     assert_eq!(kind.status_code(), 0);
 }
 
@@ -1613,23 +1221,20 @@ fn test_api_error_typed_body_parses_into_target_type() {
         Some(headers),
     );
     let parsed: Option<Problem> = err.typed_body().expect("should deserialize");
-    assert_eq!(
-        parsed,
-        Some(Problem {
-            title: "Bad Input".to_string(),
-            status: 400
-        })
-    );
+    assert_eq!(parsed, Some(Problem { title: "Bad Input".to_string(), status: 400 }));
 }
 
 #[test]
 fn test_api_error_typed_body_returns_none_when_no_body() {
-    let err = petstore::api_error::ApiError::new(500, "boom".to_string(), None, None);
-    let parsed: Result<Option<serde_json::Value>, _> = err.typed_body();
-    assert!(
-        matches!(parsed, Ok(None)),
-        "typed_body must return Ok(None) when there is no response body"
+    let err = petstore::api_error::ApiError::new(
+        500,
+        "boom".to_string(),
+        None,
+        None,
     );
+    let parsed: Result<Option<serde_json::Value>, _> = err.typed_body();
+    assert!(matches!(parsed, Ok(None)),
+        "typed_body must return Ok(None) when there is no response body");
 }
 
 #[test]
@@ -1638,10 +1243,7 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
     // underscore-prefixing exempts it from dead_code without a suppression,
     // while `serde(rename)` preserves the on-the-wire field name `id`.
     #[derive(serde::Deserialize, Debug)]
-    struct Strict {
-        #[serde(rename = "id")]
-        _id: i64,
-    }
+    struct Strict { #[serde(rename = "id")] _id: i64 }
     let err = petstore::api_error::ApiError::new(
         400,
         "bad".to_string(),
@@ -1649,10 +1251,7 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
         None,
     );
     let parsed: Result<Option<Strict>, _> = err.typed_body();
-    assert!(
-        parsed.is_err(),
-        "typed_body must return Err for unparseable bodies"
-    );
+    assert!(parsed.is_err(), "typed_body must return Err for unparseable bodies");
 }
 
 // immutability regression: ApiResult and ApiHttpResponse expose their state only
@@ -1664,29 +1263,27 @@ fn test_api_result_and_response_accessor_only() {
     let mut headers = HashMap::new();
     headers.insert("content-type".to_string(), "application/json".to_string());
 
-    let result: petstore::api_result::ApiResult<i32> = petstore::api_result::ApiResult::new(
-        201,
-        Some(42),
-        "{\"v\":42}".to_string(),
-        headers.clone(),
-    );
+    let result: petstore::api_result::ApiResult<i32> =
+        petstore::api_result::ApiResult::new(
+            201,
+            Some(42),
+            "{\"v\":42}".to_string(),
+            headers.clone(),
+        );
     assert_eq!(result.status_code(), 201);
     assert_eq!(result.data(), Some(&42));
     assert_eq!(result.raw_body(), "{\"v\":42}");
-    assert_eq!(
-        result.headers().get("content-type").map(String::as_str),
-        Some("application/json")
-    );
+    assert_eq!(result.headers().get("content-type").map(String::as_str), Some("application/json"));
     assert_eq!(result.into_data(), Some(42));
 
-    let response =
-        petstore::api_response::ApiHttpResponse::new(204, "no content".to_string(), headers);
+    let response = petstore::api_response::ApiHttpResponse::new(
+        204,
+        "no content".to_string(),
+        headers,
+    );
     assert_eq!(response.status_code(), 204);
     assert_eq!(response.body(), "no content");
-    assert_eq!(
-        response.headers().get("content-type").map(String::as_str),
-        Some("application/json")
-    );
+    assert_eq!(response.headers().get("content-type").map(String::as_str), Some("application/json"));
 }
 
 // immutability regression: the typed error wrappers expose their wrapped error
@@ -1705,10 +1302,7 @@ fn test_typed_error_wrappers_accessor_only() {
 
     let bad_request = BadRequestError::from(client_error);
     assert_eq!(bad_request.client_error().api_error().status_code(), 400);
-    assert_eq!(
-        bad_request.client_error().api_error().message(),
-        "bad request"
-    );
+    assert_eq!(bad_request.client_error().api_error().message(), "bad request");
 }
 
 // The charset-decoding (Gap H) and per-part MIME-sniffing (Gap J) unit tests
@@ -1726,15 +1320,11 @@ fn test_typed_error_wrappers_accessor_only() {
 #[tokio::test]
 async fn test_base_api_configured_bearer_authenticator_reaches_wire() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = petstore::auth::BearerAuthenticator::new("http://localhost", "secret-token");
     let pet = Pet::new("AuthPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("Authorization").map(|s| s.as_str()),
@@ -1751,9 +1341,7 @@ async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
     use petstore::auth::api_key_authenticator::ApiKeyAuthenticator;
     use petstore::auth::api_key_location::ApiKeyLocation;
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = ApiKeyAuthenticator::new(
         "http://localhost",
@@ -1762,13 +1350,126 @@ async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
         ApiKeyLocation::Header,
     );
     let pet = Pet::new("ApiKeyPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("X-API-Key").map(|s| s.as_str()),
         Some("key-abc123"),
         "a configured apiKey authenticator must apply its api-key header to the secured request"
+    );
+}
+
+// -- SECURITY-NONE: client credential suppressed for `security: []` ops --
+//
+// The fix this guards: an operation declared `security: []` is explicitly
+// unauthenticated. The generated method passes the no-auth SENTINEL (not None)
+// so BaseApi suppresses auth ENTIRELY — it must NOT fall back to the
+// client-level authenticator and leak its credential. `get_pet_by_id`
+// (GET /pet/{petId}) is a `security: []` operation; with a client-level
+// authenticator configured, the outbound request must carry no Authorization
+// header, no api-key header/query-param, and no auth cookie.
+//
+// A reflect-style endpoint (testEcho*) would otherwise echo the leaked
+// credential straight back to the caller, so this is exercised as a real
+// security regression guard, not a cosmetic header check.
+
+// Authenticator that simultaneously places a credential in EVERY transport
+// position (header, query param, cookie) so the SECURITY-NONE assertion can
+// prove suppression across all three at once.
+struct EverywhereAuthenticator;
+
+impl petstore::auth::Authenticator for EverywhereAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            let mut headers = HashMap::new();
+            headers.insert("Authorization".to_string(), "Bearer leaked-token".to_string());
+            headers.insert("X-API-Key".to_string(), "leaked-key".to_string());
+            headers
+        })
+    }
+
+    fn query_params(&self) -> HashMap<String, String> {
+        let mut q = HashMap::new();
+        q.insert("api_key".to_string(), "leaked-key".to_string());
+        q
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        let mut c = HashMap::new();
+        c.insert("session".to_string(), "leaked-session".to_string());
+        c
+    }
+}
+
+#[tokio::test]
+async fn test_base_api_security_none_op_suppresses_client_authenticator() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    // Client-level authenticator configured (no per-call override below).
+    let client_auth: Arc<dyn petstore::auth::Authenticator> =
+        Arc::new(EverywhereAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+
+    // get_pet_by_id is declared `security: []` -> the SDK passes the no-auth
+    // sentinel, so NONE of the client credential's transport positions may
+    // appear on the wire.
+    let _ = api.get_pet_by_id(1, None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    let url = client.captured_url.lock().unwrap();
+
+    assert!(
+        headers.get("Authorization").is_none(),
+        "security: [] op must NOT carry an Authorization header, got: {:?}",
+        headers.get("Authorization")
+    );
+    assert!(
+        headers.get("X-API-Key").is_none(),
+        "security: [] op must NOT carry an api-key header, got: {:?}",
+        headers.get("X-API-Key")
+    );
+    assert!(
+        headers.get("Cookie").is_none(),
+        "security: [] op must NOT carry an auth cookie, got: {:?}",
+        headers.get("Cookie")
+    );
+    assert!(
+        !url.contains("api_key="),
+        "security: [] op must NOT carry an api-key query param, got URL: {}",
+        url
+    );
+}
+
+// SECURED counterpart (Wave A1 guard, no per-call override): a secured
+// operation with ONLY a client-level authenticator configured must STILL apply
+// the credential. This is the `auth == None -> fall back to client
+// authenticator` branch of the three-state contract; the sentinel change must
+// not regress it. `add_pet` is a secured operation.
+#[tokio::test]
+async fn test_base_api_secured_op_applies_client_authenticator() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> =
+        Arc::new(EverywhereAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+
+    // add_pet is secured and receives no per-call override (None) -> BaseApi
+    // must fall back to the client-level authenticator and apply its credential.
+    let pet = Pet::new("SecuredPet".to_string(), HashSet::new());
+    let _ = api.add_pet(pet, None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer leaked-token"),
+        "a secured op with a configured client authenticator must still send the credential (no over-suppression)"
     );
 }

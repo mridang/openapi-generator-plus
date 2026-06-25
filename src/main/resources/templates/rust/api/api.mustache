@@ -749,7 +749,20 @@ impl {{classname}} {
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             content_type: request_content_type,
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
-            {{#hasAuthMethods}}auth,{{/hasAuthMethods}}{{^hasAuthMethods}}auth: None,{{/hasAuthMethods}}
+{{#hasAuthMethods}}
+            // Secured operation: pass the resolved per-call authenticator (or
+            // None for no override, which lets BaseApi fall back to the
+            // client-level authenticator).
+            auth,
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+            // security-none suppression: this operation is declared
+            // `security: []` (explicitly unauthenticated). Pass the no-auth
+            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
+            // than falling back to the client-level authenticator, which would
+            // leak the client credential on reflect-style endpoints.
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+{{/hasAuthMethods}}
         };
 
 {{#returnType}}

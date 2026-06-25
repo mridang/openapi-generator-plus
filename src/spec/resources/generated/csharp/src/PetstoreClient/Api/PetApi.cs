@@ -351,7 +351,7 @@ public class PetApi : BaseApi
                 AddPetPhotosAccepts,
                 "multipart/form-data",
                 typeof(List<Photo>),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -573,7 +573,7 @@ public class PetApi : BaseApi
                 DownloadPetDocumentAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -659,7 +659,7 @@ public class PetApi : BaseApi
                 FindPetsByStatusAccepts,
                 "application/json",
                 typeof(List<Pet>),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -732,7 +732,7 @@ public class PetApi : BaseApi
                 GetExternalPetInfoAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -805,7 +805,7 @@ public class PetApi : BaseApi
                 GetMultiServerPetInfoAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -870,7 +870,7 @@ public class PetApi : BaseApi
                 GetPetAvatarAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -935,7 +935,7 @@ public class PetApi : BaseApi
                 GetPetAvatarThumbnailAccepts,
                 "application/json",
                 typeof(byte[]),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1013,7 +1013,7 @@ public class PetApi : BaseApi
                 GetPetByIdAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1100,7 +1100,7 @@ public class PetApi : BaseApi
                 GetPetByNameAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1165,7 +1165,7 @@ public class PetApi : BaseApi
                 GetPetPassportAccepts,
                 "application/json",
                 typeof(PetPassport),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1237,7 +1237,7 @@ public class PetApi : BaseApi
                 GetPetPhotoAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1349,7 +1349,7 @@ public class PetApi : BaseApi
                 GetPetTagAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1422,7 +1422,7 @@ public class PetApi : BaseApi
                 GetStagingPetInfoAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1474,7 +1474,7 @@ public class PetApi : BaseApi
                 [],
                 requestContentType ?? "image/jpeg",
                 null,
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1522,7 +1522,7 @@ public class PetApi : BaseApi
                 [],
                 "application/json",
                 null,
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1605,7 +1605,7 @@ public class PetApi : BaseApi
                 SetPetPreferencesAccepts,
                 "application/x-www-form-urlencoded",
                 typeof(ApiResponse),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1670,7 +1670,7 @@ public class PetApi : BaseApi
                 UpdatePetAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1741,7 +1741,7 @@ public class PetApi : BaseApi
                 UploadPetCertificateAccepts,
                 "multipart/form-data",
                 typeof(ApiResponse),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -1824,7 +1824,7 @@ public class PetApi : BaseApi
                 UploadPetDocumentAccepts,
                 requestContentType ?? "multipart/form-data",
                 typeof(ApiResponse),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }

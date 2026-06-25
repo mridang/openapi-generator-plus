@@ -20,6 +20,8 @@ import type { ApiHttpResponse } from '../src/api-response{{importFileExtension}}
 import type { ApiResult } from '../src/api-result{{importFileExtension}}';
 import { PetApi } from '../src/api/pet-api{{importFileExtension}}';
 import { BearerAuthenticator } from '../src/auth/bearer-authenticator{{importFileExtension}}';
+import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFileExtension}}';
+import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
 
@@ -783,6 +785,116 @@ describe('BaseApi per-call auth optional', () => {
     await testApi.call('GET', '/test/echo', {}, {}, null,
       ['application/json'], 'application/json', null, perCallAuth);
     expect(client.capturedHeaders['X-Client-Auth']).toBe('per-call-token');
+  });
+});
+
+describe('SecurityNoneSuppressesClientAuth', () => {
+  /*
+   * SECURITY-NONE (Wave A2): an operation declared `security: []` in the
+   * spec is explicitly unauthenticated. Even when the client is configured
+   * WITH an authenticator, that operation must carry NO credential on the
+   * wire — no Authorization header, no api-key header/query-param, no auth
+   * cookie. The api method passes the internal NO_AUTH sentinel for such
+   * operations, and base_api resolves the sentinel to "apply no auth"
+   * rather than falling back to the client authenticator.
+   *
+   * `getPetById` is declared `security: []`, so it is the canonical
+   * unauthenticated operation. The CapturingApiClient records exactly what
+   * BaseApi hands to the transport, so we assert against the real outgoing
+   * request of the real operation.
+   */
+  test('security:[] op suppresses a configured Bearer authenticator', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"id":1,"name":"Fido"}';
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const clientAuth = new BearerAuthenticator('http://localhost', 'secret-token-123');
+    const petApi = new PetApi(client, config, clientAuth);
+    try {
+      await petApi.getPetById(1);
+    } catch {
+      // capture-only: we only care about the outbound request
+    }
+    // No Authorization header reached the wire despite the configured Bearer.
+    expect(client.capturedHeaders['Authorization']).toBeUndefined();
+    const headerKeys = Object.keys(client.capturedHeaders).map((k) => k.toLowerCase());
+    expect(headerKeys).not.toContain('authorization');
+    // And no secret leaked into the value of any header.
+    for (const value of Object.values(client.capturedHeaders)) {
+      expect(value).not.toContain('secret-token-123');
+    }
+  });
+
+  test('security:[] op suppresses a configured api-key (header, query, cookie)', async () => {
+    // Header-located api key.
+    const headerClient = new CapturingApiClient();
+    headerClient.responseBody = '{"id":1,"name":"Fido"}';
+    const headerAuth = new ApiKeyAuthenticator(
+      'http://localhost', 'X-API-Key', 'key-secret-xyz', ApiKeyLocation.HEADER);
+    const headerApi = new PetApi(
+      headerClient, new Configuration({ baseUrl: 'http://localhost' }), headerAuth);
+    try {
+      await headerApi.getPetById(1);
+    } catch {
+      // capture-only
+    }
+    expect(headerClient.capturedHeaders['X-API-Key']).toBeUndefined();
+    expect(headerClient.capturedHeaders['Cookie']).toBeUndefined();
+    for (const value of Object.values(headerClient.capturedHeaders)) {
+      expect(value).not.toContain('key-secret-xyz');
+    }
+
+    // Query-located api key — must not appear in the URL.
+    const queryClient = new CapturingApiClient();
+    queryClient.responseBody = '{"id":1,"name":"Fido"}';
+    const queryAuth = new ApiKeyAuthenticator(
+      'http://localhost', 'api_key', 'key-secret-xyz', ApiKeyLocation.QUERY);
+    const queryApi = new PetApi(
+      queryClient, new Configuration({ baseUrl: 'http://localhost' }), queryAuth);
+    try {
+      await queryApi.getPetById(1);
+    } catch {
+      // capture-only
+    }
+    expect(queryClient.capturedUrl).not.toContain('api_key=');
+    expect(queryClient.capturedUrl).not.toContain('key-secret-xyz');
+
+    // Cookie-located api key — must not appear in the Cookie header.
+    const cookieClient = new CapturingApiClient();
+    cookieClient.responseBody = '{"id":1,"name":"Fido"}';
+    const cookieAuth = new ApiKeyAuthenticator(
+      'http://localhost', 'SESSION_ID', 'key-secret-xyz', ApiKeyLocation.COOKIE);
+    const cookieApi = new PetApi(
+      cookieClient, new Configuration({ baseUrl: 'http://localhost' }), cookieAuth);
+    try {
+      await cookieApi.getPetById(1);
+    } catch {
+      // capture-only
+    }
+    expect(cookieClient.capturedHeaders['Cookie']).toBeUndefined();
+    for (const value of Object.values(cookieClient.capturedHeaders)) {
+      expect(value).not.toContain('key-secret-xyz');
+    }
+  });
+
+  /*
+   * SECURED (over-suppression guard): a SECURED operation with a configured
+   * client authenticator and NO per-call override must STILL apply the
+   * credential. This is the Wave A1 regression guard — the sentinel fix
+   * must suppress auth ONLY for security:[] operations, never for secured
+   * ones. `addPet` is a secured operation.
+   */
+  test('secured op still sends the configured authenticator credential', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"id":1,"name":"Fido"}';
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const clientAuth = new BearerAuthenticator('http://localhost', 'secret-token-123');
+    const petApi = new PetApi(client, config, clientAuth);
+    try {
+      await petApi.addPet({ name: 'Fido' });
+    } catch {
+      // capture-only
+    }
+    expect(client.capturedHeaders['Authorization']).toBe('Bearer secret-token-123');
   });
 });
 

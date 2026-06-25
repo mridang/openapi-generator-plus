@@ -443,7 +443,13 @@ class {{classname}} extends BaseApi {
       contentType: '{{vendorExtensions.op.effectiveConsumes}}',
 {{/vendorExtensions.op.hasMultipleConsumes}}
       returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
-      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}},
+      {{! security-none suppression: an operation without auth methods is }}
+      {{! declared `security: []` and must NOT inherit the client-level }}
+      {{! authenticator. Pass the `noAuth` sentinel (not `null`, which means }}
+      {{! "fall back to the client authenticator") so base_api suppresses auth }}
+      {{! entirely. A secured op passes its per-call override (`auth`, possibly }}
+      {{! null for "use the client credential") unchanged. }}
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}noAuth{{/hasAuthMethods}},
 {{#returnType}}
 {{#returnTypeIsPrimitive}}
 {{#isMap}}

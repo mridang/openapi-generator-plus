@@ -7,8 +7,33 @@
 
 import Foundation
 
+/// Internal no-auth sentinel.
+///
+/// An operation declared `security: []` in the spec is explicitly
+/// unauthenticated and must NOT pick up the client-level authenticator. A
+/// plain `nil` auth argument cannot express that intent because `nil` already
+/// means "no per-call override — fall back to the client authenticator". To
+/// distinguish the two cases the generated api methods pass this dedicated
+/// sentinel for unauthenticated operations.
+///
+/// It is a reference type so it can be compared by identity (`===`) against
+/// `BaseApi.noAuthSentinel`; it never contributes any headers, query params,
+/// or cookies. It is internal to the generated client — callers never see it.
+final class NoAuth: Authenticator, @unchecked Sendable {
+  func host() -> String { return "" }
+  func authHeaders() async throws -> [String: String] { return [:] }
+  func queryParams() -> [String: String] { return [:] }
+  func cookieParams() -> [String: String] { return [:] }
+}
+
 /// BaseApi provides common functionality for all API classes.
 public class BaseApi: @unchecked Sendable {
+  /// The single shared no-auth sentinel instance. Identity-comparable.
+  /// Generated api methods for `security: []` operations pass this value as
+  /// the `auth` argument; `invokeAPI` recognizes it and suppresses all
+  /// authentication (it does not fall back to the client authenticator).
+  static let noAuthSentinel: Authenticator = NoAuth()
+
   let config: Configuration
   let apiClient: ApiClient
   let headerSelector: HeaderSelector
@@ -54,9 +79,28 @@ public class BaseApi: @unchecked Sendable {
       requestURL = base + params.path
     }
 
-    /* Merge authentication query params */
+    /* Resolve authentication into three distinct states (the sentinel
+     * disambiguates an explicitly-unauthenticated op from a secured op
+     * with no per-call override):
+     *   - auth IS the no-auth sentinel -> NO auth (security: [] op);
+     *     do NOT fall back to the client authenticator.
+     *   - auth is nil                  -> secured op, no per-call override;
+     *     fall back to the client-level authenticator.
+     *   - auth is a real authenticator -> per-call override; use it. */
     var queryParams = params.queryParams
-    let effectiveAuth: Authenticator? = params.auth ?? self.authenticator
+    let effectiveAuth: Authenticator?
+    if let suppliedAuth = params.auth {
+      /* `Authenticator` is a Sendable protocol, not AnyObject-constrained,
+       * so identity-compare through `as AnyObject` (both the sentinel and
+       * every concrete authenticator are reference types). */
+      if (suppliedAuth as AnyObject) === (BaseApi.noAuthSentinel as AnyObject) {
+        effectiveAuth = nil
+      } else {
+        effectiveAuth = suppliedAuth
+      }
+    } else {
+      effectiveAuth = self.authenticator
+    }
     if let auth = effectiveAuth {
       for (k, v) in auth.queryParams() {
         queryParams[k] = v

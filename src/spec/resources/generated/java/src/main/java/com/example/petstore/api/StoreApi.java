@@ -152,7 +152,7 @@ public class StoreApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -248,7 +248,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getBySwatchTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -280,7 +280,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getDefaultsTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -312,7 +312,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getDepartmentTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -344,7 +344,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getGroupedCategoriesTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -376,7 +376,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getInventoryTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -408,7 +408,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getMatrixTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -452,7 +452,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -522,7 +522,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getStockItemTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -554,7 +554,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getSwatchTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -586,7 +586,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getSwatchGroupsTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -618,7 +618,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getTimestampGroupsTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -650,7 +650,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getTreeTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**
@@ -684,7 +684,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         placeOrderTypeRef,
-        null);
+        NO_AUTH);
   }
 
   /**

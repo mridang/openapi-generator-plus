@@ -840,6 +840,42 @@ import Testing
             "Configured apiKey authenticator must reach the outbound request")
     }
 
+    // MARK: - Auth suppressed on security:[] operations
+
+    /* An operation declared `security: []` in the spec is explicitly
+     * unauthenticated. Even when the client is configured WITH an
+     * authenticator, that credential must NOT be attached to such an
+     * operation — otherwise the credential leaks (e.g. the testEcho* ops
+     * reflect the request back to the caller). `getPetById` is a security:[]
+     * operation: its generated method passes the no-auth sentinel, which
+     * BaseApi resolves to "no auth applied" rather than falling back to the
+     * client authenticator. */
+    @Test func testClientAuthSuppressedForSecurityNoneOperation() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        /* Configure the client WITH an authenticator that supplies every kind
+         * of credential the transport understands: an Authorization header, an
+         * api-key header, an api-key query param, and an auth cookie. */
+        let auth = MockAuth(
+            headers: ["Authorization": "Bearer client-secret", "X-API-Key": "client-key"],
+            query: ["api_key": "client-query-key"],
+            cookies: ["session": "client-cookie"]
+        )
+        let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+
+        _ = try? await api.getPetById(petId: 1)
+
+        #expect(mockClient.lastHeaders["Authorization"] == nil,
+            "security:[] op must NOT carry the client Authorization header, got: \(mockClient.lastHeaders["Authorization"] ?? "nil")")
+        #expect(mockClient.lastHeaders["X-API-Key"] == nil,
+            "security:[] op must NOT carry the client api-key header, got: \(mockClient.lastHeaders["X-API-Key"] ?? "nil")")
+        #expect(mockClient.lastHeaders["Cookie"] == nil,
+            "security:[] op must NOT carry the client auth cookie, got: \(mockClient.lastHeaders["Cookie"] ?? "nil")")
+        #expect(!mockClient.lastURL.contains("api_key="),
+            "security:[] op must NOT carry the client api-key query param, got: \(mockClient.lastURL)")
+    }
+
     // MARK: - WithHTTPInfo result shape
 
     @Test func testWithHTTPInfoExposesStatusHeadersAndData() async throws {

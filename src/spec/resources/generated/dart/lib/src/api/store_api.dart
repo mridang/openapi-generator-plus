@@ -85,7 +85,7 @@ class StoreApi extends BaseApi {
       accepts: [],
       contentType: 'application/json',
       returnType: '',
-      auth: null,
+      auth: noAuth,
     );
   }
 
@@ -171,7 +171,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Category',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) => deserialize(body, Category.fromJson) as Category,
     );
@@ -218,7 +218,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Defaults',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) => deserialize(body, Defaults.fromJson) as Defaults,
     );
@@ -265,7 +265,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Department',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) =>
           deserialize(body, Department.fromJson) as Department,
@@ -314,7 +314,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'List<Map<String, Category>>',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -369,7 +369,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Map<String, int>',
-      auth: null,
+      auth: noAuth,
       deserialize: (body) => (deserializeRaw(body) as Map).cast<String, int>(),
     );
   }
@@ -414,7 +414,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'List<List<int>>',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -487,7 +487,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Order',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
@@ -548,7 +548,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'StockItem',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) => deserialize(body, StockItem.fromJson) as StockItem,
     );
@@ -594,7 +594,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Swatch',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) => Swatch.fromJson(deserializeRaw(body) as String),
     );
@@ -642,7 +642,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'List<Map<String, Swatch>>',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -695,7 +695,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'List<Map<String, DateTime>>',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -746,7 +746,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'TreeNode',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) => deserialize(body, TreeNode.fromJson) as TreeNode,
     );
@@ -793,7 +793,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Order',
-      auth: null,
+      auth: noAuth,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );

@@ -425,7 +425,7 @@ module {{moduleName}}
           '{{vendorExtensions.op.effectiveConsumes}}',
 {{/vendorExtensions.hasMultipleConsumes}}
           {{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
-          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
+          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/hasAuthMethods}}
         )
       end
     {{/operation}}

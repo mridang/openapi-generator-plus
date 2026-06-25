@@ -282,7 +282,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 		accepts:      []string{"application/json"},
 		contentType:  "multipart/form-data",
 		returnType:   "[]Photo",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -536,7 +536,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 		accepts:      []string{"application/octet-stream"},
 		contentType:  "application/json",
 		returnType:   "[]byte",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -637,7 +637,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[]Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -728,7 +728,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -819,7 +819,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -905,7 +905,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 		accepts:      []string{"image/jpeg", "image/png"},
 		contentType:  "application/json",
 		returnType:   "[]byte",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -991,7 +991,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[]byte",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1089,7 +1089,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1186,7 +1186,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1272,7 +1272,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "PetPassport",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1363,7 +1363,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 		accepts:      []string{"image/jpeg", "image/png", "application/json"},
 		contentType:  "application/json",
 		returnType:   "[]byte",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1470,7 +1470,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1561,7 +1561,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1663,7 +1663,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 		accepts:      []string{},
 		contentType:  requestContentTypeValue,
 		returnType:   "",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1714,7 +1714,7 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 		accepts:      []string{},
 		contentType:  "application/json",
 		returnType:   "",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1787,7 +1787,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 		accepts:      []string{"application/json"},
 		contentType:  "application/x-www-form-urlencoded",
 		returnType:   "ApiResponse",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1874,7 +1874,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1970,7 +1970,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 		accepts:      []string{"application/json"},
 		contentType:  "multipart/form-data",
 		returnType:   "ApiResponse",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -2093,7 +2093,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 		accepts:      []string{"application/json"},
 		contentType:  requestContentTypeValue,
 		returnType:   "ApiResponse",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err

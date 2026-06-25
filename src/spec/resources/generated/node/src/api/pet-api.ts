@@ -9,6 +9,7 @@ import type { ApiClient } from "../api-client.js";
 import { ApiError } from "../api-error.js";
 import type { ApiResult } from "../api-result.js";
 import type { Authenticator } from "../auth/authenticator.js";
+import { NO_AUTH } from "../auth/authenticator.js";
 import { BaseApi } from "./base-api.js";
 import { Configuration } from "../configuration.js";
 import { ObjectSerializer } from "../object-serializer.js";
@@ -271,7 +272,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Photo),
-      null,
+      NO_AUTH,
     );
   }
 
@@ -510,7 +511,7 @@ export class PetApi extends BaseApi {
       ["application/octet-stream"],
       "application/json",
       (json: unknown) => json as Buffer,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -582,7 +583,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
-      null,
+      NO_AUTH,
     );
   }
 
@@ -656,7 +657,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -728,7 +729,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -790,7 +791,7 @@ export class PetApi extends BaseApi {
       ["image/jpeg", "image/png"],
       "application/json",
       (json: unknown) => json as Buffer,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -855,7 +856,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => Buffer.from(json as string, "base64"),
-      null,
+      NO_AUTH,
     );
   }
 
@@ -927,7 +928,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1011,7 +1012,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1075,7 +1076,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, PetPassport)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1161,7 +1162,7 @@ export class PetApi extends BaseApi {
       ["image/jpeg", "image/png", "application/json"],
       "application/json",
       (json: unknown) => json as Buffer,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1288,7 +1289,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1362,7 +1363,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1425,7 +1426,7 @@ export class PetApi extends BaseApi {
       [],
       contentType ?? "image/jpeg",
       null,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1488,7 +1489,7 @@ export class PetApi extends BaseApi {
       [],
       "application/json",
       null,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1578,7 +1579,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/x-www-form-urlencoded",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1648,7 +1649,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1728,7 +1729,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
-      null,
+      NO_AUTH,
     );
   }
 
@@ -1822,7 +1823,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       contentType ?? "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
-      null,
+      NO_AUTH,
     );
   }
 }

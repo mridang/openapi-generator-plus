@@ -17,6 +17,7 @@ import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.api.options.GetStockItemOptions
 import com.example.petstore.auth.Authenticator
+import com.example.petstore.auth.NoAuth
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
@@ -70,7 +71,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf(),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -129,7 +130,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -156,7 +157,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -183,7 +184,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -210,7 +211,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -237,7 +238,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -264,7 +265,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -300,7 +301,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -331,7 +332,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -358,7 +359,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -385,7 +386,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -412,7 +413,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -439,7 +440,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 
@@ -467,7 +468,7 @@ class StoreApi : BaseApi {
             order,
             arrayOf("application/json"),
             "application/json",
-            null,
+            NoAuth,
         )
     }
 }

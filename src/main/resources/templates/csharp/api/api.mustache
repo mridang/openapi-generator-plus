@@ -449,7 +449,13 @@ public class {{classname}} : BaseApi
     the last consume fires once only for two-or-more declared types. }}
 {{#consumes}}{{#-last}}{{^-first}}                requestContentType ?? "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{#-first}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/consumes}}
                 {{#returnType}}typeof({{{returnType}}}){{/returnType}}{{^returnType}}null{{/returnType}},
-                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
+{{! Auth argument (Wave A2). A secured operation passes the optional per-call
+    override (options?.Auth) — null there means "no override", so BaseApi falls
+    back to the client-level authenticator. An operation with NO auth methods
+    (security: []) is explicitly unauthenticated: pass the NoAuth sentinel so
+    BaseApi suppresses the client-level authenticator and attaches no credential
+    (passing null here would WRONGLY re-acquire it and leak the credential). }}
+                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}NoAuth.Instance{{/hasAuthMethods}}
             )
             .ConfigureAwait(false);
     }

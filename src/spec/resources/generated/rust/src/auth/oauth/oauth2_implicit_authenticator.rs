@@ -39,7 +39,12 @@ pub struct OAuth2ImplicitAuthenticator {
 
 impl OAuth2ImplicitAuthenticator {
     /// Creates a new implicit flow authenticator.
-    pub fn new(host: &str, client_id: &str, authorization_url: &str, scopes: Vec<String>) -> Self {
+    pub fn new(
+        host: &str,
+        client_id: &str,
+        authorization_url: &str,
+        scopes: Vec<String>,
+    ) -> Self {
         Self {
             host: host.to_string(),
             client_id: client_id.to_string(),
@@ -84,17 +89,8 @@ impl OAuth2ImplicitAuthenticator {
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
          * present so existing params are preserved, '?' otherwise. */
-        let separator = if self.authorization_url.contains('?') {
-            '&'
-        } else {
-            '?'
-        };
-        format!(
-            "{}{}{}",
-            self.authorization_url,
-            separator,
-            params.join("&")
-        )
+        let separator = if self.authorization_url.contains('?') { '&' } else { '?' };
+        format!("{}{}{}", self.authorization_url, separator, params.join("&"))
     }
 }
 
@@ -131,7 +127,10 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
             }
 
             let mut headers = HashMap::new();
-            headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", token),
+            );
             headers
         })
     }

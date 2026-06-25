@@ -18,6 +18,27 @@ defmodule PetstoreClient.Api.BaseApi do
   # serialization, request dispatch, and response deserialization. Not part of
   # the public API; callers go through the generated per-resource API modules.
 
+  # No-auth SENTINEL. An operation declared `security: []` is unauthenticated:
+  # the generated api method passes this atom as the `auth` argument so the
+  # resolver below can tell "explicitly no auth" apart from "no per-call
+  # override" (nil). An atom is interned and identity-comparable, distinct from
+  # nil and from every authenticator (which is a struct or a plain map), so it
+  # can never collide with a real credential. Internal to the generated client;
+  # callers never see it. The three resolved states are:
+  #   * @no_auth          -> NO auth applied (do NOT fall back to the client
+  #                          authenticator) — suppresses the client credential
+  #                          on a `security: []` operation.
+  #   * nil / absent      -> fall back to the client authenticator (a secured
+  #                          operation with no per-call override).
+  #   * a real authenticator -> use it (per-call override).
+  @no_auth :"$openapi_generator_plus_no_auth$"
+
+  @doc false
+  # The no-auth sentinel (see @no_auth). Exposed so the generated per-resource
+  # API modules can pass it for `security: []` operations.
+  @spec no_auth() :: atom()
+  def no_auth, do: @no_auth
+
   @doc """
   Invoke an API operation and return the deserialized data.
 
@@ -114,7 +135,16 @@ defmodule PetstoreClient.Api.BaseApi do
         base <> path
       end
 
-    effective_auth = auth || Map.get(state, :authenticator)
+    # Three-state auth resolution (see @no_auth). The sentinel means "no auth
+    # at all" and must NOT fall back to the client authenticator; nil means
+    # "no per-call override" and DOES fall back (unchanged Wave A1 behaviour);
+    # a real authenticator is used as-is.
+    effective_auth =
+      case auth do
+        @no_auth -> nil
+        nil -> Map.get(state, :authenticator)
+        explicit -> explicit
+      end
 
     query_params =
       case auth_credentials(effective_auth, :query_params) do

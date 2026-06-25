@@ -21,6 +21,7 @@ use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
+use PetstoreClient\Auth\NoAuth;
 use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
@@ -296,7 +297,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\Ds\Vector<Photo>'
+            '\Ds\Vector<Photo>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -550,7 +555,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/octet-stream'],
             'application/json',
-            'string'
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -619,7 +628,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\Ds\Vector<Pet>'
+            '\Ds\Vector<Pet>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -697,7 +710,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -775,7 +792,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -848,7 +869,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png'],
             'application/json',
-            'string'
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -921,7 +946,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            'byte'
+            'byte',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1005,7 +1034,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1088,7 +1121,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1161,7 +1198,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\PetPassport'
+            '\PetstoreClient\Models\PetPassport',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1253,7 +1294,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
-            'string'
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1380,7 +1425,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1458,7 +1507,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1516,7 +1569,11 @@ class PetApi extends BaseApi
             $requestBody,
             [],
             $contentType ?? 'image/jpeg',
-            null
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1572,7 +1629,11 @@ class PetApi extends BaseApi
             $requestBody,
             [],
             'application/json',
-            null
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1656,7 +1717,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/x-www-form-urlencoded',
-            '\PetstoreClient\Models\ApiResponse'
+            '\PetstoreClient\Models\ApiResponse',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1732,7 +1797,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1810,7 +1879,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\ApiResponse'
+            '\PetstoreClient\Models\ApiResponse',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }
@@ -1896,7 +1969,11 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             $contentType ?? 'multipart/form-data',
-            '\PetstoreClient\Models\ApiResponse'
+            '\PetstoreClient\Models\ApiResponse',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
         );
         return $result;
     }

@@ -283,6 +283,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("servers.mustache", invokerFolder, "Servers.php"),
             new SupportingFileSpec("base_api.mustache", apiFolder, "BaseApi.php"),
             new SupportingFileSpec("authenticator.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "Authenticator.php"),
+            new SupportingFileSpec("auth/no_auth.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "NoAuth.php"),
             new SupportingFileSpec("composer.mustache", "", "composer.json"),
             new SupportingFileSpec("phpstan_neon.mustache", "", "phpstan.neon"),
             new SupportingFileSpec("rector.mustache", "", "rector.php"),

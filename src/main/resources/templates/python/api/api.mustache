@@ -14,7 +14,7 @@ from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 from ..api_client import ApiClient
 from ..api_result import ApiResult
 from ..configuration import Configuration
-from .base_api import BaseApi, _is_valid_cookie_value
+from .base_api import BaseApi, NO_AUTH, _is_valid_cookie_value
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from ..errors import ApiException
@@ -354,7 +354,7 @@ class {{classname}}(BaseApi):
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
-            {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}(options.auth if options is not None else None){{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
+            {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}(options.auth if options is not None else None){{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}NO_AUTH{{/hasAuthMethods}},
         )
 {{/operation}}
 {{/operations}}

@@ -24,12 +24,7 @@ impl ServerError {
 
 impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Server error ({}): {}",
-            self.api_error.status_code(),
-            self.api_error.message()
-        )
+        write!(f, "Server error ({}): {}", self.api_error.status_code(), self.api_error.message())
     }
 }
 

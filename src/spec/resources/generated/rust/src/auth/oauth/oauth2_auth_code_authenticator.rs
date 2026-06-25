@@ -123,10 +123,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
             format!("redirect_uri={}", url_query_encode(&self.redirect_uri)),
         ];
         if !self.scopes.is_empty() {
-            params.push(format!(
-                "scope={}",
-                url_query_encode(&self.scopes.join(" "))
-            ));
+            params.push(format!("scope={}", url_query_encode(&self.scopes.join(" "))));
         }
         if !state.is_empty() {
             params.push(format!("state={}", url_query_encode(state)));
@@ -134,17 +131,8 @@ impl OAuth2AuthorizationCodeAuthenticator {
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
          * present so existing params are preserved, '?' otherwise. */
-        let separator = if self.authorization_url.contains('?') {
-            '&'
-        } else {
-            '?'
-        };
-        format!(
-            "{}{}{}",
-            self.authorization_url,
-            separator,
-            params.join("&")
-        )
+        let separator = if self.authorization_url.contains('?') { '&' } else { '?' };
+        format!("{}{}{}", self.authorization_url, separator, params.join("&"))
     }
 
     /// Exchanges an authorization code for an access token.
@@ -186,15 +174,17 @@ impl OAuth2AuthorizationCodeAuthenticator {
         &'a self,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<HashMap<String, String>, Box<dyn Error + Send + Sync>>>
-                + Send
+            dyn Future<
+                    Output = Result<HashMap<String, String>, Box<dyn Error + Send + Sync>>,
+                > + Send
                 + 'a,
         >,
     > {
         Box::pin(async move {
             let token_exchanged = *self.token_exchanged.lock().unwrap();
             if !token_exchanged {
-                return Err(Box::new(AuthCodeNotExchangedError) as Box<dyn Error + Send + Sync>);
+                return Err(Box::new(AuthCodeNotExchangedError)
+                    as Box<dyn Error + Send + Sync>);
             }
 
             let mut params = HashMap::new();
@@ -210,7 +200,10 @@ impl OAuth2AuthorizationCodeAuthenticator {
                 .await?;
 
             let mut headers = HashMap::new();
-            headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", token),
+            );
             Ok(headers)
         })
     }
@@ -251,9 +244,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            self.try_auth_headers()
-                .await
-                .unwrap_or_else(|_| HashMap::new())
+            self.try_auth_headers().await.unwrap_or_else(|_| HashMap::new())
         })
     }
 

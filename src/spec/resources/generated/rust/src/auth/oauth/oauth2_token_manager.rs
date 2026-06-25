@@ -76,8 +76,7 @@ impl OAuth2TokenManager {
         token_url: &str,
         params: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        self.get_access_token_with_headers(token_url, params, &HashMap::new())
-            .await
+        self.get_access_token_with_headers(token_url, params, &HashMap::new()).await
     }
 
     /// Returns a valid access token, fetching or refreshing as necessary, with
@@ -206,8 +205,7 @@ impl OAuth2TokenManager {
                 message: format!(
                     "refusing to follow {} redirect on OAuth2 token endpoint {}; \
                      token POSTs carry credentials and must not be replayed",
-                    response.status_code(),
-                    token_url
+                    response.status_code(), token_url
                 ),
             }) as Box<dyn std::error::Error + Send + Sync>);
         }

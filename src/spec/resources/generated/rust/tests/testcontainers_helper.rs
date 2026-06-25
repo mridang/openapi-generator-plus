@@ -38,9 +38,7 @@ struct TestContainers {
 static CONTAINERS: OnceLock<TestContainers> = OnceLock::new();
 
 fn fixtures_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("fixtures")
 }
 
 fn init_containers() -> &'static TestContainers {
@@ -60,86 +58,75 @@ fn init_containers() -> &'static TestContainers {
 fn resolve_host(container: &testcontainers::Container<GenericImage>) -> String {
     std::env::var("TESTCONTAINERS_HOST_OVERRIDE")
         .or_else(|_| std::env::var("TC_HOST"))
-        .unwrap_or_else(|_| {
-            container
-                .get_host()
-                .expect("failed to get host")
-                .to_string()
-        })
+        .unwrap_or_else(|_| container.get_host().expect("failed to get host").to_string())
 }
 
 fn init_containers_inner() -> TestContainers {
-    let fixtures = fixtures_dir();
-    let squid_conf_path = fixtures.join("proxy").join("squid.conf");
-    let spec_path = fixtures.join("openapi.yaml");
-    let ca_cert = fixtures.join("certs").join("ca.pem");
+        let fixtures = fixtures_dir();
+        let squid_conf_path = fixtures.join("proxy").join("squid.conf");
+        let spec_path = fixtures.join("openapi.yaml");
+        let ca_cert = fixtures.join("certs").join("ca.pem");
 
-    // Start Squid
-    let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
-        .with_exposed_port(ContainerPort::Tcp(3128))
-        .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
-        .with_startup_timeout(std::time::Duration::from_secs(120))
-        .start()
-        .expect("Failed to start Squid container");
+        // Start Squid
+        let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
+            .with_exposed_port(ContainerPort::Tcp(3128))
+            .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
+            .with_startup_timeout(std::time::Duration::from_secs(120))
+            .start()
+            .expect("Failed to start Squid container");
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+        std::thread::sleep(std::time::Duration::from_secs(3));
 
-    let squid_host = resolve_host(&squid);
-    let squid_port = squid
-        .get_host_port_ipv4(3128)
-        .expect("failed to get Squid port");
+        let squid_host = resolve_host(&squid);
+        let squid_port = squid
+            .get_host_port_ipv4(3128)
+            .expect("failed to get Squid port");
 
-    // Start Chasm
-    let chasm_cert_path = fixtures.join("certs").join("server.pem");
-    let chasm_key_path = fixtures.join("certs").join("server-key.pem");
-    let chasm = GenericImage::new("mridang/chasm", "1.3.0")
-        .with_wait_for(WaitFor::message_on_stdout("Listening on"))
-        .with_exposed_port(ContainerPort::Tcp(4010))
-        .with_exposed_port(ContainerPort::Tcp(8443))
-        .with_copy_to("/tmp/openapi.yaml", spec_path)
-        .with_copy_to("/certs/cert.pem", chasm_cert_path)
-        .with_copy_to("/certs/key.pem", chasm_key_path)
-        .with_cmd(vec![
-            "mock".to_string(),
-            "/tmp/openapi.yaml".to_string(),
-            "--host".to_string(),
-            "0.0.0.0".to_string(),
-            "--tls-cert".to_string(),
-            "/certs/cert.pem".to_string(),
-            "--tls-key".to_string(),
-            "/certs/key.pem".to_string(),
-            "--tls-port".to_string(),
-            "8443".to_string(),
-        ])
-        .with_startup_timeout(std::time::Duration::from_secs(120))
-        .start()
-        .expect("Failed to start Chasm container");
+        // Start Chasm
+        let chasm_cert_path = fixtures.join("certs").join("server.pem");
+        let chasm_key_path = fixtures.join("certs").join("server-key.pem");
+        let chasm = GenericImage::new("mridang/chasm", "1.3.0")
+            .with_wait_for(WaitFor::message_on_stdout("Listening on"))
+            .with_exposed_port(ContainerPort::Tcp(4010))
+            .with_exposed_port(ContainerPort::Tcp(8443))
+            .with_copy_to("/tmp/openapi.yaml", spec_path)
+            .with_copy_to("/certs/cert.pem", chasm_cert_path)
+            .with_copy_to("/certs/key.pem", chasm_key_path)
+            .with_cmd(vec![
+                "mock".to_string(),
+                "/tmp/openapi.yaml".to_string(),
+                "--host".to_string(), "0.0.0.0".to_string(),
+                "--tls-cert".to_string(), "/certs/cert.pem".to_string(),
+                "--tls-key".to_string(), "/certs/key.pem".to_string(),
+                "--tls-port".to_string(), "8443".to_string(),
+            ])
+            .with_startup_timeout(std::time::Duration::from_secs(120))
+            .start()
+            .expect("Failed to start Chasm container");
 
-    let chasm_host = resolve_host(&chasm);
-    let chasm_bridge_ip = chasm
-        .get_bridge_ip_address()
-        .expect("failed to get Chasm bridge IP");
-    let chasm_port = chasm
-        .get_host_port_ipv4(4010)
-        .expect("failed to get Chasm port");
-    let chasm_https_port = chasm
-        .get_host_port_ipv4(8443)
-        .expect("failed to get Chasm HTTPS port");
+        let chasm_host = resolve_host(&chasm);
+        let chasm_bridge_ip = chasm.get_bridge_ip_address().expect("failed to get Chasm bridge IP");
+        let chasm_port = chasm
+            .get_host_port_ipv4(4010)
+            .expect("failed to get Chasm port");
+        let chasm_https_port = chasm
+            .get_host_port_ipv4(8443)
+            .expect("failed to get Chasm HTTPS port");
 
-    // Leak container handles to keep them alive for the test suite lifetime.
-    // They will be cleaned up when the process exits (Ryuk).
-    std::mem::forget(squid);
-    std::mem::forget(chasm);
+        // Leak container handles to keep them alive for the test suite lifetime.
+        // They will be cleaned up when the process exits (Ryuk).
+        std::mem::forget(squid);
+        std::mem::forget(chasm);
 
-    TestContainers {
-        proxy_url: format!("http://{}:{}", squid_host, squid_port),
-        chasm_url: format!("http://{}:{}", chasm_host, chasm_port),
-        chasm_http_url: format!("http://{}:{}", chasm_host, chasm_port),
-        chasm_https_url: format!("https://{}:{}", chasm_host, chasm_https_port),
-        chasm_internal_http_url: format!("http://{}:4010", chasm_bridge_ip),
-        chasm_internal_https_url: format!("https://{}:8443", chasm_bridge_ip),
-        ca_cert_path: ca_cert.to_str().unwrap().to_string(),
-    }
+        TestContainers {
+            proxy_url: format!("http://{}:{}", squid_host, squid_port),
+            chasm_url: format!("http://{}:{}", chasm_host, chasm_port),
+            chasm_http_url: format!("http://{}:{}", chasm_host, chasm_port),
+            chasm_https_url: format!("https://{}:{}", chasm_host, chasm_https_port),
+            chasm_internal_http_url: format!("http://{}:4010", chasm_bridge_ip),
+            chasm_internal_https_url: format!("https://{}:8443", chasm_bridge_ip),
+            ca_cert_path: ca_cert.to_str().unwrap().to_string(),
+        }
 }
 
 pub fn proxy_url() -> &'static str {

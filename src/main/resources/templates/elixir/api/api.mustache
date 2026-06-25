@@ -196,9 +196,13 @@ defmodule {{moduleName}}.Api.{{classname}} do
     auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = {{moduleName}}.Api.BaseApi.no_auth()
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}

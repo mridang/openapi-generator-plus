@@ -350,11 +350,7 @@ impl fmt::Display for ApiErrorKind {
             Self::Other(code, msg) => write!(f, "API error (status {}): {}", code, msg),
             other => {
                 let fields = other.fields().expect("HTTP variants have fields");
-                write!(
-                    f,
-                    "API error (status {}): {}",
-                    fields.status_code, fields.message
-                )
+                write!(f, "API error (status {}): {}", fields.status_code, fields.message)
             }
         }
     }

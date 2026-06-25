@@ -253,7 +253,7 @@ module PetstoreClient
           ['application/json'],
           'multipart/form-data',
           'Array<Photo>',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -443,7 +443,7 @@ module PetstoreClient
           ['application/octet-stream'],
           'application/json',
           'File',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -492,7 +492,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Array<Pet>',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -548,7 +548,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -604,7 +604,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -657,7 +657,7 @@ module PetstoreClient
           ['image/jpeg', 'image/png'],
           'application/json',
           'File',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -710,7 +710,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'ByteArray',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -774,7 +774,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -862,7 +862,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -915,7 +915,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'PetPassport',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -980,7 +980,7 @@ module PetstoreClient
           ['image/jpeg', 'image/png', 'application/json'],
           'application/json',
           'File',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1068,7 +1068,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1124,7 +1124,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1191,7 +1191,7 @@ module PetstoreClient
           [],
           resolved_content_type,
           nil,
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1247,7 +1247,7 @@ module PetstoreClient
           [],
           'application/json',
           nil,
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1326,7 +1326,7 @@ module PetstoreClient
           ['application/json'],
           'application/x-www-form-urlencoded',
           'ApiResponse',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1395,7 +1395,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1462,7 +1462,7 @@ module PetstoreClient
           ['application/json'],
           'multipart/form-data',
           'ApiResponse',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -1542,7 +1542,7 @@ module PetstoreClient
           ['application/json'],
           resolved_content_type,
           'ApiResponse',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
     end

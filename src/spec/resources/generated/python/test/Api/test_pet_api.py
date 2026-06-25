@@ -588,6 +588,99 @@ class TestPetApiErrorHandling:
         with pytest.raises(ModuleNotFoundError):
             importlib.import_module("petstore_client.api.options.get_pet_by_id_options")
 
+    async def test_security_none_op_suppresses_client_authenticator(self) -> None:
+        # WAVE A2 SECURITY-NONE: get_pet_by_id is declared `security: []`, so it
+        # is unauthenticated. Configure the client WITH a client-level
+        # authenticator and assert the outbound request carries NO Authorization
+        # header, NO api-key header, NO api-key query param, and NO auth cookie.
+        # The api method passes the no-auth sentinel, so base_api must NOT fall
+        # back to the client authenticator and leak the credential (the testEcho*
+        # / get_pet_by_id reflection-leak class of bug).
+        captured: Dict[str, str] = {}
+        captured_path: List[str] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                captured_path.append(self.path)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f"http://127.0.0.1:{port}"
+        config = Configuration.builder().base_url(base_url).build()
+        # A client-level api-key-in-query authenticator: the most dangerous leak
+        # vector, since a stray query param would reflect straight back from an
+        # echo endpoint.
+        client_auth = ApiKeyAuthenticator(
+            host=base_url,
+            key_param_name="api_key",
+            api_key="secret-client-key",
+            location=ApiKeyLocation.QUERY,
+        )
+        api = PetApi(config=config, authenticator=client_auth)
+
+        await api.get_pet_by_id(1)
+
+        assert "Authorization" not in captured, (
+            f"security:[] op must not send Authorization, got: {captured}"
+        )
+        assert "Api_Key" not in captured and "api_key" not in captured, (
+            "security:[] op must not send an api-key header"
+        )
+        assert "Cookie" not in captured, "security:[] op must not send an auth cookie"
+        assert all("api_key=" not in p for p in captured_path), (
+            f"security:[] op must not send an api-key query param, got: {captured_path}"
+        )
+
+    async def test_secured_op_still_applies_client_authenticator(self) -> None:
+        # WAVE A1 GUARD (no over-suppression): add_pet IS secured. With a
+        # client-level authenticator configured and no per-call override, the
+        # credential must STILL reach the wire. This proves the no-auth sentinel
+        # only suppresses `security: []` operations, not secured ones.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f"http://127.0.0.1:{port}"
+        config = Configuration.builder().base_url(base_url).build()
+        client_auth = BearerAuthenticator(base_url, "client-level-token")
+        api = PetApi(config=config, authenticator=client_auth)
+
+        pet = Pet(id=5, name="SecuredDog", photoUrls={"http://example.com/s.jpg"})
+        await api.add_pet(pet)
+
+        assert captured.get("Authorization") == "Bearer client-level-token", (
+            f"secured op must still apply the client credential, got: {captured}"
+        )
+
 
 class TestPetApiWithHttpInfo:
     """Test suite for PetApi with_http_info methods."""

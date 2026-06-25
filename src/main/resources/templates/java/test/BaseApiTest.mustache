@@ -26,6 +26,7 @@ import {{invokerPackage}}.errors.ServerException;
 import {{invokerPackage}}.errors.UnauthorizedException;
 import {{invokerPackage}}.errors.UnprocessableEntityException;
 import {{apiPackage}}.PetApi;
+import {{apiPackage}}.StoreApi;
 import {{apiPackage}}.options.FindPetsByStatusOptions;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -55,6 +56,12 @@ class BaseApiTest {
             new TypeReference<String>() {}.getType();
 
     static class TestableApi extends {{apiPackage}}.BaseApi {
+
+        /* Re-expose the protected NO_AUTH sentinel so tests in this (non-
+         * subclass) test class can pass it as the per-call auth argument and
+         * assert the client-level authenticator is suppressed for a
+         * security:[] operation. */
+        static final Authenticator NO_AUTH_SENTINEL = NO_AUTH;
 
         TestableApi(String baseUrl) {
             super(new DefaultApiClient(), new Configuration(baseUrl, Map.of()));
@@ -709,6 +716,85 @@ class BaseApiTest {
             assertEquals(
                     "secret-key",
                     result.get("headers").get("x-api-key").asText());
+        }
+
+        /*
+         * WAVE A2 — security:[] suppression guard. An operation declared
+         * `security: []` opts out of all auth. Its generated method passes the
+         * NO_AUTH sentinel (not null) as the auth argument; BaseApi must then
+         * NOT fall back to the client-level authenticator. Without this, a
+         * configured client credential would leak onto an unauthenticated
+         * operation (e.g. a testEcho* op that reflects the request back). These
+         * tests drive a configured client and assert the credential is absent
+         * from the outbound request when the sentinel is supplied — the mirror
+         * image of the A1 fallback guard above.
+         */
+
+        @Test
+        @DisplayName("NO_AUTH sentinel suppresses the client-level authenticator's header, query, and cookie")
+        void noAuthSentinelSuppressesClientAuthenticator() throws ApiException {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "client-level-token"),
+                            Map.of("api_key", "client-key"),
+                            Map.of("session", "client-cookie"));
+            var testApi = new TestableApi(client, "http://localhost", clientAuth);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, TestableApi.NO_AUTH_SENTINEL);
+            // The configured authenticator must NOT reach the wire for an
+            // explicitly unauthenticated (security:[]) operation.
+            assertFalse(client.capturedHeaders.containsKey("X-Client-Auth"),
+                    "client auth header must be suppressed for a security:[] operation");
+            assertFalse(client.capturedHeaders.containsKey("Cookie"),
+                    "client auth cookie must be suppressed for a security:[] operation");
+            assertFalse(client.capturedUrl.contains("api_key="),
+                    "client auth query param must be suppressed for a security:[] operation, got: "
+                            + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("a security:[] operation sends no credential even though the client is configured (end-to-end)")
+        void securityNoneOperationSendsNoCredentialEndToEnd() {
+            // Build a client WITH a real authenticator that injects a header, a
+            // query param, AND a cookie, then invoke the generated security:[]
+            // operation getInventory. The operation passes NO_AUTH, so none of
+            // the three credential channels may appear on the outbound request.
+            var captured = new HashMap<String, String>();
+            var capturingClient = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    captured.putAll(headers);
+                    this.capturedUrl = url;
+                    return new ApiHttpResponse(
+                            200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("Authorization", "Bearer leaked-secret"),
+                            Map.of("api_key", "leaked-key"),
+                            Map.of("session", "leaked-cookie"));
+            var config = new Configuration("http://localhost", Map.of());
+            var storeApi = new StoreApi(capturingClient, config, clientAuth);
+            try {
+                storeApi.getInventory();
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; we only assert outbound headers.
+            }
+            assertFalse(captured.containsKey("Authorization"),
+                    "Authorization must be absent for the security:[] getInventory operation");
+            assertFalse(captured.containsKey("Cookie"),
+                    "auth cookie must be absent for the security:[] getInventory operation");
+            assertFalse(capturingClient.capturedUrl.contains("api_key="),
+                    "api-key query param must be absent for getInventory, got: "
+                            + capturingClient.capturedUrl);
         }
     }
 

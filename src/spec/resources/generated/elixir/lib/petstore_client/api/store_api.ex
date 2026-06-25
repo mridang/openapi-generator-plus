@@ -89,9 +89,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec delete_order_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def delete_order_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
 
     if is_nil(order_id) do
       raise ArgumentError,
@@ -213,9 +217,13 @@ defmodule PetstoreClient.Api.StoreApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_by_swatch_with_http_info(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
 
     if is_nil(path_swatch) do
       raise ArgumentError,
@@ -365,9 +373,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_defaults_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_defaults_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/defaults"
     server = Keyword.get(opts, :server)
 
@@ -453,9 +465,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_department_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_department_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/department"
     server = Keyword.get(opts, :server)
 
@@ -542,9 +558,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_grouped_categories_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_grouped_categories_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/grouped-categories"
     server = Keyword.get(opts, :server)
 
@@ -630,9 +650,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_inventory_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_inventory_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/inventory"
     server = Keyword.get(opts, :server)
 
@@ -718,9 +742,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_matrix_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_matrix_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/matrix"
     server = Keyword.get(opts, :server)
 
@@ -807,9 +835,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_order_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
 
     if is_nil(order_id) do
       raise ArgumentError,
@@ -924,9 +956,13 @@ defmodule PetstoreClient.Api.StoreApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_stock_item_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/stock-item"
     server = Keyword.get(opts, :server)
 
@@ -1032,9 +1068,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_swatch_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_swatch_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/swatch"
     server = Keyword.get(opts, :server)
 
@@ -1120,9 +1160,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_swatch_groups_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_swatch_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/swatch-groups"
     server = Keyword.get(opts, :server)
 
@@ -1209,9 +1253,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_timestamp_groups_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_timestamp_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/timestamp-groups"
     server = Keyword.get(opts, :server)
 
@@ -1297,9 +1345,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_tree_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_tree_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/tree"
     server = Keyword.get(opts, :server)
 
@@ -1386,9 +1438,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec place_order_with_http_info(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the
-    # client has a default authenticator configured (OpenAPI 3.0 spec).
-    auth = nil
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/order"
     server = Keyword.get(opts, :server)
 

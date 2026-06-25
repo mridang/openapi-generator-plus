@@ -93,8 +93,6 @@ fn test_unconstrained_variable_accepts_any_override() {
     let mut overrides = HashMap::new();
     overrides.insert("tenant".to_string(), "globex".to_string());
 
-    let url = server
-        .url(&overrides)
-        .expect("unconstrained value accepted");
+    let url = server.url(&overrides).expect("unconstrained value accepted");
     assert_eq!(url, "https://globex.example.com");
 }

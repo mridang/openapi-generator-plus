@@ -53,7 +53,7 @@ module PetstoreClient
           [],
           'application/json',
           nil,
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -112,7 +112,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Category',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -152,7 +152,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Defaults',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -192,7 +192,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Department',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -232,7 +232,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Array<Hash<String, Category>>',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -272,7 +272,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Hash<String, Integer>',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -312,7 +312,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Array<Array<Integer>>',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -364,7 +364,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Order',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -410,7 +410,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'StockItem',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -450,7 +450,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Swatch',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -490,7 +490,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Array<Hash<String, Swatch>>',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -530,7 +530,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Array<Hash<String, Time>>',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -570,7 +570,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'TreeNode',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
 
@@ -617,7 +617,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Order',
-          nil
+          ::PetstoreClient::Api::BaseApi::NO_AUTH
         )
       end
     end

@@ -95,7 +95,8 @@ fn test_pet_food_empty_discriminator_field_errors() {
 #[test]
 fn test_pet_food_serialize_dry_food() {
     let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
-    let food: PetFood = serde_json::from_str(json_data).expect("failed to set up test");
+    let food: PetFood =
+        serde_json::from_str(json_data).expect("failed to set up test");
 
     let data = serde_json::to_string(&food).expect("failed to serialize PetFood");
 
@@ -159,7 +160,8 @@ fn test_pet_treatment_retains_all_matching_variants_losslessly() {
      * at once must keep the data of EVERY matched variant, not just the first.
      * Re-serializing must emit the UNION of all retained fields so the
      * co-satisfied payload round-trips with no silent drop. */
-    let json_data = r#"{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"#;
+    let json_data =
+        r#"{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"#;
 
     let treatment: PetTreatment = serde_json::from_str(json_data)
         .expect("failed to deserialize PetTreatment satisfying both variants");
@@ -219,7 +221,8 @@ fn test_pet_treatment_no_match_errors() {
 fn test_pet_treatment_serialize_round_trip() {
     let json_data = r#"{"drugName":"Amoxicillin","dosage":"500mg"}"#;
 
-    let treatment: PetTreatment = serde_json::from_str(json_data).expect("failed to deserialize");
+    let treatment: PetTreatment =
+        serde_json::from_str(json_data).expect("failed to deserialize");
 
     let data = serde_json::to_string(&treatment).expect("failed to serialize PetTreatment");
     assert!(!data.is_empty(), "expected non-empty serialized data");
@@ -266,7 +269,8 @@ fn test_pet_with_owner_round_trip() {
         "ownerName": "Jane Smith"
     }"#;
 
-    let pet: PetWithOwner = serde_json::from_str(json_data).expect("failed to deserialize");
+    let pet: PetWithOwner =
+        serde_json::from_str(json_data).expect("failed to deserialize");
 
     let data = serde_json::to_string(&pet).expect("failed to serialize");
 
@@ -354,7 +358,8 @@ fn test_order_default_status_serializes_default_variant() {
 fn test_order_deserialize_applies_schema_default_for_absent_status() {
     let json_data = r#"{"id":10,"petId":198772}"#;
 
-    let order: Order = serde_json::from_str(json_data).expect("failed to deserialize Order");
+    let order: Order =
+        serde_json::from_str(json_data).expect("failed to deserialize Order");
 
     assert_eq!(
         order.status,
@@ -374,7 +379,8 @@ fn test_order_deserialize_applies_schema_default_for_absent_status() {
 fn test_tree_node_deserialize_recursive() {
     let json_data = r#"{"value":"root","child":{"value":"leaf"}}"#;
 
-    let top: TreeNode = serde_json::from_str(json_data).expect("failed to deserialize TreeNode");
+    let top: TreeNode =
+        serde_json::from_str(json_data).expect("failed to deserialize TreeNode");
 
     assert_eq!(top.value, "root", "top.value mismatch");
 

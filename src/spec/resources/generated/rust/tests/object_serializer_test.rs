@@ -25,8 +25,8 @@
 // the codegen relies on.
 #[test]
 fn test_proto_duration_format_basic() {
-    use chrono::Duration;
     use petstore::proto_duration;
+    use chrono::Duration;
 
     assert_eq!(proto_duration::format(&Duration::zero()), "0s");
     assert_eq!(proto_duration::format(&Duration::seconds(45)), "45s");
@@ -47,8 +47,8 @@ fn test_proto_duration_format_basic() {
 
 #[test]
 fn test_proto_duration_parse_basic() {
-    use chrono::Duration;
     use petstore::proto_duration;
+    use chrono::Duration;
 
     assert_eq!(proto_duration::parse("0s").unwrap(), Duration::zero());
     assert_eq!(
@@ -71,8 +71,8 @@ fn test_proto_duration_parse_basic() {
 
 #[test]
 fn test_proto_duration_round_trip() {
-    use chrono::Duration;
     use petstore::proto_duration;
+    use chrono::Duration;
 
     for d in [
         Duration::zero(),
@@ -84,8 +84,8 @@ fn test_proto_duration_round_trip() {
         -(Duration::hours(1) + Duration::minutes(30)),
     ] {
         let s = proto_duration::format(&d);
-        let parsed =
-            proto_duration::parse(&s).unwrap_or_else(|e| panic!("parse({:?}) failed: {}", s, e));
+        let parsed = proto_duration::parse(&s)
+            .unwrap_or_else(|e| panic!("parse({:?}) failed: {}", s, e));
         assert_eq!(parsed, d, "round trip mismatch for {:?} -> {:?}", d, s);
     }
 }
@@ -107,8 +107,8 @@ fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
     // fraction (fixed-point, padded to a 3/6/9-digit grouping), NEVER in
     // scientific notation ("5e-5s"). 50 microseconds is 50_000 nanoseconds,
     // which trims to the six-digit grouping "0.000050s".
-    use chrono::Duration;
     use petstore::proto_duration;
+    use chrono::Duration;
 
     let tiny = Duration::microseconds(50);
     let formatted = proto_duration::format(&tiny);
@@ -134,8 +134,8 @@ fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
 
 #[test]
 fn test_proto_duration_serde_round_trip() {
-    use chrono::Duration;
     use petstore::proto_duration;
+    use chrono::Duration;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]

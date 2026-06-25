@@ -920,4 +920,92 @@ public class BaseApiTest
             null, ["application/json"], "application/json", perCallAuth);
         Assert.Equal("per-call-token", client.CapturedHeaders["X-Client-Auth"]);
     }
+
+    // ── Wave A2: client auth suppressed on security:[] operations ──
+
+    // SECURITY-NONE: an operation declared `security: []` is unauthenticated.
+    // Even when the client is configured WITH an authenticator that would
+    // attach an Authorization header, an api-key header, an api-key query
+    // parameter, and an auth cookie, none of those may appear on the outbound
+    // request for such an operation — otherwise the client credential leaks
+    // (e.g. to a request-reflecting echo endpoint). getPetById is declared
+    // `security: []` in the spec, so the api method passes the NoAuth sentinel
+    // and BaseApi suppresses the client-level authenticator entirely.
+    [Fact]
+    public async Task SecurityNoneOperationSuppressesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer client-secret" },
+                { "api-key", "client-api-key" },
+            },
+            queryParams: new Dictionary<string, string> { { "api_key", "client-api-key" } },
+            cookies: new Dictionary<string, string> { { "session", "client-cookie" } });
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config, clientAuth);
+
+        try
+        {
+            // getPetById is security:[]; the captured request is what matters.
+            await api.GetPetByIdAsync(42L);
+        }
+        catch (Exception)
+        {
+            // The {} response body does not deserialize to a Pet; the request
+            // is already captured by the time deserialization fails.
+        }
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"),
+            "security:[] operation must NOT carry the client Authorization header");
+        Assert.False(client.CapturedHeaders.ContainsKey("api-key"),
+            "security:[] operation must NOT carry the client api-key header");
+        Assert.False(client.CapturedHeaders.ContainsKey("Cookie"),
+            "security:[] operation must NOT carry the client auth cookie");
+        Assert.DoesNotContain("api_key=", client.CapturedUrl!.ToString());
+    }
+
+    // SECURED (Wave A1 guard against over-suppression): a secured operation
+    // with a configured client authenticator and NO per-call override must
+    // STILL attach the credential. addPet is secured, so the api method passes
+    // the per-call override (null here), and BaseApi falls back to the
+    // client-level authenticator.
+    [Fact]
+    public async Task SecuredOperationStillAppliesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "Authorization", "Bearer client-secret" } });
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config, clientAuth);
+
+        var pet = new PetstoreClient.Models.Pet { Name = "Rex", PhotoUrls = ["http://example/p.png"] };
+        try
+        {
+            await api.AddPetAsync(pet);
+        }
+        catch (Exception)
+        {
+            // Captured request is asserted regardless of response shape.
+        }
+
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization"),
+            "secured operation with a client authenticator must still send the credential");
+        Assert.Equal("Bearer client-secret", client.CapturedHeaders["Authorization"]);
+    }
+
+    // The NoAuth sentinel is distinct from null and from any real authenticator,
+    // is identity-comparable, and never contributes a credential.
+    [Fact]
+    public void NoAuthSentinelIsSingletonAndCarriesNoCredential()
+    {
+        Assert.Same(NoAuth.Instance, NoAuth.Instance);
+        // GetQueryParams/GetCookieParams are default interface methods, callable
+        // only through the IAuthenticator type, not the concrete NoAuth.
+        IAuthenticator noAuth = NoAuth.Instance;
+        Assert.Empty(noAuth.GetAuthHeaders());
+        Assert.Empty(noAuth.GetQueryParams());
+        Assert.Empty(noAuth.GetCookieParams());
+    }
 }

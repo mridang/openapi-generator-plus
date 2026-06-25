@@ -11,36 +11,36 @@
   the assembly as a LogicalName of ILLink.Descriptors.xml (see the csproj).
 -->
 <linker>
-    <assembly fullname="PetstoreClient">
-        <type fullname="PetstoreClient.Models.ApiResponse" preserve="all" />
-        <type fullname="PetstoreClient.Models.Availability" preserve="all" />
-        <type fullname="PetstoreClient.Models.Category" preserve="all" />
-        <type fullname="PetstoreClient.Models.Color" preserve="all" />
-        <type fullname="PetstoreClient.Models.Defaults" preserve="all" />
-        <type fullname="PetstoreClient.Models.Department" preserve="all" />
-        <type fullname="PetstoreClient.Models.DryFood" preserve="all" />
-        <type fullname="PetstoreClient.Models.EdgeCases" preserve="all" />
-        <type fullname="PetstoreClient.Models.Employee" preserve="all" />
-        <type fullname="PetstoreClient.Models.Medication" preserve="all" />
-        <type fullname="PetstoreClient.Models.Metadata" preserve="all" />
-        <type fullname="PetstoreClient.Models.Order" preserve="all" />
-        <type fullname="PetstoreClient.Models.Pet" preserve="all" />
-        <type fullname="PetstoreClient.Models.PetFood" preserve="all" />
-        <type fullname="PetstoreClient.Models.PetPassport" preserve="all" />
-        <type fullname="PetstoreClient.Models.PetTreatment" preserve="all" />
-        <type fullname="PetstoreClient.Models.PetWithOwner" preserve="all" />
-        <type fullname="PetstoreClient.Models.Photo" preserve="all" />
-        <type fullname="PetstoreClient.Models.PhotoMetadata" preserve="all" />
-        <type fullname="PetstoreClient.Models.PhotoMetadataLocation" preserve="all" />
-        <type fullname="PetstoreClient.Models.Priority" preserve="all" />
-        <type fullname="PetstoreClient.Models.SetPetAvatarRequest" preserve="all" />
-        <type fullname="PetstoreClient.Models.SetPetAvatarThumbnailRequest" preserve="all" />
-        <type fullname="PetstoreClient.Models.StockItem" preserve="all" />
-        <type fullname="PetstoreClient.Models.StrictTag" preserve="all" />
-        <type fullname="PetstoreClient.Models.Surgery" preserve="all" />
-        <type fullname="PetstoreClient.Models.Swatch" preserve="all" />
-        <type fullname="PetstoreClient.Models.Tag" preserve="all" />
-        <type fullname="PetstoreClient.Models.TreeNode" preserve="all" />
-        <type fullname="PetstoreClient.Models.WetFood" preserve="all" />
-    </assembly>
+  <assembly fullname="PetstoreClient">
+    <type fullname="PetstoreClient.Models.ApiResponse" preserve="all" />
+    <type fullname="PetstoreClient.Models.Availability" preserve="all" />
+    <type fullname="PetstoreClient.Models.Category" preserve="all" />
+    <type fullname="PetstoreClient.Models.Color" preserve="all" />
+    <type fullname="PetstoreClient.Models.Defaults" preserve="all" />
+    <type fullname="PetstoreClient.Models.Department" preserve="all" />
+    <type fullname="PetstoreClient.Models.DryFood" preserve="all" />
+    <type fullname="PetstoreClient.Models.EdgeCases" preserve="all" />
+    <type fullname="PetstoreClient.Models.Employee" preserve="all" />
+    <type fullname="PetstoreClient.Models.Medication" preserve="all" />
+    <type fullname="PetstoreClient.Models.Metadata" preserve="all" />
+    <type fullname="PetstoreClient.Models.Order" preserve="all" />
+    <type fullname="PetstoreClient.Models.Pet" preserve="all" />
+    <type fullname="PetstoreClient.Models.PetFood" preserve="all" />
+    <type fullname="PetstoreClient.Models.PetPassport" preserve="all" />
+    <type fullname="PetstoreClient.Models.PetTreatment" preserve="all" />
+    <type fullname="PetstoreClient.Models.PetWithOwner" preserve="all" />
+    <type fullname="PetstoreClient.Models.Photo" preserve="all" />
+    <type fullname="PetstoreClient.Models.PhotoMetadata" preserve="all" />
+    <type fullname="PetstoreClient.Models.PhotoMetadataLocation" preserve="all" />
+    <type fullname="PetstoreClient.Models.Priority" preserve="all" />
+    <type fullname="PetstoreClient.Models.SetPetAvatarRequest" preserve="all" />
+    <type fullname="PetstoreClient.Models.SetPetAvatarThumbnailRequest" preserve="all" />
+    <type fullname="PetstoreClient.Models.StockItem" preserve="all" />
+    <type fullname="PetstoreClient.Models.StrictTag" preserve="all" />
+    <type fullname="PetstoreClient.Models.Surgery" preserve="all" />
+    <type fullname="PetstoreClient.Models.Swatch" preserve="all" />
+    <type fullname="PetstoreClient.Models.Tag" preserve="all" />
+    <type fullname="PetstoreClient.Models.TreeNode" preserve="all" />
+    <type fullname="PetstoreClient.Models.WetFood" preserve="all" />
+  </assembly>
 </linker>

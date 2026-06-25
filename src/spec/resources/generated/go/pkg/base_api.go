@@ -28,6 +28,38 @@ import (
 	. "petstore/pkg/errors"
 )
 
+/* noAuthSentinel is the dedicated no-auth marker for this SDK. It is a tiny
+ * Authenticator whose sole purpose is to be identity-compared against in
+ * invokeApiForResult: when an operation declared `security: []` in the spec
+ * (an explicitly unauthenticated operation), the generated api method passes
+ * this sentinel as the auth argument instead of nil. base_api then knows to
+ * apply NO authentication, rather than falling back to the client-level
+ * authenticator (the bug this fixes: a `security: []` op was wrongly
+ * re-acquiring the client credential and leaking it on the wire).
+ *
+ * Three-state contract for invokeApiParams.auth:
+ *   - noAuth (this sentinel)  -> NO auth applied; do NOT fall back to client auth
+ *   - nil                     -> fall back to the client-level authenticator
+ *                                (secured op with no per-call override)
+ *   - a real Authenticator    -> use it (per-call override)
+ *
+ * It is identity-comparable (a pointer to an empty struct) and is kept internal
+ * to the generated client — callers never see or construct it. Its methods are
+ * never invoked because the sentinel is detected and stripped before any auth
+ * material is read; they return empty values purely to satisfy the interface. */
+type noAuthSentinel struct{}
+
+func (noAuthSentinel) Host() string                    { return "" }
+func (noAuthSentinel) AuthHeaders() map[string]string  { return nil }
+func (noAuthSentinel) QueryParams() map[string]string  { return nil }
+func (noAuthSentinel) CookieParams() map[string]string { return nil }
+
+/* noAuth is the single shared instance of the no-auth sentinel. Identity
+ * comparison against this value (auth == noAuth) is what distinguishes an
+ * explicitly-unauthenticated operation from one that should fall back to the
+ * client authenticator. */
+var noAuth Authenticator = &noAuthSentinel{}
+
 // baseApi provides common functionality for all API classes.
 type baseApi struct {
 	config         *Configuration
@@ -79,9 +111,20 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		requestURL = base + params.path
 	}
 
-	/* Determine effective authenticator (per-request overrides instance-level) */
-	effectiveAuth := params.auth
-	if effectiveAuth == nil {
+	/* Determine effective authenticator under the three-state contract:
+	 *   - params.auth == noAuth  -> the operation is declared `security: []`
+	 *     (explicitly unauthenticated). Apply NO auth and do NOT fall back to
+	 *     the client authenticator — this is what prevents leaking the client
+	 *     credential on unauthenticated operations (e.g. testEcho*).
+	 *   - params.auth == nil     -> a secured operation with no per-call
+	 *     override. Fall back to the client-level authenticator (unchanged).
+	 *   - params.auth is real    -> a per-call override. Use it (unchanged). */
+	var effectiveAuth Authenticator
+	if params.auth == noAuth {
+		effectiveAuth = nil
+	} else if params.auth != nil {
+		effectiveAuth = params.auth
+	} else {
 		effectiveAuth = b.authenticator
 	}
 

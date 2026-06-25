@@ -10,14 +10,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine as _;
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiHttpResponse;
 use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
 use petstore::auth::oauth::OAuth2ClientCredentialsAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiHttpResponse>>,
@@ -38,11 +38,7 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiHttpResponse::new(
-            status_code,
-            body.to_string(),
-            HashMap::new(),
-        ));
+        responses.push(ApiHttpResponse::new(status_code, body.to_string(), HashMap::new()));
     }
 
     fn last_url(&self) -> Option<String> {
@@ -65,13 +61,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -222,10 +212,7 @@ async fn test_caches_token_across_calls() {
     // token request. Only one response is enqueued; a second token fetch would
     // remove(0) from an empty vec and panic, proving single-flight.
     let client = Arc::new(FakeApiClient::new());
-    client.enqueue(
-        r#"{"access_token":"cached-cc-token","expires_in":3600}"#,
-        200,
-    );
+    client.enqueue(r#"{"access_token":"cached-cc-token","expires_in":3600}"#, 200);
 
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
@@ -233,14 +220,8 @@ async fn test_caches_token_across_calls() {
     let headers1 = auth.auth_headers().await;
     let headers2 = auth.auth_headers().await;
 
-    assert_eq!(
-        "Bearer cached-cc-token",
-        headers1.get("Authorization").unwrap()
-    );
-    assert_eq!(
-        "Bearer cached-cc-token",
-        headers2.get("Authorization").unwrap()
-    );
+    assert_eq!("Bearer cached-cc-token", headers1.get("Authorization").unwrap());
+    assert_eq!("Bearer cached-cc-token", headers2.get("Authorization").unwrap());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -266,9 +247,7 @@ async fn test_basic_auth_url_encodes_client_id_and_secret() {
     auth.auth_headers().await;
 
     let headers = client.last_headers().expect("should have headers");
-    let auth_header = headers
-        .get("Authorization")
-        .expect("should have Authorization header");
+    let auth_header = headers.get("Authorization").expect("should have Authorization header");
     assert!(auth_header.starts_with("Basic "));
     let encoded = &auth_header["Basic ".len()..];
     let decoded_bytes = BASE64_STANDARD.decode(encoded).expect("base64 decode");

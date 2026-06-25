@@ -48,3 +48,34 @@ public interface IAuthenticator
         return [];
     }
 }
+
+/// <summary>
+/// Sentinel authenticator marking an operation as explicitly unauthenticated
+/// (an operation declared <c>security: []</c> in the spec).
+///
+/// This is one of the three auth states resolved by <c>BaseApi</c>: passing
+/// <see cref="NoAuth.Instance"/> as the per-call authenticator suppresses the
+/// client-level authenticator entirely, so no credential is attached. A
+/// <see langword="null"/> authenticator, by contrast, means "no per-call
+/// override" and falls back to the client-level authenticator; a real
+/// authenticator is used as a per-call override.
+///
+/// It is identity-compared (reference equality against
+/// <see cref="Instance"/>) inside the generated client and never returns any
+/// header, query parameter, or cookie, so even if it were ever applied it
+/// would contribute no credential. It is internal to the generated client;
+/// callers never construct or see it.
+/// </summary>
+internal sealed class NoAuth : IAuthenticator
+{
+    /// <summary>The single shared no-auth sentinel instance.</summary>
+    public static readonly NoAuth Instance = new();
+
+    private NoAuth() { }
+
+    /// <inheritdoc />
+    public string GetHost() => "";
+
+    /// <inheritdoc />
+    public Dictionary<string, string> GetAuthHeaders() => [];
+}

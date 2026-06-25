@@ -10,11 +10,12 @@
 import pytest
 from typing import Any, Optional
 
-from petstore_client.api.base_api import BaseApi
+from petstore_client.api.base_api import BaseApi, NO_AUTH
 from petstore_client.api.pet_api import PetApi
 from petstore_client.api.options.find_pets_by_status_options import (
     FindPetsByStatusOptions,
 )
+from petstore_client.models.pet import Pet
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.auth.authenticator import Authenticator
@@ -608,6 +609,125 @@ class TestAuthInjection:
         # ... and it was computed off the event-loop thread.
         assert auth.auth_thread_id is not None
         assert auth.auth_thread_id != loop_thread_id
+
+
+class TestNoAuthSentinel:
+    """Wave A2 — the no-auth sentinel three-state contract in base_api.
+
+    The ``auth`` argument resolves into three distinct states:
+
+    * ``NO_AUTH``                  -> suppress auth; do NOT fall back to the
+      client-level authenticator (``security: []`` operation).
+    * ``None``                     -> fall back to the client-level
+      authenticator (secured op, no per-call override) — UNCHANGED.
+    * a real :class:`Authenticator` -> per-call override — UNCHANGED.
+    """
+
+    async def test_sentinel_suppresses_client_level_authenticator(self) -> None:
+        # NO_AUTH must NOT re-acquire the client-level credential: no auth
+        # header, no auth query param, no auth cookie reaches the wire.
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        client_auth = StubAuthenticator(
+            headers={"X-Client-Auth": "client-level-token"},
+            query_params={"api_key": "secret-key"},
+            cookies={"session": "abc123"},
+        )
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            NO_AUTH,
+        )
+        assert "X-Client-Auth" not in client.captured_headers
+        assert "Cookie" not in client.captured_headers
+        assert "api_key=" not in client.captured_url
+
+    async def test_none_falls_back_to_client_level_authenticator(self) -> None:
+        # None is the secured-op-no-override state: client credential applies.
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        client_auth = StubAuthenticator(headers={"X-Client-Auth": "client-level-token"})
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            None,
+        )
+        assert client.captured_headers.get("X-Client-Auth") == "client-level-token"
+
+    async def test_sentinel_is_identity_distinct_from_none(self) -> None:
+        # The sentinel must be a dedicated, identity-comparable marker that is
+        # neither None nor a real authenticator.
+        assert NO_AUTH is not None
+        assert not isinstance(NO_AUTH, Authenticator)
+
+
+class TestSecurityNoneAuthSuppression:
+    """Wave A2 parity (generated client) — a ``security: []`` operation must
+    NOT carry the configured client credential, while a secured operation with
+    the same configured authenticator still must (guards over-suppression)."""
+
+    async def test_security_none_op_sends_no_credential(self) -> None:
+        # get_pet_by_id is declared `security: []`; configure the client WITH
+        # an authenticator and assert the outbound request carries NO
+        # Authorization header, NO api-key header/query param, and NO auth
+        # cookie. The api method passes NO_AUTH, so base_api suppresses the
+        # client credential.
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        client_auth = StubAuthenticator(
+            headers={"Authorization": "Bearer client-token", "api-key": "k"},
+            query_params={"api_key": "secret-key"},
+            cookies={"session": "abc123"},
+        )
+        api = PetApi(api_client=client, config=config, authenticator=client_auth)
+        try:
+            await api.get_pet_by_id(1)
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+        assert "Authorization" not in client.captured_headers, (
+            f"security:[] op must not send Authorization, got: {client.captured_headers}"
+        )
+        assert "api-key" not in client.captured_headers, (
+            "security:[] op must not send an api-key header"
+        )
+        assert "Cookie" not in client.captured_headers, (
+            "security:[] op must not send an auth cookie"
+        )
+        assert "api_key=" not in client.captured_url, (
+            f"security:[] op must not send an api-key query param, got: {client.captured_url}"
+        )
+
+    async def test_secured_op_still_sends_credential(self) -> None:
+        # add_pet IS secured; with the same client-level authenticator and no
+        # per-call override the credential must STILL reach the wire (do not
+        # over-suppress). Guards against a Wave A1 regression.
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        client_auth = StubAuthenticator(
+            headers={"Authorization": "Bearer client-token"}
+        )
+        api = PetApi(api_client=client, config=config, authenticator=client_auth)
+        try:
+            await api.add_pet(Pet(name="rex", photoUrls={"http://example.com/p.png"}))
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+        assert client.captured_headers.get("Authorization") == "Bearer client-token", (
+            f"secured op must still send the client credential, got: {client.captured_headers}"
+        )
 
 
 class TestBodySerialization:

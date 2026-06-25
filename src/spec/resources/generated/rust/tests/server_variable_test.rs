@@ -11,7 +11,11 @@ use petstore::ServerVariable;
 fn test_exposes_default_value_when_no_override_is_applied() {
     // The default value is what ServerConfiguration falls back to when a
     // variable is left unset, so it must be carried through verbatim.
-    let variable = ServerVariable::new("v1".to_string(), "API version".to_string(), vec![]);
+    let variable = ServerVariable::new(
+        "v1".to_string(),
+        "API version".to_string(),
+        vec![],
+    );
 
     assert_eq!(variable.default_value(), "v1");
     assert_eq!(variable.description(), "API version");
@@ -21,7 +25,11 @@ fn test_exposes_default_value_when_no_override_is_applied() {
 fn test_empty_enum_values_means_any_value_allowed() {
     // enum_values is non-null by contract (empty slice = any value allowed);
     // an empty description is permitted.
-    let variable = ServerVariable::new("prod".to_string(), String::new(), vec![]);
+    let variable = ServerVariable::new(
+        "prod".to_string(),
+        String::new(),
+        vec![],
+    );
 
     assert!(variable.enum_values().is_empty());
     assert_eq!(variable.description(), "");

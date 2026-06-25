@@ -75,7 +75,20 @@ class BaseApi {
     if (queryParams != null) {
       allQueryParams.addAll(queryParams);
     }
-    final effectiveAuth = auth ?? _authenticator;
+    /* Three-state auth resolution (security-none suppression):
+     *   - auth IS the `noAuth` sentinel -> the operation is declared
+     *     `security: []`; apply NO authentication. Do NOT fall back to the
+     *     client-level authenticator (that would re-acquire and leak the
+     *     client credential on an unauthenticated endpoint).
+     *   - auth is null (no per-call override) -> fall back to the
+     *     client-level `_authenticator` (a secured op uses the configured
+     *     credential). UNCHANGED Wave A1 behavior.
+     *   - auth is any other Authenticator -> use it as a per-call override.
+     * The sentinel is compared by identity so it can never collide with a
+     * real authenticator. */
+    final Authenticator? effectiveAuth = identical(auth, noAuth)
+        ? null
+        : (auth ?? _authenticator);
     if (effectiveAuth != null) {
       allQueryParams.addAll(effectiveAuth.queryParams());
     }

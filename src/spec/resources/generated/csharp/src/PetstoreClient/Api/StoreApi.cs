@@ -103,7 +103,7 @@ public class StoreApi : BaseApi
                 [],
                 "application/json",
                 null,
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -193,7 +193,7 @@ public class StoreApi : BaseApi
                 GetBySwatchAccepts,
                 "application/json",
                 typeof(Category),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -249,7 +249,7 @@ public class StoreApi : BaseApi
                 GetDefaultsAccepts,
                 "application/json",
                 typeof(Defaults),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -305,7 +305,7 @@ public class StoreApi : BaseApi
                 GetDepartmentAccepts,
                 "application/json",
                 typeof(Department),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -361,7 +361,7 @@ public class StoreApi : BaseApi
                 GetGroupedCategoriesAccepts,
                 "application/json",
                 typeof(List<Dictionary<string, Category>>),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -417,7 +417,7 @@ public class StoreApi : BaseApi
                 GetInventoryAccepts,
                 "application/json",
                 typeof(Dictionary<string, int>),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -473,7 +473,7 @@ public class StoreApi : BaseApi
                 GetMatrixAccepts,
                 "application/json",
                 typeof(List<List<int>>),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -536,7 +536,7 @@ public class StoreApi : BaseApi
                 GetOrderByIdAccepts,
                 "application/json",
                 typeof(Order),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -606,7 +606,7 @@ public class StoreApi : BaseApi
                 GetStockItemAccepts,
                 "application/json",
                 typeof(StockItem),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -662,7 +662,7 @@ public class StoreApi : BaseApi
                 GetSwatchAccepts,
                 "application/json",
                 typeof(Swatch),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -718,7 +718,7 @@ public class StoreApi : BaseApi
                 GetSwatchGroupsAccepts,
                 "application/json",
                 typeof(List<Dictionary<string, Swatch>>),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -774,7 +774,7 @@ public class StoreApi : BaseApi
                 GetTimestampGroupsAccepts,
                 "application/json",
                 typeof(List<Dictionary<string, DateTimeOffset>>),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -830,7 +830,7 @@ public class StoreApi : BaseApi
                 GetTreeAccepts,
                 "application/json",
                 typeof(TreeNode),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -888,7 +888,7 @@ public class StoreApi : BaseApi
                 PlaceOrderAccepts,
                 "application/json",
                 typeof(Order),
-                null
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }

@@ -24,11 +24,7 @@ impl BadRequestError {
 
 impl fmt::Display for BadRequestError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Bad request (400): {}",
-            self.client_error.api_error().message()
-        )
+        write!(f, "Bad request (400): {}", self.client_error.api_error().message())
     }
 }
 

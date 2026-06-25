@@ -13,6 +13,7 @@ import {{invokerPackage}}.HeaderSelector
 import {{invokerPackage}}.ObjectSerializer
 import {{invokerPackage}}.TraceContextUtil
 import {{invokerPackage}}.auth.Authenticator
+import {{invokerPackage}}.auth.NoAuth
 import {{invokerPackage}}.errors.BadRequestException
 import {{invokerPackage}}.errors.ClientException
 import {{invokerPackage}}.errors.ConflictException
@@ -135,7 +136,22 @@ abstract class BaseApi {
                 base + path
             }
 
-        val effectiveAuth = auth ?: this.authenticator
+        /* Three-state auth resolution:
+         *   - auth === NoAuth        -> the operation is declared `security: []`
+         *                               (unauthenticated). Apply NO authenticator
+         *                               and do NOT fall back to the client-level
+         *                               one, so the client credential is never
+         *                               leaked to an unauthenticated endpoint.
+         *   - auth == null           -> no per-call override; fall back to the
+         *                               client-level authenticator (a secured op).
+         *   - auth is a real value   -> a per-call override; use it as-is.
+         */
+        val effectiveAuth =
+            when {
+                auth === NoAuth -> null
+                auth != null -> auth
+                else -> this.authenticator
+            }
         if (effectiveAuth != null) {
             for ((key, value) in effectiveAuth.getQueryParams()) {
                 queryParams[key] = value

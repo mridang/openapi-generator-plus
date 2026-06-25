@@ -24,11 +24,7 @@ impl ForbiddenError {
 
 impl fmt::Display for ForbiddenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Forbidden (403): {}",
-            self.client_error.api_error().message()
-        )
+        write!(f, "Forbidden (403): {}", self.client_error.api_error().message())
     }
 }
 

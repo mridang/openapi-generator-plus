@@ -64,11 +64,11 @@
 
 pub mod api;
 pub mod api_client;
+pub mod client;
 pub mod api_error;
+pub mod auth;
 pub mod api_response;
 pub mod api_result;
-pub mod auth;
-pub mod client;
 pub mod configuration;
 // Internal transport implementation. The public seam is the `ApiClient` trait
 // (re-exported below) plus `DefaultApiClient` (re-exported below); the module's
@@ -100,11 +100,11 @@ pub mod utils;
 pub(crate) mod value_serializer;
 
 pub use api_client::ApiClient;
+pub use client::Client;
 pub use api_error::ApiError;
 pub use api_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
-pub use client::Client;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use default_api_client::DefaultApiClient;
 pub use errors::*;

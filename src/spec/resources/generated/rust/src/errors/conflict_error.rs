@@ -24,11 +24,7 @@ impl ConflictError {
 
 impl fmt::Display for ConflictError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Conflict (409): {}",
-            self.client_error.api_error().message()
-        )
+        write!(f, "Conflict (409): {}", self.client_error.api_error().message())
     }
 }
 

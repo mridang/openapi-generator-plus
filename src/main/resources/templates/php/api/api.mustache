@@ -15,6 +15,7 @@ use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\ValueSerializer;
+use {{invokerPackage}}\Auth\NoAuth;
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}
@@ -389,8 +390,16 @@ class {{classname}} extends BaseApi
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#vendorExtensions.op.hasMultipleConsumes}}$contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
-            '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{#returnProperty}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{{returnType}}}{{/isByteArray}}{{/returnProperty}}{{^returnProperty}}{{{returnType}}}{{/returnProperty}}{{/returnContainer}}'{{#hasAuthMethods}},
-            $auth{{/hasAuthMethods}}
+            '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{#returnProperty}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{{returnType}}}{{/isByteArray}}{{/returnProperty}}{{^returnProperty}}{{{returnType}}}{{/returnProperty}}{{/returnContainer}}',
+{{#hasAuthMethods}}
+            $auth
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
+{{/hasAuthMethods}}
         );
         return $result;
     }
@@ -616,8 +625,16 @@ class {{classname}} extends BaseApi
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#vendorExtensions.op.hasMultipleConsumes}}$contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
-            null{{#hasAuthMethods}},
-            $auth{{/hasAuthMethods}}
+            null,
+{{#hasAuthMethods}}
+            $auth
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
+{{/hasAuthMethods}}
         );
         return $result;
     }

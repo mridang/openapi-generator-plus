@@ -19,6 +19,7 @@ import com.example.petstore.HeaderSelector
 import com.example.petstore.ObjectSerializer
 import com.example.petstore.TraceContextUtil
 import com.example.petstore.auth.Authenticator
+import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.BadRequestException
 import com.example.petstore.errors.ClientException
 import com.example.petstore.errors.ConflictException
@@ -140,7 +141,22 @@ abstract class BaseApi {
                 base + path
             }
 
-        val effectiveAuth = auth ?: this.authenticator
+        /* Three-state auth resolution:
+         *   - auth === NoAuth        -> the operation is declared `security: []`
+         *                               (unauthenticated). Apply NO authenticator
+         *                               and do NOT fall back to the client-level
+         *                               one, so the client credential is never
+         *                               leaked to an unauthenticated endpoint.
+         *   - auth == null           -> no per-call override; fall back to the
+         *                               client-level authenticator (a secured op).
+         *   - auth is a real value   -> a per-call override; use it as-is.
+         */
+        val effectiveAuth =
+            when {
+                auth === NoAuth -> null
+                auth != null -> auth
+                else -> this.authenticator
+            }
         if (effectiveAuth != null) {
             for ((key, value) in effectiveAuth.getQueryParams()) {
                 queryParams[key] = value

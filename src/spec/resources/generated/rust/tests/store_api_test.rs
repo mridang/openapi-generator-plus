@@ -12,9 +12,9 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 
+use petstore::*;
 use petstore::api::*;
 use petstore::models::*;
-use petstore::*;
 
 fn new_store_api_for_integration() -> StoreApi {
     let base_url = testcontainers_helper::chasm_url();
@@ -71,11 +71,7 @@ async fn test_store_api_get_inventory() {
 async fn test_store_api_get_inventory_with_http_info() {
     let api = new_store_api_for_integration();
     let result = api.get_inventory_with_http_info().await;
-    assert!(
-        result.is_ok(),
-        "GetInventoryWithHttpInfo failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "GetInventoryWithHttpInfo failed: {:?}", result.err());
     let result = result.unwrap();
     assert!(result.status_code() >= 200 && result.status_code() < 300);
     assert!(result.data().is_some());
@@ -85,18 +81,18 @@ async fn test_store_api_get_inventory_with_http_info() {
 async fn test_store_api_get_order_by_id() {
     let api = new_store_api_for_integration();
     let result = api.get_order_by_id(1).await;
-    assert!(result.is_ok(), "GetOrderById failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GetOrderById failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
 async fn test_store_api_get_order_by_id_with_http_info() {
     let api = new_store_api_for_integration();
     let result = api.get_order_by_id_with_http_info(1).await;
-    assert!(
-        result.is_ok(),
-        "GetOrderByIdWithHttpInfo failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "GetOrderByIdWithHttpInfo failed: {:?}", result.err());
     let result = result.unwrap();
     assert!(result.status_code() >= 200 && result.status_code() < 300);
     assert!(result.data().is_some());
@@ -107,11 +103,7 @@ async fn test_store_api_place_order_with_http_info() {
     let api = new_store_api_for_integration();
     let order = Order::new();
     let result = api.place_order_with_http_info(Some(order)).await;
-    assert!(
-        result.is_ok(),
-        "PlaceOrderWithHttpInfo failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "PlaceOrderWithHttpInfo failed: {:?}", result.err());
     let result = result.unwrap();
     assert!(result.status_code() >= 200 && result.status_code() < 300);
     assert!(result.data().is_some());
@@ -134,7 +126,11 @@ async fn test_store_api_delete_order() {
 
 #[tokio::test]
 async fn test_store_api_get_order_not_found() {
-    let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
+    let api = new_store_api_for_mock(
+        404,
+        "application/json",
+        r#"{"message":"Order not found"}"#,
+    );
 
     let result = api.get_order_by_id(99999).await;
     assert!(result.is_err(), "expected error for non-existent order");
@@ -150,12 +146,19 @@ async fn test_store_api_place_order_server_error() {
 
     let order = Order::new();
     let result = api.place_order(Some(order)).await;
-    assert!(result.is_err(), "expected error for server error response");
+    assert!(
+        result.is_err(),
+        "expected error for server error response"
+    );
 }
 
 #[tokio::test]
 async fn test_store_api_delete_order_not_found() {
-    let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
+    let api = new_store_api_for_mock(
+        404,
+        "application/json",
+        r#"{"message":"Order not found"}"#,
+    );
 
     let result = api.delete_order(99999).await;
     assert!(
@@ -182,9 +185,15 @@ async fn test_store_api_get_grouped_categories_typed_leaves() {
         .await
         .expect("GetGroupedCategories failed");
 
-    let first: &Category = result[0].get("a").expect("expected key `a` in first map");
+    let first: &Category = result[0]
+        .get("a")
+        .expect("expected key `a` in first map");
     assert_eq!(first.id, Some(1), "leaf id mismatch");
-    assert_eq!(first.name, Some("Dogs".to_string()), "leaf name mismatch");
+    assert_eq!(
+        first.name,
+        Some("Dogs".to_string()),
+        "leaf name mismatch"
+    );
 }
 
 // malformed-2xx-fails-loud (behavior 11): a 2xx response whose body is not
@@ -193,7 +202,11 @@ async fn test_store_api_get_grouped_categories_typed_leaves() {
 // convenience method returns Err rather than a defaulted/empty value.
 #[tokio::test]
 async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
-    let api = new_store_api_for_mock(200, "application/json", "this is not valid json at all");
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        "this is not valid json at all",
+    );
 
     let result = api.get_order_by_id(1).await;
     assert!(

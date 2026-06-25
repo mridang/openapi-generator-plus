@@ -55,6 +55,42 @@ public abstract class BaseApi {
     protected final Authenticator authenticator;
 
     /**
+     * Sentinel authenticator that marks an operation as explicitly unauthenticated.
+     *
+     * <p>An operation declared with {@code security: []} in the spec opts out of
+     * all authentication. Its generated method passes this sentinel as the
+     * {@code auth} argument so that {@link #invokeApiForResult} can distinguish
+     * three states that a plain {@code null} could not:
+     *
+     * <ul>
+     *   <li>{@code auth == NO_AUTH} — the operation is unauthenticated; the
+     *       client-level authenticator must NOT be applied (no credential leak);
+     *   <li>{@code auth == null} — a secured operation with no per-call override;
+     *       fall back to the client-level authenticator (unchanged behaviour);
+     *   <li>{@code auth} is any other instance — a per-call override; use it
+     *       (unchanged behaviour).
+     * </ul>
+     *
+     * <p>This is a private, identity-comparable singleton; it returns empty
+     * header/query/cookie maps so that even if it were ever applied it would
+     * attach nothing. Callers never see it — generated subclasses reference it by
+     * its inherited {@code protected} name, and it is never exposed in any public
+     * signature.
+     */
+    protected static final Authenticator NO_AUTH = new Authenticator() {
+
+        @Override
+        public String getHost() {
+            return "";
+        }
+
+        @Override
+        public Map<String, String> getAuthHeaders() {
+            return Map.of();
+        }
+    };
+
+    /**
      * Create an API instance with the default configuration and default transport.
      */
     public BaseApi() {
@@ -134,7 +170,18 @@ public abstract class BaseApi {
             url = base + path;
         }
 
-        Authenticator effectiveAuth = (auth != null) ? auth : this.authenticator;
+        {{! Three-state auth resolution. NO_AUTH (security:[]) suppresses the
+            client authenticator; a null auth falls back to it (secured op, no
+            per-call override); any other instance is an explicit per-call
+            override. Identity comparison against the sentinel — never equals. }}
+        Authenticator effectiveAuth;
+        if (auth == NO_AUTH) {
+            effectiveAuth = null;
+        } else if (auth != null) {
+            effectiveAuth = auth;
+        } else {
+            effectiveAuth = this.authenticator;
+        }
         if (effectiveAuth != null) {
             for (Map.Entry<String, String> entry : effectiveAuth.getQueryParams().entrySet()) {
                 queryParams.put(entry.getKey(), entry.getValue());

@@ -212,6 +212,54 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['Authorization']).must_equal 'Bearer secret-token'
   end
 
+  # SECURITY-NONE (Wave A2) — an operation declared `security: []` is explicitly
+  # unauthenticated, so a configured CLIENT-LEVEL authenticator must be SUPPRESSED
+  # for it: no credential may reach the wire. get_pet_by_id is a security:[]
+  # operation (no auth methods), so the generated method passes the NO_AUTH
+  # sentinel into invoke_api, which must NOT fall back to the client
+  # authenticator. We configure the client with an authenticator that injects a
+  # header, a query param, AND a cookie, then assert NONE of them are present on
+  # the captured outbound request.
+  it 'suppresses the client authenticator on a security:[] operation' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    client_auth = TestAuthenticator.new(
+      headers: { 'Authorization' => 'Bearer client-token', 'api-key' => 'client-key' },
+      query_params: { 'api_key' => 'client-key' },
+      cookies: { 'session' => 'client-session' }
+    )
+    api = {{moduleName}}::Api::PetApi.new(client, config, client_auth)
+    begin
+      api.get_pet_by_id(1)
+    rescue StandardError
+      # Response handling is irrelevant; we only assert the captured request.
+    end
+    refute client.captured_headers.key?('Authorization'),
+           'security:[] op must not carry an Authorization header from the client authenticator'
+    refute client.captured_headers.key?('api-key'),
+           'security:[] op must not carry an api-key header from the client authenticator'
+    refute client.captured_headers.key?('Cookie'),
+           'security:[] op must not carry an auth cookie from the client authenticator'
+    _(client.captured_url).wont_include 'api_key',
+      "security:[] op must not carry an api-key query param, got: #{client.captured_url}"
+  end
+
+  # SECURITY-NONE companion — the same suppression must hold via the generic
+  # invoke path when the operation passes the NO_AUTH sentinel explicitly, even
+  # though a client-level authenticator is configured. Guards the three-state
+  # resolution directly (sentinel beats client fallback).
+  it 'NO_AUTH sentinel suppresses the client authenticator in invoke_api' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    client_auth = TestAuthenticator.new(headers: { 'Authorization' => 'Bearer client-token' })
+    test_api = TestableApi.new(client, config, client_auth)
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil,
+                  {{moduleName}}::Api::BaseApi::NO_AUTH)
+    refute client.captured_headers.key?('Authorization'),
+           'NO_AUTH sentinel must suppress the client authenticator credential'
+  end
+
   # ── Body serialization ──
 
   it 'serializes JSON body for POST' do

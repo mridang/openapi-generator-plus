@@ -34,11 +34,7 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiHttpResponse::new(
-            status_code,
-            body.to_string(),
-            HashMap::new(),
-        ));
+        responses.push(ApiHttpResponse::new(status_code, body.to_string(), HashMap::new()));
     }
 
     fn last_body(&self) -> Option<String> {
@@ -53,13 +49,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -122,9 +112,7 @@ async fn test_exchanges_code_with_correct_grant_type() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz")
-        .await
-        .expect("should succeed");
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=authorization_code"));
@@ -145,10 +133,7 @@ async fn test_exchange_code_rejects_empty_code() {
     auth.set_api_client(client.clone());
 
     let result = auth.exchange_code("").await;
-    assert!(
-        result.is_err(),
-        "empty code must be rejected before the token POST"
-    );
+    assert!(result.is_err(), "empty code must be rejected before the token POST");
 
     let result_ws = auth.exchange_code("   ").await;
     assert!(result_ws.is_err(), "whitespace-only code must be rejected");
@@ -171,10 +156,7 @@ async fn test_exchange_code_rejects_whitespace_only_code() {
     auth.set_api_client(client.clone());
 
     let result = auth.exchange_code("   ").await;
-    assert!(
-        result.is_err(),
-        "whitespace-only code must be rejected before the token POST"
-    );
+    assert!(result.is_err(), "whitespace-only code must be rejected before the token POST");
 
     assert!(
         client.last_body().is_none(),
@@ -194,9 +176,7 @@ async fn test_includes_refresh_token_on_refresh() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz")
-        .await
-        .expect("should succeed");
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
 
     // GetAuthHeaders triggers a refresh since token is expired
     let headers = auth.auth_headers().await;
@@ -216,11 +196,7 @@ async fn test_throws_before_exchange_code_called() {
     // surfaces as a 401 instead of crashing the process. Callers that want
     // a precise error use try_auth_headers.
     let headers = auth.auth_headers().await;
-    assert!(
-        headers.is_empty(),
-        "expected empty headers before exchange_code, got {:?}",
-        headers
-    );
+    assert!(headers.is_empty(), "expected empty headers before exchange_code, got {:?}", headers);
 }
 
 #[tokio::test]
@@ -263,22 +239,9 @@ async fn test_authorize_url_with_existing_query_string_uses_amp_separator() {
 
     let url = auth.build_authorization_url("");
 
-    assert!(
-        url.contains("audience=api"),
-        "existing query param must be preserved: {}",
-        url
-    );
-    assert!(
-        url.contains("response_type=code"),
-        "response_type param must be appended: {}",
-        url
-    );
-    assert_eq!(
-        1,
-        url.matches('?').count(),
-        "result must contain exactly one '?': {}",
-        url
-    );
+    assert!(url.contains("audience=api"), "existing query param must be preserved: {}", url);
+    assert!(url.contains("response_type=code"), "response_type param must be appended: {}", url);
+    assert_eq!(1, url.matches('?').count(), "result must contain exactly one '?': {}", url);
 }
 
 #[test]

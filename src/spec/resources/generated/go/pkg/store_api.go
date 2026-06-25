@@ -67,7 +67,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 		accepts:      []string{},
 		contentType:  "application/json",
 		returnType:   "",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Category",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Defaults",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -289,7 +289,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Department",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -369,7 +369,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[]map[string]Category",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -449,7 +449,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "map[string]int32",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -529,7 +529,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[][]int32",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -615,7 +615,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Order",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -699,7 +699,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "StockItem",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -779,7 +779,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Swatch",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -859,7 +859,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[]map[string]Swatch",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -939,7 +939,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]tim
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[]map[string]time.Time",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1019,7 +1019,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "TreeNode",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
@@ -1099,7 +1099,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Order",
-		auth:         nil,
+		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err

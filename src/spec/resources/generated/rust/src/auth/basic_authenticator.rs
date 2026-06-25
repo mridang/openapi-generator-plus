@@ -11,8 +11,8 @@ use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 
 use super::Authenticator;
 
@@ -34,15 +34,15 @@ pub enum BasicAuthError {
 impl fmt::Display for BasicAuthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BasicAuthError::UsernameContainsControlChar => {
-                f.write_str("Basic auth username must not contain CR, LF, or NUL characters")
-            }
+            BasicAuthError::UsernameContainsControlChar => f.write_str(
+                "Basic auth username must not contain CR, LF, or NUL characters",
+            ),
             BasicAuthError::UsernameContainsColon => {
                 f.write_str("Basic auth username must not contain ':' (RFC 7617 §2)")
             }
-            BasicAuthError::PasswordContainsControlChar => {
-                f.write_str("Basic auth password must not contain CR, LF, or NUL characters")
-            }
+            BasicAuthError::PasswordContainsControlChar => f.write_str(
+                "Basic auth password must not contain CR, LF, or NUL characters",
+            ),
         }
     }
 }
@@ -144,8 +144,9 @@ impl Authenticator for BasicAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            self.try_auth_headers()
-                .unwrap_or_else(|e| panic!("invalid HTTP Basic credentials: {}", e))
+            self.try_auth_headers().unwrap_or_else(|e| {
+                panic!("invalid HTTP Basic credentials: {}", e)
+            })
         })
     }
 }

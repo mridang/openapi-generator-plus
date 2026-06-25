@@ -937,6 +937,85 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  # SECURITY-NONE (Wave A2): a `security: []` operation is UNAUTHENTICATED and
+  # must suppress the client-level credential. The generated api method passes
+  # the BaseApi no-auth SENTINEL (not nil) for these operations, so BaseApi does
+  # NOT fall back to the configured client authenticator. get_pet_by_id is
+  # declared `security: []`; invoking it on an API instance that carries a
+  # configured authenticator must emit NO Authorization header, NO api-key
+  # header/query-param, and NO auth Cookie — proving the credential is dropped
+  # for unauthenticated operations rather than leaked (e.g. to a reflecting
+  # testEcho* endpoint). Guards against the regression where `auth = nil`
+  # re-acquired the client authenticator via `auth || client_authenticator`.
+
+  test "security:[] operation suppresses a configured Bearer client authenticator" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      {{moduleName}}.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
+
+    api = {{moduleName}}.Api.PetApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+
+    _result = {{moduleName}}.Api.PetApi.get_pet_by_id(api, 1)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+
+    refute Map.has_key?(captured.headers, "Authorization"),
+      "security:[] op must NOT send Authorization from the client authenticator, got: #{inspect(captured.headers)}"
+    refute Map.has_key?(captured.headers, "Cookie"),
+      "security:[] op must NOT send an auth Cookie, got: #{inspect(captured.headers)}"
+  end
+
+  test "security:[] operation suppresses a configured api-key client authenticator (header and query)" do
+    {:ok, header_name} = AuthAppliedCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+
+    header_auth =
+      {{moduleName}}.Auth.ApiKeyAuthenticator.new(
+        "http://localhost",
+        "X-API-Key",
+        "key-value-456",
+        :header
+      )
+
+    header_api =
+      {{moduleName}}.Api.PetApi.new(AuthAppliedCapturingApiClient, config, header_auth)
+
+    _result = {{moduleName}}.Api.PetApi.get_pet_by_id(header_api, 1)
+    header_captured = AuthAppliedCapturingApiClient.captured(header_name)
+
+    refute Map.has_key?(header_captured.headers, "X-API-Key"),
+      "security:[] op must NOT send the api-key header from the client authenticator, got: #{inspect(header_captured.headers)}"
+
+    Agent.stop(header_name)
+
+    # And the same suppression must hold for an api-key delivered as a query
+    # parameter — the credential must not leak onto the URL either.
+    {:ok, query_name} = AuthAppliedCapturingApiClient.start()
+
+    query_auth =
+      {{moduleName}}.Auth.ApiKeyAuthenticator.new(
+        "http://localhost",
+        "api_key",
+        "key-value-789",
+        :query
+      )
+
+    query_api =
+      {{moduleName}}.Api.PetApi.new(AuthAppliedCapturingApiClient, config, query_auth)
+
+    _result = {{moduleName}}.Api.PetApi.get_pet_by_id(query_api, 1)
+    query_captured = AuthAppliedCapturingApiClient.captured(query_name)
+
+    refute String.contains?(query_captured.url, "api_key="),
+      "security:[] op must NOT append the api-key query param from the client authenticator, got: #{query_captured.url}"
+    refute String.contains?(query_captured.url, "key-value-789"),
+      "security:[] op must NOT leak the api-key value onto the URL, got: #{query_captured.url}"
+
+    Agent.stop(query_name)
+  end
+
   # Per-op server override (item #5)
 
   defmodule UrlCapturingApiClient do

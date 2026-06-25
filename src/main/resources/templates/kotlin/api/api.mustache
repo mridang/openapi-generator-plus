@@ -10,6 +10,7 @@ import {{invokerPackage}}.Configuration
 import {{invokerPackage}}.ObjectSerializer
 import {{invokerPackage}}.ValueSerializer
 import {{invokerPackage}}.auth.Authenticator
+import {{invokerPackage}}.auth.NoAuth
 {{#imports}}import {{import}}
 {{/imports}}
 {{#optionsImports}}
@@ -313,7 +314,7 @@ class {{classname}} : BaseApi {
                 {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
                 arrayOf({{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}),
                 {{#consumes}}{{#-last}}{{^-first}}requestContentType ?: {{/-first}}{{/-last}}{{/consumes}}"{{vendorExtensions.op.effectiveConsumes}}",
-                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}})
+                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}NoAuth{{/hasAuthMethods}})
     }
     {{/operation}}
 }

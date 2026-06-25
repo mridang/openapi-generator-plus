@@ -48,7 +48,9 @@ fn test_configuration_builder_sets_multiple_default_headers() {
     headers.insert("X-First".to_string(), "one".to_string());
     headers.insert("X-Second".to_string(), "two".to_string());
 
-    let config = ConfigurationBuilder::new().default_headers(headers).build();
+    let config = ConfigurationBuilder::new()
+        .default_headers(headers)
+        .build();
 
     let result = config.default_headers();
     assert_eq!(result.get("X-First").unwrap(), "one");
@@ -74,26 +76,14 @@ fn test_configuration_server_url_resolution() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
-        ServerVariable::new(
-            "api".to_string(),
-            String::new(),
-            vec!["api".to_string(), "staging".to_string()],
-        ),
+        ServerVariable::new("api".to_string(), String::new(), vec!["api".to_string(), "staging".to_string()]),
     );
     variables.insert(
         "version".to_string(),
-        ServerVariable::new(
-            "v3".to_string(),
-            String::new(),
-            vec!["v2".to_string(), "v3".to_string()],
-        ),
+        ServerVariable::new("v3".to_string(), String::new(), vec!["v2".to_string(), "v3".to_string()]),
     );
 
-    let server = ServerConfiguration::new(
-        "https://{env}.example.com/api/{version}".to_string(),
-        "Test server".to_string(),
-        variables,
-    );
+    let server = ServerConfiguration::new("https://{env}.example.com/api/{version}".to_string(), "Test server".to_string(), variables);
 
     let mut overrides = HashMap::new();
     overrides.insert("env".to_string(), "staging".to_string());
@@ -111,26 +101,14 @@ fn test_configuration_server_url_resolution_with_defaults() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
-        ServerVariable::new(
-            "api".to_string(),
-            String::new(),
-            vec!["api".to_string(), "staging".to_string()],
-        ),
+        ServerVariable::new("api".to_string(), String::new(), vec!["api".to_string(), "staging".to_string()]),
     );
     variables.insert(
         "version".to_string(),
-        ServerVariable::new(
-            "v3".to_string(),
-            String::new(),
-            vec!["v2".to_string(), "v3".to_string()],
-        ),
+        ServerVariable::new("v3".to_string(), String::new(), vec!["v2".to_string(), "v3".to_string()]),
     );
 
-    let server = ServerConfiguration::new(
-        "https://{env}.example.com/api/{version}".to_string(),
-        "Test server".to_string(),
-        variables,
-    );
+    let server = ServerConfiguration::new("https://{env}.example.com/api/{version}".to_string(), "Test server".to_string(), variables);
 
     let config = ConfigurationBuilder::new()
         .server(&server, &HashMap::new())
@@ -157,10 +135,7 @@ fn test_configuration_default_headers_copy_isolation() {
         .build();
 
     let mut headers = config.default_headers();
-    headers.insert(
-        "X-Mutated".to_string(),
-        "should-not-affect-config".to_string(),
-    );
+    headers.insert("X-Mutated".to_string(), "should-not-affect-config".to_string());
 
     let original = config.default_headers();
     assert!(
@@ -205,18 +180,10 @@ fn test_configuration_invalid_server_variable_enum_value_returns_error() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
-        ServerVariable::new(
-            "api".to_string(),
-            String::new(),
-            vec!["api".to_string(), "staging".to_string()],
-        ),
+        ServerVariable::new("api".to_string(), String::new(), vec!["api".to_string(), "staging".to_string()]),
     );
 
-    let server = ServerConfiguration::new(
-        "https://{env}.example.com".to_string(),
-        "Test server".to_string(),
-        variables,
-    );
+    let server = ServerConfiguration::new("https://{env}.example.com".to_string(), "Test server".to_string(), variables);
 
     let mut overrides = HashMap::new();
     overrides.insert("env".to_string(), "invalid".to_string());
@@ -263,8 +230,5 @@ fn test_server_configuration_and_variable_accessor_only() {
     let var = server.variables().get("env").expect("env variable present");
     assert_eq!(var.default_value(), "api");
     assert_eq!(var.description(), "the environment");
-    assert_eq!(
-        var.enum_values(),
-        &["api".to_string(), "staging".to_string()]
-    );
+    assert_eq!(var.enum_values(), &["api".to_string(), "staging".to_string()]);
 }
