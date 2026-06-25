@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	petstore "petstore/pkg"
+	"petstore/pkg/auth"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 	"petstore/pkg/options"
@@ -280,6 +281,36 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 		// We don't care if the request fails (chasm may not have a matching mapping),
 		// we just need to verify the cookie was sent
 		_ = err
+	}
+}
+
+// ── Configured authenticator is actually applied (AUTH-APPLIED) ──
+
+// auth-applied-regression-guard: a client constructed with a configured
+// authenticator must apply that credential to a secured request even when the
+// per-operation Options carry no Auth override. This is the regression guard
+// for the Elixir bug where a configured authenticator was silently dropped: the
+// client-level authenticator (3rd arg to NewPetApi) is the fallback, and the
+// outbound request must carry its Authorization header. We route through a
+// capturing client so we can assert on the exact headers BaseApi emitted.
+func TestBaseApi_ConfiguredAuthenticatorIsAppliedToSecuredRequest(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
+
+	// Bearer is one of the schemes the petstore spec defines (petStoreBearer).
+	bearer := auth.NewBearerAuthenticator("https://api.example.com", "secret-jwt")
+	api := petstore.NewPetApi(client, config, bearer)
+
+	// Secured operation with no per-operation Auth override: the configured
+	// client-level authenticator must supply the credential. capturingApiClient
+	// records request headers at send time, so the deserialize outcome of its
+	// placeholder ("{}") response body is irrelevant to this assertion (the
+	// sibling header tests ignore it the same way).
+	_, _ = api.AddPet(*models.NewPet("Test", []string{}), nil)
+
+	if got, want := client.capturedHeaders["Authorization"], "Bearer secret-jwt"; got != want {
+		t.Fatalf("outbound Authorization header = %q, want %q (configured authenticator was dropped)", got, want)
 	}
 }
 

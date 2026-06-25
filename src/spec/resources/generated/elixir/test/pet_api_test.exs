@@ -556,6 +556,29 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  # auth-struct-reaches-wire (regression guard for the Elixir auth-drop bug):
+  # a REAL behaviour-struct authenticator (not a plain map) must have its
+  # credential applied to the outbound request. The previous BaseApi read
+  # `auth_headers` as a struct FIELD via `Map.has_key?`, which is always false
+  # for a behaviour struct (the credential providers are callback FUNCTIONS),
+  # so every configured authenticator was silently dropped. This pins the fix:
+  # the credential is dispatched through the struct's module and reaches the
+  # wire. A plain-map fixture (used by the tests above for override/fallback
+  # logic) would NOT catch this bug, so this case uses the generated struct.
+  test "configured BearerAuthenticator struct applies its credential to the wire" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    bearer = PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "real-struct-token")
+    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config, bearer)
+
+    {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1)
+
+    headers = HeaderCapturingApiClient.captured_headers(name)
+    assert headers["Authorization"] == "Bearer real-struct-token"
+
+    Agent.stop(name)
+  end
+
   # binary-request-body-fidelity: setPetAvatar declares a request body of
   # type:string format:binary with declared Content-Type image/jpeg. The raw
   # bytes must reach the wire UNCHANGED — never JSON-marshaled into an int-array

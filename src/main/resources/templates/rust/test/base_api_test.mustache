@@ -1304,3 +1304,52 @@ fn test_typed_error_wrappers_accessor_only() {
 // were moved in-crate (see `src/default_api_client.rs`'s `#[cfg(test)] mod
 // tests`) because `decode_text_body`, `parse_charset`, and `mime_for_filename`
 // live in the crate-private `default_api_client` module.
+
+// -- AUTH-APPLIED: a configured authenticator must reach the wire --
+//
+// Regression guard for the Elixir bug where a configured authenticator was
+// silently dropped. Unlike the override-precedence tests above (which use the
+// `HeaderAuthenticator` test stub), this drives the *real* `BearerAuthenticator`
+// through a SECURED operation and asserts the credential it produces actually
+// lands on the outbound request the SDK puts on the wire.
+#[tokio::test]
+async fn test_base_api_configured_bearer_authenticator_reaches_wire() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = {{packageName}}::auth::BearerAuthenticator::new("http://localhost", "secret-token");
+    let pet = Pet::new("AuthPet".to_string(), HashSet::new());
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer secret-token"),
+        "a configured Bearer authenticator must apply its Authorization header to the secured request"
+    );
+}
+
+// AUTH-APPLIED for the apiKey scheme: a configured `ApiKeyAuthenticator` placing
+// the credential in a header (X-API-Key, as the spec's apiKeyHeader scheme
+// defines) must likewise reach the outbound request.
+#[tokio::test]
+async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
+    use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
+    use {{packageName}}::auth::api_key_location::ApiKeyLocation;
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = ApiKeyAuthenticator::new(
+        "http://localhost",
+        "X-API-Key",
+        "key-abc123",
+        ApiKeyLocation::Header,
+    );
+    let pet = Pet::new("ApiKeyPet".to_string(), HashSet::new());
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("X-API-Key").map(|s| s.as_str()),
+        Some("key-abc123"),
+        "a configured apiKey authenticator must apply its api-key header to the secured request"
+    );
+}

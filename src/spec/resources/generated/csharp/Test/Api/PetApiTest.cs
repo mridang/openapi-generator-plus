@@ -543,6 +543,30 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestConfiguredAuthenticatorIsAppliedToSecuredOperation()
+    {
+        // AUTH-APPLIED regression guard (Wave A1): a configured BearerAuthenticator
+        // must actually be applied to a SECURED operation's outbound request. This
+        // mirrors the Elixir bug where a configured authenticator was silently
+        // dropped and the request went out unauthenticated. Construct a client with
+        // a real BearerAuthenticator (not a raw default header), issue a request
+        // through the secured AddPet operation, and assert the wire request carried
+        // the Authorization credential.
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .Build();
+        var api = new PetApi(client, config);
+        var authenticator = new BearerAuthenticator("http://localhost", "applied-token");
+
+        var pet = new Pet("AppliedDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet, new AddPetOptions { Auth = authenticator });
+
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization"));
+        Assert.Equal("Bearer applied-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
     public async Task TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
     {
         // When no per-call auth is supplied (Options omitted entirely), the

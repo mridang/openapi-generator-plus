@@ -27,6 +27,7 @@ import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-response.js";
 import type { ApiResult } from "../src/api-result.js";
 import { PetApi } from "../src/api/pet-api.js";
+import { BearerAuthenticator } from "../src/auth/bearer-authenticator.js";
 import { Category } from "../src/models/index.js";
 import { ObjectSerializer } from "../src/object-serializer.js";
 
@@ -533,6 +534,36 @@ describe("BaseApi auth injection", () => {
       null,
       auth,
     );
+  });
+
+  /*
+   * AUTH-APPLIED (Wave A1): a CONFIGURED authenticator must actually be
+   * applied to the outbound request of a secured operation. This is the
+   * regression guard for the Elixir bug where a configured authenticator
+   * was silently dropped, so the credential never reached the wire.
+   *
+   * Unlike the stub-based `forwards auth headers` test above, this uses the
+   * REAL BearerAuthenticator and goes through the mock echo server, which
+   * reflects the received request headers back in its JSON body. We assert
+   * the echoed Authorization header carries the exact Bearer credential.
+   */
+  test("configured Bearer authenticator credential reaches the outbound request", async () => {
+    const auth = new BearerAuthenticator(chasmUrl, "secret-token-123");
+    const result = await api().call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      (json) => json as { headers: Record<string, string> },
+      auth,
+    );
+    expect(result).toBeDefined();
+    expect(
+      (result as { headers: Record<string, string> }).headers["authorization"],
+    ).toBe("Bearer secret-token-123");
   });
 });
 

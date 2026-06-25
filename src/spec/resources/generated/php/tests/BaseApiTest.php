@@ -11,6 +11,9 @@ use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\Servers;
 use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Auth\ApiKeyAuthenticator;
+use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\ApiException;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ServerException;
@@ -25,7 +28,9 @@ use PetstoreClient\ApiClient;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Models\Category;
+use PetstoreClient\Models\Pet;
 
 class CapturingApiClient implements ApiClient
 {
@@ -355,6 +360,57 @@ test('per-call auth overrides the client-level authenticator', function (): void
         $perCallAuth
     );
     expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('per-call-token');
+});
+
+// -- AUTH-APPLIED (Wave A1) --
+//
+// Regression guard for the Elixir bug where a CONFIGURED authenticator was
+// silently dropped: a Bearer / apiKey authenticator handed to the client must
+// actually appear on the OUTBOUND request to a SECURED operation. addPet is
+// secured (apiKeyHeader / petStoreBearer). We drive the real generated PetApi
+// through a CapturingApiClient and assert the credential is on the wire.
+
+test('configured bearer authenticator is applied to a secured operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
+});
+
+test('per-operation bearer authenticator is applied to a secured operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'per-op-token');
+    $api = new PetApi($client, $config);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet, new AddPetOptions($auth));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer per-op-token');
+});
+
+test('configured api-key header authenticator is applied to a secured operation', function (): void {
+    // apiKeyHeader scheme defined by the spec sends X-API-Key as a header.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER);
+    $api = new PetApi($client, $config, $auth);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
 });
 
 test('serializes json body', function (): void {

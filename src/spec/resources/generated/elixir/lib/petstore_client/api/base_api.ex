@@ -117,10 +117,9 @@ defmodule PetstoreClient.Api.BaseApi do
     effective_auth = auth || Map.get(state, :authenticator)
 
     query_params =
-      if effective_auth && is_map(effective_auth) && Map.has_key?(effective_auth, :query_params) do
-        Map.merge(query_params, effective_auth.query_params)
-      else
-        query_params
+      case auth_credentials(effective_auth, :query_params) do
+        nil -> query_params
+        params -> Map.merge(query_params, params)
       end
 
     query_string = build_query_string(query_params)
@@ -145,54 +144,53 @@ defmodule PetstoreClient.Api.BaseApi do
     headers = Map.merge(headers, header_params)
 
     headers =
-      if effective_auth && is_map(effective_auth) && Map.has_key?(effective_auth, :auth_headers) do
-        Map.merge(headers, effective_auth.auth_headers)
-      else
-        headers
+      case auth_credentials(effective_auth, :auth_headers) do
+        nil -> headers
+        auth_headers -> Map.merge(headers, auth_headers)
       end
 
     headers =
-      if effective_auth && is_map(effective_auth) && Map.has_key?(effective_auth, :cookie_params) do
-        cookies = effective_auth.cookie_params
-
-        if map_size(cookies) > 0 do
-          # RFC 6265 — don't URL-encode cookie name/value; most cookie
-          # parsers don't URL-decode, so `=` (base64 padding) would
-          # arrive as literal `%3D` and break JWT/session cookies.
-          # Validate and pass through raw instead.
-          cookie_str =
-            Enum.map_join(cookies, "; ", fn {k, v} ->
-              name = to_string(k)
-              value = to_string(v)
-
-              unless name =~ ~r/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/ do
-                raise ArgumentError,
-                      "Cookie name '#{name}' contains characters forbidden by RFC 6265"
-              end
-
-              unless value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
-                raise ArgumentError,
-                      "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
-              end
-
-              "#{name}=#{value}"
-            end)
-
-          existing = Map.get(headers, "Cookie")
-
-          cookie_value =
-            if existing do
-              "#{existing}; #{cookie_str}"
-            else
-              cookie_str
-            end
-
-          Map.put(headers, "Cookie", cookie_value)
-        else
+      case auth_credentials(effective_auth, :cookie_params) do
+        nil ->
           headers
-        end
-      else
-        headers
+
+        cookies ->
+          if map_size(cookies) > 0 do
+            # RFC 6265 — don't URL-encode cookie name/value; most cookie
+            # parsers don't URL-decode, so `=` (base64 padding) would
+            # arrive as literal `%3D` and break JWT/session cookies.
+            # Validate and pass through raw instead.
+            cookie_str =
+              Enum.map_join(cookies, "; ", fn {k, v} ->
+                name = to_string(k)
+                value = to_string(v)
+
+                unless name =~ ~r/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/ do
+                  raise ArgumentError,
+                        "Cookie name '#{name}' contains characters forbidden by RFC 6265"
+                end
+
+                unless value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
+                  raise ArgumentError,
+                        "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
+                end
+
+                "#{name}=#{value}"
+              end)
+
+            existing = Map.get(headers, "Cookie")
+
+            cookie_value =
+              if existing do
+                "#{existing}; #{cookie_str}"
+              else
+                cookie_str
+              end
+
+            Map.put(headers, "Cookie", cookie_value)
+          else
+            headers
+          end
       end
 
     headers = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
@@ -305,6 +303,42 @@ defmodule PetstoreClient.Api.BaseApi do
       _ -> Enum.join(param, ",")
     end
   end
+
+  # Resolve an authenticator's credentials for the given behaviour callback
+  # (:auth_headers, :query_params, or :cookie_params). Authenticators are
+  # PetstoreClient.Auth.Authenticator behaviours: the credential providers are
+  # CALLBACK FUNCTIONS on the authenticator's module, not data fields on the
+  # struct, so they are dispatched through `effective_auth.__struct__.<cb>/1`
+  # (guarded by `function_exported?/3`, mirroring how `send_request` and the
+  # client's `set_api_client` are invoked). Returns nil when there is no
+  # authenticator or it does not implement the callback, so callers can skip
+  # the merge entirely. Reading these as struct fields would silently drop the
+  # credential — every real authenticator defstruct holds only its secret
+  # material (e.g. [:host, :token]), never an :auth_headers key.
+  defp auth_credentials(effective_auth, callback)
+       when is_map(effective_auth) and is_atom(callback) do
+    case effective_auth do
+      %{__struct__: mod} ->
+        # Real authenticators are behaviour structs: the credential providers
+        # are CALLBACK FUNCTIONS on the module, dispatched via the struct's
+        # module (guarded so a struct that doesn't implement the callback
+        # simply contributes nothing).
+        if function_exported?(mod, callback, 1) do
+          apply(mod, callback, [effective_auth])
+        else
+          nil
+        end
+
+      plain_map ->
+        # Plain-map fast-path: a map-shaped auth carries its credentials as
+        # data fields keyed by the callback name (e.g. %{auth_headers: %{...}}).
+        # Supported for lightweight/ad-hoc auth injection alongside the
+        # behaviour-struct form above.
+        Map.get(plain_map, callback)
+    end
+  end
+
+  defp auth_credentials(_effective_auth, _callback), do: nil
 
   defp throw_api_error(response) do
     code = response.status_code

@@ -1299,19 +1299,28 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
+  # A real authenticator: the credential providers are behaviour CALLBACKS
+  # (def auth_headers/1 ...), never struct data fields. base_api must dispatch
+  # through the module to read them; a struct that merely *names* fields
+  # :auth_headers/:query_params/:cookie_params would mask the dispatch bug.
   defmodule MapAuth do
-    defstruct [:auth_headers, :query_params, :cookie_params]
+    use PetstoreClient.Auth.BaseAuthenticator
+
+    defstruct [:header_value]
+
+    @impl true
+    def host(%__MODULE__{} = self), do: self.header_value
+
+    # The credential provider is a behaviour CALLBACK, not a struct field.
+    # query_params/1 and cookie_params/1 fall back to the BaseAuthenticator
+    # defaults (%{}), mirroring the real BearerAuthenticator.
+    @impl true
+    def auth_headers(%__MODULE__{} = self), do: %{"X-Auth" => self.header_value}
   end
 
   test "client-level authenticator is used when no :auth opt is supplied" do
     {:ok, name} = AuthCapturingApiClient.start()
-
-    client_auth = %MapAuth{
-      auth_headers: %{"X-Auth" => "from-client"},
-      query_params: %{},
-      cookie_params: %{}
-    }
-
+    client_auth = %MapAuth{header_value: "from-client"}
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: AuthCapturingApiClient, authenticator: client_auth}
 
@@ -1338,19 +1347,8 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "per-call :auth overrides client-level authenticator" do
     {:ok, name} = AuthCapturingApiClient.start()
-
-    client_auth = %MapAuth{
-      auth_headers: %{"X-Auth" => "from-client"},
-      query_params: %{},
-      cookie_params: %{}
-    }
-
-    per_call_auth = %MapAuth{
-      auth_headers: %{"X-Auth" => "from-call"},
-      query_params: %{},
-      cookie_params: %{}
-    }
-
+    client_auth = %MapAuth{header_value: "from-client"}
+    per_call_auth = %MapAuth{header_value: "from-call"}
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: AuthCapturingApiClient, authenticator: client_auth}
 
@@ -1372,6 +1370,89 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert headers["X-Auth"] == "from-call",
            "Expected per-call auth header, got: #{inspect(headers)}"
+
+    Agent.stop(name)
+  end
+
+  # AUTH-APPLIED (Wave A1): a configured authenticator must actually be applied
+  # to a SECURED request. This is the regression guard for the Elixir bug where
+  # base_api read auth_headers/query_params/cookie_params as struct DATA FIELDS
+  # gated on Map.has_key?/2 — but those are behaviour CALLBACK FUNCTIONS on the
+  # authenticator's module, so the guard was always false and the credential was
+  # silently dropped. The test drives the real production path: a genuine
+  # authenticator struct (PetstoreClient.Auth.BearerAuthenticator /
+  # PetstoreClient.Auth.ApiKeyAuthenticator, whose providers are def callbacks,
+  # NOT a struct that merely names :auth_headers fields) configured on the API
+  # instance, issuing a secured operation (POST /pet), and asserting the
+  # outbound request actually carried the credential.
+
+  defmodule AuthAppliedCapturingApiClient do
+    @behaviour PetstoreClient.ApiClient
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> %{headers: %{}, url: ""} end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured(name), do: Agent.get(name, & &1)
+
+    @impl true
+    def send_request(_method, url, headers, _body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> %{headers: headers, url: url} end)
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
+    end
+  end
+
+  test "configured Bearer authenticator is applied to a secured operation" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
+
+    api = PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+
+    pet = %PetstoreClient.Models.Pet{name: "rex", photo_urls: []}
+    _result = PetstoreClient.Api.PetApi.add_pet(api, pet)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+
+    assert captured.headers["Authorization"] == "Bearer secret-token-123",
+           "Configured Bearer authenticator must add the Authorization header to the secured request, got: #{inspect(captured.headers)}"
+
+    Agent.stop(name)
+  end
+
+  test "configured api-key authenticator is applied to a secured operation" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      PetstoreClient.Auth.ApiKeyAuthenticator.new(
+        "http://localhost",
+        "X-API-Key",
+        "key-value-456",
+        :header
+      )
+
+    api = PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+
+    pet = %PetstoreClient.Models.Pet{name: "rex", photo_urls: []}
+    _result = PetstoreClient.Api.PetApi.add_pet(api, pet)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+
+    assert captured.headers["X-API-Key"] == "key-value-456",
+           "Configured api-key authenticator must add the api-key header to the secured request, got: #{inspect(captured.headers)}"
 
     Agent.stop(name)
   end

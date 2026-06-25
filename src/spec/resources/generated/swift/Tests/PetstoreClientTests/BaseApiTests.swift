@@ -847,6 +847,46 @@ import Testing
       "Op-level auth must override the client-level authenticator")
   }
 
+  // MARK: - Auth applied (regression guard for silently-dropped authenticator)
+
+  /* A configured authenticator must actually reach the wire on a secured
+   * operation. addPet is secured (apiKeyHeader / petStoreBearer); these
+   * tests construct a real BearerAuthenticator and a real
+   * ApiKeyAuthenticator, drive the request through the mock transport, and
+   * assert the credential landed in the outbound headers. This is the
+   * regression guard for the Elixir bug where a configured authenticator
+   * was silently dropped. */
+  @Test func testConfiguredBearerAuthenticatorIsAppliedToSecuredRequest() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let auth = BearerAuthenticator(host: "https://example.com", token: "secret-jwt")
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+    let pet = Pet(name: "TestPet", photoUrls: [])
+    _ = try? await api.addPet(pet: pet)
+    #expect(
+      mockClient.lastHeaders["Authorization"] == "Bearer secret-jwt",
+      "Configured Bearer authenticator must reach the outbound request")
+  }
+
+  @Test func testConfiguredApiKeyAuthenticatorIsAppliedToSecuredRequest() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let auth = ApiKeyAuthenticator(
+      host: "https://example.com",
+      keyParamName: "X-API-Key",
+      apiKey: "secret-key",
+      location: .header
+    )
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+    let pet = Pet(name: "TestPet", photoUrls: [])
+    _ = try? await api.addPet(pet: pet)
+    #expect(
+      mockClient.lastHeaders["X-API-Key"] == "secret-key",
+      "Configured apiKey authenticator must reach the outbound request")
+  }
+
   // MARK: - WithHTTPInfo result shape
 
   @Test func testWithHTTPInfoExposesStatusHeadersAndData() async throws {

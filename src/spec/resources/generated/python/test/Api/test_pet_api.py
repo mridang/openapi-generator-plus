@@ -22,6 +22,8 @@ from petstore_client.api.options.upload_pet_document_options import (
     UploadPetDocumentOptions,
 )
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
+from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
+from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.configuration import Configuration
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet, PetStatusEnum
@@ -496,6 +498,48 @@ class TestPetApiErrorHandling:
         await api.add_pet(pet, AddPetOptions(auth=options_auth))
 
         assert captured.get("Authorization") == "Bearer options-token"
+
+    async def test_apikey_authenticator_is_applied_to_secured_request(self) -> None:
+        # WAVE A1 AUTH-APPLIED: a configured apiKey authenticator must actually
+        # reach the wire on a secured operation. add_pet accepts the apiKeyHeader
+        # scheme (X-API-Key). Construct an ApiKeyAuthenticator, pass it via the
+        # Options object, issue the request, and assert the outbound request
+        # carried the X-API-Key header — the regression guard for the Elixir bug
+        # where a configured authenticator was silently dropped.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f"http://127.0.0.1:{port}"
+        config = Configuration.builder().base_url(base_url).build()
+        api = PetApi(config=config)
+        api_key_auth = ApiKeyAuthenticator(
+            host=base_url,
+            key_param_name="X-API-Key",
+            api_key="secret-api-key",
+            location=ApiKeyLocation.HEADER,
+        )
+
+        pet = Pet(id=4, name="ApiKeyDog", photoUrls={"http://example.com/k.jpg"})
+        await api.add_pet(pet, AddPetOptions(auth=api_key_auth))
+
+        assert captured.get("X-API-Key") == "secret-api-key"
 
     async def test_auth_omitted_uses_configuration_credentials(self) -> None:
         # Regression: when no authenticator is supplied (Options omitted, or an

@@ -364,6 +364,37 @@ class BaseApiTest {
             }
             assertEquals("per-call-token", client.capturedHeaders["X-Client-Auth"])
         }
+
+        @Test
+        @DisplayName("AUTH-APPLIED: configured Bearer authenticator reaches a secured operation's outbound request")
+        fun configuredAuthenticatorAppliedToSecuredOperation() {
+            // Regression guard for the Elixir auth-drop bug: a client constructed
+            // with a client-level authenticator must actually carry the credential
+            // when a SECURED operation is invoked through the generated API class
+            // (here PetApi.addPet, secured by apiKeyHeader/petStoreBearer). This
+            // goes through the real generated operation method — which threads
+            // options?.auth into invokeApi and falls back to the client-level
+            // authenticator — not just the generic invokeApi helper.
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val authenticator = {{invokerPackage}}.auth.BearerAuthenticator(
+                "http://localhost",
+                "secret-token-123",
+            )
+            val api = PetApi(client, config, authenticator)
+            val pet = {{modelPackage}}.Pet(name = "Rex", photoUrls = setOf("http://example.com/rex.png"))
+            try {
+                runBlocking { api.addPet(pet) }
+            } catch (_: Exception) {
+                // The capturing client returns {} which may fail Pet deserialization;
+                // we only assert on the outbound credential, captured before the response.
+            }
+            assertEquals(
+                "Bearer secret-token-123",
+                client.capturedHeaders["Authorization"],
+                "configured client-level authenticator must apply to a secured operation's outbound request",
+            )
+        }
     }
 
     @Nested

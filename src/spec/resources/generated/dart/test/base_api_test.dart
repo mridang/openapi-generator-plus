@@ -437,6 +437,54 @@ void main() {
       }
     });
 
+    /* auth-applied (WAVE A1 regression guard): a CONFIGURED authenticator
+     * supplied to the client must actually be applied to a SECURED request —
+     * the outbound call must carry the credential on the wire. This is the
+     * fleet-wide guard against the Elixir bug where a configured authenticator
+     * was silently dropped. Here a real BearerAuthenticator is configured on
+     * the client, a secured operation (addPet) is invoked, and we assert the
+     * outgoing Authorization header carried the bearer token. */
+    test('configured authenticator is applied to a secured request', () async {
+      String? receivedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          authenticator: BearerAuthenticator(
+            host: 'http://localhost:${server.port}',
+            token: 'secret-token',
+          ),
+        );
+
+        await api.addPet(
+          Pet(name: 'Fido', photoUrls: <String>{}),
+          const AddPetOptions(),
+        );
+
+        expect(
+          receivedAuth,
+          equals('Bearer secret-token'),
+          reason:
+              'configured authenticator must reach the wire on a secured op',
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
     test('returns null data for empty 200 response', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(

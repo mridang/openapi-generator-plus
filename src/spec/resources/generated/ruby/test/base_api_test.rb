@@ -192,6 +192,26 @@ describe PetstoreClient::Api::BaseApi do
     _(client.captured_headers['X-Client-Auth']).must_equal 'per-call-token'
   end
 
+  # AUTH-APPLIED (Wave A1) — a configured authenticator must actually reach the
+  # wire on a SECURED operation. This is the cross-SDK regression guard for the
+  # Elixir bug where a configured authenticator was silently dropped: here we
+  # drive a real BearerAuthenticator through the generated, secured delete_pet
+  # operation (which forwards options.auth into invoke_api) and assert the
+  # OUTBOUND request actually carried the Bearer credential.
+  it 'applies a configured Bearer authenticator to a secured operation request' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    api = PetstoreClient::Api::PetApi.new(client, config)
+    auth = PetstoreClient::Auth::BearerAuthenticator.new('http://localhost', 'secret-token')
+    options = PetstoreClient::Api::Options::DeletePetOptions.new(auth: auth)
+    begin
+      api.delete_pet(1, options)
+    rescue StandardError
+      # Response handling is irrelevant; we only assert the captured request.
+    end
+    _(client.captured_headers['Authorization']).must_equal 'Bearer secret-token'
+  end
+
   # ── Body serialization ──
 
   it 'serializes JSON body for POST' do

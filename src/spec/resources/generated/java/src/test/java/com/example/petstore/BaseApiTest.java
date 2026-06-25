@@ -18,7 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.auth.ApiKeyAuthenticator;
+import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.errors.BadRequestException;
 import com.example.petstore.errors.ClientException;
 import com.example.petstore.errors.ConflictException;
@@ -718,6 +721,63 @@ class BaseApiTest {
           null,
           perCallAuth);
       assertEquals("per-call-token", client.capturedHeaders.get("X-Client-Auth"));
+    }
+
+    /*
+     * WAVE A1 regression guard. The three tests above use the in-test
+     * TestAuthenticator fake. These two go end-to-end through a REAL
+     * authenticator implementation configured at the client level, and
+     * assert the credential actually reaches the wire. This is the guard
+     * for the Elixir bug where a configured authenticator was silently
+     * dropped on the way to a secured operation: a client is built WITH an
+     * authenticator, the request is issued with no per-call auth (auth =
+     * null), so the only way the credential can appear on the outbound
+     * request is if the configured client-level authenticator was applied.
+     */
+
+    @Test
+    @DisplayName("a client-configured Bearer authenticator is applied to the outbound request")
+    void appliesConfiguredBearerAuthenticator() throws Exception {
+      BearerAuthenticator auth = new BearerAuthenticator(ChasmContainer.getBaseUrl(), "secret-jwt");
+      TestableApi configured =
+          new TestableApi(new DefaultApiClient(), ChasmContainer.getBaseUrl(), auth);
+      JsonNode result =
+          configured.call(
+              "GET",
+              "/test/echo",
+              new HashMap<>(),
+              new HashMap<>(),
+              null,
+              new String[] {"application/json"},
+              "application/json",
+              JSON_NODE_TYPE,
+              null);
+      assertNotNull(result);
+      assertEquals("Bearer secret-jwt", result.get("headers").get("authorization").asText());
+    }
+
+    @Test
+    @DisplayName(
+        "a client-configured apiKey-header authenticator is applied to the outbound request")
+    void appliesConfiguredApiKeyAuthenticator() throws Exception {
+      ApiKeyAuthenticator auth =
+          new ApiKeyAuthenticator(
+              ChasmContainer.getBaseUrl(), "X-API-Key", "secret-key", ApiKeyLocation.HEADER);
+      TestableApi configured =
+          new TestableApi(new DefaultApiClient(), ChasmContainer.getBaseUrl(), auth);
+      JsonNode result =
+          configured.call(
+              "GET",
+              "/test/echo",
+              new HashMap<>(),
+              new HashMap<>(),
+              null,
+              new String[] {"application/json"},
+              "application/json",
+              JSON_NODE_TYPE,
+              null);
+      assertNotNull(result);
+      assertEquals("secret-key", result.get("headers").get("x-api-key").asText());
     }
   }
 
