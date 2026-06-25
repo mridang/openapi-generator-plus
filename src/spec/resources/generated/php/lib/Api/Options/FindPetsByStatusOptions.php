@@ -22,6 +22,7 @@ class FindPetsByStatusOptions
      * @param array<string, string>|null $filter Filter criteria as key-value pairs
      */
     public function __construct(
+        /** @deprecated This parameter is deprecated. */
         public readonly ?string $status = null,
         public readonly ?array $filter = null,
     ) {

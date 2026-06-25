@@ -642,6 +642,16 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             param.put("paramName", p.paramName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // Thread the spec parameter's `deprecated` flag onto the Options
+            // field so the Kotlin template can emit a `@Deprecated` annotation
+            // and KDoc `@deprecated` tag, mirroring how model properties already
+            // surface deprecation (see models/model.mustache `{{#deprecated}}`).
+            // A query/header/form/cookie param marked `deprecated: true` in the
+            // spec otherwise reaches the caller via the Options object with no
+            // deprecation warning; the type is left unchanged (e.g. the
+            // allowEmptyValue `status` string stays a String?), only the marker
+            // is added.
+            param.put("deprecated", p.isDeprecated);
             // Thread the spec parameter description onto the Options field so
             // the Kotlin template can emit a per-property KDoc, matching the
             // other SDKs (Java, Node, C#, Go, Swift, Dart, Rust, ...). Only set

@@ -19,12 +19,28 @@ public sealed class {{className}}
 {{#description}}
     /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
 {{/description}}
+{{#deprecated}}
+    {{! C#'s [Obsolete] is enforced — the generated API reads this field
+        internally to build the request, which trips CS0618 under the strict
+        build's TreatWarningsAsErrors. A doc-only deprecation note surfaces the
+        signal in IntelliSense without breaking self-consumption, matching the
+        doc-comment cohort (Go/Python/Ruby/Elixir). }}
+    /// <remarks>This parameter is deprecated.</remarks>
+{{/deprecated}}
     public required {{{dataType}}} {{pascalParamName}} { get; init; }
 {{/required}}
 {{^required}}
 {{#description}}
     /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
 {{/description}}
+{{#deprecated}}
+    {{! C#'s [Obsolete] is enforced — the generated API reads this field
+        internally to build the request, which trips CS0618 under the strict
+        build's TreatWarningsAsErrors. A doc-only deprecation note surfaces the
+        signal in IntelliSense without breaking self-consumption, matching the
+        doc-comment cohort (Go/Python/Ruby/Elixir). }}
+    /// <remarks>This parameter is deprecated.</remarks>
+{{/deprecated}}
     public {{{dataType}}}? {{pascalParamName}} { get; init; }
 {{/required}}
 

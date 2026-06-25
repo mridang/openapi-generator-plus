@@ -5,7 +5,7 @@ import javax.annotation.Nullable;
 
 /** Options for the findPetsByStatus operation. */
 public final class FindPetsByStatusOptions {
-  @Nullable private String status;
+  @Deprecated @Nullable private String status;
   @Nullable private Map<String, String> filter;
 
   /** Creates an options instance with the required parameters. */
@@ -18,7 +18,9 @@ public final class FindPetsByStatusOptions {
    *
    * @param status Status values that need to be considered for filter.
    * @return this options instance for chaining
+   * @deprecated This parameter is deprecated.
    */
+  @Deprecated
   public FindPetsByStatusOptions status(String status) {
     this.status = status;
     return this;
@@ -30,8 +32,10 @@ public final class FindPetsByStatusOptions {
    * <p>Status values that need to be considered for filter.
    *
    * @return the {@code status} parameter, or {@code null} if unset
+   * @deprecated This parameter is deprecated.
    */
   @Nullable
+  @Deprecated
   public String status() {
     return status;
   }

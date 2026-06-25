@@ -34,6 +34,9 @@ pub struct {{className}} {
 {{#description}}
     /// {{{.}}}
 {{/description}}
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
 {{#required}}
     pub {{name}}: {{{dataType}}},
 {{/required}}
@@ -95,6 +98,9 @@ impl {{className}} {
 {{^required}}
 
     /// Sets the {{name}} field.
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
     pub fn {{name}}(mut self, {{name}}: {{{dataType}}}) -> Self {
         self.{{name}} = Some({{name}});
         self

@@ -5,6 +5,7 @@ package options
 // FindPetsByStatusOptions carries the parameters for the FindPetsByStatus operation.
 type FindPetsByStatusOptions struct {
 	/* Status Status values that need to be considered for filter */
+	// Deprecated: This parameter is deprecated.
 	Status *string
 	/* Filter Filter criteria as key-value pairs */
 	Filter *map[string]string

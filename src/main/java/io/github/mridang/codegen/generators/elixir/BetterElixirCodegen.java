@@ -565,6 +565,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             param.put("dataType", p.dataType);
             param.put("typespec", toElixirTypespec(p));
             param.put("required", p.required);
+            // Propagate the parameter's deprecation flag so the Options field
+            // can carry an @deprecated marker, mirroring how operations and
+            // model properties already surface deprecation.
+            param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }

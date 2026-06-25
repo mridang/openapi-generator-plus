@@ -17,6 +17,9 @@ class {{className}} {
 {{#description}}
   /// {{{.}}}
 {{/description}}
+{{#deprecated}}
+  @Deprecated('This parameter is deprecated.')
+{{/deprecated}}
 {{#required}}
   final {{{dataType}}} {{name}};
 {{/required}}

@@ -24,6 +24,9 @@ type {{className}} struct {
 {{#description}}
 	/* {{name}} {{{.}}} */
 {{/description}}
+{{#deprecated}}
+	// Deprecated: This parameter is deprecated.
+{{/deprecated}}
 {{#required}}
 	{{name}} {{{dataType}}}
 {{/required}}

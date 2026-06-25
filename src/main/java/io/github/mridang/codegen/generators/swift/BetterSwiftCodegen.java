@@ -675,6 +675,12 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             param.put("name", p.paramName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // Threads the native CodegenParameter deprecation flag into the
+            // Options render context so a parameter declared `deprecated: true`
+            // in the spec surfaces a Swift availability annotation on the
+            // corresponding Options field, mirroring how operations and model
+            // properties already emit `@available(*, deprecated, ...)`.
+            param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }

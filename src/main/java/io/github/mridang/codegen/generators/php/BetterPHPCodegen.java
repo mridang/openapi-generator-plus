@@ -817,6 +817,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 hasAnyDocTypes = true;
             }
             param.put("required", p.required);
+            // Thread the native CodegenParameter deprecated flag into the
+            // options render context so the corresponding constructor-promoted
+            // property can carry an `@deprecated` PHPDoc tag, mirroring the
+            // model-property deprecation idiom (model.mustache `@deprecated
+            // This property is deprecated.`).
+            param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }

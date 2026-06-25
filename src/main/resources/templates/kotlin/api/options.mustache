@@ -21,15 +21,45 @@ import {{authImport}}
  */
 class {{className}}(
 {{#requiredParams}}
+{{#deprecated}}
+{{#description}}
+    /**
+     * {{{description}}}
+     *
+     * @deprecated This parameter is deprecated.
+     */
+{{/description}}
+{{^description}}
+    /** @deprecated This parameter is deprecated. */
+{{/description}}
+    @Deprecated("This parameter is deprecated.")
+{{/deprecated}}
+{{^deprecated}}
 {{#description}}
     /** {{{description}}} */
 {{/description}}
+{{/deprecated}}
     val {{paramName}}: {{{dataType}}},
 {{/requiredParams}}
 {{#optionalParams}}
+{{#deprecated}}
+{{#description}}
+    /**
+     * {{{description}}}
+     *
+     * @deprecated This parameter is deprecated.
+     */
+{{/description}}
+{{^description}}
+    /** @deprecated This parameter is deprecated. */
+{{/description}}
+    @Deprecated("This parameter is deprecated.")
+{{/deprecated}}
+{{^deprecated}}
 {{#description}}
     /** {{{description}}} */
 {{/description}}
+{{/deprecated}}
 {{! defaulted-body-param: a schema default on an optional param must surface as
     the Kotlin parameter default ONLY for a body param, whose value the SDK
     serializes and sends — there the default is the value the caller gets when

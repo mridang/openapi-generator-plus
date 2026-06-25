@@ -13,6 +13,7 @@ module PetstoreClient
     module Options
       # Options for the find_pets_by_status operation.
       # @param status [String] Status values that need to be considered for filter (deprecated)
+      # @deprecated This parameter is deprecated.
       # @param filter [Hash<String, String>] Filter criteria as key-value pairs
       class FindPetsByStatusOptions
         attr_reader :status, :filter

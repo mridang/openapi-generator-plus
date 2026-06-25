@@ -90,6 +90,33 @@ class GenerateElixirClientTest {
         .contains(":on_hold");
   }
 
+  /**
+   * Regression: a query/header/form/cookie parameter declared {@code deprecated:
+   * true} in the spec must surface its deprecation on the per-operation Options
+   * field, mirroring how operations and model schemas already render
+   * {@code @deprecated}. The fixture op {@code findPetsByStatus} has a deprecated
+   * {@code status} query parameter; its generated {@code FindPetsByStatusOptions}
+   * struct must carry an {@code @deprecated} marker on the {@code status} field.
+   * The type stays {@code String.t() | nil} (the param has
+   * {@code allowEmptyValue: true} and must still accept an empty value) — only the
+   * deprecation marker is added.
+   */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void deprecatedParamStatusIsMarkedDeprecatedInOptions() throws IOException {
+    final Path optionsFile =
+        OUTPUT_DIR.resolve(
+            "lib/petstore_client/api/options/find_pets_by_status_options.ex");
+    final String options = Files.readString(optionsFile);
+
+    assertThat(options)
+        .as("deprecated `status` param must carry an @deprecated marker in its Options field")
+        .contains("# @deprecated This parameter is deprecated.")
+        // The deprecation must annotate the `status` field, and the type must be
+        // unchanged (allowEmptyValue:true => still a plain String.t() | nil).
+        .contains("status: String.t() | nil");
+  }
+
   /** Returns the {@code %__MODULE__{...}} typespec block so field assertions ignore prose. */
   private static String extractTypeBlock(String source) {
     final int start = source.indexOf("@type t :: %__MODULE__{");

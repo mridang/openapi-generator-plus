@@ -25,6 +25,9 @@ import javax.annotation.Nullable;
  */
 public final class {{className}} {
 {{#params}}
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
 {{#required}}
     private final {{{dataType}}} {{paramName}};
 {{/required}}
@@ -65,7 +68,13 @@ public final class {{className}} {
      *
      * @param {{paramName}} {{#description}}{{{description}}}{{/description}}{{^description}}the {@code {{baseName}}} parameter{{/description}}
      * @return this options instance for chaining
+{{#deprecated}}
+     * @deprecated This parameter is deprecated.
+{{/deprecated}}
      */
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
     public {{className}} {{paramName}}({{{dataType}}} {{paramName}}) {
 {{#isMutableCollection}}
         this.{{paramName}} = {{paramName}} == null ? null : {{copyFactory}}.copyOf({{paramName}});
@@ -84,6 +93,9 @@ public final class {{className}} {
 {{/description}}
      *
      * @return the {@code {{baseName}}} parameter, or {@code null} if unset
+{{#deprecated}}
+     * @deprecated This parameter is deprecated.
+{{/deprecated}}
      */
     @Nullable
 {{/required}}
@@ -96,8 +108,14 @@ public final class {{className}} {
 {{/description}}
      *
      * @return the {@code {{baseName}}} parameter
+{{#deprecated}}
+     * @deprecated This parameter is deprecated.
+{{/deprecated}}
      */
 {{/required}}
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
     public {{{dataType}}} {{paramName}}() {
         return {{paramName}};
     }

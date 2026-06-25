@@ -666,6 +666,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             param.put("name", NamingConvention.PASCAL_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // A parameter declared `deprecated: true` in the spec must carry that
+            // signal onto its Options field. The native CodegenParameter.deprecated
+            // flag is threaded here so the template can emit the Go deprecation doc
+            // comment, mirroring the operation (api.mustache) and model-property
+            // (model.mustache) deprecation idioms.
+            param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }

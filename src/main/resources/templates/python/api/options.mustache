@@ -15,9 +15,15 @@ class {{className}}:
     """Options for the {{operationId}} operation."""
 
 {{#requiredParams}}
+{{#deprecated}}
+    # .. deprecated:: This parameter is deprecated.
+{{/deprecated}}
     {{paramName}}: {{dataType}}
 {{/requiredParams}}
 {{#optionalParams}}
+{{#deprecated}}
+    # .. deprecated:: This parameter is deprecated.
+{{/deprecated}}
     {{paramName}}: Optional[{{dataType}}] = None
 {{/optionalParams}}
 {{#hasAuthField}}

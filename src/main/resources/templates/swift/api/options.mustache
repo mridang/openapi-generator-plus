@@ -6,6 +6,9 @@ public struct {{className}}: Sendable {
 {{#description}}
     /// {{{.}}}
 {{/description}}
+{{#deprecated}}
+    @available(*, deprecated, message: "This parameter is deprecated.")
+{{/deprecated}}
 {{#required}}
     public let {{name}}: {{{dataType}}}
 {{/required}}

@@ -28,9 +28,15 @@ class {{className}}
 {{/hasAnyDocTypes}}
     public function __construct(
 {{#requiredParams}}
+{{#deprecated}}
+        /** @deprecated This parameter is deprecated. */
+{{/deprecated}}
         public readonly {{phpType}} ${{paramName}},
 {{/requiredParams}}
 {{#optionalParams}}
+{{#deprecated}}
+        /** @deprecated This parameter is deprecated. */
+{{/deprecated}}
         public readonly ?{{phpType}} ${{paramName}} = null,
 {{/optionalParams}}
 {{#hasAuthField}}

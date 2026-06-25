@@ -794,6 +794,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             param.put("pascalParamName", NamingConvention.PASCAL_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }

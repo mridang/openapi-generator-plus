@@ -1,8 +1,10 @@
 package io.github.mridang.codegen.spec.php;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import io.github.mridang.codegen.spec.AbstractClientSpec;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -46,5 +48,27 @@ public class PhpClientSpec extends AbstractClientSpec implements PhpSpec {
   protected void assertGeneratedStructure(Path outputDir) {
     assertThat(outputDir.resolve("lib/Api")).exists();
     assertThat(outputDir.resolve("lib/Models")).exists();
+    deprecatedParamStatusIsMarkedDeprecatedInOptions(outputDir);
+  }
+
+  /**
+   * The findPetsByStatus operation declares its {@code status} query parameter as {@code
+   * deprecated: true} in the spec. The generated per-operation Options class must propagate that
+   * deprecation: the {@code status} constructor-promoted property carries the {@code @deprecated}
+   * PHPDoc tag so callers see the deprecation warning, mirroring the model-property deprecation
+   * idiom.
+   */
+  private void deprecatedParamStatusIsMarkedDeprecatedInOptions(Path outputDir) {
+    Path options = outputDir.resolve("lib/Api/Options/FindPetsByStatusOptions.php");
+    assertThat(options).exists();
+    assertThatNoException()
+        .isThrownBy(
+            () -> {
+              String source = Files.readString(options);
+              // The status property stays a plain ?string (allowEmptyValue:true), so the
+              // only change is the added deprecation marker on the status member.
+              assertThat(source).contains("@deprecated");
+              assertThat(source).contains("public readonly ?string $status");
+            });
   }
 }

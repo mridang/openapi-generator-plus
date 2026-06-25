@@ -1141,6 +1141,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
             param.put("dataType", p.dataType);
+            param.put("deprecated", p.isDeprecated);
             if (p.required) {
                 requiredParams.add(param);
             } else {

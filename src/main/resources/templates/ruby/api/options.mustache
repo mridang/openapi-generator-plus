@@ -20,6 +20,9 @@ module {{moduleName}}
 {{/hasAuthField}}
 {{#params}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#isDeprecated}}
+      # @deprecated This parameter is deprecated.
+{{/isDeprecated}}
 {{/params}}
       class {{className}}
         attr_reader {{accessorList}}

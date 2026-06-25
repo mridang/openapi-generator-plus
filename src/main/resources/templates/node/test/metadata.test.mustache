@@ -37,6 +37,28 @@ describe('generated model docblocks (L1 parity)', () => {
   });
 });
 
+describe('FindPetsByStatusOptions deprecated parameter (L3)', () => {
+  test('deprecated param status is marked deprecated in options', () => {
+    // L3: the spec declares the findPetsByStatus `status` query parameter
+    // deprecated:true. The deprecation must propagate onto the per-operation
+    // Options field — not just operations and model properties — so callers
+    // referencing `options.status` get an editor strikethrough / deprecation
+    // warning. This asserts the generated Options carries an `@deprecated`
+    // JSDoc tag on the `status` member.
+    const optionsPath = path.resolve(
+      __dirname,
+      '..',
+      'src',
+      'api',
+      'options',
+      'find-pets-by-status-options.ts'
+    );
+    const source = fs.readFileSync(optionsPath, 'utf-8');
+    // The `@deprecated` tag must appear immediately above the `status` field.
+    expect(source).toMatch(/@deprecated[\s\S]*?readonly status\b/);
+  });
+});
+
 describe('Metadata model (typed additionalProperties)', () => {
   test('serializes empty metadata', () => {
     const metadata = new Metadata();

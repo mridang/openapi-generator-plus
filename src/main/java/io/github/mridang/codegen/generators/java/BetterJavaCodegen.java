@@ -954,6 +954,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             param.put("baseName", p.baseName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // Thread the spec parameter's deprecated flag into the Options field so
+            // the generated field and accessor carry @Deprecated (and a @deprecated
+            // Javadoc tag), mirroring the model-property deprecation idiom. A param
+            // declared deprecated:true in the spec otherwise shows callers no
+            // deprecation warning on the Options object.
+            param.put("deprecated", p.isDeprecated);
             // Thread the spec parameter description into the Options field so the
             // generated accessor Javadoc documents what the parameter means,
             // matching the per-parameter documentation the other SDKs carry.

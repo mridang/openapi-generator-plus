@@ -936,6 +936,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             param.put("name", p.paramName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // Thread the native CodegenParameter.deprecated flag so the
+            // options template can emit @Deprecated on the field, mirroring
+            // how operations and model properties already render it.
+            param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }

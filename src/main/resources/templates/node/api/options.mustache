@@ -17,9 +17,23 @@ import type { {{authFieldType}} } from '{{authImport}}';
  */
 export interface {{className}} {
 {{#params}}
+{{#deprecated}}
+{{#description}}
+  /**
+   * {{{description}}}
+   *
+   * @deprecated This parameter is deprecated.
+   */
+{{/description}}
+{{^description}}
+  /** @deprecated This parameter is deprecated. */
+{{/description}}
+{{/deprecated}}
+{{^deprecated}}
 {{#description}}
   /** {{{description}}} */
 {{/description}}
+{{/deprecated}}
   readonly {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};
 {{/params}}
 {{#hasAuthField}}

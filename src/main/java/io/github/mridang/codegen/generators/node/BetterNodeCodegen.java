@@ -1044,6 +1044,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             param.put("dataType", p.dataType);
             param.put("required", p.required);
             param.put("isNullable", Boolean.TRUE.equals(p.isNullable));
+            // Thread the spec parameter's deprecated flag into the Options field so
+            // the generated property carries an `@deprecated` JSDoc tag, mirroring
+            // the model-property deprecation idiom in models/model.mustache.
+            param.put("deprecated", p.isDeprecated);
             // Thread the spec parameter description into the Options field so the
             // generated property carries a JSDoc comment, matching the per-param
             // documentation the other SDKs expose.
