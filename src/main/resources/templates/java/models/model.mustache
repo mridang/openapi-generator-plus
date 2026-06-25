@@ -663,63 +663,36 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 
 {{#vars}}
-  {{#deprecated}}
-  {{#description}}
+  {{! L2: a single Javadoc block per property. Description, the singular example,
+      and any plural x-examples are all merged here as proper Javadoc (the
+      pluralExamples block previously used the `///` markdown-doc idiom, inert on
+      Java 17/21, and emitted a SECOND doc comment that orphaned the first).
+      Example values go inside {@code ...}: doclint renders the angle brackets and
+      braces of a JSON value literally without HTML entities (which the formatting
+      spec forbids). @deprecated and the @Deprecated annotation follow. }}
   /**
-   * {{{.}}}
-   *
-  {{#example}}
-   * <p>Example: {@code {{{.}}}}
-   *
-  {{/example}}
-   * @deprecated This property is deprecated.
-   */
+  {{#description}}
+   * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
   {{/description}}
   {{^description}}
+   * The {@code {{name}}} property.
+  {{/description}}
   {{#example}}
-  /**
-   * Example: {@code {{{.}}}}
+   *
+   * <p>Example: {@code {{{.}}}}
+  {{/example}}
+  {{#vendorExtensions.pluralExamples}}
+   *
+   * <p>{{summary}}: {@code {{{value}}}}
+  {{/vendorExtensions.pluralExamples}}
+  {{#deprecated}}
    *
    * @deprecated This property is deprecated.
+  {{/deprecated}}
    */
-  {{/example}}
-  {{^example}}
-  /** @deprecated This property is deprecated. */
-  {{/example}}
-  {{/description}}
+  {{#deprecated}}
   @Deprecated
   {{/deprecated}}
-  {{^deprecated}}
-  {{#description}}
-  {{#example}}
-  /**
-   * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
-   *
-   * <p>Example: {@code {{{example}}}}
-   */
-  {{/example}}
-  {{^example}}
-  /** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
-  {{/example}}
-  {{/description}}
-  {{^description}}
-  {{#example}}
-  /** Example: {@code {{{.}}}} */
-  {{/example}}
-  {{^example}}
-  {{^vendorExtensions.pluralExamples}}
-  /** The {@code {{name}}} property. */
-  {{/vendorExtensions.pluralExamples}}
-  {{/example}}
-  {{/description}}
-  {{/deprecated}}
-  {{#vendorExtensions.pluralExamples}}
-  /// ## {{summary}}
-  /// {{description}}
-  /// ```json
-  /// {{value}}
-  /// ```
-  {{/vendorExtensions.pluralExamples}}
   {{#isReadOnly}}
   @JsonProperty(value = "{{baseName}}", access = JsonProperty.Access.READ_ONLY)
   {{/isReadOnly}}

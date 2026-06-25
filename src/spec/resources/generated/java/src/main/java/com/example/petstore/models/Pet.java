@@ -83,12 +83,20 @@ public class Pet {
     }
   }
 
-  /** Example: {@code 10} */
+  /**
+   * The {@code id} property.
+   *
+   * <p>Example: {@code 10}
+   */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
-  /** Example: {@code doggie} */
+  /**
+   * The {@code name} property.
+   *
+   * <p>Example: {@code doggie}
+   */
   @JsonProperty("name")
   public String name;
 

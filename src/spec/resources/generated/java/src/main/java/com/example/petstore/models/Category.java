@@ -28,22 +28,24 @@ import javax.annotation.Nullable;
 })
 public class Category {
 
-  /** Example: {@code 1} */
+  /**
+   * The {@code id} property.
+   *
+   * <p>Example: {@code 1}
+   */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
-  /** Example: {@code Dogs} */
-  /// ## Small breed
-  /// Toy or small breed dogs
-  /// ```json
-  /// Chihuahua
-  /// ```
-  /// ## Large breed
-  /// Working or guard breed dogs
-  /// ```json
-  /// GreatDane
-  /// ```
+  /**
+   * The {@code name} property.
+   *
+   * <p>Example: {@code Dogs}
+   *
+   * <p>Small breed: {@code Chihuahua}
+   *
+   * <p>Large breed: {@code GreatDane}
+   */
   @JsonProperty("name")
   @Nullable
   public String name;

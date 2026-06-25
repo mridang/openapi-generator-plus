@@ -31,7 +31,11 @@ public class SetPetAvatarRequest {
   @JsonProperty("data")
   public byte[] data;
 
-  /** Example: {@code image/jpeg} */
+  /**
+   * The {@code mimeType} property.
+   *
+   * <p>Example: {@code image/jpeg}
+   */
   @JsonProperty("mimeType")
   public String mimeType;
 

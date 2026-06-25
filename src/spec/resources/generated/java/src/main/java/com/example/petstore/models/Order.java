@@ -74,17 +74,29 @@ public class Order {
     }
   }
 
-  /** Example: {@code 10} */
+  /**
+   * The {@code id} property.
+   *
+   * <p>Example: {@code 10}
+   */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
-  /** Example: {@code 198772} */
+  /**
+   * The {@code petId} property.
+   *
+   * <p>Example: {@code 198772}
+   */
   @JsonProperty("petId")
   @Nullable
   public Long petId;
 
-  /** Example: {@code 7} */
+  /**
+   * The {@code quantity} property.
+   *
+   * <p>Example: {@code 7}
+   */
   @JsonProperty("quantity")
   @Nullable
   public Integer quantity;
