@@ -1,10 +1,12 @@
 # ruff: noqa
 # mypy: ignore-errors
 import datetime
+from decimal import Decimal
 import pytest
 from petstore_client.object_serializer import ObjectSerializer, SerializationError
 from petstore_client.models.category import Category
 from petstore_client.models.order import OrderStatusEnum
+from petstore_client.models.pet import Pet
 
 
 class TestDateTimeOffsetPreservation:
@@ -227,6 +229,38 @@ class TestUriRoundTripsByteIdentical:
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "not a url"}'
         with pytest.raises(SerializationError):
             ObjectSerializer().deserialize(wire, "Pet")
+
+
+class TestDecimalNumberSerializesUnquoted:
+    """A bare `type: number` field serializes as an UNQUOTED JSON number.
+
+    The OpenAPI spec types `Pet.weightKg` as `type: number` (no `format`), so
+    on the wire it MUST be a JSON number (`1.5`), never a JSON string (`"1.5"`).
+    The SDK decodes it to a full-precision `decimal.Decimal` for fidelity, but a
+    plain pydantic `Decimal` serializes as a quoted string — which violates the
+    spec and diverges from the SDKs that emit a bare number. The `type: number`
+    mapping is the branded `JsonNumber` alias whose json-only PlainSerializer
+    widens the value to a float on encode so `model_dump_json` renders an
+    unquoted number. This is the cross-SDK DECIMAL-AS-NUMBER parity check.
+    """
+
+    def test_weight_serializes_as_unquoted_number(self) -> None:
+        pet = Pet(name="Fido", photoUrls=[], weightKg=Decimal("1.5"))
+        serialized = ObjectSerializer().serialize(pet)
+        # Unquoted number on the wire, NOT a quoted string.
+        assert '"weightKg":1.5' in serialized
+        assert '"weightKg":"1.5"' not in serialized
+
+    def test_weight_round_trips_as_number(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "weightKg": 1.5}'
+        restored = ObjectSerializer().deserialize(wire, "Pet")
+        assert restored is not None
+        # Decode keeps full-precision Decimal semantics.
+        assert restored.weight_kg == Decimal("1.5")
+        # Re-encode still emits an unquoted JSON number, not a string.
+        reserialized = ObjectSerializer().serialize(restored)
+        assert '"weightKg":1.5' in reserialized
+        assert '"weightKg":"1.5"' not in reserialized
 
 
 class TestSetSanitization:

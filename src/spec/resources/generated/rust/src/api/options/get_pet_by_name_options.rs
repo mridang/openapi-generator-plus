@@ -12,9 +12,7 @@ impl GetPetByNameOptions {
     /// Every field of this struct is required and is taken as a constructor
     /// argument so it cannot be silently omitted. This struct has no optional
     /// fields and therefore no chained setters.
-    pub fn new(category: String, ) -> Self {
-        Self {
-            category,
-        }
+    pub fn new(category: String) -> Self {
+        Self { category }
     }
 }

@@ -33,7 +33,11 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiHttpResponse::new(status_code, body.to_string(), HashMap::new()));
+        responses.push(ApiHttpResponse::new(
+            status_code,
+            body.to_string(),
+            HashMap::new(),
+        ));
     }
 }
 
@@ -44,7 +48,13 @@ impl ApiClient for FakeApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         // Delegate so the no_redirect flag is captured (some callers go
         // through send_request directly, e.g. the OpenID Connect
         // authenticator's GET /.well-known/openid-configuration discovery).
@@ -58,7 +68,13 @@ impl ApiClient for FakeApiClient {
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         options: &RequestOptions,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -254,7 +270,13 @@ impl ApiClient for CountingApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         {
             let mut count = self.call_count.lock().unwrap();
             *count += 1;
@@ -322,7 +344,11 @@ async fn test_expires_in_short_lived_token_does_not_storm() {
         .expect("should succeed");
 
     assert_eq!("short", token);
-    assert_eq!(0, client.responses.lock().unwrap().len(), "all enqueued responses consumed");
+    assert_eq!(
+        0,
+        client.responses.lock().unwrap().len(),
+        "all enqueued responses consumed"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -621,7 +647,10 @@ async fn test_token_endpoint_error_response_parsed_to_typed_error() {
         .expect("expected OAuth2ServerError");
     assert_eq!(400, server_err.status_code());
     assert_eq!(Some("invalid_grant"), server_err.code().as_deref());
-    assert_eq!(Some("refresh token expired"), server_err.description().as_deref());
+    assert_eq!(
+        Some("refresh token expired"),
+        server_err.description().as_deref()
+    );
     assert_eq!(
         Some("https://docs.example.com/errors/invalid_grant"),
         server_err.uri().as_deref()

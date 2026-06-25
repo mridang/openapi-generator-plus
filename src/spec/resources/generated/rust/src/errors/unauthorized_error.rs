@@ -24,7 +24,11 @@ impl UnauthorizedError {
 
 impl fmt::Display for UnauthorizedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Unauthorized (401): {}", self.client_error.api_error().message())
+        write!(
+            f,
+            "Unauthorized (401): {}",
+            self.client_error.api_error().message()
+        )
     }
 }
 

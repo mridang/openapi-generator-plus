@@ -12,13 +12,19 @@ use petstore::*;
 #[test]
 fn test_transport_options_verify_ssl_defaults_to_true() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(opts.verify_ssl(), "expected verify_ssl to be true by default");
+    assert!(
+        opts.verify_ssl(),
+        "expected verify_ssl to be true by default"
+    );
 }
 
 #[test]
 fn test_transport_options_ca_cert_path_defaults_to_none() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(opts.ca_cert_path().is_none(), "expected no CA cert path by default");
+    assert!(
+        opts.ca_cert_path().is_none(),
+        "expected no CA cert path by default"
+    );
 }
 
 #[test]
@@ -38,13 +44,19 @@ fn test_transport_options_timeout_defaults_to_10_seconds() {
 #[test]
 fn test_transport_options_follow_redirects_defaults_to_true() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(opts.follow_redirects(), "expected follow_redirects to be true by default");
+    assert!(
+        opts.follow_redirects(),
+        "expected follow_redirects to be true by default"
+    );
 }
 
 #[test]
 fn test_transport_options_max_redirects_defaults_to_none() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(opts.max_redirects().is_none(), "expected no max_redirects by default");
+    assert!(
+        opts.max_redirects().is_none(),
+        "expected no max_redirects by default"
+    );
 }
 
 #[test]
@@ -55,13 +67,17 @@ fn test_transport_options_user_agent_defaults_to_branded_value() {
 
 #[test]
 fn test_transport_options_user_agent_set_value_is_applied() {
-    let opts = TransportOptionsBuilder::new().user_agent("CustomAgent/2.0").build();
+    let opts = TransportOptionsBuilder::new()
+        .user_agent("CustomAgent/2.0")
+        .build();
     assert_eq!(opts.user_agent(), Some("CustomAgent/2.0"));
 }
 
 #[test]
 fn test_transport_options_user_agent_opt_some_and_none() {
-    let some = TransportOptionsBuilder::new().user_agent_opt(Some("UA/1.0")).build();
+    let some = TransportOptionsBuilder::new()
+        .user_agent_opt(Some("UA/1.0"))
+        .build();
     assert_eq!(some.user_agent(), Some("UA/1.0"));
 
     /* Passing None explicitly omits the header. */
@@ -69,19 +85,28 @@ fn test_transport_options_user_agent_opt_some_and_none() {
         .user_agent("UA/1.0")
         .user_agent_opt(None)
         .build();
-    assert!(none.user_agent().is_none(), "expected user_agent_opt(None) to clear the User-Agent");
+    assert!(
+        none.user_agent().is_none(),
+        "expected user_agent_opt(None) to clear the User-Agent"
+    );
 }
 
 #[test]
 fn test_transport_options_default_headers_defaults_to_empty() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(opts.default_headers().is_empty(), "expected empty default headers");
+    assert!(
+        opts.default_headers().is_empty(),
+        "expected empty default headers"
+    );
 }
 
 #[test]
 fn test_transport_options_inject_request_id_defaults_to_false() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(!opts.inject_request_id(), "expected inject_request_id to be false by default");
+    assert!(
+        !opts.inject_request_id(),
+        "expected inject_request_id to be false by default"
+    );
 }
 
 #[test]
@@ -115,7 +140,10 @@ fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redire
         .follow_redirects(true)
         .build();
 
-    assert!(opts.follow_redirects(), "expected follow_redirects to be true");
+    assert!(
+        opts.follow_redirects(),
+        "expected follow_redirects to be true"
+    );
     assert!(opts.max_redirects().is_none(), "expected no max_redirects");
 }
 
@@ -129,9 +157,7 @@ fn test_transport_options_invalid_proxy_url_throws_exception() {
 
 #[test]
 fn test_transport_options_null_proxy_url_is_accepted() {
-    let opts = TransportOptionsBuilder::new()
-        .proxy("")
-        .build();
+    let opts = TransportOptionsBuilder::new().proxy("").build();
 
     assert!(opts.proxy().is_none(), "expected no proxy for empty string");
 }
@@ -186,7 +212,10 @@ fn test_transport_options_modifying_source_map_does_not_affect_built_options() {
         .build();
 
     let mut headers = opts.default_headers();
-    headers.insert("X-Mutated".to_string(), "should-not-affect-options".to_string());
+    headers.insert(
+        "X-Mutated".to_string(),
+        "should-not-affect-options".to_string(),
+    );
 
     let original = opts.default_headers();
     assert!(

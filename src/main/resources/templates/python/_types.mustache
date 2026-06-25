@@ -1,8 +1,16 @@
 {{>api_info}}
 
+from decimal import Decimal
 from typing import Annotated, Any
 
-from pydantic import AfterValidator, BeforeValidator, HttpUrl, Strict, TypeAdapter
+from pydantic import (
+    AfterValidator,
+    BeforeValidator,
+    HttpUrl,
+    PlainSerializer,
+    Strict,
+    TypeAdapter,
+)
 
 
 # Compiled once at import time and reused for every `format: uri` field. The
@@ -60,3 +68,20 @@ LaxFloat = Annotated[float, BeforeValidator(_coerce_int_to_float), Strict()]
 # the value is a valid absolute http(s) URL but never rewrites it, so the wire
 # value round-trips byte-identical (unlike `pydantic.HttpUrl`, which normalizes).
 UrlStr = Annotated[str, AfterValidator(_validate_url_preserving)]
+
+
+# Bare `type: number` (no `format`) fields. The OpenAPI spec types these as a
+# JSON NUMBER, so they must travel on the wire UNQUOTED (`1.5`, not `"1.5"`).
+# Decode keeps `decimal.Decimal` for arbitrary-precision fidelity (matching
+# BigDecimal in Java/Kotlin and the branded Decimal in Node), but pydantic's
+# default Decimal serializer emits a JSON STRING, which violates `type: number`
+# and diverges from the SDKs that emit a bare number. The PlainSerializer widens
+# the value to `float` ONLY on the JSON encode path (`when_used='json'`) so
+# model_dump_json renders an unquoted number; in-Python access and the validated
+# field value remain a full-precision Decimal. The JSON number type is itself an
+# IEEE-754 double in practically every consumer, so the float widening matches
+# what any number-emitting SDK already puts on the wire.
+JsonNumber = Annotated[
+    Decimal,
+    PlainSerializer(lambda value: float(value), return_type=float, when_used='json'),
+]

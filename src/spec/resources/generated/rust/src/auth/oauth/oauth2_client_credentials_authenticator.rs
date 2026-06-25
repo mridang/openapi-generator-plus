@@ -83,9 +83,8 @@ impl OAuth2ClientCredentialsAuthenticator {
             // separately before joining with ':' and base64-encoding.
             let encoded_id = form_url_encode(&self.client_id);
             let encoded_secret = form_url_encode(&self.client_secret);
-            let credentials = BASE64_STANDARD.encode(
-                format!("{}:{}", encoded_id, encoded_secret).as_bytes(),
-            );
+            let credentials =
+                BASE64_STANDARD.encode(format!("{}:{}", encoded_id, encoded_secret).as_bytes());
             extra_headers.insert(
                 "Authorization".to_string(),
                 format!("Basic {}", credentials),
@@ -104,10 +103,7 @@ impl OAuth2ClientCredentialsAuthenticator {
             .await?;
 
         let mut headers = HashMap::new();
-        headers.insert(
-            "Authorization".to_string(),
-            format!("Bearer {}", token),
-        );
+        headers.insert("Authorization".to_string(), format!("Bearer {}", token));
         Ok(headers)
     }
 }
@@ -142,7 +138,9 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            self.try_auth_headers().await.unwrap_or_else(|_| HashMap::new())
+            self.try_auth_headers()
+                .await
+                .unwrap_or_else(|_| HashMap::new())
         })
     }
 

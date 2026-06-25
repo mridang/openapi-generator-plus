@@ -24,7 +24,11 @@ impl UnprocessableEntityError {
 
 impl fmt::Display for UnprocessableEntityError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Unprocessable entity (422): {}", self.client_error.api_error().message())
+        write!(
+            f,
+            "Unprocessable entity (422): {}",
+            self.client_error.api_error().message()
+        )
     }
 }
 

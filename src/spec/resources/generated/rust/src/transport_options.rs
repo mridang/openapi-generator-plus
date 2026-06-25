@@ -207,7 +207,8 @@ impl TransportOptionsBuilder {
 
     /// Adds a single transport-level default header.
     pub fn default_header(mut self, name: &str, value: &str) -> Self {
-        self.default_headers.insert(name.to_string(), value.to_string());
+        self.default_headers
+            .insert(name.to_string(), value.to_string());
         self
     }
 

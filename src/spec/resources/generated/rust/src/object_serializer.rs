@@ -44,7 +44,9 @@ impl fmt::Display for SerializationError {
 
 impl std::error::Error for SerializationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.cause.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.cause
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 
@@ -66,11 +68,12 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
     // Windows-generated payloads often include one and serde_json rejects
     // it. Strip silently for parity with Java Jackson / C# System.Text.Json
     // which strip transparently.
-    let stripped: &[u8] = if data.len() >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
-        &data[3..]
-    } else {
-        data
-    };
+    let stripped: &[u8] =
+        if data.len() >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+            &data[3..]
+        } else {
+            data
+        };
     serde_json::from_slice(stripped)
         .map(Some)
         .map_err(|e| SerializationError {
@@ -227,7 +230,10 @@ mod tests {
     #[test]
     fn test_serialize_map_to_json() {
         let mut input = serde_json::Map::new();
-        input.insert("name".to_string(), serde_json::Value::String("Fido".to_string()));
+        input.insert(
+            "name".to_string(),
+            serde_json::Value::String("Fido".to_string()),
+        );
         input.insert("age".to_string(), serde_json::json!(3));
 
         let data = object_serializer::serialize(&serde_json::Value::Object(input))
@@ -258,7 +264,8 @@ mod tests {
 
     #[test]
     fn test_deserialize_invalid_json() {
-        let result: Result<Option<serde_json::Value>, _> = object_serializer::deserialize(b"not json");
+        let result: Result<Option<serde_json::Value>, _> =
+            object_serializer::deserialize(b"not json");
         assert!(result.is_err(), "expected error for invalid JSON");
     }
 
@@ -312,8 +319,11 @@ mod tests {
             // pass -- either omitted entirely or never present
         } else {
             // If name shows up at all, it must be a real value, not null.
-            assert!(!json.contains("\"name\":null"),
-                "optional None fields must be skipped, got: {}", json);
+            assert!(
+                !json.contains("\"name\":null"),
+                "optional None fields must be skipped, got: {}",
+                json
+            );
         }
     }
 
@@ -606,44 +616,66 @@ mod tests {
     fn test_datetime_utc_serializes_with_offset_marker() {
         let json_value = serde_json::json!("2024-01-01T12:30:45+00:00");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("2024-01-01T12:30:45"), "should contain datetime: {serialized}");
-        assert!(serialized.contains("+00:00") || serialized.contains("Z"), "should contain offset: {serialized}");
+        assert!(
+            serialized.contains("2024-01-01T12:30:45"),
+            "should contain datetime: {serialized}"
+        );
+        assert!(
+            serialized.contains("+00:00") || serialized.contains("Z"),
+            "should contain offset: {serialized}"
+        );
     }
 
     #[test]
     fn test_datetime_positive_offset_preserved() {
         let json_value = serde_json::json!("2024-01-01T12:30:45+05:30");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("+05:30"), "should contain +05:30: {serialized}");
+        assert!(
+            serialized.contains("+05:30"),
+            "should contain +05:30: {serialized}"
+        );
     }
 
     #[test]
     fn test_datetime_negative_offset_preserved() {
         let json_value = serde_json::json!("2024-01-01T12:30:45-08:00");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("-08:00"), "should contain -08:00: {serialized}");
+        assert!(
+            serialized.contains("-08:00"),
+            "should contain -08:00: {serialized}"
+        );
     }
 
     #[test]
     fn test_datetime_subseconds_not_present_in_no_subseconds_input() {
         let json_value = serde_json::json!("2024-01-01T12:30:45+00:00");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(!serialized.contains(".123"), "subseconds should not appear: {serialized}");
+        assert!(
+            !serialized.contains(".123"),
+            "subseconds should not appear: {serialized}"
+        );
     }
 
     #[test]
     fn test_date_only_string_preserved() {
         let json_value = serde_json::json!("2024-01-01");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("2024-01-01"), "date should be preserved: {serialized}");
+        assert!(
+            serialized.contains("2024-01-01"),
+            "date should be preserved: {serialized}"
+        );
     }
 
     #[test]
     fn test_datetime_string_contains_offset_marker() {
         let json_value = serde_json::json!("2024-01-01T12:30:45+00:00");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        let has_offset = serialized.contains('+') || serialized.contains('-') || serialized.contains('Z');
-        assert!(has_offset, "should contain timezone indicator: {serialized}");
+        let has_offset =
+            serialized.contains('+') || serialized.contains('-') || serialized.contains('Z');
+        assert!(
+            has_offset,
+            "should contain timezone indicator: {serialized}"
+        );
     }
 
     #[test]
@@ -652,8 +684,14 @@ mod tests {
         let json_value = serde_json::json!(original);
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
         // The serialized string (with quotes) should contain the original datetime
-        assert!(serialized.contains("2024-01-01T12:30:45"), "round-trip should preserve datetime");
-        assert!(serialized.contains("+05:30"), "round-trip should preserve offset");
+        assert!(
+            serialized.contains("2024-01-01T12:30:45"),
+            "round-trip should preserve datetime"
+        );
+        assert!(
+            serialized.contains("+05:30"),
+            "round-trip should preserve offset"
+        );
     }
 
     // NonAsciiSerializationTests
@@ -662,21 +700,30 @@ mod tests {
     fn test_non_ascii_accented_character_not_escaped() {
         let json_value = serde_json::json!({"key": "café"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains('é'), "should contain literal é: {serialized}");
+        assert!(
+            serialized.contains('é'),
+            "should contain literal é: {serialized}"
+        );
     }
 
     #[test]
     fn test_non_ascii_cjk_characters_not_escaped() {
         let json_value = serde_json::json!({"key": "日本"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("日本"), "should contain literal CJK chars: {serialized}");
+        assert!(
+            serialized.contains("日本"),
+            "should contain literal CJK chars: {serialized}"
+        );
     }
 
     #[test]
     fn test_non_ascii_tab_character_escaped_properly() {
         let json_value = serde_json::json!({"key": "a\tb"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("\\t"), "tab should be escaped as \\t: {serialized}");
+        assert!(
+            serialized.contains("\\t"),
+            "tab should be escaped as \\t: {serialized}"
+        );
     }
 
     // DeserializationErrorWrappingTests
@@ -725,8 +772,8 @@ mod tests {
     #[test]
     fn test_uuid_deserializes_from_rfc4122_string() {
         let payload = br#""550e8400-e29b-41d4-a716-446655440000""#;
-        let result: Option<uuid::Uuid> = object_serializer::deserialize(payload)
-            .expect("deserialize must succeed");
+        let result: Option<uuid::Uuid> =
+            object_serializer::deserialize(payload).expect("deserialize must succeed");
         let id = result.expect("expected Some(Uuid)");
         assert_eq!(id.to_string(), "550e8400-e29b-41d4-a716-446655440000");
     }
@@ -808,7 +855,10 @@ mod tests {
             json.contains("\"foodType\":\"dry\""),
             "expected auto-injected discriminator, got: {json}"
         );
-        assert!(json.contains("\"weightKg\":2.5"), "expected weightKg, got: {json}");
+        assert!(
+            json.contains("\"weightKg\":2.5"),
+            "expected weightKg, got: {json}"
+        );
     }
 
     #[test]

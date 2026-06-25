@@ -161,6 +161,38 @@ fn test_proto_duration_serde_round_trip() {
 }
 
 #[test]
+fn test_decimal_type_number_serializes_as_unquoted_number() {
+    // Wave B parity: a `type: number` property with NO `format` (a bare JSON
+    // number, e.g. Pet.weightKg) must serialize as an UNQUOTED JSON number
+    // (1.5), never as a quoted string ("1.5"). Some SDKs model such fields as
+    // an arbitrary-precision Decimal and then emit them as JSON strings, which
+    // violates the spec's `type: number`. Rust maps this to a plain `f64`, so
+    // serde_json emits a bare number; this test locks that wire format and
+    // proves the field survives a serialize -> deserialize round trip as a
+    // number rather than a string.
+    use {{packageName}}::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(1.5);
+
+    let json = serde_json::to_string(&pet).expect("serialize Pet");
+    assert!(
+        json.contains("\"weightKg\":1.5"),
+        "weightKg must be an unquoted JSON number, got: {}",
+        json
+    );
+    assert!(
+        !json.contains("\"weightKg\":\"1.5\""),
+        "weightKg must NOT be a quoted string, got: {}",
+        json
+    );
+
+    // Round-trips back to the same numeric value (not a string).
+    let back: Pet = serde_json::from_str(&json).expect("deserialize Pet");
+    assert_eq!(back.weight_kg, Some(1.5));
+}
+
+#[test]
 fn test_naive_time_serde_round_trip() {
     use chrono::NaiveTime;
     use serde::{Deserialize, Serialize};

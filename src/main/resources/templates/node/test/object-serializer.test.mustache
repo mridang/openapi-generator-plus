@@ -384,6 +384,29 @@ describe('ObjectSerializer', () => {
       const result = ObjectSerializer.serialize(pet);
       expect(result).toContain('"weightKg":12.34567890123456789');
     });
+
+    test('emits the Decimal field unquoted for a PLAIN-OBJECT request body', () => {
+      // Wave B — request bodies are typically passed as plain object literals
+      // (the body parameter type is DeepInput<Pet>), NOT constructed Pet
+      // instances. A plain object's constructor is `Object`, which carries no
+      // `__decimalFields`, so the per-constructor lookup misses and the Decimal
+      // would be quoted as a JSON string ("1.5"). The holder-independent global
+      // registry must still emit it as an unquoted JSON number (1.5) so a
+      // server validating `type: number` accepts it, matching the SDKs that
+      // emit a bare number and the constructed-instance path above.
+      const body = {
+        name: 'Fido',
+        photoUrls: ['u'],
+        weightKg: '1.5' as unknown as Pet['weightKg'],
+      };
+      const result = ObjectSerializer.serialize(body);
+      expect(result).toContain('"weightKg":1.5');
+      expect(result).not.toContain('"weightKg":"1.5"');
+      // Survives serialize -> deserialize as a real JSON number.
+      const parsed = JSON.parse(result);
+      expect(parsed.weightKg).toBe(1.5);
+      expect(typeof parsed.weightKg).toBe('number');
+    });
   });
 
   describe('deserialize', () => {

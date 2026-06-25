@@ -14,8 +14,7 @@ fn test_metadata_serialize_deserialize() {
     let data = serde_json::to_string(&original).expect("failed to serialize Metadata");
     assert!(!data.is_empty(), "expected non-empty serialized data");
 
-    let restored: Metadata =
-        serde_json::from_str(&data).expect("failed to deserialize Metadata");
+    let restored: Metadata = serde_json::from_str(&data).expect("failed to deserialize Metadata");
     let _ = restored;
 }
 
@@ -54,11 +53,13 @@ fn test_metadata_deserialize_with_additional_properties() {
 fn test_metadata_round_trip() {
     let json_data = r#"{"createdAt":"2024-01-15T10:30:00+00:00"}"#;
 
-    let metadata: Metadata =
-        serde_json::from_str(json_data).expect("failed to deserialize");
+    let metadata: Metadata = serde_json::from_str(json_data).expect("failed to deserialize");
 
     let data = serde_json::to_string(&metadata).expect("failed to serialize");
-    assert!(!data.is_empty(), "expected non-empty serialized data after round-trip");
+    assert!(
+        !data.is_empty(),
+        "expected non-empty serialized data after round-trip"
+    );
 }
 
 #[test]
@@ -66,8 +67,7 @@ fn test_metadata_additional_properties_round_trip_preserves_free_form_json() {
     /* FIX 3 (no serde_json in public fields): `additional_properties` is a
      * HashMap<String, JsonValue> where JsonValue is the SDK-owned wrapper.
      * Free-form JSON in unknown fields must round-trip losslessly. */
-    let json_data =
-        r#"{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42,"nested":{"a":[1,2,3]}}"#;
+    let json_data = r#"{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42,"nested":{"a":[1,2,3]}}"#;
 
     let metadata: Metadata =
         serde_json::from_str(json_data).expect("failed to deserialize Metadata");
@@ -121,8 +121,15 @@ fn test_pet_location_free_form_json_round_trips() {
     }"#;
 
     let pet: Pet = serde_json::from_str(json_data).expect("failed to deserialize Pet");
-    let location = pet.location.as_ref().expect("expected location to be present");
-    assert_eq!(location.len(), 3, "expected three free-form location entries");
+    let location = pet
+        .location
+        .as_ref()
+        .expect("expected location to be present");
+    assert_eq!(
+        location.len(),
+        3,
+        "expected three free-form location entries"
+    );
     assert!(location[0].is_object(), "first entry must be a JSON object");
     assert_eq!(location[1].as_str(), Some("freeform-string"));
     assert_eq!(location[2].as_i64(), Some(99));
@@ -180,7 +187,10 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
     // The wire form must itself parse back to the same instant: a stable,
     // self-consistent representation.
     let reparsed: DateTime<Utc> = wire.parse().expect("serialized wire form must re-parse");
-    assert_eq!(reparsed, expected, "round-tripped instant must be unchanged");
+    assert_eq!(
+        reparsed, expected,
+        "round-tripped instant must be unchanged"
+    );
 
     // A `+00:00`-suffixed input denotes the same instant and must serialize
     // identically, proving the offset form is normalized, not echoed verbatim.
@@ -231,8 +241,7 @@ fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
 
     // (2) Deserializing that JSON back must yield a date-time equal to the
     // original instant — a lossless round-trip down to the millisecond.
-    let restored: Metadata =
-        serde_json::from_str(&data).expect("failed to deserialize Metadata");
+    let restored: Metadata = serde_json::from_str(&data).expect("failed to deserialize Metadata");
     let restored_created = restored
         .created_at
         .expect("expected createdAt to be present after round-trip");
@@ -247,10 +256,8 @@ fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
 // does not publish with an empty description on crates.io.
 #[test]
 fn test_cargo_manifest_declares_non_empty_description() {
-    let manifest_path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
-    let contents =
-        std::fs::read_to_string(&manifest_path).expect("failed to read Cargo.toml");
+    let manifest_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+    let contents = std::fs::read_to_string(&manifest_path).expect("failed to read Cargo.toml");
 
     let description = contents
         .lines()
@@ -279,10 +286,8 @@ fn test_cargo_manifest_declares_non_empty_description() {
 // whole crate, not just one struct.
 #[test]
 fn test_generated_models_have_no_null_example_doc() {
-    let models_dir =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/models");
-    let entries =
-        std::fs::read_dir(&models_dir).expect("failed to read src/models directory");
+    let models_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/models");
+    let entries = std::fs::read_dir(&models_dir).expect("failed to read src/models directory");
 
     let mut scanned = 0usize;
     for entry in entries {
@@ -290,8 +295,7 @@ fn test_generated_models_have_no_null_example_doc() {
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
             continue;
         }
-        let contents =
-            std::fs::read_to_string(&path).expect("failed to read model source file");
+        let contents = std::fs::read_to_string(&path).expect("failed to read model source file");
         scanned += 1;
         assert!(
             !contents.contains("Example: `null`"),

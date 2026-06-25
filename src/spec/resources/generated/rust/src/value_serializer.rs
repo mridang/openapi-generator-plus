@@ -148,7 +148,11 @@ pub fn serialize_styled(
     match style {
         "matrix" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -172,13 +176,24 @@ pub fn serialize_styled(
                     } else {
                         arr.to_vec()
                     };
-                    Some(SerializedValue::Single(format!(";{}={}", param_name, enc.join(","))))
+                    Some(SerializedValue::Single(format!(
+                        ";{}={}",
+                        param_name,
+                        enc.join(",")
+                    )))
                 }
             } else {
                 match value {
                     Some(val) => {
-                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
-                        Some(SerializedValue::Single(format!(";{}={}", param_name, encoded)))
+                        let encoded = if location == "path" {
+                            encode_path_segment(val)
+                        } else {
+                            val.to_string()
+                        };
+                        Some(SerializedValue::Single(format!(
+                            ";{}={}",
+                            param_name, encoded
+                        )))
                     }
                     None => Some(SerializedValue::Single(format!(";{}", param_name))),
                 }
@@ -186,7 +201,11 @@ pub fn serialize_styled(
         }
         "label" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -210,7 +229,11 @@ pub fn serialize_styled(
             } else {
                 match value {
                     Some(val) => {
-                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
+                        let encoded = if location == "path" {
+                            encode_path_segment(val)
+                        } else {
+                            val.to_string()
+                        };
                         Some(SerializedValue::Single(format!(".{}", encoded)))
                     }
                     None => Some(SerializedValue::Single(".".to_string())),
@@ -219,7 +242,11 @@ pub fn serialize_styled(
         }
         "spaceDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join(" ")))
@@ -232,7 +259,11 @@ pub fn serialize_styled(
         }
         "pipeDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join("|")))
@@ -245,7 +276,11 @@ pub fn serialize_styled(
         }
         "form" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -262,7 +297,11 @@ pub fn serialize_styled(
         }
         "simple" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 // `simple` always joins with `,`; per RFC 6570 a literal `,`
@@ -276,7 +315,11 @@ pub fn serialize_styled(
             } else {
                 match value {
                     Some(val) => {
-                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
+                        let encoded = if location == "path" {
+                            encode_path_segment(val)
+                        } else {
+                            val.to_string()
+                        };
                         Some(SerializedValue::Single(encoded))
                     }
                     None => Some(SerializedValue::Single(String::new())),
@@ -566,9 +609,8 @@ mod tests {
 
     #[test]
     fn test_serialize_styled_matrix_scalar() {
-        let result = super::serialize_styled(
-            "id", Some("5"), None, "path", "string", "", "matrix", false,
-        );
+        let result =
+            super::serialize_styled("id", Some("5"), None, "path", "string", "", "matrix", false);
         assert_eq!(unwrap_single(result), ";id=5");
     }
 
@@ -576,7 +618,14 @@ mod tests {
     fn test_serialize_styled_matrix_array_no_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "path", "array", "", "matrix", false,
+            "color",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "matrix",
+            false,
         );
         assert_eq!(unwrap_single(result), ";color=red,green,blue");
     }
@@ -585,7 +634,14 @@ mod tests {
     fn test_serialize_styled_matrix_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "path", "array", "", "matrix", true,
+            "color",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "matrix",
+            true,
         );
         assert_eq!(unwrap_single(result), ";color=red;color=green;color=blue");
     }
@@ -593,7 +649,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_matrix_null() {
         let result = super::serialize_styled(
-            "color", None::<&str>, None, "path", "string", "", "matrix", true,
+            "color",
+            None::<&str>,
+            None,
+            "path",
+            "string",
+            "",
+            "matrix",
+            true,
         );
         assert_eq!(unwrap_single(result), "");
     }
@@ -602,9 +665,8 @@ mod tests {
 
     #[test]
     fn test_serialize_styled_label_scalar() {
-        let result = super::serialize_styled(
-            "id", Some("5"), None, "path", "string", "", "label", false,
-        );
+        let result =
+            super::serialize_styled("id", Some("5"), None, "path", "string", "", "label", false);
         assert_eq!(unwrap_single(result), ".5");
     }
 
@@ -612,7 +674,14 @@ mod tests {
     fn test_serialize_styled_label_array_no_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "path", "array", "", "label", false,
+            "color",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "label",
+            false,
         );
         assert_eq!(unwrap_single(result), ".red,green");
     }
@@ -621,7 +690,14 @@ mod tests {
     fn test_serialize_styled_label_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "path", "array", "", "label", true,
+            "color",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "label",
+            true,
         );
         assert_eq!(unwrap_single(result), ".red.green");
     }
@@ -629,7 +705,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_label_null() {
         let result = super::serialize_styled(
-            "color", None::<&str>, None, "path", "string", "", "label", true,
+            "color",
+            None::<&str>,
+            None,
+            "path",
+            "string",
+            "",
+            "label",
+            true,
         );
         assert_eq!(unwrap_single(result), "");
     }
@@ -639,16 +722,22 @@ mod tests {
     #[test]
     fn test_serialize_styled_simple_null() {
         let result = super::serialize_styled(
-            "id", None::<&str>, None, "path", "string", "", "simple", true,
+            "id",
+            None::<&str>,
+            None,
+            "path",
+            "string",
+            "",
+            "simple",
+            true,
         );
         assert_eq!(unwrap_single(result), "");
     }
 
     #[test]
     fn test_serialize_styled_simple_scalar() {
-        let result = super::serialize_styled(
-            "id", Some("5"), None, "path", "string", "", "simple", false,
-        );
+        let result =
+            super::serialize_styled("id", Some("5"), None, "path", "string", "", "simple", false);
         assert_eq!(unwrap_single(result), "5");
     }
 
@@ -656,7 +745,14 @@ mod tests {
     fn test_serialize_styled_simple_array() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "path", "array", "", "simple", false,
+            "color",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "simple",
+            false,
         );
         assert_eq!(unwrap_single(result), "red,green");
     }
@@ -666,7 +762,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_form_scalar() {
         let result = super::serialize_styled(
-            "color", Some("blue"), None, "query", "string", "", "form", true,
+            "color",
+            Some("blue"),
+            None,
+            "query",
+            "string",
+            "",
+            "form",
+            true,
         );
         assert_eq!(unwrap_single(result), "blue");
     }
@@ -675,7 +778,14 @@ mod tests {
     fn test_serialize_styled_form_array_no_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "query", "array", "", "form", false,
+            "color",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "form",
+            false,
         );
         assert_eq!(unwrap_single(result), "red,green");
     }
@@ -684,7 +794,14 @@ mod tests {
     fn test_serialize_styled_form_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "query", "array", "", "form", true,
+            "color",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "form",
+            true,
         );
         assert_eq!(unwrap_multi(result), vec!["red", "green"]);
     }
@@ -692,7 +809,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_form_null_query() {
         let result = super::serialize_styled(
-            "color", None::<&str>, None, "query", "string", "", "form", true,
+            "color",
+            None::<&str>,
+            None,
+            "query",
+            "string",
+            "",
+            "form",
+            true,
         );
         assert!(result.is_none());
     }
@@ -703,7 +827,14 @@ mod tests {
     fn test_serialize_styled_space_delimited_array() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "query", "array", "", "spaceDelimited", false,
+            "color",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "spaceDelimited",
+            false,
         );
         assert_eq!(unwrap_single(result), "red green blue");
     }
@@ -711,7 +842,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_space_delimited_scalar() {
         let result = super::serialize_styled(
-            "color", Some("red"), None, "query", "string", "", "spaceDelimited", false,
+            "color",
+            Some("red"),
+            None,
+            "query",
+            "string",
+            "",
+            "spaceDelimited",
+            false,
         );
         assert_eq!(unwrap_single(result), "red");
     }
@@ -722,7 +860,14 @@ mod tests {
     fn test_serialize_styled_pipe_delimited_array() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "query", "array", "", "pipeDelimited", false,
+            "color",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "pipeDelimited",
+            false,
         );
         assert_eq!(unwrap_single(result), "red|green|blue");
     }
@@ -730,7 +875,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_pipe_delimited_scalar() {
         let result = super::serialize_styled(
-            "color", Some("red"), None, "query", "string", "", "pipeDelimited", false,
+            "color",
+            Some("red"),
+            None,
+            "query",
+            "string",
+            "",
+            "pipeDelimited",
+            false,
         );
         assert_eq!(unwrap_single(result), "red");
     }
@@ -762,7 +914,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_unknown_style_fallback() {
         let result = super::serialize_styled(
-            "id", Some("5"), None, "query", "string", "", "unknownStyle", false,
+            "id",
+            Some("5"),
+            None,
+            "query",
+            "string",
+            "",
+            "unknownStyle",
+            false,
         );
         assert_eq!(unwrap_single(result), "5");
     }
@@ -771,9 +930,8 @@ mod tests {
 
     #[test]
     fn test_serialize_styled_empty_style() {
-        let result = super::serialize_styled(
-            "id", Some("5"), None, "query", "string", "", "", false,
-        );
+        let result =
+            super::serialize_styled("id", Some("5"), None, "query", "string", "", "", false);
         assert_eq!(unwrap_single(result), "5");
     }
 
@@ -850,7 +1008,14 @@ mod tests {
     #[test]
     fn test_path_encoding_parity_simple_style_encodes_value() {
         let result = super::serialize_styled(
-            "color", Some("a b"), None, "path", "string", "", "simple", false,
+            "color",
+            Some("a b"),
+            None,
+            "path",
+            "string",
+            "",
+            "simple",
+            false,
         );
         assert_eq!(unwrap_single(result), "a%20b");
     }
@@ -859,7 +1024,14 @@ mod tests {
     fn test_path_encoding_parity_simple_style_array_encodes_each_item() {
         let items: Vec<String> = vec!["a b".into(), "c?d".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "path", "array", "", "simple", false,
+            "color",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "simple",
+            false,
         );
         assert_eq!(unwrap_single(result), "a%20b,c%3Fd");
     }
@@ -872,17 +1044,38 @@ mod tests {
         let items: Vec<String> = vec!["a/b".into(), "c".into()];
 
         let simple = super::serialize_styled(
-            "name", None, Some(&items), "path", "array", "", "simple", false,
+            "name",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "simple",
+            false,
         );
         assert_eq!(unwrap_single(simple), "a%2Fb,c");
 
         let label = super::serialize_styled(
-            "name", None, Some(&items), "path", "array", "", "label", true,
+            "name",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "label",
+            true,
         );
         assert_eq!(unwrap_single(label), ".a%2Fb.c");
 
         let matrix = super::serialize_styled(
-            "name", None, Some(&items), "path", "array", "", "matrix", false,
+            "name",
+            None,
+            Some(&items),
+            "path",
+            "array",
+            "",
+            "matrix",
+            false,
         );
         assert_eq!(unwrap_single(matrix), ";name=a%2Fb,c");
     }
@@ -896,19 +1089,40 @@ mod tests {
 
         // simple
         let simple_two = super::serialize_styled(
-            "name", None, Some(&two), "path", "array", "", "simple", false,
+            "name",
+            None,
+            Some(&two),
+            "path",
+            "array",
+            "",
+            "simple",
+            false,
         );
         assert_eq!(unwrap_single(simple_two), "a,b,c");
 
         // label (non-explode)
         let label_two = super::serialize_styled(
-            "name", None, Some(&two), "path", "array", "", "label", false,
+            "name",
+            None,
+            Some(&two),
+            "path",
+            "array",
+            "",
+            "label",
+            false,
         );
         assert_eq!(unwrap_single(label_two), ".a,b,c");
 
         // matrix (non-explode)
         let matrix_two = super::serialize_styled(
-            "name", None, Some(&two), "path", "array", "", "matrix", false,
+            "name",
+            None,
+            Some(&two),
+            "path",
+            "array",
+            "",
+            "matrix",
+            false,
         );
         assert_eq!(unwrap_single(matrix_two), ";name=a,b,c");
     }
@@ -916,7 +1130,14 @@ mod tests {
     #[test]
     fn test_path_encoding_parity_matrix_style_encodes_value() {
         let result = super::serialize_styled(
-            "color", Some("a b"), None, "path", "string", "", "matrix", false,
+            "color",
+            Some("a b"),
+            None,
+            "path",
+            "string",
+            "",
+            "matrix",
+            false,
         );
         assert_eq!(unwrap_single(result), ";color=a%20b");
     }
@@ -924,7 +1145,14 @@ mod tests {
     #[test]
     fn test_path_encoding_parity_label_style_encodes_value() {
         let result = super::serialize_styled(
-            "color", Some("a b"), None, "path", "string", "", "label", false,
+            "color",
+            Some("a b"),
+            None,
+            "path",
+            "string",
+            "",
+            "label",
+            false,
         );
         assert_eq!(unwrap_single(result), ".a%20b");
     }
@@ -932,7 +1160,14 @@ mod tests {
     #[test]
     fn test_path_encoding_parity_query_location_not_path_encoded() {
         let result = super::serialize_styled(
-            "color", Some("a b"), None, "query", "string", "", "form", false,
+            "color",
+            Some("a b"),
+            None,
+            "query",
+            "string",
+            "",
+            "form",
+            false,
         );
         assert_eq!(unwrap_single(result), "a b");
     }
@@ -942,7 +1177,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_form_explode_scalar_returns_single() {
         let result = super::serialize_styled(
-            "color", Some("blue"), None, "query", "string", "", "form", true,
+            "color",
+            Some("blue"),
+            None,
+            "query",
+            "string",
+            "",
+            "form",
+            true,
         );
         match result {
             Some(super::SerializedValue::Single(s)) => assert_eq!(s, "blue"),
@@ -953,7 +1195,14 @@ mod tests {
     #[test]
     fn test_serialize_styled_simple_path_url_encodes_value() {
         let result = super::serialize_styled(
-            "name", Some("hello world"), None, "path", "string", "", "simple", false,
+            "name",
+            Some("hello world"),
+            None,
+            "path",
+            "string",
+            "",
+            "simple",
+            false,
         );
         assert_eq!(unwrap_single(result), "hello%20world");
     }
@@ -962,7 +1211,14 @@ mod tests {
     fn test_serialize_styled_form_explode_single_element_array() {
         let items: Vec<String> = vec!["red".into()];
         let result = super::serialize_styled(
-            "color", None, Some(&items), "query", "array", "", "form", true,
+            "color",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "form",
+            true,
         );
         assert_eq!(unwrap_multi(result), vec!["red"]);
     }
@@ -1012,18 +1268,38 @@ mod tests {
     #[test]
     fn test_serialize_styled_path_encoded_exactly_once() {
         let space = super::serialize_styled(
-            "id", Some("a b"), None, "path", "string", "", "simple", false,
+            "id",
+            Some("a b"),
+            None,
+            "path",
+            "string",
+            "",
+            "simple",
+            false,
         );
         let space = unwrap_single(space);
         assert_eq!(space, "a%20b");
-        assert!(!space.contains("%2520"), "space was double-encoded: {space}");
+        assert!(
+            !space.contains("%2520"),
+            "space was double-encoded: {space}"
+        );
 
         let slash = super::serialize_styled(
-            "id", Some("a/b"), None, "path", "string", "", "simple", false,
+            "id",
+            Some("a/b"),
+            None,
+            "path",
+            "string",
+            "",
+            "simple",
+            false,
         );
         let slash = unwrap_single(slash);
         assert_eq!(slash, "a%2Fb");
-        assert!(!slash.contains("%252F"), "slash was double-encoded: {slash}");
+        assert!(
+            !slash.contains("%252F"),
+            "slash was double-encoded: {slash}"
+        );
     }
 
     // Empty-string path values are rejected by the value serializer (parity
@@ -1032,8 +1308,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Path parameter 'id' must not be empty")]
     fn test_empty_string_path_param_rejected() {
-        let _ = super::serialize_styled(
-            "id", Some(""), None, "path", "string", "", "simple", false,
-        );
+        let _ =
+            super::serialize_styled("id", Some(""), None, "path", "string", "", "simple", false);
     }
 }

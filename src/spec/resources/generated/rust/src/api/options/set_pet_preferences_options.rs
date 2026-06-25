@@ -14,7 +14,7 @@ impl SetPetPreferencesOptions {
     /// Required fields are taken as constructor arguments so they cannot be
     /// silently omitted; optional fields start as `None` and are populated via
     /// the chained setters below.
-    pub fn new(nickname: String, ) -> Self {
+    pub fn new(nickname: String) -> Self {
         Self {
             nickname,
             tags: None,

@@ -14,7 +14,7 @@ impl UploadPetDocumentOptions {
     /// Required fields are taken as constructor arguments so they cannot be
     /// silently omitted; optional fields start as `None` and are populated via
     /// the chained setters below.
-    pub fn new(file: Vec<u8>, ) -> Self {
+    pub fn new(file: Vec<u8>) -> Self {
         Self {
             file,
             document_type: None,

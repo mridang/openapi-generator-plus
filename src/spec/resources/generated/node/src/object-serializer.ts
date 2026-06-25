@@ -172,6 +172,44 @@ function rawDecimal(text: string): unknown {
 }
 
 /**
+ * 2.5 (plain-object request bodies) — global registry of every property name
+ * that is a `type: number` (no-format) Decimal field, aggregated across all
+ * generated models.
+ *
+ * The per-model `__decimalFields` set on the owning class drives unquoted
+ * emission when the value being serialized is a real model INSTANCE (the
+ * replacer reads it off `this.constructor`). But request bodies are routinely
+ * passed as plain object literals (the body parameter type is `DeepInput<T>`),
+ * and a plain object's constructor is `Object`, which carries no
+ * `__decimalFields` — so the Decimal field would be quoted as a JSON string,
+ * violating the spec's `type: number`. This holder-independent set lets the
+ * serializer recognise such fields by name on a plain object too.
+ *
+ * Built lazily (the models module is fully initialised only after this module
+ * loads) by unioning each model class's own `__decimalFields`. Emission still
+ * goes through {@link rawDecimal}, which only writes a value unquoted when it
+ * is valid JSON numeric text, so a same-named non-numeric string is untouched.
+ */
+let globalDecimalFields: ReadonlySet<string> | undefined;
+
+function decimalFieldNames(): ReadonlySet<string> {
+  if (globalDecimalFields === undefined) {
+    const names = new Set<string>();
+    for (const exported of Object.values(models as Record<string, unknown>)) {
+      const fields = (exported as { __decimalFields?: unknown } | undefined)
+        ?.__decimalFields;
+      if (fields instanceof Set) {
+        for (const name of fields as Set<string>) {
+          names.add(name);
+        }
+      }
+    }
+    globalDecimalFields = names;
+  }
+  return globalDecimalFields;
+}
+
+/**
  * Maximum allowed JSON nesting depth. Node's JSON.parse has no built-in
  * cap and recurses through V8's call stack, so a malicious 100k-deep
  * `{"a":{"a":...}}` payload would stack-overflow / DoS. Matches the
@@ -309,17 +347,26 @@ export class ObjectSerializer {
          * (via JSON.rawJSON) so a spec-conformant server sees a number, not a
          * quoted string. The owning model registers its no-format numeric
          * fields by property name in a static `__decimalFields` set; consult
-         * the holder's constructor for it. Only fires for a string value whose
-         * field is registered, so genuine string fields are untouched.
+         * the holder's constructor for it first.
+         *
+         * A request body is often a plain object literal (the body parameter
+         * type is `DeepInput<T>`), whose constructor is `Object` and carries no
+         * `__decimalFields` — so fall back to the holder-independent global
+         * registry ({@link decimalFieldNames}) keyed by property name. Either
+         * way only a string value whose field is registered is considered, and
+         * {@link rawDecimal} emits it unquoted only when it is valid JSON
+         * numeric text, so genuine string fields are untouched.
          */
         if (typeof value === "string") {
           const ctor = (this as { constructor?: unknown }).constructor as
             | { __decimalFields?: ReadonlySet<string> }
             | undefined;
+          const ownDecimals =
+            ctor && ctor.__decimalFields instanceof Set
+              ? ctor.__decimalFields
+              : undefined;
           if (
-            ctor &&
-            ctor.__decimalFields instanceof Set &&
-            ctor.__decimalFields.has(_key)
+            ownDecimals ? ownDecimals.has(_key) : decimalFieldNames().has(_key)
           ) {
             return rawDecimal(value);
           }

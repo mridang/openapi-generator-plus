@@ -13,10 +13,7 @@ impl AddPetPhotosOptions {
     /// Every field of this struct is required and is taken as a constructor
     /// argument so it cannot be silently omitted. This struct has no optional
     /// fields and therefore no chained setters.
-    pub fn new(files: Vec<Vec<u8>>, metadata: PhotoMetadata, ) -> Self {
-        Self {
-            files,
-            metadata,
-        }
+    pub fn new(files: Vec<Vec<u8>>, metadata: PhotoMetadata) -> Self {
+        Self { files, metadata }
     }
 }

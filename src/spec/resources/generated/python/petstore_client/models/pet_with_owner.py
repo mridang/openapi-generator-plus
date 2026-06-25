@@ -64,7 +64,7 @@ class PetWithOwner(BaseModel):
         description="RFC 6570 template for related-resource links",
     )
     owner_email: Optional[EmailStr] = Field(default=None, alias="ownerEmail")
-    weight_kg: Optional[Decimal] = Field(
+    weight_kg: Optional[JsonNumber] = Field(
         default=None,
         alias="weightKg",
         description="Pet weight in kilograms (decimal precision)",
@@ -93,7 +93,7 @@ class PetWithOwner(BaseModel):
     )
 
 
-from decimal import Decimal
+from petstore_client._types import JsonNumber
 from petstore_client._types import UrlStr
 from petstore_client.models.category import Category
 from petstore_client.models.tag import Tag

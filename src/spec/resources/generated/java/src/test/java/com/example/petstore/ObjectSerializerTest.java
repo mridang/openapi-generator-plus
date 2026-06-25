@@ -896,6 +896,44 @@ class ObjectSerializerTest {
   }
 
   @Nested
+  @DisplayName("DecimalNumberSerializationTests")
+  class DecimalNumberSerializationTests {
+
+    @Test
+    @DisplayName("type:number BigDecimal field serializes as an unquoted JSON number")
+    void decimalWeightSerializesAsNumber() {
+      com.example.petstore.models.Pet pet =
+          new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"));
+      pet.weightKg = new java.math.BigDecimal("1.5");
+      String json = serializer.serialize(pet);
+      assertTrue(
+          json.contains("\"weightKg\":1.5"), "weightKg must be an unquoted number, got: " + json);
+      assertFalse(
+          json.contains("\"weightKg\":\"1.5\""),
+          "weightKg must not be a quoted string, got: " + json);
+    }
+
+    @Test
+    @DisplayName("type:number BigDecimal field round-trips as a number")
+    void decimalWeightRoundTrips() {
+      com.example.petstore.models.Pet pet =
+          new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"));
+      pet.weightKg = new java.math.BigDecimal("1.5");
+      String json = serializer.serialize(pet);
+      com.example.petstore.models.Pet back =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  json,
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Pet>() {}.getType()));
+      assertEquals(
+          0,
+          new java.math.BigDecimal("1.5").compareTo(back.weightKg),
+          "weightKg must round-trip as numeric 1.5, got: " + back.weightKg);
+    }
+  }
+
+  @Nested
   @DisplayName("UuidSerializationTests")
   class UuidSerializationTests {
 

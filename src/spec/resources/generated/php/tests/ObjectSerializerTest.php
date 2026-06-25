@@ -390,6 +390,29 @@ test('serialize serializes model to valid json', function (): void {
     expect($data['name'])->toBe('Dogs');
 });
 
+// -- WAVE B: type:number (no format) must serialize as an UNQUOTED JSON number --
+//
+// Pet::$weightKg comes from a spec property typed `type: number` with NO
+// `format`. The wire form must be a bare JSON number (e.g. 1.5), never a
+// quoted string ("1.5"). PHP models this as a native ?float, so json_encode
+// emits an unquoted number; this test pins that contract so a regression
+// (e.g. switching to a Decimal-as-string holder) would fail loudly.
+test('type number field serializes as unquoted json number', function (): void {
+    $pet = new Pet(name: 'Rex', photoUrls: new \Ds\Set());
+    $pet->weightKg = 1.5;
+
+    $json = ObjectSerializer::serialize($pet);
+
+    // Must appear as an unquoted number, never as a quoted string.
+    expect($json)->toContain('"weightKg":1.5');
+    expect($json)->not->toContain('"weightKg":"1.5"');
+
+    // And it must survive a round-trip back to a numeric float.
+    /** @var Pet $back */
+    $back = ObjectSerializer::deserialize($json, Pet::class);
+    expect($back->weightKg)->toBe(1.5);
+});
+
 test('serialize handles null', function (): void {
     $json = ObjectSerializer::serialize(null);
     expect($json)->toBe('null');

@@ -111,7 +111,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // per the typed-everywhere policy: decimal.Decimal in Python (matching
         // BigDecimal in Java/Kotlin and branded Decimal in Node). `format:
         // float`/`format: double` keep StrictFloat above for IEEE-754 fields.
-        typeMapping.put("number", "Decimal");
+        // JsonNumber is the branded Decimal alias from `<pkg>._types`: it
+        // decodes to a full-precision Decimal but serializes UNQUOTED (a JSON
+        // number, `1.5` not `"1.5"`) via a json-only PlainSerializer, because
+        // the OpenAPI `type: number` is a JSON number on the wire. A plain
+        // `Decimal` would emit a quoted string, violating the spec and
+        // diverging from the SDKs that put a bare number on the wire.
+        typeMapping.put("number", "JsonNumber");
         typeMapping.put("boolean", "StrictBool");
         typeMapping.put("string", "StrictStr");
         typeMapping.put("byte", "bytes");
@@ -162,8 +168,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // as primitives so the generic-import machinery
                                 // does not try to emit a `<pkg>.models.X` import.
                                 // Their real imports come from
-                                // getPropertyTypeImportMap.
-                                "LaxFloat", "UrlStr",
+                                // getPropertyTypeImportMap. JsonNumber (bare
+                                // type: number) is likewise an `<pkg>._types`
+                                // alias and belongs in this group.
+                                "LaxFloat", "UrlStr", "JsonNumber",
                                 "uuid.UUID", "List", "Dict", "Set",
                                 "Tuple", "Optional",
                                 // Pydantic 2 native types treated as primitives so the
@@ -172,7 +180,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 "HttpUrl", "EmailStr", "SecretStr", "AwareDatetime",
                                 "Base64Bytes",
                                 "StrictInt", "StrictStr", "StrictBool", "StrictFloat",
-                                "Decimal", "IPv4Address", "IPv6Address"));
+                                "Decimal", "JsonNumber", "IPv4Address", "IPv6Address"));
 
         reservedWords = loadReservedWords("/reserved-words/python.txt");
 
@@ -713,7 +721,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // LaxFloat is the `format: float`/`double` mapping (a StrictFloat that
         // also accepts an integral JSON number); it is numeric like StrictFloat.
         return Set.of(
-                "int", "float", "StrictInt", "StrictFloat", "LaxFloat", "Decimal");
+                "int", "float", "StrictInt", "StrictFloat", "LaxFloat", "Decimal",
+                "JsonNumber");
     }
 
     /**
@@ -871,6 +880,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // the static TYPE_IMPORTS map.
         map.put("LaxFloat", "from " + packageName + "._types import LaxFloat");
         map.put("UrlStr", "from " + packageName + "._types import UrlStr");
+        // JsonNumber (bare `type: number`) is the branded Decimal alias that
+        // serializes UNQUOTED; its import is likewise per-run package-qualified.
+        map.put("JsonNumber", "from " + packageName + "._types import JsonNumber");
         return map;
     }
 

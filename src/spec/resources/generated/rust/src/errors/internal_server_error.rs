@@ -24,7 +24,11 @@ impl InternalServerError {
 
 impl fmt::Display for InternalServerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Internal server error (500): {}", self.server_error.api_error().message())
+        write!(
+            f,
+            "Internal server error (500): {}",
+            self.server_error.api_error().message()
+        )
     }
 }
 

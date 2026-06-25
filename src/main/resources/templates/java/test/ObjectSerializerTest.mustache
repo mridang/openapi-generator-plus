@@ -842,6 +842,48 @@ class ObjectSerializerTest {
     }
 
     @Nested
+    @DisplayName("DecimalNumberSerializationTests")
+    class DecimalNumberSerializationTests {
+
+        {{! Wave B — a `type: number` property with no `format` (Pet.weightKg) is }}
+        {{! modeled as BigDecimal for arbitrary-precision fidelity, but it must }}
+        {{! serialize as an UNQUOTED JSON number (1.5), not a string ("1.5"), to }}
+        {{! honour the spec's `type: number`. Jackson emits BigDecimal as a bare }}
+        {{! number by default, so Java is already correct — this guard pins it. }}
+        @Test
+        @DisplayName("type:number BigDecimal field serializes as an unquoted JSON number")
+        void decimalWeightSerializesAsNumber() {
+            {{modelPackage}}.Pet pet =
+                    new {{modelPackage}}.Pet("Rex", java.util.Set.of("http://example.com/p.png"));
+            pet.weightKg = new java.math.BigDecimal("1.5");
+            String json = serializer.serialize(pet);
+            assertTrue(json.contains("\"weightKg\":1.5"),
+                    "weightKg must be an unquoted number, got: " + json);
+            assertFalse(json.contains("\"weightKg\":\"1.5\""),
+                    "weightKg must not be a quoted string, got: " + json);
+        }
+
+        {{! The same field must survive a serialize -> deserialize round-trip as a }}
+        {{! numeric BigDecimal, never degrading to a string-typed value. }}
+        @Test
+        @DisplayName("type:number BigDecimal field round-trips as a number")
+        void decimalWeightRoundTrips() {
+            {{modelPackage}}.Pet pet =
+                    new {{modelPackage}}.Pet("Rex", java.util.Set.of("http://example.com/p.png"));
+            pet.weightKg = new java.math.BigDecimal("1.5");
+            String json = serializer.serialize(pet);
+            {{modelPackage}}.Pet back =
+                    java.util.Objects.requireNonNull(
+                            serializer.deserialize(
+                                    json,
+                                    new com.fasterxml.jackson.core.type.TypeReference<
+                                            {{modelPackage}}.Pet>() {}.getType()));
+            assertEquals(0, new java.math.BigDecimal("1.5").compareTo(back.weightKg),
+                    "weightKg must round-trip as numeric 1.5, got: " + back.weightKg);
+        }
+    }
+
+    @Nested
     @DisplayName("UuidSerializationTests")
     class UuidSerializationTests {
 

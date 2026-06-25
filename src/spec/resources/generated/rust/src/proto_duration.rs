@@ -15,7 +15,7 @@
 // + chrono rather than adding an ISO-8601 crate.
 
 use chrono::Duration;
-use serde::{Deserialize, Deserializer, Serializer, de};
+use serde::{de, Deserialize, Deserializer, Serializer};
 
 const NANOS_PER_SECOND: i64 = 1_000_000_000;
 
@@ -70,7 +70,8 @@ pub fn parse(s: &str) -> Result<Duration, String> {
     if secs_str.is_empty() || !secs_str.bytes().all(|b| b.is_ascii_digit()) {
         return Err(format!("protobuf-JSON duration: bad seconds in {s:?}"));
     }
-    if frac_str.len() > 9 || (body.contains('.') && frac_str.is_empty())
+    if frac_str.len() > 9
+        || (body.contains('.') && frac_str.is_empty())
         || !frac_str.bytes().all(|b| b.is_ascii_digit())
     {
         return Err(format!("protobuf-JSON duration: bad fraction in {s:?}"));
@@ -116,19 +117,14 @@ pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Duration, D::Error
 pub mod option {
     use super::*;
 
-    pub fn serialize<S: Serializer>(
-        d: &Option<Duration>,
-        s: S,
-    ) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(d: &Option<Duration>, s: S) -> Result<S::Ok, S::Error> {
         match d {
             Some(v) => s.serialize_str(&super::format(v)),
             None => s.serialize_none(),
         }
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        d: D,
-    ) -> Result<Option<Duration>, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Duration>, D::Error> {
         let raw: Option<String> = Option::deserialize(d)?;
         match raw {
             Some(s) => super::parse(&s).map(Some).map_err(de::Error::custom),

@@ -56,7 +56,8 @@ impl Authenticator for NoAuth {
 
     fn auth_headers<'a>(
         &'a self,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
         Box::pin(async { HashMap::new() })
     }
 }
@@ -119,7 +120,11 @@ pub(crate) struct BaseApi {
 
 impl BaseApi {
     /// Creates a new BaseApi instance.
-    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+    pub fn new(
+        api_client: Arc<dyn ApiClient>,
+        config: Configuration,
+        authenticator: Option<Arc<dyn Authenticator>>,
+    ) -> Self {
         Self {
             config,
             api_client,
@@ -176,7 +181,9 @@ impl BaseApi {
 
         /* Select headers */
         let is_multipart = params.content_type == "multipart/form-data";
-        let mut headers = self.header_selector.select_headers(&params.accepts, params.content_type, is_multipart);
+        let mut headers =
+            self.header_selector
+                .select_headers(&params.accepts, params.content_type, is_multipart);
 
         /* Merge config default headers */
         for (k, v) in self.config.default_headers() {
@@ -203,10 +210,16 @@ impl BaseApi {
                     .iter()
                     .map(|(k, v)| {
                         if !is_valid_cookie_name(k) {
-                            panic!("Cookie name '{}' contains characters forbidden by RFC 6265", k);
+                            panic!(
+                                "Cookie name '{}' contains characters forbidden by RFC 6265",
+                                k
+                            );
                         }
                         if !is_valid_cookie_value(v) {
-                            panic!("Cookie value for '{}' contains characters forbidden by RFC 6265", k);
+                            panic!(
+                                "Cookie value for '{}' contains characters forbidden by RFC 6265",
+                                k
+                            );
                         }
                         format!("{}={}", k, v)
                     })
@@ -253,7 +266,12 @@ impl BaseApi {
         /* Send request */
         let response = self
             .api_client
-            .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
+            .send_request(
+                params.method,
+                &request_url,
+                &headers,
+                serialized_body.as_ref(),
+            )
             .await?;
 
         /* Check for errors */
@@ -276,7 +294,9 @@ impl BaseApi {
         let response = self.invoke_api(params).await?;
 
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
-        let resp_content_type = response.headers().iter()
+        let resp_content_type = response
+            .headers()
+            .iter()
             .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
             .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_string());
 
@@ -335,8 +355,9 @@ impl BaseApi {
                 .decode(response.body().as_bytes())
                 .unwrap_or_default();
             serde_json::from_value(serde_json::Value::String(
-                String::from_utf8_lossy(&bytes).into_owned()
-            )).ok()
+                String::from_utf8_lossy(&bytes).into_owned(),
+            ))
+            .ok()
         } else {
             None
         };
@@ -371,13 +392,7 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
 
     let parts: Vec<String> = query_params
         .iter()
-        .map(|(k, v)| {
-            format!(
-                "{}={}",
-                urlencoding::encode(k),
-                urlencoding::encode(v)
-            )
-        })
+        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
         .collect();
 
     parts.join("&")
@@ -478,12 +493,7 @@ fn throw_api_error(response: &ApiHttpResponse) -> Box<dyn std::error::Error + Se
     let msg = format!("API returned status code {}", code);
     let body = response.body().to_string();
 
-    let base_err = ApiError::new(
-        code,
-        msg,
-        Some(body),
-        Some(response.headers().clone()),
-    );
+    let base_err = ApiError::new(code, msg, Some(body), Some(response.headers().clone()));
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);
@@ -514,9 +524,8 @@ fn is_valid_cookie_name(name: &str) -> bool {
     if name.is_empty() {
         return false;
     }
-    name.chars().all(|c| {
-        c.is_ascii_alphanumeric() || "!#$%&'*+-.^_`|~".contains(c)
-    })
+    name.chars()
+        .all(|c| c.is_ascii_alphanumeric() || "!#$%&'*+-.^_`|~".contains(c))
 }
 
 /// RFC 6265 cookie-value validation (cookie-octet*).
@@ -552,28 +561,29 @@ mod tests {
     #[test]
     fn test_serialize_body_form_urlencoded() {
         let json_bytes = encode_form_pairs(&[("name", serde_json::json!("alice"))]);
-        let result = serialize_body(
-            Some(json_bytes),
-            "application/x-www-form-urlencoded",
-        ).unwrap();
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap();
         assert!(result.is_some());
         let body_str = String::from_utf8(result.unwrap()).unwrap();
-        assert_eq!(body_str, "name=alice", "expected URL-encoded form data, got: {}", body_str);
+        assert_eq!(
+            body_str, "name=alice",
+            "expected URL-encoded form data, got: {}",
+            body_str
+        );
     }
 
     // form-body-space-encoding (behavior 3): a space in an
     // application/x-www-form-urlencoded value MUST be encoded as `+`, not `%20`.
     #[test]
     fn test_serialize_body_form_urlencoded_space_as_plus() {
-        let json_bytes =
-            encode_form_pairs(&[("full name", serde_json::json!("Ada Lovelace"))]);
-        let result = serialize_body(
-            Some(json_bytes),
-            "application/x-www-form-urlencoded",
-        ).unwrap();
+        let json_bytes = encode_form_pairs(&[("full name", serde_json::json!("Ada Lovelace"))]);
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap();
         let body_str = String::from_utf8(result.unwrap()).unwrap();
         assert_eq!(body_str, "full+name=Ada+Lovelace");
-        assert!(!body_str.contains("%20"), "space must encode as +, not %20: {}", body_str);
+        assert!(
+            !body_str.contains("%20"),
+            "space must encode as +, not %20: {}",
+            body_str
+        );
     }
 
     // form-array-repeated-keys (behavior 1): an array form field MUST serialize
@@ -585,18 +595,27 @@ mod tests {
             ("nickname", serde_json::json!("Rex")),
             ("tags", serde_json::json!(["fluffy", "good boy"])),
         ]);
-        let result = serialize_body(
-            Some(json_bytes),
-            "application/x-www-form-urlencoded",
-        )
-        .unwrap()
-        .unwrap();
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .unwrap()
+            .unwrap();
         let body_str = String::from_utf8(result).unwrap();
         assert_eq!(body_str, "nickname=Rex&tags=fluffy&tags=good+boy");
         // No bracketed / comma-joined collapse.
-        assert!(!body_str.contains('['), "must not bracket the array: {}", body_str);
-        assert!(!body_str.contains("tags=fluffy%2Cgood"), "must not comma-join: {}", body_str);
-        assert!(!body_str.contains("tags=fluffy,good"), "must not comma-join: {}", body_str);
+        assert!(
+            !body_str.contains('['),
+            "must not bracket the array: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("tags=fluffy%2Cgood"),
+            "must not comma-join: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("tags=fluffy,good"),
+            "must not comma-join: {}",
+            body_str
+        );
     }
 
     // form-optional-null-omitted (behavior 2): an optional field whose value is
@@ -607,24 +626,22 @@ mod tests {
             ("nickname", serde_json::json!("Rex")),
             ("note", serde_json::Value::Null),
         ]);
-        let result = serialize_body(
-            Some(json_bytes),
-            "application/x-www-form-urlencoded",
-        )
-        .unwrap()
-        .unwrap();
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .unwrap()
+            .unwrap();
         let body_str = String::from_utf8(result).unwrap();
         assert_eq!(body_str, "nickname=Rex");
-        assert!(!body_str.contains("note"), "null field must be omitted: {}", body_str);
+        assert!(
+            !body_str.contains("note"),
+            "null field must be omitted: {}",
+            body_str
+        );
     }
 
     #[test]
     fn test_serialize_body_text_plain() {
         let body = b"hello world".to_vec();
-        let result = serialize_body(
-            Some(body),
-            "text/plain",
-        ).unwrap();
+        let result = serialize_body(Some(body), "text/plain").unwrap();
         assert!(result.is_some());
         let body_str = String::from_utf8(result.unwrap()).unwrap();
         assert_eq!(body_str, "hello world");
@@ -633,10 +650,7 @@ mod tests {
     #[test]
     fn test_serialize_body_binary() {
         let body = vec![0x01, 0x02, 0x03];
-        let result = serialize_body(
-            Some(body.clone()),
-            "application/octet-stream",
-        ).unwrap();
+        let result = serialize_body(Some(body.clone()), "application/octet-stream").unwrap();
         assert!(result.is_some());
         assert_eq!(result.unwrap(), body);
     }
@@ -644,20 +658,14 @@ mod tests {
     #[test]
     fn test_serialize_body_json_passthrough() {
         let body = b"{\"key\":\"value\"}".to_vec();
-        let result = serialize_body(
-            Some(body.clone()),
-            "application/json",
-        ).unwrap();
+        let result = serialize_body(Some(body.clone()), "application/json").unwrap();
         assert!(result.is_some());
         assert_eq!(result.unwrap(), body);
     }
 
     #[test]
     fn test_serialize_body_none() {
-        let result = serialize_body(
-            None,
-            "application/json",
-        ).unwrap();
+        let result = serialize_body(None, "application/json").unwrap();
         assert!(result.is_none());
     }
 }

@@ -1078,4 +1078,30 @@ import Testing
         #expect(abs(parsed - (-0.00005)) < 1e-9,
             "negative sub-0.0001s duration must round-trip, got: \(out) -> \(parsed)")
     }
+
+    // MARK: - type:number (no format) serializes as an UNQUOTED JSON number
+
+    // Pet.weightKg is a `type: number` property with NO `format` — a bare JSON
+    // number. It must serialize as an UNQUOTED number (1.5), NOT a quoted
+    // string ("1.5"), matching the spec's `type: number` and the rest of the
+    // fleet. Swift models the field as `Double?`, which JSONEncoder emits as a
+    // bare number natively; this pins that contract so a regression to a
+    // string-backed arbitrary-precision decimal would be caught. The value is
+    // non-integral (1.5) so the assertion distinguishes number from string.
+    @Test func testDecimalNumberFieldSerializesAsUnquotedJsonNumber() throws {
+        let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"], weightKg: 1.5)
+        let json = try ObjectSerializer.serialize(pet)
+        #expect(
+            json.contains("\"weightKg\":1.5"),
+            "type:number weightKg must serialize as a bare JSON number, got: \(json)")
+        #expect(
+            !json.contains("\"weightKg\":\"1.5\""),
+            "type:number weightKg must NOT serialize as a quoted string, got: \(json)")
+
+        // The field must also survive serialize -> deserialize as a number.
+        let decoded = try ObjectSerializer.deserialize(json, as: Pet.self)
+        #expect(
+            decoded?.weightKg == 1.5,
+            "type:number weightKg must round-trip as the Double 1.5")
+    }
 }

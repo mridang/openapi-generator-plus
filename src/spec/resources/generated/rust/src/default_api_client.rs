@@ -13,8 +13,8 @@ use std::sync::Arc;
 
 use std::time::Duration;
 
-use reqwest::{Client, ClientBuilder};
 use reqwest::Proxy;
+use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
@@ -110,7 +110,13 @@ impl ApiClient for DefaultApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         self.send_request_with_options(method, url, headers, body, &RequestOptions::default())
     }
 
@@ -126,7 +132,13 @@ impl ApiClient for DefaultApiClient {
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         options: &RequestOptions,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         let method = method.to_string();
         let url = url.to_string();
         let headers = headers.clone();
@@ -142,7 +154,8 @@ impl ApiClient for DefaultApiClient {
                     "ApiClient is closed".to_string(),
                     None,
                     None,
-                )) as Box<dyn std::error::Error + Send + Sync>);
+                ))
+                    as Box<dyn std::error::Error + Send + Sync>);
             }
             let mut merged: HashMap<String, String> = self.transport_options.default_headers();
             for (k, v) in &headers {
@@ -194,9 +207,9 @@ impl ApiClient for DefaultApiClient {
                 merged.remove("Content-Type");
             }
 
-            let http_method = method.parse::<reqwest::Method>().map_err(|e| {
-                Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-            })?;
+            let http_method = method
+                .parse::<reqwest::Method>()
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
             let mut request_builder = self.http_client.request(http_method, &url);
 
@@ -233,13 +246,8 @@ impl ApiClient for DefaultApiClient {
 
             let mut response = request_builder.send().await.map_err(|e| {
                 let message = e.to_string();
-                Box::new(ApiError::with_source(
-                    0,
-                    message,
-                    None,
-                    None,
-                    Arc::new(e),
-                )) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(ApiError::with_source(0, message, None, None, Arc::new(e)))
+                    as Box<dyn std::error::Error + Send + Sync>
             })?;
 
             // Gap BH: manual redirect loop with cross-origin header strip.
@@ -257,8 +265,7 @@ impl ApiClient for DefaultApiClient {
                 let mut hops = 0usize;
                 let mut current_method = method.to_string();
                 let mut current_body: Option<Vec<u8>> = body_bytes.clone();
-                let mut current_headers: std::collections::HashMap<String, String> =
-                    merged.clone();
+                let mut current_headers: std::collections::HashMap<String, String> = merged.clone();
                 while is_redirect_status(response.status().as_u16()) && hops < max {
                     let status_code = response.status().as_u16();
                     let location = match response
@@ -270,10 +277,7 @@ impl ApiClient for DefaultApiClient {
                         Some(l) => l,
                         None => break,
                     };
-                    let next_url = match current_url
-                        .as_ref()
-                        .and_then(|c| c.join(&location).ok())
-                    {
+                    let next_url = match current_url.as_ref().and_then(|c| c.join(&location).ok()) {
                         Some(u) => u,
                         None => break,
                     };
@@ -290,7 +294,8 @@ impl ApiClient for DefaultApiClient {
                             ),
                             None,
                             None,
-                        )) as Box<dyn std::error::Error + Send + Sync>);
+                        ))
+                            as Box<dyn std::error::Error + Send + Sync>);
                     }
                     let cross_origin = match original_url.as_ref() {
                         Some(orig) => !same_origin(orig, &next_url),
@@ -340,9 +345,9 @@ impl ApiClient for DefaultApiClient {
                             ("GET".to_string(), None)
                         };
 
-                    let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
-                        Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-                    })?;
+                    let http_method = next_method
+                        .parse::<reqwest::Method>()
+                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
                     let mut redirect_builder =
                         self.http_client.request(http_method, next_url.clone());
                     let mut redirect_headers = current_headers.clone();
@@ -356,8 +361,7 @@ impl ApiClient for DefaultApiClient {
                             // (for WAFs/servers that 411 on body-less POSTs)
                             // and that header stays valid across a 307/308
                             // replay, where the empty body is preserved.
-                            lk != "content-type"
-                                && (lk != "content-length" || v.trim() == "0")
+                            lk != "content-type" && (lk != "content-length" || v.trim() == "0")
                         });
                     }
                     for (k, v) in &redirect_headers {
@@ -372,13 +376,8 @@ impl ApiClient for DefaultApiClient {
                     }
                     response = redirect_builder.send().await.map_err(|e| {
                         let message = e.to_string();
-                        Box::new(ApiError::with_source(
-                            0,
-                            message,
-                            None,
-                            None,
-                            Arc::new(e),
-                        )) as Box<dyn std::error::Error + Send + Sync>
+                        Box::new(ApiError::with_source(0, message, None, None, Arc::new(e)))
+                            as Box<dyn std::error::Error + Send + Sync>
                     })?;
                     current_url = Some(next_url);
                     current_method = next_method;
@@ -396,7 +395,8 @@ impl ApiClient for DefaultApiClient {
                         format!("too many redirects (exceeded {})", max),
                         None,
                         None,
-                    )) as Box<dyn std::error::Error + Send + Sync>);
+                    ))
+                        as Box<dyn std::error::Error + Send + Sync>);
                 }
             }
 
@@ -434,13 +434,8 @@ impl ApiClient for DefaultApiClient {
             // gets — rather than escaping as a raw reqwest::Error.
             let resp_bytes = response.bytes().await.map_err(|e| {
                 let message = e.to_string();
-                Box::new(ApiError::with_source(
-                    0,
-                    message,
-                    None,
-                    None,
-                    Arc::new(e),
-                )) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(ApiError::with_source(0, message, None, None, Arc::new(e)))
+                    as Box<dyn std::error::Error + Send + Sync>
             })?;
             let resp_body = if is_text_content_type(&content_type) {
                 decode_text_body(&resp_bytes, &content_type)
@@ -465,10 +460,7 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     // Brotli is intentionally omitted: reqwest's `brotli` feature pulls
     // `brotli` 8.x, which fails to compile against the current
     // `brotli-decompressor` (incompatible `alloc-no-stdlib` versions).
-    builder = builder
-        .gzip(true)
-        .deflate(true)
-        .zstd(true);
+    builder = builder.gzip(true).deflate(true).zstd(true);
 
     // Gap AM: `verify_ssl=false` must skip BOTH the certificate-chain check
     // and the hostname check, matching `curl -k` and the other SDKs. reqwest
@@ -483,15 +475,10 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         // Gap T4: surface CA-cert load/parse failures rather than silently
         // falling back to the system trust store. If the user explicitly
         // asked for SSL pinning we must not pretend it succeeded.
-        let ca_bytes = std::fs::read(ca_path).unwrap_or_else(|e| {
-            panic!("failed to read CA certificate from {:?}: {}", ca_path, e)
-        });
-        let cert = reqwest::Certificate::from_pem(&ca_bytes).unwrap_or_else(|e| {
-            panic!(
-                "failed to parse CA certificate from {:?}: {}",
-                ca_path, e
-            )
-        });
+        let ca_bytes = std::fs::read(ca_path)
+            .unwrap_or_else(|e| panic!("failed to read CA certificate from {:?}: {}", ca_path, e));
+        let cert = reqwest::Certificate::from_pem(&ca_bytes)
+            .unwrap_or_else(|e| panic!("failed to parse CA certificate from {:?}: {}", ca_path, e));
         builder = builder.add_root_certificate(cert);
     }
 
@@ -590,12 +577,7 @@ pub fn serialize_multipart_body(
 /// filename directive derived from the field name; text parts are written
 /// without a Content-Type header; JSON object parts carry an explicit
 /// `Content-Type: application/json` header (their OAS `encoding.contentType`).
-fn append_multipart_field(
-    out: &mut Vec<u8>,
-    boundary: &str,
-    name: &str,
-    value: &MultipartValue,
-) {
+fn append_multipart_field(out: &mut Vec<u8>, boundary: &str, name: &str, value: &MultipartValue) {
     /* W-new-2: validate the field name on every branch (text and bytes)
      * before it lands in Content-Disposition. The name is interpolated
      * directly into `Content-Disposition: form-data; name="..."`, so
@@ -665,7 +647,9 @@ fn append_multipart_field(
 pub fn validate_multipart_filename(filename: &str) -> Result<(), String> {
     for c in filename.chars() {
         if c == '\r' || c == '\n' || c == '\0' {
-            return Err("multipart filename must not contain CR, LF, or NUL characters".to_string());
+            return Err(
+                "multipart filename must not contain CR, LF, or NUL characters".to_string(),
+            );
         }
     }
     Ok(())
@@ -718,7 +702,10 @@ pub fn build_filename_directive(filename: &str) -> String {
         .collect();
     let fallback_escaped = fallback.replace('\\', "\\\\").replace('"', "\\\"");
     let encoded = rfc5987_encode_value(filename);
-    format!("filename=\"{}\"; filename*=UTF-8''{}", fallback_escaped, encoded)
+    format!(
+        "filename=\"{}\"; filename*=UTF-8''{}",
+        fallback_escaped, encoded
+    )
 }
 
 /// Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved character,
@@ -727,11 +714,8 @@ pub fn rfc5987_encode_value(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = String::with_capacity(bytes.len() * 3);
     for &b in bytes {
-        let is_unreserved = b.is_ascii_alphanumeric()
-            || b == b'-'
-            || b == b'.'
-            || b == b'_'
-            || b == b'~';
+        let is_unreserved =
+            b.is_ascii_alphanumeric() || b == b'-' || b == b'.' || b == b'_' || b == b'~';
         if is_unreserved {
             out.push(b as char);
         } else {
@@ -850,17 +834,47 @@ mod tests {
         // 308 + body + https->http: must refuse.
         assert!(is_https_to_http_body_replay(308, Some(&https), &http, true));
         // 307 + NO body: nothing to leak, must NOT refuse.
-        assert!(!is_https_to_http_body_replay(307, Some(&https), &http, false));
+        assert!(!is_https_to_http_body_replay(
+            307,
+            Some(&https),
+            &http,
+            false
+        ));
         // 307 + body + http->http (no downgrade): must NOT refuse.
-        assert!(!is_https_to_http_body_replay(307, Some(&http), &http2, true));
+        assert!(!is_https_to_http_body_replay(
+            307,
+            Some(&http),
+            &http2,
+            true
+        ));
         // 307 + body + https->https (no downgrade): must NOT refuse.
-        assert!(!is_https_to_http_body_replay(307, Some(&https), &https2, true));
+        assert!(!is_https_to_http_body_replay(
+            307,
+            Some(&https),
+            &https2,
+            true
+        ));
         // 302 (drops body anyway): must NOT refuse.
-        assert!(!is_https_to_http_body_replay(302, Some(&https), &http, true));
+        assert!(!is_https_to_http_body_replay(
+            302,
+            Some(&https),
+            &http,
+            true
+        ));
         // 303 (drops body anyway): must NOT refuse.
-        assert!(!is_https_to_http_body_replay(303, Some(&https), &http, true));
+        assert!(!is_https_to_http_body_replay(
+            303,
+            Some(&https),
+            &http,
+            true
+        ));
         // 301 (drops body anyway): must NOT refuse.
-        assert!(!is_https_to_http_body_replay(301, Some(&https), &http, true));
+        assert!(!is_https_to_http_body_replay(
+            301,
+            Some(&https),
+            &http,
+            true
+        ));
         // Missing current_url: cannot prove downgrade, must NOT refuse.
         assert!(!is_https_to_http_body_replay(307, None, &http, true));
     }
@@ -947,10 +961,7 @@ mod tests {
     #[test]
     fn test_multipart_file_part_content_type_unknown_extension_falls_back() {
         let mut fields = std::collections::HashMap::new();
-        fields.insert(
-            "file".to_string(),
-            MultipartValue::Bytes(vec![1, 2, 3]),
-        );
+        fields.insert("file".to_string(), MultipartValue::Bytes(vec![1, 2, 3]));
         let body = serialize_multipart_body(&fields, "BOUNDARY");
         let body_str = String::from_utf8_lossy(&body);
         assert!(
@@ -1086,7 +1097,10 @@ mod tests {
     fn test_multipart_non_ascii_field_name_preserved_as_utf8_text_part() {
         let field_name = "café"; // 'é' is U+00E9 -> UTF-8 0xC3 0xA9
         let mut fields = std::collections::HashMap::new();
-        fields.insert(field_name.to_string(), MultipartValue::Text("v".to_string()));
+        fields.insert(
+            field_name.to_string(),
+            MultipartValue::Text("v".to_string()),
+        );
         let body = serialize_multipart_body(&fields, "BOUNDARY");
 
         // The raw UTF-8 bytes for "café" must appear verbatim in the body.
@@ -1171,12 +1185,21 @@ mod tests {
     #[test]
     fn test_multipart_filename_non_ascii_emits_rfc5987() {
         let directive = build_filename_directive("日本.pdf");
-        assert!(directive.contains("filename*=UTF-8''"),
-            "expected RFC 5987 filename*=UTF-8'' directive, got: {}", directive);
-        assert!(directive.contains("%E6%97%A5%E6%9C%AC"),
-            "expected percent-encoded UTF-8 bytes for 日本, got: {}", directive);
-        assert!(directive.starts_with("filename=\""),
-            "expected ASCII fallback filename=\"...\" prefix, got: {}", directive);
+        assert!(
+            directive.contains("filename*=UTF-8''"),
+            "expected RFC 5987 filename*=UTF-8'' directive, got: {}",
+            directive
+        );
+        assert!(
+            directive.contains("%E6%97%A5%E6%9C%AC"),
+            "expected percent-encoded UTF-8 bytes for 日本, got: {}",
+            directive
+        );
+        assert!(
+            directive.starts_with("filename=\""),
+            "expected ASCII fallback filename=\"...\" prefix, got: {}",
+            directive
+        );
     }
 
     /// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
@@ -1184,8 +1207,11 @@ mod tests {
     fn test_multipart_filename_ascii_only_omits_filename_star() {
         let directive = build_filename_directive("pet.png");
         assert_eq!(directive, "filename=\"pet.png\"");
-        assert!(!directive.contains("filename*="),
-            "ASCII-only filename must not emit filename*=, got: {}", directive);
+        assert!(
+            !directive.contains("filename*="),
+            "ASCII-only filename must not emit filename*=, got: {}",
+            directive
+        );
     }
 
     // ── Multipart filename / field-name validation (Gap F / W-new-2) ──
@@ -1209,8 +1235,11 @@ mod tests {
     #[test]
     fn test_multipart_filename_crlf_rejected() {
         for bad in &["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\0b.pdf"] {
-            assert!(validate_multipart_filename(bad).is_err(),
-                "expected error for {:?}", bad);
+            assert!(
+                validate_multipart_filename(bad).is_err(),
+                "expected error for {:?}",
+                bad
+            );
         }
         assert!(validate_multipart_filename("pet.png").is_ok());
     }
@@ -1222,9 +1251,17 @@ mod tests {
     /// scenario.
     #[test]
     fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
-        for bad in &["name\rInjected: yes", "name\nInjected: yes", "name\r\nInjected: yes", "name\0Injected"] {
-            assert!(validate_multipart_field_name(bad).is_err(),
-                "expected validate_multipart_field_name to reject {:?}", bad);
+        for bad in &[
+            "name\rInjected: yes",
+            "name\nInjected: yes",
+            "name\r\nInjected: yes",
+            "name\0Injected",
+        ] {
+            assert!(
+                validate_multipart_field_name(bad).is_err(),
+                "expected validate_multipart_field_name to reject {:?}",
+                bad
+            );
         }
         assert!(validate_multipart_field_name("description").is_ok());
 
@@ -1239,8 +1276,11 @@ mod tests {
         );
         let body = serialize_multipart_body(&fields, "boundary");
         let body_str = String::from_utf8_lossy(&body);
-        assert!(!body_str.contains("Injected: yes"),
-            "serialize_multipart_body must not emit the injected header: {}", body_str);
+        assert!(
+            !body_str.contains("Injected: yes"),
+            "serialize_multipart_body must not emit the injected header: {}",
+            body_str
+        );
     }
 
     // ── Response charset decoding (Gap H) ──
@@ -1261,7 +1301,8 @@ mod tests {
     #[test]
     fn test_decode_text_body_unknown_charset_falls_back_to_utf8() {
         // Unknown charset must not panic and must fall back to UTF-8.
-        let decoded = decode_text_body("héllo".as_bytes(), "text/plain; charset=not-a-real-charset");
+        let decoded =
+            decode_text_body("héllo".as_bytes(), "text/plain; charset=not-a-real-charset");
         assert_eq!(decoded, "héllo");
         // parse_charset still surfaces the raw label.
         assert_eq!(
@@ -1308,15 +1349,18 @@ mod tests {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
         assert!(
             names.iter().any(|n| *n == "authorization"),
-            "expected 'authorization' in {:?}", names
+            "expected 'authorization' in {:?}",
+            names
         );
         assert!(
             names.iter().any(|n| *n == "cookie"),
-            "expected 'cookie' in {:?}", names
+            "expected 'cookie' in {:?}",
+            names
         );
         assert!(
             names.iter().any(|n| *n == "proxy-authorization"),
-            "expected 'proxy-authorization' in {:?}", names
+            "expected 'proxy-authorization' in {:?}",
+            names
         );
         for n in SENSITIVE_HEADER_NAMES {
             assert_eq!(*n, n.to_lowercase(), "all entries must be lowercase: {}", n);

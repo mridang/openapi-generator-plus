@@ -81,12 +81,17 @@ offset.
 
 ### `format: float` / `format: double` precision
 
-`format: number` (no `format`) maps to `decimal.Decimal`, which preserves
-exact decimal representation — safe for monetary values. But `format:
-float` and `format: double` map to `pydantic.StrictFloat`, i.e. Python's
-native `float`, which is a 64-bit IEEE-754 binary float. Values such
-fields carry cannot represent every decimal fraction exactly: `0.1 + 0.2`
-in Python is `0.30000000000000004`.
+A bare `type: number` (no `format`) maps to `decimal.Decimal`, which
+preserves exact decimal representation in Python — safe for in-process
+arithmetic on monetary values. On the wire it serializes as an UNQUOTED
+JSON number (`1.5`, never the quoted string `"1.5"`) because the spec
+types it as a JSON number; that JSON-encode step widens the value through
+a 64-bit IEEE-754 `float`, so a digit count beyond a double's precision is
+not preserved across a serialize round-trip even though the in-Python value
+is a full-precision `Decimal`. `format: float` and `format: double` map to
+`pydantic.StrictFloat`, i.e. Python's native `float`, which is a 64-bit
+IEEE-754 binary float. Values such fields carry cannot represent every
+decimal fraction exactly: `0.1 + 0.2` in Python is `0.30000000000000004`.
 
 Do not do arithmetic on prices, balances, or other money-typed fields
 that the spec declares as `format: float` / `format: double`. If you need

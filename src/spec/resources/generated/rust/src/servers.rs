@@ -57,7 +57,11 @@ pub fn server_1() -> ServerConfiguration {
                 ServerVariable::new(
                     "api".to_string(),
                     "API environment".to_string(),
-                    vec!["api".to_string(), "staging".to_string(), "sandbox".to_string()],
+                    vec![
+                        "api".to_string(),
+                        "staging".to_string(),
+                        "sandbox".to_string(),
+                    ],
                 ),
             );
             vars.insert(
@@ -75,8 +79,5 @@ pub fn server_1() -> ServerConfiguration {
 
 /// Returns all server configurations in declaration order.
 pub fn all_servers() -> Vec<ServerConfiguration> {
-    vec![
-        server_0(),
-        server_1(),
-    ]
+    vec![server_0(), server_1()]
 }

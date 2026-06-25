@@ -716,6 +716,44 @@ func TestDiscriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
 	}
 }
 
+// ── WAVE B: a bare `type: number` (no format) property — Pet.weightKg — must
+// serialize as an UNQUOTED JSON number, never a quoted string. Some SDKs model
+// this surface as an arbitrary-precision Decimal and emit "1.5" (a string),
+// violating the spec's `type: number`. Go models it as *float64 and encodes it
+// via encoding/json, so the wire format is a bare number; this test locks that
+// parity and also proves it survives a serialize → deserialize round-trip as a
+// number. ──
+
+func TestSerialize_DecimalNumberFieldIsUnquoted(t *testing.T) {
+	t.Parallel()
+	weight := 1.5
+	pet := models.Pet{
+		Name:      "Fido",
+		PhotoUrls: models.Set[string]{"https://example.com/a.png"},
+		WeightKg:  &weight,
+	}
+
+	data, err := serialize(pet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(string(data), "\"weightKg\":1.5") {
+		t.Errorf("expected unquoted number weightKg=1.5 in serialized output, got: %s", string(data))
+	}
+	if strings.Contains(string(data), "\"weightKg\":\"1.5\"") {
+		t.Errorf("weightKg must not be a quoted string, got: %s", string(data))
+	}
+
+	var back models.Pet
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("round-trip deserialize failed: %v", err)
+	}
+	if back.WeightKg == nil || *back.WeightKg != 1.5 {
+		t.Errorf("expected WeightKg=1.5 after round-trip, got %v", back.WeightKg)
+	}
+}
+
 func TestDiscriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
 	t.Parallel()
 	wet := models.NewWetFood(350)

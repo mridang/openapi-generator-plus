@@ -33,10 +33,11 @@ impl BearerAuthenticator {
         if token.is_empty() || token.trim().is_empty() {
             panic!("Bearer token must not be empty or whitespace-only");
         }
-        if token.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F)) {
-            panic!(
-                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-            );
+        if token
+            .chars()
+            .any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
+        {
+            panic!("Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
         }
         Self {
             host: host.to_string(),
@@ -78,10 +79,7 @@ impl Authenticator for BearerAuthenticator {
                 &self.token
             };
             let mut headers = HashMap::new();
-            headers.insert(
-                "Authorization".to_string(),
-                format!("Bearer {}", value),
-            );
+            headers.insert("Authorization".to_string(), format!("Bearer {}", value));
             headers
         })
     }

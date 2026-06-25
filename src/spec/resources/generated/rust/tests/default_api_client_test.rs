@@ -14,9 +14,7 @@ use petstore::*;
 #[tokio::test]
 async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
     let chasm_url = testcontainers_helper::chasm_https_url();
-    let transport = TransportOptionsBuilder::new()
-        .verify_ssl(false)
-        .build();
+    let transport = TransportOptionsBuilder::new().verify_ssl(false).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -54,9 +52,7 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
 async fn test_default_api_client_makes_http_request_through_proxy() {
     let chasm_url = testcontainers_helper::chasm_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
-    let transport = TransportOptionsBuilder::new()
-        .proxy(proxy)
-        .build();
+    let transport = TransportOptionsBuilder::new().proxy(proxy).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -111,7 +107,11 @@ async fn test_proxy_url_with_userinfo_preserves_credentials() {
     // TransportOptions must NOT have stripped the userinfo from the proxy URL.
     let proxy = transport.proxy().expect("proxy must be set");
     let parsed = Url::parse(proxy).expect("proxy url must parse");
-    assert_eq!(parsed.username(), "user", "proxy userinfo username must survive");
+    assert_eq!(
+        parsed.username(),
+        "user",
+        "proxy userinfo username must survive"
+    );
     assert_eq!(
         parsed.password(),
         Some("pass"),
@@ -151,9 +151,7 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
 #[tokio::test]
 async fn test_default_api_client_times_out_on_slow_endpoint() {
     let chasm_url = testcontainers_helper::chasm_http_url();
-    let transport = TransportOptionsBuilder::new()
-        .timeout(1000)
-        .build();
+    let transport = TransportOptionsBuilder::new().timeout(1000).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client
@@ -180,8 +178,10 @@ async fn test_default_api_client_injects_custom_user_agent_header() {
     /* chasm's echo envelope lowercases all header keys in the `headers` map. */
     let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
-    let ua = h.get("user-agent")
-        .and_then(|v| v.as_str()).expect("missing User-Agent");
+    let ua = h
+        .get("user-agent")
+        .and_then(|v| v.as_str())
+        .expect("missing User-Agent");
     assert_eq!(ua, "MyApp/1.0");
 }
 
@@ -200,7 +200,8 @@ async fn test_default_api_client_injects_request_id_header() {
 
     let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
-    let request_id = h.get("x-request-id")
+    let request_id = h
+        .get("x-request-id")
         .and_then(|v| v.as_str())
         .expect("missing X-Request-ID");
     assert!(!request_id.is_empty());
@@ -227,8 +228,10 @@ async fn test_default_api_client_includes_transport_default_headers() {
 
     let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
-    let v = h.get("x-custom")
-        .and_then(|v| v.as_str()).expect("missing X-Custom");
+    let v = h
+        .get("x-custom")
+        .and_then(|v| v.as_str())
+        .expect("missing X-Custom");
     assert_eq!(v, "custom-value");
 }
 
@@ -248,8 +251,10 @@ async fn test_default_api_client_caller_headers_override_transport_defaults() {
 
     let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
-    let v = h.get("accept")
-        .and_then(|v| v.as_str()).expect("missing Accept");
+    let v = h
+        .get("accept")
+        .and_then(|v| v.as_str())
+        .expect("missing Accept");
     assert_eq!(v, "application/json");
 }
 
@@ -262,7 +267,12 @@ async fn test_default_api_client_follows_redirects_when_enabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/test/redirect/302", chasm_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/test/redirect/302", chasm_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -281,7 +291,12 @@ async fn test_default_api_client_returns_redirect_when_disabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/test/redirect/302", chasm_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/test/redirect/302", chasm_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -483,9 +498,16 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
 
     assert_eq!(resp.status_code(), 200);
     let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
-    assert_eq!(json["method"], "POST", "follow-up request method must remain POST");
+    assert_eq!(
+        json["method"], "POST",
+        "follow-up request method must remain POST"
+    );
     let echoed_body = json["body"].as_str().unwrap_or("");
-    assert!(!echoed_body.is_empty(), "redirect target must echo a non-empty replayed body, got: {:?}", json);
+    assert!(
+        !echoed_body.is_empty(),
+        "redirect target must echo a non-empty replayed body, got: {:?}",
+        json
+    );
 }
 
 #[tokio::test]
@@ -495,7 +517,13 @@ async fn test_default_api_client_respects_max_redirects_limit() {
         .max_redirects(Some(5))
         .build();
     let client = DefaultApiClient::new(Some(transport));
-    assert!(client.send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None).await.is_err() || true);
+    assert!(
+        client
+            .send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None)
+            .await
+            .is_err()
+            || true
+    );
 }
 
 /// Gap T6: explicit close() and Drop on DefaultApiClient must not panic.
@@ -528,7 +556,12 @@ async fn test_default_api_client_sends_multipart_form_data() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let _resp = client
-        .send_request("POST", &format!("{}/test/echo", chasm_url), &headers, Some(&request_body))
+        .send_request(
+            "POST",
+            &format!("{}/test/echo", chasm_url),
+            &headers,
+            Some(&request_body),
+        )
         .await;
 }
 
@@ -545,11 +578,20 @@ async fn test_default_api_client_decompresses_gzip_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "gzip".to_string());
     let resp = client
-        .send_request("GET", &format!("{}/test/compressed/gzip", chasm_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/test/compressed/gzip", chasm_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("userId"), "expected decompressed body, got: {}", resp.body());
+    assert!(
+        resp.body().contains("userId"),
+        "expected decompressed body, got: {}",
+        resp.body()
+    );
 }
 
 #[tokio::test]
@@ -559,11 +601,20 @@ async fn test_default_api_client_decompresses_zstd_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "zstd".to_string());
     let resp = client
-        .send_request("GET", &format!("{}/test/compressed/zstd", chasm_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/test/compressed/zstd", chasm_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("userId"), "expected decompressed body, got: {}", resp.body());
+    assert!(
+        resp.body().contains("userId"),
+        "expected decompressed body, got: {}",
+        resp.body()
+    );
 }
 
 // Regression: POST/PUT/PATCH with body == None must emit an explicit

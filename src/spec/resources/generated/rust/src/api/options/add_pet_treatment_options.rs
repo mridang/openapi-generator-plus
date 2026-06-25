@@ -1,5 +1,5 @@
-use crate::models::*;
 use crate::auth::Authenticator;
+use crate::models::*;
 use std::sync::Arc;
 
 /// Options for the add_pet_treatment operation.

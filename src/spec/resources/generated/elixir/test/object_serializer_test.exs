@@ -895,6 +895,52 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
+  # type:number (no format) field must serialize as an UNQUOTED JSON number,
+  # never a quoted string. Pet.weightKg is `type: number` with no `format`;
+  # the Elixir model types it as a native `float()`, so sanitize emits the bare
+  # value and Jason encodes `1.5` (not "1.5"). Cross-SDK parity regression: the
+  # python/node SDKs modelled this as an arbitrary-precision Decimal and emitted
+  # a quoted string, diverging from the spec's `type: number`. This SDK is
+  # correct because it carries the value as a plain float through the wire.
+  describe "type:number field serializes as an unquoted JSON number" do
+    test "weightKg set to 1.5 emits a bare JSON number, not a quoted string" do
+      pet = %PetstoreClient.Models.Pet{
+        name: "Rex",
+        photo_urls: ["http://example.com/rex.jpg"],
+        weight_kg: 1.5
+      }
+
+      json = PetstoreClient.ObjectSerializer.serialize(pet)
+
+      # Raw wire form: unquoted number, never the quoted-string spelling.
+      assert String.contains?(json, "\"weightKg\":1.5"),
+             "weightKg must be an unquoted number: #{json}"
+
+      refute String.contains?(json, "\"weightKg\":\"1.5\""),
+             "weightKg must NOT be a quoted string: #{json}"
+
+      # Decoded back, the value is a JSON number (float), not a string.
+      data = Jason.decode!(json)
+      assert data["weightKg"] == 1.5
+      assert is_float(data["weightKg"])
+    end
+
+    test "weightKg survives a serialize -> deserialize round-trip as a number" do
+      pet = %PetstoreClient.Models.Pet{
+        name: "Rex",
+        photo_urls: ["http://example.com/rex.jpg"],
+        weight_kg: 1.5
+      }
+
+      json = PetstoreClient.ObjectSerializer.serialize(pet)
+      decoded = PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
+
+      assert %PetstoreClient.Models.Pet{} = decoded
+      assert decoded.weight_kg == 1.5
+      assert is_float(decoded.weight_kg)
+    end
+  end
+
   describe "oneOf/anyOf no-match" do
     test "resolve_one_of returns the first matching variant" do
       candidates = [

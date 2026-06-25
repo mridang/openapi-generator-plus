@@ -813,6 +813,38 @@ void main() {
       expect(restored.priority, equals(Priority.NUMBER_3));
     });
 
+    // -- DecimalAsNumberWireFormTests (WAVE B) --
+    //
+    // Pet.weightKg is declared `type: number` with NO `format`, i.e. a bare
+    // JSON number. It must serialize to an UNQUOTED JSON number (1.5), never a
+    // quoted string ("1.5"). Dart models the field as a native `double`, so
+    // jsonEncode emits a number directly — this guards that the field never
+    // regresses to a string-wrapped arbitrary-precision Decimal (the bug other
+    // SDKs hit). It also asserts the value survives serialize -> deserialize as
+    // a number.
+    test('type:number weightKg serializes as an unquoted JSON number', () {
+      final pet = Pet(
+        name: 'Fido',
+        photoUrls: <String>{'http://x/y.jpg'},
+        weightKg: 1.5,
+      );
+
+      final wire = pet.toJson();
+      expect(wire['weightKg'], equals(1.5));
+      expect(wire['weightKg'], isA<double>());
+
+      final encoded = serialize(pet);
+      // The number must appear as 1.5, never the string "1.5".
+      expect(encoded, contains('"weightKg":1.5'));
+      expect(encoded, isNot(contains('"weightKg":"1.5"')));
+
+      // Round-trip: it survives serialize -> deserialize still a number.
+      final restored = deserialize<Pet>(encoded, Pet.fromJson);
+      expect(restored, isNotNull);
+      expect(restored!.weightKg, equals(1.5));
+      expect(restored.weightKg, isA<double>());
+    });
+
     // -- NonLowercaseStringEnumTests (canonical scenario 2) --
     //
     // Availability is a string enum whose wire values are NOT all lowercase

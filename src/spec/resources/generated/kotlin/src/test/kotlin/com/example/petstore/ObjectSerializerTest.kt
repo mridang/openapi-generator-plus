@@ -907,6 +907,32 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("type:number Decimal (Pet.weightKg) serializes as an UNQUOTED JSON number")
+        fun decimalNumberFieldSerializesAsUnquotedNumber() {
+            // weightKg is a bare `type: number` (no format) property modelled
+            // as java.math.BigDecimal with the contextual BigDecimalSerializer.
+            // The spec types it as a JSON number, so the wire form of a
+            // non-integer value (1.5) must be a bare number token (1.5), never
+            // a quoted string ("1.5"). BigDecimalSerializer emits the canonical
+            // plain string through JsonUnquotedLiteral, preserving arbitrary
+            // precision while staying a JSON Number.
+            val pet =
+                com.example.petstore.models.Pet(
+                    name = "fido",
+                    weightKg = java.math.BigDecimal("1.5"),
+                )
+            val json = serializer.serialize(pet)
+            assertTrue(json.contains("\"weightKg\":1.5"), "weightKg must serialize as a JSON number, got: $json")
+            assertFalse(json.contains("\"weightKg\":\"1.5\""), "weightKg must NOT be a quoted string, got: $json")
+
+            // It must survive a serialize -> deserialize round trip as a
+            // BigDecimal carrying the same numeric value.
+            val decoded = serializer.deserialize<com.example.petstore.models.Pet>(json)
+            assertNotNull(decoded)
+            assertEquals(0, java.math.BigDecimal("1.5").compareTo(decoded!!.weightKg))
+        }
+
+        @Test
         @DisplayName("non-lowercase string enum (Availability) round-trips with wire casing preserved")
         fun nonLowercaseStringEnumPreservesWireCasing() {
             // Availability is a non-lowercase string enum (Available, Sold,

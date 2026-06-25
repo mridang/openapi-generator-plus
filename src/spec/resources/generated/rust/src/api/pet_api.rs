@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
+use crate::api::options::*;
 use crate::api_client::ApiClient;
 use crate::api_client::MultipartValue;
 use crate::api_error::ApiError;
@@ -19,7 +20,6 @@ use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
-use crate::api::options::*;
 use crate::value_serializer::SerializedValue;
 
 /// Per-operation server URL trait for get_external_pet_info.
@@ -30,12 +30,10 @@ pub trait GetExternalPetInfoServer {
 
 /// Server variant for GetExternalPetInfoServer.
 #[derive(Debug, Clone)]
-pub struct GetExternalPetInfoServerServer0 {
-}
+pub struct GetExternalPetInfoServerServer0 {}
 
 impl GetExternalPetInfoServer for GetExternalPetInfoServerServer0 {
     fn get_url(&self) -> String {
-
         "https://external-api.example.com/v1".to_string()
     }
 }
@@ -66,12 +64,10 @@ impl GetMultiServerPetInfoServerRegion {
 
 /// Primary
 #[derive(Debug, Clone)]
-pub struct GetMultiServerPetInfoServerPrimary {
-}
+pub struct GetMultiServerPetInfoServerPrimary {}
 
 impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerPrimary {
     fn get_url(&self) -> String {
-
         "https://primary.example.com/v1".to_string()
     }
 }
@@ -84,13 +80,11 @@ pub struct GetMultiServerPetInfoServerRegional {
 
 impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerRegional {
     fn get_url(&self) -> String {
-
         let mut url = "https://{region}.example.com/v1".to_string();
 
         url = url.replace(&("{".to_owned() + "region" + "}"), self.region.as_str());
 
         url
-
     }
 }
 
@@ -102,12 +96,10 @@ pub trait GetPetByIdServer {
 
 /// CDN-backed read endpoint for pet details
 #[derive(Debug, Clone)]
-pub struct GetPetByIdServerCDNBackedReadEndpointForPetDetails {
-}
+pub struct GetPetByIdServerCDNBackedReadEndpointForPetDetails {}
 
 impl GetPetByIdServer for GetPetByIdServerCDNBackedReadEndpointForPetDetails {
     fn get_url(&self) -> String {
-
         "https://cdn.petstore.io/v3".to_string()
     }
 }
@@ -159,14 +151,15 @@ pub struct GetStagingPetInfoServerStagingServer {
 
 impl GetStagingPetInfoServer for GetStagingPetInfoServerStagingServer {
     fn get_url(&self) -> String {
-
         let mut url = "https://{environment}.example.com/api/{version}".to_string();
 
-        url = url.replace(&("{".to_owned() + "environment" + "}"), self.environment.as_str());
+        url = url.replace(
+            &("{".to_owned() + "environment" + "}"),
+            self.environment.as_str(),
+        );
         url = url.replace(&("{".to_owned() + "version" + "}"), self.version.as_str());
 
         url
-
     }
 }
 
@@ -179,7 +172,11 @@ pub struct PetApi {
 
 impl PetApi {
     /// Creates a new PetApi instance.
-    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+    pub fn new(
+        api_client: Arc<dyn ApiClient>,
+        config: Configuration,
+        authenticator: Option<Arc<dyn Authenticator>>,
+    ) -> Self {
         Self {
             base: BaseApi::new(api_client, config, authenticator),
         }
@@ -191,12 +188,8 @@ impl PetApi {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.add_pet_with_http_info(
-            pet,
-            options,
-        ).await?;
+        let result = self.add_pet_with_http_info(pet, options).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -219,7 +212,6 @@ impl PetApi {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `application/json` as request content-types.
@@ -229,13 +221,7 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the add_pet_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.add_pet_invoke(
-            pet,
-            options,
-
-            "application/json",
-        )
-        .await
+        self.add_pet_invoke(pet, options, "application/json").await
     }
 
     /// Shared implementation for the add_pet operation. The resolved
@@ -288,12 +274,8 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-
     ) -> Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.add_pet_photos_with_http_info(
-            pet_id,
-            options,
-        ).await?;
+        let result = self.add_pet_photos_with_http_info(pet_id, options).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -316,7 +298,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-
     ) -> Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `multipart/form-data` as request content-types.
@@ -326,13 +307,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the add_pet_photos_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.add_pet_photos_invoke(
-            pet_id,
-            options,
-
-            "multipart/form-data",
-        )
-        .await
+        self.add_pet_photos_invoke(pet_id, options, "multipart/form-data")
+            .await
     }
 
     /// Shared implementation for the add_pet_photos operation. The resolved
@@ -346,7 +322,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/photos".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -385,10 +360,25 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!("missing required parameter '{}' when calling PetApi.add_pet_photos", "options").into()
+            format!(
+                "missing required parameter '{}' when calling PetApi.add_pet_photos",
+                "options"
+            )
+            .into()
         })?;
-            multipart.insert("files".to_string(), MultipartValue::List(opts.files.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()));
-            multipart.insert("metadata".to_string(), MultipartValue::Json(object_serializer::serialize(&opts.metadata)?));
+        multipart.insert(
+            "files".to_string(),
+            MultipartValue::List(
+                opts.files
+                    .iter()
+                    .map(|b| MultipartValue::Bytes(b.clone()))
+                    .collect(),
+            ),
+        );
+        multipart.insert(
+            "metadata".to_string(),
+            MultipartValue::Json(object_serializer::serialize(&opts.metadata)?),
+        );
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 
@@ -419,13 +409,10 @@ impl PetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-
     ) -> Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.add_pet_treatment_with_http_info(
-            pet_id,
-            pet_treatment,
-            options,
-        ).await?;
+        let result = self
+            .add_pet_treatment_with_http_info(pet_id, pet_treatment, options)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -449,7 +436,6 @@ impl PetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-
     ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `application/json` as request content-types.
@@ -459,14 +445,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the add_pet_treatment_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.add_pet_treatment_invoke(
-            pet_id,
-            pet_treatment,
-            options,
-
-            "application/json",
-        )
-        .await
+        self.add_pet_treatment_invoke(pet_id, pet_treatment, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the add_pet_treatment operation. The resolved
@@ -527,7 +507,9 @@ impl PetApi {
             auth,
         };
 
-        self.base.invoke_api_for_result::<PetTreatment>(params).await
+        self.base
+            .invoke_api_for_result::<PetTreatment>(params)
+            .await
     }
 
     /// Deletes a pet
@@ -537,12 +519,8 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.delete_pet_with_http_info(
-            pet_id,
-            options,
-        ).await?;
+        let result = self.delete_pet_with_http_info(pet_id, options).await?;
         let _ = result;
         Ok(())
     }
@@ -552,7 +530,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -562,13 +539,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the delete_pet_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.delete_pet_invoke(
-            pet_id,
-            options,
-
-            "application/json",
-        )
-        .await
+        self.delete_pet_invoke(pet_id, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the delete_pet operation. The resolved
@@ -678,12 +650,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         document_id: i64,
-
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.download_pet_document_with_http_info(
-            pet_id,
-            document_id,
-        ).await?;
+        let result = self
+            .download_pet_document_with_http_info(pet_id, document_id)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -706,7 +676,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         document_id: i64,
-
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -716,13 +685,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the download_pet_document_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.download_pet_document_invoke(
-            pet_id,
-            document_id,
-
-            "application/json",
-        )
-        .await
+        self.download_pet_document_invoke(pet_id, document_id, "application/json")
+            .await
     }
 
     /// Shared implementation for the download_pet_document operation. The resolved
@@ -736,7 +700,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/documents/{documentId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -817,11 +780,8 @@ impl PetApi {
     pub async fn find_pets_by_status(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-
     ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.find_pets_by_status_with_http_info(
-            options,
-        ).await?;
+        let result = self.find_pets_by_status_with_http_info(options).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -843,7 +803,6 @@ impl PetApi {
     pub async fn find_pets_by_status_with_http_info(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -853,12 +812,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the find_pets_by_status_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.find_pets_by_status_invoke(
-            options,
-
-            "application/json",
-        )
-        .await
+        self.find_pets_by_status_invoke(options, "application/json")
+            .await
     }
 
     /// Shared implementation for the find_pets_by_status operation. The resolved
@@ -871,7 +826,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/findByStatus".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -939,12 +893,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_external_pet_info_with_http_info(
-            pet_id,
-            server,
-        ).await?;
+        let result = self
+            .get_external_pet_info_with_http_info(pet_id, server)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -967,7 +919,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -977,13 +928,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_external_pet_info_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_external_pet_info_invoke(
-            pet_id,
-            server,
-
-            "application/json",
-        )
-        .await
+        self.get_external_pet_info_invoke(pet_id, server, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_external_pet_info operation. The resolved
@@ -997,7 +943,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/external".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1055,12 +1000,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_multi_server_pet_info_with_http_info(
-            pet_id,
-            server,
-        ).await?;
+        let result = self
+            .get_multi_server_pet_info_with_http_info(pet_id, server)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1083,7 +1026,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1093,13 +1035,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_multi_server_pet_info_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_multi_server_pet_info_invoke(
-            pet_id,
-            server,
-
-            "application/json",
-        )
-        .await
+        self.get_multi_server_pet_info_invoke(pet_id, server, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_multi_server_pet_info operation. The resolved
@@ -1113,7 +1050,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/multi".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1171,11 +1107,8 @@ impl PetApi {
     pub async fn get_pet_avatar(
         &self,
         pet_id: i64,
-
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_avatar_with_http_info(
-            pet_id,
-        ).await?;
+        let result = self.get_pet_avatar_with_http_info(pet_id).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1197,7 +1130,6 @@ impl PetApi {
     pub async fn get_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
-
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1207,12 +1139,7 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_pet_avatar_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_pet_avatar_invoke(
-            pet_id,
-
-            "application/json",
-        )
-        .await
+        self.get_pet_avatar_invoke(pet_id, "application/json").await
     }
 
     /// Shared implementation for the get_pet_avatar operation. The resolved
@@ -1225,7 +1152,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1277,11 +1203,8 @@ impl PetApi {
     pub async fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
-
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_avatar_thumbnail_with_http_info(
-            pet_id,
-        ).await?;
+        let result = self.get_pet_avatar_thumbnail_with_http_info(pet_id).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1303,7 +1226,6 @@ impl PetApi {
     pub async fn get_pet_avatar_thumbnail_with_http_info(
         &self,
         pet_id: i64,
-
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1313,12 +1235,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_pet_avatar_thumbnail_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_pet_avatar_thumbnail_invoke(
-            pet_id,
-
-            "application/json",
-        )
-        .await
+        self.get_pet_avatar_thumbnail_invoke(pet_id, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_pet_avatar_thumbnail operation. The resolved
@@ -1331,7 +1249,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1396,12 +1313,8 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_by_id_with_http_info(
-            pet_id,
-            server,
-        ).await?;
+        let result = self.get_pet_by_id_with_http_info(pet_id, server).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1424,7 +1337,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1434,13 +1346,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_pet_by_id_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_pet_by_id_invoke(
-            pet_id,
-            server,
-
-            "application/json",
-        )
-        .await
+        self.get_pet_by_id_invoke(pet_id, server, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_pet_by_id operation. The resolved
@@ -1454,7 +1361,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1512,12 +1418,8 @@ impl PetApi {
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_by_name_with_http_info(
-            name,
-            options,
-        ).await?;
+        let result = self.get_pet_by_name_with_http_info(name, options).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1540,7 +1442,6 @@ impl PetApi {
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1550,13 +1451,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_pet_by_name_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_pet_by_name_invoke(
-            name,
-            options,
-
-            "application/json",
-        )
-        .await
+        self.get_pet_by_name_invoke(name, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_pet_by_name operation. The resolved
@@ -1571,7 +1467,11 @@ impl PetApi {
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         if name.is_empty() {
-            return Err(format!("missing required parameter '{}' when calling PetApi.get_pet_by_name", "name").into());
+            return Err(format!(
+                "missing required parameter '{}' when calling PetApi.get_pet_by_name",
+                "name"
+            )
+            .into());
         }
 
         let mut path = "/pet/byName/{name}".to_string();
@@ -1597,7 +1497,11 @@ impl PetApi {
         // missing Options is a programming error and is rejected up front,
         // matching the required-param validation the other SDKs perform.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!("missing required parameter '{}' when calling PetApi.get_pet_by_name", "category").into()
+            format!(
+                "missing required parameter '{}' when calling PetApi.get_pet_by_name",
+                "category"
+            )
+            .into()
         })?;
         if let Some(serialized) = value_serializer::serialize_styled(
             "category",
@@ -1652,11 +1556,8 @@ impl PetApi {
     pub async fn get_pet_passport(
         &self,
         pet_id: i64,
-
     ) -> Result<PetPassport, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_passport_with_http_info(
-            pet_id,
-        ).await?;
+        let result = self.get_pet_passport_with_http_info(pet_id).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1678,7 +1579,6 @@ impl PetApi {
     pub async fn get_pet_passport_with_http_info(
         &self,
         pet_id: i64,
-
     ) -> Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1688,12 +1588,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_pet_passport_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_pet_passport_invoke(
-            pet_id,
-
-            "application/json",
-        )
-        .await
+        self.get_pet_passport_invoke(pet_id, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_pet_passport operation. The resolved
@@ -1706,7 +1602,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/passport".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1759,12 +1654,8 @@ impl PetApi {
         &self,
         pet_id: i64,
         photo_id: i64,
-
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_photo_with_http_info(
-            pet_id,
-            photo_id,
-        ).await?;
+        let result = self.get_pet_photo_with_http_info(pet_id, photo_id).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1787,7 +1678,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         photo_id: i64,
-
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1797,13 +1687,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_pet_photo_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_pet_photo_invoke(
-            pet_id,
-            photo_id,
-
-            "application/json",
-        )
-        .await
+        self.get_pet_photo_invoke(pet_id, photo_id, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_pet_photo operation. The resolved
@@ -1817,7 +1702,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/photos/{photoId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1886,13 +1770,10 @@ impl PetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_tag_with_http_info(
-            pet_id,
-            tag_name,
-            options,
-        ).await?;
+        let result = self
+            .get_pet_tag_with_http_info(pet_id, tag_name, options)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1916,7 +1797,6 @@ impl PetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1926,14 +1806,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_pet_tag_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_pet_tag_invoke(
-            pet_id,
-            tag_name,
-            options,
-
-            "application/json",
-        )
-        .await
+        self.get_pet_tag_invoke(pet_id, tag_name, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_pet_tag operation. The resolved
@@ -1949,7 +1823,11 @@ impl PetApi {
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         if tag_name.is_empty() {
-            return Err(format!("missing required parameter '{}' when calling PetApi.get_pet_tag", "tag_name").into());
+            return Err(format!(
+                "missing required parameter '{}' when calling PetApi.get_pet_tag",
+                "tag_name"
+            )
+            .into());
         }
 
         let mut path = "/pet/{petId}/tag/{tagName}".to_string();
@@ -2096,12 +1974,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_staging_pet_info_with_http_info(
-            pet_id,
-            server,
-        ).await?;
+        let result = self
+            .get_staging_pet_info_with_http_info(pet_id, server)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -2124,7 +2000,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -2134,13 +2009,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_staging_pet_info_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_staging_pet_info_invoke(
-            pet_id,
-            server,
-
-            "application/json",
-        )
-        .await
+        self.get_staging_pet_info_invoke(pet_id, server, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_staging_pet_info operation. The resolved
@@ -2154,7 +2024,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/staging".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2213,12 +2082,8 @@ impl PetApi {
         &self,
         pet_id: i64,
         body: Vec<u8>,
-
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.set_pet_avatar_with_http_info(
-            pet_id,
-            body,
-        ).await?;
+        let result = self.set_pet_avatar_with_http_info(pet_id, body).await?;
         let _ = result;
         Ok(())
     }
@@ -2228,7 +2093,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         body: Vec<u8>,
-
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `image/jpeg`, `image/png`, `application/json` as request content-types.
@@ -2238,13 +2102,7 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the set_pet_avatar_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.set_pet_avatar_invoke(
-            pet_id,
-            body,
-
-            "image/jpeg",
-        )
-        .await
+        self.set_pet_avatar_invoke(pet_id, body, "image/jpeg").await
     }
 
     /// Performs the set_pet_avatar operation with an explicit request
@@ -2264,13 +2122,8 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        self.set_pet_avatar_invoke(
-            pet_id,
-            body,
-
-            request_content_type,
-        )
-        .await
+        self.set_pet_avatar_invoke(pet_id, body, request_content_type)
+            .await
     }
 
     /// Shared implementation for the set_pet_avatar operation. The resolved
@@ -2284,7 +2137,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2344,12 +2196,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
-
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.set_pet_avatar_thumbnail_with_http_info(
-            pet_id,
-            set_pet_avatar_thumbnail_request,
-        ).await?;
+        let result = self
+            .set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
+            .await?;
         let _ = result;
         Ok(())
     }
@@ -2359,7 +2209,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
-
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `application/json` as request content-types.
@@ -2372,7 +2221,6 @@ impl PetApi {
         self.set_pet_avatar_thumbnail_invoke(
             pet_id,
             set_pet_avatar_thumbnail_request,
-
             "application/json",
         )
         .await
@@ -2389,7 +2237,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2412,7 +2259,8 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&set_pet_avatar_thumbnail_request)?.into_bytes());
+        let request_body =
+            Some(object_serializer::serialize(&set_pet_avatar_thumbnail_request)?.into_bytes());
         let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
@@ -2442,12 +2290,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-
     ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.set_pet_preferences_with_http_info(
-            pet_id,
-            options,
-        ).await?;
+        let result = self
+            .set_pet_preferences_with_http_info(pet_id, options)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -2470,7 +2316,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `application/x-www-form-urlencoded` as request content-types.
@@ -2480,13 +2325,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the set_pet_preferences_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.set_pet_preferences_invoke(
-            pet_id,
-            options,
-
-            "application/x-www-form-urlencoded",
-        )
-        .await
+        self.set_pet_preferences_invoke(pet_id, options, "application/x-www-form-urlencoded")
+            .await
     }
 
     /// Shared implementation for the set_pet_preferences operation. The resolved
@@ -2500,7 +2340,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/preferences".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2529,7 +2368,10 @@ impl PetApi {
         // omitted entirely; spaces are encoded as `+`.
         let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
         if let Some(opts) = options {
-            form_pairs.push(("nickname".to_string(), serde_json::to_value(&opts.nickname)?));
+            form_pairs.push((
+                "nickname".to_string(),
+                serde_json::to_value(&opts.nickname)?,
+            ));
             if let Some(ref val) = opts.tags {
                 form_pairs.push(("tags".to_string(), serde_json::to_value(val)?));
             }
@@ -2568,12 +2410,8 @@ impl PetApi {
         &self,
         pet_id: i64,
         pet: Pet,
-
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.update_pet_with_http_info(
-            pet_id,
-            pet,
-        ).await?;
+        let result = self.update_pet_with_http_info(pet_id, pet).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -2596,7 +2434,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         pet: Pet,
-
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `application/json` as request content-types.
@@ -2606,13 +2443,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the update_pet_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.update_pet_invoke(
-            pet_id,
-            pet,
-
-            "application/json",
-        )
-        .await
+        self.update_pet_invoke(pet_id, pet, "application/json")
+            .await
     }
 
     /// Shared implementation for the update_pet operation. The resolved
@@ -2626,7 +2458,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2679,12 +2510,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-
     ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.upload_pet_certificate_with_http_info(
-            pet_id,
-            options,
-        ).await?;
+        let result = self
+            .upload_pet_certificate_with_http_info(pet_id, options)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -2707,7 +2536,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `multipart/form-data` as request content-types.
@@ -2717,13 +2545,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the upload_pet_certificate_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.upload_pet_certificate_invoke(
-            pet_id,
-            options,
-
-            "multipart/form-data",
-        )
-        .await
+        self.upload_pet_certificate_invoke(pet_id, options, "multipart/form-data")
+            .await
     }
 
     /// Shared implementation for the upload_pet_certificate operation. The resolved
@@ -2737,7 +2560,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/certificate".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2776,9 +2598,13 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!("missing required parameter '{}' when calling PetApi.upload_pet_certificate", "options").into()
+            format!(
+                "missing required parameter '{}' when calling PetApi.upload_pet_certificate",
+                "options"
+            )
+            .into()
         })?;
-            multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
+        multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 
@@ -2809,12 +2635,10 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetDocumentOptions>,
-
     ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.upload_pet_document_with_http_info(
-            pet_id,
-            options,
-        ).await?;
+        let result = self
+            .upload_pet_document_with_http_info(pet_id, options)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -2837,7 +2661,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetDocumentOptions>,
-
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `multipart/form-data`, `application/octet-stream` as request content-types.
@@ -2847,13 +2670,8 @@ impl PetApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the upload_pet_document_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.upload_pet_document_invoke(
-            pet_id,
-            options,
-
-            "multipart/form-data",
-        )
-        .await
+        self.upload_pet_document_invoke(pet_id, options, "multipart/form-data")
+            .await
     }
 
     /// Performs the upload_pet_document operation with an explicit request
@@ -2873,13 +2691,8 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        self.upload_pet_document_invoke(
-            pet_id,
-            options,
-
-            request_content_type,
-        )
-        .await
+        self.upload_pet_document_invoke(pet_id, options, request_content_type)
+            .await
     }
 
     /// Shared implementation for the upload_pet_document operation. The resolved
@@ -2893,7 +2706,6 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/pet/{petId}/documents".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2932,15 +2744,25 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!("missing required parameter '{}' when calling PetApi.upload_pet_document", "options").into()
+            format!(
+                "missing required parameter '{}' when calling PetApi.upload_pet_document",
+                "options"
+            )
+            .into()
         })?;
-            multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
-            if let Some(ref val) = opts.document_type {
-                multipart.insert("documentType".to_string(), MultipartValue::Text(object_serializer::stringify(val)));
-            }
-            if let Some(ref val) = opts.notes {
-                multipart.insert("notes".to_string(), MultipartValue::Text(object_serializer::stringify(val)));
-            }
+        multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
+        if let Some(ref val) = opts.document_type {
+            multipart.insert(
+                "documentType".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            );
+        }
+        if let Some(ref val) = opts.notes {
+            multipart.insert(
+                "notes".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            );
+        }
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 

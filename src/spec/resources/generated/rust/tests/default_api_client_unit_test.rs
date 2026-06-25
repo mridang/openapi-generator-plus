@@ -11,8 +11,8 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use petstore::*;
 use petstore::api_client::{RequestBody, RequestOptions};
+use petstore::*;
 // The `default_api_client` module is crate-private, so its free helpers
 // (build_filename_directive, decode_text_body, is_https_to_http_body_replay,
 // mime_for_filename, parse_charset, validate_multipart_filename,
@@ -64,7 +64,10 @@ fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<
             let text = String::from_utf8_lossy(&buf[..n_read]);
             for line in text.lines() {
                 if line.to_lowercase().starts_with("x-request-id:") {
-                    captured_clone.lock().unwrap().push(line[13..].trim().to_string());
+                    captured_clone
+                        .lock()
+                        .unwrap()
+                        .push(line[13..].trim().to_string());
                 }
             }
             /* Connection: close forces the client to open a fresh TCP
@@ -122,9 +125,7 @@ async fn test_default_api_client_builds_with_verify_ssl_false() {
      * a plain-HTTP endpoint. */
     let base_url = start_echo_server();
 
-    let transport = TransportOptionsBuilder::new()
-        .verify_ssl(false)
-        .build();
+    let transport = TransportOptionsBuilder::new().verify_ssl(false).build();
     let client = DefaultApiClient::new(Some(transport));
 
     let headers = HashMap::new();
@@ -268,7 +269,9 @@ fn start_method_echo_server() -> String {
             let n = stream.read(&mut buf).unwrap_or(0);
             let text = String::from_utf8_lossy(&buf[..n]);
 
-            let method = text.lines().next()
+            let method = text
+                .lines()
+                .next()
                 .and_then(|l| l.split_whitespace().next())
                 .unwrap_or("GET")
                 .to_string();
@@ -497,7 +500,7 @@ async fn test_authorization_stripped_on_cross_origin_redirect() {
 #[tokio::test]
 async fn test_api_key_header_stripped_on_cross_origin_redirect() {
     // Use the first spec-declared API-key header for the assertion.
-    let api_key_header_names: Vec<&str> = vec!["X-API-Key", "X-Internal-Key", ];
+    let api_key_header_names: Vec<&str> = vec!["X-API-Key", "X-Internal-Key"];
     let api_key_header = api_key_header_names[0];
 
     let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
@@ -508,7 +511,10 @@ async fn test_api_key_header_stripped_on_cross_origin_redirect() {
     let client = DefaultApiClient::new(Some(transport));
 
     let mut headers = HashMap::new();
-    headers.insert(api_key_header.to_string(), "secret-api-key-value".to_string());
+    headers.insert(
+        api_key_header.to_string(),
+        "secret-api-key-value".to_string(),
+    );
 
     let _ = client
         .send_request("GET", &format!("{}/start", origin_url), &headers, None)
@@ -537,8 +543,7 @@ async fn test_api_key_header_stripped_on_cross_origin_redirect() {
 /// second connection must NOT happen.
 #[tokio::test]
 async fn test_no_redirect_returns_307_verbatim() {
-    let (base_url, captured) =
-        start_307_redirect_server("http://127.0.0.1:1/never".to_string());
+    let (base_url, captured) = start_307_redirect_server("http://127.0.0.1:1/never".to_string());
 
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -560,7 +565,8 @@ async fn test_no_redirect_returns_307_verbatim() {
 
     let response = result.expect("no_redirect must return the 3xx, not error");
     assert_eq!(
-        307, response.status_code(),
+        307,
+        response.status_code(),
         "no_redirect=true must return the 3xx response as-is"
     );
     // Only the first (initial) request must have been issued; the redirect
@@ -661,7 +667,11 @@ async fn test_default_api_client_sends_get_request_and_returns_response() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("GET"), "expected body to contain GET, got: {}", resp.body());
+    assert!(
+        resp.body().contains("GET"),
+        "expected body to contain GET, got: {}",
+        resp.body()
+    );
 }
 
 #[tokio::test]
@@ -676,8 +686,16 @@ async fn test_default_api_client_sends_post_with_json_body() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("POST"), "expected body to contain POST, got: {}", resp.body());
-    assert!(resp.body().contains("key"), "expected body to contain key, got: {}", resp.body());
+    assert!(
+        resp.body().contains("POST"),
+        "expected body to contain POST, got: {}",
+        resp.body()
+    );
+    assert!(
+        resp.body().contains("key"),
+        "expected body to contain key, got: {}",
+        resp.body()
+    );
 }
 
 #[tokio::test]
@@ -690,10 +708,15 @@ async fn test_default_api_client_returns_response_headers() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    let found = resp.headers().iter().any(|(k, v)| {
-        k.to_lowercase() == "x-test-header" && v == "test-value"
-    });
-    assert!(found, "expected X-Test-Header: test-value in response headers, got: {:?}", resp.headers());
+    let found = resp
+        .headers()
+        .iter()
+        .any(|(k, v)| k.to_lowercase() == "x-test-header" && v == "test-value");
+    assert!(
+        found,
+        "expected X-Test-Header: test-value in response headers, got: {:?}",
+        resp.headers()
+    );
 }
 
 #[tokio::test]
@@ -720,7 +743,11 @@ async fn test_default_api_client_sends_put_request() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("PUT"), "expected body to contain PUT, got: {}", resp.body());
+    assert!(
+        resp.body().contains("PUT"),
+        "expected body to contain PUT, got: {}",
+        resp.body()
+    );
 }
 
 #[tokio::test]
@@ -733,7 +760,11 @@ async fn test_default_api_client_sends_delete_request() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("DELETE"), "expected body to contain DELETE, got: {}", resp.body());
+    assert!(
+        resp.body().contains("DELETE"),
+        "expected body to contain DELETE, got: {}",
+        resp.body()
+    );
 }
 
 #[tokio::test]
@@ -746,7 +777,11 @@ async fn test_default_api_client_returns_json_body_for_vendor_json_content_type(
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    assert!(resp.body().contains("vendor"), "expected body to contain vendor, got: {}", resp.body());
+    assert!(
+        resp.body().contains("vendor"),
+        "expected body to contain vendor, got: {}",
+        resp.body()
+    );
 }
 
 #[tokio::test]
@@ -759,10 +794,15 @@ async fn test_default_api_client_joins_multi_value_response_headers() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code(), 200);
-    let value = resp.headers().iter()
+    let value = resp
+        .headers()
+        .iter()
         .find(|(k, _)| k.to_lowercase() == "x-custom-value")
         .map(|(_, v)| v.as_str());
-    assert!(value.is_some(), "expected X-Custom-Value header to be present");
+    assert!(
+        value.is_some(),
+        "expected X-Custom-Value header to be present"
+    );
     let val = value.unwrap();
     assert!(
         val.contains("val1") || val.contains("val2"),
@@ -901,7 +941,8 @@ async fn test_al_content_encoding_lie_surfaces_api_error() {
     );
     let err = result.unwrap_err();
     assert!(
-        err.downcast_ref::<petstore::api_error::ApiError>().is_some(),
+        err.downcast_ref::<petstore::api_error::ApiError>()
+            .is_some(),
         "Gap AL: the decompression failure must be wrapped in the SDK ApiError type, got: {}",
         err
     );
@@ -927,7 +968,8 @@ async fn test_body_read_failure_wrapped_in_api_error() {
     );
     let err = result.unwrap_err();
     assert!(
-        err.downcast_ref::<petstore::api_error::ApiError>().is_some(),
+        err.downcast_ref::<petstore::api_error::ApiError>()
+            .is_some(),
         "body-read failure must be wrapped in the SDK ApiError type, got: {}",
         err
     );

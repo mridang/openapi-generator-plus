@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
+use crate::api::options::*;
 use crate::api_client::ApiClient;
 use crate::api_client::MultipartValue;
 use crate::api_error::ApiError;
@@ -19,7 +20,6 @@ use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
-use crate::api::options::*;
 use crate::value_serializer::SerializedValue;
 
 /// StoreApi provides methods for the Store API group.
@@ -30,7 +30,11 @@ pub struct StoreApi {
 
 impl StoreApi {
     /// Creates a new StoreApi instance.
-    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+    pub fn new(
+        api_client: Arc<dyn ApiClient>,
+        config: Configuration,
+        authenticator: Option<Arc<dyn Authenticator>>,
+    ) -> Self {
         Self {
             base: BaseApi::new(api_client, config, authenticator),
         }
@@ -41,11 +45,8 @@ impl StoreApi {
     pub async fn delete_order(
         &self,
         order_id: i64,
-
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.delete_order_with_http_info(
-            order_id,
-        ).await?;
+        let result = self.delete_order_with_http_info(order_id).await?;
         let _ = result;
         Ok(())
     }
@@ -54,7 +55,6 @@ impl StoreApi {
     pub async fn delete_order_with_http_info(
         &self,
         order_id: i64,
-
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -64,12 +64,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the delete_order_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.delete_order_invoke(
-            order_id,
-
-            "application/json",
-        )
-        .await
+        self.delete_order_invoke(order_id, "application/json").await
     }
 
     /// Shared implementation for the delete_order operation. The resolved
@@ -82,7 +77,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -134,12 +128,10 @@ impl StoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-
     ) -> Result<Category, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_by_swatch_with_http_info(
-            path_swatch,
-            options,
-        ).await?;
+        let result = self
+            .get_by_swatch_with_http_info(path_swatch, options)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -162,7 +154,6 @@ impl StoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-
     ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -172,13 +163,8 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_by_swatch_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_by_swatch_invoke(
-            path_swatch,
-            options,
-
-            "application/json",
-        )
-        .await
+        self.get_by_swatch_invoke(path_swatch, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_by_swatch operation. The resolved
@@ -192,7 +178,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/by-swatch/{pathSwatch}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "pathSwatch",
@@ -281,12 +266,8 @@ impl StoreApi {
     }
 
     /// Returns a model exercising schema defaults on deserialize.
-    pub async fn get_defaults(
-        &self,
-
-    ) -> Result<Defaults, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_defaults_with_http_info(
-        ).await?;
+    pub async fn get_defaults(&self) -> Result<Defaults, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_defaults_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -307,7 +288,6 @@ impl StoreApi {
     /// Performs the get_defaults operation and returns the full API result.
     pub async fn get_defaults_with_http_info(
         &self,
-
     ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -317,11 +297,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_defaults_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_defaults_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_defaults_invoke("application/json").await
     }
 
     /// Shared implementation for the get_defaults operation. The resolved
@@ -333,7 +309,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/defaults".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -367,10 +342,8 @@ impl StoreApi {
     /// Returns a department (mutual-recursion codegen fixture).
     pub async fn get_department(
         &self,
-
     ) -> Result<Department, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_department_with_http_info(
-        ).await?;
+        let result = self.get_department_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -391,7 +364,6 @@ impl StoreApi {
     /// Performs the get_department operation and returns the full API result.
     pub async fn get_department_with_http_info(
         &self,
-
     ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -401,11 +373,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_department_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_department_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_department_invoke("application/json").await
     }
 
     /// Shared implementation for the get_department operation. The resolved
@@ -417,7 +385,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/department".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -451,10 +418,11 @@ impl StoreApi {
     /// Returns categories grouped into an array of string-keyed maps.
     pub async fn get_grouped_categories(
         &self,
-
-    ) -> Result<Vec<std::collections::HashMap<String, Category>>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_grouped_categories_with_http_info(
-        ).await?;
+    ) -> Result<
+        Vec<std::collections::HashMap<String, Category>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let result = self.get_grouped_categories_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -475,8 +443,10 @@ impl StoreApi {
     /// Performs the get_grouped_categories operation and returns the full API result.
     pub async fn get_grouped_categories_with_http_info(
         &self,
-
-    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, Category>>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, Category>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
         // The public get_grouped_categories_with_http_info entry point keeps its original
@@ -485,11 +455,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_grouped_categories_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_grouped_categories_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_grouped_categories_invoke("application/json").await
     }
 
     /// Shared implementation for the get_grouped_categories operation. The resolved
@@ -500,8 +466,10 @@ impl StoreApi {
         &self,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, Category>>>, Box<dyn std::error::Error + Send + Sync>> {
-
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, Category>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/grouped-categories".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -529,16 +497,17 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Vec<std::collections::HashMap<String, Category>>>(params).await
+        self.base
+            .invoke_api_for_result::<Vec<std::collections::HashMap<String, Category>>>(params)
+            .await
     }
 
     /// Returns pet inventories by status
     pub async fn get_inventory(
         &self,
-
-    ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_inventory_with_http_info(
-        ).await?;
+    ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let result = self.get_inventory_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -559,8 +528,10 @@ impl StoreApi {
     /// Performs the get_inventory operation and returns the full API result.
     pub async fn get_inventory_with_http_info(
         &self,
-
-    ) -> Result<ApiResult<std::collections::HashMap<String, i32>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<
+        ApiResult<std::collections::HashMap<String, i32>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
         // The public get_inventory_with_http_info entry point keeps its original
@@ -569,11 +540,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_inventory_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_inventory_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_inventory_invoke("application/json").await
     }
 
     /// Shared implementation for the get_inventory operation. The resolved
@@ -584,8 +551,10 @@ impl StoreApi {
         &self,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<std::collections::HashMap<String, i32>>, Box<dyn std::error::Error + Send + Sync>> {
-
+    ) -> Result<
+        ApiResult<std::collections::HashMap<String, i32>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/inventory".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -613,16 +582,16 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<std::collections::HashMap<String, i32>>(params).await
+        self.base
+            .invoke_api_for_result::<std::collections::HashMap<String, i32>>(params)
+            .await
     }
 
     /// Returns a matrix as an array of integer arrays.
     pub async fn get_matrix(
         &self,
-
     ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_matrix_with_http_info(
-        ).await?;
+        let result = self.get_matrix_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -643,7 +612,6 @@ impl StoreApi {
     /// Performs the get_matrix operation and returns the full API result.
     pub async fn get_matrix_with_http_info(
         &self,
-
     ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -653,11 +621,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_matrix_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_matrix_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_matrix_invoke("application/json").await
     }
 
     /// Shared implementation for the get_matrix operation. The resolved
@@ -669,7 +633,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/matrix".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -697,7 +660,9 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Vec<Vec<i32>>>(params).await
+        self.base
+            .invoke_api_for_result::<Vec<Vec<i32>>>(params)
+            .await
     }
 
     /// Find purchase order by ID
@@ -705,11 +670,8 @@ impl StoreApi {
     pub async fn get_order_by_id(
         &self,
         order_id: i64,
-
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_order_by_id_with_http_info(
-            order_id,
-        ).await?;
+        let result = self.get_order_by_id_with_http_info(order_id).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -731,7 +693,6 @@ impl StoreApi {
     pub async fn get_order_by_id_with_http_info(
         &self,
         order_id: i64,
-
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -741,12 +702,8 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_order_by_id_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_order_by_id_invoke(
-            order_id,
-
-            "application/json",
-        )
-        .await
+        self.get_order_by_id_invoke(order_id, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_order_by_id operation. The resolved
@@ -759,7 +716,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -811,11 +767,8 @@ impl StoreApi {
     pub async fn get_stock_item(
         &self,
         options: Option<&GetStockItemOptions>,
-
     ) -> Result<StockItem, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_stock_item_with_http_info(
-            options,
-        ).await?;
+        let result = self.get_stock_item_with_http_info(options).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -837,7 +790,6 @@ impl StoreApi {
     pub async fn get_stock_item_with_http_info(
         &self,
         options: Option<&GetStockItemOptions>,
-
     ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -847,12 +799,8 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_stock_item_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_stock_item_invoke(
-            options,
-
-            "application/json",
-        )
-        .await
+        self.get_stock_item_invoke(options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_stock_item operation. The resolved
@@ -865,7 +813,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/stock-item".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -922,12 +869,8 @@ impl StoreApi {
     }
 
     /// Returns a bare enum (value-type response codegen fixture).
-    pub async fn get_swatch(
-        &self,
-
-    ) -> Result<Swatch, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_swatch_with_http_info(
-        ).await?;
+    pub async fn get_swatch(&self) -> Result<Swatch, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_swatch_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -948,7 +891,6 @@ impl StoreApi {
     /// Performs the get_swatch operation and returns the full API result.
     pub async fn get_swatch_with_http_info(
         &self,
-
     ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -958,11 +900,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_swatch_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_swatch_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_swatch_invoke("application/json").await
     }
 
     /// Shared implementation for the get_swatch operation. The resolved
@@ -974,7 +912,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/swatch".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1008,10 +945,11 @@ impl StoreApi {
     /// Returns swatches grouped as an array of string-keyed enum maps.
     pub async fn get_swatch_groups(
         &self,
-
-    ) -> Result<Vec<std::collections::HashMap<String, Swatch>>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_swatch_groups_with_http_info(
-        ).await?;
+    ) -> Result<
+        Vec<std::collections::HashMap<String, Swatch>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let result = self.get_swatch_groups_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1032,8 +970,10 @@ impl StoreApi {
     /// Performs the get_swatch_groups operation and returns the full API result.
     pub async fn get_swatch_groups_with_http_info(
         &self,
-
-    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, Swatch>>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
         // The public get_swatch_groups_with_http_info entry point keeps its original
@@ -1042,11 +982,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_swatch_groups_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_swatch_groups_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_swatch_groups_invoke("application/json").await
     }
 
     /// Shared implementation for the get_swatch_groups operation. The resolved
@@ -1057,8 +993,10 @@ impl StoreApi {
         &self,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, Swatch>>>, Box<dyn std::error::Error + Send + Sync>> {
-
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/swatch-groups".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1086,16 +1024,19 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Vec<std::collections::HashMap<String, Swatch>>>(params).await
+        self.base
+            .invoke_api_for_result::<Vec<std::collections::HashMap<String, Swatch>>>(params)
+            .await
     }
 
     /// Returns timestamps grouped as an array of string-keyed maps.
     pub async fn get_timestamp_groups(
         &self,
-
-    ) -> Result<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_timestamp_groups_with_http_info(
-        ).await?;
+    ) -> Result<
+        Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let result = self.get_timestamp_groups_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1116,8 +1057,10 @@ impl StoreApi {
     /// Performs the get_timestamp_groups operation and returns the full API result.
     pub async fn get_timestamp_groups_with_http_info(
         &self,
-
-    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
         // The public get_timestamp_groups_with_http_info entry point keeps its original
@@ -1126,11 +1069,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_timestamp_groups_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_timestamp_groups_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_timestamp_groups_invoke("application/json").await
     }
 
     /// Shared implementation for the get_timestamp_groups operation. The resolved
@@ -1141,8 +1080,10 @@ impl StoreApi {
         &self,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>, Box<dyn std::error::Error + Send + Sync>> {
-
+    ) -> Result<
+        ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/timestamp-groups".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1174,12 +1115,8 @@ impl StoreApi {
     }
 
     /// Returns a self-referential tree (recursive-type codegen fixture)
-    pub async fn get_tree(
-        &self,
-
-    ) -> Result<TreeNode, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_tree_with_http_info(
-        ).await?;
+    pub async fn get_tree(&self) -> Result<TreeNode, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_tree_with_http_info().await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1200,7 +1137,6 @@ impl StoreApi {
     /// Performs the get_tree operation and returns the full API result.
     pub async fn get_tree_with_http_info(
         &self,
-
     ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         //  as request content-types.
@@ -1210,11 +1146,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the get_tree_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.get_tree_invoke(
-
-            "application/json",
-        )
-        .await
+        self.get_tree_invoke("application/json").await
     }
 
     /// Shared implementation for the get_tree operation. The resolved
@@ -1226,7 +1158,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/tree".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1261,11 +1192,8 @@ impl StoreApi {
     pub async fn place_order(
         &self,
         order: Option<Order>,
-
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.place_order_with_http_info(
-            order,
-        ).await?;
+        let result = self.place_order_with_http_info(order).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1287,7 +1215,6 @@ impl StoreApi {
     pub async fn place_order_with_http_info(
         &self,
         order: Option<Order>,
-
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         // optional-request-content-type-selector: this operation declares
         // `application/json` as request content-types.
@@ -1297,12 +1224,7 @@ impl StoreApi {
         // implementation below takes the resolved Content-Type as an argument so
         // the place_order_with_content_type variant (generated only when more
         // than one content-type is declared) can override it.
-        self.place_order_invoke(
-            order,
-
-            "application/json",
-        )
-        .await
+        self.place_order_invoke(order, "application/json").await
     }
 
     /// Shared implementation for the place_order operation. The resolved
@@ -1315,7 +1237,6 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/order".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();

@@ -25,8 +25,8 @@
 // the codegen relies on.
 #[test]
 fn test_proto_duration_format_basic() {
-    use petstore::proto_duration;
     use chrono::Duration;
+    use petstore::proto_duration;
 
     assert_eq!(proto_duration::format(&Duration::zero()), "0s");
     assert_eq!(proto_duration::format(&Duration::seconds(45)), "45s");
@@ -47,8 +47,8 @@ fn test_proto_duration_format_basic() {
 
 #[test]
 fn test_proto_duration_parse_basic() {
-    use petstore::proto_duration;
     use chrono::Duration;
+    use petstore::proto_duration;
 
     assert_eq!(proto_duration::parse("0s").unwrap(), Duration::zero());
     assert_eq!(
@@ -71,8 +71,8 @@ fn test_proto_duration_parse_basic() {
 
 #[test]
 fn test_proto_duration_round_trip() {
-    use petstore::proto_duration;
     use chrono::Duration;
+    use petstore::proto_duration;
 
     for d in [
         Duration::zero(),
@@ -84,8 +84,8 @@ fn test_proto_duration_round_trip() {
         -(Duration::hours(1) + Duration::minutes(30)),
     ] {
         let s = proto_duration::format(&d);
-        let parsed = proto_duration::parse(&s)
-            .unwrap_or_else(|e| panic!("parse({:?}) failed: {}", s, e));
+        let parsed =
+            proto_duration::parse(&s).unwrap_or_else(|e| panic!("parse({:?}) failed: {}", s, e));
         assert_eq!(parsed, d, "round trip mismatch for {:?} -> {:?}", d, s);
     }
 }
@@ -107,8 +107,8 @@ fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
     // fraction (fixed-point, padded to a 3/6/9-digit grouping), NEVER in
     // scientific notation ("5e-5s"). 50 microseconds is 50_000 nanoseconds,
     // which trims to the six-digit grouping "0.000050s".
-    use petstore::proto_duration;
     use chrono::Duration;
+    use petstore::proto_duration;
 
     let tiny = Duration::microseconds(50);
     let formatted = proto_duration::format(&tiny);
@@ -134,8 +134,8 @@ fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
 
 #[test]
 fn test_proto_duration_serde_round_trip() {
-    use petstore::proto_duration;
     use chrono::Duration;
+    use petstore::proto_duration;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -163,6 +163,38 @@ fn test_proto_duration_serde_round_trip() {
     };
     let json2 = serde_json::to_string(&none).expect("serialize none");
     assert!(json2.contains("\"e\":null"), "got: {}", json2);
+}
+
+#[test]
+fn test_decimal_type_number_serializes_as_unquoted_number() {
+    // Wave B parity: a `type: number` property with NO `format` (a bare JSON
+    // number, e.g. Pet.weightKg) must serialize as an UNQUOTED JSON number
+    // (1.5), never as a quoted string ("1.5"). Some SDKs model such fields as
+    // an arbitrary-precision Decimal and then emit them as JSON strings, which
+    // violates the spec's `type: number`. Rust maps this to a plain `f64`, so
+    // serde_json emits a bare number; this test locks that wire format and
+    // proves the field survives a serialize -> deserialize round trip as a
+    // number rather than a string.
+    use petstore::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(1.5);
+
+    let json = serde_json::to_string(&pet).expect("serialize Pet");
+    assert!(
+        json.contains("\"weightKg\":1.5"),
+        "weightKg must be an unquoted JSON number, got: {}",
+        json
+    );
+    assert!(
+        !json.contains("\"weightKg\":\"1.5\""),
+        "weightKg must NOT be a quoted string, got: {}",
+        json
+    );
+
+    // Round-trips back to the same numeric value (not a string).
+    let back: Pet = serde_json::from_str(&json).expect("deserialize Pet");
+    assert_eq!(back.weight_kg, Some(1.5));
 }
 
 #[test]

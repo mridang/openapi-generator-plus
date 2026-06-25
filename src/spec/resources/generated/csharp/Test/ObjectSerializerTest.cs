@@ -1338,4 +1338,34 @@ public class ObjectSerializerTest
             Assert.Contains("\"matrix\":[[7,8],[9]]", json);
         }
     }
+
+    public class DecimalNumberWireFormatTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void NonIntegerDecimalSerializesAsUnquotedNumber()
+        {
+            var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" })
+            {
+                WeightKg = 1.5m,
+            };
+            var json = _serializer.Serialize(pet);
+            Assert.Contains("\"weightKg\":1.5", json);
+            Assert.DoesNotContain("\"weightKg\":\"1.5\"", json);
+        }
+
+        [Fact]
+        public void DecimalSurvivesRoundTripAsNumber()
+        {
+            var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" })
+            {
+                WeightKg = 1.5m,
+            };
+            var json = _serializer.Serialize(pet);
+            var parsed = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(parsed);
+            Assert.Equal(1.5m, parsed!.WeightKg);
+        }
+    }
 }

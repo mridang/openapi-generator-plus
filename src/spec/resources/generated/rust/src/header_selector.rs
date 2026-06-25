@@ -111,11 +111,7 @@ mod tests {
     fn test_header_selector_select_headers_with_single_accept() {
         let hs = HeaderSelector::new();
 
-        let headers = hs.select_headers(
-            &["application/json"],
-            "application/json",
-            false,
-        );
+        let headers = hs.select_headers(&["application/json"], "application/json", false);
 
         assert_eq!(headers.get("Accept").unwrap(), "application/json");
         assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
@@ -126,10 +122,7 @@ mod tests {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
-            &[
-                "application/json",
-                "application/xml",
-            ],
+            &["application/json", "application/xml"],
             "application/json",
             false,
         );
@@ -151,11 +144,7 @@ mod tests {
     fn test_header_selector_multipart_omits_content_type() {
         let hs = HeaderSelector::new();
 
-        let headers = hs.select_headers(
-            &["application/json"],
-            "multipart/form-data",
-            true,
-        );
+        let headers = hs.select_headers(&["application/json"], "multipart/form-data", true);
 
         assert!(
             !headers.contains_key("Content-Type"),

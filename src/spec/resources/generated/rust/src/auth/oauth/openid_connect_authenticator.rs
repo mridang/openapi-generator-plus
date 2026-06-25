@@ -47,10 +47,7 @@ fn parse_max_age(headers: &HashMap<String, String>) -> u64 {
         if key.eq_ignore_ascii_case("cache-control") {
             if let Some(idx) = value.to_ascii_lowercase().find("max-age=") {
                 let rest = &value[idx + "max-age=".len()..];
-                let digits: String = rest
-                    .chars()
-                    .take_while(|c| c.is_ascii_digit())
-                    .collect();
+                let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
                 if let Ok(seconds) = digits.parse::<u64>() {
                     return seconds;
                 }
@@ -105,9 +102,9 @@ impl OpenIdConnectAuthenticator {
          * delegate temporarily so the mutex is not held across the await. */
         let delegate = {
             let mut delegate_guard = self.delegate.lock().unwrap();
-            delegate_guard.take().ok_or(
-                "delegate not initialized; call build_authorization_url first",
-            )?
+            delegate_guard
+                .take()
+                .ok_or("delegate not initialized; call build_authorization_url first")?
         };
         let result = delegate.exchange_code(code).await;
         /* Restore the delegate regardless of the result. */
@@ -123,9 +120,7 @@ impl OpenIdConnectAuthenticator {
     /// mutex for reuse. Honors the `Cache-Control: max-age=<seconds>` header
     /// from the discovery response; falls back to the RFC 8414 recommended
     /// default of 86400 seconds when absent.
-    async fn resolve_delegate(
-        &self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn resolve_delegate(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         /* Fast path: delegate already resolved and not yet expired. */
         {
             let delegate_guard = self.delegate.lock().unwrap();
@@ -143,11 +138,14 @@ impl OpenIdConnectAuthenticator {
 
         let client = {
             let client_guard = self.api_client.lock().unwrap();
-            client_guard.as_ref().ok_or(
-                "ApiClient has not been injected. \
+            client_guard
+                .as_ref()
+                .ok_or(
+                    "ApiClient has not been injected. \
                  Ensure the Client constructor calls set_api_client \
                  on HttpAwareAuthenticator before making API requests",
-            )?.clone()
+                )?
+                .clone()
         };
 
         let mut headers = HashMap::new();
@@ -164,7 +162,8 @@ impl OpenIdConnectAuthenticator {
         if response.status_code() < 200 || response.status_code() >= 300 {
             return Err(format!(
                 "OIDC discovery request to {} failed with HTTP status {}",
-                self.openid_connect_url, response.status_code()
+                self.openid_connect_url,
+                response.status_code()
             )
             .into());
         }

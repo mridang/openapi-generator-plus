@@ -897,6 +897,36 @@ describe PetstoreClient::ObjectSerializer do
     end
   end
 
+  # ── Decimal-as-number — type:number (no format) on the wire ──
+  #
+  # Canonical cross-SDK scenario: Pet.weightKg is `type: number` with no
+  # `format`, so it is a bare JSON number. A non-integer value such as 1.5
+  # MUST serialize as an UNQUOTED JSON number (weightKg:1.5), never a
+  # quoted string ("1.5"), and must survive a serialize -> deserialize
+  # round-trip as a number. Some SDKs that model this as arbitrary-precision
+  # Decimal regressed to emitting a quoted string; ruby is already correct
+  # because the property is a plain Float, which JSON renders unquoted.
+  describe 'Decimal-as-number — type:number serializes unquoted' do
+    it 'emits weightKg as an unquoted JSON number, not a string' do
+      pet = PetstoreClient::Models::Pet.new(name: 'Rex', photo_urls: ['u'], weight_kg: 1.5)
+      json = PetstoreClient::ObjectSerializer.serialize(pet)
+      # Unquoted number on the wire: weightKg:1.5 (not "weightKg":"1.5").
+      _(json).must_match(/"weightKg":1\.5/)
+      refute_match(/"weightKg":"1\.5"/, json)
+      data = JSON.parse(json)
+      _(data['weightKg']).must_equal(1.5)
+      _(data['weightKg']).must_be_kind_of(Numeric)
+    end
+
+    it 'round-trips weightKg as a number through serialize -> deserialize' do
+      pet = PetstoreClient::Models::Pet.new(name: 'Rex', photo_urls: ['u'], weight_kg: 1.5)
+      json = PetstoreClient::ObjectSerializer.serialize(pet)
+      result = PetstoreClient::ObjectSerializer.deserialize(json, 'Pet')
+      _(result.weight_kg).must_equal(1.5)
+      _(result.weight_kg).must_be_kind_of(Numeric)
+    end
+  end
+
   # ── Gap AJ — JSON null on a required, non-nullable field ──
   #
   # Canonical cross-SDK scenario: deserialize `{"name": null,
