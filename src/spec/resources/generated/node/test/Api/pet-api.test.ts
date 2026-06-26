@@ -192,7 +192,9 @@ describe("PetApi", () => {
     const server = http.createServer((req, res) => {
       capturedUrl = req.url;
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end('{"id":7,"name":"styled-tag"}');
+      // A valid Pet (photoUrls is required) so the response deserializes and
+      // the call returns normally; the assertion target is the captured URL.
+      res.end('{"id":7,"name":"styled-tag","photoUrls":[]}');
     });
     await new Promise<void>((resolve) =>
       server.listen(0, "127.0.0.1", resolve),
