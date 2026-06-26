@@ -267,6 +267,15 @@ func serializeNil(location string) any {
 
 // toStringSlice attempts to convert an any to a []string.
 // Returns the string slice and true if the conversion was successful.
+//
+// The fast-path type switches cover the common []string / []any shapes. For
+// everything else — pointers to slices (e.g. *[]string for an OPTIONAL array
+// parameter), and slices of named element types (e.g. []Color, *[]MyEnum) —
+// it falls back to reflection: any pointer is dereferenced, and a slice or
+// array of any element type is stringified per element. Without this, an
+// optional array param arrives as *[]string and misses both type switch
+// cases, falling through to %v debug formatting that emits garbage like
+// `&[blue black]` into the query string instead of properly styled values.
 func toStringSlice(value any) ([]string, bool) {
 	switch v := value.(type) {
 	case []string:
@@ -277,7 +286,28 @@ func toStringSlice(value any) ([]string, bool) {
 			items[i] = stringify(item)
 		}
 		return items, true
-	default:
-		return nil, false
 	}
+
+	rv := reflect.ValueOf(value)
+	// Dereference a pointer (e.g. *[]string for an optional array param). A nil
+	// pointer is not an array value, so report no slice.
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return nil, false
+		}
+		rv = rv.Elem()
+	}
+	// Reflect over slices and arrays of arbitrary element types (named string
+	// enums, typed scalars) that the type switch above cannot name. Each element
+	// is stringified through the same per-element path as []any, so enum and
+	// scalar elements encode identically whether boxed as []any or a typed slice.
+	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+		items := make([]string, rv.Len())
+		for i := range rv.Len() {
+			items[i] = stringify(rv.Index(i).Interface())
+		}
+		return items, true
+	}
+
+	return nil, false
 }

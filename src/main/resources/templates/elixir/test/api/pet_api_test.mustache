@@ -215,6 +215,54 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  # optional-array-param-serialization: get_pet_tag declares two OPTIONAL array
+  # query params — `colors` (style pipeDelimited) and `sizes` (style
+  # spaceDelimited). When supplied with multiple values they must serialise as
+  # the param's declared style on the wire, NEVER a language-debug
+  # representation of the list (e.g. Elixir's `inspect` form `["blue",
+  # "black"]`, or a percent-encoded `%5Bblue` / `%5B%22blue%22` blob). The
+  # ValueSerializer joins each element via the per-item stringify before
+  # styling, so `["blue", "black"]` -> `blue|black` and `["S", "M"]` -> `S M`.
+  test "get_pet_tag serialises optional array query params as styled values, not a debug blob" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result =
+      {{moduleName}}.Api.PetApi.get_pet_tag(
+        api, 5, "cute",
+        %{{moduleName}}.Api.Options.GetPetTagOptions{
+          colors: ["blue", "black"],
+          sizes: ["S", "M"]
+        }
+      )
+
+    url = PathCapturingApiClient.captured_url(name)
+
+    # colors is pipeDelimited -> blue|black; the pipe is percent-encoded as
+    # %7C by URI.encode_www_form. Both element values must be present, joined
+    # by the declared delimiter.
+    assert String.contains?(url, "colors=blue%7Cblack"),
+      "Expected pipe-delimited colors=blue|black on the wire, got: #{url}"
+
+    # sizes is spaceDelimited -> "S M"; the space is encoded as + by
+    # form-encoding. Both element values must be present, space-joined.
+    assert String.contains?(url, "sizes=S+M"),
+      "Expected space-delimited sizes=S M on the wire, got: #{url}"
+
+    # The serialiser must NOT leak an Elixir list/inspect debug form. None of
+    # the bracketed / quoted / comma-blob shapes a naive `inspect` or
+    # `to_string` of the list would produce may appear.
+    refute String.contains?(url, "%5B"),
+      "Array param must not serialise as a bracketed debug blob (%5B...), got: #{url}"
+    refute String.contains?(url, "%22"),
+      "Array param must not serialise quoted list elements (%22), got: #{url}"
+    refute url =~ ~r/colors=blue%2C/,
+      "colors must use its declared pipeDelimited style, not a comma blob, got: #{url}"
+
+    Agent.stop(name)
+  end
+
   # RFC-6265 cookie-value validation on an operation cookie param. deletePet
   # declares an `api_key` cookie param that is interpolated raw into the Cookie
   # header; a value carrying CR/LF or a control char is a header-injection

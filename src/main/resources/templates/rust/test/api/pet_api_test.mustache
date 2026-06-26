@@ -704,6 +704,53 @@ async fn test_pet_api_find_pets_by_status_explicit_empty_status_sends_status_key
     );
 }
 
+/// optional-array-param-styled-serialization (Wave D): `getPetTag` declares two
+/// OPTIONAL array query parameters — `colors` (style pipeDelimited) and `sizes`
+/// (style spaceDelimited). When the caller supplies multiple values, each array
+/// must be serialized using its DECLARED OAS style and percent-encoded once: the
+/// pipe-delimited form `colors=blue|black` reaches the wire as `colors=blue%7Cblack`,
+/// and the space-delimited form `sizes=S M` as `sizes=S%20M`. It must NEVER be a
+/// language debug representation of the slice (e.g. `[blue, black]` /
+/// `%5Bblue%2C+black%5D`), which is what a naive `{:?}`/Debug formatting of the
+/// underlying `Vec` would produce.
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_optional_array_query_params_styled_on_wire() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetTagOptions::new()
+        .colors(vec!["blue".to_string(), "black".to_string()])
+        .sizes(vec!["S".to_string(), "M".to_string()]);
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+
+    // pipeDelimited array: blue|black, percent-encoded once to blue%7Cblack.
+    assert!(
+        request_line.contains("colors=blue%7Cblack"),
+        "expected pipe-delimited colors on the wire, got request line: {}",
+        request_line
+    );
+    // spaceDelimited array: S M, percent-encoded once to S%20M.
+    assert!(
+        request_line.contains("sizes=S%20M"),
+        "expected space-delimited sizes on the wire, got request line: {}",
+        request_line
+    );
+
+    // The slice must NOT leak as a Debug/`{:?}` blob like `[blue, black]`
+    // (percent-encoded `%5Bblue%2C+black%5D` / `%5Bblue%2C%20black%5D`).
+    assert!(
+        !request_line.contains("%5B") && !request_line.contains("%5D"),
+        "array param leaked a Debug `[...]` blob, got request line: {}",
+        request_line
+    );
+    assert!(
+        !request_line.contains('[') && !request_line.contains(']'),
+        "array param leaked a Debug `[...]` blob, got request line: {}",
+        request_line
+    );
+}
+
 #[tokio::test]
 async fn test_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(

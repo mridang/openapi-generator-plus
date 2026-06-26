@@ -269,6 +269,54 @@ test('get pet tag sends styled parameters', function (): void {
     expect($result)->not->toBeNull();
 });
 
+// -- Canonical: optional array query params serialize as styled values --
+//
+// getPetTag declares two OPTIONAL array query params: `colors` (pipeDelimited,
+// explode=false) and `sizes` (spaceDelimited, explode=false). When the caller
+// supplies multiple values they must reach the wire as their DECLARED OAS style
+// — pipe-joined for colors (blue|black), space-joined for sizes (S M) — never a
+// language-debug representation of the array container (e.g. PHP's "Array",
+// "Ds\Vector", a JSON blob, or a print_r/var_export dump). The URL is built
+// inside BaseApi before the request reaches the ApiClient, so a URL-capturing
+// fake client observes the exact query string on the wire. The pipe and space
+// separators are percent-encoded by buildQuery (%7C and %20 respectively).
+
+test('get pet tag serializes optional array query params as styled values', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
+    } catch (\Throwable $e) {
+        // The capturing client returns a canned non-Pet body, so deserializing
+        // the Pet-typed result may fail. That is irrelevant: the query string is
+        // captured during sendRequest, before any deserialization happens.
+    }
+
+    // colors is pipeDelimited (explode=false) -> blue|black, with the pipe
+    // percent-encoded to %7C by buildQuery. Decoding the captured URL reveals
+    // the literal styled form.
+    $decoded = rawurldecode($captured->url);
+    expect($decoded)->toContain('colors=blue|black');
+    // sizes is spaceDelimited (explode=false) -> S M, with the space encoded.
+    expect($decoded)->toContain('sizes=S M');
+
+    // Both element values are present individually in the styled join.
+    expect($decoded)->toContain('blue');
+    expect($decoded)->toContain('black');
+
+    // The literal language-debug forms of a PHP array / typed collection must
+    // NEVER leak onto the wire. None of these tokens may appear in the URL.
+    expect($captured->url)->not->toContain('Array');
+    expect($decoded)->not->toContain('Array');
+    expect($decoded)->not->toContain('Ds\\Vector');
+    expect($decoded)->not->toContain('[blue');
+    expect($decoded)->not->toContain('blue black]');
+    expect($decoded)->not->toContain('&[blue');
+    // A JSON-array blob (colors=["blue","black"]) is likewise wrong for a
+    // pipeDelimited param.
+    expect($decoded)->not->toContain('["blue"');
+});
+
 // -- Canonical form-urlencoded body behaviors (#1, #2, #3) --
 //
 // setPetPreferences sends an application/x-www-form-urlencoded body with a

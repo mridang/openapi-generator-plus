@@ -6,6 +6,7 @@ import pytest
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Dict, List
+from urllib.parse import unquote
 from petstore_client.api.pet_api import PetApi
 from petstore_client.api.options.add_pet_options import AddPetOptions
 from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
@@ -403,6 +404,64 @@ class TestPetApi:
         )
 
         assert result is not None
+
+    async def test_get_pet_tag_optional_array_query_params_serialize_styled(
+        self,
+    ) -> None:
+        # WAVE D OPTIONAL-ARRAY-PARAM: getPetTag declares two OPTIONAL array query
+        # parameters, `colors` (style pipeDelimited, explode false) and `sizes`
+        # (style spaceDelimited, explode false). When set to multiple values the
+        # SDK must encode each as the declared OAS style — `colors=blue|black`
+        # and `sizes=S M` — NOT a language debug representation of the list such
+        # as Python's repr `['blue', 'black']` (which would reach the wire as
+        # `colors=%5B%27blue%27%2C+%27black%27%5D`). Capture the outbound request
+        # path and assert the styled forms are present and no list-repr blob is.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                captured["path"] = self.path
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
+        api = PetApi(config=config)
+
+        await api.get_pet_tag(
+            5, "cute", GetPetTagOptions(colors=["blue", "black"], sizes=["S", "M"])
+        )
+
+        path = captured.get("path", "")
+        # The raw query string, percent-decoded so the pipe separator is literal.
+        # unquote (not unquote_plus) leaves '+' as '+', which is the wire form of
+        # a space in a query string, so the spaceDelimited value reads as 'S+M'.
+        decoded = unquote(path)
+        # colors is pipeDelimited (explode false): one key, values joined by '|'.
+        assert "colors=blue|black" in decoded, (
+            f"expected pipeDelimited colors=blue|black, got: {decoded}"
+        )
+        # sizes is spaceDelimited (explode false): one key, values joined by a
+        # space, urlencoded as '+'.
+        assert "sizes=S+M" in path, f"expected spaceDelimited sizes=S+M, got: {path}"
+        # Hard guard: the Python list-repr debug blob must never reach the wire,
+        # in either its encoded form or its decoded form.
+        assert "%5B" not in path and "[" not in decoded, (
+            f"list-repr blob leaked into query string: {path}"
+        )
+        assert "'blue'" not in decoded and "&#39;blue&#39;" not in path, (
+            f"list-repr blob leaked into query string: {path}"
+        )
 
     @pytest.mark.skip(reason="Per-operation server points to external URL")
     async def test_get_external_pet_info_uses_per_operation_server(self) -> None:

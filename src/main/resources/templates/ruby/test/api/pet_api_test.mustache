@@ -616,6 +616,46 @@ describe {{moduleName}}::Api::PetApi do
         thread.join(2)
       end
     end
+
+    # optional-array-param parity (Wave D): an OPTIONAL array query parameter
+    # set to multiple values must serialise to its declared OAS style, never a
+    # language debug blob. getPetTag carries two optional array query params:
+    # `colors` (pipeDelimited) and `sizes` (spaceDelimited). The wrong (debug)
+    # form would inspect the Array itself, emitting something like
+    # `colors=%5B%22blue%22%2C+%22black%22%5D` ('["blue", "black"]') on the
+    # wire. Here we assert the styled forms reach the wire and that no
+    # debug/inspect blob does.
+    it 'serialises optional array query params as styled values, not a debug blob' do
+      body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
+      api, server, thread, captured = capture_request_line(200, 'application/json', body)
+      begin
+        api.get_pet_tag(
+          5,
+          'cute',
+          {{moduleName}}::Api::Options::GetPetTagOptions.new(
+            colors: %w[blue black], sizes: %w[S M]
+          )
+        )
+        request_line = captured.pop
+
+        # colors is pipeDelimited -> "blue|black"; the pipe is percent-encoded
+        # to %7C by CGI on the way out.
+        _(request_line).must_include 'colors=blue%7Cblack'
+        # sizes is spaceDelimited -> "S M"; the space encodes to '+'.
+        _(request_line).must_include 'sizes=S+M'
+
+        # The Array#inspect / to_s debug forms must NOT appear: no literal
+        # brackets, no quoted-element list, no `, ` joiner from Array#to_s.
+        _(request_line).wont_include '%5B' # '['
+        _(request_line).wont_include '%5D' # ']'
+        _(request_line).wont_include '%22' # '"'
+        _(request_line).wont_include 'colors=%5B'
+        _(request_line).wont_include '%2C+' # ', ' debug joiner
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
   end
 
   describe 'with_http_info methods' do

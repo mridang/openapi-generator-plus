@@ -529,6 +529,132 @@ func TestSerializeStyled_PipeDelimitedScalar(t *testing.T) {
 	}
 }
 
+// ── Optional-array parity: pointer-to-slice and typed-slice arrays ──
+//
+// An OPTIONAL array query/header parameter is modelled as a pointer-to-slice
+// (e.g. *[]string for Colors), and an array of a named enum arrives as a typed
+// slice (e.g. []Color). Both must serialize through the array branch into proper
+// styled/repeated values. The regression these guard against: toStringSlice
+// only matched []string / []any, so *[]string and []Color fell through to %v
+// debug formatting, emitting garbage like `&[blue black]` (a literal Go slice
+// dump) into the query string instead of `blue|black` / repeated keys.
+
+// myColorEnum mirrors a generated named-string enum (e.g. Color) so the typed-slice
+// reflection path is exercised without importing the models package.
+type myColorEnum string
+
+func TestSerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
+	t.Parallel()
+	colors := []string{"blue", "black"}
+	// *[]string is the shape of an OPTIONAL array query param.
+	result := serializeStyled("colors", &colors, "query", "array", "pipes", "pipeDelimited", false)
+	if result != "blue|black" {
+		t.Errorf("expected 'blue|black', got %v", result)
+	}
+	if s, ok := result.(string); ok && strings.Contains(s, "[") {
+		t.Errorf("pointer-to-slice serialized as Go debug blob, got %q", s)
+	}
+}
+
+func TestSerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
+	t.Parallel()
+	sizes := []string{"S", "M"}
+	result := serializeStyled("sizes", &sizes, "query", "array", "ssv", "spaceDelimited", false)
+	if result != "S M" {
+		t.Errorf("expected 'S M', got %v", result)
+	}
+}
+
+func TestSerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
+	t.Parallel()
+	colors := []string{"blue", "black"}
+	result := serializeStyled("colors", &colors, "query", "array", "", "form", true)
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string from exploded *[]string form param, got %T (%v)", result, result)
+	}
+	if len(items) != 2 || items[0] != "blue" || items[1] != "black" {
+		t.Errorf("expected [blue black], got %v", items)
+	}
+}
+
+func TestSerializeStyled_FormTypedEnumSlice(t *testing.T) {
+	t.Parallel()
+	colors := []myColorEnum{"blue", "black"}
+	// A slice of a named element type must reflect per-element, not %v the slice.
+	result := serializeStyled("colors", colors, "query", "array", "", "form", false)
+	if result != "blue,black" {
+		t.Errorf("expected 'blue,black' from typed enum slice, got %v", result)
+	}
+}
+
+func TestSerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
+	t.Parallel()
+	colors := []myColorEnum{"blue", "black"}
+	// *[]EnumType — optional array of a named enum: both deref and per-element
+	// reflection must engage.
+	result := serializeStyled("colors", &colors, "query", "array", "pipes", "pipeDelimited", false)
+	if result != "blue|black" {
+		t.Errorf("expected 'blue|black' from *[]EnumType, got %v", result)
+	}
+}
+
+func TestSerializeStyled_SimpleHeaderPointerToSlice(t *testing.T) {
+	t.Parallel()
+	colors := []string{"blue", "black"}
+	// Optional array HEADER param: simple style, comma-joined.
+	result := serializeStyled("X-Colors", &colors, "header", "array", "", "simple", false)
+	if result != "blue,black" {
+		t.Errorf("expected 'blue,black' for header array, got %v", result)
+	}
+}
+
+func TestSerializeStyled_PathPointerToSliceArray(t *testing.T) {
+	t.Parallel()
+	colors := []string{"red", "green"}
+	// Styled path-array branch must also dereference the pointer and encode
+	// each element, not dump the slice.
+	result := serializeStyled("color", &colors, "path", "array", "", "matrix", false)
+	if result != ";color=red,green" {
+		t.Errorf("expected ';color=red,green' for *[]string path array, got %v", result)
+	}
+}
+
+// toStringSlice is the root of the optional-array fix: it must recognise a
+// pointer-to-slice and a typed slice as arrays, and report nil pointers as
+// non-arrays so the caller omits the param rather than emitting a bogus value.
+
+func TestToStringSlice_PointerToSlice(t *testing.T) {
+	t.Parallel()
+	colors := []string{"blue", "black"}
+	items, ok := toStringSlice(&colors)
+	if !ok {
+		t.Fatal("expected *[]string to be recognised as an array")
+	}
+	if len(items) != 2 || items[0] != "blue" || items[1] != "black" {
+		t.Errorf("expected [blue black], got %v", items)
+	}
+}
+
+func TestToStringSlice_NilPointerIsNotArray(t *testing.T) {
+	t.Parallel()
+	var colors *[]string
+	if _, ok := toStringSlice(colors); ok {
+		t.Error("expected nil *[]string to report not-an-array")
+	}
+}
+
+func TestToStringSlice_TypedEnumSlice(t *testing.T) {
+	t.Parallel()
+	items, ok := toStringSlice([]myColorEnum{"blue", "black"})
+	if !ok {
+		t.Fatal("expected []myColorEnum to be recognised as an array")
+	}
+	if len(items) != 2 || items[0] != "blue" || items[1] != "black" {
+		t.Errorf("expected [blue black], got %v", items)
+	}
+}
+
 // ── SerializeDeepObject ──
 
 func TestSerializeDeepObject(t *testing.T) {

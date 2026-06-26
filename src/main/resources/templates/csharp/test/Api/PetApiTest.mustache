@@ -625,6 +625,48 @@ public class PetApiTest
         Assert.DoesNotContain("%253D", url);
     }
 
+    [Fact]
+    public async Task TestOptionalArrayQueryParamsSerializeStyledNotDebugBlob()
+    {
+        // optional-array-param parity (Wave D): getPetTag declares two OPTIONAL
+        // array query params — `colors` (pipeDelimited, non-exploded) and
+        // `sizes` (spaceDelimited, non-exploded). When the caller supplies
+        // multiple values, each list must serialize through the per-element
+        // stringify into its declared OAS style, NOT a language debug blob.
+        // The cross-language bug (seen in the Go SDK) emitted the collection's
+        // default debug representation instead of styled values; the .NET
+        // analogue would be List<T>.ToString() leaking the type name
+        // "System.Collections.Generic.List" into the query string. Assert the
+        // real element values appear under the styled join and the debug blob
+        // does not.
+        var client = new UrlCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.GetPetTagAsync(
+            7L,
+            "tag",
+            new GetPetTagOptions
+            {
+                Colors = ["blue", "black"],
+                Sizes = ["S", "M"],
+            });
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        // pipeDelimited colors -> "blue|black"; the '|' is percent-encoded as
+        // %7C by .NET Uri building. Both element values survive verbatim.
+        Assert.Contains("colors=blue%7Cblack", url);
+        // spaceDelimited sizes -> "S M"; the space is percent-encoded as %20.
+        Assert.Contains("sizes=S%20M", url);
+        // The individual element values must each be present in the query.
+        Assert.Contains("blue", url);
+        Assert.Contains("black", url);
+        // The .NET collection debug blob (the cross-language Wave D bug) must
+        // NOT appear: no leaked List type name, and no key with no value joined.
+        Assert.DoesNotContain("System.Collections", url);
+        Assert.DoesNotContain("List%601", url);
+    }
+
     private static PetApi NewPetApiForMock(int status, string contentType, string body)
     {
         var config = Configuration.Builder()

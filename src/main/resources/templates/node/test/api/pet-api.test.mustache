@@ -153,6 +153,49 @@ describe('PetApi', () => {
     expect(result.id).toBeDefined();
   });
 
+  // optional-array-param: an OPTIONAL array query parameter set to multiple
+  // values must reach the wire as the OAS style-encoded form, never a language
+  // debug blob (e.g. go's `&[blue black]`). getPetTag's `colors` is
+  // pipeDelimited/explode:false and `sizes` is spaceDelimited/explode:false, so
+  // they serialize to `colors=blue|black` and `sizes=S M` (the `|` and space
+  // percent-encoded by the URL builder). We capture the outbound request URL and
+  // assert the styled values are present and the debug form is absent.
+  test('getPetTag serializes optional array query params as styled values', async () => {
+    let capturedUrl: string | undefined;
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"id":7,"name":"styled-tag"}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const cfg = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .defaultHeader('Authorization', 'Bearer test-token')
+        .build();
+      const styledApi = new PetApi(undefined, cfg);
+
+      await styledApi.getPetTag(5, 'cute', {
+        colors: ['blue', 'black'],
+        sizes: ['S', 'M'],
+      });
+
+      expect(capturedUrl).toBeDefined();
+      const decoded = decodeURIComponent(capturedUrl!);
+      // pipeDelimited (explode:false) -> blue|black ; spaceDelimited -> S M.
+      expect(decoded).toContain('colors=blue|black');
+      expect(decoded).toContain('sizes=S M');
+      // The values must NOT appear as a JS/array debug blob.
+      expect(capturedUrl).not.toContain('blue,black');
+      expect(decoded).not.toContain('[blue');
+      expect(decoded).not.toContain('blue black');
+      expect(decoded).not.toContain('[object Object]');
+    } finally {
+      server.close();
+    }
+  });
+
   // skip: Per-operation server URL points to external host (getExternalPetInfo).
   test.skip('getExternalPetInfo - Per-operation server URL points to external host', async () => {
     const result = await api.getExternalPetInfo(1);

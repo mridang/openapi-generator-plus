@@ -701,6 +701,50 @@ final class PetApiTests {
     let authOpts = AddPetOptions(auth: perCallAuth)
     #expect(authOpts.auth != nil)
   }
+
+  // optional-array-param: an OPTIONAL array query parameter set to multiple
+  // values must be serialized through the OAS style/explode rules into proper
+  // styled values on the wire — never a language-debug representation of the
+  // array (e.g. Swift's "[blue, black]" / "Optional([...])"). getPetTag has
+  // two optional array query params: colors (style pipeDelimited → blue|black)
+  // and sizes (style spaceDelimited → S M). Capture the outbound URL and
+  // assert the styled forms are present and that no debug/bracketed blob
+  // leaked through.
+  @Test func testOptionalArrayQueryParamsSerializeStyled() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":5,\"name\":\"cute\",\"photoUrls\":[]}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let options = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S", "M"])
+    _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)
+
+    let url = mockClient.lastURL
+
+    // colors is pipeDelimited: the two values join with a literal pipe,
+    // percent-encoded as %7C in the query component.
+    #expect(
+      url.contains("colors=blue%7Cblack"),
+      "pipeDelimited array must join with an encoded pipe, got: \(url)")
+    // sizes is spaceDelimited: the two values join with a space, encoded
+    // as %20 in the query component.
+    #expect(
+      url.contains("sizes=S%20M"),
+      "spaceDelimited array must join with an encoded space, got: \(url)")
+
+    // The Swift array debug description must never leak onto the wire.
+    #expect(
+      !url.contains("%5B") && !url.contains("%5D"),
+      "array must not be bracketed, got: \(url)")
+    #expect(
+      !url.lowercased().contains("optional("),
+      "array must not carry an Optional(...) wrapper, got: \(url)")
+    #expect(
+      !url.contains("blue%2C+black") && !url.contains("blue,+black"),
+      "array must not be the Swift debug description, got: \(url)")
+  }
 }
 
 /// Test authenticator for integration tests.

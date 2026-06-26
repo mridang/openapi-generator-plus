@@ -734,6 +734,62 @@ void main() {
       }
     });
 
+    /* optional-array-query-param-styled (cross-SDK parity, Wave D): getPetTag
+     * carries TWO OPTIONAL array query params — `colors` (pipeDelimited) and
+     * `sizes` (spaceDelimited). Each must be serialised onto the wire using its
+     * declared OAS style, NOT a language-debug representation of the list. The
+     * canonical failure (seen in the go SDK, where an optional array is a
+     * pointer-to-slice formatted with %v) is a single blob like
+     * `colors=%5Bblue,+black%5D` / `&[blue black]`. Dart models an optional
+     * array as a plain nullable `List<String>?`, and the value serializer
+     * reflects over any `List` element type, so the styled form is produced
+     * correctly. We capture the outbound query against a local mock and assert
+     * the styled values are present and the debug blob is absent. */
+    test('getPetTag serializes optional array query params as styled', () async {
+      String? capturedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetTag(
+          5,
+          'cute',
+          GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']),
+        );
+        expect(result, isNotNull);
+
+        // Decode the captured raw query so percent-encoding of the structural
+        // separators (`|`, ` `) does not make the assertions brittle.
+        final decoded = Uri.decodeQueryComponent(capturedQuery ?? '');
+
+        // colors is pipeDelimited → colors=blue|black ; both members appear in
+        // order joined by the declared `|` separator.
+        expect(decoded, contains('colors=blue|black'));
+        // sizes is spaceDelimited → sizes=S M (members joined by a space).
+        expect(decoded, contains('sizes=S M'));
+
+        // The literal language-debug list form MUST NOT appear on the wire —
+        // this is exactly the garbage the go pointer-to-slice bug produced.
+        expect(decoded, isNot(contains('[blue')));
+        expect(decoded, isNot(contains('blue, black')));
+        expect(decoded, isNot(contains('blue black')));
+      } finally {
+        await server.close();
+      }
+    });
+
     /* required-string-empty-rejected: for a REQUIRED string param, an empty
      * string "" is treated as "absent" (parity with go/rust/swift/elixir),
      * so the call must fail-fast with an ArgumentError rather than sending an

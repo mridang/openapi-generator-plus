@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -665,6 +666,64 @@ func TestBaseApi_ExpandsArrayQueryParams(t *testing.T) {
 	// Verify both values are present in the URL
 	if !strings.Contains(client.capturedURL, "red") || !strings.Contains(client.capturedURL, "blue") {
 		t.Errorf("expected URL to contain both array values 'red' and 'blue', got %q", client.capturedURL)
+	}
+}
+
+// optional-array-param: getPetTag has OPTIONAL array query params `colors`
+// (pipeDelimited) and `sizes` (spaceDelimited), both modelled as *[]string.
+// The outbound URL must serialize them as their declared styles — never as a
+// Go slice debug dump like `&[blue black]` (URL-encoded `%26%5Bblue+black%5D`).
+//
+// This is the WAVE D regression: toStringSlice failed to dereference the
+// pointer, so the optional array fell through to %v formatting. The decoded
+// query string is inspected so the assertions hold regardless of which
+// percent-encoding the transport applies to the structural separators.
+func TestBaseApi_OptionalArrayQueryParamsSerializeAsStyledValues(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil)
+
+	colors := []string{"blue", "black"}
+	sizes := []string{"S", "M"}
+	_, _ = api.GetPetTag(int64(5), "cute", &options.GetPetTagOptions{
+		Colors: &colors,
+		Sizes:  &sizes,
+	})
+
+	raw := client.capturedURL
+
+	// The Go slice debug form must never appear, neither raw nor percent-encoded.
+	// `&[blue black]` encodes to `%26%5Bblue+black%5D`; the brackets alone are
+	// `%5B`/`%5D`. Any of these means the pointer-to-slice was %v-formatted.
+	for _, blob := range []string{"&[", "%5B", "%5b", "%26%5B", "blue black", "blue+black"} {
+		if strings.Contains(raw, blob) {
+			t.Fatalf("optional array query param serialized as Go debug blob (found %q) in URL %q", blob, raw)
+		}
+	}
+
+	// Decode the query string and assert the styled forms are present.
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		t.Fatalf("captured URL did not parse: %v (%q)", err, raw)
+	}
+	decoded := parsed.RawQuery
+	if dq, derr := url.QueryUnescape(parsed.RawQuery); derr == nil {
+		decoded = dq
+	}
+
+	// colors is pipeDelimited -> blue|black ; sizes is spaceDelimited -> S M.
+	if !strings.Contains(decoded, "colors=blue|black") {
+		t.Errorf("expected pipeDelimited 'colors=blue|black' in decoded query, got %q (url %q)", decoded, raw)
+	}
+	if !strings.Contains(decoded, "sizes=S M") {
+		t.Errorf("expected spaceDelimited 'sizes=S M' in decoded query, got %q (url %q)", decoded, raw)
+	}
+	// Both element values must survive the round-trip.
+	for _, v := range []string{"blue", "black", "S", "M"} {
+		if !strings.Contains(decoded, v) {
+			t.Errorf("expected array element %q in decoded query, got %q", v, decoded)
+		}
 	}
 }
 

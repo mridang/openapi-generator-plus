@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.StoreApi;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.Authenticator;
@@ -1620,6 +1621,67 @@ class BaseApiTest {
     void returnsNullForMismatchedType() {
       var ex = new BadRequestException("boom", Map.of(), "", null);
       assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
+    }
+  }
+
+  /*
+   * WAVE D — optional array query parameter serialization. An OPTIONAL array
+   * query parameter (modelled here as a nullable List<String> on the
+   * generated options object) must be serialized using the parameter's
+   * declared OAS style — never a language-native debug rendering of the
+   * collection. The canonical failure mode this guards against (confirmed in
+   * the go SDK) is the serializer falling back to a default debug format and
+   * emitting the literal container syntax, e.g. `[blue, black]`
+   * (URL-encoded `%5Bblue%2C+black%5D`), instead of the styled value.
+   *
+   * getPetTag declares two optional array query params:
+   *   - colors: style=pipeDelimited, explode=false  ->  blue|black
+   *   - sizes:  style=spaceDelimited, explode=false  ->  S M
+   * After URL-encoding the delimiter (`|` -> %7C, space -> +) the wire form
+   * is colors=blue%7Cblack and sizes=S+M. We assert those appear and that the
+   * debug-blob form does NOT.
+   */
+  @Nested
+  @DisplayName("OptionalArrayQueryParamSerialization")
+  class OptionalArrayQueryParamSerialization {
+
+    @Test
+    @DisplayName(
+        "optional array query params serialize with their declared style, not a debug blob")
+    void optionalArrayQueryParamsUseDeclaredStyle() {
+      var client = new CapturingApiClient();
+      var config = new Configuration("http://localhost", Map.of());
+      var api = new PetApi(client, config);
+      var options =
+          new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M"));
+      try {
+        api.getPetTag(42L, "spot", options);
+      } catch (Exception ignored) {
+        // Response deserialization may fail against the stub client; we
+        // only care about the captured outbound request URL.
+      }
+
+      // pipeDelimited colors -> blue|black, URL-encoded as blue%7Cblack
+      assertTrue(
+          client.capturedUrl.contains("colors=blue%7Cblack"),
+          "Expected pipeDelimited colors=blue%7Cblack but got: " + client.capturedUrl);
+      // spaceDelimited sizes -> "S M", URL-encoded as S+M
+      assertTrue(
+          client.capturedUrl.contains("sizes=S+M"),
+          "Expected spaceDelimited sizes=S+M but got: " + client.capturedUrl);
+
+      // The collection must NOT leak as a language-native debug rendering
+      // (e.g. List.toString() -> "[blue, black]" -> %5Bblue%2C+black%5D).
+      assertFalse(
+          client.capturedUrl.contains("%5B"),
+          "URL must not contain a debug-blob '[' for an array param, got: " + client.capturedUrl);
+      assertFalse(
+          client.capturedUrl.contains("%5D"),
+          "URL must not contain a debug-blob ']' for an array param, got: " + client.capturedUrl);
+      assertFalse(
+          client.capturedUrl.contains("blue%2C+black"),
+          "URL must not contain a comma-joined debug rendering of colors, got: "
+              + client.capturedUrl);
     }
   }
 }

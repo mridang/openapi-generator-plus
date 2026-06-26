@@ -730,6 +730,73 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("optional-array-param: array query params serialize as styled values, not a debug blob")
+        fun testGetPetTagOptionalArrayQuerySerializesStyled() {
+            // optional-array-param parity: getPetTag carries two OPTIONAL array
+            // query params -- `colors` (style pipeDelimited) and `sizes` (style
+            // spaceDelimited). When supplied with multiple values they must reach
+            // the wire as the OAS style-encoded form, NOT a language-debug
+            // rendering of the collection (Kotlin's List.toString() -> "[blue,
+            // black]", which would percent-encode to %5Bblue%2C+black%5D). Each
+            // element is joined by the param's declared separator and then
+            // URL-encoded once: colors -> "blue|black" -> colors=blue%7Cblack,
+            // sizes -> "S M" -> sizes=S+M. We capture the outbound query string
+            // and assert both the styled form is present and the debug blob is
+            // absent.
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.getPetTag(
+                    5L,
+                    "cute",
+                    GetPetTagOptions(
+                        colors = listOf("blue", "black"),
+                        sizes = listOf("S", "M"),
+                    ),
+                )
+            }
+
+            val query = capturedQuery
+            assertNotNull(query, "no query string was captured")
+            // The styled (separator-joined, then percent-encoded) wire form is
+            // present for each array param.
+            assertTrue(
+                query!!.contains("colors=blue%7Cblack"),
+                "colors must serialize as the pipeDelimited styled value, query was: $query",
+            )
+            assertTrue(
+                query.contains("sizes=S+M"),
+                "sizes must serialize as the spaceDelimited styled value, query was: $query",
+            )
+            // The language-debug rendering of the collection must NOT appear:
+            // no bracketed List.toString() blob, raw or percent-encoded, for
+            // either param.
+            assertFalse(
+                query.contains("%5B") || query.contains("%5D") || query.contains("["),
+                "array params must not leak a List.toString() debug blob, query was: $query",
+            )
+            assertFalse(
+                query.contains("blue,") || query.contains("blue%2C") || query.contains("blue+black"),
+                "colors must not be a comma/space-joined debug blob, query was: $query",
+            )
+        }
+
+        @Test
         @DisplayName("required-nested-param-validation: missing required query param fails loud")
         fun testGetPetByNameMissingRequiredQueryFailsLoud() {
             // required-nested-param-validation: `category` is a REQUIRED query
