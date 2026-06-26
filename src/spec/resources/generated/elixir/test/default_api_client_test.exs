@@ -572,7 +572,9 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     # redirects" error. The refusal did not leak onto A or B above.
     Enum.each(refuse_results, fn result ->
       assert {:error, %PetstoreClient.ApiError{message: message}} = result
-      assert message == "too many redirects"
+      # ApiError renders the message with a trailing "HTTP status code: 0" line,
+      # so match the refusal text as a substring rather than an exact string.
+      assert message =~ "too many redirects"
     end)
   end
 

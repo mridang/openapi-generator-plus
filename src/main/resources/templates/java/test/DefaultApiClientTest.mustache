@@ -588,13 +588,17 @@ class DefaultApiClientTest {
                     java.util.concurrent.ExecutionException ex =
                             assertThrows(java.util.concurrent.ExecutionException.class,
                                     future::get);
-                    assertTrue(ex.getCause() instanceof ApiException,
+                    Throwable cause =
+                            java.util.Objects.requireNonNull(
+                                    ex.getCause(), "ExecutionException must carry a cause");
+                    assertTrue(cause instanceof ApiException,
                             "redirect-budget exhaustion must surface as ApiException, got: "
-                                    + ex.getCause());
-                    assertTrue(ex.getCause().getMessage()
-                                    .toLowerCase(java.util.Locale.ROOT).contains("redirect"),
-                            "expected a redirect-exhaustion message: "
-                                    + ex.getCause().getMessage());
+                                    + cause);
+                    String causeMessage = cause.getMessage();
+                    assertTrue(causeMessage != null
+                                    && causeMessage.toLowerCase(java.util.Locale.ROOT)
+                                            .contains("redirect"),
+                            "expected a redirect-exhaustion message: " + causeMessage);
                 }
                 for (java.util.concurrent.Future<Integer> future : direct) {
                     // The refusal on the redirecting requests must NOT leak
