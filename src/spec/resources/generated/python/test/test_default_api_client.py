@@ -531,6 +531,162 @@ class TestN1RedirectBodyReplayMatrix:
         assert len(pool.calls) == 1
 
 
+class TestConcurrentRedirects:
+    """WAVE E parity: redirect counting and the redirect-limit refusal must
+    be scoped to a SINGLE request, never shared on the client instance.
+
+    The threat (seen in the Swift SDK, whose URLSession delegate stored the
+    redirect counter and the refusal error on the shared delegate): two
+    requests issued CONCURRENTLY through ONE client corrupt each other's
+    redirect handling -- one request's hops inflate the other's count, or a
+    'too many redirects' refusal raised for one request surfaces on the
+    other.
+
+    The Python client drives the redirect loop in
+    ``DefaultApiClient._follow_redirects`` using only locals
+    (``redirects_remaining``, ``current_url``, ...), so no redirect state
+    lives on ``self``. These tests lock that in: many requests run
+    concurrently through one shared client, some legitimately exhausting the
+    redirect budget and some not, and each must get its OWN correct outcome.
+    """
+
+    class _FakeResp:
+        def __init__(self, status: int, headers: dict[str, Any]) -> None:
+            self.status = status
+            self.headers = headers
+
+        def read(self) -> bytes:
+            return b""
+
+        def release_conn(self) -> None:
+            return None
+
+    class _SharedChainPool:
+        """Thread-safe fake pool shared by every concurrent request.
+
+        Two virtual endpoints:
+          * ``/loop``  -> an unbounded redirect chain (always 302 -> /loop),
+            which any finite ``max_redirects`` budget must refuse.
+          * ``/once``  -> a single 302 -> /done that lands on 200.
+
+        A single ``request_count`` is shared across threads precisely to
+        prove the client does NOT lean on any per-instance counter: the only
+        per-request bookkeeping lives in ``_follow_redirects``' locals.
+        """
+
+        def __init__(self) -> None:
+            import threading
+
+            self._lock = threading.Lock()
+            self.request_count = 0
+
+        def request(self, method: str, url: str, **kwargs: Any) -> Any:
+            with self._lock:
+                self.request_count += 1
+            if url.endswith("/done"):
+                return TestConcurrentRedirects._FakeResp(200, {})
+            if "/once" in url:
+                return TestConcurrentRedirects._FakeResp(
+                    302, {"location": "http://example.com/done"}
+                )
+            # '/loop' (and its self-redirect target) -> never terminates.
+            return TestConcurrentRedirects._FakeResp(
+                302, {"location": "http://example.com/loop"}
+            )
+
+    def test_concurrent_requests_do_not_share_redirect_budget(self) -> None:
+        """One shared client; many threads. Half walk an infinite chain and
+        must each independently hit the limit, half follow a single hop and
+        must each independently reach 200. If the redirect counter or the
+        refusal error were shared on the client, the interleaving would make
+        a single-hop request inherit a loop request's exhausted budget (or
+        its 'too many redirects' error) and vice versa.
+        """
+        import concurrent.futures
+
+        from petstore_client.errors import ApiException
+
+        # A small, finite budget so the infinite chain refuses quickly while
+        # the single-hop request stays comfortably under it.
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(3).build()
+        )
+        pool = self._SharedChainPool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+
+        def hit_loop() -> str:
+            try:
+                client.send_request("GET", "http://example.com/loop", {}, None)
+                return "no-error"
+            except ApiException as exc:
+                return (
+                    "limit"
+                    if "Too many redirects" in str(exc.message or "")
+                    else "other-error"
+                )
+
+        def hit_once() -> Any:
+            return client.send_request("GET", "http://example.com/once", {}, None)
+
+        # Interleave the two request kinds so their redirect loops overlap in
+        # time on the shared client.
+        loop_n = 12
+        once_n = 12
+        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool_exec:
+            loop_futures = [pool_exec.submit(hit_loop) for _ in range(loop_n)]
+            once_futures = [pool_exec.submit(hit_once) for _ in range(once_n)]
+            loop_results = [f.result() for f in loop_futures]
+            once_results = [f.result() for f in once_futures]
+
+        # Every infinite-chain request refused with its OWN limit error...
+        assert loop_results == ["limit"] * loop_n, (
+            "a concurrent single-hop request must not have leaked its budget "
+            "into the infinite-chain requests"
+        )
+        # ...and every single-hop request reached 200 -- none was poisoned by
+        # a concurrent loop request's exhausted budget or refusal error.
+        assert all(r.status_code == 200 for r in once_results), (
+            "a single-hop request must not inherit a concurrent loop "
+            'request "too many redirects" refusal'
+        )
+
+    def test_concurrent_live_redirects_each_resolve_independently(
+        self, chasm_http_url: Any
+    ) -> None:
+        """End-to-end variant against the live mock: many concurrent
+        single-hop redirect follows through one shared client must every one
+        land on the echo envelope with status 200, interleaved with plain
+        non-redirect requests that must each return 200 too. No request's
+        redirect handling may disturb another's.
+        """
+        import concurrent.futures
+
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        )
+        client = DefaultApiClient(transport)
+
+        def follow() -> Any:
+            return client.send_request(
+                "GET", chasm_http_url + "/test/redirect/302", {}, None
+            )
+
+        def plain() -> Any:
+            return client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool_exec:
+            follow_futures = [pool_exec.submit(follow) for _ in range(8)]
+            plain_futures = [pool_exec.submit(plain) for _ in range(8)]
+            follow_results = [f.result() for f in follow_futures]
+            plain_results = [f.result() for f in plain_futures]
+
+        # Each followed redirect independently resolved to the echo envelope.
+        assert all(r.status_code == 200 for r in follow_results)
+        assert all('"method"' in r.body for r in follow_results)
+        # Each plain request independently returned 200.
+        assert all(r.status_code == 200 for r in plain_results)
+
+
 class TestMultipartBody:
     def test_sends_multipart_form_data(self, chasm_http_url: Any) -> None:
         client = DefaultApiClient()

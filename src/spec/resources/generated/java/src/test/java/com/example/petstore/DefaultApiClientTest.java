@@ -441,6 +441,158 @@ class DefaultApiClientTest {
           json.get("body").asText().isEmpty(),
           "redirect target must receive a non-empty multipart body");
     }
+
+    /**
+     * Wave E — concurrent-redirects parity. Redirect counting (and any "too many redirects"
+     * refusal) must be scoped to a single request, never shared across requests that happen to run
+     * through the same client. The HttpClient-driven manual redirect loop in {@code sendRequest}
+     * keeps its hop counter in a method-local variable, so each call gets an independent budget;
+     * this test pins that contract.
+     *
+     * <p>We fire many requests CONCURRENTLY through ONE shared client with {@code maxRedirects(1)}
+     * — exactly enough to make a single-hop redirect succeed and no more. Half the requests follow
+     * a 302 chain (one hop to {@code /test/echo}); the other half hit {@code /test/echo} directly
+     * (zero hops). If the redirect budget were shared across requests, the redirecting calls would
+     * steal each other's (and the direct calls') hop allowance and some would spuriously fail with
+     * a "too many redirects" {@link ApiException}. With a correct per-request counter every call
+     * returns its own 200.
+     */
+    @Test
+    @DisplayName("concurrent requests do not share redirect budget (Wave E)")
+    void concurrentRequestsDoNotShareRedirectBudget() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      // maxRedirects(1): a single-hop 302 is allowed, but there is no
+      // slack — a shared counter that any other concurrent request has
+      // already decremented would push a redirecting call over the
+      // limit and surface a "too many redirects" failure.
+      TransportOptions transport =
+          TransportOptions.builder().followRedirects(true).maxRedirects(1).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+
+      int redirectingCount = 8;
+      int directCount = 8;
+      int total = redirectingCount + directCount;
+
+      java.util.concurrent.ExecutorService pool =
+          java.util.concurrent.Executors.newFixedThreadPool(total);
+      try {
+        // All tasks block on this latch so they fire as simultaneously
+        // as possible, maximizing the chance that a shared counter
+        // would corrupt across requests.
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        java.util.List<java.util.concurrent.Future<Integer>> futures = new java.util.ArrayList<>();
+
+        for (int i = 0; i < total; i++) {
+          boolean redirecting = i < redirectingCount;
+          // A request that follows one redirect, or one that hits
+          // the target directly with zero hops.
+          String path = redirecting ? "/test/redirect/302" : "/test/echo";
+          futures.add(
+              pool.submit(
+                  () -> {
+                    start.await();
+                    ApiHttpResponse response =
+                        client.sendRequest("GET", chasmUrl + path, new HashMap<>(), null);
+                    return response.statusCode();
+                  }));
+        }
+
+        start.countDown();
+
+        for (java.util.concurrent.Future<Integer> future : futures) {
+          // Each request must complete with its OWN correct outcome:
+          // 200, whether it followed one redirect or none. A shared
+          // budget would have failed some redirecting calls with an
+          // ApiException (surfacing here as an ExecutionException).
+          assertEquals(
+              Integer.valueOf(200),
+              future.get(),
+              "each concurrent request must resolve to its own 200, "
+                  + "independent of other requests' redirects");
+        }
+      } finally {
+        pool.shutdownNow();
+      }
+    }
+
+    /**
+     * Wave E — companion to the parity test above, isolating the refusal leg. A request that
+     * legitimately exhausts its redirect budget must fail ONLY itself; a concurrent request that
+     * needs no redirect must still succeed. Here the redirecting requests run with the shared
+     * client configured at {@code maxRedirects(0)} (every 302 is refused) while direct requests to
+     * {@code /test/echo} need no hop at all — and because both legs are driven by the same client,
+     * a shared refusal slot would let one request's "too many redirects" error surface on the
+     * other.
+     */
+    @Test
+    @DisplayName("a redirect-limit refusal on one request does not surface on another (Wave E)")
+    void redirectRefusalIsNotSharedAcrossConcurrentRequests() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      TransportOptions transport =
+          TransportOptions.builder().followRedirects(true).maxRedirects(0).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+
+      int eachLeg = 8;
+      int total = eachLeg * 2;
+
+      java.util.concurrent.ExecutorService pool =
+          java.util.concurrent.Executors.newFixedThreadPool(total);
+      try {
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        // Refusing requests: GET /test/redirect/302 with no hop budget
+        // must throw a "too many redirects" ApiException.
+        java.util.List<java.util.concurrent.Future<?>> refusing = new java.util.ArrayList<>();
+        // Direct requests: GET /test/echo needs no redirect and must
+        // return 200 regardless of what the refusing requests do.
+        java.util.List<java.util.concurrent.Future<Integer>> direct = new java.util.ArrayList<>();
+
+        for (int i = 0; i < eachLeg; i++) {
+          refusing.add(
+              pool.submit(
+                  () -> {
+                    start.await();
+                    return client.sendRequest(
+                        "GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null);
+                  }));
+          direct.add(
+              pool.submit(
+                  () -> {
+                    start.await();
+                    return client
+                        .sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null)
+                        .statusCode();
+                  }));
+        }
+
+        start.countDown();
+
+        for (java.util.concurrent.Future<?> future : refusing) {
+          java.util.concurrent.ExecutionException ex =
+              assertThrows(java.util.concurrent.ExecutionException.class, future::get);
+          assertTrue(
+              ex.getCause() instanceof ApiException,
+              "redirect-budget exhaustion must surface as ApiException, got: " + ex.getCause());
+          assertTrue(
+              ex.getCause().getMessage().toLowerCase(java.util.Locale.ROOT).contains("redirect"),
+              "expected a redirect-exhaustion message: " + ex.getCause().getMessage());
+        }
+        for (java.util.concurrent.Future<Integer> future : direct) {
+          // The refusal on the redirecting requests must NOT leak
+          // onto these: each direct request gets its own clean 200.
+          assertEquals(
+              Integer.valueOf(200),
+              future.get(),
+              "a concurrent request needing no redirect must not inherit "
+                  + "another request's redirect-limit refusal");
+        }
+      } finally {
+        pool.shutdownNow();
+      }
+    }
   }
 
   @Nested

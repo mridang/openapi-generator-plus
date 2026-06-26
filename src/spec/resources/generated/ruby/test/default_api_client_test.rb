@@ -317,6 +317,107 @@ describe PetstoreClient::DefaultApiClient do
       _(json['body']).wont_be_nil
       _(json['body']).wont_be_empty
     end
+
+    # WAVE E parity: redirect counting and the "too many redirects" refusal
+    # must be scoped to a SINGLE request, never shared on the client. Two
+    # requests issued CONCURRENTLY through one shared client must each reach
+    # their own independent outcome: a request that follows a redirect chain
+    # must not be failed by, or inflate the hop count of, a sibling request,
+    # and a sibling that does not redirect must complete cleanly. In this
+    # SDK the redirect loop keeps its hop counter (`hops`) as a local
+    # variable inside #send_request, so there is no shared state to corrupt
+    # — this test confirms that and guards against a regression.
+    it 'scopes redirect counting per request across concurrent calls' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .follow_redirects(true)
+        .max_redirects(5)
+        .build
+
+      # One shared client used by every thread below.
+      client = PetstoreClient::DefaultApiClient.new(transport)
+
+      # Mix requests that follow a redirect with requests that do not, all
+      # in flight at the same time on the same client. Each thread records
+      # its own result so we can assert independence after the join.
+      redirecting = Array.new(4) do
+        Thread.new do
+          client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
+        end
+      end
+      direct = Array.new(4) do
+        Thread.new do
+          client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+        end
+      end
+
+      # A request that follows exactly one redirect must land on 200; a
+      # sibling's redirects must not push it over the limit.
+      redirecting.each do |t|
+        response = t.value
+        _(response.status_code).must_equal(200)
+      end
+      # A request that follows no redirects must complete on its own; it
+      # must not inherit a hop count from a concurrent redirecting sibling.
+      direct.each do |t|
+        response = t.value
+        _(response.status_code).must_equal(200)
+        json = JSON.parse(response.body)
+        _(json['method']).must_equal('GET')
+      end
+    end
+
+    # WAVE E parity: a "too many redirects" refusal raised by one request
+    # must surface ONLY on that request and never leak onto a concurrent
+    # sibling. With max_redirects(0) every redirecting request is refused at
+    # once, while a non-redirecting request issued on the same client at the
+    # same time must still succeed — proving the refusal error is scoped to
+    # the calling request, not stored on the client.
+    it 'scopes the too-many-redirects refusal per request across concurrent calls' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      # follow_redirects=true but max_redirects=0: the server still answers
+      # /test/redirect/302 with a 3xx, so every redirecting request must be
+      # refused with an ApiError, while /test/echo never redirects.
+      transport = PetstoreClient::TransportOptions.builder
+        .follow_redirects(true)
+        .max_redirects(0)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+
+      # Each redirecting thread must raise; capture the exception per thread.
+      refused = Array.new(4) do
+        Thread.new do
+          begin
+            client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
+            nil
+          rescue PetstoreClient::ApiError => e
+            e
+          end
+        end
+      end
+      # Each non-redirecting thread must succeed despite the concurrent
+      # refusals; the refusal error must not surface here.
+      ok = Array.new(4) do
+        Thread.new do
+          client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+        end
+      end
+
+      refused.each do |t|
+        error = t.value
+        _(error).wont_be_nil
+        _(error.message.downcase).must_match(/redirect/)
+      end
+      ok.each do |t|
+        response = t.value
+        _(response.status_code).must_equal(200)
+        json = JSON.parse(response.body)
+        _(json['method']).must_equal('GET')
+      end
+    end
   end
 
   describe 'max redirects' do

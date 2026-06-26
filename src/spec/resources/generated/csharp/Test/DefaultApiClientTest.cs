@@ -425,6 +425,70 @@ public class DefaultApiClientTest
         Assert.Equal(5, transport.MaxRedirects);
     }
 
+    /// <summary>
+    /// Wave E parity: redirect counting and the "too many redirects" refusal
+    /// must be scoped to a single request, NOT shared across requests that run
+    /// concurrently through one client. DefaultApiClient.SendRequestAsync drives
+    /// the redirect loop with a local hop counter and a local response variable,
+    /// so concurrent calls cannot corrupt each other's count. This test fires
+    /// several requests at once through a single shared client backed by one
+    /// HttpClient: a request following a long chain that overruns MaxRedirects
+    /// must fail on its own, while a request following one hop and a request
+    /// following none each complete with their own correct outcome — and the
+    /// limit refusal must not surface on the requests that stayed under the cap.
+    /// If counting were shared per-client this would flake or cross-fail.
+    /// </summary>
+    [Fact]
+    public async Task ConcurrentRedirectsAreCountedPerRequestNotPerClient()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
+
+        // One handler / one HttpClient / one client shared by every task below.
+        // The handler builds a redirect chain whose remaining length is encoded
+        // in the request path: /chain/{n} -> /chain/{n-1}, and /chain/0 -> 200.
+        var handler = new ChainRedirectHandler();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        async Task<int> StatusForChainAsync(int length)
+        {
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri($"https://chain.example.com/chain/{length}"),
+                new Dictionary<string, string>(),
+                null
+            );
+            return response.StatusCode;
+        }
+
+        async Task<ApiException> ExceptionForChainAsync(int length)
+        {
+            return await Assert.ThrowsAsync<ApiException>(() => StatusForChainAsync(length));
+        }
+
+        // Run them all at once. The over-limit chain (20 hops) is interleaved
+        // with a one-hop chain, a zero-hop request, and another one-hop chain so
+        // its many redirects have every opportunity to inflate a shared counter.
+        var noHop = StatusForChainAsync(0);
+        var oneHopA = StatusForChainAsync(1);
+        var oneHopB = StatusForChainAsync(1);
+        var overLimit = ExceptionForChainAsync(20);
+
+        await Task.WhenAll(noHop, oneHopA, oneHopB, overLimit);
+
+        // Each under-cap request completed with its own correct 200 — none was
+        // failed by the concurrent 20-hop chain's redirects.
+        Assert.Equal(200, await noHop);
+        Assert.Equal(200, await oneHopA);
+        Assert.Equal(200, await oneHopB);
+
+        // The over-cap request, and only it, was refused with "too many
+        // redirects": the refusal did not leak onto the other tasks.
+        Assert.Contains("redirect", (await overLimit).Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     // -- Multipart body --
 
     [Fact]
@@ -636,6 +700,39 @@ public class DefaultApiClientTest
             {
                 Content = new StringContent(""),
             });
+        }
+    }
+
+    /// <summary>
+    /// Stateless redirect-chain handler: a request to /chain/{n} with n &gt; 0
+    /// returns a 302 pointing at /chain/{n-1}; /chain/0 returns 200 OK. The
+    /// chain length lives entirely in the URL, so the handler holds no
+    /// per-request state and can serve many concurrent chains of different
+    /// lengths through one HttpClient without interfering between them.
+    /// </summary>
+    private sealed class ChainRedirectHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            var remaining = int.Parse(path.Substring(path.LastIndexOf('/') + 1));
+            if (remaining <= 0)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(""),
+                });
+            }
+
+            var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+            {
+                Content = new StringContent(""),
+            };
+            redirect.Headers.Location =
+                new Uri(request.RequestUri, $"/chain/{remaining - 1}");
+            return Task.FromResult(redirect);
         }
     }
 }

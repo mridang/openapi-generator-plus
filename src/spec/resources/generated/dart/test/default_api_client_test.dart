@@ -506,6 +506,104 @@ void main() {
       expect(client, isNotNull);
     });
 
+    // Wave E: redirect counting must be scoped to a SINGLE request, not
+    // shared on the client/transport. The Dart transport keeps its hop
+    // counter as a local variable inside `sendRequest`, so each call is
+    // independent. This test would catch a regression that hoisted the
+    // counter (or the too-many-redirects refusal) onto the client: fire
+    // many requests CONCURRENTLY through ONE shared client with
+    // maxRedirects(1) — each `/test/redirect/302` is exactly one hop and
+    // must succeed. If the hop counter were shared, the overlapping
+    // in-flight redirects would inflate it past 1 and trip the limit on
+    // some requests; with per-request scoping every request gets 200,
+    // and a non-redirecting request mixed in is unaffected.
+    test('concurrent redirects do not share a hop counter (Wave E)', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(1)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      try {
+        final futures = <Future<int>>[
+          // A non-redirecting request sharing the same client. Its outcome
+          // must not be disturbed by the concurrent redirect traffic.
+          client
+              .sendRequest('GET', '$chasmHttpUrl/test/echo', {}, null)
+              .then((r) => r.statusCode),
+          // Several single-hop redirects fired together. Each consumes one
+          // hop; none should see another request's hop charged against it.
+          for (var i = 0; i < 8; i++)
+            client
+                .sendRequest('GET', '$chasmHttpUrl/test/redirect/302', {}, null)
+                .then((r) => r.statusCode),
+        ];
+        final codes = await Future.wait(futures);
+        expect(
+          codes,
+          everyElement(equals(200)),
+          reason:
+              'each concurrent request must follow its own redirect '
+              'chain within the per-request hop budget; a shared counter '
+              'would trip the maxRedirects(1) limit on some of them',
+        );
+      } finally {
+        client.close();
+      }
+    });
+
+    // Wave E: a too-many-redirects refusal raised by ONE request must not
+    // surface on an unrelated CONCURRENT request through the same client.
+    // With maxRedirects(0) any single-hop redirect legitimately fails with
+    // the typed limit error, while a non-redirecting request must still
+    // succeed — proving the refusal is scoped to the offending request and
+    // not stored on a shared error slot.
+    test(
+      'a too-many-redirects refusal stays on its own request (Wave E)',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(0)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        try {
+          final okFuture = client.sendRequest(
+            'GET',
+            '$chasmHttpUrl/test/echo',
+            {},
+            null,
+          );
+          final refusedFuture = client.sendRequest(
+            'GET',
+            '$chasmHttpUrl/test/redirect/302',
+            {},
+            null,
+          );
+
+          // The redirecting request hits the zero-hop limit and refuses.
+          await expectLater(
+            refusedFuture,
+            throwsA(
+              isA<ApiError>()
+                  .having((e) => e.statusCode, 'statusCode', 0)
+                  .having((e) => e.message, 'message', contains('redirect')),
+            ),
+          );
+          // The concurrent non-redirecting request is unaffected by the
+          // other request's refusal and completes normally.
+          final ok = await okFuture;
+          expect(
+            ok.statusCode,
+            equals(200),
+            reason:
+                'a refusal on one request must not surface on another '
+                'sharing the same client',
+          );
+        } finally {
+          client.close();
+        }
+      },
+    );
+
     test('sends multipart form data', () async {
       final client = DefaultApiClient();
       final headers = {

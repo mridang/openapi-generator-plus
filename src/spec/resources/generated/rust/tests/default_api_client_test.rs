@@ -526,6 +526,97 @@ async fn test_default_api_client_respects_max_redirects_limit() {
     );
 }
 
+// WAVE E (per-request redirect state): redirect counting and the
+// too-many-redirects refusal must be scoped to a SINGLE request/task, never
+// shared on the client. The Rust SDK already satisfies this: the manual
+// redirect loop in `send_request_with_options` declares its hop counter,
+// current URL, and refusal error as locals inside the per-call async block,
+// so concurrent requests on one shared client cannot corrupt each other's
+// redirect handling. This test drives several requests CONCURRENTLY through a
+// SINGLE shared client and asserts each completes with its OWN independent
+// outcome.
+//
+// Scenario A — a request that follows one redirect (1 hop) runs alongside a
+// request that follows none; both succeed, proving the hop budget is not
+// shared (one request's redirect does not consume the other's).
+//
+// Scenario B — with `max_redirects(0)` on the shared client, the request to
+// `/test/redirect/302` legitimately hits the limit and is refused with
+// "too many redirects", while a concurrent no-redirect request to
+// `/test/echo` succeeds. This proves a refusal raised by one request never
+// surfaces on another sharing the same client.
+//
+// chasm's `/test/redirect/302` performs a single hop to `/test/echo` (a 200
+// echo envelope); there is no multi-hop chain endpoint, so the limit case is
+// exercised deterministically with a zero-hop cap.
+#[tokio::test]
+async fn test_default_api_client_redirect_state_is_per_request_not_shared() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+
+    // Scenario A: one redirect-following request + one plain request, on ONE
+    // shared client, issued concurrently. Each must complete with status 200;
+    // the redirecting request's hop must not fail the plain one (and vice
+    // versa).
+    let transport_a = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(1))
+        .build();
+    let client_a = DefaultApiClient::new(Some(transport_a));
+    let headers = HashMap::new();
+    let f_redirecting = client_a.send_request(
+        "GET",
+        &format!("{}/test/redirect/302", chasm_url),
+        &headers,
+        None,
+    );
+    let f_plain = client_a.send_request("GET", &format!("{}/test/echo", chasm_url), &headers, None);
+    let (r_redirecting, r_plain) = tokio::join!(f_redirecting, f_plain);
+    let r_redirecting = r_redirecting.expect("redirect-following request must succeed");
+    let r_plain = r_plain.expect("concurrent no-redirect request must succeed");
+    assert_eq!(
+        r_redirecting.status_code(),
+        200,
+        "the 1-hop redirect must be followed to the 200 echo, independently of the concurrent request"
+    );
+    assert_eq!(
+        r_plain.status_code(),
+        200,
+        "the no-redirect request must return 200 and must not be affected by the other request's redirect"
+    );
+
+    // Scenario B: with a zero-hop cap on a SINGLE shared client, the
+    // redirecting request must be refused with "too many redirects" while the
+    // concurrent no-redirect request still succeeds — proving the refusal is
+    // scoped to the offending request and does not leak onto the other.
+    let transport_b = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(0))
+        .build();
+    let client_b = DefaultApiClient::new(Some(transport_b));
+    let f_over_limit = client_b.send_request(
+        "GET",
+        &format!("{}/test/redirect/302", chasm_url),
+        &headers,
+        None,
+    );
+    let f_within_limit =
+        client_b.send_request("GET", &format!("{}/test/echo", chasm_url), &headers, None);
+    let (r_over_limit, r_within_limit) = tokio::join!(f_over_limit, f_within_limit);
+    let err = r_over_limit.expect_err("the request exceeding the redirect cap must be refused");
+    assert!(
+        err.to_string().contains("too many redirects"),
+        "expected a 'too many redirects' refusal, got: {}",
+        err
+    );
+    let r_within_limit = r_within_limit
+        .expect("the concurrent no-redirect request must NOT inherit the other's refusal");
+    assert_eq!(
+        r_within_limit.status_code(),
+        200,
+        "a too-many-redirects refusal on one request must not surface on another sharing the client"
+    );
+}
+
 /// Gap T6: explicit close() and Drop on DefaultApiClient must not panic.
 /// reqwest::Client handles teardown via its own internal Arc<Drop>, so this
 /// test asserts only that calling close() and then dropping the client does

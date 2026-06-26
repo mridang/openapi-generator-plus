@@ -13,6 +13,7 @@ import {
   OAuth2TokenError,
 } from "../src/auth/oauth/oauth2-token-manager.js";
 import * as zlib from "node:zlib";
+import * as http from "node:http";
 
 describe("DefaultApiClient", () => {
   describe("TLS verification disabled", () => {
@@ -456,6 +457,107 @@ describe("DefaultApiClient", () => {
       expect(json.body.length).toBeGreaterThan(0);
       expect(json.body).toContain("file-content-bytes");
     });
+  });
+
+  /*
+   * WAVE E: redirect counting and the "too many redirects" refusal must be
+   * scoped to a SINGLE request, never shared across concurrent requests made
+   * through one client. The Node transport already satisfies this: the
+   * redirect loop in AbstractApiClient.sendRequest keeps its hop counter
+   * (`hops`) and follow-up method/body/headers in call-local variables, so
+   * two in-flight requests on the same client cannot corrupt each other's
+   * count or surface one request's refusal error on the other.
+   *
+   * This parity test proves the property end-to-end by firing many requests
+   * CONCURRENTLY through ONE shared client: half follow a single redirect
+   * (must succeed with 200) and half follow a chain far longer than the cap
+   * (must each independently fail with "too many redirects"). A shared
+   * counter would let the long chains inflate the short requests' hop count
+   * (failing a 1-hop request) or let a refusal leak onto a 1-hop request.
+   *
+   * The redirect chain is served by an in-process http.Server with a
+   * self-decrementing `/chain/{n}` endpoint (302 -> /chain/{n-1}, 200 at 0),
+   * mirroring the Go SDK's WaveE verification rather than depending on a
+   * fixed-length chasm endpoint.
+   */
+  describe("concurrent redirects are per-request (WAVE E)", () => {
+    test("a 1-hop request is not failed by a concurrent over-limit chain", async () => {
+      const server = http.createServer((req, res) => {
+        const n = Number.parseInt((req.url ?? "").replace("/chain/", ""), 10);
+        if (!Number.isFinite(n) || n <= 0) {
+          res.writeHead(200, { "Content-Type": "text/plain" });
+          res.end("ok");
+          return;
+        }
+        const addr = server.address();
+        const port = typeof addr === "object" && addr != null ? addr.port : 0;
+        res.writeHead(302, {
+          Location: `http://127.0.0.1:${port}/chain/${n - 1}`,
+        });
+        res.end();
+      });
+
+      await new Promise<void>((resolve) =>
+        server.listen(0, "127.0.0.1", resolve),
+      );
+      const addr = server.address();
+      const port = typeof addr === "object" && addr != null ? addr.port : 0;
+      const baseUrl = `http://127.0.0.1:${port}`;
+
+      const maxRedirects = 5;
+      const transport = TransportOptions.builder()
+        .followRedirects(true)
+        .maxRedirects(maxRedirects)
+        .build();
+      const client = new DefaultApiClient(transport);
+
+      // Interleave short (1-hop, must pass) and long (20-hop, must be refused)
+      // requests so that if the hop counter were shared, the long chains would
+      // run concurrently with — and corrupt — the short ones.
+      type Case = { hops: number; wantErr: boolean };
+      const cases: Case[] = [];
+      for (let i = 0; i < 12; i++) {
+        cases.push({ hops: 1, wantErr: false });
+        cases.push({ hops: 20, wantErr: true });
+      }
+
+      try {
+        const results = await Promise.allSettled(
+          cases.map((c) =>
+            client.sendRequest("GET", `${baseUrl}/chain/${c.hops}`, {}, null),
+          ),
+        );
+
+        cases.forEach((c, i) => {
+          const result = results[i]!;
+          if (c.wantErr) {
+            // A request that legitimately exceeds the cap must reject with the
+            // "too many redirects" ApiError mentioning the limit — and must do
+            // so on ITS OWN account, not because a sibling exhausted a counter.
+            expect(result.status).toBe("rejected");
+            const reason = (result as PromiseRejectedResult).reason;
+            expect(reason).toBeInstanceOf(ApiError);
+            expect(String((reason as ApiError).message)).toContain(
+              String(maxRedirects),
+            );
+          } else {
+            // A 1-hop request must succeed independently: the 20-hop chains
+            // running alongside it must not push its hop count over the cap
+            // nor surface their refusal error here.
+            expect(result.status).toBe("fulfilled");
+            const response = (
+              result as PromiseFulfilledResult<
+                Awaited<ReturnType<typeof client.sendRequest>>
+              >
+            ).value;
+            expect(response.statusCode).toBe(200);
+            expect(response.body).toContain("ok");
+          }
+        });
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    }, 30000);
   });
 
   describe("max redirects", () => {

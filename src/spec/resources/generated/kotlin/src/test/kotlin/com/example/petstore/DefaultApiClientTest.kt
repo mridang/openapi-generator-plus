@@ -16,6 +16,9 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Disabled
@@ -582,6 +585,140 @@ class DefaultApiClientTest {
             val client = DefaultApiClient(transport)
             assertNotNull(client)
             assertEquals(5, transport.maxRedirects)
+        }
+    }
+
+    @Nested
+    @DisplayName("concurrent redirects share no per-request state (Wave E)")
+    inner class ConcurrentRedirects {
+        /*
+         * Wave E parity test: redirect counting and the "too many redirects"
+         * refusal must be scoped to a SINGLE request, never shared across
+         * requests on one client. Here the kotlin SDK already counts redirects
+         * with loop-local variables inside sendRequest (redirectsRemaining,
+         * currentUrl, ...), so concurrent requests on one client cannot corrupt
+         * each other's hop count or surface another request's refusal.
+         *
+         * The test fires four requests CONCURRENTLY through ONE shared client,
+         * each hitting a different redirect path on a single MockEngine that
+         * routes by path:
+         *   /none     -> 200 directly (zero hops)
+         *   /once     -> 302 -> 200 (one hop)
+         *   /chain    -> 302 x3 -> 200 (three hops, under the limit)
+         *   /toomany  -> 302 forever (eight+ hops, exceeds maxRedirects=5)
+         * and asserts each completes with its OWN correct outcome: the three
+         * legitimate requests succeed (200), and ONLY /toomany is refused with
+         * a "Too many redirects" ApiException — its refusal must not leak onto
+         * the others, and the others' hops must not push it over (or save it).
+         *
+         * A MockEngine is used because the chasm mock exposes only single-hop
+         * redirect endpoints; an N-hop chain and a beyond-limit chain are
+         * needed to exercise the shared-counter bug deterministically. The same
+         * MockEngine handler serves all concurrent requests, so a shared
+         * counter (if one existed) would be observably corrupted here.
+         */
+        @Test
+        @DisplayName("each concurrent request keeps its own redirect count and refusal state")
+        fun concurrent_requests_do_not_share_redirect_state() {
+            val engine =
+                MockEngine { req ->
+                    val path = req.url.encodedPath
+                    when {
+                        path == "/none" ->
+                            respond("ok-none", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                        path == "/once" ->
+                            respond(
+                                content = "",
+                                status = HttpStatusCode.Found,
+                                headers = headersOf("Location", "https://mock.example.com/none"),
+                            )
+                        // /chain/3 -> /chain/2 -> /chain/1 -> /none (three hops)
+                        path.startsWith("/chain/") -> {
+                            val n = path.removePrefix("/chain/").toIntOrNull() ?: 0
+                            val next = if (n <= 1) "/none" else "/chain/${n - 1}"
+                            respond(
+                                content = "",
+                                status = HttpStatusCode.Found,
+                                headers = headersOf("Location", "https://mock.example.com$next"),
+                            )
+                        }
+                        // /toomany/N -> /toomany/(N-1) -> ... never terminates within the budget
+                        path.startsWith("/toomany/") -> {
+                            val n = path.removePrefix("/toomany/").toIntOrNull() ?: 0
+                            respond(
+                                content = "",
+                                status = HttpStatusCode.Found,
+                                headers = headersOf("Location", "https://mock.example.com/toomany/${n + 1}"),
+                            )
+                        }
+                        else ->
+                            respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            // maxRedirects=5: /chain (3 hops) stays under it; /toomany (unbounded)
+            // exceeds it. A single client/engine is shared across all requests.
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .maxRedirects(5)
+                    .build()
+            val client = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+
+            runBlocking {
+                coroutineScope {
+                    val none =
+                        async {
+                            client.sendRequest("GET", "https://mock.example.com/none", emptyMap(), null)
+                        }
+                    val once =
+                        async {
+                            client.sendRequest("GET", "https://mock.example.com/once", emptyMap(), null)
+                        }
+                    val chain =
+                        async {
+                            client.sendRequest("GET", "https://mock.example.com/chain/3", emptyMap(), null)
+                        }
+                    // The over-limit request runs concurrently with the others;
+                    // its refusal must be isolated to this task.
+                    val tooMany =
+                        async {
+                            runCatching {
+                                client.sendRequest("GET", "https://mock.example.com/toomany/1", emptyMap(), null)
+                            }
+                        }
+
+                    val (noneRes, onceRes, chainRes) = awaitAll(none, once, chain)
+                    val tooManyOutcome = tooMany.await()
+
+                    assertEquals(
+                        200,
+                        noneRes.statusCode,
+                        "zero-redirect request must succeed independently",
+                    )
+                    assertEquals(
+                        200,
+                        onceRes.statusCode,
+                        "single-redirect request must not be failed by another request's hops",
+                    )
+                    assertEquals(
+                        200,
+                        chainRes.statusCode,
+                        "three-hop request (under the limit) must succeed independently",
+                    )
+
+                    val error = tooManyOutcome.exceptionOrNull()
+                    assertNotNull(
+                        error,
+                        "the unbounded redirect chain must hit the per-request limit and be refused",
+                    )
+                    assertTrue(
+                        error is ApiException &&
+                            error.message!!.contains("Too many redirects"),
+                        "only the over-limit request may be refused, got: $error",
+                    )
+                }
+            }
         }
     }
 

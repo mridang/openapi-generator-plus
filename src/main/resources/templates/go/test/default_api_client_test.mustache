@@ -3,11 +3,13 @@ package {{packageName}}_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	. "{{packageName}}/pkg"
@@ -599,5 +601,108 @@ func TestDefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t *testing.T) {
 				t.Errorf("expected downgrade-refusal message for %d, got %q", status, err.Error())
 			}
 		})
+	}
+}
+
+// WAVE E: redirect counting and the "too many redirects" refusal must be
+// scoped to a single in-flight request, never shared across concurrent
+// requests issued through one client. net/http tracks the redirect chain via
+// the per-call `via []*http.Request` slice and plumbs the NoRedirect flag
+// through req.Context(), so there is no mutable redirect state on the shared
+// *http.Client — but this test pins that contract so a future refactor
+// (e.g. hoisting a hop counter onto the client) cannot silently regress it.
+//
+// A single shared client fires many requests CONCURRENTLY against a redirect
+// chain of configurable depth. With MaxRedirects(5):
+//   - shallow requests (1 hop) MUST succeed with 200, and
+//   - deep requests (20 hops) MUST independently fail with the limit error,
+// proving one request's redirects neither inflate another's hop count nor
+// leak another's refusal error. The chain is built with httptest because the
+// chasm fixture only serves fixed-depth (302/303/307) redirects and cannot
+// express a configurable multi-hop chain or a guaranteed limit overflow.
+func TestDefaultApiClient_ConcurrentRedirectCountIsPerRequest(t *testing.T) {
+	t.Parallel()
+
+	// /chain/0 terminates with 200; /chain/N (N>0) redirects to /chain/N-1.
+	// A request to /chain/N therefore performs exactly N redirect hops.
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/chain/"))
+		if err != nil || n <= 0 {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("Location", fmt.Sprintf("%s/chain/%d", server.URL, n-1))
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+
+	const maxRedirects = 5
+	// One shared client across every concurrent request — the crux of the
+	// test. If redirect state lived on the client/transport the deep
+	// requests' hops would corrupt the shallow ones (or vice versa).
+	transport := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		MaxRedirects(maxRedirects).
+		Build()
+	client := NewDefaultApiClient(transport)
+
+	// Interleave many shallow (1-hop, must succeed) and deep (20-hop, must
+	// hit the limit) requests so their redirect handling overlaps in time.
+	type expectation struct {
+		hops    int
+		wantErr bool // true when hops > maxRedirects
+	}
+	var cases []expectation
+	for i := 0; i < 12; i++ {
+		cases = append(cases,
+			expectation{hops: 1, wantErr: false},
+			expectation{hops: 20, wantErr: true},
+		)
+	}
+
+	var wg sync.WaitGroup
+	errs := make([]error, len(cases))
+	codes := make([]int, len(cases))
+	for i, c := range cases {
+		wg.Add(1)
+		go func(idx int, ex expectation) {
+			defer wg.Done()
+			resp, err := client.SendRequest(
+				"GET",
+				fmt.Sprintf("%s/chain/%d", server.URL, ex.hops),
+				map[string]string{}, nil,
+			)
+			errs[idx] = err
+			if resp != nil {
+				codes[idx] = resp.StatusCode
+			}
+		}(i, c)
+	}
+	wg.Wait()
+
+	for i, c := range cases {
+		if c.wantErr {
+			// A deep request must fail on its OWN over-limit chain — and the
+			// refusal must name the limit, not be a spurious error inherited
+			// from a concurrent request.
+			if errs[i] == nil {
+				t.Errorf("case %d (%d hops): expected too-many-redirects error, got nil (status %d)", i, c.hops, codes[i])
+				continue
+			}
+			if !strings.Contains(errs[i].Error(), strconv.Itoa(maxRedirects)) {
+				t.Errorf("case %d (%d hops): expected limit error mentioning %d, got %q", i, c.hops, maxRedirects, errs[i].Error())
+			}
+		} else {
+			// A shallow request stays well under the limit and must succeed —
+			// it must NOT be failed by a concurrent deep request's overflow.
+			if errs[i] != nil {
+				t.Errorf("case %d (%d hops): expected success, got error %q", i, c.hops, errs[i].Error())
+				continue
+			}
+			if codes[i] != 200 {
+				t.Errorf("case %d (%d hops): expected status 200, got %d", i, c.hops, codes[i])
+			}
+		}
 	}
 }

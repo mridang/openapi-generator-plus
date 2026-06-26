@@ -599,6 +599,86 @@
           "303 follow-up must not carry stale Content-Length, got: \(cl)")
       }
     }
+
+    // MARK: - Concurrent redirects: per-request scoping (Wave E)
+
+    // concurrent-redirects: redirect counting and the "too many redirects"
+    // refusal MUST be scoped to a single request/task, not shared on the
+    // delegate instance (which backs one URLSession shared by the whole
+    // client). This test fires several requests CONCURRENTLY through ONE shared
+    // client where each follows a DIFFERENT number of redirects:
+    //
+    //   * /loop/*  -> redirects forever, so with maxRedirects(2) it must hit
+    //                 the cap and throw "Exceeded maximum number of redirects".
+    //   * /one     -> redirects exactly once to /one/final, well under the cap,
+    //                 so it must SUCCEED with a 200.
+    //   * /none    -> no redirect at all, must SUCCEED with a 200.
+    //
+    // If redirect state were shared across requests (the bug), the /loop
+    // request's redirects would inflate the counter for /one (failing a request
+    // that legitimately redirects once) and/or the cap-exceeded refusal would
+    // surface on /one or /none. We assert each request gets its OWN correct,
+    // independent outcome. Run many rounds to make any cross-request bleed
+    // overwhelmingly likely to manifest rather than slip through by timing luck.
+    @Test func testConcurrentRedirectsAreScopedPerRequest() async throws {
+      let transport = TransportOptionsBuilder()
+        .followRedirects(true)
+        .maxRedirects(2)
+        .build()
+      RedirectStubURLProtocol.configure { req in
+        let path = req.url?.path ?? ""
+        if path.hasPrefix("/loop") {
+          /* Always redirect onward -> exhausts the cap of 2. */
+          return .redirect(status: 302, location: "https://example.com/loop/next")
+        }
+        if path == "/one" {
+          /* Exactly one redirect, comfortably under the cap. */
+          return .redirect(status: 302, location: "https://example.com/one/final")
+        }
+        /* /one/final and /none both terminate with a 200. */
+        return .ok(Data(#"{"ok":true}"#.utf8))
+      }
+      /* ONE client (one URLSession, one SessionDelegate) shared by every
+         concurrent request below. */
+      let client = DefaultApiClient(
+        transportOptions: transport,
+        protocolClasses: [RedirectStubURLProtocol.self])
+
+      for _ in 0..<25 {
+        async let loopResult: Void = {
+          /* The over-limit request MUST throw its own refusal and MUST
+             NOT be saved by a sibling, nor poison a sibling. */
+          await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+              method: "GET", url: "https://example.com/loop/start",
+              headers: [:], body: nil)
+          }
+        }()
+        async let oneResult: ApiHttpResponse = client.sendRequest(
+          method: "GET", url: "https://example.com/one", headers: [:], body: nil)
+        async let noneResult: ApiHttpResponse = client.sendRequest(
+          method: "GET", url: "https://example.com/none", headers: [:], body: nil)
+
+        _ = await loopResult
+        let one = try await oneResult
+        let none = try await noneResult
+
+        /* A request that redirects ONCE must succeed -- it must not be
+           failed by the concurrent /loop request's redirects, and the
+           "too many redirects" refusal must not surface on it. */
+        #expect(
+          one.statusCode == 200,
+          "single-redirect request must succeed independently of a "
+            + "concurrent over-limit request")
+        #expect(one.body.contains("ok"))
+        /* A request with no redirects must likewise be unaffected. */
+        #expect(
+          none.statusCode == 200,
+          "no-redirect request must succeed independently of a "
+            + "concurrent over-limit request")
+        #expect(none.body.contains("ok"))
+      }
+    }
   }
 
   /// Thread-safe hop counter for multi-request stub handlers (e.g. redirect tests).

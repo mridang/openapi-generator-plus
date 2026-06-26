@@ -364,6 +364,104 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     assert transport.max_redirects == 5
   end
 
+  # WAVE E parity: redirect counting and the "too many redirects" refusal
+  # must be scoped to a SINGLE request, never shared across concurrent
+  # requests on one client. Elixir counts hops as a local parameter in the
+  # recursive do_request_with_redirects/8 (no per-client mutable state), so
+  # concurrent requests cannot corrupt each other's hop counter or surface
+  # one request's refusal on another. This test fans out several requests
+  # CONCURRENTLY through ONE shared client and asserts each gets its OWN
+  # independent outcome.
+  #
+  # The chasm mock exposes single-hop redirect endpoints only, so we vary
+  # the per-request redirect budget instead of the chain length: a request
+  # with max_redirects: 0 legitimately hits the limit and is refused, while
+  # requests that follow the single 302 hop (or none at all) succeed. If
+  # redirect state were shared, the max_redirects: 0 refusal — or the hop
+  # consumed by the redirecting request — would leak onto the others and
+  # fail them. A correct (per-request) SDK passes.
+  test "redirect count and refusal are per-request across concurrent calls" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    # A shared client whose transport permits following redirects. Every
+    # concurrent task below runs through THIS single client/connection pool.
+    follow = {{moduleName}}.TransportOptions.new(follow_redirects: true, max_redirects: 5)
+    shared = {{moduleName}}.DefaultApiClient.new(follow)
+
+    # Task A: follows the single 302 hop to /test/echo and must succeed.
+    redirecting = fn ->
+      {{moduleName}}.DefaultApiClient.send_request(
+        shared, :get, "#{chasm_url}/test/redirect/302", %{}, nil
+      )
+    end
+
+    # Task B: no redirect involved at all — a plain echo that must succeed
+    # independently and must NOT be charged for task A's hop.
+    direct = fn ->
+      {{moduleName}}.DefaultApiClient.send_request(
+        shared, :get, "#{chasm_url}/test/echo", %{}, nil
+      )
+    end
+
+    # Task C: a request that legitimately hits its OWN redirect limit. It
+    # uses a dedicated client with max_redirects: 0 so following even the
+    # first 302 exceeds the budget and raises "too many redirects". This
+    # refusal must surface ONLY on task C, never on A or B.
+    refusing_client =
+      {{moduleName}}.DefaultApiClient.new(
+        {{moduleName}}.TransportOptions.new(follow_redirects: true, max_redirects: 0)
+      )
+
+    refusing = fn ->
+      try do
+        {:ok,
+         {{moduleName}}.DefaultApiClient.send_request(
+           refusing_client, :get, "#{chasm_url}/test/redirect/302", %{}, nil
+         )}
+      rescue
+        e in {{moduleName}}.ApiError -> {:error, e}
+      end
+    end
+
+    # Launch many interleaved tasks so the scheduler genuinely overlaps the
+    # redirect-following work. Several copies of each kind run at once; if
+    # any per-request redirect state were shared, the mixed concurrency
+    # would corrupt counts or cross-deliver the refusal.
+    funs =
+      List.duplicate(redirecting, 4) ++
+        List.duplicate(direct, 4) ++
+        List.duplicate(refusing, 4)
+
+    results =
+      funs
+      |> Enum.map(&Task.async/1)
+      |> Enum.map(&Task.await(&1, 30_000))
+
+    {redirect_results, rest} = Enum.split(results, 4)
+    {direct_results, refuse_results} = Enum.split(rest, 4)
+
+    # Every redirecting request followed its OWN single hop to a 200; none
+    # was failed by another request's redirects or refusal.
+    Enum.each(redirect_results, fn response ->
+      assert response.status_code == 200
+      assert Jason.decode!(response.body)["method"] == "GET"
+    end)
+
+    # Every direct request succeeded independently; it was not charged for a
+    # hop it never made.
+    Enum.each(direct_results, fn response ->
+      assert response.status_code == 200
+      assert Jason.decode!(response.body)["method"] == "GET"
+    end)
+
+    # Every refusing request — and ONLY those — got its own "too many
+    # redirects" error. The refusal did not leak onto A or B above.
+    Enum.each(refuse_results, fn result ->
+      assert {:error, %{{moduleName}}.ApiError{message: message}} = result
+      assert message == "too many redirects"
+    end)
+  end
+
   test "sends multipart form data" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 

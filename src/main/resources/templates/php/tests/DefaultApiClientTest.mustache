@@ -338,6 +338,135 @@ test('respects max redirects limit', function (): void {
     expect($transport->maxRedirects)->toBe(5);
 });
 
+// -- Wave E: redirect counting is per-request, not shared per-client --
+
+/*
+ * The redirect hop counter and the "too many redirects" refusal must be
+ * scoped to a SINGLE sendRequest() call, never stored on the client (or
+ * the underlying transport) instance. If they leaked onto the client,
+ * interleaving a long redirect chain with a short one on the SAME shared
+ * client would corrupt each other: a request that redirects once could
+ * be failed by another request's hops, or a refusal raised by an
+ * over-limit request could surface on an unrelated under-limit request.
+ *
+ * chasm only exposes single-hop redirects, so this test stands up a tiny
+ * local PHP built-in server exposing /chain/{n}: each hop 302-redirects
+ * to /chain/{n-1} until /chain/0 returns 200. That lets one request walk
+ * a long chain (hitting the maxRedirects=5 limit) while another walks a
+ * one-hop chain (succeeding), all through one DefaultApiClient. PHP runs
+ * these calls sequentially within the process; the parity assertion is
+ * that the over-limit refusal and the hop count NEVER bleed across calls
+ * regardless of interleaving order — exactly what shared per-client
+ * redirect state would break. Mirrors the Go SDK's
+ * TestWaveE_ConcurrentRedirectCountIsPerRequest.
+ */
+test('redirect count and limit are scoped per request not shared per client', function (): void {
+    // Router script for `php -S`: 302 -> /chain/{n-1} until /chain/0 -> 200.
+    $router = <<<'PHP'
+        <?php
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+        if (preg_match('#^/chain/(\d+)$#', (string) $path, $m)) {
+            $n = (int) $m[1];
+            if ($n <= 0) {
+                http_response_code(200);
+                echo 'ok';
+                return true;
+            }
+            header('Location: /chain/' . ($n - 1), true, 302);
+            return true;
+        }
+        http_response_code(404);
+        return true;
+        PHP;
+
+    // tempnam() reserves a unique base path; append .php for the router and
+    // drop the original reservation so we don't leave an orphan temp file.
+    $tempBase = (string) tempnam(sys_get_temp_dir(), 'wavee_router_');
+    @unlink($tempBase);
+    $routerFile = $tempBase . '.php';
+    file_put_contents($routerFile, $router);
+
+    // Bind to an ephemeral loopback port. Port 0 lets the OS pick a free
+    // port; we read it back from the server's startup banner on stderr.
+    $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    $process = proc_open(
+        [PHP_BINARY, '-S', '127.0.0.1:0', $routerFile],
+        $descriptors,
+        $pipes
+    );
+    if (!is_resource($process)) {
+        test()->fail('could not start local php redirect-chain server');
+    }
+
+    try {
+        // The built-in server prints "... started ... http://127.0.0.1:PORT"
+        // to stderr once it is listening. Poll until we can parse the port.
+        $port = 0;
+        stream_set_blocking($pipes[2], false);
+        $deadline = microtime(true) + 10.0;
+        $banner = '';
+        while (microtime(true) < $deadline && $port === 0) {
+            $banner .= (string) fread($pipes[2], 4096);
+            if (preg_match('#127\.0\.0\.1:(\d+)#', $banner, $m)) {
+                $port = (int) $m[1];
+            } else {
+                usleep(20_000);
+            }
+        }
+        expect($port)->toBeGreaterThan(0);
+
+        $base = 'http://127.0.0.1:' . $port;
+
+        $transport = TransportOptions::builder()
+            ->followRedirects(true)
+            ->maxRedirects(5)
+            ->build();
+
+        // ONE shared client drives every request below.
+        $client = new DefaultApiClient($transport);
+
+        // Interleave short (1 hop -> success) and long (20 hops -> over the
+        // maxRedirects=5 budget -> refusal) requests in alternating order.
+        // Each tuple is [hops, expectFailure].
+        $cases = [];
+        for ($i = 0; $i < 12; $i++) {
+            $cases[] = [1, false];
+            $cases[] = [20, true];
+        }
+
+        foreach ($cases as [$hops, $expectFailure]) {
+            if ($expectFailure) {
+                // The over-limit request must raise ITS OWN refusal and must
+                // mention the configured limit — never silently inherit a
+                // success, and never poison the next (short) request.
+                $caught = null;
+                try {
+                    $client->sendRequest('GET', $base . '/chain/' . $hops, [], null);
+                } catch (\Throwable $e) {
+                    $caught = $e;
+                }
+                expect($caught)->not->toBeNull();
+                expect((string) $caught?->getMessage())->toContain('maxRedirects=5');
+            } else {
+                // The short request must succeed on its own redirect budget,
+                // unaffected by any prior over-limit request's hop count.
+                $response = $client->sendRequest('GET', $base . '/chain/' . $hops, [], null);
+                expect($response->statusCode)->toBe(200);
+                expect($response->body)->toBe('ok');
+            }
+        }
+    } finally {
+        foreach ($pipes as $pipe) {
+            if (is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        proc_terminate($process);
+        proc_close($process);
+        @unlink($routerFile);
+    }
+});
+
 // -- Multipart body --
 
 test('sends multipart form data', function (): void {
