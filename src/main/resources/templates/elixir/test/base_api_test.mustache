@@ -770,6 +770,32 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert result == bytes
   end
 
+  # WAVE F: a BOM-less utf-16 response body must decode as big-endian per
+  # RFC 2781. The bytes 00 50 00 65 00 74 are "Pet" in UTF-16BE; the same
+  # bytes read little-endian would be a different (CJK) string, so decoding
+  # to exactly "Pet" proves the big-endian default. Erlang's bare :utf16
+  # encoding atom is {:utf16, :big}, so this SDK already honours the rule.
+  test "decode_text_body decodes BOM-less utf-16 as big-endian (RFC 2781)" do
+    bytes = <<0x00, 0x50, 0x00, 0x65, 0x00, 0x74>>
+
+    result =
+      {{moduleName}}.DefaultApiClient.decode_text_body(
+        bytes,
+        "text/plain; charset=utf-16"
+      )
+
+    assert result == "Pet"
+
+    # Prove the choice: the same bytes read little-endian are NOT "Pet".
+    little =
+      {{moduleName}}.DefaultApiClient.decode_text_body(
+        bytes,
+        "text/plain; charset=utf-16le"
+      )
+
+    refute little == "Pet"
+  end
+
   test "empty JSON object body includes Content-Type" do
     {:ok, name} = CapturingHeadersApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")

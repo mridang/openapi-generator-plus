@@ -165,6 +165,18 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/utf16-no-bom",
+        exchange -> {
+          // RFC 2781: a UTF-16 body with NO byte-order mark defaults to
+          // big-endian. "Pet" as BOM-less UTF-16BE is 00 50 00 65 00 74.
+          byte[] body = new byte[] {0x00, 0x50, 0x00, 0x65, 0x00, 0x74};
+          exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-16");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
         "/content-encoding-lie",
         exchange -> {
           // Gap AL: the server claims gzip but sends plain (non-gzip) bytes.
@@ -835,6 +847,21 @@ class DefaultApiClientUnitTest {
     ApiHttpResponse response =
         client.sendRequest("GET", baseUrl + "/unknown-charset", Map.of(), null);
     assertEquals("héllo", response.body());
+  }
+
+  @Test
+  void decodesBomlessUtf16AsBigEndian() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf16-no-bom", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals(
+        "Pet", response.body(), "a BOM-less utf-16 body must decode as big-endian per RFC 2781");
+    // Prove the choice: the same bytes read little-endian are NOT "Pet".
+    byte[] sameBytes = new byte[] {0x00, 0x50, 0x00, 0x65, 0x00, 0x74};
+    assertNotEquals(
+        "Pet",
+        new String(sameBytes, java.nio.charset.StandardCharsets.UTF_16LE),
+        "little-endian interpretation of the same bytes must NOT equal \"Pet\"");
   }
 
   @Test

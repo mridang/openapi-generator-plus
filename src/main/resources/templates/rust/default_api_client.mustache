@@ -778,9 +778,35 @@ pub fn parse_charset(content_type: &str) -> Option<String> {
 
 /// Decodes a response body using the charset declared on the Content-Type
 /// header. Falls back to UTF-8 when the charset is absent or unrecognised.
+///
+/// Byte order for a bare `utf-16` label (no BOM): RFC 2781 specifies that
+/// UTF-16 with no byte-order mark defaults to BIG-ENDIAN. `encoding_rs`
+/// follows the WHATWG Encoding Standard, where the `utf-16` label resolves
+/// to UTF-16LE (little-endian) — the wrong default for an HTTP client
+/// decoding by the IANA/MIME charset registration. We therefore special-case
+/// the bare `utf-16` / `utf16` label to decode as UTF-16BE when the body
+/// carries no UTF-16 BOM. When a BOM IS present, it is honoured: a UTF-16LE
+/// BOM (0xFF 0xFE) selects little-endian and a UTF-16BE BOM (0xFE 0xFF)
+/// selects big-endian, regardless of the label.
 pub fn decode_text_body(bytes: &[u8], content_type: &str) -> String {
     if let Some(charset) = parse_charset(content_type) {
         if let Some(encoding) = encoding_rs::Encoding::for_label(charset.as_bytes()) {
+            // A bare `utf-16` / `utf16` label (one that WHATWG resolves to
+            // UTF-16LE but that the caller did not spell as `utf-16le`) must
+            // default to big-endian per RFC 2781 — but only when no BOM is
+            // present. A leading BOM always wins and is left to encoding_rs.
+            let normalized: String = charset
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect::<String>()
+                .to_ascii_lowercase();
+            let has_utf16_bom = bytes.len() >= 2
+                && ((bytes[0] == 0xFE && bytes[1] == 0xFF)
+                    || (bytes[0] == 0xFF && bytes[1] == 0xFE));
+            if normalized == "utf16" && !has_utf16_bom {
+                let (decoded, _, _) = encoding_rs::UTF_16BE.decode(bytes);
+                return decoded.into_owned();
+            }
             let (decoded, _, _) = encoding.decode(bytes);
             return decoded.into_owned();
         }
@@ -1290,6 +1316,38 @@ mod tests {
             parse_charset("text/plain; charset=\"UTF-8\""),
             Some("UTF-8".to_string())
         );
+    }
+
+    #[test]
+    fn test_decode_text_body_bare_utf16_no_bom_is_big_endian() {
+        // RFC 2781: a UTF-16 body with no BOM defaults to BIG-ENDIAN.
+        // "Pet" as UTF-16BE without a BOM is 00 50 00 65 00 74.
+        let big_endian_bytes = [0x00, 0x50, 0x00, 0x65, 0x00, 0x74];
+        let decoded = decode_text_body(&big_endian_bytes, "text/plain; charset=utf-16");
+        assert_eq!(decoded, "Pet");
+
+        // The same bytes read little-endian would NOT be "Pet" (they decode to
+        // U+5000 U+6500 U+7400), proving the big-endian choice is load-bearing.
+        let (le, _, _) = encoding_rs::UTF_16LE.decode(&big_endian_bytes);
+        assert_ne!(le, "Pet");
+    }
+
+    #[test]
+    fn test_decode_text_body_utf16_honours_le_bom() {
+        // A UTF-16LE BOM (FF FE) must override the big-endian default and
+        // select little-endian. "Pet" as UTF-16LE: 50 00 65 00 74 00.
+        let le_with_bom = [0xFF, 0xFE, 0x50, 0x00, 0x65, 0x00, 0x74, 0x00];
+        let decoded = decode_text_body(&le_with_bom, "text/plain; charset=utf-16");
+        assert_eq!(decoded, "Pet");
+    }
+
+    #[test]
+    fn test_decode_text_body_utf16_honours_be_bom() {
+        // A UTF-16BE BOM (FE FF) selects big-endian explicitly.
+        // "Pet" as UTF-16BE: FE FF 00 50 00 65 00 74.
+        let be_with_bom = [0xFE, 0xFF, 0x00, 0x50, 0x00, 0x65, 0x00, 0x74];
+        let decoded = decode_text_body(&be_with_bom, "text/plain; charset=utf-16");
+        assert_eq!(decoded, "Pet");
     }
 
     // ── Sensitive-header allowlist (Gap 3.1) ──

@@ -68,13 +68,42 @@ def _charset_from_content_type(content_type: str) -> Optional[str]:
     return match.group(1).strip()
 
 
+def _resolve_utf16_charset(charset: str, data: bytes) -> str:
+    """Resolve a bare ``utf-16`` label to an explicit byte order.
+
+    Python's ``utf-16`` codec defaults to the platform-native byte order
+    (little-endian on common hardware) when the body carries no BOM. That
+    disagrees with other SDKs and with RFC 2781, which specifies that a
+    UTF-16 stream without a BOM defaults to BIG-ENDIAN. This normalizes a
+    bare ``utf-16`` / ``utf16`` label so that:
+
+    * a leading little-endian BOM (``FF FE``) decodes as little-endian;
+    * a leading big-endian BOM (``FE FF``) decodes as big-endian;
+    * no BOM decodes as big-endian (UTF-16BE) per RFC 2781.
+
+    Labels that already pin an explicit byte order (``utf-16le`` /
+    ``utf-16be``) are returned unchanged so an explicit choice always wins.
+    When a BOM is present the bare ``utf-16`` label is kept so Python's
+    codec auto-detects the byte order and strips the mark; only the BOM-less
+    case is rewritten to ``utf-16-be``.
+    """
+    normalized = charset.lower().replace('_', '-')
+    if normalized not in ('utf-16', 'utf16'):
+        return charset
+    if data[:2] in (b'\xff\xfe', b'\xfe\xff'):
+        return charset
+    return 'utf-16-be'
+
+
 def _decode_with_charset(data: bytes, content_type: str) -> str:
     """Decode bytes using the charset from a Content-Type header.
 
     Falls back to UTF-8 when the charset is missing or unknown. Uses
-    ``errors='replace'`` so malformed bytes never raise.
+    ``errors='replace'`` so malformed bytes never raise. A BOM-less
+    ``utf-16`` body is decoded as big-endian per RFC 2781.
     """
     charset = _charset_from_content_type(content_type) or 'utf-8'
+    charset = _resolve_utf16_charset(charset, data)
     try:
         return data.decode(charset, errors='replace')
     except LookupError:

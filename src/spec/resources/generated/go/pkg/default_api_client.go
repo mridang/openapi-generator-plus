@@ -462,9 +462,10 @@ func decodeBodyByCharset(body []byte, contentType string) string {
 		return string(runes)
 	case "windows-1252", "cp1252":
 		return decodeWindows1252(body)
-	case "utf-16", "utf16", "utf-16le", "utf16le":
+	case "utf-16le", "utf16le":
 		return decodeUtf16(body, false)
-	case "utf-16be", "utf16be":
+	case "utf-16", "utf16", "utf-16be", "utf16be":
+		// A BOM-less utf-16 body defaults to big-endian per RFC 2781.
 		return decodeUtf16(body, true)
 	default:
 		return string(body)

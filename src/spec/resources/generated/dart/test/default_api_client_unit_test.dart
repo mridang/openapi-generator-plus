@@ -862,6 +862,48 @@ void main() {
       }
     });
 
+    /* utf16-no-bom-big-endian: a charset=utf-16 response body WITHOUT a
+     * byte-order mark must default to big-endian (RFC 2781), uniformly
+     * with the other 11 SDKs. The bytes 00 50 00 65 00 74 are "Pet" when
+     * read big-endian; read little-endian they would decode to U+5000
+     * U+6500 U+7400 instead, so a correct decode proves the byte order. */
+    test('decodes a BOM-less charset=utf-16 body as big-endian', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      // UTF-16BE for "Pet", no BOM.
+      final payload = <int>[
+        0x00, 0x50, // P
+        0x00, 0x65, // e
+        0x00, 0x74, // t
+      ];
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'text/plain; charset=utf-16')
+          ..add(payload)
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/utf16-nobom',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, equals('Pet'));
+        // Prove the big-endian choice: the same bytes read little-endian
+        // would not yield "Pet".
+        expect(
+          resp.body,
+          isNot(equals(String.fromCharCodes(<int>[0x5000, 0x6500, 0x7400]))),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
     /* dart-charset-utf16-mojibake (lenient fallback): an unrecognised
      * charset with non-UTF-8 bytes must fall back to a lossy UTF-8
      * decode rather than throwing a FormatException. */

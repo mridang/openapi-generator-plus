@@ -389,6 +389,27 @@ test('decodes iso 8859 1 body to utf 8 when charset declared', function (): void
     expect($response->body)->toBe("\xC3\xA9"); // UTF-8 'é'
 });
 
+test('decodes bom-less utf-16 body as big endian', function (): void {
+    // "Pet" encoded as UTF-16 big-endian with no byte-order mark. Per
+    // RFC 2781, a UTF-16 stream without a BOM defaults to big-endian, so
+    // these bytes must decode to "Pet" — not to the garbage that a
+    // little-endian reading would produce.
+    $body = "\x00P\x00e\x00t";
+    $mockResponse = new MockResponse($body, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'text/plain; charset=utf-16'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/utf16', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('Pet');
+    // Sanity check the byte-order decision: read little-endian, the same
+    // bytes would decode to something other than "Pet".
+    expect(mb_convert_encoding($body, 'UTF-8', 'UTF-16LE'))->not->toBe('Pet');
+});
+
 test('treats absent charset as utf 8', function (): void {
     $body = "héllo"; // already UTF-8
     $mockResponse = new MockResponse($body, [

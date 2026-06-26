@@ -531,7 +531,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     case "iso-8859-1", "latin1", "latin-1": return .isoLatin1
     case "iso-8859-2", "latin2", "latin-2": return .isoLatin2
     case "us-ascii", "ascii": return .ascii
-    case "utf-16": return .utf16
+    /* A bare `utf-16` label (no explicit endianness) with no byte-order
+       mark MUST decode as big-endian per RFC 2781. Foundation's `.utf16`
+       defaults to the host byte order (little-endian on Apple/Linux) when
+       no BOM is present, which disagrees with the IANA/MIME charset
+       registration and with the other SDKs. `.utf16BigEndian` still
+       honours a leading big-endian BOM, so BOM-carrying bodies remain
+       correct while the no-BOM case resolves deterministically. */
+    case "utf-16": return .utf16BigEndian
     case "utf-16be": return .utf16BigEndian
     case "utf-16le": return .utf16LittleEndian
     case "utf-32": return .utf32

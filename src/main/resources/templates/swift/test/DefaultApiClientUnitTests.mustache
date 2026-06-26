@@ -380,6 +380,27 @@ import Testing
         #expect(resp.body == "é", "charset= parsing must be case-insensitive")
     }
 
+    /// A BOM-less `utf-16` body must decode as big-endian per RFC 2781.
+    /// The bytes 00 50 00 65 00 74 are "Pet" in UTF-16BE; the same bytes
+    /// read little-endian would be a different (CJK) string, so a correct
+    /// decode proves the big-endian choice rather than the host default.
+    @Test func testBareUtf16DecodesBigEndianWithoutBom() async throws {
+        let bigEndianPetBytes = Data([0x00, 0x50, 0x00, 0x65, 0x00, 0x74])
+        let client = makeClient { _ in
+            (bigEndianPetBytes, 200, ["Content-Type": "text/plain; charset=utf-16"])
+        }
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/utf16", headers: [:], body: nil)
+        #expect(resp.body == "Pet", "BOM-less utf-16 must decode as big-endian to 'Pet', got: \(resp.body)")
+        /* Sanity: the same bytes read little-endian would NOT be "Pet". */
+        let littleEndian = String(data: bigEndianPetBytes, encoding: .utf16LittleEndian)
+        #expect(littleEndian != "Pet", "little-endian reading of the BE bytes must differ, proving the BE choice")
+    }
+
+    @Test func testEncodingForContentTypeBareUtf16IsBigEndian() {
+        let enc = DefaultApiClient.encodingForContentType("text/plain; charset=utf-16")
+        #expect(enc == .utf16BigEndian, "bare utf-16 must resolve to big-endian per RFC 2781")
+    }
+
     @Test func testEncodingForContentTypeWindows1252() {
         let enc = DefaultApiClient.encodingForContentType("text/plain; charset=windows-1252")
         #expect(enc == .windowsCP1252)

@@ -1033,7 +1033,20 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             System.Net.Mime.ContentType media = new(contentType);
             if (!string.IsNullOrEmpty(media.CharSet))
             {
-                return Encoding.GetEncoding(media.CharSet);
+                string charset = media.CharSet.Trim();
+                /* A bare "utf-16" / "utf16" label (no endianness suffix, no BOM)
+                   must decode big-endian per RFC 2781: a UTF-16 stream lacking a
+                   BOM defaults to big-endian. .NET's Encoding.GetEncoding("utf-16")
+                   returns a little-endian UnicodeEncoding, which would disagree
+                   with the other SDKs, so resolve bare utf-16 to UTF-16BE here.
+                   Explicit "utf-16le" / "utf-16be" labels fall through to
+                   Encoding.GetEncoding so their declared byte order is honored. */
+                if (string.Equals(charset, "utf-16", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(charset, "utf16", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new UnicodeEncoding(bigEndian: true, byteOrderMark: false);
+                }
+                return Encoding.GetEncoding(charset);
             }
         }
         catch (FormatException)

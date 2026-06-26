@@ -392,6 +392,20 @@ describe("DefaultApiClient.decodeBody charset handling", () => {
       DefaultApiClient.decodeBody(buf, 'text/plain; charset="ISO-8859-1"'),
     ).toBe("é");
   });
+
+  it("decodes a BOM-less utf-16 body as big-endian (RFC 2781)", () => {
+    // "Pet" encoded UTF-16 big-endian, no BOM: 00 50 00 65 00 74.
+    // Node's TextDecoder maps the bare 'utf-16' label to little-endian,
+    // which would mis-decode these bytes. An HTTP client resolving the
+    // IANA charset UTF-16 with no BOM must default to big-endian.
+    const buf = Buffer.from([0x00, 0x50, 0x00, 0x65, 0x00, 0x74]);
+    expect(DefaultApiClient.decodeBody(buf, "text/plain; charset=utf-16")).toBe(
+      "Pet",
+    );
+    // Same bytes read little-endian would NOT be "Pet" -- proves the
+    // big-endian choice rather than an accidental round-trip.
+    expect(new TextDecoder("utf-16le").decode(buf)).not.toBe("Pet");
+  });
 });
 
 describe("DefaultApiClient.buildContentDisposition multipart filename safety", () => {

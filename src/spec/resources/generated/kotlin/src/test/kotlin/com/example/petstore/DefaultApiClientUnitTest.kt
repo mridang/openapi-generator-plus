@@ -508,6 +508,42 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("decodes BOM-less utf-16 response body as big-endian (RFC 2781)")
+        fun decodesBomlessUtf16AsBigEndian() {
+            // A response declaring charset=utf-16 with NO byte-order mark must
+            // decode as UTF-16 BIG-ENDIAN per RFC 2781. The bytes 00 50 00 65
+            // 00 74 are "Pet" in UTF-16BE; the same bytes read little-endian
+            // would yield the wrong string, proving the byte-order choice.
+            val bigEndianNoBom = byteArrayOf(0x00, 0x50, 0x00, 0x65, 0x00, 0x74)
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = bigEndianNoBom,
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=utf-16"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/utf16-no-bom", emptyMap(), null)
+                }
+            assertEquals(
+                "Pet",
+                response.body,
+                "BOM-less utf-16 must decode as big-endian",
+            )
+            // Same bytes interpreted little-endian must NOT equal "Pet",
+            // confirming the big-endian default is what produced the match.
+            val asLittleEndian = String(bigEndianNoBom, Charsets.UTF_16LE)
+            assertNotEquals(
+                "Pet",
+                asLittleEndian,
+                "little-endian interpretation of the same bytes must differ",
+            )
+        }
+
+        @Test
         @DisplayName("defaults to UTF-8 when Content-Type has no charset")
         fun defaultsToUtf8WhenNoCharset() {
             val engine =

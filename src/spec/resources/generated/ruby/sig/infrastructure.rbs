@@ -149,6 +149,7 @@ module PetstoreClient
     def text_content_type?: (String) -> bool
     def decode_text_body: (String, String?) -> String
     def detect_encoding: (String?) -> Encoding
+    def utf16_bom?: (untyped) -> bool
     def decompress_body: (untyped, untyped) -> untyped
     def connection: () -> untyped
     def build_connection: () -> untyped

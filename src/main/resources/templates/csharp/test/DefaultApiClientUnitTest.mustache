@@ -598,6 +598,31 @@ public class DefaultApiClientUnitTest
         Assert.Equal("héllo", response.Body);
     }
 
+    [Fact]
+    public async Task DecodesBomlessUtf16BodyAsBigEndian()
+    {
+        // RFC 2781: a UTF-16 stream with no BOM defaults to big-endian. A bare
+        // "charset=utf-16" (no endianness suffix, no BOM) must therefore decode
+        // big-endian, matching the other SDKs. .NET's Encoding.GetEncoding(
+        // "utf-16") is little-endian, so this would have decoded to garbage
+        // before the fix.
+        byte[] utf16BeBytes = { 0x00, 0x50, 0x00, 0x65, 0x00, 0x74 }; // "Pet" UTF-16BE
+        var handler = new RawByteHandler(
+            HttpStatusCode.OK,
+            utf16BeBytes,
+            "text/plain; charset=utf-16");
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/utf16-no-bom"),
+            new Dictionary<string, string>(), null);
+        Assert.Equal("Pet", response.Body);
+
+        // Sanity check that the choice is load-bearing: interpreting the very
+        // same bytes little-endian yields a different (non-"Pet") string, so a
+        // passing assertion above can only mean big-endian decoding was used.
+        Assert.NotEqual("Pet", Encoding.Unicode.GetString(utf16BeBytes));
+    }
+
     // ---- 3.1: SensitiveHeaderNames default contents ----
 
     [Fact]

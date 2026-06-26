@@ -540,13 +540,23 @@ export abstract class AbstractApiClient implements ApiClient {
    * present, and falls back to UTF-8 if the declared charset is not
    * recognised by the runtime's `TextDecoder`.
    *
+   * A bare `utf-16`/`utf16` label (no explicit byte order) is decoded as
+   * big-endian. Node's `TextDecoder` maps the WHATWG `'utf-16'` label to
+   * little-endian, but for an HTTP client resolving the IANA/MIME charset
+   * `UTF-16`, RFC 2781 specifies big-endian as the default when no BOM is
+   * present. A leading BOM is still honoured by `TextDecoder` and overrides
+   * the byte order; explicit `utf-16le`/`utf-16be` labels are left untouched.
+   *
    * @param buf the raw response bytes
    * @param contentType the response Content-Type header value
    * @returns the decoded text
    */
   static decodeBody(buf: Buffer, contentType?: string): string {
     const m = /charset=([^;]+)/i.exec(contentType ?? '');
-    const cs = m ? m[1].trim().toLowerCase().replace(/^["']|["']$/g, '') : 'utf-8';
+    let cs = m ? m[1].trim().toLowerCase().replace(/^["']|["']$/g, '') : 'utf-8';
+    if (cs === 'utf-16' || cs === 'utf16') {
+      cs = 'utf-16be';
+    }
     try {
       return new TextDecoder(cs, { fatal: false }).decode(buf);
     } catch {

@@ -700,7 +700,7 @@ public class DefaultApiClientTest
     }
 
     /// <summary>
-    /// Stateless redirect-chain handler: a request to /chain/{n} with n &gt; 0
+    /// Stateless redirect-chain handler: a request to /chain/{n} with n above 0
     /// returns a 302 pointing at /chain/{n-1}; /chain/0 returns 200 OK. The
     /// chain length lives entirely in the URL, so the handler holds no
     /// per-request state and can serve many concurrent chains of different

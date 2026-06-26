@@ -441,6 +441,34 @@ func TestDefaultApiClient_DecodesIso88591ResponseBody(t *testing.T) {
 	}
 }
 
+func TestDefaultApiClient_DecodesBomlessUtf16AsBigEndian(t *testing.T) {
+	t.Parallel()
+	/* A BOM-less utf-16 body must decode as big-endian per RFC 2781. The
+	 * bytes below are "Pet" in UTF-16BE with no byte-order mark; decoded
+	 * little-endian they would yield CJK code points, not "Pet". */
+	bigEndian := []byte{0x00, 0x50, 0x00, 0x65, 0x00, 0x74}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-16")
+		w.WriteHeader(200)
+		_, _ = w.Write(bigEndian)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/utf16-no-bom", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != "Pet" {
+		t.Errorf("expected BOM-less utf-16 to decode big-endian to \"Pet\", got %q", resp.Body)
+	}
+	/* Prove the byte order matters: the same bytes read little-endian must
+	 * not equal "Pet", so a default of utf-16le would fail this test. */
+	if le := decodeUtf16(bigEndian, false); le == "Pet" {
+		t.Errorf("expected little-endian decode of big-endian bytes to differ from \"Pet\", got %q", le)
+	}
+}
+
 func TestDefaultApiClient_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
