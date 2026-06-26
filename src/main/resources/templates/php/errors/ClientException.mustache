@@ -1,0 +1,11 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+use {{invokerPackage}}\ApiException;
+
+/**
+ * Exception for HTTP 4xx client errors.
+ */
+class ClientException extends ApiException
+{
+}

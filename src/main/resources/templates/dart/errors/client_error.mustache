@@ -1,0 +1,13 @@
+{{>api_info}}
+import 'api_error.dart';
+
+/// ClientError represents an HTTP 4xx client error.
+class ClientError extends ApiError {
+  const ClientError({
+    required super.statusCode,
+    required super.message,
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+  });
+}

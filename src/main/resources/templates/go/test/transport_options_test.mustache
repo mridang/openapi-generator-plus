@@ -1,0 +1,361 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+
+	"{{packageName}}/pkg"
+)
+
+func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if !opts.VerifySsl() {
+		t.Error("expected VerifySsl to be true by default")
+	}
+}
+
+func TestTransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if opts.CACertPath() != "" {
+		t.Errorf("expected empty CACertPath, got %q", opts.CACertPath())
+	}
+}
+
+func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if opts.Proxy() != nil {
+		t.Error("expected nil Proxy by default")
+	}
+}
+
+func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil default timeout")
+	}
+	if *opts.Timeout() != 10000 {
+		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	}
+}
+
+func TestTransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if !opts.FollowRedirects() {
+		t.Error("expected FollowRedirects to be true by default")
+	}
+}
+
+func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if opts.MaxRedirects() != nil {
+		t.Error("expected MaxRedirects nil by default")
+	}
+}
+
+func TestTransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
+	t.Parallel()
+	// userAgent is a nullable *string (parity with Java @Nullable String, C#
+	// string?). The default builder injects the branded "<pkg>/<ver> (go)"
+	// value so requests are attributable; callers can pass nil to omit it.
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if opts.UserAgent() == nil {
+		t.Fatal("expected UserAgent to default to the branded value, got nil")
+	}
+	if *opts.UserAgent() != "{{userAgentDefault}}" {
+		t.Errorf("expected UserAgent %q, got %q", "{{userAgentDefault}}", *opts.UserAgent())
+	}
+}
+
+func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
+	t.Parallel()
+	// The default carries the branded value; once set via the nullable setter
+	// it is applied and read back through the pointer.
+	preset := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if preset.UserAgent() == nil || *preset.UserAgent() != "{{userAgentDefault}}" {
+		t.Errorf("expected branded default UserAgent, got %v", preset.UserAgent())
+	}
+
+	ua := "MyApp/1.0"
+	set := {{packageName}}.NewTransportOptionsBuilder().UserAgent(&ua).Build()
+	if set.UserAgent() == nil {
+		t.Fatal("expected non-nil UserAgent after setting it")
+	}
+	if *set.UserAgent() != "MyApp/1.0" {
+		t.Errorf("expected UserAgent 'MyApp/1.0', got %q", *set.UserAgent())
+	}
+}
+
+func TestTransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if len(opts.DefaultHeaders()) != 0 {
+		t.Errorf("expected empty default headers, got %v", opts.DefaultHeaders())
+	}
+}
+
+func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if opts.InjectRequestID() {
+		t.Error("expected InjectRequestID to be false by default")
+	}
+}
+
+func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
+	t.Parallel()
+	customAgent := "CustomAgent/2.0"
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		VerifySsl(false).
+		CACertPath("/path/to/ca.pem").
+		Proxy("http://proxy.example.com:8080").
+		Timeout(30000).
+		FollowRedirects(false).
+		MaxRedirects(5).
+		UserAgent(&customAgent).
+		DefaultHeader("X-Custom", "value").
+		InjectRequestID(true).
+		Build()
+
+	if opts.VerifySsl() {
+		t.Error("expected VerifySsl to be false")
+	}
+	if opts.CACertPath() != "/path/to/ca.pem" {
+		t.Errorf("expected CACertPath '/path/to/ca.pem', got %q", opts.CACertPath())
+	}
+	if opts.Proxy() == nil {
+		t.Fatal("expected non-nil Proxy")
+	}
+	if opts.Proxy().String() != "http://proxy.example.com:8080" {
+		t.Errorf("expected proxy 'http://proxy.example.com:8080', got %q", opts.Proxy().String())
+	}
+	if opts.Timeout() == nil || *opts.Timeout() != 30000 {
+		t.Error("expected timeout 30000ms")
+	}
+	if opts.FollowRedirects() {
+		t.Error("expected FollowRedirects to be false")
+	}
+	if opts.MaxRedirects() == nil || *opts.MaxRedirects() != 5 {
+		t.Error("expected MaxRedirects to be 5")
+	}
+	if opts.UserAgent() == nil || *opts.UserAgent() != "CustomAgent/2.0" {
+		t.Errorf("expected UserAgent 'CustomAgent/2.0', got %v", opts.UserAgent())
+	}
+	if opts.DefaultHeaders()["X-Custom"] != "value" {
+		t.Errorf("expected default header X-Custom='value', got %q", opts.DefaultHeaders()["X-Custom"])
+	}
+	if !opts.InjectRequestID() {
+		t.Error("expected InjectRequestID to be true")
+	}
+}
+
+func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+
+	if !opts.FollowRedirects() {
+		t.Error("expected FollowRedirects to be true")
+	}
+	if opts.MaxRedirects() != nil {
+		t.Error("expected MaxRedirects to be nil")
+	}
+}
+
+func TestTransportOptions_InvalidProxyUrlThrowsException(t *testing.T) {
+	t.Parallel()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid proxy URL, got none")
+		}
+	}()
+	{{packageName}}.NewTransportOptionsBuilder().
+		Proxy("not-a-valid-url").
+		Build()
+}
+
+func TestTransportOptions_NullProxyUrlIsAccepted(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("").
+		Build()
+
+	if opts.Proxy() != nil {
+		t.Error("expected nil Proxy for empty string")
+	}
+}
+
+func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewTransportOptionsBuilder()
+
+	testAgent := "Test/1.0"
+	result := builder.
+		VerifySsl(true).
+		UserAgent(&testAgent).
+		Timeout(10000)
+
+	if result == nil {
+		t.Fatal("expected non-nil builder from chaining")
+	}
+
+	opts := result.Build()
+	if opts.UserAgent() == nil || *opts.UserAgent() != "Test/1.0" {
+		t.Errorf("expected UserAgent 'Test/1.0', got %v", opts.UserAgent())
+	}
+	if opts.Timeout() == nil || *opts.Timeout() != 10000 {
+		t.Error("expected timeout 10000ms")
+	}
+}
+
+func TestTransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeader("X-Second", "two").
+		Build()
+
+	headers := opts.DefaultHeaders()
+	if len(headers) != 2 {
+		t.Errorf("expected 2 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestTransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeaders(map[string]string{
+			"X-Second": "two",
+			"X-Third":  "three",
+		}).
+		Build()
+
+	headers := opts.DefaultHeaders()
+	if len(headers) != 3 {
+		t.Errorf("expected 3 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+	if headers["X-Third"] != "three" {
+		t.Errorf("expected X-Third='three', got %q", headers["X-Third"])
+	}
+}
+
+func TestTransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-Test", "value").
+		Build()
+
+	headers := opts.DefaultHeaders()
+	headers["X-Mutated"] = "should-not-affect-options"
+
+	original := opts.DefaultHeaders()
+	if _, found := original["X-Mutated"]; found {
+		t.Error("modifying returned headers should not affect the transport options")
+	}
+}
+
+func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewTransportOptionsBuilder().VerifySsl(false)
+	first := builder.Build()
+	second := builder.Build()
+
+	if first.VerifySsl() != second.VerifySsl() {
+		t.Error("expected both instances to have the same VerifySsl value")
+	}
+	if first == second {
+		t.Error("expected builder to produce independent instances")
+	}
+}
+
+// TimeoutConfigTests
+
+func TestTransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) {
+	t.Parallel()
+	// Default TransportOptions ships with a 10-second (10000ms) timeout to
+	// match Java, Python, Node, etc. and prevent runaway requests.
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil default timeout")
+	}
+	if *opts.Timeout() != 10000 {
+		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	}
+}
+
+func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().Timeout(5000).Build()
+	if opts.Timeout() == nil || *opts.Timeout() != 5000 {
+		t.Error("expected timeout to be 5000")
+	}
+}
+
+func TestTransportOptions_TimeoutCanBeExplicitlyDisabled(t *testing.T) {
+	t.Parallel()
+	// Feature gap: the Go builder's Timeout(int) takes a non-pointer int, so it
+	// cannot set the timeout back to nil/disabled the way Java/Kotlin/C# do via
+	// timeout(null). The closest behaviour is Timeout(0) (a 0ms timeout), which is
+	// semantically different. Skipped to keep cross-language scenario parity.
+	t.Skip("Go builder cannot disable timeout to nil; Timeout(int) is non-nullable")
+}
+
+func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
+	t.Parallel()
+	// Verify via the Timeout() accessor that the field is named 'Timeout'
+	// (not e.g. 'ConnectionTimeout' or 'OpenTimeout').
+	opts := {{packageName}}.NewTransportOptionsBuilder().Timeout(1000).Build()
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil timeout")
+	}
+	if *opts.Timeout() != 1000 {
+		t.Errorf("expected timeout 1000, got %d", *opts.Timeout())
+	}
+}
+
+// ProxyConfigTests
+
+func TestTransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
+	t.Parallel()
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://proxy.example.com:8080").
+		Build()
+
+	if opts.Proxy() == nil {
+		t.Fatal("expected non-nil proxy")
+	}
+	if opts.Proxy().String() != "http://proxy.example.com:8080" {
+		t.Errorf("expected proxy 'http://proxy.example.com:8080', got %q", opts.Proxy().String())
+	}
+}
+
+func TestTransportOptions_SettingProxyIsSupportedOnAllPlatforms(t *testing.T) {
+	t.Parallel()
+	// Proxy configuration must not panic on any platform.
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://proxy.example.com:8080").
+		Build()
+
+	if opts.Proxy() == nil {
+		t.Error("expected non-nil proxy")
+	}
+}

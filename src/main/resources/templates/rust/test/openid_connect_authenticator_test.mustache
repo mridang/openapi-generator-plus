@@ -1,0 +1,286 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+
+use {{packageName}}::api_client::{ApiClient, RequestBody};
+use {{packageName}}::api_response::ApiHttpResponse;
+use {{packageName}}::auth::oauth::OpenIdConnectAuthenticator;
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::HttpAwareAuthenticator;
+
+struct FakeApiClient {
+    responses: Mutex<Vec<ApiHttpResponse>>,
+    last_url: Mutex<Option<String>>,
+    last_body: Mutex<Option<String>>,
+    last_method: Mutex<Option<String>>,
+    get_count: Mutex<u32>,
+}
+
+impl FakeApiClient {
+    fn new() -> Self {
+        Self {
+            responses: Mutex::new(Vec::new()),
+            last_url: Mutex::new(None),
+            last_body: Mutex::new(None),
+            last_method: Mutex::new(None),
+            get_count: Mutex::new(0),
+        }
+    }
+
+    fn get_count(&self) -> u32 {
+        *self.get_count.lock().unwrap()
+    }
+
+    fn enqueue(&self, body: &str, status_code: u16) {
+        let mut responses = self.responses.lock().unwrap();
+        responses.push(ApiHttpResponse::new(status_code, body.to_string(), HashMap::new()));
+    }
+
+    fn last_url(&self) -> Option<String> {
+        self.last_url.lock().unwrap().clone()
+    }
+
+    fn last_body(&self) -> Option<String> {
+        self.last_body.lock().unwrap().clone()
+    }
+
+    fn last_method(&self) -> Option<String> {
+        self.last_method.lock().unwrap().clone()
+    }
+}
+
+impl ApiClient for FakeApiClient {
+    fn send_request(
+        &self,
+        method: &str,
+        url: &str,
+        _headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        {
+            let mut last_method = self.last_method.lock().unwrap();
+            *last_method = Some(method.to_string());
+        }
+        if method == "GET" {
+            let mut get_count = self.get_count.lock().unwrap();
+            *get_count += 1;
+        }
+        {
+            let mut last_url = self.last_url.lock().unwrap();
+            *last_url = Some(url.to_string());
+        }
+        if let Some(RequestBody::Bytes(b)) = body {
+            let mut last_body = self.last_body.lock().unwrap();
+            *last_body = Some(String::from_utf8_lossy(b).to_string());
+        }
+        let response = {
+            let mut responses = self.responses.lock().unwrap();
+            responses.remove(0)
+        };
+        Box::pin(async move { Ok(response) })
+    }
+}
+
+fn create_authenticator() -> OpenIdConnectAuthenticator {
+    OpenIdConnectAuthenticator::new(
+        "https://api.example.com",
+        "https://auth.example.com/.well-known/openid-configuration",
+        "my-client-id",
+        "my-client-secret",
+        "https://app.example.com/callback",
+        vec!["openid".to_string(), "profile".to_string()],
+    )
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_builds_authorization_url_from_discovery() {
+    let client = Arc::new(FakeApiClient::new());
+    // Discovery document response
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let url = auth
+        .build_authorization_url("my-state")
+        .await
+        .expect("should succeed");
+
+    assert!(url.starts_with("https://auth.example.com/authorize?"));
+    assert!(url.contains("response_type=code"));
+    assert!(url.contains("client_id=my-client-id"));
+    assert!(url.contains("state=my-state"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_fetches_discovery_document() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("").await.expect("should succeed");
+
+    assert_eq!("GET", client.last_method().unwrap());
+    assert_eq!(
+        "https://auth.example.com/.well-known/openid-configuration",
+        client.last_url().unwrap()
+    );
+}
+
+/// oauth-oidc-discovery-no-status-check: a non-2xx discovery response (e.g. a
+/// 500 returning an HTML error page) must surface as a status error, NOT a
+/// misleading "invalid JSON" parse error.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_non_2xx_status_surfaces_status_error() {
+    let client = Arc::new(FakeApiClient::new());
+    // Server returns 500 with an HTML body that is not valid discovery JSON.
+    client.enqueue("<html><body>Internal Server Error</body></html>", 500);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.build_authorization_url("").await;
+    assert!(
+        result.is_err(),
+        "a 500 discovery response must produce an error"
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("500") || err.contains("status"),
+        "error must reference the HTTP status, not be a JSON parse error: {}",
+        err
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_obtains_token_after_code_exchange() {
+    let client = Arc::new(FakeApiClient::new());
+    // Discovery document
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    // Token response
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    // Must call build_authorization_url first to trigger discovery
+    auth.build_authorization_url("").await.expect("should succeed");
+    auth.exchange_code("oidc-code").await.expect("should succeed");
+
+    let body = client.last_body().expect("should have body");
+    assert!(body.contains("grant_type=authorization_code"));
+    assert!(body.contains("code=oidc-code"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_get_auth_headers_returns_bearer_after_exchange() {
+    let client = Arc::new(FakeApiClient::new());
+    // Discovery document
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    // Token response for exchange_code
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+    // Token response for auth_headers refresh
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("").await.expect("should succeed");
+    auth.exchange_code("oidc-code").await.expect("should succeed");
+    let headers = auth.auth_headers().await;
+
+    assert_eq!("Bearer oidc-tok", headers.get("Authorization").unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_throws_when_discovery_missing_authorization_endpoint() {
+    let client = Arc::new(FakeApiClient::new());
+    // Missing authorization_endpoint must produce an error rather than build a
+    // delegate with a null/empty endpoint URL.
+    client.enqueue(r#"{"token_endpoint":"https://auth.example.com/token"}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.build_authorization_url("").await;
+    assert!(
+        result.is_err(),
+        "a discovery document missing authorization_endpoint must produce an error"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_throws_when_discovery_missing_token_endpoint() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.build_authorization_url("").await;
+    assert!(
+        result.is_err(),
+        "a discovery document missing token_endpoint must produce an error"
+    );
+}
+
+#[tokio::test]
+async fn test_throws_when_no_api_client_injected() {
+    let auth = create_authenticator();
+
+    let result = auth.build_authorization_url("").await;
+
+    assert!(result.is_err());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_fetches_discovery_document_only_once() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("").await.expect("should succeed");
+    auth.build_authorization_url("").await.expect("should succeed");
+
+    // The cached discovery document must be reused on the second call.
+    assert_eq!(1, client.get_count());
+}
+
+#[test]
+fn test_get_host_returns_configured_host() {
+    let auth = create_authenticator();
+    assert_eq!("https://api.example.com", auth.host());
+}
+
+#[test]
+fn redacts_secret() {
+    let auth = create_authenticator();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("my-client-secret"));
+    assert!(debug.contains("***"));
+}

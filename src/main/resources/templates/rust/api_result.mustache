@@ -1,0 +1,63 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+
+/// ApiResult represents a typed API response with deserialized data, status code,
+/// raw body, and headers. Returned by `with_http_info` methods.
+#[derive(Debug, Clone)]
+pub struct ApiResult<T> {
+    /// The HTTP status code of the response.
+    status_code: u16,
+
+    /// The deserialized response body. May be `None` if the operation
+    /// returned no content or if the response could not be deserialized.
+    data: Option<T>,
+
+    /// The raw response body as a string.
+    raw_body: String,
+
+    /// The response headers.
+    headers: HashMap<String, String>,
+}
+
+impl<T> ApiResult<T> {
+    /// Creates a new ApiResult with the given values.
+    pub fn new(
+        status_code: u16,
+        data: Option<T>,
+        raw_body: String,
+        headers: HashMap<String, String>,
+    ) -> Self {
+        Self {
+            status_code,
+            data,
+            raw_body,
+            headers,
+        }
+    }
+
+    /// Returns the HTTP status code of the response.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the deserialized response body, if any.
+    pub fn data(&self) -> Option<&T> {
+        self.data.as_ref()
+    }
+
+    /// Consumes the result and returns the deserialized response body, if any.
+    pub fn into_data(self) -> Option<T> {
+        self.data
+    }
+
+    /// Returns the raw response body as a string.
+    pub fn raw_body(&self) -> &str {
+        &self.raw_body
+    }
+
+    /// Returns the response headers.
+    pub fn headers(&self) -> &HashMap<String, String> {
+        &self.headers
+    }
+}

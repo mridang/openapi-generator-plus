@@ -1,0 +1,109 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Auth;
+using Xunit;
+
+namespace Test;
+
+public class ClientTest : IDisposable
+{
+    private readonly BearerAuthenticator _authenticator =
+        new("{{{basePath}}}", "test-token");
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorOnly()
+    {
+        using var client = new {{clientClassName}}(_authenticator);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorAndNullTransportOptions()
+    {
+        using var client = new {{clientClassName}}(_authenticator, null);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorAndTransportOptions()
+    {
+        var transport = TransportOptions.Builder().Build();
+
+        using var client = new {{clientClassName}}(_authenticator, transport);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void BearerRejectsCrlfAndNonAscii()
+    {
+        // auth-validation-timing: the token is validated eagerly at
+        // construction (matching the 10-SDK majority), so a malformed token
+        // throws when the authenticator is created, not at first use.
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", "tok\r\nInjected: yes"));
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", "ñoño"));
+    }
+
+    [Fact]
+    public void BearerRejectsEmptyToken()
+    {
+        // bearer-no-empty-token-guard: an empty/whitespace token would emit a
+        // bare "Authorization: Bearer " header, sending the request
+        // unauthenticated. It must be rejected like the api-key empty guard.
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", ""));
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", "   "));
+    }
+
+    [Fact]
+    public void ApiKeyHeaderRejectsCrlfAndNonAscii()
+    {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's Header location must reject anything
+        // outside printable ASCII + TAB to prevent header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        // auth-validation-timing: validation runs eagerly at construction.
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.Header));
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "kéy", ApiKeyLocation.Header));
+        // Non-header locations accept arbitrary (non-control) chars.
+        Assert.NotNull(
+            new ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.Query).GetQueryParams());
+    }
+
+    [Fact]
+    public void ApiKeyQueryAcceptsNonAscii()
+    {
+        var auth = new ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.Query);
+
+        Assert.Equal(
+            new Dictionary<string, string> { ["api_key"] = "kéy" },
+            auth.GetQueryParams());
+    }
+
+    [Fact]
+    public void ApiGroupsAreAccessible()
+    {
+        using var client = new {{clientClassName}}(_authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        Assert.NotNull(client.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}

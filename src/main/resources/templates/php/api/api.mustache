@@ -1,0 +1,647 @@
+{{>api_info}}
+{{! Operations with per-operation server overrides emit co-located abstract
+    server-variant base classes plus concrete variants (PSR1.MultipleClasses)
+    and long fully-qualified call expressions; these are inherent to the
+    generated API group, so suppress at the file level. }}
+{{#hasServerTypeDefs}}
+/* phpcs:ignoreFile */
+
+{{/hasServerTypeDefs}}
+namespace {{apiPackage}};
+
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\ApiResult;
+use {{invokerPackage}}\Configuration;
+use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\ValueSerializer;
+use {{invokerPackage}}\Auth\NoAuth;
+{{#optionsImports}}
+use {{invokerPackage}}\Api\Options\{{optionsClassName}};
+{{/optionsImports}}
+{{#enumParamImports}}
+use {{invokerPackage}}\Models\{{.}};
+{{/enumParamImports}}
+
+{{#operations}}
+/**
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+ * {{{.}}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+ * @see {{url}} {{{description}}}
+{{/tagExternalDocs}}
+ */
+{{#serverTypeDefs}}
+
+/**
+ * Server type for the {{operationId}} operation.
+ */
+abstract class {{serverTypeName}}
+{
+    abstract public function getUrl(): string;
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+enum {{serverTypeName}}{{pascalName}}: string
+{
+{{#enumValues}}
+    case {{name}} = '{{value}}';
+{{/enumValues}}
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+{{#hasDescription}}
+/**
+ * {{{description}}}
+ */
+{{/hasDescription}}
+final class {{serverTypeName}}{{variantName}} extends {{serverTypeName}}
+{
+{{#hasVariables}}
+{{#serverVariables}}
+    private readonly {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}};
+{{/serverVariables}}
+
+    public function __construct({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}})
+    {
+{{#serverVariables}}
+        $this->{{camelName}} = ${{camelName}};
+{{/serverVariables}}
+    }
+
+{{/hasVariables}}
+    public function getUrl(): string
+    {
+{{#hasVariables}}
+        $url = '{{url}}';
+{{#serverVariables}}
+{{^-last}}
+        $url = str_replace('{' . '{{name}}' . '}', {{#hasEnumValues}}$this->{{camelName}}->value{{/hasEnumValues}}{{^hasEnumValues}}$this->{{camelName}}{{/hasEnumValues}}, $url);
+{{/-last}}
+{{#-last}}
+        return str_replace('{' . '{{name}}' . '}', {{#hasEnumValues}}$this->{{camelName}}->value{{/hasEnumValues}}{{^hasEnumValues}}$this->{{camelName}}{{/hasEnumValues}}, $url);
+{{/-last}}
+{{/serverVariables}}
+{{/hasVariables}}
+{{^hasVariables}}
+        return '{{url}}';
+{{/hasVariables}}
+    }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+class {{classname}} extends BaseApi
+{
+{{#operation}}
+    /**
+     * {{{summary}}}
+{{#notes}}
+     * {{{.}}}
+{{/notes}}
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{#vendorExtensions.pluralExamples}}
+     * @example {{value}} {{{summary}}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{#vendorExtensions.pluralExamples}}
+     * @example {{value}} {{{summary}}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{#returnType}}
+     * @return {{{vendorExtensions.phpDocReturnType}}}
+{{/returnType}}
+     * @throws \{{invokerPackage}}\ApiException
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+     * @see {{url}} {{{description}}}
+{{/externalDocs}}
+     */
+{{#returnType}}
+    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}})
+    {
+        $apiResult = $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, $contentType{{/vendorExtensions.op.hasMultipleConsumes}});
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \{{invokerPackage}}\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for {{operationId}} but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var {{{vendorExtensions.phpDocReturnType}}} $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+     * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
+     * @throws \{{invokerPackage}}\ApiException
+     */
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
+    {
+{{#hasAuthMethods}}
+        /* Per-operation auth is sourced from the Options object's $auth field.
+         * A null options or a null $auth falls back to the client's configured
+         * credentials. */
+        $auth = $options{{#vendorExtensions.op.optionsParamRequired}}->auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}?->auth{{/vendorExtensions.op.optionsParamRequired}};
+{{/hasAuthMethods}}
+{{! required-path-param-validation: a required string path param is interpolated
+    directly into the URL. An empty value would collapse the path segment (e.g.
+    /pets//orders), so guard it and surface a clear error to the caller. Query,
+    header, form and cookie params are NOT guarded: they are non-nullable fields
+    on the Options object, so presence is already enforced by the PHP type, and
+    an empty string is a legitimate value the server may accept. }}
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        if (${{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+        $path = '{{{path}}}';
+{{#pathParams}}
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            ${{paramName}},
+            'path',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if ($server instanceof \{{invokerPackage}}\Api\{{vendorExtensions.op.serverClassName}}) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
+        }
+{{/-first}}
+{{/servers}}
+        $queryParams = [];
+{{#queryParams}}
+{{#vendorExtensions.param.queryContent}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
+        }
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryDeepObject}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
+        }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options !== null && $options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+{{#required}}
+        /* Required query param: always present (non-nullable on the Options
+         * object), so it is emitted unconditionally. An empty string is a
+         * legitimate value and is sent as-is. */
+        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'query',
+                '{{dataType}}',
+                {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
+        }
+{{/required}}
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        $headerParams = [];
+{{#headerParams}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'header',
+                '{{dataType}}',
+                null,
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
+            $headerParams['{{baseName}}'] = $headerValue;
+        }
+{{/headerParams}}
+{{#hasCookieParams}}
+        $cookieParts = [];
+{{#cookieParams}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            /** @var string $cookieValue */
+            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+             * forbidden octets before this value is folded into the Cookie
+             * request header. Mirrors the auth-cookie path in BaseApi so an
+             * operation cookie param fails closed with the same
+             * InvalidArgumentException instead of enabling header injection. */
+            if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+                throw new \InvalidArgumentException(
+                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                );
+            }
+            $cookieParts[] = '{{baseName}}=' . $cookieValue;
+        }
+{{/cookieParams}}
+        if ($cookieParts !== []) {
+            $headerParams['Cookie'] = implode('; ', $cookieParts);
+        }
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        $requestBody = [];
+{{#formParams}}
+{{#required}}
+        $requestBody['{{baseName}}'] = $options->{{paramName}};
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $requestBody['{{baseName}}'] = $options->{{paramName}};
+        }
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        $requestBody = ${{paramName}};
+{{/bodyParam}}
+{{^bodyParam}}
+        $requestBody = null;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+        /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
+        $result = $this->invokeApiForResult(
+            '{{httpMethod}}',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.op.hasMultipleConsumes}}$contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
+            '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{#returnProperty}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{{returnType}}}{{/isByteArray}}{{/returnProperty}}{{^returnProperty}}{{{returnType}}}{{/returnProperty}}{{/returnContainer}}',
+{{#hasAuthMethods}}
+            $auth
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
+{{/hasAuthMethods}}
+        );
+        return $result;
+    }
+{{/returnType}}
+{{^returnType}}
+    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): void
+    {
+        $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, $contentType{{/vendorExtensions.op.hasMultipleConsumes}});
+    }
+
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+     * @return ApiResult<null>
+     * @throws \{{invokerPackage}}\ApiException
+     */
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
+    {
+{{#hasAuthMethods}}
+        /* Per-operation auth is sourced from the Options object's $auth field.
+         * A null options or a null $auth falls back to the client's configured
+         * credentials. */
+        $auth = $options{{#vendorExtensions.op.optionsParamRequired}}->auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}?->auth{{/vendorExtensions.op.optionsParamRequired}};
+{{/hasAuthMethods}}
+{{! required-path-param-validation: a required string path param is interpolated
+    directly into the URL. An empty value would collapse the path segment (e.g.
+    /pets//orders), so guard it and surface a clear error to the caller. Query,
+    header, form and cookie params are NOT guarded: they are non-nullable fields
+    on the Options object, so presence is already enforced by the PHP type, and
+    an empty string is a legitimate value the server may accept. }}
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        if (${{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+        $path = '{{{path}}}';
+{{#pathParams}}
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            ${{paramName}},
+            'path',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if ($server instanceof \{{invokerPackage}}\Api\{{vendorExtensions.op.serverClassName}}) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
+        }
+{{/-first}}
+{{/servers}}
+        $queryParams = [];
+{{#queryParams}}
+{{#vendorExtensions.param.queryContent}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
+        }
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryDeepObject}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
+        }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options !== null && $options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+{{#required}}
+        /* Required query param: always present (non-nullable on the Options
+         * object), so it is emitted unconditionally. An empty string is a
+         * legitimate value and is sent as-is. */
+        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'query',
+                '{{dataType}}',
+                {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
+        }
+{{/required}}
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        $headerParams = [];
+{{#headerParams}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                $options->{{paramName}},
+                'header',
+                '{{dataType}}',
+                null,
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
+            $headerParams['{{baseName}}'] = $headerValue;
+        }
+{{/headerParams}}
+{{#hasCookieParams}}
+        $cookieParts = [];
+{{#cookieParams}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            /** @var string $cookieValue */
+            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+             * forbidden octets before this value is folded into the Cookie
+             * request header. Mirrors the auth-cookie path in BaseApi so an
+             * operation cookie param fails closed with the same
+             * InvalidArgumentException instead of enabling header injection. */
+            if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+                throw new \InvalidArgumentException(
+                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                );
+            }
+            $cookieParts[] = '{{baseName}}=' . $cookieValue;
+        }
+{{/cookieParams}}
+        if ($cookieParts !== []) {
+            $headerParams['Cookie'] = implode('; ', $cookieParts);
+        }
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        $requestBody = [];
+{{#formParams}}
+{{#required}}
+        $requestBody['{{baseName}}'] = $options->{{paramName}};
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $requestBody['{{baseName}}'] = $options->{{paramName}};
+        }
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        $requestBody = ${{paramName}};
+{{/bodyParam}}
+{{^bodyParam}}
+        $requestBody = null;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
+            '{{httpMethod}}',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.op.hasMultipleConsumes}}$contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
+            null,
+{{#hasAuthMethods}}
+            $auth
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance()
+{{/hasAuthMethods}}
+        );
+        return $result;
+    }
+{{/returnType}}
+{{^-last}}
+
+{{/-last}}
+{{/operation}}
+}
+{{/operations}}

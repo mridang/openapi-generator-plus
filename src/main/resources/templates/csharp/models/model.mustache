@@ -1,0 +1,707 @@
+{{>api_info}}
+
+{{#models}}
+{{#model}}
+{{#referencesDeprecated}}
+#pragma warning disable CS0618 // generated code must reference [Obsolete] spec members
+{{/referencesDeprecated}}
+{{#isEnum}}
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#description}}
+/// <summary>
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+/// </summary>
+{{/description}}
+{{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
+[JsonConverter(typeof({{classname}}Converter))]
+public enum {{classname}}
+{
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{name}},
+{{^-last}}
+
+{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+}
+
+/// <summary>
+/// Serializes <see cref="{{classname}}"/> to and from its OpenAPI wire string
+/// values. This generated converter replaces the .NET 9+
+/// <c>[JsonStringEnumMemberName]</c> attribute so the client targets net8.0
+/// (LTS); unknown values throw a <see cref="JsonException"/>, matching the
+/// strict behaviour of the framework string-enum converter.
+/// </summary>
+internal sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+{
+    public override {{classname}} Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a JSON string for enum {{classname}} but got {reader.TokenType}.");
+        }
+
+        string? value = reader.GetString();
+        return value switch
+        {
+            {{#allowableValues}}
+            {{#enumVars}}
+            "{{{value}}}" => {{classname}}.{{name}},
+            {{/enumVars}}
+            {{/allowableValues}}
+            _ => throw new JsonException($"Unknown value '{value}' for enum {{classname}}.")
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value switch
+        {
+            {{#allowableValues}}
+            {{#enumVars}}
+            {{classname}}.{{name}} => "{{{value}}}",
+            {{/enumVars}}
+            {{/allowableValues}}
+            _ => throw new JsonException($"Unknown value '{value}' for enum {{classname}}.")
+        });
+    }
+}
+{{/isLong}}{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#isDeprecated}}
+{{#description}}
+/// <summary>
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+/// </summary>
+{{/description}}
+/// <remarks>Deprecated.</remarks>
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+/// <summary>
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+/// </summary>
+{{/description}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+{{/isDeprecated}}
+{{#discriminator}}
+[JsonConverter(typeof({{classname}}Converter))]
+public abstract class {{classname}}
+{
+    private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+    {
+        public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out JsonElement disc))
+            {
+                string? discValue = disc.GetString();
+                return discValue switch
+                {
+                    {{#mappedModels}}
+                    "{{mappingName}}" => JsonSerializer.Deserialize<{{modelName}}>(raw, options),
+                    {{/mappedModels}}
+                    _ => throw new JsonException(
+                        $"Unknown discriminator value for {{classname}}: '{discValue}'")
+                };
+            }
+            throw new JsonException("Missing discriminator property '{{discriminator.propertyBaseName}}'");
+        }
+
+        public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+        {
+            JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        }
+    }
+}
+{{/discriminator}}
+{{^discriminator}}
+[JsonConverter(typeof({{classname}}Converter))]
+public class {{classname}}(object value)
+{
+    public object? ActualInstance { get; set; } = value;
+
+    private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+    {
+        public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            {{#oneOf}}
+            try { return new {{classname}}(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
+            catch (JsonException) { }
+            {{/oneOf}}
+            /* No schema in the union matched — throw rather than silently
+             * store a raw value (or, like Dart, an empty object). The 7-SDK
+             * majority (Python/Swift/Dart/Go/Rust plus Java/Kotlin/Node here)
+             * surfaces oneOf no-match as a deserialize error so data-shape
+             * bugs fail loudly instead of producing type-confused data. */
+            throw new JsonException(
+                $"JSON did not match any schema in the {{classname}} union: {raw}");
+        }
+
+        public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+        {
+            JsonSerializer.Serialize(writer, value.ActualInstance, options);
+        }
+    }
+}
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#isDeprecated}}
+{{#description}}
+/// <summary>
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+/// </summary>
+{{/description}}
+/// <remarks>Deprecated.</remarks>
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+/// <summary>
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+/// </summary>
+{{/description}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+{{/isDeprecated}}
+[JsonConverter(typeof({{classname}}Converter))]
+public class {{classname}}
+{
+    /// <summary>
+    /// Every union variant that successfully validated against the payload.
+    /// Because anyOf is inclusive (a payload may satisfy several variants at
+    /// once), the wrapper retains ALL matching variants rather than the first.
+    /// This keeps a co-satisfied payload lossless: on re-encode the union of
+    /// every retained variant's fields is emitted, so no variant's data is
+    /// silently dropped.
+    /// </summary>
+    public IReadOnlyList<object> MatchedInstances { get; }
+
+    /// <summary>
+    /// The first matching variant. Retained for backwards compatibility and
+    /// for the common single-variant case; callers that need every co-matched
+    /// variant should read <see cref="MatchedInstances"/>.
+    /// </summary>
+    public object? ActualInstance => MatchedInstances.Count > 0 ? MatchedInstances[0] : null;
+
+    /// <summary>
+    /// Construct a wrapper holding a single variant instance. Preserves the
+    /// existing <c>new {{classname}}(variant)</c> call sites.
+    /// </summary>
+    public {{classname}}(object value)
+    {
+        MatchedInstances = new List<object> { value };
+    }
+
+    /// <summary>
+    /// Construct a wrapper retaining every variant that matched the payload.
+    /// </summary>
+    public {{classname}}(IReadOnlyList<object> matchedInstances)
+    {
+        MatchedInstances = matchedInstances;
+    }
+
+    private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+    {
+        public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            List<object> matched = new List<object>();
+            {{#anyOf}}
+            try { matched.Add(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
+            catch (JsonException) { }
+            {{/anyOf}}
+            if (matched.Count > 0)
+            {
+                return new {{classname}}(matched);
+            }
+            /* No schema in the union matched — throw rather than silently
+             * fall back to a raw JsonElement. Five SDKs throw on no-match
+             * (Python, Swift, Dart, Go, Rust); we align the other seven
+             * (C# here, plus Java/Kotlin/PHP/Ruby/Node/Elixir) so data-
+             * shape bugs surface loudly. */
+            throw new JsonException(
+                $"JSON did not match any schema in the {{classname}} union: {raw}");
+        }
+
+        public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+        {
+            /* anyOf is inclusive, so emit the union of every retained variant's
+             * fields. Serialize each matched variant to its own JSON object and
+             * merge their properties into a single object; the first variant
+             * to supply a key wins on a collision, and distinct fields from
+             * every variant are preserved so a co-satisfied payload round-trips
+             * losslessly. */
+            if (value.MatchedInstances.Count == 1)
+            {
+                JsonSerializer.Serialize(writer, value.MatchedInstances[0], options);
+                return;
+            }
+            writer.WriteStartObject();
+            HashSet<string> written = new HashSet<string>(StringComparer.Ordinal);
+            foreach (object instance in value.MatchedInstances)
+            {
+                using JsonDocument part = JsonDocument.Parse(
+                    JsonSerializer.Serialize(instance, options));
+                if (part.RootElement.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                foreach (JsonProperty property in part.RootElement.EnumerateObject())
+                {
+                    if (written.Add(property.Name))
+                    {
+                        property.WriteTo(writer);
+                    }
+                }
+            }
+            writer.WriteEndObject();
+        }
+    }
+}
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#description}}
+/// <summary>
+/// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+/// </summary>
+{{/description}}
+{{#hasRequired}}
+{{#isDeprecated}}
+/// <remarks>Deprecated.</remarks>
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
+{
+    /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Required members are
+    /// populated through their init accessors during deserialization, so no
+    /// constructor parameters are needed. This keeps the type trim-safe:
+    /// ILLink cannot strip the names of constructor parameters that do not
+    /// exist, so the model deserializes correctly under
+    /// <c>PublishTrimmed</c>/Blazor WASM, unlike a parameterized
+    /// <c>[JsonConstructor]</c>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
+    public {{classname}}()
+    {
+    }
+
+    /// <summary>
+    /// Convenience constructor accepting every required property.
+    /// <c>[SetsRequiredMembers]</c> declares that it satisfies the
+    /// <c>required</c> members, so existing <c>new {{classname}}(...)</c> call
+    /// sites keep compiling. Its parameter names are never read by the
+    /// serializer, so they are safe to trim.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}})
+    {
+        {{#requiredVars}}
+        this.{{name}} = {{nameInCamelCase}};
+        {{/requiredVars}}
+    }
+
+    {{#vars}}
+    {{#isEnum}}
+    [JsonConverter(typeof({{enumName}}Converter))]
+    public enum {{enumName}}
+    {
+        {{#allowableValues}}
+        {{#enumVars}}
+        {{name}},
+{{^-last}}
+
+{{/-last}}
+        {{/enumVars}}
+        {{/allowableValues}}
+    }
+
+    /// <summary>
+    /// Serializes <see cref="{{enumName}}"/> to and from its OpenAPI wire string
+    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// <c>[JsonStringEnumMemberName]</c> attribute.
+    /// </summary>
+    private sealed class {{enumName}}Converter : JsonConverter<{{enumName}}>
+    {
+        public override {{enumName}} Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            if (reader.TokenType != System.Text.Json.JsonTokenType.String)
+            {
+                throw new System.Text.Json.JsonException($"Expected a JSON string for enum {{enumName}} but got {reader.TokenType}.");
+            }
+
+            string? value = reader.GetString();
+            return value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                "{{{value}}}" => {{enumName}}.{{name}},
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            };
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, {{enumName}} value, System.Text.Json.JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                {{enumName}}.{{name}} => "{{{value}}}",
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            });
+        }
+    }
+
+    {{/isEnum}}
+    {{/vars}}
+    {{#vars}}
+    {{#description}}
+    /// <summary>
+    /// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+    /// </summary>
+    {{/description}}
+{{#example}}
+    /// <example>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</example>
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{summary}}: {{value}}{{/lambda.escapeXml}}</example>
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+    /// <remarks>This property is read-only.</remarks>
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /// <remarks>This property is write-only.</remarks>
+{{/isWriteOnly}}
+{{#deprecated}}
+    /// <remarks>Deprecated.</remarks>
+    [Obsolete("This property is deprecated.")]
+{{/deprecated}}
+{{#required}}
+{{! Required property. Deserialized through its init accessor (not a
+    constructor parameter), so the model stays trim-safe. Divergence #10 — a
+    required, non-nullable field that is explicitly null in the input JSON must
+    HARD-FAIL with System.Text.Json.JsonException — is preserved by the
+    null-guarding init accessor in required_guarded_property. A missing field
+    is already rejected by [JsonRequired]. Only true value-type surfaces
+    (non-string, non-container primitives and enums) skip the guard, because
+    their init values can never be null. }}
+{{#defaultValue}}
+{{! Required-with-default (e.g. a fixed discriminator value): the default
+    applies when the field is absent from the JSON, so it is NOT wire-required
+    and gets neither the `required` keyword nor [JsonRequired] -- matching the
+    pre-trim behaviour. It is excluded from requiredVars, so it is also not a
+    convenience-constructor parameter. }}
+    [JsonPropertyName("{{baseName}}")]
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}} { get; set; } = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+{{#isEnum}}
+    [JsonRequired]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{{datatypeWithEnum}}} {{name}} { get; init; }
+{{/isEnum}}
+{{^isEnum}}
+{{! A $ref to a top-level enum is a value type (cannot be null), so it skips
+    the null-guarding init accessor just like an inline enum -- otherwise the
+    `value ?? throw` / `null!` backing would fail to compile against a struct. }}
+{{#isEnumRef}}
+    [JsonRequired]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{{dataType}}} {{name}} { get; init; }
+{{/isEnumRef}}
+{{^isEnumRef}}
+{{#isContainer}}{{>required_guarded_property}}{{/isContainer}}
+{{^isContainer}}
+{{^isPrimitiveType}}{{>required_guarded_property}}{{/isPrimitiveType}}
+{{#isPrimitiveType}}
+{{#isString}}{{>required_guarded_property}}{{/isString}}
+{{^isString}}
+{{#isByteArray}}{{>required_guarded_property}}{{/isByteArray}}
+{{^isByteArray}}
+{{#isBinary}}{{>required_guarded_property}}{{/isBinary}}
+{{^isBinary}}
+    [JsonRequired]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{{dataType}}} {{name}} { get; init; }
+{{/isBinary}}
+{{/isByteArray}}
+{{/isString}}
+{{/isPrimitiveType}}
+{{/isContainer}}
+{{/isEnumRef}}
+{{/isEnum}}
+{{/defaultValue}}
+{{/required}}
+{{^required}}
+    [JsonPropertyName("{{baseName}}")]
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}} { get; set; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}
+{{/required}}
+{{^-last}}
+
+{{/-last}}
+    {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    [JsonExtensionData]
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    // Any JSON key not declared above is captured here so the JsonExtensionData
+    // setter can throw, surfacing unknown-key errors during deserialization.
+    private Dictionary<string, object>? _unknownProperties;
+
+    [JsonExtensionData]
+    public Dictionary<string, object>? UnknownProperties
+    {
+        get => _unknownProperties;
+        set
+        {
+            if (value is not null && value.Count > 0)
+            {
+                throw new ArgumentException(
+                    "Unknown property '" + value.Keys.First()
+                        + "' on {{classname}} (unevaluatedProperties:false)");
+            }
+            _unknownProperties = value;
+        }
+    }
+{{/isUnevaluatedPropertiesFalse}}
+
+    /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
+    /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}. Generated so
+    /// model instances work correctly as HashSet/Dictionary keys and in
+    /// test assertions.</summary>
+    public bool Equals({{classname}}? other)
+    {
+        return other is not null
+            && (ReferenceEquals(this, other)
+                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
+                    && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+                    && {{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as {{classname}});
+    }
+
+    public override int GetHashCode()
+    {
+        HashCode hash = default;
+        {{#vars}}
+        {{#isContainer}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
+        {{/vars}}
+        {{#isAdditionalPropertiesTrue}}
+        hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
+        {{/isAdditionalPropertiesTrue}}
+        return hash.ToHashCode();
+    }
+}
+{{/hasRequired}}
+{{^hasRequired}}
+{{#isDeprecated}}
+/// <remarks>Deprecated.</remarks>
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
+{
+    {{#vars}}
+    {{#isEnum}}
+    [JsonConverter(typeof({{enumName}}Converter))]
+    public enum {{enumName}}
+    {
+        {{#allowableValues}}
+        {{#enumVars}}
+        {{name}},
+{{^-last}}
+
+{{/-last}}
+        {{/enumVars}}
+        {{/allowableValues}}
+    }
+
+    /// <summary>
+    /// Serializes <see cref="{{enumName}}"/> to and from its OpenAPI wire string
+    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// <c>[JsonStringEnumMemberName]</c> attribute.
+    /// </summary>
+    private sealed class {{enumName}}Converter : JsonConverter<{{enumName}}>
+    {
+        public override {{enumName}} Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            if (reader.TokenType != System.Text.Json.JsonTokenType.String)
+            {
+                throw new System.Text.Json.JsonException($"Expected a JSON string for enum {{enumName}} but got {reader.TokenType}.");
+            }
+
+            string? value = reader.GetString();
+            return value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                "{{{value}}}" => {{enumName}}.{{name}},
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            };
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, {{enumName}} value, System.Text.Json.JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value switch
+            {
+                {{#allowableValues}}
+                {{#enumVars}}
+                {{enumName}}.{{name}} => "{{{value}}}",
+                {{/enumVars}}
+                {{/allowableValues}}
+                _ => throw new System.Text.Json.JsonException($"Unknown value '{value}' for enum {{enumName}}.")
+            });
+        }
+    }
+
+    {{/isEnum}}
+    {{/vars}}
+    {{#vars}}
+    {{#description}}
+    /// <summary>
+    /// {{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}
+    /// </summary>
+    {{/description}}
+{{#example}}
+    /// <example>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</example>
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{summary}}: {{value}}{{/lambda.escapeXml}}</example>
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+    /// <remarks>This property is read-only.</remarks>
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /// <remarks>This property is write-only.</remarks>
+{{/isWriteOnly}}
+{{#deprecated}}
+    /// <remarks>Deprecated.</remarks>
+    [Obsolete("This property is deprecated.")]
+{{/deprecated}}
+    [JsonPropertyName("{{baseName}}")]
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
+{{^-last}}
+
+{{/-last}}
+    {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    [JsonExtensionData]
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    private Dictionary<string, object>? _unknownProperties;
+
+    [JsonExtensionData]
+    public Dictionary<string, object>? UnknownProperties
+    {
+        get => _unknownProperties;
+        set
+        {
+            if (value is not null && value.Count > 0)
+            {
+                throw new ArgumentException(
+                    "Unknown property '" + value.Keys.First()
+                        + "' on {{classname}} (unevaluatedProperties:false)");
+            }
+            _unknownProperties = value;
+        }
+    }
+{{/isUnevaluatedPropertiesFalse}}
+
+    /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
+    /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}.</summary>
+    public bool Equals({{classname}}? other)
+    {
+        return other is not null
+            && (ReferenceEquals(this, other)
+                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
+                    && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+                    && {{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as {{classname}});
+    }
+
+    public override int GetHashCode()
+    {
+        HashCode hash = default;
+        {{#vars}}
+        {{#isContainer}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
+        {{/vars}}
+        {{#isAdditionalPropertiesTrue}}
+        hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
+        {{/isAdditionalPropertiesTrue}}
+        return hash.ToHashCode();
+    }
+}
+{{/hasRequired}}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

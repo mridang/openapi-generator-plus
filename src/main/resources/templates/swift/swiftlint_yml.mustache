@@ -1,0 +1,12 @@
+# Default SwiftLint configuration.
+#
+# No rules are disabled and no thresholds are relaxed: every default SwiftLint
+# rule applies at its stock severity. Only build artefacts and the test fixture
+# trees are excluded from linting (these hold copied-in/generated material, not
+# hand-written source) — that is a path scope, not a rule relaxation.
+excluded:
+  - .build
+  - Tests/Fixtures
+  - Tests/Spec
+
+reporter: "xcode"

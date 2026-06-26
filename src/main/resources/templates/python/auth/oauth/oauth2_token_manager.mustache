@@ -1,0 +1,331 @@
+{{>api_info}}
+
+import json
+import threading
+import time
+from typing import Dict, Optional
+
+from ...api_client import ApiClient
+from ...errors import ZitadelException
+
+
+class OAuth2TokenManager:
+    """Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+
+    Uses the shared :class:`ApiClient` instance so that token exchange
+    requests honour the same transport configuration (proxy, TLS, timeouts)
+    as regular API calls.
+    """
+
+    # Safety margin (in seconds) applied to token expiry checks so that we
+    # refresh slightly before the token actually expires, avoiding a race
+    # against the server clock.
+    _EXPIRY_SAFETY_MARGIN_S = 60
+
+    def __init__(self) -> None:
+        """Create a new token manager.
+
+        The :class:`ApiClient` must be injected via :meth:`set_api_client`
+        before any token requests are made.
+        """
+        self._api_client: Optional[ApiClient] = None
+        self._access_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
+        self._token_expiry: Optional[float] = None
+        self._lock = threading.Lock()
+
+    def set_api_client(self, api_client: ApiClient) -> None:
+        """Inject the shared API client for making token requests.
+
+        Args:
+            api_client: The shared API client instance.
+        """
+        self._api_client = api_client
+
+    def get_access_token(
+        self,
+        token_url: str,
+        params: Dict[str, str],
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """Get a valid access token, fetching or refreshing as necessary.
+
+        This method is thread-safe; concurrent calls will not trigger
+        duplicate token requests.
+
+        Args:
+            token_url: The OAuth2 token endpoint URL.
+            params: The token request parameters (grant_type, client_id, etc.).
+            extra_headers: Optional additional HTTP headers to send with the
+                token request (e.g. Authorization for HTTP Basic client auth).
+
+        Returns:
+            A valid access token.
+
+        Raises:
+            RuntimeError: If no API client has been injected or token
+                fetch fails.
+        """
+        with self._lock:
+            if self._access_token and (
+                self._token_expiry is None
+                or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
+            ):
+                return self._access_token
+            if self._refresh_token:
+                refresh_params: Dict[str, str] = {
+                    'grant_type': 'refresh_token',
+                    'refresh_token': self._refresh_token,
+                }
+                if 'client_id' in params:
+                    refresh_params['client_id'] = params['client_id']
+                if 'client_secret' in params:
+                    refresh_params['client_secret'] = params['client_secret']
+                try:
+                    self._fetch_token(token_url, refresh_params, extra_headers)
+                    if self._access_token is not None:
+                        return self._access_token
+                except Exception:
+                    # Refresh failed (e.g. refresh token revoked or expired).
+                    # Fall back to re-running the original grant below.
+                    pass
+            self._fetch_token(token_url, params, extra_headers)
+            if self._access_token is None:
+                raise RuntimeError('Token fetch did not return an access token')
+            return self._access_token
+
+    def invalidate_access_token(self) -> None:
+        """Invalidate the cached access token.
+
+        The next call to :meth:`get_access_token` will fetch a fresh token
+        from the token endpoint. Intended for tests and recovery flows.
+        """
+        with self._lock:
+            self._access_token = None
+            self._token_expiry = None
+
+    def set_access_token(self, token: str) -> None:
+        """Manually set an access token, bypassing the token endpoint.
+
+        Args:
+            token: The access token to use.
+        """
+        with self._lock:
+            self._access_token = token
+            self._token_expiry = None
+
+    def _fetch_token(
+        self,
+        token_url: str,
+        params: Dict[str, str],
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Fetch a token from the token endpoint using the injected ApiClient.
+
+        Args:
+            token_url: The OAuth2 token endpoint URL.
+            params: The token request form parameters.
+            extra_headers: Additional HTTP headers to include on the request.
+
+        Raises:
+            RuntimeError: If no API client has been injected or the token
+                request fails.
+        """
+        if self._api_client is None:
+            raise RuntimeError(
+                'ApiClient has not been injected. '
+                'Ensure the {{clientClassName}} constructor calls set_api_client() '
+                'on HttpAwareAuthenticator before making API requests.'
+            )
+
+        from urllib.parse import urlencode
+
+        body = urlencode(params)
+
+        headers: Dict[str, str] = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+        }
+        if extra_headers:
+            headers.update(extra_headers)
+
+        # no_redirect=True: refuse 307/308 on the token POST so a malicious
+        # redirect cannot silently replay the client_id/client_secret (or
+        # the resource owner's password grant credentials) against an
+        # attacker-controlled endpoint. RFC 6749 §3.2 forbids token-endpoint
+        # redirection chains in any case, but we enforce it on the client
+        # side for defence in depth.
+        response = self._api_client.send_request(
+            'POST', token_url, headers, body, no_redirect=True
+        )
+        if 300 <= response.status_code < 400:
+            # RFC 6749 §3.2 forbids redirects at the token endpoint. With
+            # no_redirect=True the transport surfaces the 3xx verbatim
+            # rather than replaying the credential-bearing POST; we refuse
+            # all 3xx explicitly so the caller fails closed instead of
+            # leaking the client_secret / refresh_token to the redirect
+            # target.
+            raise OAuth2TokenError(
+                f'Refusing to follow {response.status_code} redirect on OAuth2 '
+                f'token endpoint {token_url}; token POSTs carry credentials and '
+                'must not be replayed.'
+            )
+        if response.status_code < 200 or response.status_code >= 300:
+            # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+            # `error` (required), `error_description`, `error_uri`. Parse
+            # them into a typed OAuth2ServerError so callers can recover.
+            # Fall back to the raw body when the response is not a valid
+            # error object.
+            raise self._parse_oauth2_server_error(response.status_code, response.body)
+
+        token_data = json.loads(response.body)
+        access_token = token_data.get('access_token')
+        if not isinstance(access_token, str) or not access_token:
+            raise OAuth2TokenError('Token response missing or empty access_token field')
+        self._access_token = access_token
+        if token_data.get('refresh_token'):
+            self._refresh_token = token_data['refresh_token']
+        if 'expires_in' in token_data and token_data['expires_in'] is not None:
+            # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+            # providers (Salesforce, some Apigee deployments) send a quoted
+            # string and others send a JSON float. Accept ints, floor floats,
+            # parse digit strings; on anything unparseable or non-positive,
+            # mark the token as immediately stale so the next call refetches
+            # (preferable to caching a token of unknown lifetime forever).
+            expires_in = self._parse_expires_in(token_data['expires_in'])
+            if expires_in > 0:
+                buffer_secs = min(expires_in, 30)
+                self._token_expiry = time.time() + expires_in - buffer_secs
+            else:
+                self._token_expiry = time.time()
+
+    @staticmethod
+    def _parse_oauth2_server_error(status_code: int, body: str) -> 'OAuth2ServerError':
+        """Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+        :class:`OAuth2ServerError`. Falls back to a generic error using the
+        raw body when the body is not a valid OAuth2 error object."""
+        try:
+            parsed = json.loads(body)
+        except ValueError:
+            return OAuth2ServerError(status_code, None, None, None, body)
+        if isinstance(parsed, dict):
+            code = parsed.get('error')
+            if isinstance(code, str) and code:
+                description = parsed.get('error_description')
+                uri = parsed.get('error_uri')
+                return OAuth2ServerError(
+                    status_code,
+                    code,
+                    description if isinstance(description, str) else None,
+                    uri if isinstance(uri, str) else None,
+                    body,
+                )
+        return OAuth2ServerError(status_code, None, None, None, body)
+
+    @staticmethod
+    def _parse_expires_in(raw: object) -> int:
+        """Defensively parse the OAuth2 ``expires_in`` value.
+
+        Returns ``0`` (caller skips caching) when the value is missing,
+        unparseable, or non-positive. Accepts ints, floors floats, and
+        parses digit strings (e.g. ``"3600"`` from Salesforce).
+        """
+        if isinstance(raw, bool):
+            # bool is a subclass of int in Python; reject it explicitly.
+            return 0
+        if isinstance(raw, int):
+            return raw
+        if isinstance(raw, float):
+            import math
+            if math.isnan(raw) or math.isinf(raw):
+                return 0
+            return int(math.floor(raw))
+        if isinstance(raw, str):
+            trimmed = raw.strip()
+            if not trimmed:
+                return 0
+            try:
+                parsed = float(trimmed)
+            except ValueError:
+                return 0
+            import math
+            if math.isnan(parsed) or math.isinf(parsed):
+                return 0
+            return int(math.floor(parsed))
+        return 0
+
+    @property
+    def refresh_token(self) -> Optional[str]:
+        return self._refresh_token
+
+
+class OAuth2TokenError(ZitadelException):
+    """Raised when the OAuth2 token endpoint returns a 2xx response whose
+    body is missing or contains an empty ``access_token`` field. Distinct
+    from :class:`OAuth2ServerError` (which represents RFC 6749 §5.2 error
+    responses on 4xx/5xx) so callers can recover differently.
+
+    A sibling of :class:`ApiException` under the branded
+    :class:`ZitadelException` root -- it is an OAuth2 token-acquisition
+    failure rather than an HTTP-status error, so it does not extend
+    ``ApiException``. Callers can still catch every SDK error with one
+    ``except ZitadelException``."""
+
+
+class OAuth2ServerError(ZitadelException):
+    """Typed representation of an RFC 6749 §5.2 OAuth2 error response.
+
+    Attributes:
+        status_code: The HTTP status code returned by the token endpoint.
+        code: The OAuth2 error code (e.g. ``invalid_grant``,
+            ``invalid_client``), or ``None`` when the body did not parse as
+            a valid OAuth2 error object.
+        description: Optional human-readable description.
+        uri: Optional URI to a page describing the error.
+        raw_body: The original response payload (for diagnostics).
+    """
+
+    def __init__(
+        self,
+        status_code: int,
+        code: Optional[str],
+        description: Optional[str],
+        uri: Optional[str],
+        raw_body: str,
+    ) -> None:
+        if code is None:
+            message = f'Token request failed with status {status_code}: {raw_body}'
+        elif description is not None:
+            message = (
+                f'Token request failed with status {status_code}: {code} -- {description}'
+            )
+        else:
+            message = f'Token request failed with status {status_code}: {code}'
+        super().__init__(message)
+        # Stored privately and exposed via read-only @property getters so a
+        # caught error's fields cannot be reassigned after construction.
+        self._status_code = status_code
+        self._code = code
+        self._description = description
+        self._uri = uri
+        self._raw_body = raw_body
+
+    @property
+    def status_code(self) -> int:
+        return self._status_code
+
+    @property
+    def code(self) -> Optional[str]:
+        return self._code
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def uri(self) -> Optional[str]:
+        return self._uri
+
+    @property
+    def raw_body(self) -> str:
+        return self._raw_body

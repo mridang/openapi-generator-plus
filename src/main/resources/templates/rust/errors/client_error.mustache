@@ -1,0 +1,36 @@
+{{>api_info}}
+
+use std::fmt;
+
+use crate::api_error::ApiError;
+
+/// ClientError represents an HTTP 4xx client error.
+#[derive(Debug, Clone)]
+pub struct ClientError {
+    api_error: ApiError,
+}
+
+impl ClientError {
+    /// Returns the underlying [`ApiError`].
+    pub fn api_error(&self) -> &ApiError {
+        &self.api_error
+    }
+}
+
+impl fmt::Display for ClientError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Client error ({}): {}", self.api_error.status_code(), self.api_error.message())
+    }
+}
+
+impl std::error::Error for ClientError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.api_error)
+    }
+}
+
+impl From<ApiError> for ClientError {
+    fn from(api_error: ApiError) -> Self {
+        Self { api_error }
+    }
+}

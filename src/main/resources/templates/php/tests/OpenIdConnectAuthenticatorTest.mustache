@@ -1,0 +1,269 @@
+{{>api_info}}
+
+// phpcs:ignoreFile
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\ApiHttpResponse;
+use {{invokerPackage}}\Auth\OAuth\OpenIdConnectAuthenticator;
+
+function makeOpenIdConnectMockClientWithDiscovery(): MockTokenApiClient
+{
+    $client = new MockTokenApiClient();
+    // Discovery document response
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    return $client;
+}
+
+test('builds authorization url from discovery', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('state-123');
+
+    // Verify discovery was fetched
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['method'])->toBe('GET');
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+
+    // Verify authorization URL uses discovered endpoint
+    expect($url)->toContain('https://auth.example.com/authorize?');
+    expect($url)->toContain('response_type=code');
+    expect($url)->toContain('client_id=my-client-id');
+    expect($url)->toContain('state=state-123');
+    expect($url)->toContain('scope=openid+profile');
+});
+
+test('obtains token after code exchange', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    // Token exchange response
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'oidc-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('oidc-code-123');
+
+    // Discovery request + token request
+    expect($client->capturedRequests)->toHaveCount(2);
+    $tokenRequest = $client->capturedRequests[1];
+    expect($tokenRequest['method'])->toBe('POST');
+    expect($tokenRequest['url'])->toBe('https://auth.example.com/token');
+    expect($tokenRequest['body'] ?? '')->toContain('grant_type=authorization_code');
+    expect($tokenRequest['body'] ?? '')->toContain('code=oidc-code-123');
+});
+
+test('oidc get auth headers returns bearer after exchange', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    // Token exchange response
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'oidc-tok',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('oidc-code');
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer oidc-tok');
+});
+
+test('fetches discovery document', function (): void {
+    $client = new MockTokenApiClient();
+    // Only one discovery response needed
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    // Discovery should only be fetched once
+    $discoveryRequests = array_filter($client->capturedRequests, fn(array $r): bool => $r['method'] === 'GET');
+    expect($discoveryRequests)->toHaveCount(1);
+});
+
+test('oidc issues a GET to the discovery endpoint', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests[0]['method'])->toBe('GET');
+    expect($client->capturedRequests[0]['url'])
+        ->toBe('https://auth.example.com/.well-known/openid-configuration');
+});
+
+test('oidc throws when discovery returns non-2xx status', function (): void {
+    $client = new MockTokenApiClient();
+    // A non-2xx discovery response (e.g. a 500 HTML error page) must surface
+    // as a clear error, not as an "invalid JSON" parse failure of the body.
+    $client->enqueueResponse(new ApiHttpResponse(
+        500,
+        '<html>internal server error</html>',
+        ['Content-Type' => 'text/html']
+    ));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\RuntimeException::class);
+});
+
+test('oidc throws when no api client injected', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\RuntimeException::class);
+});
+
+test('oidc get host returns configured host', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+test('oidc throws when discovery omits authorization_endpoint', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document missing authorization_endpoint must fail loudly.
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\RuntimeException::class, 'OIDC discovery document is missing authorization_endpoint');
+});
+
+test('oidc throws when discovery omits token_endpoint', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document missing token_endpoint must fail loudly.
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\RuntimeException::class, 'OIDC discovery document is missing token_endpoint');
+});
+
+/**
+ * Asserts that the client secret never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-client-secret');
+    expect($printR)->toContain('***');
+}

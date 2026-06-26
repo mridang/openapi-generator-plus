@@ -1,0 +1,13 @@
+{{>api_info}}
+// ignore_for_file: use_super_parameters
+{{#imports}}
+import '{{{.}}}';
+{{/imports}}
+
+class {{className}} extends {{baseClass}} {
+  {{className}}({
+    {{{constructorSignature}}},
+  }) : super(
+         {{{superCall}}},
+       );
+}

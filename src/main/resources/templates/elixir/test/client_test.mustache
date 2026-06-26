@@ -1,0 +1,89 @@
+{{#generateTests}}
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+defmodule {{moduleName}}.ClientTest do
+  use ExUnit.Case, async: true
+
+  test "construct with authenticator only" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+
+    assert %{{moduleName}}.{{clientClassName}}{} = client
+  end
+
+  test "construct with authenticator and nil transport options" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator, nil)
+
+    assert %{{moduleName}}.{{clientClassName}}{} = client
+  end
+
+  test "construct with authenticator and transport options" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+    transport = {{moduleName}}.TransportOptions.new()
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+
+    assert %{{moduleName}}.{{clientClassName}}{} = client
+  end
+
+  test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "tok\r\nInjected: yes")
+    end
+
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "ñoño")
+    end
+  end
+
+  test "BearerAuthenticator rejects an empty or whitespace token" do
+    # bearer-no-empty-token-guard: an empty/whitespace token would emit a
+    # bare "Authorization: Bearer " header, sending the request
+    # unauthenticated, so new/2 must reject it.
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "")
+    end
+
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "   ")
+    end
+  end
+
+  test "ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+    # HEADER location must reject anything outside printable ASCII + TAB
+    # to prevent header injection (\r\n) and silent UTF-8 mangling that
+    # varies per HTTP lib.
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.ApiKeyAuthenticator.new("{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", :header)
+    end
+
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.ApiKeyAuthenticator.new("{{{basePath}}}", "X-Api-Key", "kéy", :header)
+    end
+
+    # Non-header locations accept arbitrary chars.
+    query_auth = {{moduleName}}.Auth.ApiKeyAuthenticator.new("{{{basePath}}}", "api_key", "kéy", :query)
+    assert {{moduleName}}.Auth.ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
+  end
+
+  test "API groups are accessible" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    assert client.{{clientPropertyName}} != nil
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  end
+end
+{{/generateTests}}

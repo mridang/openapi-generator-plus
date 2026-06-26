@@ -1,0 +1,238 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require 'json'
+require '{{gemName}}'
+
+class FakeOidcClient
+  attr_reader :requests
+
+  def initialize(responses)
+    @responses = responses
+    @requests = []
+  end
+
+  def send_request(method, url, headers, body, no_redirect: false)
+    @requests << { method: method, url: url, headers: headers, body: body, no_redirect: no_redirect }
+    response = @responses.shift || @responses.last
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: response[:status],
+      body: response[:body].is_a?(String) ? response[:body] : response[:body].to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
+describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
+  parallelize_me!
+
+  let(:discovery_response) do
+    {
+      status: 200,
+      body: {
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token'
+      }
+    }
+  end
+
+  let(:token_response) do
+    { status: 200, body: { 'access_token' => 'oidc_tok', 'refresh_token' => 'oidc_ref', 'expires_in' => 3600 } }
+  end
+
+  it 'builds authorization URL from discovery' do
+    client = FakeOidcClient.new([discovery_response])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid profile]
+    )
+    auth.api_client = client
+
+    url = auth.build_authorization_url('state_abc')
+    _(url).must_include 'https://auth.example.com/authorize?'
+    _(url).must_include 'response_type=code'
+    _(url).must_include 'client_id=my_client_id'
+    _(url).must_include 'state=state_abc'
+    _(url).must_include 'scope=openid+profile'
+  end
+
+  it 'fetches discovery document' do
+    client = FakeOidcClient.new([discovery_response])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid]
+    )
+    auth.api_client = client
+
+    auth.build_authorization_url
+    _(client.requests.first[:url]).must_equal 'https://auth.example.com/.well-known/openid-configuration'
+    _(client.requests.first[:method]).must_equal :get
+  end
+
+  it 'obtains token after code exchange' do
+    client = FakeOidcClient.new([discovery_response, token_response])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid]
+    )
+    auth.api_client = client
+
+    auth.exchange_code('oidc_code_123')
+    token_request = client.requests[1]
+    _(token_request[:url]).must_equal 'https://auth.example.com/token'
+    _(token_request[:body]).must_include 'grant_type=authorization_code'
+    _(token_request[:body]).must_include 'code=oidc_code_123'
+  end
+
+  it 'getAuthHeaders returns Bearer after exchange' do
+    client = FakeOidcClient.new([discovery_response, token_response])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid]
+    )
+    auth.api_client = client
+
+    auth.exchange_code('oidc_code_123')
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer oidc_tok'
+  end
+
+  it 'throws when no ApiClient injected' do
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid]
+    )
+
+    assert_raises({{moduleName}}::ApiError) do
+      auth.build_authorization_url
+    end
+  end
+
+  it 'getHost returns configured host' do
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid]
+    )
+    _(auth.host).must_equal 'https://api.example.com'
+  end
+
+  # The discovery document must be cached: a second build must reuse it rather
+  # than issue a second GET to the discovery endpoint.
+  it 'fetches discovery document only once' do
+    client = FakeOidcClient.new([discovery_response])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+
+    get_requests = client.requests.select { |r| r[:method] == :get }
+    _(get_requests.length).must_equal 1
+  end
+
+  # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
+  # surface as a typed ApiError, not as a downstream "invalid JSON" error.
+  it 'raises ApiError when discovery returns a non-2xx status' do
+    client = FakeOidcClient.new([{ status: 500, body: '<html>error</html>' }])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    assert_raises({{moduleName}}::ApiError) { auth.build_authorization_url }
+  end
+
+  # oauth-oidc-missing-endpoint-guard: a discovery document missing the
+  # required endpoints must raise a typed ApiError up front, not NPE later.
+  it 'raises ApiError when discovery omits authorization_endpoint' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'token_endpoint' => 'https://auth.example.com/token' } }])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    assert_raises({{moduleName}}::ApiError) { auth.build_authorization_url }
+  end
+
+  it 'raises ApiError when discovery omits token_endpoint' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    assert_raises({{moduleName}}::ApiError) { auth.build_authorization_url }
+  end
+
+  it 'masks the client secret in inspect' do
+    # client-secret-leak-in-default-repr: the default Object#inspect dumps
+    # every instance variable, leaking @client_secret. The overridden
+    # inspect must mask it.
+    secret_auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'super_secret_value',
+      'https://app.example.com/callback',
+      %w[openid profile]
+    )
+
+    _(secret_auth.inspect).wont_include 'super_secret_value'
+    _(secret_auth.inspect).must_include '***'
+    _(secret_auth.to_s).wont_include 'super_secret_value'
+    _(secret_auth.to_s).wont_include 'super_secret_value'
+  end
+
+  def test_redacts_secret
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'leaky_client_secret',
+      'https://app.example.com/callback',
+      %w[openid profile]
+    )
+    _(auth.inspect).wont_include 'leaky_client_secret'
+    _(auth.inspect).must_include '***'
+    _(auth.to_s).wont_include 'leaky_client_secret'
+    _(auth.to_s).must_include '***'
+  end
+end

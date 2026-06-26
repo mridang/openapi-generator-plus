@@ -1,0 +1,176 @@
+{{>api_info}}
+package oauth
+
+import (
+	"errors"
+	"fmt"
+	"log"
+	"net/url"
+	"strings"
+
+	"{{packageName}}/pkg/auth"
+)
+
+// ErrAuthCodeNotExchanged is returned by AuthHeadersOrError when the caller
+// invokes it before ExchangeCode. Callers can compare with errors.Is so they
+// can distinguish a usage error from a network/token-endpoint failure and
+// recover instead of being terminated by a panic.
+var ErrAuthCodeNotExchanged = errors.New("oauth2 authorization code: must call ExchangeCode before requesting auth headers")
+
+// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
+//
+// Implements HttpAwareAuthenticator so that token exchange requests use the
+// shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
+// as regular API calls.
+//
+// Usage:
+//  1. Call BuildAuthorizationURL to get the authorization URL
+//  2. Redirect the user to that URL
+//  3. After the callback, call ExchangeCode with the auth code
+//  4. Use the authenticator normally -- tokens are managed automatically
+type OAuth2AuthorizationCodeAuthenticator struct {
+	auth.BaseAuthenticator
+	host             string
+	clientID         string
+	clientSecret     string
+	authorizationURL string
+	tokenURL         string
+	refreshURL       string
+	redirectURI      string
+	scopes           []string
+	tokenManager     *OAuth2TokenManager
+	tokenExchanged   bool
+}
+
+// NewOAuth2AuthorizationCodeAuthenticator creates a new authorization code authenticator.
+//
+// If refreshURL is empty, the tokenURL is used for refresh requests.
+func NewOAuth2AuthorizationCodeAuthenticator(host, clientID, clientSecret, authorizationURL, tokenURL, redirectURI string, scopes []string, refreshURL string) *OAuth2AuthorizationCodeAuthenticator {
+	if refreshURL == "" {
+		refreshURL = tokenURL
+	}
+	return &OAuth2AuthorizationCodeAuthenticator{
+		host:             host,
+		clientID:         clientID,
+		clientSecret:     clientSecret,
+		authorizationURL: authorizationURL,
+		tokenURL:         tokenURL,
+		refreshURL:       refreshURL,
+		redirectURI:      redirectURI,
+		scopes:           scopes,
+		tokenManager:     NewOAuth2TokenManager(),
+	}
+}
+
+// Host returns the API base URL.
+func (a *OAuth2AuthorizationCodeAuthenticator) Host() string {
+	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the client_secret. authenticator-secret-in-default-string-repr.
+func (a *OAuth2AuthorizationCodeAuthenticator) String() string {
+	return fmt.Sprintf("OAuth2AuthorizationCodeAuthenticator{host: %q, clientID: %q, clientSecret: ***, authorizationURL: %q, tokenURL: %q, redirectURI: %q}", a.host, a.clientID, a.authorizationURL, a.tokenURL, a.redirectURI)
+}
+
+// SetApiClient injects the shared API client for making token requests.
+func (a *OAuth2AuthorizationCodeAuthenticator) SetApiClient(client auth.ApiClient) {
+	a.tokenManager.SetApiClient(client)
+}
+
+// BuildAuthorizationURL builds the authorization URL to redirect the user to.
+//
+// The state parameter is optional and used for CSRF protection.
+func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state string) string {
+	params := url.Values{
+		"response_type": {"code"},
+		"client_id":     {a.clientID},
+		"redirect_uri":  {a.redirectURI},
+	}
+	if len(a.scopes) > 0 {
+		params.Set("scope", strings.Join(a.scopes, " "))
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	// RFC 6749 §3.1: the authorization endpoint URI MAY already include
+	// a query component. Use '&' as the separator when one is already
+	// present so existing params are preserved, '?' otherwise.
+	separator := "?"
+	if strings.Contains(a.authorizationURL, "?") {
+		separator = "&"
+	}
+	return a.authorizationURL + separator + params.Encode()
+}
+
+// ErrAuthCodeEmpty is returned by ExchangeCode when the supplied authorization
+// code is empty or whitespace-only. Callers can compare with errors.Is.
+var ErrAuthCodeEmpty = errors.New("oauth2 authorization code: code must not be empty")
+
+// ExchangeCode exchanges an authorization code for an access token.
+func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
+	// oauth-exchangecode-no-empty-code-guard: reject an empty/whitespace code
+	// before the token POST so the caller sees the precondition failure
+	// directly instead of a confusing token-endpoint error.
+	if strings.TrimSpace(code) == "" {
+		return ErrAuthCodeEmpty
+	}
+	params := map[string]string{
+		"grant_type":    "authorization_code",
+		"code":          code,
+		"client_id":     a.clientID,
+		"client_secret": a.clientSecret,
+		"redirect_uri":  a.redirectURI,
+	}
+	_, err := a.tokenManager.GetAccessToken(a.tokenURL, params)
+	if err != nil {
+		return err
+	}
+	a.tokenExchanged = true
+	return nil
+}
+
+// AuthHeadersOrError returns the Bearer authentication header with a valid
+// access token, or a non-nil error if the caller violated the usage contract
+// (ExchangeCode was never called) or if token refresh failed.
+//
+// Use this method when you need to distinguish "no auth available because
+// the caller forgot to exchange the code" from "no auth available because
+// the token endpoint is unreachable". The Authenticator interface method
+// AuthHeaders collapses both cases to an empty map so that interface
+// conformance can stay non-error-returning.
+func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeadersOrError() (map[string]string, error) {
+	if !a.tokenExchanged {
+		return nil, ErrAuthCodeNotExchanged
+	}
+
+	params := map[string]string{
+		"grant_type":    "refresh_token",
+		"refresh_token": a.tokenManager.RefreshToken(),
+	}
+
+	token, err := a.tokenManager.GetAccessToken(a.refreshURL, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]string{
+		"Authorization": "Bearer " + token,
+	}, nil
+}
+
+// AuthHeaders returns the Bearer authentication header with a valid access token.
+//
+// Returns an empty map if ExchangeCode has not been called yet or if token
+// refresh fails -- the resulting unauthenticated request will then surface
+// as a 401 from the server, which callers already handle. Use
+// AuthHeadersOrError instead when you need to recover from the precondition
+// failure programmatically.
+func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeaders() map[string]string {
+	headers, err := a.AuthHeadersOrError()
+	if err != nil {
+		log.Printf("oauth2 authorization code token error: %v", err)
+		return map[string]string{}
+	}
+	return headers
+}

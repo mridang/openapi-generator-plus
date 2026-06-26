@@ -1,0 +1,31 @@
+{{>api_info}}
+package models
+
+import "encoding/json"
+
+// Set is a slice-backed ordered set for types with uniqueItems: true.
+// It marshals to and from JSON as an array, deduplicating on unmarshal.
+type Set[T comparable] []T
+
+// MarshalJSON encodes the Set as a JSON array.
+func (s Set[T]) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]T(s))
+}
+
+// UnmarshalJSON decodes a JSON array and deduplicates entries.
+func (s *Set[T]) UnmarshalJSON(data []byte) error {
+	var items []T
+	if err := json.Unmarshal(data, &items); err != nil {
+		return err
+	}
+	seen := make(map[T]bool, len(items))
+	result := make([]T, 0, len(items))
+	for _, item := range items {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+	*s = result
+	return nil
+}

@@ -1,0 +1,441 @@
+{{>api_info}}
+
+use serde::{Serialize, Deserialize};
+use super::*;
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+{{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
+{{#description}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is an enumeration of allowed values.
+{{/description}}
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+    /// Represents the value {{{value}}}.
+    {{#-first}}#[default]
+    {{/-first}}#[serde(rename = {{{value}}})]
+    {{name}},
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+impl {{classname}} {
+    /// Returns all allowed values of {{classname}}.
+    pub fn all_values() -> Vec<{{classname}}> {
+        vec![
+{{#allowableValues}}
+{{#enumVars}}
+            {{classname}}::{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+        ]
+    }
+}
+{{/isLong}}{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{^oneOf}}
+{{^anyOf}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a model class generated from the OpenAPI schema.
+{{/description}}
+{{#isDeprecated}}
+#[deprecated]
+{{/isDeprecated}}
+{{#vars}}
+{{#isEnum}}
+/// Typed enum for {{classname}}.{{name}}.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum {{classname}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+    /// Represents the value {{{value}}}.
+    {{#-first}}#[default]
+    {{/-first}}#[serde(rename = {{{value}}})]
+    {{name}},
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{^isDiscriminator}}
+{{^required}}
+{{#defaultValue}}
+/// Serde default for the optional `{{name}}` field: when the property is
+/// ABSENT from the wire payload the schema's `default` applies, so an
+/// omitted `{{baseName}}` deserializes to the declared default variant
+/// rather than `None`. An explicit `null` still maps to `None`, and a
+/// present value is taken as-is.
+fn default_{{name}}() -> Option<{{classname}}{{enumName}}> {
+    Some({{{defaultValue}}})
+}
+
+{{/defaultValue}}
+{{/required}}
+{{/isDiscriminator}}
+{{/isEnum}}
+{{^isEnum}}
+{{^isDiscriminator}}
+{{^required}}
+{{#defaultValue}}
+/// Serde default for the optional `{{name}}` field: when the property is
+/// ABSENT from the wire payload the schema's `default` applies, so an
+/// omitted `{{baseName}}` deserializes to `Some({{{defaultValue}}})` rather
+/// than `None`. An explicit `null` still maps to `None`, and a present value
+/// is taken as-is.
+fn default_{{name}}() -> Option<{{{dataType}}}> {
+    Some({{{defaultValue}}})
+}
+
+{{/defaultValue}}
+{{/required}}
+{{/isDiscriminator}}
+{{/isEnum}}
+{{/vars}}
+{{! When any optional field carries a schema `default`, the derived `Default`
+    impl would seed that field with `None` — diverging from `new()`, which
+    seeds the declared schema default. To keep the two constructors in lockstep
+    (callers using `..Default::default()` must observe the same schema defaults
+    `new()` promises), drop the `Default` derive for such structs and hand-write
+    a `Default` impl below that mirrors `new()`. Structs without defaulted
+    optional fields keep the cheap derive. }}
+{{#hasDefaultedOptionalVars}}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+{{/hasDefaultedOptionalVars}}
+{{^hasDefaultedOptionalVars}}
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+{{/hasDefaultedOptionalVars}}
+{{#isUnevaluatedPropertiesFalse}}
+// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+// `deny_unknown_fields` makes serde return an error containing the unknown
+// field name when deserializing, surfacing strict-mode violations.
+#[serde(deny_unknown_fields)]
+{{/isUnevaluatedPropertiesFalse}}
+pub struct {{classname}} {
+{{#vars}}
+{{#description}}
+    /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{#example}}
+    /// Example: `{{{.}}}`
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+    /// ## {{summary}}
+    /// {{description}}
+    /// ```json
+    /// {{value}}
+    /// ```
+{{/vendorExtensions.pluralExamples}}
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
+{{#isDiscriminator}}
+    // Discriminator field — always present on the wire so the parent
+    // untagged enum can dispatch. Initialised by `new()` to the
+    // mapping value; left as a plain (non-Option) field so callers
+    // can read it without unwrapping.
+    #[serde(rename = "{{baseName}}")]
+    pub {{name}}: {{{dataType}}},
+{{/isDiscriminator}}
+{{^isDiscriminator}}
+{{#required}}
+    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration"{{/isArray}}{{/vendorExtensions.isDuration}})]
+    pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
+{{/required}}
+{{^required}}
+    {{! An optional field with a custom `with =` (de)serializer needs `default`
+        too: serde's `with` overrides Option's built-in absent-as-None handling,
+        so without `default` an OMITTED byte/duration field fails to deserialize
+        with a "missing field" error instead of decoding to None. The enum
+        schema-default case already supplies its own `default = "default_..."`. }}
+    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, default, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, default, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, default, with = "crate::proto_duration::option"{{/isArray}}{{/vendorExtensions.isDuration}})]
+    pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
+{{/required}}
+{{/isDiscriminator}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    /// Additional properties not defined in the schema.
+    #[serde(flatten)]
+    pub additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
+{{/isAdditionalPropertiesTrue}}
+}
+
+{{#hasVars}}
+impl {{classname}} {
+    /// Creates a new {{classname}} instance with required parameters.
+    pub fn new({{#requiredVars}}{{^isDiscriminator}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}, {{/isDiscriminator}}{{/requiredVars}}) -> Self {
+        Self {
+{{#requiredVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
+            {{name}},
+{{/isDiscriminator}}
+{{/requiredVars}}
+{{#optionalVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
+{{#defaultValue}}
+{{#isEnum}}
+            // Optional enum field with a schema default: seed it with the
+            // DECLARED default variant so a default-constructed value
+            // serializes the schema default (e.g. `"mode":"medium"`), matching
+            // the other SDKs. The schema default may not be the first variant,
+            // so the declared variant is used rather than `Default::default()`.
+{{/isEnum}}
+            {{name}}: Some({{{defaultValue}}}),
+{{/defaultValue}}
+{{^defaultValue}}
+            {{name}}: None,
+{{/defaultValue}}
+{{/isDiscriminator}}
+{{/optionalVars}}
+{{#isAdditionalPropertiesTrue}}
+            additional_properties: std::collections::HashMap::new(),
+{{/isAdditionalPropertiesTrue}}
+        }
+    }
+}
+{{#hasDefaultedOptionalVars}}
+
+// Hand-written `Default` impl (the derive is suppressed above) so that
+// `{{classname}}::default()` agrees with `{{classname}}::new()` on the
+// schema-default fields. The derived impl would set every optional field to
+// `None`, silently dropping the schema defaults `new()` seeds (and that the
+// other SDKs emit on the wire). Required fields fall back to their own
+// `Default` (matching what the derive would have produced); optional fields
+// with a schema `default` are seeded with that declared default.
+impl Default for {{classname}} {
+    fn default() -> Self {
+        Self {
+{{#requiredVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
+            {{name}}: Default::default(),
+{{/isDiscriminator}}
+{{/requiredVars}}
+{{#optionalVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
+{{#defaultValue}}
+            // Optional field with a schema default: seed the declared default
+            // so `default()` matches `new()` (and the wire output of the other
+            // SDKs) rather than emitting `None`.
+            {{name}}: Some({{{defaultValue}}}),
+{{/defaultValue}}
+{{^defaultValue}}
+            {{name}}: None,
+{{/defaultValue}}
+{{/isDiscriminator}}
+{{/optionalVars}}
+{{#isAdditionalPropertiesTrue}}
+            additional_properties: std::collections::HashMap::new(),
+{{/isAdditionalPropertiesTrue}}
+        }
+    }
+}
+{{/hasDefaultedOptionalVars}}
+{{/hasVars}}
+{{/anyOf}}
+{{/oneOf}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (oneOf).
+{{/description}}
+{{#isDeprecated}}
+#[deprecated]
+{{/isDeprecated}}
+{{#discriminator}}
+// Discriminated oneOf — variant structs carry the discriminator
+// field themselves (initialised by their `new()`), so we use
+// `untagged` for `Serialize` and let each variant's own rename'd
+// field reach the wire. This keeps the discriminator a real struct
+// field callable code can read.
+//
+// For `Deserialize` we hand-roll dispatch on the discriminator
+// property rather than relying on serde's untagged "try every
+// variant" fall-through: untagged would silently accept an unknown
+// discriminator value because the inner structs carry the
+// discriminator as a plain `String` (so any value parses). Instead
+// we read the discriminator field, match against the spec's
+// declared mapping, and return an `Err` on unknown values — Gap 4.7.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum {{classname}} {
+{{#mappedModels}}
+    {{{modelName}}}({{{modelName}}}),
+{{/mappedModels}}
+}
+
+impl<'de> serde::Deserialize<'de> for {{classname}} {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let discriminator = value
+            .get("{{discriminator.propertyBaseName}}")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                D::Error::custom(format!(
+                    "missing discriminator field `{{discriminator.propertyBaseName}}` for {{classname}}"
+                ))
+            })?;
+        match discriminator {
+{{#mappedModels}}
+            "{{{mappingName}}}" => serde_json::from_value::<{{{modelName}}}>(value)
+                .map({{classname}}::{{{modelName}}})
+                .map_err(D::Error::custom),
+{{/mappedModels}}
+            other => Err(D::Error::custom(format!(
+                "unknown discriminator value `{}` for {{classname}}",
+                other
+            ))),
+        }
+    }
+}
+{{/discriminator}}
+{{^discriminator}}
+{{! Non-discriminated oneOf. We iterate `composedSchemas.oneOf` (a list of
+    CodegenProperty, declaration-ordered) rather than the bare `oneOf` set of
+    type strings, because each property carries the byte/array metadata
+    (`isByteArray`, `isArray`, `items`) needed to route `format:byte` variants
+    through the base64 (de)serializer. Without this, a scalar `Vec<u8>` variant
+    would serialize to a JSON int-array `[1,2,3,4]` instead of the base64 string
+    `"AQIDBA=="`, and an array-of-byte variant to a JSON array of int-arrays
+    instead of an array of base64 strings.
+
+    Declaration order matters for serde's untagged dispatch: it tries variants
+    top-to-bottom and takes the first that deserializes. The spec declares the
+    scalar byte variant before the array variant, so a base64 STRING matches the
+    scalar `Vec<u8>` first (the base64::vec deserializer expects a JSON array and
+    rejects a string), never being mis-parsed element-by-element into a list. }}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum {{classname}} {
+{{#composedSchemas.oneOf}}
+{{#isByteArray}}
+    #[serde(with = "super::base64_serde")]
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items.isByteArray}}
+    #[serde(with = "super::base64_serde::vec")]
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/items.isByteArray}}
+{{/isArray}}
+{{^isArray}}
+    {{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}({{{dataType}}}),
+{{/isArray}}
+{{/isByteArray}}
+{{/composedSchemas.oneOf}}
+}
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (anyOf).
+{{/description}}
+{{#isDeprecated}}
+#[deprecated]
+{{/isDeprecated}}
+{{! Non-discriminated anyOf is RETAIN-ALL (lossless), unlike oneOf which is
+    exactly-one. An anyOf payload may satisfy SEVERAL member schemas at once
+    (e.g. an object carrying both Medication and Surgery fields). Modelling it
+    as an untagged enum would keep only the FIRST matching variant and silently
+    drop the others' fields on re-encode. Instead we model the composite as a
+    struct holding one `Option<Variant>` per member: on deserialize we try each
+    member independently against the same JSON value and keep EVERY variant that
+    decodes; on serialize each present variant is `#[serde(flatten)]`ed so the
+    wire payload is the UNION of all retained variants' fields, round-tripping
+    co-satisfied data without loss. Each member schema here is an object model,
+    so flattening merges their fields into a single JSON object. }}
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+pub struct {{classname}} {
+{{#composedSchemas.anyOf}}
+    /// The `{{{dataType}}}` view of this anyOf, present when the payload
+    /// satisfied that member schema. Flattened on serialize so its fields
+    /// merge into the composite object.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub {{#lambda.snakecase}}{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}{{/lambda.snakecase}}: Option<{{{dataType}}}>,
+{{/composedSchemas.anyOf}}
+}
+
+impl {{classname}} {
+    /// Returns true when at least one anyOf member was retained — i.e. the
+    /// value decoded as (or was built from) one or more variants.
+    pub fn matches_any(&self) -> bool {
+{{#composedSchemas.anyOf}}
+        if self.{{#lambda.snakecase}}{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}{{/lambda.snakecase}}.is_some() {
+            return true;
+        }
+{{/composedSchemas.anyOf}}
+        false
+    }
+}
+
+{{! Hand-rolled Deserialize: serde's untagged/flatten would keep only the first
+    structurally-fitting variant. We parse to a serde_json::Value once, then try
+    each member schema against it independently and retain every one that
+    decodes. A payload matching several members keeps them ALL (lossless); a
+    payload matching exactly one keeps that one; a payload matching none is an
+    error, mirroring "anyOf requires at least one match". }}
+impl<'de> serde::Deserialize<'de> for {{classname}} {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let mut composite = {{classname}}::default();
+{{#composedSchemas.anyOf}}
+        if let Ok(variant) = serde_json::from_value::<{{{dataType}}}>(value.clone()) {
+            composite.{{#lambda.snakecase}}{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}{{/lambda.snakecase}} = Some(variant);
+        }
+{{/composedSchemas.anyOf}}
+        if !composite.matches_any() {
+            return Err(D::Error::custom(
+                "{{classname}}: anyOf payload matched no member schema",
+            ));
+        }
+        Ok(composite)
+    }
+}
+{{/-first}}
+{{/anyOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

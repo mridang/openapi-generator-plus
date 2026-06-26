@@ -1,0 +1,269 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Models;
+using Xunit;
+
+namespace Test;
+
+public class ComposedSchemaTest
+{
+    private readonly ObjectSerializer _serializer = new();
+
+    // -- oneOf with discriminator: PetFood --
+
+    [Fact]
+    public void OneOfDeserializesDryFood()
+    {
+        var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+        var result = _serializer.Deserialize<PetFood>(json);
+        Assert.NotNull(result);
+        Assert.IsType<DryFood>(result);
+        Assert.Equal("dry", ((DryFood)result!).FoodType);
+    }
+
+    [Fact]
+    public void OneOfDeserializesWetFood()
+    {
+        var json = "{\"foodType\":\"wet\",\"volumeMl\":400}";
+        var result = _serializer.Deserialize<PetFood>(json);
+        Assert.NotNull(result);
+        Assert.IsType<WetFood>(result);
+        Assert.Equal("wet", ((WetFood)result!).FoodType);
+    }
+
+    [Fact]
+    public void OneOfUnknownDiscriminatorThrows()
+    {
+        /* Gap L: union with an unmapped discriminator value now throws
+         * instead of silently returning null. Aligns C# with Python /
+         * Swift / Dart / Go / Rust — surfaces data-shape bugs loudly
+         * rather than letting them mask as null. */
+        var json = "{\"foodType\":\"raw\",\"calories\":300}";
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void OneOfMissingDiscriminatorThrows()
+    {
+        {{! A payload omitting the discriminator property entirely cannot route }}
+        {{! to any subtype; the converter throws rather than silently wrapping. }}
+        {{! Aligns C# with Python / Swift / PHP / Ruby / Dart / Rust. }}
+        var json = "{\"weightKg\":2.5}";
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void OneOfEmptyDiscriminatorThrows()
+    {
+        // An empty discriminator value matches no listed subtype and must be
+        // rejected rather than silently routed.
+        var json = "{\"foodType\":\"\",\"weightKg\":2.5}";
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void OneOfUnknownDiscriminatorErrorNamesValue()
+    {
+        // The failure message must surface the offending discriminator value
+        // so callers can diagnose server/spec drift. The native JsonException
+        // carrying that detail is preserved as the inner exception of the
+        // SDK-owned SerializationException.
+        var json = "{\"foodType\":\"raw\",\"calories\":300}";
+        var ex = Assert.Throws<SerializationException>(
+            () => _serializer.Deserialize<PetFood>(json));
+        Assert.NotNull(ex.InnerException);
+        Assert.Contains("raw", ex.InnerException!.Message);
+    }
+
+    [Fact]
+    public void OneOfSerializesDryFood()
+    {
+        var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+        var result = _serializer.Deserialize<PetFood>(json);
+
+        var serialized = _serializer.Serialize(result!);
+        Assert.Contains("dry", serialized);
+        Assert.Contains("2.5", serialized);
+    }
+
+    // -- anyOf without discriminator: PetTreatment --
+
+    [Fact]
+    public void AnyOfDeserializesMedication()
+    {
+        var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
+        var result = _serializer.Deserialize<PetTreatment>(json);
+        Assert.NotNull(result);
+        Assert.NotNull(result!.ActualInstance);
+        Assert.IsType<Medication>(result.ActualInstance);
+        Assert.Equal("Amoxicillin", ((Medication)result.ActualInstance!).DrugName);
+    }
+
+    [Fact]
+    public void AnyOfDeserializesSurgery()
+    {
+        var json = "{\"procedureName\":\"Spay\",\"durationMinutes\":45}";
+        var result = _serializer.Deserialize<PetTreatment>(json);
+        Assert.NotNull(result);
+        Assert.NotNull(result!.ActualInstance);
+        Assert.IsType<Surgery>(result.ActualInstance);
+    }
+
+    [Fact]
+    public void AnyOfSerializeRoundTrip()
+    {
+        var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
+        var result = _serializer.Deserialize<PetTreatment>(json);
+
+        var serialized = _serializer.Serialize(result!);
+        Assert.NotNull(serialized);
+        Assert.NotEmpty(serialized);
+    }
+
+    [Fact]
+    public void AnyOfRetainsAllMatchingVariantsLosslessly()
+    {
+        // PetTreatment is a non-discriminated anyOf of Medication and Surgery,
+        // documented as matching a medication, a surgery, OR BOTH. A payload
+        // that satisfies BOTH variants at once must retain BOTH — not just the
+        // first match — and re-serialize losslessly with every field intact.
+        var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\",\"procedureName\":\"Spay\",\"durationMinutes\":45}";
+        var result = _serializer.Deserialize<PetTreatment>(json);
+        Assert.NotNull(result);
+
+        // Both variants are retained and accessible on the decoded value.
+        var medication = result!.MatchedInstances.OfType<Medication>().Single();
+        var surgery = result.MatchedInstances.OfType<Surgery>().Single();
+        Assert.Equal("Amoxicillin", medication.DrugName);
+        Assert.Equal("250mg", medication.Dosage);
+        Assert.Equal("Spay", surgery.ProcedureName);
+        Assert.Equal(45, surgery.DurationMinutes);
+
+        // Re-serialize: the co-satisfied data round-trips with no silent drop.
+        var serialized = _serializer.Serialize(result);
+        Assert.Contains("\"drugName\":\"Amoxicillin\"", serialized);
+        Assert.Contains("\"dosage\":\"250mg\"", serialized);
+        Assert.Contains("\"procedureName\":\"Spay\"", serialized);
+        Assert.Contains("\"durationMinutes\":45", serialized);
+    }
+
+    [Fact]
+    public void AnyOfNoMatchThrows()
+    {
+        // oneof-nondiscriminator-no-match-silent: a payload matching neither
+        // Medication nor Surgery must surface as a deserialize error rather
+        // than silently storing a raw value. Aligns C# with the throw-on-
+        // no-match canonical (Java/Dart/Node/Go/Rust/...).
+        var json = "{\"unrelatedKey\":\"value\",\"anotherUnknown\":123}";
+        Assert.Throws<SerializationException>(
+            () => _serializer.Deserialize<PetTreatment>(json));
+    }
+
+    // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
+
+    [Fact]
+    public void OneOfNonDiscriminatorDeserializesStringVariant()
+    {
+        // The byte/string variant of the oneOf.
+        var json = "\"YmFzZTY0\"";
+        var result = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json);
+        Assert.NotNull(result);
+        Assert.NotNull(result!.ActualInstance);
+    }
+
+    [Fact]
+    public void OneOfNonDiscriminatorNoMatchThrows()
+    {
+        // oneof-nondiscriminator-no-match-silent: the variants are a base64
+        // string and an array of base64 strings. A JSON object matches
+        // neither, so deserialization must throw rather than silently storing
+        // a raw value (Java/C#/Kotlin/Node previously kept it) or — as Dart did
+        // — an empty object. Aligns C# with the throw-on-no-match canonical.
+        var json = "{\"unexpected\":\"shape\"}";
+        Assert.Throws<SerializationException>(
+            () => _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json));
+    }
+
+    [Fact]
+    public void SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64()
+    {
+        // Canonical regression (findings C2/R1/H12): the format:byte marker must
+        // survive inside the oneOf union wrapper. Both variants travel on the
+        // wire as base64 STRINGs, never as a JSON int-array [1,2,3,4] nor raw
+        // bytes. The scalar variant maps to byte[] and the array variant to
+        // List<byte[]>; System.Text.Json base64-encodes byte[] by default, so
+        // the wrapper inherits the exact wire form of the bare format:byte field.
+
+        // (1) Scalar variant — construct from raw bytes, assert the JSON value is
+        // the base64 string "AQIDBA==" (NOT [1,2,3,4]), and round-trips back.
+        var scalarBytes = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        var scalarRequest = new SetPetAvatarThumbnailRequest(scalarBytes);
+        var scalarJson = _serializer.Serialize(scalarRequest);
+        Assert.Equal("\"AQIDBA==\"", scalarJson);
+        Assert.DoesNotContain("[", scalarJson);
+
+        var decodedScalar = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(scalarJson);
+        Assert.NotNull(decodedScalar);
+        // Ordering: a scalar base64 string must resolve to the SCALAR variant
+        // (a single byte[]), NOT be mis-parsed element-by-element into a list.
+        Assert.IsType<byte[]>(decodedScalar!.ActualInstance);
+        Assert.Equal(scalarBytes, (byte[])decodedScalar.ActualInstance!);
+
+        // (2) Array variant — construct from a list of two byte payloads, assert
+        // the JSON is an array of base64 strings, and round-trips back.
+        var payloads = new List<byte[]>
+        {
+            new byte[] { 0x01, 0x02, 0x03, 0x04 },
+            new byte[] { 0x05, 0x06, 0x07, 0x08 },
+        };
+        var arrayRequest = new SetPetAvatarThumbnailRequest(payloads);
+        var arrayJson = _serializer.Serialize(arrayRequest);
+        Assert.Equal("[\"AQIDBA==\",\"BQYHCA==\"]", arrayJson);
+
+        var decodedArray = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(arrayJson);
+        Assert.NotNull(decodedArray);
+        Assert.IsType<List<byte[]>>(decodedArray!.ActualInstance);
+        var decodedPayloads = (List<byte[]>)decodedArray.ActualInstance!;
+        Assert.Equal(2, decodedPayloads.Count);
+        Assert.Equal(payloads[0], decodedPayloads[0]);
+        Assert.Equal(payloads[1], decodedPayloads[1]);
+    }
+
+    // -- allOf: PetWithOwner --
+
+    [Fact]
+    public void AllOfDeserializesPetWithOwner()
+    {
+        var json = "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
+        var result = _serializer.Deserialize<PetWithOwner>(json);
+        Assert.NotNull(result);
+        Assert.Equal("doggie", result!.Name);
+        Assert.Equal("John", result.OwnerName);
+        Assert.Equal("john@example.com", result.OwnerEmail);
+    }
+
+    [Fact]
+    public void AllOfSerializesPetWithOwner()
+    {
+        var json = "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John Doe\"}";
+        var result = _serializer.Deserialize<PetWithOwner>(json);
+
+        var serialized = _serializer.Serialize(result!);
+        Assert.Contains("Fido", serialized);
+        Assert.Contains("John Doe", serialized);
+    }
+
+    [Fact]
+    public void AllOfRoundTrip()
+    {
+        var json = "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane Smith\"}";
+        var original = _serializer.Deserialize<PetWithOwner>(json);
+
+        var serialized = _serializer.Serialize(original!);
+        var restored = _serializer.Deserialize<PetWithOwner>(serialized);
+
+        Assert.Equal(original!.Name, restored!.Name);
+        Assert.Equal(original.OwnerName, restored.OwnerName);
+    }
+}

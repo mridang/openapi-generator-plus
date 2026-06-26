@@ -1,0 +1,65 @@
+{{>api_info}}
+/// Authenticator provides authentication credentials to the API client.
+/// Implementations supply the API host URL and authorization headers.
+abstract class Authenticator {
+  /// Returns the base URL of the API.
+  String host();
+
+  /// Returns the authentication headers to include in every request.
+  ///
+  /// For credential schemes that need no I/O (api-key, bearer, basic) this is
+  /// the source of truth. Token-exchange OAuth flows (client-credentials,
+  /// password, authorization-code) cannot fetch a token synchronously and
+  /// return an empty map here; the request path must use [authHeadersAsync].
+  Map<String, String> authHeaders();
+
+  /// Returns the authentication headers, performing any required asynchronous
+  /// token exchange first. The request path always awaits this; the default
+  /// implementation (see BaseAuthenticator) simply returns [authHeaders] for
+  /// schemes that need no async work.
+  Future<Map<String, String>> authHeadersAsync();
+
+  /// Returns query parameters to include for authentication.
+  Map<String, String> queryParams();
+
+  /// Returns cookie parameters to include for authentication.
+  Map<String, String> cookieParams();
+}
+
+/// Internal no-auth marker for operations declared `security: []` in the spec.
+///
+/// Such operations are explicitly unauthenticated: the client-level
+/// authenticator must NOT be applied to them. A plain `null` cannot express
+/// this because `null` already means "no per-call override — fall back to the
+/// client authenticator". This dedicated sentinel type makes the request path
+/// distinguish three states by identity:
+///
+///   - [noAuth]                     -> suppress auth entirely (security: [])
+///   - `null`                       -> fall back to the client authenticator
+///   - any other [Authenticator]    -> per-call override
+///
+/// It is identity-comparable via the [noAuth] singleton and contributes no
+/// headers, query params, or cookies. Callers never construct or see it; the
+/// generated operation methods pass [noAuth] for unauthenticated operations.
+class NoAuthAuthenticator implements Authenticator {
+  const NoAuthAuthenticator._();
+
+  @override
+  String host() => '';
+
+  @override
+  Map<String, String> authHeaders() => const {};
+
+  @override
+  Future<Map<String, String>> authHeadersAsync() async => const {};
+
+  @override
+  Map<String, String> queryParams() => const {};
+
+  @override
+  Map<String, String> cookieParams() => const {};
+}
+
+/// The single no-auth sentinel instance. Identity-compared in the request path
+/// to suppress authentication for `security: []` operations.
+const Authenticator noAuth = NoAuthAuthenticator._();

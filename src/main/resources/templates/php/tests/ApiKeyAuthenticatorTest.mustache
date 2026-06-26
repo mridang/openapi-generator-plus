@@ -1,0 +1,88 @@
+{{>api_info}}
+
+// phpcs:ignoreFile
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
+
+test('valid header key passes', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+    $headers = $auth->getAuthHeaders();
+    expect($headers['X-API-Key'])->toBe('abc123');
+});
+
+test('valid query key passes', function (): void {
+    // Non-header locations accept arbitrary chars.
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
+});
+
+test('api key query allows non ascii', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'kéy', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'kéy']);
+});
+
+test('empty key header throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', '', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('empty key query throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', '', ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('empty key cookie throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'session', '', ApiKeyLocation::COOKIE))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('whitespace only key throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', '   ', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('crlf in query key throws at construction', function (): void {
+    // CR/LF/NUL are forbidden control characters in ALL locations.
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', "abc\r\n", ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('crlf in cookie key throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'session', "abc\n", ApiKeyLocation::COOKIE))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key header rejects crlf at construction', function (): void {
+    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key header rejects non ascii at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key is masked in var_dump and print_r output', function (): void {
+    /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
+     * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
+     * the masked array, so the API key never leaks through a stray dump or an
+     * exception/stack-trace log. */
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    $printR = print_r($auth, true);
+
+    expect($varDump)->not->toContain('abc123');
+    expect($varDump)->toContain('***');
+    expect($printR)->not->toContain('abc123');
+    expect($printR)->toContain('***');
+    // keyParamName is non-secret and should still be visible for debugging.
+    expect($printR)->toContain('X-API-Key');
+});

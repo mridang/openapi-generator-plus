@@ -1,0 +1,222 @@
+{{>api_info}}
+
+using System.Collections;
+
+namespace {{packageName}};
+
+/// <summary>
+/// Serializes parameter values for HTTP requests based on their location.
+/// </summary>
+internal static class ValueSerializer
+{
+    /// <summary>
+    /// Percent-encodes a value for use as a URL path segment, preserving
+    /// the OAS 3.0 sub-delimiters used by matrix/label/simple styles
+    /// (<c>; = , . ~ ! $ and ' ( ) * +</c>) and the unreserved characters.
+    /// </summary>
+    public static string EncodePathSegment(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+        string encoded = Uri.EscapeDataString(value);
+        return encoded
+            .Replace("%21", "!", StringComparison.Ordinal)
+            .Replace("%24", "$", StringComparison.Ordinal)
+            .Replace("%26", "&", StringComparison.Ordinal)
+            .Replace("%27", "'", StringComparison.Ordinal)
+            .Replace("%28", "(", StringComparison.Ordinal)
+            .Replace("%29", ")", StringComparison.Ordinal)
+            .Replace("%2A", "*", StringComparison.Ordinal)
+            .Replace("%2B", "+", StringComparison.Ordinal)
+            .Replace("%2C", ",", StringComparison.Ordinal)
+            .Replace("%3B", ";", StringComparison.Ordinal)
+            .Replace("%3D", "=", StringComparison.Ordinal)
+            .Replace("%40", "@", StringComparison.Ordinal)
+            .Replace("%3A", ":", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Serializes a value for use in an HTTP request parameter based on its location,
+    /// schema type, and optional collection format.
+    /// </summary>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="location">The parameter location (e.g. "query", "path", "header").</param>
+    /// <param name="schemaType">The OpenAPI schema type of the parameter.</param>
+    /// <param name="collectionFormat">
+    /// The collection format for array parameters (e.g. "multi", "csv", "ssv", "tsv", "pipes").
+    /// Defaults to <c>null</c>, which is treated as "csv".
+    /// </param>
+    /// <returns>
+    /// The serialized value suitable for the given location, or <c>null</c> for query
+    /// parameters with a null input value.
+    /// </returns>
+    {{! schemaType is part of the shared serializer signature (the style/typed
+        overload below uses it); kept here for a uniform call shape even though
+        this overload does not branch on it. IDE0060 is silenced in .editorconfig. }}
+    public static object? Serialize(
+        object? value,
+        string location,
+        string schemaType,
+        string? collectionFormat = null
+    )
+    {
+        if (value == null)
+        {
+            return location == "query" ? null : "";
+        }
+
+        if (value is IList list)
+        {
+            if (location == "query")
+            {
+                return collectionFormat switch
+                {
+                    "multi" => list.Cast<object>().Select(ObjectSerializer.Stringify).ToList(),
+                    "ssv" => string.Join(" ", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    "tsv" => string.Join("\t", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    "pipes" => string.Join("|", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    _ => string.Join(",", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                };
+            }
+
+            if (location == "header")
+            {
+                return string.Join(",", list.Cast<object>().Select(ObjectSerializer.Stringify));
+            }
+        }
+
+        string str = ObjectSerializer.Stringify(value);
+
+        return location == "path" ? EncodePathSegment(str) : str;
+    }
+
+    /// <summary>
+    /// Serializes a value using OAS 3.0 parameter style formatting.
+    /// Handles matrix, label, form, simple, spaceDelimited, and pipeDelimited styles.
+    /// </summary>
+    /// <param name="paramName">The parameter name.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="location">The parameter location (e.g. "path", "query", "header", "cookie").</param>
+    /// <param name="schemaType">The OpenAPI schema type of the parameter.</param>
+    /// <param name="collectionFormat">Legacy collection format (ignored when style is set).</param>
+    /// <param name="style">The OAS 3.0 parameter style.</param>
+    /// <param name="explode">Whether to use exploded format.</param>
+    /// <returns>The styled serialized value, or null for query parameters with null input.</returns>
+    public static object? SerializeStyled(
+        string paramName,
+        object? value,
+        string location,
+        string schemaType,
+        string? collectionFormat,
+        string? style,
+        bool explode
+    )
+    {
+        /* Path parameters are required components of the URL — accepting an
+         * empty string would silently produce a malformed URL like
+         * `/pet//details`, which most servers route to 404 instead of
+         * surfacing the bug at the call site. The required-non-null check
+         * lives in the operation method; here we catch the empty-string
+         * case that slips through it. */
+        if (location == "path" && value is string strValue && strValue.Length == 0)
+        {
+            throw new ArgumentException(
+                $"Path parameter '{paramName}' must not be empty", nameof(value));
+        }
+
+        if (string.IsNullOrEmpty(style))
+        {
+            return Serialize(value, location, schemaType, collectionFormat);
+        }
+
+        if (value == null)
+        {
+            return location == "query" ? null : "";
+        }
+
+        List<string>? items = null;
+        if (value is IList list)
+        {
+            items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
+        }
+
+        /* URL-encoding is applied for path parameters only. */
+        string enc(string s) { return location == "path" ? EncodePathSegment(s) : s; }
+
+        switch (style)
+        {
+            case "matrix":
+                if (items != null)
+                {
+                    return explode
+                        ? string.Join("", items.Select(i => ";" + paramName + "=" + enc(i)))
+                        : ";" + paramName + "=" + string.Join(",", items.Select(enc));
+                }
+                return ";" + paramName + "=" + enc(ObjectSerializer.Stringify(value));
+
+            case "label":
+                if (items != null)
+                {
+                    return explode
+                        ? "." + string.Join(".", items.Select(enc))
+                        : "." + string.Join(",", items.Select(enc));
+                }
+                return "." + enc(ObjectSerializer.Stringify(value));
+
+            case "form":
+                if (items != null)
+                {
+                    return explode
+                        ? items
+                        : string.Join(",", items);
+                }
+                return ObjectSerializer.Stringify(value);
+
+            case "spaceDelimited":
+                return items != null ? string.Join(" ", items.Select(enc)) : enc(ObjectSerializer.Stringify(value));
+
+            case "pipeDelimited":
+                return items != null ? string.Join("|", items.Select(enc)) : enc(ObjectSerializer.Stringify(value));
+
+            case "simple":
+                if (items != null)
+                {
+                    return string.Join(",", items.Select(enc));
+                }
+                return enc(ObjectSerializer.Stringify(value));
+
+            default:
+                return Serialize(value, location, schemaType, collectionFormat);
+        }
+    }
+
+    /// <summary>
+    /// Serializes a deepObject-style query parameter.
+    /// Produces a dictionary of flattened keys in the form <c>paramName[key]</c> to
+    /// stringified values, suitable for inclusion in a query string.
+    /// </summary>
+    /// <param name="paramName">The parameter name (e.g. "filter").</param>
+    /// <param name="value">The dictionary value to serialize.</param>
+    /// <returns>A dictionary of expanded keys to serialized values.</returns>
+    public static Dictionary<string, string> SerializeDeepObject(
+        string paramName,
+        IDictionary<string, object?>? value
+    )
+    {
+        Dictionary<string, string> result = [];
+        if (value == null)
+        {
+            return result;
+        }
+
+        foreach (KeyValuePair<string, object?> entry in value)
+        {
+            result[$"{paramName}[{entry.Key}]"] = ObjectSerializer.Stringify(entry.Value);
+        }
+
+        return result;
+    }
+
+}

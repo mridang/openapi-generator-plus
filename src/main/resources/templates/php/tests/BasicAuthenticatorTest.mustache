@@ -1,0 +1,66 @@
+{{>api_info}}
+
+// phpcs:ignoreFile
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\BasicAuthenticator;
+
+test('valid credentials produce basic header', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    $headers = $auth->getAuthHeaders();
+    expect($headers['Authorization'])->toBe('Basic YWxpY2U6czNjcmV0');
+});
+
+test('rejects username with crlf at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('rejects password with nul at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('rejects username with colon at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('password is masked in var_dump and print_r output', function (): void {
+    /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
+     * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
+     * the masked array, so the password never leaks through a stray dump or
+     * an exception/stack-trace log. */
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    $printR = print_r($auth, true);
+
+    expect($varDump)->not->toContain('s3cret');
+    expect($varDump)->toContain('***');
+    expect($printR)->not->toContain('s3cret');
+    expect($printR)->toContain('***');
+    // Username is non-secret and should still be visible for debugging.
+    expect($printR)->toContain('alice');
+});
+/**
+ * Asserts that the password never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->not->toContain('s3cret');
+    expect($printR)->toContain('***');
+}
+
+// NOTE: this file is not currently wired into phpunit.xml's testsuites; the
+// executed coverage for __debugInfo masking lives in tests/Api/PetApiTest.php.

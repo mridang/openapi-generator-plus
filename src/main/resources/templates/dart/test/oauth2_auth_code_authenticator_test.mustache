@@ -1,0 +1,195 @@
+{{>api_info}}
+// ignore_for_file: unused_import
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class _FakeApiClient implements ApiClient {
+  final List<ApiHttpResponse> _responses = [];
+  String? lastBody;
+  String? lastUrl;
+
+  void enqueue(String body, {int statusCode = 200}) {
+    _responses.add(ApiHttpResponse(statusCode: statusCode, body: body, headers: {}));
+  }
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
+    lastUrl = url;
+    if (body != null) {
+      lastBody = utf8.decode(body as List<int>);
+    }
+    return _responses.removeAt(0);
+  }
+}
+
+OAuth2AuthorizationCodeAuthenticator _createAuthenticator() {
+  return OAuth2AuthorizationCodeAuthenticator(
+    host: 'https://api.example.com',
+    clientId: 'my-client-id',
+    clientSecret: 'my-client-secret',
+    authorizationUrl: 'https://auth.example.com/authorize',
+    tokenUrl: 'https://auth.example.com/token',
+    redirectUri: 'https://app.example.com/callback',
+    scopes: ['read', 'write'],
+  );
+}
+
+void main() {
+  group('OAuth2AuthorizationCodeAuthenticator', () {
+    test('builds authorization URL with required params', () {
+      final auth = _createAuthenticator();
+
+      final url = auth.buildAuthorizationUrl();
+
+      expect(url, contains('response_type=code'));
+      expect(url, contains('client_id=my-client-id'));
+      expect(url, contains('redirect_uri='));
+      expect(url, contains('scope=read+write'));
+      expect(url, startsWith('https://auth.example.com/authorize?'));
+    });
+
+    test('builds authorization URL with state', () {
+      final auth = _createAuthenticator();
+
+      final url = auth.buildAuthorizationUrl('csrf-state-123');
+
+      expect(url, contains('state=csrf-state-123'));
+    });
+
+    test('exchanges code with correct grant type', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('auth-code-xyz');
+
+      expect(client.lastBody, isNotNull);
+      expect(client.lastBody!, contains('grant_type=authorization_code'));
+      expect(client.lastBody!, contains('code=auth-code-xyz'));
+      expect(client.lastBody!, contains('client_id=my-client-id'));
+      expect(client.lastBody!, contains('client_secret=my-client-secret'));
+    });
+
+    // Cross-cutting `oauth-exchangecode-no-empty-code-guard`: an empty or
+    // whitespace-only authorization code must be rejected before the token
+    // POST is issued.
+    test('exchangeCode rejects empty code', () async {
+      final auth = _createAuthenticator();
+      auth.setApiClient(_FakeApiClient());
+
+      await expectLater(
+        auth.exchangeCode(''),
+        throwsA(isA<ArgumentError>()),
+      );
+      await expectLater(
+        auth.exchangeCode('   '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('exchangeCode rejects whitespace-only code', () async {
+      // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+      // distinct from the empty-string case and must also be rejected before
+      // any token POST is issued (code.trim().isEmpty guard).
+      final auth = _createAuthenticator();
+      auth.setApiClient(_FakeApiClient());
+
+      await expectLater(
+        auth.exchangeCode('   '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('includes refresh token on refresh', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('auth-code-xyz');
+
+      final headers = await auth.authHeadersAsync();
+
+      expect(client.lastBody!, contains('refresh_token=ref1'));
+      expect(client.lastBody!, contains('grant_type=refresh_token'));
+      expect(headers['Authorization'], equals('Bearer tok2'));
+    });
+
+    test('throws before exchange code called', () {
+      final auth = _createAuthenticator();
+
+      expect(
+        () => auth.authHeaders(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('getHost returns configured host', () {
+      final auth = _createAuthenticator();
+
+      expect(auth.host(), equals('https://api.example.com'));
+    });
+
+    test('auth_headers_before_exchange_returns_recoverable_error', () {
+      final auth = _createAuthenticator();
+
+      // Calling authHeaders before exchangeCode is a precondition violation.
+      // It must surface as a catchable error so callers can recover --
+      // not as a process crash.
+      Object? caught;
+      try {
+        auth.authHeaders();
+      } on StateError catch (e) {
+        caught = e;
+      }
+      expect(caught, isNotNull,
+          reason: 'expected authHeaders to throw before exchangeCode');
+      expect(caught, isA<StateError>());
+
+      // Caller continues normally after catching -- no process crash.
+      expect(auth.host(), equals('https://api.example.com'));
+    });
+
+    test('authorize URL with existing query string uses amp separator', () {
+      final auth = OAuth2AuthorizationCodeAuthenticator(
+        host: 'https://api.example.com',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authorizationUrl: 'https://x.auth0.com/authorize?audience=api',
+        tokenUrl: 'https://x.auth0.com/oauth/token',
+        redirectUri: 'https://app.example.com/callback',
+        scopes: ['read'],
+      );
+
+      final url = auth.buildAuthorizationUrl();
+
+      expect(url, contains('audience=api'));
+      expect(url, contains('response_type=code'));
+      expect('?'.allMatches(url).length, equals(1));
+    });
+
+    test('redacts the secret in toString', () {
+      final auth = _createAuthenticator();
+
+      expect(auth.toString(), isNot(contains('my-client-secret')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+}
+{{/generateTests}}

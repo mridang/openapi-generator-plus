@@ -1,0 +1,675 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/textproto"
+	"net/url"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+
+	"github.com/google/uuid"
+
+	. "{{packageName}}/pkg/errors"
+)
+
+/* noAuthSentinel is the dedicated no-auth marker for this SDK. It is a tiny
+ * Authenticator whose sole purpose is to be identity-compared against in
+ * invokeApiForResult: when an operation declared `security: []` in the spec
+ * (an explicitly unauthenticated operation), the generated api method passes
+ * this sentinel as the auth argument instead of nil. base_api then knows to
+ * apply NO authentication, rather than falling back to the client-level
+ * authenticator (the bug this fixes: a `security: []` op was wrongly
+ * re-acquiring the client credential and leaking it on the wire).
+ *
+ * Three-state contract for invokeApiParams.auth:
+ *   - noAuth (this sentinel)  -> NO auth applied; do NOT fall back to client auth
+ *   - nil                     -> fall back to the client-level authenticator
+ *                                (secured op with no per-call override)
+ *   - a real Authenticator    -> use it (per-call override)
+ *
+ * It is identity-comparable (a pointer to an empty struct) and is kept internal
+ * to the generated client — callers never see or construct it. Its methods are
+ * never invoked because the sentinel is detected and stripped before any auth
+ * material is read; they return empty values purely to satisfy the interface. */
+type noAuthSentinel struct{}
+
+func (noAuthSentinel) Host() string                    { return "" }
+func (noAuthSentinel) AuthHeaders() map[string]string  { return nil }
+func (noAuthSentinel) QueryParams() map[string]string  { return nil }
+func (noAuthSentinel) CookieParams() map[string]string { return nil }
+
+/* noAuth is the single shared instance of the no-auth sentinel. Identity
+ * comparison against this value (auth == noAuth) is what distinguishes an
+ * explicitly-unauthenticated operation from one that should fall back to the
+ * client authenticator. */
+var noAuth Authenticator = &noAuthSentinel{}
+
+// baseApi provides common functionality for all API classes.
+type baseApi struct {
+	config         *Configuration
+	apiClient      ApiClient
+	headerSelector *headerSelector
+	authenticator  Authenticator
+}
+
+// newBaseApi creates a new baseApi instance.
+func newBaseApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *baseApi {
+	if apiClient == nil {
+		apiClient = NewDefaultApiClient(nil)
+	}
+	if config == nil {
+		config = DefaultConfiguration()
+	}
+	return &baseApi{
+		config:         config,
+		apiClient:      apiClient,
+		headerSelector: newHeaderSelector(),
+		authenticator:  authenticator,
+	}
+}
+
+// invokeApiParams holds parameters for the invokeApi call.
+type invokeApiParams struct {
+	method      string
+	path        string
+	queryParams map[string]any
+	headerParams map[string]string
+	body        any
+	accepts     []string
+	contentType string
+	returnType  string
+	auth        Authenticator
+}
+
+// invokeApiForResult dispatches an API request and returns the full result.
+func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, error) {
+	requestURL := params.path
+	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
+		// Strip trailing slash from baseUrl when path starts with `/` so
+		// baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+		// 'https://x//y' which most servers route to 404.
+		base := b.config.BaseURL()
+		if strings.HasPrefix(params.path, "/") {
+			base = strings.TrimRight(base, "/")
+		}
+		requestURL = base + params.path
+	}
+
+	/* Determine effective authenticator under the three-state contract:
+	 *   - params.auth == noAuth  -> the operation is declared `security: []`
+	 *     (explicitly unauthenticated). Apply NO auth and do NOT fall back to
+	 *     the client authenticator — this is what prevents leaking the client
+	 *     credential on unauthenticated operations (e.g. testEcho*).
+	 *   - params.auth == nil     -> a secured operation with no per-call
+	 *     override. Fall back to the client-level authenticator (unchanged).
+	 *   - params.auth is real    -> a per-call override. Use it (unchanged). */
+	var effectiveAuth Authenticator
+	if params.auth == noAuth {
+		effectiveAuth = nil
+	} else if params.auth != nil {
+		effectiveAuth = params.auth
+	} else {
+		effectiveAuth = b.authenticator
+	}
+
+	/* Merge authentication query params */
+	if effectiveAuth != nil {
+		authQueryParams := effectiveAuth.QueryParams()
+		if params.queryParams == nil {
+			params.queryParams = make(map[string]any)
+		}
+		for k, v := range authQueryParams {
+			params.queryParams[k] = v
+		}
+	}
+
+	/* Build query string */
+	queryString := buildQueryString(params.queryParams)
+	if queryString != "" {
+		requestURL = requestURL + "?" + queryString
+	}
+
+	/* Select headers */
+	isMultipart := params.contentType == "multipart/form-data"
+	headers := b.headerSelector.selectHeaders(params.accepts, params.contentType, isMultipart)
+
+	/* Merge config default headers */
+	for k, v := range b.config.DefaultHeaders() {
+		headers[k] = v
+	}
+
+	/* Merge operation-specific headers */
+	for k, v := range params.headerParams {
+		headers[k] = v
+	}
+
+	/* Merge auth headers */
+	if effectiveAuth != nil {
+		/* oauth-cc-authheaders-error-swallow: prefer AuthHeadersOrError when the
+		 * authenticator exposes it, so a token-fetch failure surfaces as the real
+		 * OAuth error instead of being swallowed into an empty header map (which
+		 * would send the request unauthenticated and produce a confusing 401). */
+		authHeaders := effectiveAuth.AuthHeaders()
+		if p, ok := effectiveAuth.(interface {
+			AuthHeadersOrError() (map[string]string, error)
+		}); ok {
+			h, aerr := p.AuthHeadersOrError()
+			if aerr != nil {
+				return nil, aerr
+			}
+			authHeaders = h
+		}
+		for k, v := range authHeaders {
+			headers[k] = v
+		}
+		/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
+		 * most cookie parsers don't URL-decode, so `=` (base64 padding) would
+		 * arrive as literal `%3D` and break JWT/session cookies. Validate and
+		 * pass through raw instead. panic on invalid input — it's a
+		 * programmer error. */
+		cookies := effectiveAuth.CookieParams()
+		if len(cookies) > 0 {
+			var cookieParts []string
+			for k, v := range cookies {
+				if !isValidCookieName(k) {
+					panic(fmt.Sprintf("Cookie name '%s' contains characters forbidden by RFC 6265", k))
+				}
+				if !isValidCookieValue(v) {
+					panic(fmt.Sprintf("Cookie value for '%s' contains characters forbidden by RFC 6265", k))
+				}
+				cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", k, v))
+			}
+			cookieStr := strings.Join(cookieParts, "; ")
+			if existing, ok := headers["Cookie"]; ok {
+				headers["Cookie"] = existing + "; " + cookieStr
+			} else {
+				headers["Cookie"] = cookieStr
+			}
+		}
+	}
+
+	/* Inject trace context */
+	injectTraceContext(headers)
+
+	/* Serialize body -- multipart/form-data is handled here so that
+	 * the boundary can be injected into the Content-Type header. */
+	var serializedBody []byte
+	if params.contentType == "multipart/form-data" && params.body != nil {
+		formFields, ok := params.body.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("multipart body must be map[string]any")
+		}
+		boundary := uuid.New().String()
+		headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
+		var merr error
+		serializedBody, merr = buildMultipartBody(formFields, boundary)
+		if merr != nil {
+			return nil, fmt.Errorf("failed to build multipart body: %w", merr)
+		}
+	} else {
+		var err error
+		serializedBody, err = serializeBody(params.body, params.contentType)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize request body: %w", err)
+		}
+	}
+
+	/* Drop Content-Type when there is no body (sending Content-Type without a
+	 * body is semantically wrong and rejected by some servers). */
+	if serializedBody == nil {
+		delete(headers, "Content-Type")
+	}
+
+	/* Send request */
+	response, err := b.apiClient.SendRequest(params.method, requestURL, headers, serializedBody)
+	if err != nil {
+		return nil, err
+	}
+
+	/* Check for errors */
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, throwAPIError(response)
+	}
+
+	return response, nil
+}
+
+// invokeApi dispatches an API request and returns just the response.
+func (b *baseApi) invokeApi(params invokeApiParams) (*ApiHttpResponse, error) {
+	return b.invokeApiForResult(params)
+}
+
+func buildQueryString(queryParams map[string]any) string {
+	if len(queryParams) == 0 {
+		return ""
+	}
+
+	var parts []string
+	for k, v := range queryParams {
+		if v == nil {
+			continue
+		}
+		encodedKey := url.QueryEscape(k)
+
+		switch val := v.(type) {
+		case []string:
+			for _, item := range val {
+				parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(item)))
+			}
+		case string:
+			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(val)))
+		default:
+			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(stringify(v))))
+		}
+	}
+
+	return strings.Join(parts, "&")
+}
+
+func serializeBody(body any, contentType string) ([]byte, error) {
+	if body == nil {
+		return nil, nil
+	}
+
+	if contentType == "multipart/form-data" {
+		/* Multipart is handled by invokeApiForResult before calling serializeBody */
+		return nil, nil
+	}
+
+	if strings.HasPrefix(contentType, "image/") || contentType == "application/octet-stream" {
+		if data, ok := body.([]byte); ok {
+			return data, nil
+		}
+		if str, ok := body.(string); ok {
+			return []byte(str), nil
+		}
+		/* A binary body (type:string format:binary) is an *os.File or io.Reader.
+		 * Stream the RAW bytes unchanged so they go on the wire byte-for-byte
+		 * under the declared Content-Type — never fall through to serialize(),
+		 * which would json.Marshal an *os.File handle to the literal "{}". The
+		 * *os.File is rewound first, mirroring the multipart file-part idiom. */
+		if f, ok := body.(*os.File); ok {
+			if f == nil {
+				return nil, nil
+			}
+			if _, err := f.Seek(0, io.SeekStart); err != nil {
+				return nil, fmt.Errorf("failed to rewind binary body file: %w", err)
+			}
+			return io.ReadAll(f)
+		}
+		if r, ok := body.(io.Reader); ok {
+			return io.ReadAll(r)
+		}
+	}
+
+	if contentType == "text/plain" {
+		return []byte(fmt.Sprintf("%v", body)), nil
+	}
+
+	if contentType == "application/x-www-form-urlencoded" {
+		if params, ok := body.(map[string]any); ok {
+			/* application/x-www-form-urlencoded wire-format parity:
+			 *  - array fields are exploded into repeated keys
+			 *    (tags=a&tags=b), never a single bracketed/joined value;
+			 *  - nil/absent optional fields are omitted entirely;
+			 *  - url.Values.Encode percent-encodes per RFC 3986 and emits
+			 *    `+` for spaces (HTML form-encoding), matching every other SDK.
+			 * url.Values.Encode also sorts keys for deterministic output. */
+			values := url.Values{}
+			for k, v := range params {
+				if v == nil {
+					continue
+				}
+				if items, isArray := toStringSlice(v); isArray {
+					for _, item := range items {
+						values.Add(k, item)
+					}
+					continue
+				}
+				values.Set(k, stringify(v))
+			}
+			return []byte(values.Encode()), nil
+		}
+	}
+
+	return serialize(body)
+}
+
+/* buildMultipartBody constructs a multipart/form-data request body from
+ * a map of form fields. Each value may be a string, number, boolean,
+ * slice (repeated field), map (serialized as JSON part), or nil (skipped). */
+func buildMultipartBody(formFields map[string]any, boundary string) ([]byte, error) {
+	var buf strings.Builder
+	writer := multipart.NewWriter(&buf)
+	_ = writer.SetBoundary(boundary)
+
+	for name, value := range formFields {
+		if value == nil {
+			continue
+		}
+		/* Array form fields (e.g. multiple uploaded files []*os.File, or a
+		 * repeated string field) explode into one part per element under the
+		 * same field name, mirroring the repeated-key encoding of the other
+		 * SDKs. []byte is a binary scalar (a single file part), not an array
+		 * of bytes, so it is excluded here and handled by writeMultipartField.
+		 * Reflection is used so any concrete slice type ([]*os.File, []string,
+		 * …) is handled, not just []any. */
+		rv := reflect.ValueOf(value)
+		if (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Type().Elem().Kind() != reflect.Uint8 {
+			for i := 0; i < rv.Len(); i++ {
+				if err := writeMultipartField(writer, name, rv.Index(i).Interface()); err != nil {
+					return nil, err
+				}
+			}
+			continue
+		}
+		if err := writeMultipartField(writer, name, value); err != nil {
+			return nil, err
+		}
+	}
+	writer.Close()
+	return []byte(buf.String()), nil
+}
+
+func writeMultipartField(writer *multipart.Writer, name string, value any) error {
+	if value == nil {
+		return nil
+	}
+	switch v := value.(type) {
+	case string:
+		return writer.WriteField(name, v)
+	case *os.File:
+		if v == nil {
+			return nil
+		}
+		fileName := filepath.Base(v.Name())
+		part, err := createMultipartFilePart(writer, name, fileName)
+		if err != nil {
+			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
+		}
+		if _, err := v.Seek(0, io.SeekStart); err != nil {
+			return fmt.Errorf("failed to rewind multipart file %q: %w", name, err)
+		}
+		_, err = io.Copy(part, v)
+		return err
+	case io.Reader:
+		part, err := createMultipartFilePart(writer, name, name)
+		if err != nil {
+			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
+		}
+		_, err = io.Copy(part, v)
+		return err
+	case []byte:
+		part, err := createMultipartFilePart(writer, name, name)
+		if err != nil {
+			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
+		}
+		_, err = part.Write(v)
+		return err
+	case map[string]any:
+		return writeJSONMultipartPart(writer, name, v)
+	default:
+		/* multipart-object-part-contenttype-go: object/model/map form values are
+		 * serialised as JSON, so the part must advertise
+		 * Content-Type: application/json (matching the other 11 SDKs). Scalars
+		 * keep the plain text-field encoding. */
+		if isJSONObjectValue(v) {
+			return writeJSONMultipartPart(writer, name, v)
+		}
+		return writer.WriteField(name, fmt.Sprintf("%v", v))
+	}
+}
+
+/* isJSONObjectValue reports whether a multipart form value should be emitted as
+ * a JSON part (with Content-Type: application/json) rather than a plain text
+ * field — i.e. it is a struct, map, or pointer to one (an object/model), as
+ * opposed to a scalar. */
+func isJSONObjectValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Struct, reflect.Map:
+		return true
+	default:
+		return false
+	}
+}
+
+/* writeJSONMultipartPart writes value as a JSON multipart part carrying an
+ * explicit Content-Type: application/json header. multipart.Writer's
+ * CreateFormField sets only Content-Disposition, which would leave the JSON
+ * part to be treated as text/plain by content-type-dispatching servers, so the
+ * part header is built manually here. */
+func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) error {
+	jsonBytes, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal multipart field %q as JSON: %w", name, err)
+	}
+	if err := validateMultipartFieldName(name); err != nil {
+		return err
+	}
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(name)))
+	header.Set("Content-Type", "application/json")
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return fmt.Errorf("failed to create multipart field %q: %w", name, err)
+	}
+	_, err = part.Write(jsonBytes)
+	return err
+}
+
+/* decodeBinaryResponse decodes the transport's base64-encoded response body
+ * back to its original raw bytes. The DefaultApiClient base64-encodes any
+ * non-text response so that the body can be carried as a string in
+ * ApiHttpResponse; this helper reverses that encoding for callers that expect
+ * a []byte return type. */
+func decodeBinaryResponse(body string) ([]byte, error) {
+	if body == "" {
+		return []byte{}, nil
+	}
+	return base64.StdEncoding.DecodeString(body)
+}
+
+/* mimeTypeForFilename returns a Content-Type guess derived from the file
+ * extension. Falls back to application/octet-stream when the extension is
+ * unknown or absent. Used by multipart writers so that each file part
+ * advertises a meaningful Content-Type rather than the generic default. */
+func mimeTypeForFilename(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".pdf":
+		return "application/pdf"
+	case ".json":
+		return "application/json"
+	case ".txt":
+		return "text/plain"
+	case ".html", ".htm":
+		return "text/html"
+	}
+	if t := mime.TypeByExtension(ext); t != "" {
+		return t
+	}
+	return "application/octet-stream"
+}
+
+/* createMultipartFilePart creates a multipart file part with a Content-Type
+ * derived from the filename extension. multipart.Writer.CreateFormFile
+ * always uses application/octet-stream which loses the per-part media type
+ * for typed uploads (e.g. PNG, PDF). For non-ASCII filenames it emits an
+ * RFC 5987 filename*= parameter alongside an ASCII fallback so that servers
+ * receive the original filename intact rather than mangled UTF-8. */
+func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName string) (io.Writer, error) {
+	if err := validateMultipartFilename(fileName); err != nil {
+		return nil, err
+	}
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"; %s`,
+			escapeQuotes(fieldName), buildFilenameDirective(fileName)))
+	header.Set("Content-Type", mimeTypeForFilename(fileName))
+	return writer.CreatePart(header)
+}
+
+/* escapeQuotes backslash-escapes characters that would otherwise terminate a
+ * quoted-string in a multipart header. */
+func escapeQuotes(s string) string {
+	r := strings.NewReplacer("\\", "\\\\", `"`, `\"`)
+	return r.Replace(s)
+}
+
+/* validateMultipartFilename rejects filenames that would allow Content-Disposition
+ * header injection or smuggling. Returns an error if the filename contains
+ * CR, LF, or NUL characters. */
+func validateMultipartFilename(filename string) error {
+	for _, c := range filename {
+		if c == '\r' || c == '\n' || c == 0 {
+			return fmt.Errorf("multipart filename must not contain CR, LF, or NUL characters")
+		}
+	}
+	return nil
+}
+
+/* Gap W2: validateMultipartFieldName rejects multipart field names that
+ * would allow Content-Disposition header injection. Returns an error if
+ * the name contains CR, LF, or NUL characters. The caller still needs
+ * to backslash-escape `"` and `\` via escapeQuotes when interpolating
+ * the field name into a quoted-string parameter. */
+func validateMultipartFieldName(name string) error {
+	for _, c := range name {
+		if c == '\r' || c == '\n' || c == 0 {
+			return fmt.Errorf("multipart field name must not contain CR, LF, or NUL characters")
+		}
+	}
+	return nil
+}
+
+/* buildFilenameDirective builds the filename=... directive for a multipart part.
+ * For ASCII-only filenames it emits filename="..." with quote/backslash escaping.
+ * For non-ASCII filenames it additionally emits an RFC 5987
+ * filename*=UTF-8''<percent-encoded> parameter alongside an ASCII fallback
+ * (non-ASCII bytes replaced with '_'). */
+func buildFilenameDirective(filename string) string {
+	escaped := escapeQuotes(filename)
+	ascii := true
+	for _, c := range filename {
+		if c > 0x7F {
+			ascii = false
+			break
+		}
+	}
+	if ascii {
+		return fmt.Sprintf(`filename="%s"`, escaped)
+	}
+	var fallback strings.Builder
+	for _, c := range filename {
+		if c > 0x7F || c < 0x20 || c == 0x7F {
+			fallback.WriteByte('_')
+		} else {
+			fallback.WriteRune(c)
+		}
+	}
+	asciiFallback := escapeQuotes(fallback.String())
+	encoded := rfc5987EncodeValue(filename)
+	return fmt.Sprintf(`filename="%s"; filename*=UTF-8''%s`, asciiFallback, encoded)
+}
+
+/* rfc5987EncodeValue percent-encodes every byte that is not an RFC 3986 §2.3
+ * unreserved character, producing the value-chars production of RFC 5987 §3.2.1. */
+func rfc5987EncodeValue(s string) string {
+	const hex = "0123456789ABCDEF"
+	b := []byte(s)
+	out := make([]byte, 0, len(b))
+	for _, c := range b {
+		isUnreserved := (c >= 'A' && c <= 'Z') ||
+			(c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') ||
+			c == '-' || c == '.' || c == '_' || c == '~'
+		if isUnreserved {
+			out = append(out, c)
+		} else {
+			out = append(out, '%', hex[c>>4], hex[c&0x0F])
+		}
+	}
+	return string(out)
+}
+
+/* newEmptyBodyError builds the typed ApiError returned by a convenience
+ * (non-WithHTTPInfo) method when a body-returning operation receives no
+ * decodable body. convenience-empty-body-handling: the empty-body condition
+ * must surface as a catchable, typed error instead of a silent nil/zero-value. */
+func newEmptyBodyError(operationID string, statusCode int, rawBody string, headers map[string]string) error {
+	return NewApiError(
+		statusCode,
+		fmt.Sprintf("expected a response body for %s but received none", operationID),
+		rawBody,
+		headers,
+		nil,
+		nil,
+	)
+}
+
+func throwAPIError(response *ApiHttpResponse) error {
+	code := response.StatusCode
+	msg := fmt.Sprintf("API returned status code %d", code)
+	body := response.Body
+
+	var parsed any
+	if body != "" {
+		_ = json.Unmarshal([]byte(body), &parsed)
+	}
+
+	return NewTypedApiError(code, msg, body, response.Headers, parsed, nil)
+}
+
+// isValidCookieName checks RFC 6265 cookie-name (RFC 7230 token).
+func isValidCookieName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, c := range name {
+		ok := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+			strings.ContainsRune("!#$%&'*+-.^_`|~", c)
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// isValidCookieValue checks RFC 6265 cookie-octet* validity.
+func isValidCookieValue(value string) bool {
+	for _, c := range value {
+		ok := c == 0x21 ||
+			(c >= 0x23 && c <= 0x2B) ||
+			(c >= 0x2D && c <= 0x3A) ||
+			(c >= 0x3C && c <= 0x5B) ||
+			(c >= 0x5D && c <= 0x7E)
+		if !ok {
+			return false
+		}
+	}
+	return true
+}

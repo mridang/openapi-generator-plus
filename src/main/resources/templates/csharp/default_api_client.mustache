@@ -1,0 +1,1086 @@
+{{>api_info}}
+
+using System.IO.Compression;
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+
+namespace {{packageName}};
+
+/// <summary>
+/// Default implementation of <see cref="IApiClient"/> using HttpClient.
+///
+/// Applies transport-level settings from <see cref="TransportOptions"/>: TLS
+/// verification, custom CA certificates, proxy routing, timeouts, redirect
+/// handling, <c>User-Agent</c> injection, <c>X-Request-ID</c> injection,
+/// and transport-level default headers.
+///
+/// Header merge order (lowest to highest priority):
+/// <list type="number">
+///   <item><description><see cref="TransportOptions.DefaultHeaders"/> -- transport-level defaults</description></item>
+///   <item><description>Caller-provided headers (from <see cref="Api.BaseApi"/> -- includes config defaults, auth, operation headers)</description></item>
+///   <item><description><see cref="TransportOptions.UserAgent"/> -- injected if not already set</description></item>
+///   <item><description><see cref="TransportOptions.InjectRequestId"/> -- injected if not already set</description></item>
+/// </list>
+/// </summary>
+public sealed class DefaultApiClient : IApiClient, IDisposable
+{
+    static DefaultApiClient()
+    {
+        Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+    }
+
+    /// <summary>
+    /// Header names that MUST be stripped on every cross-origin redirect hop
+    /// (Gap BH / Gap 3.1). The set covers the universal credential headers
+    /// (<c>Authorization</c>, <c>Cookie</c>, <c>Proxy-Authorization</c>) and,
+    /// in addition, every API-key header name declared in the OpenAPI spec
+    /// — so a redirect to attacker-controlled origin cannot replay a custom
+    /// header like <c>X-Api-Key</c> that the OAS marks as a security
+    /// credential.
+    ///
+    /// Names are compared case-insensitively (RFC 7230 §3.2 — HTTP header
+    /// names are tokens, case-insensitive).
+    /// </summary>
+    public static readonly IReadOnlySet<string> SensitiveHeaderNames =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Authorization",
+            "Cookie",
+            "Proxy-Authorization",
+            {{#apiKeyHeaderNames}}
+            "{{name}}",
+            {{/apiKeyHeaderNames}}
+        };
+
+    private readonly HttpClient _httpClient;
+    private readonly TransportOptions _transportOptions;
+
+    /// <summary>
+    /// The SDK's configured JSON serializer. A multipart JSON model part MUST
+    /// be serialized through this — not a bare
+    /// <see cref="System.Text.Json.JsonSerializer"/> call — so the part uses
+    /// the identical options as the JSON-body path: the millisecond-precision
+    /// <c>DateTimeOffset</c> converter, the protobuf-duration converter,
+    /// null-property omission, and relaxed escaping. Without it a model part
+    /// (e.g. a <c>format:date-time</c> field) would diverge from the body the
+    /// same SDK sends on the JSON path, breaking cross-language wire parity.
+    /// </summary>
+    private readonly ObjectSerializer _serializer = new();
+
+    /// <summary>
+    /// Set once <see cref="Dispose"/> has been called. Guards against
+    /// use-after-close: a request issued on a disposed client surfaces a
+    /// typed SDK <see cref="ApiException"/> rather than the raw
+    /// <see cref="ObjectDisposedException"/> leaked by the underlying
+    /// HttpClient — harmonising the close lifecycle across SDKs (closed-flag
+    /// plus SDK error on use-after-close).
+    /// </summary>
+    private bool _closed;
+
+    /// <summary>
+    /// The <c>Basic [base64]</c> Proxy-Authorization value extracted from
+    /// userinfo embedded in the proxy URL, or <c>null</c> when no proxy
+    /// credentials are configured. Exposed for tests and HTTP-aware
+    /// authenticators that need to verify userinfo is propagated and
+    /// not silently dropped (Gap AK).
+    /// </summary>
+    public string? ProxyAuthorizationHeader { get; }
+
+    /// <summary>
+    /// Builds a <c>Basic [base64]</c> Proxy-Authorization value from the
+    /// userinfo embedded in the proxy URL, or returns <c>null</c> when no
+    /// credentials are present. Percent-encoded userinfo is decoded before
+    /// encoding.
+    /// </summary>
+    internal static string? BuildProxyAuthorizationHeader(string? proxyUrl)
+    {
+        if (string.IsNullOrEmpty(proxyUrl))
+        {
+            return null;
+        }
+
+        Uri proxyUri = new(proxyUrl);
+        if (string.IsNullOrEmpty(proxyUri.UserInfo))
+        {
+            return null;
+        }
+
+        string[] parts = proxyUri.UserInfo.Split(':', 2);
+        string user = Uri.UnescapeDataString(parts[0]);
+        string pass = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+        string raw = $"{user}:{pass}";
+        string encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
+        return $"Basic {encoded}";
+    }
+
+    /// <summary>
+    /// Create a client with default transport settings.
+    /// Equivalent to <c>new DefaultApiClient(TransportOptions.Builder().Build())</c>.
+    /// </summary>
+    public DefaultApiClient()
+        : this(TransportOptions.Builder().Build()) { }
+
+    /// <summary>
+    /// Create a client configured from the given <see cref="TransportOptions"/>.
+    /// Applies proxy, custom CA certificate, TLS verification, timeout,
+    /// redirect, and max-redirect settings to the underlying HttpClient.
+    /// </summary>
+    /// <param name="transportOptions">Transport configuration to apply.</param>
+    public DefaultApiClient(TransportOptions transportOptions)
+    {
+        ArgumentNullException.ThrowIfNull(transportOptions);
+        _transportOptions = transportOptions;
+
+        HttpClientHandler handler = new()
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            CheckCertificateRevocationList = true,
+            /* Disable the default per-handler cookie jar so that a
+               Set-Cookie returned by one request is not silently
+               replayed on the next request. The other 11 SDKs are
+               stateless by default; this brings C# into line so
+               callers see consistent behavior across languages. */
+            UseCookies = false,
+        };
+
+        if (!transportOptions.VerifySsl)
+        {
+            handler.ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        }
+        else if (transportOptions.CaCertPath != null)
+        {
+            {{! Gap T4: fail fast on a user-supplied CA cert that cannot be read or parsed rather than silently falling back to the system trust store. If the caller explicitly asked for SSL pinning we must not pretend it succeeded — validate the PEM eagerly and surface failures as the SDK's own ApiException. }}
+            X509Certificate2Collection caCerts = [];
+            try
+            {
+                caCerts.ImportFromPemFile(transportOptions.CaCertPath);
+            }
+            catch (Exception ex) when (ex is System.IO.IOException or System.Security.Cryptography.CryptographicException or UnauthorizedAccessException)
+            {
+                throw new ApiException(
+                    $"failed to load CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
+                    ex);
+            }
+
+            if (caCerts.Count == 0)
+            {
+                throw new ApiException(
+                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found or unparseable");
+            }
+            handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+            {
+                if (cert == null)
+                {
+                    return false;
+                }
+
+                using X509Chain customChain = new();
+                customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                customChain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
+                return customChain.Build(cert);
+            };
+        }
+
+        if (transportOptions.Proxy != null)
+        {
+            {{! Parse user-info ("user:password@") out of the proxy URL so it is surfaced as a Proxy-Authorization basic-auth header rather than being silently dropped — see Gap #29 (proxy authentication propagation). }}
+            Uri proxyUri = new(transportOptions.Proxy);
+            WebProxy webProxy;
+            if (!string.IsNullOrEmpty(proxyUri.UserInfo))
+            {
+                string[] parts = proxyUri.UserInfo.Split(':', 2);
+                string user = Uri.UnescapeDataString(parts[0]);
+                string pass = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+                UriBuilder stripped = new(proxyUri) { UserName = "", Password = "" };
+                webProxy = new WebProxy(stripped.Uri)
+                {
+                    Credentials = new NetworkCredential(user, pass),
+                };
+            }
+            else
+            {
+                webProxy = new WebProxy(proxyUri);
+            }
+            handler.Proxy = webProxy;
+            handler.UseProxy = true;
+        }
+
+        /* Gap AK: keep a Proxy-Authorization preview value alongside the
+         * WebProxy.Credentials so tests (and any HTTP-aware authenticator)
+         * can verify userinfo embedded in the proxy URL is propagated and
+         * not silently dropped. */
+        ProxyAuthorizationHeader = BuildProxyAuthorizationHeader(transportOptions.Proxy);
+
+        /* Gap BH: HttpClient's AllowAutoRedirect re-sends Authorization /
+           Cookie / Proxy-Authorization across cross-origin 3xx redirects by
+           default, leaking bearer tokens to attacker-controlled hosts via
+           malicious 302. Disable auto-redirect entirely; SendRequestAsync
+           follows Location: headers manually with a same-origin check. */
+        handler.AllowAutoRedirect = false;
+
+        _httpClient = new HttpClient(handler, disposeHandler: true);
+
+        if (transportOptions.Timeout.HasValue)
+        {
+            _httpClient.Timeout = TimeSpan.FromMilliseconds(transportOptions.Timeout.Value);
+        }
+    }
+
+    /// <summary>
+    /// Create a client with a pre-configured HttpClient.
+    /// Uses default <see cref="TransportOptions"/> for header injection settings.
+    /// </summary>
+    /// <param name="httpClient">The HTTP client to use.</param>
+    internal DefaultApiClient(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+        _transportOptions = TransportOptions.Builder().Build();
+        ProxyAuthorizationHeader = null;
+    }
+
+    /// <summary>
+    /// Create a client with a pre-configured HttpClient and explicit transport options.
+    /// Use this overload in tests to supply a capturing or mock HttpClient together with
+    /// specific <see cref="TransportOptions"/> (e.g. to test header injection behaviour).
+    /// </summary>
+    /// <param name="httpClient">The HTTP client to use.</param>
+    /// <param name="transportOptions">Transport configuration to apply.</param>
+    internal DefaultApiClient(HttpClient httpClient, TransportOptions transportOptions)
+    {
+        ArgumentNullException.ThrowIfNull(transportOptions);
+        _httpClient = httpClient;
+        _transportOptions = transportOptions;
+        ProxyAuthorizationHeader = BuildProxyAuthorizationHeader(transportOptions.Proxy);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect = false
+    )
+    {
+        ArgumentNullException.ThrowIfNull(method);
+        ArgumentNullException.ThrowIfNull(url);
+        ArgumentNullException.ThrowIfNull(headers);
+
+        if (_closed)
+        {
+            throw new ApiException("ApiClient has been closed");
+        }
+
+        Dictionary<string, string> mergedHeaders = new(_transportOptions.DefaultHeaders);
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            mergedHeaders[header.Key] = header.Value;
+        }
+
+        if (_transportOptions.UserAgent != null && !mergedHeaders.ContainsKey("User-Agent"))
+        {
+            mergedHeaders["User-Agent"] = _transportOptions.UserAgent;
+        }
+
+        if (_transportOptions.InjectRequestId && !mergedHeaders.ContainsKey("X-Request-ID"))
+        {
+            mergedHeaders["X-Request-ID"] = Guid.NewGuid().ToString();
+        }
+
+        if (!mergedHeaders.ContainsKey("Accept-Encoding"))
+        {
+            mergedHeaders["Accept-Encoding"] = SupportedEncodings();
+        }
+
+        using HttpRequestMessage request = new(new HttpMethod(method), url);
+
+        string? contentType = null;
+        foreach (KeyValuePair<string, string> header in mergedHeaders)
+        {
+            if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase))
+            {
+                contentType = header.Value;
+            }
+            else
+            {
+                _ = request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+
+        if (body != null)
+        {
+            request.Content = body switch
+            {
+                byte[] bytes => new ByteArrayContent(bytes),
+                Stream stream => new StreamContent(stream),
+                Dictionary<string, object> formParts => BuildMultipartContent(formParts, _serializer),
+                string text => new StringContent(
+                    text,
+                    Encoding.UTF8,
+                    contentType ?? "application/json"
+                ),
+                _ => new StringContent(
+                    body.ToString() ?? "",
+                    Encoding.UTF8,
+                    contentType ?? "application/json"
+                ),
+            };
+
+            if (
+                contentType != null
+                && body is not Dictionary<string, object>
+                && body is not string
+            )
+            {
+                /* Apply the declared Content-Type to byte[]/Stream bodies. Both
+                 * ByteArrayContent and StreamContent default their ContentType to
+                 * null, so a format:binary body (e.g. image/jpeg) would otherwise
+                 * go on the wire with NO Content-Type header — the declared type
+                 * silently discarded. We must NOT gate this on the header being
+                 * non-null, and we must NOT JSON-marshal/base64 the bytes: the raw
+                 * stream is sent verbatim with the declared Content-Type preserved.
+                 * StringContent (text) and multipart (Dictionary) set their own
+                 * Content-Type and are excluded above. */
+                request.Content.Headers.ContentType =
+                    System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
+            }
+        }
+        else if (
+            string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(method, "PUT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(method, "PATCH", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            /* Some servers / WAFs treat POST/PUT/PATCH with no body and
+             * no Content-Length as malformed (411 Length Required) or
+             * behave inconsistently. Attach an empty ByteArrayContent so
+             * HttpClient emits an explicit `Content-Length: 0` header,
+             * matching Kotlin's `ByteArray(0)` and the other 11 SDKs.
+             * Clear the auto-inserted Content-Type since we have no
+             * actual body content. */
+            ByteArrayContent emptyContent = new([]);
+            emptyContent.Headers.ContentType = null;
+            request.Content = emptyContent;
+        }
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient
+                .SendAsync(request)
+                .ConfigureAwait(false);
+
+            /* Gap BH: manual redirect loop with cross-origin sensitive-header strip.
+               Gap 3.2: when noRedirect is set the loop is skipped entirely so a
+               307/308 surfaces verbatim. Used by OAuth2TokenManager so a malicious
+               token endpoint cannot redirect-replay client credentials to an
+               attacker-controlled host. */
+            if (_transportOptions.FollowRedirects && !noRedirect)
+            {
+                /* Default to 20 hops when caller does not configure an
+                   explicit cap — unified across all 12 SDKs. */
+                int maxRedirects = _transportOptions.MaxRedirects ?? 20;
+                Uri originalUrl = url;
+                Uri currentUrl = url;
+                int hops = 0;
+                string currentMethod = method;
+                object? currentBody = body;
+                while (hops < maxRedirects && IsRedirectStatus((int)response.StatusCode))
+                {
+                    if (response.Headers.Location == null)
+                    {
+                        break;
+                    }
+                    Uri nextUrl = response.Headers.Location.IsAbsoluteUri
+                        ? response.Headers.Location
+                        : new Uri(currentUrl, response.Headers.Location);
+                    if (nextUrl.Scheme != Uri.UriSchemeHttp && nextUrl.Scheme != Uri.UriSchemeHttps)
+                    {
+                        /* T-D3: a Location pointing at a non-http(s) scheme
+                           (file:, javascript:, data:, …) is refused. Surface
+                           it as a typed SDK error instead of silently
+                           returning the 3xx so the caller can detect the
+                           blocked redirect — matching java/kotlin/python and
+                           the harmonised cross-SDK canonical. */
+                        response.Dispose();
+                        throw new ApiException(
+                            $"Refusing to follow redirect to non-http(s) URL: {nextUrl}");
+                    }
+                    bool crossOrigin = !SameOrigin(originalUrl, nextUrl);
+
+                    /* Gap 3.3: HTTPS -> HTTP downgrade body-replay guard. A
+                       307/308 normally preserves the original method and body,
+                       but replaying a body that was sent over TLS in
+                       cleartext to a downgraded HTTP target leaks whatever
+                       was in it (request signatures, form-encoded
+                       credentials, PII). Refuse the hop entirely rather
+                       than silently downgrade. The original encrypted
+                       response is surfaced to the caller. */
+                    bool isDowngrade =
+                        string.Equals(currentUrl.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(nextUrl.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
+                    int redirectStatus = (int)response.StatusCode;
+                    bool preservesBody = redirectStatus == 307 || redirectStatus == 308;
+                    if (isDowngrade && preservesBody && currentBody != null)
+                    {
+                        /* T-D2: refuse to replay a body that was sent over TLS
+                           in cleartext to a downgraded HTTP target. Raise a
+                           typed SDK error instead of silently returning the
+                           3xx so the caller observes the refused hop —
+                           matching the 8 SDKs that already throw. The body is
+                           never leaked in either case; only the error surface
+                           is harmonised. */
+                        response.Dispose();
+                        throw new ApiException(
+                            $"Refusing to replay request body across HTTPS->HTTP downgrade redirect to: {nextUrl}");
+                    }
+
+                    /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+                       307 + 308: preserve original method and body.
+                       303:       force GET, drop the body (and Content-Type/Length).
+                       301 + 302: historical browser behaviour — switch to GET
+                                  for non-GET/HEAD requests, drop the body. */
+                    int statusCode = (int)response.StatusCode;
+                    string methodUpper = currentMethod.ToUpperInvariant();
+                    string nextMethod;
+                    object? nextBody;
+                    if (statusCode == 307 || statusCode == 308)
+                    {
+                        nextMethod = currentMethod;
+                        nextBody = currentBody;
+                    }
+                    else if (statusCode == 303)
+                    {
+                        nextMethod = "GET";
+                        nextBody = null;
+                    }
+                    else if (methodUpper == "GET" || methodUpper == "HEAD")
+                    {
+                        nextMethod = currentMethod;
+                        nextBody = currentBody;
+                    }
+                    else
+                    {
+                        nextMethod = "GET";
+                        nextBody = null;
+                    }
+
+                    HttpRequestMessage next = new(new HttpMethod(nextMethod), nextUrl);
+                    foreach (KeyValuePair<string, string> header in mergedHeaders)
+                    {
+                        if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                        if (nextBody == null
+                            && string.Equals(header.Key, "Content-Length", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                        if (crossOrigin && SensitiveHeaderNames.Contains(header.Key))
+                        {
+                            continue;
+                        }
+                        _ = next.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                    }
+                    if (nextBody is byte[] bytes2)
+                    {
+                        next.Content = new ByteArrayContent(bytes2);
+                    }
+                    else if (nextBody is string text2)
+                    {
+                        next.Content = new StringContent(text2, Encoding.UTF8, contentType ?? "application/json");
+                    }
+                    else if (nextBody is Stream)
+                    {
+                        /* A consumed request Stream is generally non-replayable:
+                           the original SendAsync has already read it to EOF, so
+                           it cannot be re-sent on the follow-up hop. Silently
+                           rebuilding it would dispatch the redirected request
+                           with an empty body and lose the upload. Surface a
+                           typed SDK error instead — mirroring the downgrade
+                           body-replay guard above — so the loss is observable
+                           rather than silent. */
+                        response.Dispose();
+                        next.Dispose();
+                        throw new ApiException(
+                            $"Cannot replay a streaming request body across a body-preserving redirect to: {nextUrl}");
+                    }
+                    response.Dispose();
+                    currentUrl = nextUrl;
+                    currentMethod = nextMethod;
+                    currentBody = nextBody;
+                    response = await _httpClient.SendAsync(next).ConfigureAwait(false);
+                    next.Dispose();
+                    hops++;
+                }
+
+                /* T-D1: the redirect chain was longer than the configured cap.
+                   Surface a typed SDK error instead of silently returning the
+                   final 3xx as if it were a normal response — matching the
+                   harmonised cross-SDK canonical (throw "too many redirects"
+                   everywhere). */
+                if (hops >= maxRedirects && IsRedirectStatus((int)response.StatusCode))
+                {
+                    response.Dispose();
+                    throw new ApiException(
+                        $"Exceeded maximum number of redirects ({maxRedirects})");
+                }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new ApiException(ex.Message, ex);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            throw new ApiException("Request timed out", ex);
+        }
+
+        /* A post-headers body-read failure (connection reset, read timeout,
+           truncated chunked transfer, decompression error) must surface as the
+           same uniform ApiException as a send-phase failure — not as the raw
+           HttpRequestException / IOException / TaskCanceledException leaked by
+           HttpClient. Wrap the lazy body read in the transport try/catch so
+           callers get one error type for the entire transport phase. */
+        byte[] responseBytes;
+        try
+        {
+            responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            response.Dispose();
+            throw new ApiException(ex.Message, ex);
+        }
+        catch (IOException ex)
+        {
+            response.Dispose();
+            throw new ApiException(ex.Message, ex);
+        }
+        catch (InvalidDataException ex)
+        {
+            /* Gap AL: HttpClientHandler.AutomaticDecompression decodes the body
+               lazily during ReadAsByteArrayAsync. A server that lies about the
+               Content-Encoding (claims gzip/deflate/br but sends a body that is
+               not valid for that encoding) makes the runtime throw
+               InvalidDataException — which, unlike a transport read failure, is
+               NOT an IOException, so it would otherwise leak out untyped.
+               Surface it as the SDK's own ApiException (no crash, no corrupt
+               passthrough) so the caller sees one uniform transport error. */
+            response.Dispose();
+            throw new ApiException(
+                $"failed to decode response body: {ex.Message}", ex);
+        }
+        catch (TaskCanceledException ex)
+        {
+            response.Dispose();
+            throw new ApiException("Request timed out", ex);
+        }
+
+        /* Gap AL (cont.): a real HttpClientHandler strips the Content-Encoding
+           header once it has auto-decompressed a body it understands, so a
+           surviving gzip/deflate/br Content-Encoding here means the runtime did
+           NOT decode it (an unsupported encoding, or a test transport that
+           bypasses the handler). Rather than pass the still-compressed — or, on
+           a Content-Encoding lie, plain — bytes through as if they were the
+           decoded body, decode them explicitly and surface any failure as the
+           SDK's ApiException. This closes the corrupt-passthrough gap and keeps
+           the error type identical to the auto-decompression path above. */
+        if (response.Content.Headers.ContentEncoding.Count > 0)
+        {
+            try
+            {
+                responseBytes = DecodeContentEncoding(
+                    responseBytes, response.Content.Headers.ContentEncoding);
+            }
+            catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or IOException)
+            {
+                response.Dispose();
+                throw new ApiException(
+                    $"failed to decode response body: {ex.Message}", ex);
+            }
+        }
+        string? contentTypeHeader = response.Content.Headers.ContentType?.ToString();
+        string responseBody = IsTextContentType(response.Content.Headers.ContentType?.MediaType)
+            ? GetEncodingFromContentType(contentTypeHeader).GetString(responseBytes)
+            : Convert.ToBase64String(responseBytes);
+
+        /* Gap BE+BF: response header keys are normalised to lowercase so callers
+           can look them up consistently regardless of the casing the server used
+           (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+           HTTP/2 mandates lowercase on the wire). Repeated header lines are
+           joined with ", " to preserve order per RFC 7230 section 3.2.2. For
+           Set-Cookie specifically the joined form is not directly parseable;
+           applications that need structured cookie access should use
+           System.Net.CookieContainer attached to HttpClientHandler. */
+        Dictionary<string, string> responseHeaders = [];
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
+        {
+            responseHeaders[AsciiLower(header.Key)] = string.Join(", ", header.Value);
+        }
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Content.Headers)
+        {
+            responseHeaders[AsciiLower(header.Key)] = string.Join(", ", header.Value);
+        }
+
+        return new ApiHttpResponse((int)response.StatusCode, responseBody, responseHeaders);
+    }
+
+    private static bool IsRedirectStatus(int code)
+    {
+        return code is 301 or 302 or 303 or 307 or 308;
+    }
+
+    private static bool SameOrigin(Uri a, Uri b)
+    {
+        if (!string.Equals(a.Scheme, b.Scheme, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        if (!string.Equals(a.Host, b.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        return a.Port == b.Port;
+    }
+
+    /// <summary>
+    /// Lowercases an ASCII string (HTTP header names are tokens restricted to
+    /// the ASCII range per RFC 7230 section 3.2.6, so a culture-aware
+    /// <c>ToLower</c> is unnecessary and would otherwise trip CA1308).
+    /// </summary>
+    private static string AsciiLower(string value)
+    {
+        char[] chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            char c = chars[i];
+            if (c >= 'A' && c <= 'Z')
+            {
+                chars[i] = (char)(c + 32);
+            }
+        }
+        return new string(chars);
+    }
+
+    private static MultipartFormDataContent BuildMultipartContent(
+        Dictionary<string, object> formParts,
+        ObjectSerializer serializer
+    )
+    {
+        MultipartFormDataContent multipart = new();
+        foreach (KeyValuePair<string, object> part in formParts)
+        {
+            if (part.Value is byte[] || part.Value is string || part.Value is Stream)
+            {
+                AddMultipartField(multipart, part.Key, part.Value, serializer);
+            }
+            else if (part.Value is System.Collections.IList list)
+            {
+                foreach (object? item in list)
+                {
+                    if (item != null)
+                    {
+                        AddMultipartField(multipart, part.Key, item, serializer);
+                    }
+                }
+            }
+            else
+            {
+                AddMultipartField(multipart, part.Key, part.Value, serializer);
+            }
+        }
+        return multipart;
+    }
+
+    private static void AddMultipartField(
+        MultipartFormDataContent multipart,
+        string name,
+        object value,
+        ObjectSerializer serializer
+    )
+    {
+        switch (value)
+        {
+            case byte[] bytes:
+                ValidateMultipartFilename(name);
+                ByteArrayContent bytesContent = new(bytes);
+                bytesContent.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
+                _ = bytesContent.Headers.Remove("Content-Disposition");
+                _ = bytesContent.Headers.TryAddWithoutValidation(
+                    "Content-Disposition",
+                    EncodeHeaderValueUtf8(
+                        "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                            + BuildFilenameDirective(name)));
+                multipart.Add(bytesContent);
+                break;
+            case Stream stream:
+                ValidateMultipartFilename(name);
+                StreamContent streamContent = new(stream);
+                streamContent.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
+                _ = streamContent.Headers.Remove("Content-Disposition");
+                _ = streamContent.Headers.TryAddWithoutValidation(
+                    "Content-Disposition",
+                    EncodeHeaderValueUtf8(
+                        "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                            + BuildFilenameDirective(name)));
+                multipart.Add(streamContent);
+                break;
+            case string s:
+                ValidateMultipartFilename(name);
+                StringContent stringContent = BuildTextPart(s);
+                _ = stringContent.Headers.Remove("Content-Disposition");
+                _ = stringContent.Headers.TryAddWithoutValidation(
+                    "Content-Disposition",
+                    EncodeHeaderValueUtf8(
+                        "form-data; name=\"" + EscapeQuotedString(name) + "\""));
+                multipart.Add(stringContent);
+                break;
+            default:
+                if (value is int or long or float or double or bool or decimal)
+                {
+                    ValidateMultipartFilename(name);
+                    StringContent scalarContent = BuildTextPart(value.ToString() ?? "");
+                    _ = scalarContent.Headers.Remove("Content-Disposition");
+                    _ = scalarContent.Headers.TryAddWithoutValidation(
+                        "Content-Disposition",
+                        EncodeHeaderValueUtf8(
+                            "form-data; name=\"" + EscapeQuotedString(name) + "\""));
+                    multipart.Add(scalarContent);
+                }
+                else
+                {
+                    ValidateMultipartFilename(name);
+                    /* Route the model part through the SDK's configured
+                       ObjectSerializer rather than a bare
+                       JsonSerializer.Serialize(value) call. The bare call would
+                       omit the SDK JsonSerializerOptions — the
+                       millisecond-precision DateTimeOffset converter, the
+                       protobuf-duration converter, null-property omission, and
+                       relaxed escaping — so a JSON model part (e.g. one with a
+                       format:date-time field) would diverge from the body the
+                       same SDK emits on the JSON-body path. Serializing here
+                       keeps the multipart part byte-identical to the JSON path
+                       and the wire property names (from [JsonPropertyName]) and
+                       date-time format consistent across the SDK. */
+                    string json = serializer.Serialize(value);
+                    StringContent jsonContent = new(json, Encoding.UTF8, "application/json");
+                    _ = jsonContent.Headers.Remove("Content-Disposition");
+                    _ = jsonContent.Headers.TryAddWithoutValidation(
+                        "Content-Disposition",
+                        EncodeHeaderValueUtf8(
+                            "form-data; name=\"" + EscapeQuotedString(name) + "\""));
+                    multipart.Add(jsonContent);
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Builds a scalar/text multipart part with NO per-part Content-Type
+    /// header. .NET's <see cref="StringContent"/> otherwise defaults the part
+    /// Content-Type to <c>text/plain; charset=utf-8</c>; the other 11 SDKs
+    /// emit text fields with no Content-Type (RFC 7578 does not require one on
+    /// text fields), so we strip it here to keep the multipart wire bytes
+    /// identical across languages.
+    /// </summary>
+    private static StringContent BuildTextPart(string value)
+    {
+        StringContent content = new(value);
+        content.Headers.ContentType = null;
+        return content;
+    }
+
+    /// <summary>
+    /// Re-encodes a header value so its UTF-8 bytes survive .NET's Latin-1
+    /// header serialization. <see cref="System.Net.Http.Headers"/> writes each
+    /// <c>char</c> of a header value as a single Latin-1 byte; a multi-byte
+    /// UTF-8 field name (e.g. a non-ASCII Content-Disposition <c>name</c>)
+    /// would otherwise be mangled or dropped on the wire. By mapping each UTF-8
+    /// byte to one Latin-1 <c>char</c> here, the round-trip reproduces the
+    /// original UTF-8 byte sequence — so non-ASCII multipart field names are
+    /// preserved verbatim, matching the other 11 SDKs (which build the
+    /// multipart body as raw UTF-8 bytes directly). ASCII values are
+    /// unaffected.
+    /// </summary>
+    private static string EncodeHeaderValueUtf8(string value)
+    {
+        return Encoding.Latin1.GetString(Encoding.UTF8.GetBytes(value));
+    }
+
+    /// <summary>
+    /// Rejects multipart filenames that would allow Content-Disposition
+    /// header injection or smuggling. Throws <see cref="ArgumentException"/>
+    /// when the filename contains CR, LF, or NUL characters.
+    /// </summary>
+    /// <param name="filename">The filename to validate.</param>
+    public static void ValidateMultipartFilename(string? filename)
+    {
+        if (filename is null)
+        {
+            return;
+        }
+        foreach (char c in filename)
+        {
+            if (c == '\r' || c == '\n' || c == '\0')
+            {
+                throw new ArgumentException(
+                    "multipart filename must not contain CR, LF, or NUL characters",
+                    nameof(filename));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the <c>filename=...</c> directive for a multipart
+    /// Content-Disposition part. For ASCII-only filenames emits a
+    /// quote/backslash-escaped <c>filename="..."</c>. For non-ASCII filenames
+    /// additionally emits an RFC 5987 <c>filename*=UTF-8''(pct-encoded)</c>
+    /// parameter alongside an ASCII fallback (non-ASCII bytes replaced
+    /// with <c>_</c>).
+    /// </summary>
+    /// <param name="filename">The (validated) filename.</param>
+    /// <returns>The directive string suitable for a Content-Disposition header.</returns>
+    public static string BuildFilenameDirective(string filename)
+    {
+        ArgumentNullException.ThrowIfNull(filename);
+        string escaped = EscapeQuotedString(filename);
+        bool ascii = true;
+        foreach (char c in filename)
+        {
+            if (c > 0x7F)
+            {
+                ascii = false;
+                break;
+            }
+        }
+        if (ascii)
+        {
+            return "filename=\"" + escaped + "\"";
+        }
+        StringBuilder fallback = new();
+        foreach (char c in filename)
+        {
+            char safe = (c > 0x7F || c < 0x20 || c == 0x7F) ? '_' : c;
+            _ = fallback.Append(safe);
+        }
+        string fallbackEscaped = EscapeQuotedString(fallback.ToString());
+        string encoded = Rfc5987EncodeValue(filename);
+        return "filename=\"" + fallbackEscaped + "\"; filename*=UTF-8''" + encoded;
+    }
+
+    private static string EscapeQuotedString(string s)
+    {
+        return s.Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved
+    /// character, producing the value-chars production of RFC 5987 §3.2.1.
+    /// </summary>
+    public static string Rfc5987EncodeValue(string s)
+    {
+        ArgumentNullException.ThrowIfNull(s);
+        const string hex = "0123456789ABCDEF";
+        byte[] bytes = Encoding.UTF8.GetBytes(s);
+        StringBuilder sb = new(bytes.Length * 3);
+        foreach (byte b in bytes)
+        {
+            bool isUnreserved =
+                (b >= (byte)'A' && b <= (byte)'Z') ||
+                (b >= (byte)'a' && b <= (byte)'z') ||
+                (b >= (byte)'0' && b <= (byte)'9') ||
+                b == (byte)'-' || b == (byte)'.' || b == (byte)'_' || b == (byte)'~';
+            if (isUnreserved)
+            {
+                _ = sb.Append((char)b);
+                continue;
+            }
+            _ = sb.Append('%');
+            _ = sb.Append(hex[b >> 4]);
+            _ = sb.Append(hex[b & 0x0F]);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Maps a filename to a MIME type using a small extension lookup table.
+    /// Falls back to <c>application/octet-stream</c> for unknown or absent
+    /// extensions.
+    /// </summary>
+    /// <param name="filename">The filename (or field name treated as filename).</param>
+    /// <returns>The inferred MIME type, never null.</returns>
+    private static string GetMimeType(string filename)
+    {
+        if (string.IsNullOrEmpty(filename))
+        {
+            return "application/octet-stream";
+        }
+        string ext = System.IO.Path.GetExtension(filename);
+        return (ext ?? string.Empty).ToUpperInvariant() switch
+        {
+            ".PNG" => "image/png",
+            ".JPG" or ".JPEG" => "image/jpeg",
+            ".GIF" => "image/gif",
+            ".WEBP" => "image/webp",
+            ".BMP" => "image/bmp",
+            ".SVG" => "image/svg+xml",
+            ".TIFF" or ".TIF" => "image/tiff",
+            ".PDF" => "application/pdf",
+            ".ZIP" => "application/zip",
+            ".GZ" => "application/gzip",
+            ".TAR" => "application/x-tar",
+            ".JSON" => "application/json",
+            ".XML" => "application/xml",
+            ".HTML" or ".HTM" => "text/html",
+            ".CSS" => "text/css",
+            ".JS" => "application/javascript",
+            ".TXT" => "text/plain",
+            ".CSV" => "text/csv",
+            ".MP3" => "audio/mpeg",
+            ".MP4" => "video/mp4",
+            ".WEBM" => "video/webm",
+            ".WAV" => "audio/wav",
+            ".OGG" => "audio/ogg",
+            _ => "application/octet-stream",
+        };
+    }
+
+    /// <summary>
+    /// Returns a comma-separated list of supported content encodings for
+    /// the Accept-Encoding header.
+    ///
+    /// Always advertises gzip, deflate, and Brotli ("br"); the project targets
+    /// a framework where <see cref="System.IO.Compression.BrotliStream"/> is
+    /// always present.
+    /// </summary>
+    /// <returns>Comma-separated encoding names.</returns>
+    private static string SupportedEncodings()
+    {
+        return "gzip, deflate, br";
+    }
+
+    /// <summary>
+    /// Decodes a response body whose <c>Content-Encoding</c> header survived the
+    /// <see cref="HttpClientHandler.AutomaticDecompression"/> pass — i.e. an
+    /// encoding the runtime did not (or could not) decode. Applies the declared
+    /// codings outermost-first using the .NET built-in stream decoders.
+    ///
+    /// A body that lies about its encoding (server sends
+    /// <c>Content-Encoding: gzip</c> but the bytes are not valid gzip) makes the
+    /// decoder throw <see cref="InvalidDataException"/>; the caller wraps that as
+    /// the SDK's <see cref="ApiException"/> rather than passing corrupt bytes
+    /// through. An unrecognised coding (e.g. <c>zstd</c>) throws
+    /// <see cref="NotSupportedException"/>, surfaced the same way.
+    /// </summary>
+    /// <param name="data">The raw (still-encoded) body bytes.</param>
+    /// <param name="encodings">The Content-Encoding header values, in header order.</param>
+    /// <returns>The decoded body bytes.</returns>
+    private static byte[] DecodeContentEncoding(byte[] data, IEnumerable<string> encodings)
+    {
+        byte[] current = data;
+        foreach (string encoding in encodings)
+        {
+            string coding = encoding.Trim().ToUpperInvariant();
+            if (coding is "IDENTITY" or "")
+            {
+                continue;
+            }
+            using MemoryStream source = new(current);
+            Stream decoder = coding switch
+            {
+                "GZIP" or "X-GZIP" => new GZipStream(source, CompressionMode.Decompress),
+                "DEFLATE" => new DeflateStream(source, CompressionMode.Decompress),
+                "BR" => new BrotliStream(source, CompressionMode.Decompress),
+                _ => throw new NotSupportedException(
+                    $"unsupported Content-Encoding: {encoding}"),
+            };
+            using (decoder)
+            {
+                using MemoryStream sink = new();
+                decoder.CopyTo(sink);
+                current = sink.ToArray();
+            }
+        }
+        return current;
+    }
+
+    /// <summary>
+    /// Parses the <c>charset</c> parameter from a Content-Type header value
+    /// and returns the corresponding <see cref="Encoding"/>. Falls back to
+    /// UTF-8 if the header is missing, the charset is unspecified, or the
+    /// named charset is not recognised by the runtime.
+    /// </summary>
+    /// <param name="contentType">The full Content-Type header value, or null.</param>
+    /// <returns>The resolved encoding, never null.</returns>
+    private static Encoding GetEncodingFromContentType(string? contentType)
+    {
+        if (string.IsNullOrEmpty(contentType))
+        {
+            return Encoding.UTF8;
+        }
+        try
+        {
+            System.Net.Mime.ContentType media = new(contentType);
+            if (!string.IsNullOrEmpty(media.CharSet))
+            {
+                string charset = media.CharSet.Trim();
+                /* A bare "utf-16" / "utf16" label (no endianness suffix, no BOM)
+                   must decode big-endian per RFC 2781: a UTF-16 stream lacking a
+                   BOM defaults to big-endian. .NET's Encoding.GetEncoding("utf-16")
+                   returns a little-endian UnicodeEncoding, which would disagree
+                   with the other SDKs, so resolve bare utf-16 to UTF-16BE here.
+                   Explicit "utf-16le" / "utf-16be" labels fall through to
+                   Encoding.GetEncoding so their declared byte order is honored. */
+                if (string.Equals(charset, "utf-16", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(charset, "utf16", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new UnicodeEncoding(bigEndian: true, byteOrderMark: false);
+                }
+                return Encoding.GetEncoding(charset);
+            }
+        }
+        catch (FormatException)
+        {
+            /* fall through to UTF-8 default */
+        }
+        catch (ArgumentException)
+        {
+            /* unknown charset name — fall through to UTF-8 default */
+        }
+        return Encoding.UTF8;
+    }
+
+    /// <summary>
+    /// Determines whether the given media type represents text content
+    /// that is safe to decode as a UTF-8 string.
+    /// </summary>
+    /// <param name="mediaType">The Content-Type media type, or null.</param>
+    /// <returns><c>true</c> for text-like content types, <c>false</c> otherwise.</returns>
+    private static bool IsTextContentType(string? mediaType)
+    {
+        return string.IsNullOrEmpty(mediaType)
+            || mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/javascript", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+xml", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _closed = true;
+        _httpClient.Dispose();
+    }
+}

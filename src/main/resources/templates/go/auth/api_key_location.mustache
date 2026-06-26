@@ -1,0 +1,16 @@
+{{>api_info}}
+package auth
+
+// ApiKeyLocation specifies where the API key should be sent.
+type ApiKeyLocation int
+
+const (
+	/* ApiKeyLocationHeader sends the API key as a request header. */
+	ApiKeyLocationHeader ApiKeyLocation = iota
+
+	/* ApiKeyLocationQuery sends the API key as a query parameter. */
+	ApiKeyLocationQuery
+
+	/* ApiKeyLocationCookie sends the API key as a cookie. */
+	ApiKeyLocationCookie
+)

@@ -1,0 +1,102 @@
+{{>api_info}}
+package auth
+
+import (
+	"fmt"
+	"strings"
+)
+
+// ApiKeyAuthenticator provides API key authentication.
+//
+// The API key can be sent as a header, query parameter, or cookie,
+// depending on the location specified at construction.
+type ApiKeyAuthenticator struct {
+	BaseAuthenticator
+	host         string
+	keyParamName string
+	apiKey       string
+	location     ApiKeyLocation
+}
+
+// NewApiKeyAuthenticator creates a new API key authenticator.
+//
+// Parameters:
+//   - host: API base URL
+//   - keyParamName: name of the key parameter
+//   - apiKey: the API key value
+//   - location: where to send the key (header, query, or cookie)
+func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLocation) *ApiKeyAuthenticator {
+	// Validation applies to ALL locations: empty/whitespace API keys
+	// and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+	// printable-ASCII rule still applies to HEADER values. panic is
+	// appropriate because this is a programmer error, not a recoverable
+	// runtime condition.
+	if apiKey == "" || strings.TrimSpace(apiKey) == "" {
+		panic(fmt.Sprintf(
+			"API key value for '%s' must not be empty",
+			keyParamName,
+		))
+	}
+	for _, c := range apiKey {
+		if c == '\r' || c == '\n' || c == 0 {
+			panic(fmt.Sprintf(
+				"API key value for '%s' contains forbidden control characters (CR/LF/NUL)",
+				keyParamName,
+			))
+		}
+	}
+	if location == ApiKeyLocationHeader {
+		for _, c := range apiKey {
+			if c != '\t' && (c < 0x20 || c >= 0x7F) {
+				panic(fmt.Sprintf(
+					"API key for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+					keyParamName,
+				))
+			}
+		}
+	}
+	return &ApiKeyAuthenticator{
+		host:         host,
+		keyParamName: keyParamName,
+		apiKey:       apiKey,
+		location:     location,
+	}
+}
+
+// Host returns the API base URL.
+func (a *ApiKeyAuthenticator) Host() string {
+	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the API key. authenticator-secret-in-default-string-repr.
+func (a *ApiKeyAuthenticator) String() string {
+	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***}", a.host, a.keyParamName)
+}
+
+// AuthHeaders returns the API key as a header if the location is Header.
+func (a *ApiKeyAuthenticator) AuthHeaders() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationHeader {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}
+
+// QueryParams returns the API key as a query parameter if the location is Query.
+func (a *ApiKeyAuthenticator) QueryParams() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationQuery {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}
+
+// CookieParams returns the API key as a cookie if the location is Cookie.
+func (a *ApiKeyAuthenticator) CookieParams() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationCookie {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}

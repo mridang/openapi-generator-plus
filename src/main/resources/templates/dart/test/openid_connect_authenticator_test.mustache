@@ -1,0 +1,209 @@
+{{>api_info}}
+// ignore_for_file: unused_import
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class _FakeApiClient implements ApiClient {
+  final List<ApiHttpResponse> _responses = [];
+  String? lastBody;
+  String? lastUrl;
+  String? lastMethod;
+  int getCount = 0;
+
+  void enqueue(String body, {int statusCode = 200}) {
+    _responses.add(ApiHttpResponse(statusCode: statusCode, body: body, headers: {}));
+  }
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
+    lastMethod = method;
+    lastUrl = url;
+    if (method == 'GET') {
+      getCount++;
+    }
+    if (body != null) {
+      lastBody = utf8.decode(body as List<int>);
+    }
+    return _responses.removeAt(0);
+  }
+}
+
+OpenIdConnectAuthenticator _createAuthenticator() {
+  return OpenIdConnectAuthenticator(
+    host: 'https://api.example.com',
+    openIdConnectUrl:
+        'https://auth.example.com/.well-known/openid-configuration',
+    clientId: 'my-client-id',
+    clientSecret: 'my-client-secret',
+    redirectUri: 'https://app.example.com/callback',
+    scopes: ['openid', 'profile'],
+  );
+}
+
+void main() {
+  group('OpenIdConnectAuthenticator', () {
+    test('builds authorization URL from discovery', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      final url = await auth.buildAuthorizationUrl('my-state');
+
+      expect(url, startsWith('https://auth.example.com/authorize?'));
+      expect(url, contains('response_type=code'));
+      expect(url, contains('client_id=my-client-id'));
+      expect(url, contains('state=my-state'));
+    });
+
+    test('fetches discovery document', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.buildAuthorizationUrl();
+
+      expect(client.lastMethod, equals('GET'));
+      expect(
+        client.lastUrl,
+        equals(
+            'https://auth.example.com/.well-known/openid-configuration'),
+      );
+    });
+
+    test('obtains token after code exchange', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('oidc-code');
+
+      expect(client.lastBody!, contains('grant_type=authorization_code'));
+      expect(client.lastBody!, contains('code=oidc-code'));
+    });
+
+    test('getAuthHeaders returns Bearer after exchange', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('oidc-code');
+      final headers = await auth.authHeadersAsync();
+
+      expect(headers['Authorization'], equals('Bearer oidc-tok'));
+    });
+
+    // Cross-cutting `oauth-oidc-missing-endpoint-guard`: a discovery
+    // document missing authorization_endpoint or token_endpoint must fail
+    // loudly rather than building a delegate with empty endpoint URLs.
+    test('throws when discovery is missing authorization_endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('throws when discovery is missing token_endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('throws when no ApiClient injected', () {
+      final auth = _createAuthenticator();
+
+      expect(
+        () => auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('getHost returns configured host', () {
+      final auth = _createAuthenticator();
+
+      expect(auth.host(), equals('https://api.example.com'));
+    });
+
+    // oauth-oidc-discovery-no-status-check: a non-2xx discovery response (e.g.
+    // a 500 HTML error page) must surface as a clear error, not a downstream
+    // "invalid JSON" parse failure of the body.
+    test('throws when discovery returns a non-2xx status', () async {
+      final client = _FakeApiClient();
+      client.enqueue('<html>internal server error</html>', statusCode: 500);
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('fetches discovery document only once', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.buildAuthorizationUrl();
+      await auth.buildAuthorizationUrl();
+
+      // The cached discovery document must be reused on the second call.
+      expect(client.getCount, equals(1));
+    });
+
+    test('redacts the secret in toString', () {
+      final auth = _createAuthenticator();
+
+      expect(auth.toString(), isNot(contains('my-client-secret')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+}
+{{/generateTests}}

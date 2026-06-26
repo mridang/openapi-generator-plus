@@ -1,0 +1,15 @@
+{{>api_info}}
+
+from enum import Enum
+
+
+class ClientAuthMethod(str, Enum):
+    """How OAuth2 client credentials are transmitted to the token endpoint.
+
+    Per RFC 6749 §2.3.1, the client_id and client_secret may be sent as
+    form parameters in the request body (BODY) or via the HTTP Basic
+    Authorization header (BASIC).
+    """
+
+    BODY = 'body'
+    BASIC = 'basic'

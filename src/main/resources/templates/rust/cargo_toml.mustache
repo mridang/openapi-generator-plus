@@ -1,0 +1,33 @@
+[package]
+name = "{{packageName}}"
+version = "{{packageVersion}}"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+description = "{{#appDescription}}{{appDescription}}{{/appDescription}}{{^appDescription}}Generated API client for {{packageName}}{{/appDescription}}"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_repr = "0.1"
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "deflate", "zstd", "multipart", "http2", "charset", "rustls-tls-native-roots"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+base64 = "0.22"
+uuid = { version = "1", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+urlencoding = "2"
+encoding_rs = "0.8"
+
+[features]
+default = []
+opentelemetry = ["dep:opentelemetry"]
+
+[dependencies.opentelemetry]
+version = "0.32"
+optional = true
+
+{{#generateTests}}
+[dev-dependencies]
+testcontainers = { version = "0.24", features = ["blocking"] }
+{{/generateTests}}

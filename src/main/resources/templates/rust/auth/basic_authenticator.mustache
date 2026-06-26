@@ -1,0 +1,147 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
+use std::future::Future;
+use std::pin::Pin;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+
+use super::Authenticator;
+
+/// Error returned by [`BasicAuthenticator::try_auth_headers`] when the caller
+/// supplies credentials that would corrupt the HTTP Authorization header
+/// (RFC 7617 §2). Callers can downcast to this type so they can distinguish a
+/// usage error from a network failure and recover (e.g. re-prompt) instead of
+/// being terminated by a `panic!`.
+#[derive(Debug)]
+pub enum BasicAuthError {
+    /// Username contained CR, LF, or NUL (header-injection / smuggling).
+    UsernameContainsControlChar,
+    /// Username contained `:` (the RFC 7617 field separator).
+    UsernameContainsColon,
+    /// Password contained CR, LF, or NUL (header-injection / smuggling).
+    PasswordContainsControlChar,
+}
+
+impl fmt::Display for BasicAuthError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BasicAuthError::UsernameContainsControlChar => f.write_str(
+                "Basic auth username must not contain CR, LF, or NUL characters",
+            ),
+            BasicAuthError::UsernameContainsColon => {
+                f.write_str("Basic auth username must not contain ':' (RFC 7617 §2)")
+            }
+            BasicAuthError::PasswordContainsControlChar => f.write_str(
+                "Basic auth password must not contain CR, LF, or NUL characters",
+            ),
+        }
+    }
+}
+
+impl Error for BasicAuthError {}
+
+// Brands this SDK-thrown error as part of the `ZitadelError` hierarchy so a
+// single `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold it alongside
+// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
+// satisfied by the `impl Error` above and the unit-like variants.
+impl crate::errors::ZitadelError for BasicAuthError {}
+
+/// BasicAuthenticator provides HTTP Basic authentication.
+pub struct BasicAuthenticator {
+    host: String,
+    username: String,
+    password: String,
+}
+
+impl BasicAuthenticator {
+    /// Creates a new Basic authenticator.
+    ///
+    /// # Panics
+    ///
+    /// Credentials are validated eagerly at construction, so a malformed
+    /// credential (colon in user-id, or CR/LF/NUL in either field per
+    /// RFC 7617 §2) panics where it is supplied rather than lazily at first
+    /// use — matching the fail-closed behaviour of the Bearer and API-key
+    /// authenticators. Use [`BasicAuthenticator::try_auth_headers`] when you
+    /// need to recover from malformed credentials instead of crashing; note
+    /// that this constructor itself panics on the same conditions.
+    pub fn new(host: &str, username: &str, password: &str) -> Self {
+        let auth = Self {
+            host: host.to_string(),
+            username: username.to_string(),
+            password: password.to_string(),
+        };
+        if let Err(e) = auth.try_auth_headers() {
+            panic!("invalid HTTP Basic credentials: {}", e);
+        }
+        auth
+    }
+
+    /// Returns the Basic Authorization header, or a typed [`BasicAuthError`]
+    /// when the supplied credentials violate RFC 7617 §2 (colon in user-id, or
+    /// CR/LF/NUL in either field). Use this variant when you need to recover
+    /// gracefully (e.g. re-prompt the user) instead of crashing the process —
+    /// the trait method [`Authenticator::auth_headers`] collapses the error
+    /// to an empty map for interface conformance.
+    pub fn try_auth_headers(&self) -> Result<HashMap<String, String>, BasicAuthError> {
+        for c in self.username.chars() {
+            if c == '\r' || c == '\n' || c == '\0' {
+                return Err(BasicAuthError::UsernameContainsControlChar);
+            }
+            if c == ':' {
+                return Err(BasicAuthError::UsernameContainsColon);
+            }
+        }
+        for c in self.password.chars() {
+            if c == '\r' || c == '\n' || c == '\0' {
+                return Err(BasicAuthError::PasswordContainsControlChar);
+            }
+        }
+        let encoded = STANDARD.encode(format!("{}:{}", self.username, self.password));
+        let mut headers = HashMap::new();
+        headers.insert("Authorization".to_string(), format!("Basic {}", encoded));
+        Ok(headers)
+    }
+}
+
+/// Redacts the password so it never leaks through `{:?}` (Debug) formatting,
+/// stack traces, or error logs. The host and username are shown normally; the
+/// password is masked as `***`.
+impl std::fmt::Debug for BasicAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BasicAuthenticator")
+            .field("host", &self.host)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .finish()
+    }
+}
+
+impl Authenticator for BasicAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Returns the Basic Authorization header. RFC 7617 §2 violations
+    /// (colon in user-id, CR/LF/NUL in either field) are header-injection /
+    /// smuggling vectors and a programmer error, so this method `panic!`s —
+    /// matching the fail-closed behaviour of the Bearer and API-key
+    /// authenticators. It must never silently drop the credentials and send
+    /// the request unauthenticated. Use
+    /// [`BasicAuthenticator::try_auth_headers`] when you need to distinguish
+    /// "credentials are malformed" from "endpoint rejected" and recover
+    /// programmatically without crashing the process.
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            self.try_auth_headers().unwrap_or_else(|e| {
+                panic!("invalid HTTP Basic credentials: {}", e)
+            })
+        })
+    }
+}

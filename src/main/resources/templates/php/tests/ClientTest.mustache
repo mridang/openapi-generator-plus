@@ -1,0 +1,116 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiHttpResponse;
+use {{invokerPackage}}\{{clientClassName}};
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
+use {{invokerPackage}}\Auth\BearerAuthenticator;
+use {{invokerPackage}}\TransportOptions;
+
+beforeEach(function (): void {
+    $this->authenticator = new BearerAuthenticator('{{{basePath}}}', 'test-token');
+});
+
+test('construct with authenticator only', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('construct with authenticator and null transport options', function (): void {
+    // A null transport must fall back to the default builder output, so
+    // constructing with an explicit null is equivalent to omitting it.
+    $client = new {{clientClassName}}($this->authenticator, null);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('construct with authenticator and transport options', function (): void {
+    $transport = TransportOptions::builder()->build();
+
+    $client = new {{clientClassName}}($this->authenticator, $transport);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('bearer rejects crlf', function (): void {
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', "tok\r\nInjected: yes"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bearer rejects non ascii', function (): void {
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', 'ñoño'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bearer rejects empty token', function (): void {
+    // An empty / whitespace-only token would emit "Authorization: Bearer "
+    // (no credential), so it must be rejected at construction.
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', ''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', '   '))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key header rejects crlf and non ascii', function (): void {
+    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    // ApiKeyAuthenticator's HEADER location must reject anything
+    // outside printable ASCII + TAB to prevent header injection
+    // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+    expect(fn () => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key header rejects non ascii', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key query allows non ascii', function (): void {
+    // Non-header locations accept arbitrary chars.
+    $auth = new ApiKeyAuthenticator('{{{basePath}}}', 'api_key', 'kéy', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'kéy']);
+});
+
+test('api groups are accessible', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect($client->{{clientPropertyName}})->toBeInstanceOf(\{{apiPackage}}\{{classname}}::class);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+test('injected api client is wired into every api group', function (): void {
+    // A custom ApiClient passed to the facade must be the exact instance every
+    // API group sends through — this is the seam that lets a Psr18ApiClient (or
+    // any bespoke transport) replace the bundled DefaultApiClient.
+    $stub = new class implements ApiClient {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', []);
+        }
+    };
+
+    $client = new {{clientClassName}}($this->authenticator, null, $stub);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $property = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->getProperty('apiClient');
+    expect($property->getValue($client->{{clientPropertyName}}))->toBe($stub);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});

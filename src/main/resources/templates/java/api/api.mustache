@@ -1,0 +1,456 @@
+{{>api_info}}
+
+package {{package}};
+
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.ApiException;
+import {{invokerPackage}}.ApiResult;
+import {{invokerPackage}}.Configuration;
+import {{invokerPackage}}.auth.Authenticator;
+{{#imports}}import {{import}};
+{{/imports}}
+{{#optionsImports}}
+import {{package}}.options.{{optionsClassName}};
+{{/optionsImports}}
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
+
+{{#operations}}
+/**
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+ * {{{.}}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+ * @see <a href="{{url}}">{{{description}}}</a>
+{{/tagExternalDocs}}
+ */
+{{>models/checkstyle_suppressions}}
+public class {{classname}} extends BaseApi {
+{{#operation}}
+{{#returnType}}
+
+    private static final java.lang.reflect.Type {{operationId}}TypeRef =
+            new TypeReference<{{{returnType}}}>() {}.getType();
+{{/returnType}}
+{{/operation}}
+
+{{#serverTypeDefs}}
+
+    /**
+     * Server type for the {{operationId}} operation.
+     */
+    public sealed interface {{serverTypeName}} {
+        /**
+         * Returns the resolved base URL for this server.
+         *
+         * @return the resolved base URL
+         */
+        String getUrl();
+{{#variants}}
+{{#serverVariables}}
+{{#hasEnumValues}}
+
+        /** Allowed values for the {@code {{name}}} server variable. */
+        enum {{pascalName}} {
+{{#enumValues}}
+            /** The {@code {{value}}} value. */
+            {{name}}("{{value}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+{{/enumValues}}
+
+            private final String value;
+
+            {{pascalName}}(String value) {
+                this.value = value;
+            }
+
+            /**
+             * Returns the wire value of this enum constant.
+             *
+             * @return the wire value
+             */
+            public String getValue() {
+                return value;
+            }
+        }
+{{/hasEnumValues}}
+{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+        /**
+         * {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
+{{#serverVariables}}
+         *
+         * @param {{camelName}} the {@code {{name}}} server variable
+{{/serverVariables}}
+         */
+        record {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) implements {{serverTypeName}} {
+
+            @Override
+            public String getUrl() {
+                String url = "{{url}}";
+{{#serverVariables}}
+                url = url.replace("{" + "{{name}}" + "}", {{#hasEnumValues}}{{camelName}}.getValue(){{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}});
+{{/serverVariables}}
+                return url;
+            }
+        }
+{{/variants}}
+    }
+{{/serverTypeDefs}}
+
+    /** Creates an instance with the default client and configuration. */
+    public {{classname}}() {
+        super();
+    }
+
+    /**
+     * Creates an instance with the given client and configuration.
+     *
+     * @param apiClient the API client used to execute requests
+     * @param config the client configuration
+     */
+    public {{classname}}(ApiClient apiClient, Configuration config) {
+        super(apiClient, config);
+    }
+
+    /**
+     * Creates an instance with the given client, configuration, and authenticator.
+     *
+     * @param apiClient the API client used to execute requests
+     * @param config the client configuration
+     * @param authenticator the default authenticator, or {@code null} for none
+     */
+    public {{classname}}(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+        super(apiClient, config, authenticator);
+    }
+    {{#operation}}
+
+{{#servers}}{{#-first}}
+{{>api/operation_doc_noserver}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);{{/returnType}}
+    }
+
+{{>api/operation_doc_result_noserver}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);
+    }
+{{/-first}}{{/servers}}
+{{#vendorExtensions.op.optionsArgOptional}}
+    /**
+     * {{{summary}}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any per-call authenticator and optional parameters default to unset and
+     * the client's configured credentials are used.
+     *
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}
+    }
+
+    /**
+     * {{{summary}}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any per-call authenticator and optional parameters default to unset and
+     * the client's configured credentials are used.
+     *
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});
+    }
+{{/vendorExtensions.op.optionsArgOptional}}
+{{>api/operation_doc}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+        {{#returnType}}return requireBody({{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}), "{{operationId}}");{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});{{/returnType}}
+    }
+{{#vendorExtensions.hasMultipleConsumes}}
+
+    /**
+     * {{{summary}}}
+     *
+     * <p>Overload that selects the request content-type among the types this
+     * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
+     * The selected value is sent as the {@code Content-Type} request header.
+     * Passing {@code null} defaults to the first declared type, matching the
+     * overload without a selector.
+     *
+     * @param requestContentType the request content-type to send, or {@code null} for the default
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
+        {{#returnType}}return requireBody({{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType), "{{operationId}}");{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType);{{/returnType}}
+    }
+
+    /**
+     * {{{summary}}}
+     *
+     * <p>Overload that selects the request content-type among the types this
+     * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
+     * The selected value is sent as the {@code Content-Type} request header.
+     * Passing {@code null} defaults to the first declared type.
+     *
+     * @param requestContentType the request content-type to send, or {@code null} for the default
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
+        return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType);
+    }
+{{/vendorExtensions.hasMultipleConsumes}}
+
+{{>api/operation_doc_result}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+{{#hasAuthMethods}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+        return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}, null{{/vendorExtensions.hasMultipleConsumes}});
+    }
+
+    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}, @Nullable String requestContentType{{/vendorExtensions.hasMultipleConsumes}}) {
+        Authenticator auth = {{#vendorExtensions.op.optionsParamRequired}}options.auth(){{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options != null ? options.auth() : null{{/vendorExtensions.op.optionsParamRequired}};
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.hasMultipleConsumes}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+        return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, null);
+    }
+
+    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
+{{/vendorExtensions.hasMultipleConsumes}}
+{{^vendorExtensions.hasMultipleConsumes}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+{{/vendorExtensions.hasMultipleConsumes}}
+{{/hasAuthMethods}}
+{{#pathParams}}
+{{#required}}
+        if ({{paramName}} == null{{#isString}} || {{paramName}}.isEmpty(){{/isString}}) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if ({{paramName}} == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/cookieParams}}
+        String path{{^pathParams}} = "{{{path}}}";{{/pathParams}}{{#pathParams}}{{#-first}} =
+                "{{{path}}}"{{/-first}}
+                        .replace(
+                                "{" + "{{baseName}}" + "}",
+                                (String) ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if (server != null) {
+            String serverUrl = server.getUrl();
+            if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+                path = serverUrl + path;
+            }
+        }
+{{/-first}}
+{{/servers}}
+        Map<String, Object> queryParams = new HashMap<>();
+{{#queryParams}}
+{{#vendorExtensions.param.queryDeepObject}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
+            queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}()));
+        }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
+            queryParams.put("{{baseName}}", objectSerializer.serialize(options.{{paramName}}()));
+        }
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
+            queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
+        }
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
+            queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
+        }
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        Map<String, String> headerParams = new HashMap<>();
+{{#headerParams}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
+            headerParams.put(
+                    "{{baseName}}", (String) ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}));
+        }
+{{/headerParams}}
+{{#hasCookieParams}}
+        java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
+{{#cookieParams}}
+        if (options != null && options.{{paramName}}() != null) {
+            String {{paramName}}CookieValue = String.valueOf(
+                    ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}));
+            /* RFC 6265 — validate the operation cookie name and the assembled
+             * value with the SAME rule the auth-provided cookie path applies in
+             * BaseApi. Without this, a CR/LF or control-char value supplied at
+             * the call site would be interpolated straight into the Cookie
+             * request header (header injection). Fail closed instead, mirroring
+             * the auth-cookie path's IllegalArgumentException. */
+            if (!isValidCookieName("{{baseName}}")) {
+                throw new IllegalArgumentException(
+                        "Cookie name '{{baseName}}' contains characters forbidden by RFC 6265");
+            }
+            if (!isValidCookieValue({{paramName}}CookieValue)) {
+                throw new IllegalArgumentException(
+                        "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265");
+            }
+            cookieJoiner.add("{{baseName}}=" + {{paramName}}CookieValue);
+        }
+{{/cookieParams}}
+        if (cookieJoiner.length() > 0) {
+            headerParams.put("Cookie", cookieJoiner.toString());
+        }
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        Map<String, Object> formBody = new HashMap<>();
+{{#formParams}}
+{{#required}}
+        formBody.put("{{baseName}}", options.{{paramName}}());
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
+            formBody.put("{{baseName}}", options.{{paramName}}());
+        }
+{{/required}}
+{{/formParams}}
+
+{{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        /* This operation declares more than one request content-type. The
+         * optional {@code requestContentType} selector lets the caller pick
+         * among the declared types; when unset (null) it defaults to the first
+         * declared type, preserving the historical single-type behaviour. An
+         * unrecognised selector is rejected client-side so a typo never rides
+         * the wire as an undeclared Content-Type. */
+        String effectiveRequestContentType = "{{vendorExtensions.op.effectiveConsumes}}";
+        if (requestContentType != null) {
+            java.util.List<String> declaredContentTypes =
+                    java.util.List.of({{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}});
+            if (!declaredContentTypes.contains(requestContentType)) {
+                throw new IllegalArgumentException(
+                        "Unsupported request content-type '"
+                                + requestContentType
+                                + "' for {{operationId}}; declared types are "
+                                + declaredContentTypes);
+            }
+            effectiveRequestContentType = requestContentType;
+        }
+{{/vendorExtensions.hasMultipleConsumes}}
+        return invokeApiForResult(
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+                new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
+                {{#vendorExtensions.hasMultipleConsumes}}effectiveRequestContentType{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
+                {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}},
+                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}NO_AUTH{{/hasAuthMethods}});
+    }
+    {{/operation}}
+
+    /**
+     * Unwrap the body of a body-returning operation, throwing a typed
+     * {@link ApiException} when the server returned no decodable body
+     * (for example an empty or 204 response). The plain convenience
+     * accessor must never hand back a silent {@code null} for a declared
+     * non-void return type — callers get a catchable, typed error instead.
+     *
+     * @param result    the API result whose data should be present
+     * @param operation the operation id, for the error message
+     * @param <T>       the response body type
+     * @return the non-null response body
+     * @throws ApiException if the result carries no body
+     */
+    private static <T> T requireBody(ApiResult<T> result, String operation) {
+        T data = result.data();
+        if (data == null) {
+            throw new ApiException(
+                    result.statusCode(),
+                    "Operation '" + operation
+                            + "' returned an empty response body for a body-returning operation",
+                    result.headers(),
+                    result.rawBody());
+        }
+        return data;
+    }
+}
+{{/operations}}

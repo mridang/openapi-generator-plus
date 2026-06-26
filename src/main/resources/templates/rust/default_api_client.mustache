@@ -1,0 +1,1391 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+use std::time::Duration;
+
+use reqwest::{Client, ClientBuilder};
+use reqwest::Proxy;
+use uuid::Uuid;
+
+use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
+use crate::api_error::ApiError;
+use crate::api_response::ApiHttpResponse;
+use crate::transport_options::TransportOptions;
+use crate::transport_options::TransportOptionsBuilder;
+
+/// Gap 3.1: lowercased credential-bearing header names that must be stripped
+/// from cross-origin redirects. The fixed entries (`authorization`, `cookie`,
+/// `proxy-authorization`) are joined at codegen time by every `apiKey, in:
+/// header` security scheme declared in the OpenAPI spec, so a custom
+/// `X-Api-Key` (or similarly named) header injected by the caller cannot leak
+/// to an attacker-controlled redirect target. Names are compared
+/// case-insensitively; entries here are already lowercased.
+pub const SENSITIVE_HEADER_NAMES: &[&str] = &[
+    "authorization",
+    "cookie",
+    "proxy-authorization",{{#apiKeyHeaderNames}}
+    "{{nameLower}}",{{/apiKeyHeaderNames}}
+];
+
+/// DefaultApiClient is the default HTTP client implementation backed by reqwest.
+///
+/// Applies transport-level settings from TransportOptions: TLS verification,
+/// custom CA certificates, proxy routing, timeouts, redirect handling,
+/// User-Agent injection, X-Request-ID injection, and transport-level
+/// default headers.
+///
+/// Header merge order (lowest to highest priority):
+///  1. TransportOptions default_headers -- transport-level defaults
+///  2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+///  3. TransportOptions user_agent -- injected if not already set
+///  4. TransportOptions inject_request_id -- injected if not already set
+pub struct DefaultApiClient {
+    transport_options: TransportOptions,
+    http_client: Client,
+    /// Gap T6: close-lifecycle flag. Set by `close()`; once set, any further
+    /// `send_request*` call fails fast with an `ApiError` instead of leaking a
+    /// foreign reqwest error or silently succeeding. Unified across all 12 SDKs
+    /// (closed-flag + SDK error on use-after-close).
+    closed: Arc<AtomicBool>,
+}
+
+impl DefaultApiClient {
+    /// Creates a client with the given transport settings.
+    /// If `transport_options` is None, default transport settings are used.
+    pub fn new(transport_options: Option<TransportOptions>) -> Self {
+        let opts = transport_options.unwrap_or_else(|| TransportOptionsBuilder::new().build());
+        let http_client = build_http_client(&opts);
+        Self {
+            transport_options: opts,
+            http_client,
+            closed: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Gap T6: explicit close hook. Marks the client closed so that any
+    /// subsequent request fails fast with a uniform SDK `ApiError`
+    /// ("client is closed"). `reqwest::Client` additionally releases its
+    /// connection pool / executor threads when the last clone is dropped
+    /// (see the `Drop` impl below).
+    pub fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+    }
+
+    /// Returns true once `close()` has been called on this client.
+    pub fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
+    }
+}
+
+impl Drop for DefaultApiClient {
+    /// Gap T6: explicit `Drop` impl documents the lifecycle of the
+    /// underlying `reqwest::Client`. Reqwest tears the pool down via its
+    /// own `Drop` once the last `Arc` clone is released; this impl exists
+    /// to make that contract discoverable to readers and to give us a hook
+    /// for future cleanup if we ever own resources outside reqwest.
+    fn drop(&mut self) {
+        /* No-op: reqwest::Client's internal Drop releases the pool. */
+    }
+}
+
+impl ApiClient for DefaultApiClient {
+    /// Sends an HTTP request with transport-level settings applied.
+    ///
+    /// Merges headers according to the priority order documented on the struct,
+    /// then dispatches via reqwest.
+    fn send_request(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        self.send_request_with_options(method, url, headers, body, &RequestOptions::default())
+    }
+
+    /// Gap 3.2: extended `send_request` that honours per-request options.
+    /// Set `options.no_redirect=true` (e.g. on OAuth2 token POSTs) to skip
+    /// redirect following entirely; the first 3xx response is returned to the
+    /// caller as-is. The token manager inspects and rejects the 3xx itself, so
+    /// the credentialed body is never silently replayed to a redirect target.
+    fn send_request_with_options(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+        options: &RequestOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        let method = method.to_string();
+        let url = url.to_string();
+        let headers = headers.clone();
+        let body = body.cloned();
+        let options = options.clone();
+
+        Box::pin(async move {
+            // Gap T6: use-after-close must surface as a uniform SDK error,
+            // not a foreign library exception or a silent success.
+            if self.closed.load(Ordering::SeqCst) {
+                return Err(Box::new(ApiError::new(
+                    0,
+                    "ApiClient is closed".to_string(),
+                    None,
+                    None,
+                )) as Box<dyn std::error::Error + Send + Sync>);
+            }
+            let mut merged: HashMap<String, String> = self.transport_options.default_headers();
+            for (k, v) in &headers {
+                merged.insert(k.clone(), v.clone());
+            }
+            if !merged.contains_key("User-Agent") {
+                // Only inject a User-Agent header when one is configured; a
+                // `None` user_agent means the header is omitted entirely.
+                if let Some(ua) = self.transport_options.user_agent() {
+                    if !ua.is_empty() {
+                        merged.insert("User-Agent".to_string(), ua.to_string());
+                    }
+                }
+            }
+            if !merged.contains_key("Accept-Encoding") {
+                merged.insert(
+                    "Accept-Encoding".to_string(),
+                    "gzip, deflate, zstd".to_string(),
+                );
+            }
+            if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
+                merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
+            }
+            // T-new-3: Pre-serialize the body to a Vec<u8> up-front so we can
+            // replay it across 307/308 redirects per RFC 7231 §6.4.7 / RFC 7538.
+            // Multipart bodies are serialized here (rather than handed to
+            // reqwest::multipart::Form, which is not Clone) so the same bytes
+            // and boundary can be re-sent on the follow-up request.
+            let body_bytes: Option<Vec<u8>> = match &body {
+                Some(RequestBody::Bytes(b)) => Some(b.clone()),
+                Some(RequestBody::Multipart(fields)) => {
+                    let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
+                    let serialized = serialize_multipart_body(fields, &boundary);
+                    // Force the multipart Content-Type (with the boundary we
+                    // generated) onto the outgoing request; if the caller set
+                    // a Content-Type it would not contain our boundary, so the
+                    // server could not parse the body.
+                    merged.insert(
+                        "Content-Type".to_string(),
+                        format!("multipart/form-data; boundary={}", boundary),
+                    );
+                    Some(serialized)
+                }
+                None => None,
+            };
+
+            /* Do not send Content-Type when there is no request body */
+            if body_bytes.is_none() {
+                merged.remove("Content-Type");
+            }
+
+            let http_method = method.parse::<reqwest::Method>().map_err(|e| {
+                Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+
+            let mut request_builder = self.http_client.request(http_method, &url);
+
+            for (k, v) in &merged {
+                request_builder = request_builder.header(k.as_str(), v.as_str());
+            }
+
+            if let Some(bytes) = &body_bytes {
+                request_builder = request_builder.body(bytes.clone());
+            } else {
+                /* Some servers / WAFs treat POST/PUT/PATCH with no body
+                 * and no Content-Length as malformed (411 Length
+                 * Required) or behave inconsistently. Attach an empty
+                 * Vec<u8> on body-bearing verbs so reqwest emits an
+                 * explicit `Content-Length: 0`, matching Kotlin's
+                 * `ByteArray(0)` and the other 11 SDKs. */
+                let upper = method.to_ascii_uppercase();
+                if upper == "POST" || upper == "PUT" || upper == "PATCH" {
+                    request_builder = request_builder
+                        .body(Vec::<u8>::new())
+                        .header("Content-Length", "0");
+                    // Also record the explicit `Content-Length: 0` in `merged`
+                    // (the header map the redirect loop seeds itself from), not
+                    // only on this builder. A 307/308 replay of a body-less
+                    // POST rebuilds the follow-up request from
+                    // `current_headers`, so setting it only on the builder
+                    // would lose the workaround on the redirected hop. The
+                    // redirect loop preserves a `Content-Length` of exactly
+                    // `0` even when there is no `next_body` (see below), since
+                    // an empty body's length is unconditionally zero.
+                    merged.insert("Content-Length".to_string(), "0".to_string());
+                }
+            }
+
+            let mut response = request_builder.send().await.map_err(|e| {
+                let message = e.to_string();
+                Box::new(ApiError::with_source(
+                    0,
+                    message,
+                    None,
+                    None,
+                    Arc::new(e),
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+
+            // Gap BH: manual redirect loop with cross-origin header strip.
+            // Gap 3.2: options.no_redirect (the OAuth2 token POST) means "do
+            // not follow redirects; return the 3xx as-is". The loop is skipped
+            // and the first 3xx surfaces verbatim. The token manager inspects
+            // and rejects the 3xx itself, so a credential-bearing body is never
+            // silently replayed to a redirect target.
+            if self.transport_options.follow_redirects() && !options.no_redirect {
+                // Default to 20 hops when caller does not configure an explicit
+                // cap — unified across all 12 SDKs.
+                let max = self.transport_options.max_redirects().unwrap_or(20);
+                let original_url = reqwest::Url::parse(&url).ok();
+                let mut current_url = original_url.clone();
+                let mut hops = 0usize;
+                let mut current_method = method.to_string();
+                let mut current_body: Option<Vec<u8>> = body_bytes.clone();
+                let mut current_headers: std::collections::HashMap<String, String> =
+                    merged.clone();
+                while is_redirect_status(response.status().as_u16()) && hops < max {
+                    let status_code = response.status().as_u16();
+                    let location = match response
+                        .headers()
+                        .get("location")
+                        .and_then(|v| v.to_str().ok())
+                        .map(|s| s.to_string())
+                    {
+                        Some(l) => l,
+                        None => break,
+                    };
+                    let next_url = match current_url
+                        .as_ref()
+                        .and_then(|c| c.join(&location).ok())
+                    {
+                        Some(u) => u,
+                        None => break,
+                    };
+                    if next_url.scheme() != "http" && next_url.scheme() != "https" {
+                        // Gap T-D3: a `Location:` pointing at a non-http(s)
+                        // scheme (file:, javascript:, data:, ...) must be
+                        // refused loudly, not silently returned as the 3xx
+                        // response. Unified across the 12 SDKs.
+                        return Err(Box::new(ApiError::new(
+                            status_code,
+                            format!(
+                                "Refusing to follow redirect to non-http(s) URL: {}",
+                                next_url
+                            ),
+                            None,
+                            None,
+                        )) as Box<dyn std::error::Error + Send + Sync>);
+                    }
+                    let cross_origin = match original_url.as_ref() {
+                        Some(orig) => !same_origin(orig, &next_url),
+                        None => true,
+                    };
+
+                    // Gap 3.3: refuse to replay a request body across an
+                    // HTTPS->HTTP downgrade. Only 307/308 preserve the body, so
+                    // we only guard those: a TLS-protected payload (POST/PUT
+                    // body) must not be silently re-sent in cleartext.
+                    if is_https_to_http_body_replay(
+                        status_code,
+                        current_url.as_ref(),
+                        &next_url,
+                        current_body.is_some(),
+                    ) {
+                        return Err(Box::new(ApiError::new(
+                            status_code,
+                            format!(
+                                "Refusing to replay request body across HTTPS->HTTP redirect: {} -> {}",
+                                current_url
+                                    .as_ref()
+                                    .map(|u| u.to_string())
+                                    .unwrap_or_else(|| url.clone()),
+                                next_url
+                            ),
+                            None,
+                            None,
+                        )) as Box<dyn std::error::Error + Send + Sync>);
+                    }
+
+                    // Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 /
+                    // RFC 7538.
+                    //   307 + 308: preserve original method and body.
+                    //   303:       force GET, drop the body (and Content-Type/Length).
+                    //   301 + 302: historical browser behaviour — switch to GET
+                    //              for non-GET/HEAD requests, drop the body.
+                    let method_upper = current_method.to_uppercase();
+                    let (next_method, next_body): (String, Option<Vec<u8>>) =
+                        if status_code == 307 || status_code == 308 {
+                            (current_method.clone(), current_body.clone())
+                        } else if status_code == 303 {
+                            ("GET".to_string(), None)
+                        } else if method_upper == "GET" || method_upper == "HEAD" {
+                            (current_method.clone(), current_body.clone())
+                        } else {
+                            ("GET".to_string(), None)
+                        };
+
+                    let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
+                        Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+                    })?;
+                    let mut redirect_builder =
+                        self.http_client.request(http_method, next_url.clone());
+                    let mut redirect_headers = current_headers.clone();
+                    if next_body.is_none() {
+                        redirect_headers.retain(|k, v| {
+                            let lk = k.to_lowercase();
+                            // Drop Content-Type unconditionally when there is
+                            // no body. Drop Content-Length too, EXCEPT a
+                            // literal `0`: an original empty-body POST/PUT/PATCH
+                            // carries an explicit `Content-Length: 0` workaround
+                            // (for WAFs/servers that 411 on body-less POSTs)
+                            // and that header stays valid across a 307/308
+                            // replay, where the empty body is preserved.
+                            lk != "content-type"
+                                && (lk != "content-length" || v.trim() == "0")
+                        });
+                    }
+                    for (k, v) in &redirect_headers {
+                        let lk = k.to_lowercase();
+                        if cross_origin && SENSITIVE_HEADER_NAMES.iter().any(|s| *s == lk) {
+                            continue;
+                        }
+                        redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
+                    }
+                    if let Some(b) = &next_body {
+                        redirect_builder = redirect_builder.body(b.clone());
+                    }
+                    response = redirect_builder.send().await.map_err(|e| {
+                        let message = e.to_string();
+                        Box::new(ApiError::with_source(
+                            0,
+                            message,
+                            None,
+                            None,
+                            Arc::new(e),
+                        )) as Box<dyn std::error::Error + Send + Sync>
+                    })?;
+                    current_url = Some(next_url);
+                    current_method = next_method;
+                    current_body = next_body;
+                    current_headers = redirect_headers;
+                    hops += 1;
+                }
+
+                // Gap T-D1: exceeding the redirect cap must fail loudly rather
+                // than silently returning the last 3xx as a normal response.
+                // Unified across the 12 SDKs ("too many redirects").
+                if is_redirect_status(response.status().as_u16()) && hops >= max {
+                    return Err(Box::new(ApiError::new(
+                        response.status().as_u16(),
+                        format!("too many redirects (exceeded {})", max),
+                        None,
+                        None,
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
+            }
+
+            let status_code = response.status().as_u16();
+            // Gap BE+BF: response header keys are normalised to lowercase so
+            // callers can look them up consistently regardless of the casing
+            // the server used (HTTP header names are case-insensitive per
+            // RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
+            // wire). Repeated header lines (for example multiple Link or
+            // Set-Cookie headers) are joined with ", " to preserve order
+            // per RFC 7230 section 3.2.2. The joined form is not directly
+            // parseable for Set-Cookie; callers needing structured cookie
+            // access should iterate `response.headers().get_all("set-cookie")`
+            // on a reqwest Response themselves.
+            let mut resp_headers: HashMap<String, String> = HashMap::new();
+            for name in response.headers().keys() {
+                let joined = response
+                    .headers()
+                    .get_all(name)
+                    .iter()
+                    .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                resp_headers.insert(name.as_str().to_string(), joined);
+            }
+
+            let content_type = resp_headers
+                .get("content-type")
+                .cloned()
+                .unwrap_or_default();
+            // Gap: a body-read failure that occurs AFTER response headers are
+            // received (connection reset, read timeout, truncated chunked
+            // transfer, decompression error) must be wrapped in the uniform
+            // ApiError (statusCode 0) — the same treatment a send-phase failure
+            // gets — rather than escaping as a raw reqwest::Error.
+            let resp_bytes = response.bytes().await.map_err(|e| {
+                let message = e.to_string();
+                Box::new(ApiError::with_source(
+                    0,
+                    message,
+                    None,
+                    None,
+                    Arc::new(e),
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+            let resp_body = if is_text_content_type(&content_type) {
+                decode_text_body(&resp_bytes, &content_type)
+            } else {
+                use base64::Engine as _;
+                base64::engine::general_purpose::STANDARD.encode(&resp_bytes)
+            };
+
+            Ok(ApiHttpResponse::new(status_code, resp_body, resp_headers))
+        })
+    }
+}
+
+fn build_http_client(opts: &TransportOptions) -> Client {
+    let mut builder = ClientBuilder::new();
+
+    // F-W5-5: reqwest only decompresses response bodies when the relevant
+    // decompression features are explicitly enabled on the builder.
+    // Without these calls, the client advertises gzip/deflate/zstd
+    // in Accept-Encoding but returns the raw compressed bytes to the caller,
+    // corrupting any server response that picks one of those encodings.
+    // Brotli is intentionally omitted: reqwest's `brotli` feature pulls
+    // `brotli` 8.x, which fails to compile against the current
+    // `brotli-decompressor` (incompatible `alloc-no-stdlib` versions).
+    builder = builder
+        .gzip(true)
+        .deflate(true)
+        .zstd(true);
+
+    // Gap AM: `verify_ssl=false` must skip BOTH the certificate-chain check
+    // and the hostname check, matching `curl -k` and the other SDKs. reqwest
+    // gates these independently: `danger_accept_invalid_certs` alone still
+    // enforces hostname verification, so a `verify_ssl=false` client would
+    // reject a self-signed cert whose CN/SAN does not match the host. Disable
+    // both so insecure mode is consistent across the suite.
+    builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
+    builder = builder.danger_accept_invalid_hostnames(!opts.verify_ssl());
+
+    if let Some(ca_path) = opts.ca_cert_path() {
+        // Gap T4: surface CA-cert load/parse failures rather than silently
+        // falling back to the system trust store. If the user explicitly
+        // asked for SSL pinning we must not pretend it succeeded.
+        let ca_bytes = std::fs::read(ca_path).unwrap_or_else(|e| {
+            panic!("failed to read CA certificate from {:?}: {}", ca_path, e)
+        });
+        let cert = reqwest::Certificate::from_pem(&ca_bytes).unwrap_or_else(|e| {
+            panic!(
+                "failed to parse CA certificate from {:?}: {}",
+                ca_path, e
+            )
+        });
+        builder = builder.add_root_certificate(cert);
+    }
+
+    if let Some(proxy_url) = opts.proxy() {
+        if let Ok(proxy) = Proxy::all(proxy_url) {
+            builder = builder.proxy(proxy);
+        }
+    }
+
+    if let Some(timeout_ms) = opts.timeout() {
+        builder = builder.timeout(Duration::from_millis(timeout_ms as u64));
+    }
+
+    // Gap BH: reqwest re-sends Authorization / Cookie / Proxy-Authorization
+    // across cross-origin 3xx redirects by default, which leaks bearer
+    // tokens to attacker-controlled hosts via malicious 302. We disable
+    // reqwest's built-in redirect following entirely and implement a manual
+    // loop in send_request that strips sensitive headers when the next
+    // URL's origin (scheme + host + port) differs from the original.
+    builder = builder.redirect(reqwest::redirect::Policy::none());
+
+    builder.build().expect("failed to build HTTP client")
+}
+
+/// Returns true for HTTP 3xx redirect status codes that carry a Location header.
+fn is_redirect_status(code: u16) -> bool {
+    matches!(code, 301 | 302 | 303 | 307 | 308)
+}
+
+/// Gap 3.3: returns `true` when following the redirect would replay the
+/// in-flight request body across an HTTPS->HTTP downgrade. Only 307/308
+/// preserve the body per RFC 7231 §6.4.7 / RFC 7538, so the predicate is
+/// false for 301/302/303 even when the schemes differ.
+pub(crate) fn is_https_to_http_body_replay(
+    status_code: u16,
+    current_url: Option<&reqwest::Url>,
+    next_url: &reqwest::Url,
+    has_body: bool,
+) -> bool {
+    if status_code != 307 && status_code != 308 {
+        return false;
+    }
+    if !has_body {
+        return false;
+    }
+    let current_is_https = current_url
+        .map(|u| u.scheme().eq_ignore_ascii_case("https"))
+        .unwrap_or(false);
+    let next_is_http = next_url.scheme().eq_ignore_ascii_case("http");
+    current_is_https && next_is_http
+}
+
+/// Returns true when two URLs share scheme, host, and effective port.
+pub(crate) fn same_origin(a: &reqwest::Url, b: &reqwest::Url) -> bool {
+    if a.scheme() != b.scheme() {
+        return false;
+    }
+    if a.host_str().map(|s| s.to_lowercase()) != b.host_str().map(|s| s.to_lowercase()) {
+        return false;
+    }
+    a.port_or_known_default() == b.port_or_known_default()
+}
+
+/// T-new-3: Serializes a multipart/form-data body to bytes using the supplied
+/// boundary string. Performed eagerly (rather than handing fields to
+/// `reqwest::multipart::Form`, which is not `Clone`) so the body can be
+/// replayed verbatim across 307/308 redirects per RFC 7231 §6.4.7 / RFC 7538.
+///
+/// Each field is emitted as:
+///
+/// ```text
+/// --<boundary>CRLF
+/// Content-Disposition: form-data; name="<name>"[; filename="<name>"]CRLF
+/// Content-Type: <mime>CRLF       (only for bytes parts)
+/// CRLF
+/// <value bytes>CRLF
+/// ```
+///
+/// followed by the closing `--<boundary>--CRLF` delimiter.
+pub fn serialize_multipart_body(
+    fields: &HashMap<String, MultipartValue>,
+    boundary: &str,
+) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::new();
+    for (name, value) in fields {
+        append_multipart_field(&mut out, boundary, name, value);
+    }
+    out.extend_from_slice(b"--");
+    out.extend_from_slice(boundary.as_bytes());
+    out.extend_from_slice(b"--\r\n");
+    out
+}
+
+/// Appends a single multipart field (recursing into List variants) to the
+/// in-progress body buffer. Bytes parts are written as file uploads with a
+/// filename directive derived from the field name; text parts are written
+/// without a Content-Type header; JSON object parts carry an explicit
+/// `Content-Type: application/json` header (their OAS `encoding.contentType`).
+fn append_multipart_field(
+    out: &mut Vec<u8>,
+    boundary: &str,
+    name: &str,
+    value: &MultipartValue,
+) {
+    /* W-new-2: validate the field name on every branch (text and bytes)
+     * before it lands in Content-Disposition. The name is interpolated
+     * directly into `Content-Disposition: form-data; name="..."`, so
+     * CR/LF/NUL must be rejected even when the value is text, and
+     * quote/backslash must be escaped so a malicious name cannot break out
+     * of the `name="..."` parameter. */
+    if validate_multipart_field_name(name).is_err() {
+        return;
+    }
+    let safe_name = escape_multipart_field_name(name);
+    match value {
+        MultipartValue::Bytes(bytes) => {
+            if validate_multipart_filename(name).is_err() {
+                return;
+            }
+            let mime = mime_for_filename(name);
+            let filename_directive = build_filename_directive(name);
+            out.extend_from_slice(b"--");
+            out.extend_from_slice(boundary.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
+            out.extend_from_slice(safe_name.as_bytes());
+            out.extend_from_slice(b"\"; ");
+            out.extend_from_slice(filename_directive.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Type: ");
+            out.extend_from_slice(mime.as_bytes());
+            out.extend_from_slice(b"\r\n\r\n");
+            out.extend_from_slice(bytes);
+            out.extend_from_slice(b"\r\n");
+        }
+        MultipartValue::Text(text) => {
+            out.extend_from_slice(b"--");
+            out.extend_from_slice(boundary.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
+            out.extend_from_slice(safe_name.as_bytes());
+            out.extend_from_slice(b"\"\r\n\r\n");
+            out.extend_from_slice(text.as_bytes());
+            out.extend_from_slice(b"\r\n");
+        }
+        MultipartValue::Json(json) => {
+            /* An object-typed part: the OAS `encoding.contentType` is
+             * `application/json`, so the part MUST advertise that media type.
+             * Without the explicit header a server treats the part as
+             * text/plain and may refuse to parse the JSON body. */
+            out.extend_from_slice(b"--");
+            out.extend_from_slice(boundary.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
+            out.extend_from_slice(safe_name.as_bytes());
+            out.extend_from_slice(b"\"\r\n");
+            out.extend_from_slice(b"Content-Type: application/json\r\n\r\n");
+            out.extend_from_slice(json.as_bytes());
+            out.extend_from_slice(b"\r\n");
+        }
+        MultipartValue::List(items) => {
+            for item in items {
+                append_multipart_field(out, boundary, name, item);
+            }
+        }
+    }
+}
+
+/// Rejects multipart filenames that would allow Content-Disposition header
+/// injection or smuggling. Returns Err for filenames containing CR, LF, or NUL.
+pub fn validate_multipart_filename(filename: &str) -> Result<(), String> {
+    for c in filename.chars() {
+        if c == '\r' || c == '\n' || c == '\0' {
+            return Err("multipart filename must not contain CR, LF, or NUL characters".to_string());
+        }
+    }
+    Ok(())
+}
+
+/// Rejects multipart form field names that would allow Content-Disposition
+/// header injection or smuggling. Returns Err for names containing CR, LF, or
+/// NUL. Must run on every branch of `append_multipart_field` because the name
+/// is interpolated directly into `Content-Disposition: form-data; name="..."`.
+pub fn validate_multipart_field_name(name: &str) -> Result<(), String> {
+    for c in name.chars() {
+        if c == '\r' || c == '\n' || c == '\0' {
+            return Err(
+                "multipart field name must not contain CR, LF, or NUL characters".to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Backslash-escapes embedded `"` and `\` in a multipart field name so a
+/// malicious name cannot break out of the `name="..."` parameter. Caller must
+/// have already validated CR/LF/NUL via `validate_multipart_field_name`.
+pub fn escape_multipart_field_name(name: &str) -> String {
+    name.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Builds the `filename=...` directive for a multipart Content-Disposition
+/// part. For ASCII-only filenames it emits `filename="..."` with quote/backslash
+/// escaping. For non-ASCII filenames it additionally emits an RFC 5987
+/// `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII fallback
+/// (non-ASCII bytes replaced with `_`). The caller is expected to have already
+/// validated the filename via `validate_multipart_filename`.
+pub fn build_filename_directive(filename: &str) -> String {
+    let escaped = filename.replace('\\', "\\\\").replace('"', "\\\"");
+    let ascii = filename.chars().all(|c| (c as u32) <= 0x7F);
+    if ascii {
+        return format!("filename=\"{}\"", escaped);
+    }
+    let fallback: String = filename
+        .chars()
+        .map(|c| {
+            let cv = c as u32;
+            if cv > 0x7F || cv < 0x20 || cv == 0x7F {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let fallback_escaped = fallback.replace('\\', "\\\\").replace('"', "\\\"");
+    let encoded = rfc5987_encode_value(filename);
+    format!("filename=\"{}\"; filename*=UTF-8''{}", fallback_escaped, encoded)
+}
+
+/// Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved character,
+/// producing the value-chars production of RFC 5987 §3.2.1.
+pub fn rfc5987_encode_value(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = String::with_capacity(bytes.len() * 3);
+    for &b in bytes {
+        let is_unreserved = b.is_ascii_alphanumeric()
+            || b == b'-'
+            || b == b'.'
+            || b == b'_'
+            || b == b'~';
+        if is_unreserved {
+            out.push(b as char);
+        } else {
+            out.push('%');
+            out.push_str(&format!("{:02X}", b));
+        }
+    }
+    out
+}
+
+/// Maps a filename extension to a MIME type. Falls back to
+/// `application/octet-stream` for unknown or missing extensions.
+pub fn mime_for_filename(filename: &str) -> &'static str {
+    let lower = filename.to_lowercase();
+    let ext = match lower.rfind('.') {
+        Some(idx) => &lower[idx + 1..],
+        None => return "application/octet-stream",
+    };
+    match ext {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "pdf" => "application/pdf",
+        "json" => "application/json",
+        "txt" => "text/plain",
+        "html" | "htm" => "text/html",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Parses the `charset=` parameter from a Content-Type header value.
+/// Returns `None` when no charset is present.
+pub fn parse_charset(content_type: &str) -> Option<String> {
+    for part in content_type.split(';').skip(1) {
+        let trimmed = part.trim();
+        if let Some(rest) = trimmed.strip_prefix("charset=") {
+            let value = rest.trim().trim_matches('"');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        } else if let Some(rest) = trimmed.strip_prefix("CHARSET=") {
+            let value = rest.trim().trim_matches('"');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Decodes a response body using the charset declared on the Content-Type
+/// header. Falls back to UTF-8 when the charset is absent or unrecognised.
+///
+/// Byte order for a bare `utf-16` label (no BOM): RFC 2781 specifies that
+/// UTF-16 with no byte-order mark defaults to BIG-ENDIAN. `encoding_rs`
+/// follows the WHATWG Encoding Standard, where the `utf-16` label resolves
+/// to UTF-16LE (little-endian) — the wrong default for an HTTP client
+/// decoding by the IANA/MIME charset registration. We therefore special-case
+/// the bare `utf-16` / `utf16` label to decode as UTF-16BE when the body
+/// carries no UTF-16 BOM. When a BOM IS present, it is honoured: a UTF-16LE
+/// BOM (0xFF 0xFE) selects little-endian and a UTF-16BE BOM (0xFE 0xFF)
+/// selects big-endian, regardless of the label.
+pub fn decode_text_body(bytes: &[u8], content_type: &str) -> String {
+    if let Some(charset) = parse_charset(content_type) {
+        if let Some(encoding) = encoding_rs::Encoding::for_label(charset.as_bytes()) {
+            // A bare `utf-16` / `utf16` label (one that WHATWG resolves to
+            // UTF-16LE but that the caller did not spell as `utf-16le`) must
+            // default to big-endian per RFC 2781 — but only when no BOM is
+            // present. A leading BOM always wins and is left to encoding_rs.
+            let normalized: String = charset
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect::<String>()
+                .to_ascii_lowercase();
+            let has_utf16_bom = bytes.len() >= 2
+                && ((bytes[0] == 0xFE && bytes[1] == 0xFF)
+                    || (bytes[0] == 0xFF && bytes[1] == 0xFE));
+            if normalized == "utf16" && !has_utf16_bom {
+                let (decoded, _, _) = encoding_rs::UTF_16BE.decode(bytes);
+                return decoded.into_owned();
+            }
+            let (decoded, _, _) = encoding.decode(bytes);
+            return decoded.into_owned();
+        }
+    }
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
+/// Determines whether the given content type represents text content
+/// that is safe to decode as a UTF-8 string.
+fn is_text_content_type(content_type: &str) -> bool {
+    let media_type = content_type
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+    if media_type.is_empty() {
+        return true;
+    }
+    if media_type.starts_with("text/") {
+        return true;
+    }
+    matches!(
+        media_type.as_str(),
+        "application/json" | "application/xml" | "application/javascript"
+    ) || media_type.ends_with("+json")
+        || media_type.ends_with("+xml")
+}
+
+// These unit tests live in-crate (rather than under tests/) because the
+// `default_api_client` module is crate-private: its free helpers traffic in
+// `reqwest` types and other internal details and are not part of the public
+// API. The behavioural integration tests that drive the public
+// `DefaultApiClient` surface (real-HTTP round-trips, redirect handling,
+// decompression, etc.) remain in `tests/default_api_client_test.rs` and
+// `tests/default_api_client_unit_test.rs`.
+#[cfg(test)]
+mod tests {
+    use super::{
+        build_filename_directive, decode_text_body, is_https_to_http_body_replay,
+        mime_for_filename, parse_charset, serialize_multipart_body, validate_multipart_field_name,
+        validate_multipart_filename, SENSITIVE_HEADER_NAMES,
+    };
+    use crate::api_client::MultipartValue;
+    use crate::models::PhotoMetadata;
+    use crate::object_serializer;
+
+    // ── HTTPS->HTTP body-replay predicate (Gap 3.3) ──
+    //
+    // The predicate gates the body-replay guard in `send_request_with_options`
+    // and traffics in `reqwest::Url`, so it can only be exercised in-crate.
+    #[test]
+    fn test_is_https_to_http_body_replay_predicate() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        let https2 = reqwest::Url::parse("https://example.com/y").unwrap();
+        let http2 = reqwest::Url::parse("http://example.com/y").unwrap();
+
+        // 307 + body + https->http: must refuse.
+        assert!(is_https_to_http_body_replay(307, Some(&https), &http, true));
+        // 308 + body + https->http: must refuse.
+        assert!(is_https_to_http_body_replay(308, Some(&https), &http, true));
+        // 307 + NO body: nothing to leak, must NOT refuse.
+        assert!(!is_https_to_http_body_replay(307, Some(&https), &http, false));
+        // 307 + body + http->http (no downgrade): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(307, Some(&http), &http2, true));
+        // 307 + body + https->https (no downgrade): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(307, Some(&https), &https2, true));
+        // 302 (drops body anyway): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(302, Some(&https), &http, true));
+        // 303 (drops body anyway): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(303, Some(&https), &http, true));
+        // 301 (drops body anyway): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(301, Some(&https), &http, true));
+        // Missing current_url: cannot prove downgrade, must NOT refuse.
+        assert!(!is_https_to_http_body_replay(307, None, &http, true));
+    }
+
+    // ── Per-part MIME sniffing (Gap J) ──
+
+    #[test]
+    fn test_mime_for_filename_png() {
+        assert_eq!(mime_for_filename("image.png"), "image/png");
+    }
+
+    #[test]
+    fn test_mime_for_filename_pdf() {
+        assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
+    }
+
+    #[test]
+    fn test_mime_for_filename_no_extension_defaults_to_octet_stream() {
+        assert_eq!(mime_for_filename("blob"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_mime_for_filename_image_extensions() {
+        assert_eq!(mime_for_filename("photo.png"), "image/png");
+        assert_eq!(mime_for_filename("photo.JPG"), "image/jpeg");
+        assert_eq!(mime_for_filename("photo.jpeg"), "image/jpeg");
+        assert_eq!(mime_for_filename("anim.gif"), "image/gif");
+    }
+
+    #[test]
+    fn test_mime_for_filename_document_extensions() {
+        assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
+        assert_eq!(mime_for_filename("payload.json"), "application/json");
+        assert_eq!(mime_for_filename("notes.txt"), "text/plain");
+        assert_eq!(mime_for_filename("index.html"), "text/html");
+    }
+
+    #[test]
+    fn test_mime_for_filename_unknown_extension_falls_back() {
+        assert_eq!(mime_for_filename("blob.xyz"), "application/octet-stream");
+        assert_eq!(mime_for_filename("noextension"), "application/octet-stream");
+    }
+
+    // ── multipart-file-part-contenttype-from-extension (behavior 4) ──
+    //
+    // End-to-end through serialize_multipart_body (the serializer the generated
+    // operations actually drive): a file (`MultipartValue::Bytes`) part MUST set
+    // its part Content-Type from the field-name extension, falling back to
+    // application/octet-stream when the extension is unknown/missing. The field
+    // name doubles as the filename, mirroring the other 11 SDKs.
+
+    #[test]
+    fn test_multipart_file_part_content_type_png_from_extension() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "avatar.png".to_string(),
+            MultipartValue::Bytes(vec![0x89, 0x50, 0x4e, 0x47]),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: image/png\r\n"),
+            "png file part must derive image/png Content-Type, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_multipart_file_part_content_type_json_from_extension() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "data.json".to_string(),
+            MultipartValue::Bytes(b"{}".to_vec()),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: application/json\r\n"),
+            ".json file part must derive application/json Content-Type, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_multipart_file_part_content_type_unknown_extension_falls_back() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "file".to_string(),
+            MultipartValue::Bytes(vec![1, 2, 3]),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: application/octet-stream\r\n"),
+            "extension-less file part must fall back to application/octet-stream, got: {}",
+            body_str
+        );
+    }
+
+    // Raw-bytes part with no explicit filename: the field name is reused as the
+    // filename and the Content-Type falls back to application/octet-stream when
+    // the field name carries no (known) extension. Mirrors the cross-language
+    // contract already implemented by go, node, and java.
+    #[test]
+    fn test_multipart_raw_bytes_part_reuses_field_name_as_filename_and_octet_stream() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "file".to_string(),
+            MultipartValue::Bytes(vec![0x00, 0x01, 0x02]),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("name=\"file\"; filename=\"file\""),
+            "raw-bytes part must reuse the field name as the filename, got: {}",
+            body_str
+        );
+        assert!(
+            body_str.contains("Content-Type: application/octet-stream\r\n"),
+            "raw-bytes part with no extension must use application/octet-stream, got: {}",
+            body_str
+        );
+    }
+
+    // ── multipart-model-part-serialized-through-configured-serializer ──
+    //
+    // Cross-SDK parity: the addPetPhotos operation sends a multipart/form-data
+    // body whose `metadata` part is a MODEL (PhotoMetadata). The generated
+    // operation builds that part with exactly the call exercised below —
+    // `MultipartValue::Json(object_serializer::serialize(&metadata)?)` — so the
+    // model part is encoded through the SDK's CONFIGURED serializer. That means
+    // the part JSON carries the WIRE property names declared by the schema
+    // (`isPrimary`, `takenAt`) rather than the snake_case Rust field idents
+    // (`is_primary`, `taken_at`), and the `format: date-time` field is rendered
+    // with chrono's RFC 3339 wire form (millisecond fraction preserved). The
+    // object part also advertises `Content-Type: application/json` (its OAS
+    // `encoding.contentType`) so the server parses it as JSON, not text/plain.
+    // This test reconstructs the operation's part-building path end-to-end
+    // through `serialize_multipart_body` (the lowest-level multipart writer the
+    // operation ultimately drives) and asserts on the captured body bytes.
+    #[test]
+    fn test_multipart_model_part_uses_wire_property_names_and_datetime_format() {
+        use chrono::{DateTime, Utc};
+
+        // Build a PhotoMetadata exactly as a caller of add_pet_photos would,
+        // with the canonical millisecond-precision instant.
+        let taken_at: DateTime<Utc> = "2020-01-02T03:04:05.123Z"
+            .parse()
+            .expect("reference instant must parse");
+        let metadata = PhotoMetadata {
+            caption: None,
+            is_primary: Some(true),
+            taken_at: Some(taken_at),
+            location: None,
+        };
+
+        // Serialize the model part through the CONFIGURED serializer — the same
+        // call the generated add_pet_photos emits — then wrap it as the JSON
+        // object part the operation hands to the multipart writer.
+        let part_json = object_serializer::serialize(&metadata)
+            .expect("model part must serialize through the configured serializer");
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("metadata".to_string(), MultipartValue::Json(part_json));
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+
+        // (1) The model part must use the WIRE property names from the schema,
+        // never the snake_case Rust field idents.
+        assert!(
+            body_str.contains("\"isPrimary\""),
+            "model part must use the wire key `isPrimary`, body: {}",
+            body_str
+        );
+        assert!(
+            body_str.contains("\"takenAt\""),
+            "model part must use the wire key `takenAt`, body: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("is_primary"),
+            "model part must NOT leak the snake_case ident `is_primary`, body: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("taken_at"),
+            "model part must NOT leak the snake_case ident `taken_at`, body: {}",
+            body_str
+        );
+
+        // (2) The `format: date-time` field must carry the proper RFC 3339
+        // wire form, with millisecond precision preserved (not truncated).
+        assert!(
+            body_str.contains("2020-01-02T03:04:05.123"),
+            "takenAt must serialize as an RFC 3339 date-time with millis, body: {}",
+            body_str
+        );
+
+        // (3) The captured part is the part for the `metadata` field —
+        // confirm it is wired as a form field (not a file part).
+        assert!(
+            body_str.contains("name=\"metadata\""),
+            "metadata model part must be emitted under the `metadata` field name, body: {}",
+            body_str
+        );
+
+        // (4) The object part advertises its OAS `encoding.contentType`
+        // (`application/json`) so a content-negotiating server parses the JSON
+        // rather than treating the part as text/plain.
+        assert!(
+            body_str.contains("Content-Type: application/json\r\n"),
+            "JSON object part must carry a `Content-Type: application/json` header, body: {}",
+            body_str
+        );
+    }
+
+    // ── multipart-non-ascii-field-name-preserved-utf8 (behavior 5) ──
+    //
+    // A multipart part whose field NAME contains non-ASCII characters MUST emit
+    // those characters as raw UTF-8 bytes in the Content-Disposition `name="..."`
+    // parameter — never transliterated to `?` nor stripped.
+
+    #[test]
+    fn test_multipart_non_ascii_field_name_preserved_as_utf8_text_part() {
+        let field_name = "café"; // 'é' is U+00E9 -> UTF-8 0xC3 0xA9
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(field_name.to_string(), MultipartValue::Text("v".to_string()));
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+
+        // The raw UTF-8 bytes for "café" must appear verbatim in the body.
+        let needle = b"name=\"caf\xC3\xA9\"";
+        assert!(
+            body.windows(needle.len()).any(|w| w == needle),
+            "non-ASCII field name must be emitted as raw UTF-8, body: {:?}",
+            String::from_utf8_lossy(&body)
+        );
+        assert!(
+            !body.contains(&b'?'),
+            "non-ASCII field name must not be transliterated to '?'"
+        );
+    }
+
+    #[test]
+    fn test_multipart_non_ascii_field_name_preserved_as_utf8_file_part() {
+        // CJK field name on a bytes (file) part — must also survive as UTF-8.
+        let field_name = "日本.png"; // emits image/png too (behavior 4 cross-check)
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(field_name.to_string(), MultipartValue::Bytes(vec![0, 1, 2]));
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+
+        let nihon = "日本".as_bytes(); // E6 97 A5 E6 9C AC
+        assert!(
+            body.windows(nihon.len()).any(|w| w == nihon),
+            "CJK field name must be emitted as raw UTF-8 in Content-Disposition"
+        );
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: image/png\r\n"),
+            "non-ASCII .png file name must still derive image/png, got: {}",
+            body_str
+        );
+    }
+
+    // ── Multipart filename directive (Gap BI / Gap F) ──
+
+    #[test]
+    fn test_build_filename_directive_non_ascii_emits_rfc5987() {
+        let directive = build_filename_directive("日本.pdf");
+        assert!(
+            directive.contains("filename*=UTF-8''"),
+            "non-ASCII filename must emit RFC 5987 filename*= form, got: {}",
+            directive
+        );
+        assert!(
+            directive.contains("%E6%97%A5%E6%9C%AC"),
+            "RFC 5987 value must be percent-encoded UTF-8, got: {}",
+            directive
+        );
+        assert!(
+            directive.starts_with("filename=\""),
+            "must still include an ASCII fallback filename=\"...\", got: {}",
+            directive
+        );
+    }
+
+    #[test]
+    fn test_build_filename_directive_ascii_only_omits_filename_star() {
+        let directive = build_filename_directive("pet.png");
+        assert_eq!(directive, "filename=\"pet.png\"");
+        assert!(
+            !directive.contains("filename*="),
+            "ASCII-only filename must not emit filename*=, got: {}",
+            directive
+        );
+    }
+
+    #[test]
+    fn test_build_filename_directive_backslash_escapes_quotes() {
+        let directive = build_filename_directive("a\"b.txt");
+        assert!(
+            directive.contains("a\\\"b.txt"),
+            "embedded quote must be backslash-escaped, got: {}",
+            directive
+        );
+    }
+
+    /// Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
+    /// rather than raw UTF-8 inside the quoted filename="" form.
+    #[test]
+    fn test_multipart_filename_non_ascii_emits_rfc5987() {
+        let directive = build_filename_directive("日本.pdf");
+        assert!(directive.contains("filename*=UTF-8''"),
+            "expected RFC 5987 filename*=UTF-8'' directive, got: {}", directive);
+        assert!(directive.contains("%E6%97%A5%E6%9C%AC"),
+            "expected percent-encoded UTF-8 bytes for 日本, got: {}", directive);
+        assert!(directive.starts_with("filename=\""),
+            "expected ASCII fallback filename=\"...\" prefix, got: {}", directive);
+    }
+
+    /// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
+    #[test]
+    fn test_multipart_filename_ascii_only_omits_filename_star() {
+        let directive = build_filename_directive("pet.png");
+        assert_eq!(directive, "filename=\"pet.png\"");
+        assert!(!directive.contains("filename*="),
+            "ASCII-only filename must not emit filename*=, got: {}", directive);
+    }
+
+    // ── Multipart filename / field-name validation (Gap F / W-new-2) ──
+
+    #[test]
+    fn test_validate_multipart_filename_rejects_crlf() {
+        assert!(validate_multipart_filename("a\rb.pdf").is_err());
+        assert!(validate_multipart_filename("a\nb.pdf").is_err());
+        assert!(validate_multipart_filename("a\r\nb.pdf").is_err());
+        // ASCII filename is accepted.
+        assert!(validate_multipart_filename("pet.png").is_ok());
+    }
+
+    #[test]
+    fn test_validate_multipart_filename_rejects_nul() {
+        assert!(validate_multipart_filename("a\u{0}b.pdf").is_err());
+    }
+
+    /// Gap F: filenames containing CR/LF/NUL must be rejected to prevent
+    /// Content-Disposition header injection.
+    #[test]
+    fn test_multipart_filename_crlf_rejected() {
+        for bad in &["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\0b.pdf"] {
+            assert!(validate_multipart_filename(bad).is_err(),
+                "expected error for {:?}", bad);
+        }
+        assert!(validate_multipart_filename("pet.png").is_ok());
+    }
+
+    /// W-new-2: multipart field-name validation must run on every branch (text
+    /// and bytes), not just the binary branch. Previously the text branch wrote
+    /// the raw field name into Content-Disposition, opening a header-smuggling
+    /// hole. This test asserts the validator rejects CR/LF/NUL for a String value
+    /// scenario.
+    #[test]
+    fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
+        for bad in &["name\rInjected: yes", "name\nInjected: yes", "name\r\nInjected: yes", "name\0Injected"] {
+            assert!(validate_multipart_field_name(bad).is_err(),
+                "expected validate_multipart_field_name to reject {:?}", bad);
+        }
+        assert!(validate_multipart_field_name("description").is_ok());
+
+        /* End-to-end: when a String (text) multipart field has a CR/LF in its
+         * name, serialize_multipart_body must NOT emit a part with the bad name
+         * embedded in Content-Disposition. The current implementation drops the
+         * bad field silently rather than panic. */
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "name\r\nInjected: yes".to_string(),
+            MultipartValue::Text("value".to_string()),
+        );
+        let body = serialize_multipart_body(&fields, "boundary");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(!body_str.contains("Injected: yes"),
+            "serialize_multipart_body must not emit the injected header: {}", body_str);
+    }
+
+    // ── Response charset decoding (Gap H) ──
+
+    #[test]
+    fn test_decode_text_body_iso_8859_1() {
+        // 0xE9 is "é" in ISO-8859-1.
+        let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
+        assert_eq!(decoded, "é");
+    }
+
+    #[test]
+    fn test_decode_text_body_defaults_to_utf8_when_no_charset() {
+        let decoded = decode_text_body("héllo".as_bytes(), "text/plain");
+        assert_eq!(decoded, "héllo");
+    }
+
+    #[test]
+    fn test_decode_text_body_unknown_charset_falls_back_to_utf8() {
+        // Unknown charset must not panic and must fall back to UTF-8.
+        let decoded = decode_text_body("héllo".as_bytes(), "text/plain; charset=not-a-real-charset");
+        assert_eq!(decoded, "héllo");
+        // parse_charset still surfaces the raw label.
+        assert_eq!(
+            parse_charset("text/plain; charset=not-a-real-charset").as_deref(),
+            Some("not-a-real-charset")
+        );
+    }
+
+    #[test]
+    fn test_decode_text_body_honours_iso_8859_1_charset() {
+        /* 0xE9 in ISO-8859-1 is "é"; UTF-8 lossy would yield U+FFFD. */
+        let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
+        assert_eq!(decoded, "é");
+    }
+
+    #[test]
+    fn test_decode_text_body_defaults_to_utf8_when_charset_absent() {
+        let decoded = decode_text_body("hello world".as_bytes(), "text/plain");
+        assert_eq!(decoded, "hello world");
+    }
+
+    #[test]
+    fn test_decode_text_body_falls_back_to_utf8_for_unknown_charset() {
+        /* Unknown charset must not panic; the helper falls back to UTF-8. */
+        let decoded = decode_text_body("abc".as_bytes(), "text/plain; charset=windows-9999");
+        assert_eq!(decoded, "abc");
+    }
+
+    #[test]
+    fn test_parse_charset_extracts_quoted_value() {
+        assert_eq!(
+            parse_charset("text/plain; charset=\"UTF-8\""),
+            Some("UTF-8".to_string())
+        );
+    }
+
+    #[test]
+    fn test_decode_text_body_bare_utf16_no_bom_is_big_endian() {
+        // RFC 2781: a UTF-16 body with no BOM defaults to BIG-ENDIAN.
+        // "Pet" as UTF-16BE without a BOM is 00 50 00 65 00 74.
+        let big_endian_bytes = [0x00, 0x50, 0x00, 0x65, 0x00, 0x74];
+        let decoded = decode_text_body(&big_endian_bytes, "text/plain; charset=utf-16");
+        assert_eq!(decoded, "Pet");
+
+        // The same bytes read little-endian would NOT be "Pet" (they decode to
+        // U+5000 U+6500 U+7400), proving the big-endian choice is load-bearing.
+        let (le, _, _) = encoding_rs::UTF_16LE.decode(&big_endian_bytes);
+        assert_ne!(le, "Pet");
+    }
+
+    #[test]
+    fn test_decode_text_body_utf16_honours_le_bom() {
+        // A UTF-16LE BOM (FF FE) must override the big-endian default and
+        // select little-endian. "Pet" as UTF-16LE: 50 00 65 00 74 00.
+        let le_with_bom = [0xFF, 0xFE, 0x50, 0x00, 0x65, 0x00, 0x74, 0x00];
+        let decoded = decode_text_body(&le_with_bom, "text/plain; charset=utf-16");
+        assert_eq!(decoded, "Pet");
+    }
+
+    #[test]
+    fn test_decode_text_body_utf16_honours_be_bom() {
+        // A UTF-16BE BOM (FE FF) selects big-endian explicitly.
+        // "Pet" as UTF-16BE: FE FF 00 50 00 65 00 74.
+        let be_with_bom = [0xFE, 0xFF, 0x00, 0x50, 0x00, 0x65, 0x00, 0x74];
+        let decoded = decode_text_body(&be_with_bom, "text/plain; charset=utf-16");
+        assert_eq!(decoded, "Pet");
+    }
+
+    // ── Sensitive-header allowlist (Gap 3.1) ──
+
+    /// Gap 3.1: API-key header names declared in the OpenAPI spec must be added
+    /// to the cross-origin redirect strip allowlist. The static base set
+    /// (authorization / cookie / proxy-authorization) must always be present.
+    #[test]
+    fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
+        let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
+        assert!(
+            names.iter().any(|n| *n == "authorization"),
+            "expected 'authorization' in {:?}", names
+        );
+        assert!(
+            names.iter().any(|n| *n == "cookie"),
+            "expected 'cookie' in {:?}", names
+        );
+        assert!(
+            names.iter().any(|n| *n == "proxy-authorization"),
+            "expected 'proxy-authorization' in {:?}", names
+        );
+        for n in SENSITIVE_HEADER_NAMES {
+            assert_eq!(*n, n.to_lowercase(), "all entries must be lowercase: {}", n);
+        }
+    }
+{{#hasApiKeyHeaderNames}}
+
+    // ── Gap 3.1: spec-declared API-key header names are sensitive ──
+
+    #[test]
+    fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
+        let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
+{{#apiKeyHeaderNames}}        assert!(
+            names.iter().any(|n| *n == "{{nameLower}}"),
+            "expected spec apiKey header '{{nameLower}}' in {:?}",
+            names
+        );
+{{/apiKeyHeaderNames}}    }
+{{/hasApiKeyHeaderNames}}
+}

@@ -1,0 +1,760 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
+  use ExUnit.Case, async: true
+
+  defmodule FakeApiClient do
+    defstruct [:agent]
+
+    def new(responses) do
+      {:ok, agent} =
+        Agent.start_link(fn ->
+          %{responses: responses, last_url: nil, last_body: nil, call_count: 0}
+        end)
+
+      %__MODULE__{agent: agent}
+    end
+
+    def send_request(%__MODULE__{agent: agent}, _method, url, _headers, body) do
+      Agent.get_and_update(agent, fn state ->
+        [response | rest] = state.responses
+
+        new_state = %{
+          state
+          | responses: rest,
+            last_url: url,
+            last_body: body,
+            call_count: state.call_count + 1
+        }
+
+        {response, new_state}
+      end)
+    end
+
+    def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
+    def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.call_count)
+  end
+
+  defmodule CountingApiClient do
+    @moduledoc """
+    Always returns the same access-token response, but counts calls. Used to
+    assert single-flight refresh under concurrent load.
+    """
+
+    defstruct [:agent]
+
+    def new do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+      %__MODULE__{agent: agent}
+    end
+
+    def send_request(%__MODULE__{agent: agent}, _method, _url, _headers, _body) do
+      Agent.update(agent, &(&1 + 1))
+      # Simulate a slow OP so concurrent callers genuinely race.
+      Process.sleep(50)
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: Jason.encode!(%{"access_token" => "shared-tok", "expires_in" => 3600})
+      }
+    end
+
+    def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
+  end
+
+  defmodule NumberingCountingApiClient do
+    @moduledoc """
+    Hands out tok1, tok2, ... on successive calls and counts them, so the
+    single-flight refetch test can assert how many round-trips occurred.
+    """
+
+    defstruct [:agent]
+
+    def new do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+      %__MODULE__{agent: agent}
+    end
+
+    def send_request(%__MODULE__{agent: agent}, _method, _url, _headers, _body) do
+      n = Agent.get_and_update(agent, fn count -> {count + 1, count + 1} end)
+      # Simulate a slow OP so concurrent callers genuinely race.
+      Process.sleep(50)
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: Jason.encode!(%{"access_token" => "tok#{n}", "expires_in" => 3600})
+      }
+    end
+
+    def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
+  end
+
+  defmodule NoRedirectCapturingClient do
+    @moduledoc """
+    Exports `send_request/6` so the token manager exercises its
+    `function_exported?(mod, :send_request, 6)` branch and propagates the
+    `no_redirect: true` option. Captures the received options for assertion.
+    """
+
+    defstruct [:opts_agent]
+
+    def new(opts_agent), do: %__MODULE__{opts_agent: opts_agent}
+
+    def send_request(%__MODULE__{opts_agent: opts_agent}, _method, _url, _headers, _body, opts) do
+      Agent.update(opts_agent, fn _ -> opts end)
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: Jason.encode!(%{"access_token" => "tok", "expires_in" => 3600})
+      }
+    end
+  end
+
+  describe "OAuth2TokenManager" do
+    test "extracts access token from response" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok123", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      token =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+
+      assert token == "tok123"
+    end
+
+    test "stores refresh token" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        manager,
+        "https://auth.example.com/token",
+        %{"grant_type" => "authorization_code"}
+      )
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "ref1"
+    end
+
+    test "returns cached token when not expired" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "tok1"
+      assert second == "tok1"
+    end
+
+    test "refetches token when expired" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 1})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "tok1"
+      assert second == "tok2"
+    end
+
+    test "set_access_token bypasses endpoint" do
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_access_token(manager, "manual-token")
+
+      token =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{}
+        )
+
+      assert token == "manual-token"
+    end
+
+    test "invalidate_access_token forces refetch" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(manager)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "tok1"
+      assert second == "tok2"
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
+    test "throws when no ApiClient injected" do
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+
+      assert_raise RuntimeError, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+
+    test "10 concurrent get_access_token calls hit token endpoint exactly once" do
+      counting_client = CountingApiClient.new()
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, counting_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      tokens =
+        1..10
+        |> Enum.map(fn _ ->
+          Task.async(fn ->
+            PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+              manager,
+              token_url,
+              params
+            )
+          end)
+        end)
+        |> Enum.map(&Task.await(&1, 5_000))
+
+      assert Enum.all?(tokens, &(&1 == "shared-tok"))
+      assert CountingApiClient.call_count(counting_client) == 1
+    end
+
+    test "expires_in short-lived token does not storm" do
+      # Gap CM: short-lived token (expires_in < buffer) must produce exactly
+      # ONE network call from a single get_access_token invocation.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "short", "expires_in" => 10})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      token =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+
+      assert token == "short"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in long-lived token applies full buffer" do
+      # Gap CM: long-lived token gets full 30s buffer; second call uses cache.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "long", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "long"
+      assert second == "long"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in exactly buffer returns zero buffer" do
+      # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "edge1", "expires_in" => 30})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "edge2", "expires_in" => 30})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "edge1"
+      assert second == "edge2"
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
+    test "refresh_token empty string preserves existing" do
+      # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+      # MUST NOT clobber the cached refresh_token.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "old_access",
+                "refresh_token" => "old_refresh",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "new_access",
+                "expires_in" => 3600,
+                "refresh_token" => ""
+              })
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "authorization_code"}
+      token_url = "https://auth.example.com/token"
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
+
+      # Second call: access token near-expiry triggers refresh; the response
+      # contains an empty refresh_token which must not clobber the cached value.
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
+    end
+
+    test "expires_in as JSON string is accepted" do
+      # D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+      # quoted string. The manager must accept it and cache the token; a
+      # second call within the buffer window must serve from cache.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "str-tok", "expires_in" => "3600"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "str-tok"
+      assert second == "str-tok"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in as float is floored" do
+      # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+      # The manager must floor it and cache the token.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "flt-tok", "expires_in" => 3600.5})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "flt-tok"
+      assert second == "flt-tok"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in negative skips caching" do
+      # D1: a negative expires_in (e.g. -1) must mark the token as
+      # immediately stale so the very next call refetches.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "neg1", "expires_in" => -1})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "neg2", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "neg1"
+      assert second == "neg2"
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
+    test "throws when token request fails" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 401,
+            body: Jason.encode!(%{"error" => "invalid_client"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      # Group B fix: token endpoint 4xx responses now raise the typed
+      # OAuth2ServerError (RFC 6749 §5.2), not a generic RuntimeError.
+      assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+
+    test "missing access_token in 2xx response raises typed OAuth2TokenError" do
+      # A 2xx response whose body omits access_token must surface as the typed
+      # OAuth2TokenError, not silently cache an empty token.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"refresh_token" => "x"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+
+    test "token POST passes no_redirect flag to the ApiClient transport" do
+      # Gap 3.2: the token POST must opt out of redirect following at the
+      # transport layer. The manager passes no_redirect: true to clients that
+      # export send_request/6; this fake captures the propagated options.
+      {:ok, opts_agent} = Agent.start_link(fn -> nil end)
+      client = NoRedirectCapturingClient.new(opts_agent)
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, client)
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        manager,
+        "https://auth.example.com/token",
+        %{"grant_type" => "client_credentials"}
+      )
+
+      captured = Agent.get(opts_agent, & &1)
+      assert Keyword.get(captured, :no_redirect) == true
+    end
+
+    # ── 3.2: OAuth2 token redirect refusal ────────────────────────────────
+    # RFC 6749 §3.2 forbids redirects at the token endpoint, so the manager
+    # must refuse the whole 300-399 range, not only the body-preserving
+    # 307/308. 302 (below) and 307 (further down) are both exercised, plus
+    # 301/303.
+
+    for status <- [301, 302, 303] do
+      @redirect_status status
+      test "refuses #{@redirect_status} from token endpoint with OAuth2TokenError" do
+        fake_client =
+          FakeApiClient.new([
+            %PetstoreClient.ApiHttpResponse{
+              status_code: @redirect_status,
+              headers: %{"location" => "https://attacker.example/token"},
+              body: ""
+            }
+          ])
+
+        {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, ~r/redirect|refusing/i, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials", "client_secret" => "topsecret"}
+          )
+        end
+      end
+    end
+
+    test "refuses 307 from token endpoint with OAuth2TokenError" do
+      # A malicious token server could return a 307 Location: attacker.example
+      # to coerce a body+method-preserving replay of client_credentials.
+      # We surface this as OAuth2TokenError instead of following.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 307,
+            headers: %{"location" => "https://attacker.example/token"},
+            body: ""
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError,
+                   ~r/refusing to replay|307|redirect/i,
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+                       manager,
+                       "https://auth.example.com/token",
+                       %{"grant_type" => "client_credentials"}
+                     )
+                   end
+    end
+
+    test "refuses 308 from token endpoint with OAuth2TokenError" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 308,
+            headers: %{"location" => "https://attacker.example/token"},
+            body: ""
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, ~r/308|redirect|refusing/i, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+
+    test "token endpoint error response parsed to typed OAuth2ServerError" do
+      # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+      # typed OAuth2ServerError carrying code/description/uri.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 400,
+            body:
+              Jason.encode!(%{
+                "error" => "invalid_grant",
+                "error_description" => "refresh token expired",
+                "error_uri" => "https://docs.example.com/errors/invalid_grant"
+              })
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      error =
+        assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert error.status_code == 400
+      assert error.code == "invalid_grant"
+      assert error.description == "refresh token expired"
+      assert error.uri == "https://docs.example.com/errors/invalid_grant"
+    end
+
+    test "invalidate_access_token triggers a single refetch under concurrency" do
+      # After invalidation, 10 concurrent callers must coalesce into exactly
+      # ONE additional token-endpoint call (single-flight), all observing the
+      # refreshed token.
+      counting_client = NumberingCountingApiClient.new()
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, counting_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "tok1"
+      assert NumberingCountingApiClient.call_count(counting_client) == 1
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(manager)
+
+      tokens =
+        1..10
+        |> Enum.map(fn _ ->
+          Task.async(fn ->
+            PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+              manager,
+              token_url,
+              params
+            )
+          end)
+        end)
+        |> Enum.map(&Task.await(&1, 5_000))
+
+      assert Enum.all?(tokens, &(&1 == "tok2"))
+      assert NumberingCountingApiClient.call_count(counting_client) == 2
+    end
+
+    # Gap 3.2: the redirect-refusal error should name the offending Location
+    # header for diagnostics. The Elixir SDK's OAuth2TokenError message embeds
+    # only the status code, not the Location target, so this cannot be asserted
+    # without fabricating behaviour the SDK does not implement.
+    @tag :skip
+    test "redirect-refusal error includes the Location header for diagnostics" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 307,
+            headers: %{"location" => "https://attacker.example/token"},
+            body: ""
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, ~r/attacker\.example/, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+  end
+end

@@ -1,0 +1,709 @@
+{{>api_info}}
+
+use std::collections::HashSet;
+
+use {{packageName}}::models::*;
+
+// -- oneOf with discriminator: PetFood --
+
+#[test]
+fn test_pet_food_deserialize_dry_food() {
+    let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
+
+    let food: PetFood =
+        serde_json::from_str(json_data).expect("failed to deserialize PetFood as DryFood");
+
+    match food {
+        PetFood::DryFood(_) => {} // expected
+        _ => panic!("expected DryFood variant, got {:?}", food),
+    }
+}
+
+#[test]
+fn test_pet_food_deserialize_wet_food() {
+    let json_data = r#"{"foodType":"wet","volumeMl":400}"#;
+
+    let food: PetFood =
+        serde_json::from_str(json_data).expect("failed to deserialize PetFood as WetFood");
+
+    match food {
+        PetFood::WetFood(_) => {} // expected
+        _ => panic!("expected WetFood variant, got {:?}", food),
+    }
+}
+
+#[test]
+fn test_pet_food_deserialize_unknown_discriminator() {
+    let json_data = r#"{"foodType":"raw","calories":300}"#;
+
+    let result = serde_json::from_str::<PetFood>(json_data);
+    assert!(
+        result.is_err(),
+        "expected error for unknown discriminator value"
+    );
+}
+
+#[test]
+fn test_pet_food_unknown_discriminator_error_mentions_value() {
+    /* Gap 4.7 — a discriminator value not listed in the spec mapping
+     * must surface as a real deserialization error, not a silent fall
+     * through to an untagged-style first-match. The error message
+     * should mention the offending value so callers can diagnose
+     * server/spec drift quickly. */
+    let json_data = r#"{"foodType":"raw","calories":300}"#;
+    let result = serde_json::from_str::<PetFood>(json_data);
+    let err = result.expect_err("expected error for unknown discriminator value");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("raw"),
+        "error should mention unknown discriminator value `raw`, got: {msg}"
+    );
+}
+
+#[test]
+fn test_pet_food_missing_discriminator_field_errors() {
+    /* When the discriminator property is absent entirely, dispatch
+     * cannot proceed — the hand-rolled Deserialize impl must report
+     * the missing field rather than trying variants speculatively. */
+    let json_data = r#"{"weightKg":2.5}"#;
+    let result = serde_json::from_str::<PetFood>(json_data);
+    let err = result.expect_err("expected error for missing discriminator field");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("foodType") || msg.contains("discriminator"),
+        "error should mention missing discriminator field, got: {msg}"
+    );
+}
+
+#[test]
+fn test_pet_food_empty_discriminator_field_errors() {
+    /* An empty discriminator value matches no listed variant and must be
+     * rejected rather than dispatched to a structurally-fitting struct. */
+    let json_data = r#"{"foodType":"","weightKg":2.5}"#;
+    let result = serde_json::from_str::<PetFood>(json_data);
+    assert!(
+        result.is_err(),
+        "expected error for empty discriminator value"
+    );
+}
+
+#[test]
+fn test_pet_food_serialize_dry_food() {
+    let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
+    let food: PetFood =
+        serde_json::from_str(json_data).expect("failed to set up test");
+
+    let data = serde_json::to_string(&food).expect("failed to serialize PetFood");
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized JSON");
+    assert_eq!(parsed["foodType"], "dry");
+}
+
+{{! M8 (rust discriminator-child Default) is deferred: the discriminator info is
+    carried on the parent's mapping and is not resolvable in postProcessModels,
+    so a default-constructed discriminated-oneOf child still derives an empty
+    discriminator. Tracked as a latent gap; no test asserts the unfixed behaviour. }}
+
+// -- anyOf without discriminator: PetTreatment (RETAIN-ALL, lossless) --
+//
+// `PetTreatment` is a non-discriminated anyOf of `Medication`
+// (drugName, dosage) and `Surgery` (procedureName, durationMinutes),
+// documented as matching a medication, a surgery, OR BOTH. Unlike a oneOf
+// (exactly one), an anyOf payload may satisfy SEVERAL members at once, so the
+// composite RETAINS every variant that decodes rather than keeping only the
+// first. It is modelled as a struct with one `Option<Variant>` per member,
+// flattened on serialize so the wire payload is the union of all retained
+// variants' fields.
+
+#[test]
+fn test_pet_treatment_deserialize_medication() {
+    let json_data = r#"{"drugName":"Amoxicillin","dosage":"500mg"}"#;
+
+    let treatment: PetTreatment =
+        serde_json::from_str(json_data).expect("failed to deserialize PetTreatment as Medication");
+
+    let medication = treatment
+        .medication
+        .as_ref()
+        .expect("medication-only payload must retain the Medication variant");
+    assert_eq!(medication.drug_name, "Amoxicillin");
+    assert_eq!(medication.dosage.as_deref(), Some("500mg"));
+    assert!(
+        treatment.surgery.is_none(),
+        "a medication-only payload must not fabricate a Surgery variant"
+    );
+}
+
+#[test]
+fn test_pet_treatment_deserialize_surgery() {
+    let json_data = r#"{"procedureName":"Spay","durationMinutes":45}"#;
+
+    let treatment: PetTreatment =
+        serde_json::from_str(json_data).expect("failed to deserialize PetTreatment as Surgery");
+
+    let surgery = treatment
+        .surgery
+        .as_ref()
+        .expect("surgery-only payload must retain the Surgery variant");
+    assert_eq!(surgery.procedure_name, "Spay");
+    assert_eq!(surgery.duration_minutes, Some(45));
+    assert!(
+        treatment.medication.is_none(),
+        "a surgery-only payload must not fabricate a Medication variant"
+    );
+}
+
+#[test]
+fn test_pet_treatment_retains_all_matching_variants_losslessly() {
+    /* anyOf is RETAIN-ALL: a payload satisfying BOTH Medication and Surgery
+     * at once must keep the data of EVERY matched variant, not just the first.
+     * Re-serializing must emit the UNION of all retained fields so the
+     * co-satisfied payload round-trips with no silent drop. */
+    let json_data =
+        r#"{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"#;
+
+    let treatment: PetTreatment = serde_json::from_str(json_data)
+        .expect("failed to deserialize PetTreatment satisfying both variants");
+
+    // BOTH variants are retained and all their fields are accessible.
+    let medication = treatment
+        .medication
+        .as_ref()
+        .expect("both-variants payload must retain the Medication variant");
+    assert_eq!(medication.drug_name, "Amoxicillin");
+    assert_eq!(medication.dosage.as_deref(), Some("250mg"));
+
+    let surgery = treatment
+        .surgery
+        .as_ref()
+        .expect("both-variants payload must retain the Surgery variant");
+    assert_eq!(surgery.procedure_name, "Spay");
+    assert_eq!(surgery.duration_minutes, Some(45));
+
+    // Re-serialize: the union of ALL four fields must survive the round-trip.
+    let data = serde_json::to_string(&treatment).expect("failed to serialize PetTreatment");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized PetTreatment");
+    assert_eq!(
+        parsed["drugName"], "Amoxicillin",
+        "drugName must survive the round-trip, got: {data}"
+    );
+    assert_eq!(
+        parsed["dosage"], "250mg",
+        "dosage must survive the round-trip, got: {data}"
+    );
+    assert_eq!(
+        parsed["procedureName"], "Spay",
+        "procedureName must survive the round-trip, got: {data}"
+    );
+    assert_eq!(
+        parsed["durationMinutes"], 45,
+        "durationMinutes must survive the round-trip, got: {data}"
+    );
+}
+
+#[test]
+fn test_pet_treatment_no_match_errors() {
+    /* oneof-nondiscriminator-no-match-silent: a payload matching neither
+     * Medication nor Surgery must surface as a deserialization error. anyOf
+     * requires AT LEAST ONE member to match, so the hand-rolled Deserialize
+     * returns Err when none decode. */
+    let json_data = r#"{"unrelatedKey":"value","anotherUnknown":123}"#;
+    let result = serde_json::from_str::<PetTreatment>(json_data);
+    assert!(
+        result.is_err(),
+        "expected error for anyOf payload matching no variant"
+    );
+}
+
+#[test]
+fn test_pet_treatment_serialize_round_trip() {
+    let json_data = r#"{"drugName":"Amoxicillin","dosage":"500mg"}"#;
+
+    let treatment: PetTreatment =
+        serde_json::from_str(json_data).expect("failed to deserialize");
+
+    let data = serde_json::to_string(&treatment).expect("failed to serialize PetTreatment");
+    assert!(!data.is_empty(), "expected non-empty serialized data");
+}
+
+// -- allOf: PetWithOwner extends Pet fields --
+
+#[test]
+fn test_pet_with_owner_deserialize() {
+    let json_data = r#"{
+        "name": "Fido",
+        "photoUrls": ["http://example.com/fido.jpg"],
+        "ownerName": "John Doe",
+        "ownerEmail": "john@example.com"
+    }"#;
+
+    let pet_with_owner: PetWithOwner =
+        serde_json::from_str(json_data).expect("failed to deserialize PetWithOwner");
+    let _ = pet_with_owner;
+}
+
+#[test]
+fn test_pet_with_owner_serialize() {
+    let pet = PetWithOwner::new(
+        "Fido".to_string(),
+        HashSet::from(["http://example.com/fido.jpg".to_string()]),
+        "John Doe".to_string(),
+    );
+
+    let data = serde_json::to_string(&pet).expect("failed to serialize PetWithOwner");
+    assert!(!data.is_empty(), "expected non-empty serialized data");
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized JSON");
+    assert_eq!(parsed["name"], "Fido");
+    assert_eq!(parsed["ownerName"], "John Doe");
+}
+
+#[test]
+fn test_pet_with_owner_round_trip() {
+    let json_data = r#"{
+        "name": "Buddy",
+        "photoUrls": ["http://example.com/buddy.jpg"],
+        "ownerName": "Jane Smith"
+    }"#;
+
+    let pet: PetWithOwner =
+        serde_json::from_str(json_data).expect("failed to deserialize");
+
+    let data = serde_json::to_string(&pet).expect("failed to serialize");
+
+    let restored: PetWithOwner =
+        serde_json::from_str(&data).expect("failed to deserialize after round-trip");
+    let _ = restored;
+}
+
+// -- enum-unknown-value-on-deserialize (behavior 6) --
+//
+// Deserializing a JSON enum value that is NOT one of the schema's declared
+// variants MUST raise the SDK's (de)serialization error rather than silently
+// mapping to a default or catch-all variant. The generated enums carry no
+// `#[serde(other)]` arm, so serde rejects unknown values; the `#[default]`
+// attribute only powers `Default::default()` and never participates in
+// deserialization.
+
+#[test]
+fn test_enum_unknown_value_on_deserialize_is_rejected() {
+    // `Pet.status` is a `PetStatusEnum` whose only values are
+    // available/pending/sold. A `status` of "teleported" is not in the schema.
+    let payload = r#"{
+        "name": "Rex",
+        "photoUrls": ["http://example.com/rex.jpg"],
+        "status": "teleported"
+    }"#;
+    let result: Result<Pet, _> = serde_json::from_str(payload);
+    assert!(
+        result.is_err(),
+        "deserializing an unknown enum value must fail, not fall back to a default variant"
+    );
+}
+
+#[test]
+fn test_enum_known_value_on_deserialize_succeeds() {
+    // Control: a declared enum value still deserializes cleanly, so the
+    // strictness above does not break valid payloads.
+    let payload = r#"{
+        "name": "Rex",
+        "photoUrls": ["http://example.com/rex.jpg"],
+        "status": "pending"
+    }"#;
+    let pet: Pet = serde_json::from_str(payload).expect("known enum value must deserialize");
+    assert_eq!(pet.status, Some(PetStatusEnum::Pending));
+}
+
+#[test]
+fn test_enum_direct_unknown_value_is_rejected() {
+    // Deserializing the enum type directly (not via its owning struct) must
+    // also reject an out-of-schema value.
+    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"banished\"");
+    assert!(
+        result.is_err(),
+        "an unknown bare enum value must fail to deserialize"
+    );
+}
+
+// -- optional-enum-default-omitted (parity) --
+//
+// `Order.status` is an OPTIONAL enum field carrying a schema `default: placed`.
+// A default-constructed Order must serialize that default on the wire
+// (`"status":"placed"`) rather than omitting the field, matching the other
+// SDKs that seed the default variant.
+#[test]
+fn test_order_default_status_serializes_default_variant() {
+    let order = Order::new();
+    assert_eq!(order.status, Some(OrderStatusEnum::Placed));
+
+    let data = serde_json::to_string(&order).expect("failed to serialize Order");
+    assert!(
+        data.contains("\"status\":\"placed\""),
+        "default-constructed Order must serialize the schema default status, got: {}",
+        data
+    );
+}
+
+// -- default-on-deserialize (parity) --
+//
+// `Order.status` carries a schema `default: placed`. When a JSON payload
+// OMITS `status`, the SDK must apply that default on deserialize and yield
+// `Some(OrderStatusEnum::Placed)` rather than `None`. A field-level
+// `#[serde(default = ...)]` seeds the default variant for the absent
+// property, matching the other SDKs.
+#[test]
+fn test_order_deserialize_applies_schema_default_for_absent_status() {
+    let json_data = r#"{"id":10,"petId":198772}"#;
+
+    let order: Order =
+        serde_json::from_str(json_data).expect("failed to deserialize Order");
+
+    assert_eq!(
+        order.status,
+        Some(OrderStatusEnum::Placed),
+        "absent `status` must deserialize to the schema default `placed`, got: {:?}",
+        order.status
+    );
+}
+
+// -- self-referential model: TreeNode --
+//
+// `TreeNode` has a required `value` and an optional `child` that $refs back
+// to `TreeNode` (modeled as `Option<Box<TreeNode>>`). Deserializing a nested
+// payload must decode the child into a typed `TreeNode`, not leave it raw,
+// and a missing grandchild must be `None`.
+#[test]
+fn test_tree_node_deserialize_recursive() {
+    let json_data = r#"{"value":"root","child":{"value":"leaf"}}"#;
+
+    let top: TreeNode =
+        serde_json::from_str(json_data).expect("failed to deserialize TreeNode");
+
+    assert_eq!(top.value, "root", "top.value mismatch");
+
+    let child = top.child.expect("expected `child` to be present");
+    assert_eq!(child.value, "leaf", "child.value mismatch");
+    assert!(
+        child.child.is_none(),
+        "expected grandchild to be absent, got: {:?}",
+        child.child
+    );
+}
+
+// -- mutually-recursive models: Department <-> Employee --
+//
+// `Department.lead` $refs `Employee` and `Employee.department` $refs
+// `Department`, a reference cycle with no direct self-reference. The cycle is
+// broken by boxing an edge (`Option<Box<...>>`); deserialization must still
+// decode each level into a typed value, and the terminating edge must be
+// `None`. `Box` derefs transparently for field access.
+#[test]
+fn test_mutually_recursive_models_deserialize() {
+    let json_data = r#"{"name":"Eng","lead":{"name":"Ada","department":{"name":"Core"}}}"#;
+
+    let dept: Department =
+        serde_json::from_str(json_data).expect("failed to deserialize Department");
+
+    assert_eq!(dept.name, "Eng", "dept.name mismatch");
+
+    let lead = dept.lead.expect("expected `lead` to be present");
+    assert_eq!(lead.name, "Ada", "lead.name mismatch");
+
+    let inner = lead.department.expect("expected nested `department`");
+    assert_eq!(inner.name, "Core", "inner.name mismatch");
+    assert!(
+        inner.lead.is_none(),
+        "expected terminating `lead` to be absent, got: {:?}",
+        inner.lead
+    );
+}
+
+// -- absent-vs-null defaults: Defaults --
+//
+// `Defaults` exercises the JSON-Schema-correct default contract:
+//   * `retries` (int, default 3) — a NON-ENUM scalar default.
+//   * `mode` (enum, default `medium`) — a default that is NOT the first
+//     variant, so it must resolve to the DECLARED variant `Medium`.
+//   * `label` (nullable string, default "untitled").
+// A schema `default` applies ONLY when the property is ABSENT. An explicit
+// JSON `null` is a provided value and is PRESERVED as `None`, never replaced
+// by the default.
+#[test]
+fn test_defaults_absent_applies_schema_defaults() {
+    let json_data = r#"{}"#;
+
+    let defaults: Defaults =
+        serde_json::from_str(json_data).expect("failed to deserialize Defaults");
+
+    assert_eq!(
+        defaults.retries,
+        Some(3),
+        "absent `retries` must deserialize to the schema default 3, got: {:?}",
+        defaults.retries
+    );
+    assert_eq!(
+        defaults.mode,
+        Some(DefaultsModeEnum::Medium),
+        "absent `mode` must deserialize to the declared default variant `Medium`, got: {:?}",
+        defaults.mode
+    );
+    assert_eq!(
+        defaults.label,
+        Some("untitled".to_string()),
+        "absent `label` must deserialize to the schema default \"untitled\", got: {:?}",
+        defaults.label
+    );
+}
+
+#[test]
+fn test_defaults_explicit_null_is_preserved() {
+    let json_data = r#"{"label":null,"retries":7}"#;
+
+    let defaults: Defaults =
+        serde_json::from_str(json_data).expect("failed to deserialize Defaults");
+
+    assert!(
+        defaults.label.is_none(),
+        "explicit null `label` must be preserved as None, not replaced by the default, got: {:?}",
+        defaults.label
+    );
+    assert_eq!(
+        defaults.retries,
+        Some(7),
+        "provided `retries` must be preserved as 7, got: {:?}",
+        defaults.retries
+    );
+}
+
+// -- integer-backed enum round-trips as a JSON NUMBER (behavior 1) --
+//
+// `Priority` is an integer-backed enum (serde_repr). It must serialize as a
+// bare JSON number (2, not "2") and deserialize from a number back to the
+// matching member. `StockItem.priority` is a REQUIRED field of this type, so
+// the round-trip is exercised both bare and nested inside its owning model.
+#[test]
+fn test_priority_int_enum_serializes_as_json_number() {
+    let data = serde_json::to_string(&Priority::NUMBER_2).expect("failed to serialize Priority");
+    assert_eq!(
+        data, "2",
+        "integer-backed enum must serialize as a bare JSON number, got: {}",
+        data
+    );
+
+    // Nested inside StockItem the value is still a number, never a string.
+    let item = StockItem::new(Priority::NUMBER_3);
+    let nested = serde_json::to_string(&item).expect("failed to serialize StockItem");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&nested).expect("failed to parse serialized StockItem");
+    assert_eq!(
+        parsed["priority"],
+        serde_json::json!(3),
+        "StockItem.priority must serialize as a JSON number, got: {}",
+        nested
+    );
+}
+
+#[test]
+fn test_priority_int_enum_deserializes_from_json_number() {
+    let priority: Priority =
+        serde_json::from_str("2").expect("failed to deserialize Priority from number");
+    assert_eq!(priority, Priority::NUMBER_2);
+
+    let item: StockItem =
+        serde_json::from_str(r#"{"priority":1}"#).expect("failed to deserialize StockItem");
+    assert_eq!(item.priority, Priority::NUMBER_1);
+}
+
+// -- non-lowercase string enum preserves wire casing (behavior 2) --
+//
+// `Availability` is a string enum whose wire values are NOT lowercased
+// ("Available", "Sold", "on-hold"). Serialization must emit the exact wire
+// casing, deserialization of a declared value must yield the right member,
+// and an unknown value must be rejected (no silent fallback).
+#[test]
+fn test_availability_string_enum_round_trips_with_wire_casing() {
+    for (member, wire) in [
+        (Availability::Available, "\"Available\""),
+        (Availability::Sold, "\"Sold\""),
+        (Availability::OnHold, "\"on-hold\""),
+    ] {
+        let data = serde_json::to_string(&member).expect("failed to serialize Availability");
+        assert_eq!(
+            data, wire,
+            "Availability must preserve wire casing, got: {}",
+            data
+        );
+        let back: Availability =
+            serde_json::from_str(wire).expect("failed to deserialize Availability");
+        assert_eq!(back, member);
+    }
+}
+
+#[test]
+fn test_availability_string_enum_rejects_unknown_value() {
+    let result: Result<Availability, _> = serde_json::from_str("\"available\"");
+    assert!(
+        result.is_err(),
+        "a lowercased (non-wire-casing) value must be rejected, not coerced"
+    );
+    let result: Result<Availability, _> = serde_json::from_str("\"Discontinued\"");
+    assert!(
+        result.is_err(),
+        "an unknown Availability value must fail to deserialize"
+    );
+}
+
+// -- format:byte round-trips through base64 (behavior 3) --
+//
+// `PetPassport.thumbnail` is a scalar `format: byte` field and
+// `PetPassport.scans` is an array of `format: byte`. Both must serialize as
+// base64 strings on the wire and decode back to the original raw bytes.
+#[test]
+fn test_pet_passport_byte_fields_round_trip_through_base64() {
+    let mut passport = PetPassport::new();
+    passport.thumbnail = Some(vec![0xDE, 0xAD, 0xBE, 0xEF]);
+    passport.scans = Some(vec![vec![0x01, 0x02, 0x03], vec![0xFF, 0xFE]]);
+
+    let data = serde_json::to_string(&passport).expect("failed to serialize PetPassport");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized PetPassport");
+
+    // The scalar byte field is a base64 string on the wire, not a JSON array.
+    assert_eq!(
+        parsed["thumbnail"],
+        serde_json::json!("3q2+7w=="),
+        "thumbnail must serialize as a base64 string, got: {}",
+        data
+    );
+    // The array-of-byte field is a JSON array of base64 strings.
+    assert_eq!(
+        parsed["scans"],
+        serde_json::json!(["AQID", "//4="]),
+        "scans must serialize as an array of base64 strings, got: {}",
+        data
+    );
+
+    let restored: PetPassport =
+        serde_json::from_str(&data).expect("failed to deserialize PetPassport");
+    assert_eq!(
+        restored.thumbnail,
+        Some(vec![0xDE, 0xAD, 0xBE, 0xEF]),
+        "thumbnail bytes must survive the base64 round-trip"
+    );
+    assert_eq!(
+        restored.scans,
+        Some(vec![vec![0x01, 0x02, 0x03], vec![0xFF, 0xFE]]),
+        "scans bytes must survive the base64 round-trip"
+    );
+}
+
+// -- byte oneOf union round-trips through base64 (behavior 3, union path) --
+//
+// `SetPetAvatarThumbnailRequest` is a non-discriminated oneOf of a scalar
+// `format: byte` value and an array of `format: byte` values. `format: byte`
+// means the value travels on the wire as a base64 STRING (not a JSON int-array
+// `[1,2,3,4]`, not raw bytes). The byte marker must survive being wrapped in
+// the union: the scalar variant serializes to a base64 string and the array
+// variant to an array of base64 strings, and both decode back to the original
+// raw bytes. Ordering also matters — a scalar base64 string must deserialize
+// to the SCALAR variant (one value), never be mis-parsed element-by-element
+// into the array variant.
+#[test]
+fn test_set_pet_avatar_thumbnail_byte_one_of_round_trips_through_base64() {
+    // (1) Scalar variant: raw bytes serialize to the base64 string "AQIDBA==".
+    let scalar = SetPetAvatarThumbnailRequest::VecU8(vec![0x01, 0x02, 0x03, 0x04]);
+    let scalar_json = serde_json::to_string(&scalar).expect("failed to serialize scalar variant");
+    let scalar_value: serde_json::Value =
+        serde_json::from_str(&scalar_json).expect("failed to parse scalar variant JSON");
+    assert_eq!(
+        scalar_value,
+        serde_json::json!("AQIDBA=="),
+        "scalar byte variant must serialize as the base64 string \"AQIDBA==\", \
+         not a JSON int-array or raw bytes, got: {}",
+        scalar_json
+    );
+
+    // The scalar base64 string deserializes back to the SCALAR variant holding
+    // the original 4 bytes — NOT element-by-element into the array variant.
+    let restored_scalar: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(&scalar_json).expect("failed to deserialize scalar variant");
+    assert_eq!(
+        restored_scalar,
+        SetPetAvatarThumbnailRequest::VecU8(vec![0x01, 0x02, 0x03, 0x04]),
+        "a base64 string must round-trip to the scalar variant, not the array variant"
+    );
+
+    // (2) Array variant: a list of two byte payloads serializes to an array of
+    // base64 strings and round-trips back to the same two payloads.
+    let array = SetPetAvatarThumbnailRequest::VecVecU8(vec![
+        vec![0x01, 0x02, 0x03, 0x04],
+        vec![0xFF, 0xFE],
+    ]);
+    let array_json = serde_json::to_string(&array).expect("failed to serialize array variant");
+    let array_value: serde_json::Value =
+        serde_json::from_str(&array_json).expect("failed to parse array variant JSON");
+    assert_eq!(
+        array_value,
+        serde_json::json!(["AQIDBA==", "//4="]),
+        "array byte variant must serialize as an array of base64 strings, got: {}",
+        array_json
+    );
+
+    let restored_array: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(&array_json).expect("failed to deserialize array variant");
+    assert_eq!(
+        restored_array,
+        SetPetAvatarThumbnailRequest::VecVecU8(vec![
+            vec![0x01, 0x02, 0x03, 0x04],
+            vec![0xFF, 0xFE],
+        ]),
+        "the array of base64 strings must round-trip to the array variant"
+    );
+}
+
+// -- double-typed field accepts an INTEGRAL JSON value (behavior 4) --
+//
+// `PhotoMetadataLocation.lat` is an `f64`. A JSON payload that supplies an
+// integral value (`{"lat":5}`, not `5.0`) must deserialize without crashing
+// and yield the equivalent float.
+#[test]
+fn test_photo_metadata_location_double_from_integral_json() {
+    let json_data = r#"{"lat":5,"lng":-7}"#;
+
+    let location: PhotoMetadataLocation =
+        serde_json::from_str(json_data).expect("integral JSON number must deserialize into f64");
+
+    assert_eq!(location.lat, Some(5.0), "lat must coerce 5 -> 5.0");
+    assert_eq!(location.lng, Some(-7.0), "lng must coerce -7 -> -7.0");
+}
+
+// -- nested container deep-round-trips to typed leaves (behavior 7) --
+//
+// `StockItem.matrix` is `Vec<Vec<i32>>` (array-of-array<int>). A nested JSON
+// payload must decode all the way down to typed `i32` leaves and re-serialize
+// to the same nested shape.
+#[test]
+fn test_stock_item_matrix_nested_array_round_trips_typed_leaves() {
+    let json_data = r#"{"priority":1,"matrix":[[1,2,3],[4,5]]}"#;
+
+    let item: StockItem =
+        serde_json::from_str(json_data).expect("failed to deserialize StockItem with matrix");
+
+    let matrix = item.matrix.as_ref().expect("expected matrix to be present");
+    assert_eq!(matrix.len(), 2, "outer matrix length mismatch");
+    // The leaves are genuine i32 values: arithmetic only compiles on typed leaves.
+    assert_eq!(matrix[0], vec![1i32, 2, 3], "first row mismatch");
+    assert_eq!(matrix[1], vec![4i32, 5], "second row mismatch");
+
+    let reserialized: serde_json::Value =
+        serde_json::from_str(&serde_json::to_string(&item).expect("failed to serialize"))
+            .expect("re-parsed JSON");
+    assert_eq!(
+        reserialized["matrix"],
+        serde_json::json!([[1, 2, 3], [4, 5]]),
+        "nested matrix must round-trip to the same shape"
+    );
+}

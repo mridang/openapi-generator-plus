@@ -1,0 +1,74 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+{{>models/checkstyle_suppressions}}
+class BearerAuthenticatorTest {
+
+    @Test
+    void rawTokenIsPrefixedWithBearer() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "xyz");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Bearer xyz", headers.get("Authorization"));
+    }
+
+    @Test
+    void alreadyPrefixedTokenIsNotDoubled() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "Bearer xyz");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Bearer xyz", headers.get("Authorization"));
+    }
+
+    @Test
+    void lowercaseBearerPrefixIsStripped() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "bearer xyz");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Bearer xyz", headers.get("Authorization"));
+    }
+
+    @Test
+    void mixedCaseBearerPrefixIsStripped() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "BeArEr xyz");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Bearer xyz", headers.get("Authorization"));
+    }
+
+    @Test
+    void emptyTokenIsRejectedAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BearerAuthenticator("https://api.example.com", ""));
+    }
+
+    // No null-token test: the token parameter is @NonNull, so NullAway
+    // rejects passing a literal null at compile time — null can't reach the
+    // constructor in well-typed code. The empty + whitespace cases above
+    // exercise the runtime guard.
+
+    @Test
+    void whitespaceOnlyTokenIsRejectedAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BearerAuthenticator("https://api.example.com", "   "));
+    }
+
+    /**
+     * The default {@code toString()} must mask the stored token: the secret
+     * value must be absent and a {@code ***} redaction marker present.
+     */
+    @Test
+    @DisplayName("toString() redacts the token and shows ***")
+    void redactsSecret() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "xyz");
+        String repr = auth.toString();
+        assertFalse(repr.contains("token=xyz"));
+        assertTrue(repr.contains("***"));
+    }
+}

@@ -1,0 +1,360 @@
+{{>api_info}}
+
+from __future__ import annotations
+
+{{#operations}}{{#hasServerTypeDefs}}from abc import ABC, abstractmethod
+from enum import Enum
+{{/hasServerTypeDefs}}{{/operations}}from typing import Any, Dict, List, Optional
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
+
+{{#imports}}
+{{import}}
+{{/imports}}
+
+from ..api_client import ApiClient
+from ..api_result import ApiResult
+from ..configuration import Configuration
+from .base_api import BaseApi, NO_AUTH, _is_valid_cookie_value
+from ..value_serializer import ValueSerializer
+from ..auth.authenticator import Authenticator
+from ..errors import ApiException
+{{#optionsImports}}
+from .options.{{optionsFileName}} import {{optionsClassName}}
+{{/optionsImports}}
+
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+class {{serverTypeName}}(ABC):
+    """Server type for the {{operationId}} operation."""
+
+    @abstractmethod
+    def get_url(self) -> str:
+        """Returns the server URL."""
+        ...
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+class {{serverTypeName}}{{pascalName}}(str, Enum):
+{{#enumValues}}
+    {{name}} = '{{value}}'
+{{/enumValues}}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
+{{#hasDescription}}
+    """{{{description}}}"""
+{{/hasDescription}}
+
+    def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
+{{#serverVariables}}
+        self._{{snakeName}} = {{snakeName}}
+{{/serverVariables}}
+{{^serverVariables}}
+        pass
+{{/serverVariables}}
+
+    def get_url(self) -> str:
+        url = '{{url}}'
+{{#serverVariables}}
+        url = url.replace('{' + '{{name}}' + '}', {{#hasEnumValues}}self._{{snakeName}}.value{{/hasEnumValues}}{{^hasEnumValues}}self._{{snakeName}}{{/hasEnumValues}})
+{{/serverVariables}}
+        return url
+{{/variants}}
+{{/serverTypeDefs}}
+
+class {{classname}}(BaseApi):
+    """{{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+    {{{.}}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+
+    .. seealso::
+        `{{{description}}} <{{url}}>`_
+{{/tagExternalDocs}}
+    """
+
+    def __init__(
+        self,
+        api_client: Optional[ApiClient] = None,
+        config: Optional[Configuration] = None,
+        authenticator: Optional[Authenticator] = None,
+    ):
+        super().__init__(api_client, config, authenticator)
+{{#operation}}
+
+    async def {{operationId}}(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
+        """{{{summary}}}
+{{#notes}}
+        {{{.}}}
+{{/notes}}
+{{#pathParams}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+        # {{{summary}}}
+        # {{{description}}}
+        # >>> {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+        # {{{summary}}}
+        # {{{description}}}
+        # >>> {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
+        :param options: options for query, header, form, and cookie parameters
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
+{{/vendorExtensions.hasMultipleConsumes}}
+{{#returnType}}
+        :return: {{{returnType}}}
+{{/returnType}}
+        :raises ApiException: if fails to make API call
+{{#isDeprecated}}
+
+        .. deprecated::
+            This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+
+        .. seealso::
+            `{{{description}}} <{{url}}>`_
+{{/externalDocs}}
+        """
+{{#pathParams}}
+{{#required}}
+        if {{paramName}} is None{{#isString}} or {{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/cookieParams}}
+        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type=request_content_type{{/vendorExtensions.hasMultipleConsumes}})
+
+{{#returnType}}
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+{{/returnType}}
+        return result.data
+
+    async def {{operationId}}_with_http_info(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
+        """{{{summary}}} (with HTTP info)
+{{#notes}}
+        {{{.}}}
+{{/notes}}
+{{#pathParams}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
+        :param options: options for query, header, form, and cookie parameters
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
+{{/vendorExtensions.hasMultipleConsumes}}
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+{{#pathParams}}
+{{#required}}
+        if {{paramName}} is None{{#isString}} or {{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/cookieParams}}
+        path = '{{{path}}}'{{#pathParams}}
+        path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}}))){{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if server is not None:
+            _server_url = server.get_url()
+            if _server_url.startswith('http://') or _server_url.startswith('https://'):
+                path = _server_url + path
+{{/-first}}
+{{/servers}}
+        query_params: Dict[str, Any] = {}
+{{#queryParams}}
+{{#vendorExtensions.param.queryDeepObject}}
+        if options is not None and options.{{paramName}} is not None:
+            query_params.update(ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}}))
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+        if options is not None and options.{{paramName}} is not None:
+            import json
+            query_params['{{baseName}}'] = json.dumps(options.{{paramName}})
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+        if options is not None and options.{{paramName}} is not None:
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+        if options is not None and options.{{paramName}} is not None:
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        header_params: Dict[str, str] = {}
+{{#headerParams}}
+        if options is not None and options.{{paramName}} is not None:
+            header_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
+{{/headerParams}}
+{{#hasCookieParams}}
+        cookie_parts = []
+{{#cookieParams}}
+        if options is not None and options.{{paramName}} is not None:
+            # RFC 6265 — operation cookie values are interpolated straight into
+            # the Cookie request header, so they must pass the same cookie-octet
+            # validation that auth-provided cookies receive in the base client.
+            # A CR/LF or control char here would otherwise allow header
+            # injection; fail closed with the same error the auth-cookie path
+            # raises rather than emitting a malformed header.
+            cookie_value = ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{vendorExtensions.isExplodeStrCap}})
+            if not _is_valid_cookie_value(cookie_value):
+                raise ValueError(
+                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                )
+            cookie_parts.append(f'{{baseName}}={cookie_value}')
+{{/cookieParams}}
+        if cookie_parts:
+            header_params['Cookie'] = '; '.join(cookie_parts)
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        body: Dict[str, Any] = {}
+{{#formParams}}
+{{#required}}
+        if options is not None:
+            body['{{baseName}}'] = options.{{paramName}}
+{{/required}}
+{{^required}}
+        if options is not None and options.{{paramName}} is not None:
+            body['{{baseName}}'] = options.{{paramName}}
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+        body = {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}None{{/bodyParam}}
+{{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        # This operation declares more than one request content type. The
+        # optional request_content_type selector overrides the Content-Type
+        # header; when omitted it defaults to the first declared type so the
+        # historical behaviour (and existing call sites) are unchanged.
+        content_type = request_content_type if request_content_type is not None else '{{vendorExtensions.op.effectiveConsumes}}'
+{{/vendorExtensions.hasMultipleConsumes}}
+
+        return await self._invoke_api_for_result(
+            '{{httpMethod}}',
+            path,
+            query_params,
+            header_params,
+            body,
+            [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
+            {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
+            {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}(options.auth if options is not None else None){{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}NO_AUTH{{/hasAuthMethods}},
+        )
+{{/operation}}
+{{/operations}}

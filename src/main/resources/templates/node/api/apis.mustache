@@ -1,0 +1,355 @@
+{{>api_info}}
+
+import type { ApiClient } from '../api-client{{importFileExtension}}';
+import { ApiError } from '../api-error{{importFileExtension}}';
+import type { ApiResult } from '../api-result{{importFileExtension}}';
+import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
+import { NO_AUTH } from '../auth/authenticator{{importFileExtension}}';
+import { BaseApi } from './base-api{{importFileExtension}}';
+import { Configuration } from '../configuration{{importFileExtension}}';
+import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
+import { ValueSerializer } from '../value-serializer{{importFileExtension}}';
+{{#hasDeepInputBody}}
+import type { DeepInput } from '../deep-input{{importFileExtension}}';
+{{/hasDeepInputBody}}
+{{#imports.0}}
+import { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
+{{/imports.0}}
+{{#optionsImports}}
+import type { {{optionsClassName}} } from './options/{{optionsFileName}}{{importFileExtension}}';
+{{/optionsImports}}
+
+{{#operations}}
+{{#serverTypeDefs}}
+export abstract class {{serverTypeName}} {
+  abstract getUrl(): string;
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+export enum {{serverTypeName}}{{pascalName}} {
+{{#enumValues}}
+  {{name}} = '{{value}}',
+{{/enumValues}}
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
+{{#serverVariables}}
+  readonly {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}};
+{{/serverVariables}}
+  constructor({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
+    super();
+{{#serverVariables}}
+    this.{{camelName}} = {{camelName}};
+{{/serverVariables}}
+  }
+  getUrl(): string {
+{{#serverVariables}}
+{{#-first}}
+    let url = '{{url}}';
+{{/-first}}
+    url = url.replace('{' + '{{name}}' + '}', this.{{camelName}});
+{{/serverVariables}}
+{{^serverVariables}}
+    return '{{url}}';
+{{/serverVariables}}
+{{#serverVariables}}
+{{#-last}}
+    return url;
+{{/-last}}
+{{/serverVariables}}
+  }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+/**
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+ * {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+ * @see {@link {{url}}} {{description}}
+{{/tagExternalDocs}}
+ */
+export class {{classname}} extends BaseApi {
+  constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null) {
+    super(apiClient, config, authenticator);
+  }
+  {{#operation}}
+
+  /**
+{{#summary}}
+   * {{&summary}}
+{{/summary}}
+{{#notes}}
+   * {{&notes}}
+{{/notes}}
+{{#hasAuthMethods}}
+   * @param options.auth optional authenticator for this operation
+{{/hasAuthMethods}}
+{{#pathParams}}
+   * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+   * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasContentTypeSelector}}
+   * @param contentType optional request Content-Type; one of {{#vendorExtensions.op.contentTypeOptions}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.contentTypeOptions}}. Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when omitted.
+{{/vendorExtensions.op.hasContentTypeSelector}}
+{{#queryParams}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/queryParams}}
+{{#headerParams}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/headerParams}}
+{{#formParams}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/formParams}}
+{{#cookieParams}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/cookieParams}}
+{{#returnType}}
+   * @return {{{returnType}}}
+{{/returnType}}
+   * @throws {ApiError} if fails to make API call
+{{#isDeprecated}}
+   * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+   * @see {@link {{url}}} {{description}}
+{{/externalDocs}}
+   */
+  async {{nickname}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+{{#returnType}}
+    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}});
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if ({{nickname}}Result.data == null) {
+      throw new ApiError(
+        {{nickname}}Result.statusCode,
+        'Expected a response body for {{nickname}} but received none',
+        {{nickname}}Result.headers,
+        {{nickname}}Result.rawBody,
+        null
+      );
+    }
+    return {{nickname}}Result.data as {{{returnType}}};
+{{/returnType}}
+{{^returnType}}
+    await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}});
+{{/returnType}}
+  }
+
+  /**
+   * {{&summary}} (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+{{#pathParams}}
+{{#required}}
+    if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+    if ({{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/cookieParams}}
+{{^pathParams}}
+    const path = `{{{path}}}`;
+{{/pathParams}}
+{{#pathParams}}
+{{#-first}}
+    let path = `{{{path}}}`;
+{{/-first}}
+{{#isDate}}
+    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate({{paramName}})));
+{{/isDate}}
+{{^isDate}}
+    {{! path-double-encoding: serializeStyled already percent-encodes path
+        segments via encodePathSegment internally; wrapping its result in a
+        second encodePathSegment double-encodes (space -> %2520, a/b ->
+        a%252Fb). Encode once, in the serializer. }}
+    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string);
+{{/isDate}}
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+    const serverUrl = server ? server.getUrl() : null;
+{{/-first}}
+{{/servers}}
+    const queryParams: Record<string, unknown> = {};
+{{#queryParams}}
+{{#vendorExtensions.param.queryDeepObject}}
+    if (options?.{{paramName}} != null) {
+      const deepObj = ValueSerializer.serializeDeepObject('{{baseName}}', options.{{paramName}} as Record<string, unknown>);
+      Object.assign(queryParams, deepObj);
+    }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+    if (options?.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = JSON.stringify(options.{{paramName}});
+    }
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+    if (options?.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
+    }
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+    if (options?.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
+    }
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+    const headerParams: Record<string, string> = {};
+{{#headerParams}}
+    if (options?.{{paramName}} != null) {
+      headerParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string;
+    }
+{{/headerParams}}
+{{#hasCookieParams}}
+    const cookieParts: string[] = [];
+{{#cookieParams}}
+    if (options?.{{paramName}} != null) {
+      const {{paramName}}CookieValue = `${ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}})}`;
+      /* RFC 6265 — reject CR/LF and other control characters in the
+       * serialized cookie value before it is joined into the Cookie
+       * header. This mirrors the validation the auth-cookie path applies
+       * in the base client, so a forbidden value fails closed with the
+       * same error instead of being injected raw into the header. */
+      if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test({{paramName}}CookieValue)) {
+        throw new Error(
+          `Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265`
+        );
+      }
+      cookieParts.push(`{{baseName}}=${ {{paramName}}CookieValue }`);
+    }
+{{/cookieParams}}
+    if (cookieParts.length > 0) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
+{{/hasCookieParams}}
+{{#hasFormParams}}
+    const formBody: Record<string, unknown> = {};
+{{#formParams}}
+    if (options?.{{paramName}} != null) {
+      formBody['{{baseName}}'] = options.{{paramName}};
+    }
+{{/formParams}}
+{{#vendorExtensions.op.hasContentTypeSelector}}
+    /* This operation declares multiple request content types. The
+     * multipart/form-data envelope (formBody, a Record assembled above) is
+     * only correct when multipart/form-data is the selected Content-Type.
+     * For a binary single-part type (e.g. application/octet-stream) the wire
+     * body must be the RAW bytes of the binary part, NOT a multipart envelope
+     * and NOT a base64 string — mirror setPetAvatar's raw-Buffer path. The
+     * transport decides multipart-vs-raw by inspecting the body's runtime
+     * type (a plain object becomes multipart; a Buffer is sent verbatim), so
+     * we hand it the Buffer directly when the caller did not pick multipart. */
+    const requestBody: Record<string, unknown> | Buffer | null =
+      (contentType ?? '{{vendorExtensions.op.effectiveConsumes}}') ===
+      'multipart/form-data'
+        ? formBody
+{{#formParams}}{{#isBinary}}        : (options?.{{paramName}} ?? null);
+{{/isBinary}}{{/formParams}}
+{{/vendorExtensions.op.hasContentTypeSelector}}
+
+{{/hasFormParams}}
+    return await this.invokeApiForResult(
+      '{{httpMethod}}',
+      {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
+      queryParams,
+      headerParams,
+      {{#hasFormParams}}{{#vendorExtensions.op.hasContentTypeSelector}}requestBody{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}formBody{{/vendorExtensions.op.hasContentTypeSelector}}{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+      [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
+      {{#vendorExtensions.op.hasContentTypeSelector}}contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}},
+      {{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => Buffer.from(json as string, 'base64'){{/isBinary}}{{#isBinary}}(json: unknown) => json as {{{returnType}}}{{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},
+      {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}NO_AUTH{{/hasAuthMethods}}
+    );
+  }
+  {{/operation}}
+}
+{{/operations}}
+{{#hasEnums}}
+
+{{#operations}}
+{{#operation}}
+{{#allParams}}
+{{#isEnum}}
+{{^stringEnums}}
+export const {{operationIdCamelCase}}{{enumName}} = {
+{{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
+{{/allowableValues}}
+} as const;
+export type {{operationIdCamelCase}}{{enumName}} = (typeof {{operationIdCamelCase}}{{enumName}})[keyof typeof {{operationIdCamelCase}}{{enumName}}];
+{{/stringEnums}}
+{{#stringEnums}}
+export enum {{operationIdCamelCase}}{{enumName}} {
+{{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}} = {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
+{{/allowableValues}}
+}
+{{/stringEnums}}
+{{/isEnum}}
+{{/allParams}}
+{{/operation}}
+{{/operations}}
+{{/hasEnums}}

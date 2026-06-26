@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         failOnRisky="true"
+         cacheResult="false">
+    <testsuites>
+        <testsuite name="Unit Tests">
+            <file>tests/DefaultApiClientUnitTest.php</file>
+            <file>tests/TransportOptionsTest.php</file>
+            <file>tests/HeaderSelectorTest.php</file>
+            <file>tests/ObjectSerializerTest.php</file>
+            <file>tests/TraceContextUtilTest.php</file>
+        </testsuite>
+        <testsuite name="Integration Tests">
+            <file>tests/DefaultApiClientTest.php</file>
+        </testsuite>
+        <testsuite name="API Tests">
+            <directory>tests/Api</directory>
+        </testsuite>
+    </testsuites>
+    <!-- Coverage source declaration uses phpunit 10/11's `<source>` schema
+         rather than the legacy `<coverage><include>` block. The legacy
+         form still parses but phpunit emits a "Filter for code coverage
+         has not been configured" warning that pest's parallel runner
+         treats as a fatal exit. The <source> form is the supported
+         shape going forward. -->
+    <source>
+        <include>
+            <directory suffix=".php">lib</directory>
+        </include>
+    </source>
+    <coverage>
+        <report>
+            <cobertura outputFile=".out/coverage.xml"/>
+        </report>
+    </coverage>
+    <logging>
+        <junit outputFile=".out/reports/junit.xml"/>
+    </logging>
+</phpunit>

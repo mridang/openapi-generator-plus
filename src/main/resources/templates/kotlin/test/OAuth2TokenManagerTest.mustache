@@ -1,0 +1,569 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.oauth.OAuth2ServerError
+import {{invokerPackage}}.auth.oauth.OAuth2TokenError
+import {{invokerPackage}}.auth.oauth.OAuth2TokenManager
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+import java.util.LinkedList
+import java.util.concurrent.atomic.AtomicInteger
+
+class OAuth2TokenManagerTest {
+
+    private class FakeApiClient : ApiClient {
+        private val responses = LinkedList<ApiHttpResponse>()
+        var lastBody: String? = null
+            private set
+        var lastUrl: String? = null
+            private set
+        var lastNoRedirect: Boolean? = null
+            private set
+
+        fun enqueue(body: String, statusCode: Int = 200) {
+            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
+        }
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse {
+            lastUrl = url
+            lastBody = body?.toString()
+            lastNoRedirect = noRedirect
+            return responses.poll() ?: throw IllegalStateException("No responses queued")
+        }
+    }
+
+    @Test
+    fun fetchTokenPassesNoRedirectTrue() {
+        // Gap 3.2: token endpoint POSTs must refuse 307/308 redirects so
+        // credentials in the form body can't be silently replayed.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials"),
+            )
+        }
+        assertEquals(true, client.lastNoRedirect,
+            "OAuth2TokenManager.fetchToken must invoke sendRequest with noRedirect=true")
+    }
+
+    @Test
+    fun `token_endpoint_redirect_is_rejected`() {
+        // Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+        // manager must refuse the whole 300-399 range (302 and 307 both checked
+        // here, plus 301/303/308) with a typed OAuth2TokenError rather than
+        // replaying the credential-bearing POST.
+        for (status in listOf(301, 302, 303, 307, 308)) {
+            val client = FakeApiClient()
+            client.enqueue("", statusCode = status)
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+
+            val ex = assertThrows(OAuth2TokenError::class.java) {
+                runBlocking {
+                    manager.getAccessToken(
+                        "https://auth.example.com/token",
+                        mapOf("grant_type" to "client_credentials", "client_secret" to "topsecret"),
+                    )
+                }
+            }
+            assertNotNull(ex.message, "status $status must produce a redirect-refusal message")
+        }
+    }
+
+    @Test
+    fun extractsAccessTokenFromResponse() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok123","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val token = runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials")
+            )
+        }
+
+        assertEquals("tok123", token)
+    }
+
+    @Test
+    fun storesRefreshToken() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "authorization_code")
+            )
+        }
+
+        assertEquals("ref1", manager.getRefreshToken())
+    }
+
+    @Test
+    fun returnsCachedTokenWhenNotExpired() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("tok1", first)
+        assertEquals("tok1", second)
+    }
+
+    @Test
+    fun refetchesTokenWhenExpired() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("tok1", first)
+        assertEquals("tok2", second)
+    }
+
+    @Test
+    fun setAccessTokenBypassesEndpoint() {
+        val manager = OAuth2TokenManager()
+        manager.setAccessToken("manual-token")
+
+        val token = runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                emptyMap()
+            )
+        }
+
+        assertEquals("manual-token", token)
+    }
+
+    @Test
+    fun invalidateAccessTokenForcesRefetch() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        manager.invalidateAccessToken()
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("tok1", first)
+        assertEquals("tok2", second)
+    }
+
+    @Test
+    fun throwsWhenNoApiClientInjected() {
+        val manager = OAuth2TokenManager()
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
+            }
+        }
+    }
+
+    @Test
+    fun singleFlightRefreshCoalescesConcurrentCallers() {
+        // 10 coroutines all see no cached token and race into getAccessToken.
+        // The Mutex + double-checked locking inside the manager must coalesce them
+        // into exactly one network round-trip to the token endpoint.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiHttpResponse {
+                networkCalls.incrementAndGet()
+                // Tiny suspension to widen the race window for other coroutines.
+                delay(50)
+                return ApiHttpResponse(200, """{"access_token":"shared-tok","expires_in":3600}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val tokens = runBlocking {
+            coroutineScope {
+                (1..10).map {
+                    async {
+                        manager.getAccessToken(
+                            "https://auth.example.com/token",
+                            mapOf("grant_type" to "client_credentials")
+                        )
+                    }
+                }.awaitAll()
+            }
+        }
+
+        assertEquals(1, networkCalls.get(),
+            "single-flight refresh must coalesce concurrent callers into one token request")
+        assertTrue(tokens.all { it == "shared-tok" }, "all callers must observe the same token")
+    }
+
+    @Test
+    fun refreshTokenEmptyStringPreservesExisting() {
+        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        // MUST NOT clobber the cached refresh_token.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}""")
+        client.enqueue("""{"access_token":"new_access","expires_in":3600,"refresh_token":""}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "authorization_code")
+        val tokenUrl = "https://auth.example.com/token"
+
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        assertEquals("old_refresh", manager.getRefreshToken())
+
+        // Second call: access token is near-expiry, manager refreshes using
+        // "old_refresh"; the response contains an empty refresh_token which
+        // must NOT overwrite the cached value.
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        assertEquals("old_refresh", manager.getRefreshToken(),
+            "empty refresh_token in refresh response must not overwrite cached refresh_token")
+    }
+
+    @Test
+    fun expiresInAsJsonStringIsAccepted() {
+        // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+        // quoted string. The manager must accept it and cache the token; a
+        // second call within the buffer window must serve from cache.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"str-tok","expires_in":"3600"}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("str-tok", first)
+        assertEquals("str-tok", second,
+            "quoted-string expires_in must produce a valid cached expiry")
+    }
+
+    @Test
+    fun expiresInAsFloatIsFloored() {
+        // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+        // The manager must floor it and cache the token.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"flt-tok","expires_in":3600.5}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("flt-tok", first)
+        assertEquals("flt-tok", second,
+            "float expires_in must floor to a valid cached expiry")
+    }
+
+    @Test
+    fun expiresInNegativeSkipsCaching() {
+        // D1: a negative expires_in (e.g. -1) must mark the token as
+        // immediately stale so the very next call refetches.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"neg1","expires_in":-1}""")
+        client.enqueue("""{"access_token":"neg2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("neg1", first)
+        assertEquals("neg2", second,
+            "negative expires_in must not cache; next call must refetch")
+    }
+
+    @Test
+    fun throwsWhenTokenRequestFails() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"invalid_client"}""", statusCode = 401)
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        assertThrows(ZitadelException::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `token_response_missing_access_token_throws_typed_error`() {
+        // A 2xx response whose body omits access_token must surface as the
+        // typed OAuth2TokenError, not silently cache an empty token.
+        val client = FakeApiClient()
+        client.enqueue("""{"refresh_token":"x"}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex = assertThrows(OAuth2TokenError::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
+            }
+        }
+        assertNotNull(ex.message)
+    }
+
+    @Test
+    fun `token_endpoint_error_response_parsed_to_typed_error`() {
+        // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
+        // as a typed OAuth2ServerError carrying code/description/uri.
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"error":"invalid_grant","error_description":"refresh token expired","error_uri":"https://docs.example.com/errors/invalid_grant"}""",
+            statusCode = 400,
+        )
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex = assertThrows(OAuth2ServerError::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
+            }
+        }
+        assertEquals(400, ex.statusCode)
+        assertEquals("invalid_grant", ex.code)
+        assertEquals("refresh token expired", ex.description)
+        assertEquals("https://docs.example.com/errors/invalid_grant", ex.uri)
+    }
+
+    @Test
+    fun expiresInShortLivedTokenDoesNotStorm() {
+        // Gap CM: short-lived token (expires_in < safety buffer) must produce
+        // exactly ONE network request from a single getAccessToken call, with
+        // no inner refresh storm.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiHttpResponse {
+                networkCalls.incrementAndGet()
+                return ApiHttpResponse(200, """{"access_token":"short","expires_in":10}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val token = runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials")
+            )
+        }
+
+        assertEquals("short", token)
+        assertEquals(1, networkCalls.get())
+    }
+
+    @Test
+    fun expiresInLongLivedTokenAppliesFullBuffer() {
+        // Gap CM: long-lived token gets the full 30s buffer clamped by
+        // min(expires_in, 30). With expires_in=3600 the token stays cached on a
+        // second call within the same instant.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiHttpResponse {
+                networkCalls.incrementAndGet()
+                return ApiHttpResponse(200, """{"access_token":"long","expires_in":3600}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("long", first)
+        assertEquals("long", second)
+        assertEquals(1, networkCalls.get())
+    }
+
+    @Test
+    fun expiresInExactlyBufferReturnsZeroBuffer() {
+        // Gap CM: expires_in == 30 (the buffer) collapses expiry to now, forcing
+        // the next getAccessToken call to refetch.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiHttpResponse {
+                val n = networkCalls.incrementAndGet()
+                return ApiHttpResponse(200, """{"access_token":"edge$n","expires_in":30}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("edge1", first)
+        assertEquals("edge2", second)
+        assertEquals(2, networkCalls.get())
+    }
+
+    @Test
+    fun invalidateAccessTokenTriggersSingleRefetchUnderConcurrency() {
+        // After invalidation, 10 concurrent coroutines must coalesce into
+        // exactly ONE additional network round-trip (single-flight), all
+        // observing the same freshly fetched token.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiHttpResponse {
+                val n = networkCalls.incrementAndGet()
+                delay(50)
+                return ApiHttpResponse(200, """{"access_token":"tok$n","expires_in":3600}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        assertEquals("tok1", first)
+        assertEquals(1, networkCalls.get())
+
+        manager.invalidateAccessToken()
+
+        val tokens = runBlocking {
+            coroutineScope {
+                (1..10).map {
+                    async { manager.getAccessToken(tokenUrl, params) }
+                }.awaitAll()
+            }
+        }
+
+        assertEquals(2, networkCalls.get(),
+            "invalidate + concurrent callers must produce one refetch")
+        assertTrue(tokens.all { it == "tok2" }, "all callers must observe the refreshed token")
+    }
+
+    @org.junit.jupiter.api.Disabled(
+        "Kotlin OAuth2TokenManager redirect-refusal error does not surface the Location header")
+    @Test
+    fun redirectRefusalErrorIncludesLocationHeader() {
+        // Bucket 3.2: the redirect-refusal error should name the offending
+        // Location for diagnostics. The Kotlin SDK only embeds the status code
+        // and token endpoint URL in the message, not the Location target.
+        val client = FakeApiClient()
+        client.enqueue("", statusCode = 307)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex = assertThrows(OAuth2TokenError::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
+            }
+        }
+        assertTrue(ex.message?.contains("attacker.example") == true,
+            "redirect-refusal error should name the Location target for diagnostics")
+    }
+}

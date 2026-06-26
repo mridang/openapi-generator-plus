@@ -1,0 +1,57 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+source 'https://rubygems.org'
+
+ruby '>= 3.4'
+
+# Pinned to the version bundled with the Ruby base image so bundler resolves
+# it to the precompiled default gem instead of compiling a newer one from
+# source — bigdecimal is a C extension with no musl build and would otherwise
+# fail on the toolchain-free Alpine base.
+gem 'bigdecimal', '3.1.8'
+
+# base64, json and set are default gems that Ruby is unbundling from the
+# standard library (base64 is no longer a default gem on Ruby 3.4+). The
+# generated runtime requires all three, so declare them as runtime
+# dependencies rather than relying on them being preinstalled.
+gem 'base64', '~> 0.3'
+gem 'dry-struct', '~> 1.6'
+gem 'dry-types', '~> 1.7'
+gem 'faraday', '~> 2.0'
+gem 'faraday-follow_redirects', '~> 0.3'
+gem 'iso8601', '~> 0.13'
+gem 'json', '~> 2.6'
+gem 'set', '~> 1.1'
+gem 'tod', '~> 3.1'
+
+group :development, :test do
+  gem 'better_coverage', '~> 1.1'
+{{#generateTests}}
+  gem 'docker-api', '~> 2.4'
+{{/generateTests}}
+  gem 'minitest', '~> 5.0'
+  gem 'minitest-hooks', '~> 1.5'
+  gem 'rake', '~> 13.4'
+  gem 'rubocop', '~> 1.87', require: false
+  gem 'rubocop-minitest', '~> 0.39', require: false
+  gem 'rubocop-rake', '~> 0.7', require: false
+  gem 'simplecov', '~> 0.22', require: false
+  gem 'simplecov-cobertura', '~> 3.1', require: false
+  gem 'steep', '~> 2.0', require: false
+{{#generateTests}}
+  gem 'testcontainers', '~> 0.2'
+{{/generateTests}}
+  gem 'yard', '~> 0.9', require: false
+end
+
+# Optional response-decompression backends. Both are C-extension gems with no
+# precompiled musl build and do not compile cleanly on Alpine even with a
+# toolchain, so they are excluded from the default install (the test image
+# sets BUNDLE_WITHOUT=optional). The client requires them under begin/rescue
+# and only advertises br/zstd in Accept-Encoding when the constant is defined,
+# so omitting them is safe; consumers opt in on a glibc platform.
+group :optional do
+  gem 'brotli', '~> 0.5'
+  gem 'zstd-ruby', '~> 1.5'
+end

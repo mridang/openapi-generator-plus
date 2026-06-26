@@ -1,0 +1,1300 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	apierrors "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/models"
+)
+
+// Compile-time proof that *SerializationError satisfies the branded ZitadelError
+// root. SerializationError lives in this (main) package while ZitadelError lives
+// in the imported errors package; this assertion guarantees the brand spans the
+// package boundary. If SerializationError stops implementing error, the test
+// package fails to compile.
+var _ apierrors.ZitadelError = (*SerializationError)(nil)
+
+func TestSerialize_MapToJSON(t *testing.T) {
+	t.Parallel()
+	input := map[string]any{
+		"name": "Fido",
+		"age":  3,
+	}
+
+	data, err := serialize(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(data) == 0 {
+		t.Fatal("expected non-empty serialized data")
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("failed to parse serialized JSON: %v", err)
+	}
+	if parsed["name"] != "Fido" {
+		t.Errorf("expected name 'Fido', got %v", parsed["name"])
+	}
+}
+
+func TestDeserialize_JSONToMap(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"name":"Fido","age":3}`)
+
+	var result map[string]any
+	err := deserialize(input, &result)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result["name"] != "Fido" {
+		t.Errorf("expected name 'Fido', got %v", result["name"])
+	}
+}
+
+// P2: a UTF-8 BOM (\ufeff, encoded as 0xEF 0xBB 0xBF) prefixing JSON text must be
+// stripped transparently so the payload deserializes cleanly into the model, for
+// parity with Java Jackson / C# System.Text.Json which tolerate a leading BOM.
+func TestDeserialize_StripsUTF8BOMBeforeModel(t *testing.T) {
+	t.Parallel()
+	input := []byte("\ufeff{\"id\":1,\"name\":\"Dogs\"}")
+
+	var category models.Category
+	if err := deserialize(input, &category); err != nil {
+		t.Fatalf("unexpected error deserializing BOM-prefixed JSON: %v", err)
+	}
+	if category.Id == nil || *category.Id != 1 {
+		t.Errorf("expected id 1, got %v", category.Id)
+	}
+	if category.Name == nil || *category.Name != "Dogs" {
+		t.Errorf("expected name 'Dogs', got %v", category.Name)
+	}
+}
+
+// A schema default applies only when the property is ABSENT from the payload.
+// An explicit JSON null is a provided value and must be preserved, not replaced
+// by the default. This mirrors the default-application contract of the other SDKs.
+func TestDeserialize_DefaultsAbsentVersusNull(t *testing.T) {
+	t.Parallel()
+
+	var fromEmpty models.Defaults
+	if err := deserialize([]byte("{}"), &fromEmpty); err != nil {
+		t.Fatalf("unexpected error deserializing empty object: %v", err)
+	}
+	if fromEmpty.Retries == nil || *fromEmpty.Retries != 3 {
+		t.Errorf("expected retries default 3, got %v", fromEmpty.Retries)
+	}
+	if fromEmpty.Mode == nil || *fromEmpty.Mode != models.DefaultsModeEnumMedium {
+		t.Errorf("expected mode default medium, got %v", fromEmpty.Mode)
+	}
+	if fromEmpty.Label == nil || *fromEmpty.Label != "untitled" {
+		t.Errorf("expected label default 'untitled', got %v", fromEmpty.Label)
+	}
+
+	var fromNull models.Defaults
+	if err := deserialize([]byte(`{"label":null,"retries":7}`), &fromNull); err != nil {
+		t.Fatalf("unexpected error deserializing explicit null: %v", err)
+	}
+	if fromNull.Label != nil {
+		t.Errorf("expected explicit null label to be preserved as nil, got %v", *fromNull.Label)
+	}
+	if fromNull.Retries == nil || *fromNull.Retries != 7 {
+		t.Errorf("expected retries 7, got %v", fromNull.Retries)
+	}
+}
+
+func TestDeserialize_EmptyData(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte{}, &result)
+	if err != nil {
+		t.Fatalf("unexpected error for empty data: %v", err)
+	}
+}
+
+func TestDeserialize_InvalidJSON(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte("not json"), &result)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestSerialize_InvalidType(t *testing.T) {
+	t.Parallel()
+	// Channels cannot be serialized to JSON
+	ch := make(chan int)
+	_, err := serialize(ch)
+	if err == nil {
+		t.Fatal("expected error for non-serializable type")
+	}
+}
+
+func TestToPathValue_String(t *testing.T) {
+	t.Parallel()
+	result := toPathValue("hello")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %q", result)
+	}
+}
+
+func TestToPathValue_Int(t *testing.T) {
+	t.Parallel()
+	result := toPathValue(42)
+	if result != "42" {
+		t.Errorf("expected '42', got %q", result)
+	}
+}
+
+func TestToPathValue_Bool(t *testing.T) {
+	t.Parallel()
+	result := toPathValue(true)
+	if result != "true" {
+		t.Errorf("expected 'true', got %q", result)
+	}
+
+	result = toPathValue(false)
+	if result != "false" {
+		t.Errorf("expected 'false', got %q", result)
+	}
+}
+
+func TestToPathValue_Nil(t *testing.T) {
+	t.Parallel()
+	result := toPathValue(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestToQueryValue_String(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue("hello", "")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %v", result)
+	}
+}
+
+func TestToQueryValue_StringSliceCSV(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue([]string{"a", "b", "c"}, "csv")
+	if result != "a,b,c" {
+		t.Errorf("expected 'a,b,c', got %v", result)
+	}
+}
+
+func TestToQueryValue_StringSliceSSV(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue([]string{"a", "b", "c"}, "ssv")
+	if result != "a b c" {
+		t.Errorf("expected 'a b c', got %v", result)
+	}
+}
+
+func TestToQueryValue_StringSliceTSV(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue([]string{"a", "b", "c"}, "tsv")
+	str, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result, got %T", result)
+	}
+	if str != "a\tb\tc" {
+		t.Errorf("expected 'a\\tb\\tc', got %q", str)
+	}
+}
+
+func TestToQueryValue_StringSlicePipes(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue([]string{"a", "b", "c"}, "pipes")
+	str, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result, got %T", result)
+	}
+	if str != "a|b|c" {
+		t.Errorf("expected 'a|b|c', got %q", str)
+	}
+}
+
+func TestToQueryValue_StringSliceMulti(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue([]string{"a", "b", "c"}, "multi")
+	slice, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string result, got %T", result)
+	}
+	expected := []string{"a", "b", "c"}
+	if len(slice) != len(expected) {
+		t.Fatalf("expected %d elements, got %d", len(expected), len(slice))
+	}
+	for i := range expected {
+		if slice[i] != expected[i] {
+			t.Errorf("element %d: expected %q, got %q", i, expected[i], slice[i])
+		}
+	}
+}
+
+func TestToQueryValue_Int(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue(42, "")
+	if result != "42" {
+		t.Errorf("expected '42', got %v", result)
+	}
+}
+
+func TestToQueryValue_BoolTrue(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue(true, "")
+	if result != "true" {
+		t.Errorf("expected 'true', got %v", result)
+	}
+}
+
+func TestToQueryValue_BoolFalse(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue(false, "")
+	if result != "false" {
+		t.Errorf("expected 'false', got %v", result)
+	}
+}
+
+func TestToQueryValue_Nil(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue(nil, "")
+	if result != nil {
+		t.Errorf("expected nil for nil input, got %v", result)
+	}
+}
+
+func TestToHeaderValue_String(t *testing.T) {
+	t.Parallel()
+	result := toHeaderValue("hello")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %q", result)
+	}
+}
+
+func TestToHeaderValue_StringSlice(t *testing.T) {
+	t.Parallel()
+	result := toHeaderValue([]string{"a", "b", "c"})
+	if result != "a,b,c" {
+		t.Errorf("expected 'a,b,c', got %q", result)
+	}
+}
+
+func TestToHeaderValue_Int(t *testing.T) {
+	t.Parallel()
+	result := toHeaderValue(42)
+	if result != "42" {
+		t.Errorf("expected '42', got %q", result)
+	}
+}
+
+func TestToHeaderValue_Nil(t *testing.T) {
+	t.Parallel()
+	result := toHeaderValue(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestToCookieValue_String(t *testing.T) {
+	t.Parallel()
+	result := toCookieValue("hello")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %q", result)
+	}
+}
+
+func TestToCookieValue_Nil(t *testing.T) {
+	t.Parallel()
+	result := toCookieValue(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestToCookieValue_Int(t *testing.T) {
+	t.Parallel()
+	result := toCookieValue(42)
+	if result != "42" {
+		t.Errorf("expected '42', got %q", result)
+	}
+}
+
+func TestToFormValue_String(t *testing.T) {
+	t.Parallel()
+	result := toFormValue("hello")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %q", result)
+	}
+}
+
+func TestToFormValue_Int(t *testing.T) {
+	t.Parallel()
+	result := toFormValue(123)
+	if result != "123" {
+		t.Errorf("expected '123', got %q", result)
+	}
+}
+
+func TestToFormValue_Nil(t *testing.T) {
+	t.Parallel()
+	result := toFormValue(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestToFormValue_BoolTrue(t *testing.T) {
+	t.Parallel()
+	result := toFormValue(true)
+	if result != "true" {
+		t.Errorf("expected 'true', got %q", result)
+	}
+}
+
+func TestToFormValue_BoolFalse(t *testing.T) {
+	t.Parallel()
+	result := toFormValue(false)
+	if result != "false" {
+		t.Errorf("expected 'false', got %q", result)
+	}
+}
+
+func TestStringify_String(t *testing.T) {
+	t.Parallel()
+	result := stringify("hello")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %q", result)
+	}
+}
+
+func TestStringify_Int(t *testing.T) {
+	t.Parallel()
+	result := stringify(42)
+	if result != "42" {
+		t.Errorf("expected '42', got %q", result)
+	}
+}
+
+func TestStringify_Int64(t *testing.T) {
+	t.Parallel()
+	result := stringify(int64(9999999999))
+	if result != "9999999999" {
+		t.Errorf("expected '9999999999', got %q", result)
+	}
+}
+
+func TestStringify_Float64(t *testing.T) {
+	t.Parallel()
+	result := stringify(3.14)
+	if result != "3.14" {
+		t.Errorf("expected '3.14', got %q", result)
+	}
+}
+
+func TestStringify_Bool(t *testing.T) {
+	t.Parallel()
+	if stringify(true) != "true" {
+		t.Error("expected 'true'")
+	}
+	if stringify(false) != "false" {
+		t.Error("expected 'false'")
+	}
+}
+
+func TestStringify_Time(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	result := stringify(ts)
+	if result == "" {
+		t.Error("expected non-empty string for time.Time")
+	}
+}
+
+func TestStringify_Nil(t *testing.T) {
+	t.Parallel()
+	result := stringify(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestStringify_StringPointer(t *testing.T) {
+	t.Parallel()
+	s := "hello"
+	result := stringify(&s)
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %q", result)
+	}
+}
+
+func TestStringify_NilStringPointer(t *testing.T) {
+	t.Parallel()
+	var s *string
+	result := stringify(s)
+	if result != "" {
+		t.Errorf("expected empty string for nil *string, got %q", result)
+	}
+}
+
+// DateTimeOffsetPreservationTests
+
+func TestDateTimeOffset_UTCPreservesOffset(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
+	result := stringify(ts)
+	if !strings.Contains(result, "2024-01-01") {
+		t.Errorf("should contain date: %q", result)
+	}
+	if !strings.Contains(result, "12:30:45") {
+		t.Errorf("should contain time: %q", result)
+	}
+}
+
+func TestDateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
+	t.Parallel()
+	loc := time.FixedZone("IST", 5*60*60+30*60)
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
+	result := stringify(ts)
+	if !strings.Contains(result, "+05:30") {
+		t.Errorf("should contain +05:30 offset: %q", result)
+	}
+}
+
+func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
+	t.Parallel()
+	loc := time.FixedZone("PST", -8*60*60)
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
+	result := stringify(ts)
+	if !strings.Contains(result, "-08:00") {
+		t.Errorf("should contain -08:00 offset: %q", result)
+	}
+}
+
+// H4: date-time serialization preserves sub-second precision.
+//
+// A date-time carrying millisecond precision (2020-01-02T03:04:05.123Z) must
+// serialize WITH the ".123" fraction on BOTH wire forms — the JSON body path
+// (PhotoMetadata.TakenAt via encoding/json) and the parameter path (stringify,
+// used by path/query/header/cookie encoders). Truncating to whole seconds is a
+// lossy, asymmetric round-trip: the decoder accepts fractions, so the encoder
+// must emit them too. Milliseconds (3 digits) is the cross-SDK common
+// denominator every native date-time type supports.
+func TestDateTime_SerializationPreservesSubSecondPrecision(t *testing.T) {
+	t.Parallel()
+	instant := time.Date(2020, 1, 2, 3, 4, 5, 123000000, time.UTC)
+
+	/* Body path: serialize a model carrying a format:date-time field and assert
+	 * the ".123" fraction survives, then deserialize back and confirm the same
+	 * millisecond instant (lossless round-trip). */
+	metadata := models.PhotoMetadata{TakenAt: &instant}
+	data, err := serialize(metadata)
+	if err != nil {
+		t.Fatalf("unexpected error serializing PhotoMetadata: %v", err)
+	}
+	if !strings.Contains(string(data), ".123") {
+		t.Errorf("body date-time should preserve the .123 fraction, got %s", string(data))
+	}
+
+	var back models.PhotoMetadata
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("unexpected error deserializing PhotoMetadata: %v", err)
+	}
+	if back.TakenAt == nil {
+		t.Fatal("expected non-nil TakenAt after round-trip")
+	}
+	if !back.TakenAt.Equal(instant) {
+		t.Errorf("body round-trip mismatch: original=%v parsed=%v", instant, *back.TakenAt)
+	}
+
+	/* Parameter path: stringify is the canonical scalar encoder for
+	 * path/query/header/cookie date-time params. It must emit the same fraction
+	 * the decoder accepts rather than truncating to whole seconds. */
+	param := stringify(instant)
+	if !strings.Contains(param, ".123") {
+		t.Errorf("parameter date-time should preserve the .123 fraction, got %q", param)
+	}
+}
+
+func TestDateTimeOffset_DateOnlyFormatted(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	result := stringify(ts)
+	if result == "" {
+		t.Error("expected non-empty string for date time")
+	}
+}
+
+func TestDateTimeOffset_EndsWithOffset(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
+	result := stringify(ts)
+	if result == "" {
+		t.Fatal("expected non-empty string")
+	}
+	last := result[len(result)-1]
+	if last != '0' && last != ':' {
+		// Simplified check: offset ends with digit
+	}
+	if !strings.Contains(result, "+") && !strings.Contains(result, "-") && !strings.HasSuffix(result, "Z") {
+		t.Errorf("should contain timezone offset: %q", result)
+	}
+}
+
+func TestDateTimeOffset_RoundTrip(t *testing.T) {
+	t.Parallel()
+	loc := time.FixedZone("IST", 5*60*60+30*60)
+	original := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
+	serialized := stringify(original)
+	parsed, err := time.Parse("2006-01-02T15:04:05-07:00", serialized)
+	if err != nil {
+		t.Fatalf("failed to parse serialized datetime %q: %v", serialized, err)
+	}
+	if !original.Equal(parsed) {
+		t.Errorf("round-trip mismatch: original=%v parsed=%v", original, parsed)
+	}
+}
+
+// NonAsciiSerializationTests
+
+func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
+	t.Parallel()
+	input := map[string]any{"key": "café"}
+	data, err := serialize(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "é") {
+		t.Errorf("should contain literal é, got: %s", string(data))
+	}
+}
+
+func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
+	t.Parallel()
+	input := map[string]any{"key": "日本"}
+	data, err := serialize(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "日本") {
+		t.Errorf("should contain literal CJK chars, got: %s", string(data))
+	}
+}
+
+func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
+	t.Parallel()
+	input := map[string]any{"key": "a\tb"}
+	data, err := serialize(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `\t`) {
+		t.Errorf("tab should be escaped as \\t in JSON, got: %s", string(data))
+	}
+}
+
+// DeserializationErrorWrappingTests
+
+func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte("{"), &result)
+	if err == nil {
+		t.Fatal("expected error for truncated JSON")
+	}
+	if _, ok := err.(*SerializationError); !ok {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte(`"hello"`), &result)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON for map target")
+	}
+	if _, ok := err.(*SerializationError); !ok {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+func TestDeserializationError_ErrorHasCause(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte("{"), &result)
+	if err == nil {
+		t.Fatal("expected error for truncated JSON")
+	}
+	serErr, ok := err.(*SerializationError)
+	if !ok {
+		t.Fatalf("expected *SerializationError, got %T", err)
+	}
+	if serErr.Cause() == nil {
+		t.Error("SerializationError should have a non-nil Cause")
+	}
+}
+
+// SerializationError must be exported so callers in other packages can
+// identify a serialization failure by type via errors.As. A package-private
+// type would be uncatchable across the package boundary, breaking parity with
+// the other SDKs whose serialization error type is public.
+func TestSerializationError_IsCatchableViaErrorsAs(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte("not json"), &result)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected error to be identifiable as *SerializationError via errors.As, got %T", err)
+	}
+	if serErr.Error() == "" {
+		t.Error("SerializationError should report a non-empty message via Error()")
+	}
+}
+
+// TestSerializationError_SatisfiesZitadelError confirms a real
+// *SerializationError resolves to the branded ZitadelError root at runtime via
+// errors.As, so callers can treat a serialization failure uniformly alongside
+// ApiError and the typed HTTP errors as "an error this SDK threw".
+func TestSerializationError_SatisfiesZitadelError(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte("not json"), &result)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+
+	if _, ok := err.(apierrors.ZitadelError); !ok {
+		t.Errorf("expected *SerializationError to satisfy ZitadelError, got %T", err)
+	}
+
+	var ze apierrors.ZitadelError
+	if !errors.As(err, &ze) {
+		t.Error("expected errors.As to match *SerializationError against ZitadelError")
+	}
+}
+
+func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
+	t.Parallel()
+	id := int64(0)
+	name := ""
+	category := models.Category{Id: &id, Name: &name}
+	data, err := serialize(category)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"id\":0") {
+		t.Errorf("serialized JSON should include id=0, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "\"name\":\"\"") {
+		t.Errorf("serialized JSON should include empty name, got: %s", string(data))
+	}
+}
+
+func TestDiscriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
+	t.Parallel()
+	dry := models.NewDryFood(2.5)
+	data, err := serialize(dry)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"foodType\":\"dry\"") {
+		t.Errorf("expected foodType=\"dry\" in serialized output, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "\"weightKg\":2.5") {
+		t.Errorf("expected weightKg=2.5 in serialized output, got: %s", string(data))
+	}
+}
+
+// ── WAVE B: a bare `type: number` (no format) property — Pet.weightKg — must
+// serialize as an UNQUOTED JSON number, never a quoted string. Some SDKs model
+// this surface as an arbitrary-precision Decimal and emit "1.5" (a string),
+// violating the spec's `type: number`. Go models it as *float64 and encodes it
+// via encoding/json, so the wire format is a bare number; this test locks that
+// parity and also proves it survives a serialize → deserialize round-trip as a
+// number. ──
+
+func TestSerialize_DecimalNumberFieldIsUnquoted(t *testing.T) {
+	t.Parallel()
+	weight := 1.5
+	pet := models.Pet{
+		Name:      "Fido",
+		PhotoUrls: models.Set[string]{"https://example.com/a.png"},
+		WeightKg:  &weight,
+	}
+
+	data, err := serialize(pet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(string(data), "\"weightKg\":1.5") {
+		t.Errorf("expected unquoted number weightKg=1.5 in serialized output, got: %s", string(data))
+	}
+	if strings.Contains(string(data), "\"weightKg\":\"1.5\"") {
+		t.Errorf("weightKg must not be a quoted string, got: %s", string(data))
+	}
+
+	var back models.Pet
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("round-trip deserialize failed: %v", err)
+	}
+	if back.WeightKg == nil || *back.WeightKg != 1.5 {
+		t.Errorf("expected WeightKg=1.5 after round-trip, got %v", back.WeightKg)
+	}
+}
+
+func TestDiscriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
+	t.Parallel()
+	wet := models.NewWetFood(350)
+	data, err := serialize(wet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"foodType\":\"wet\"") {
+		t.Errorf("expected foodType=\"wet\" in serialized output, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "\"volumeMl\":350") {
+		t.Errorf("expected volumeMl=350 in serialized output, got: %s", string(data))
+	}
+}
+
+func TestDiscriminator_CallerCanOverrideDefault(t *testing.T) {
+	t.Parallel()
+	dry := models.NewDryFood(1)
+	dry.FoodType = "custom"
+	data, err := serialize(dry)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"foodType\":\"custom\"") {
+		t.Errorf("expected caller-supplied foodType=\"custom\", got: %s", string(data))
+	}
+}
+
+func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"foodType":"dry","weightKg":2.5}`)
+	var dry models.DryFood
+	if err := deserialize(input, &dry); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dry.FoodType != "dry" {
+		t.Errorf("expected FoodType=\"dry\", got %q", dry.FoodType)
+	}
+	if dry.WeightKg != 2.5 {
+		t.Errorf("expected WeightKg=2.5, got %v", dry.WeightKg)
+	}
+}
+
+// ── Gap AU-residual: a PetFood payload omitting the foodType discriminator
+// cannot route to any variant and MUST throw, not silently wrap the raw dict
+// in the union container. python/php were the divergent SDKs; Go's
+// discriminator UnmarshalJSON already errors on the empty discriminator, so
+// this asserts the canonical throw and locks the fleet-wide behaviour. ──
+
+func TestDiscriminator_MissingDiscriminatorThrows(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"weightKg":5.0}`)
+	var food models.PetFood
+	err := deserialize(input, &food)
+	if err == nil {
+		t.Fatal("expected error when the foodType discriminator is missing")
+	}
+	if !strings.Contains(err.Error(), "discriminator") {
+		t.Errorf("expected error to mention the discriminator, got: %v", err)
+	}
+}
+
+// ── #24 format:double whole numbers keep the trailing .0 ──
+
+func TestStringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
+	t.Parallel()
+	if got := stringify(float64(1.0)); got != "1.0" {
+		t.Errorf("expected '1.0' for float64(1.0), got %q", got)
+	}
+	if got := stringify(float64(42)); got != "42.0" {
+		t.Errorf("expected '42.0' for float64(42), got %q", got)
+	}
+	if got := stringify(float32(2)); got != "2.0" {
+		t.Errorf("expected '2.0' for float32(2), got %q", got)
+	}
+}
+
+func TestStringify_FractionalFloatRendersAsDecimal(t *testing.T) {
+	t.Parallel()
+	if got := stringify(float64(1.5)); got != "1.5" {
+		t.Errorf("expected '1.5' for 1.5, got %q", got)
+	}
+	if got := stringify(float64(-3.14)); got != "-3.14" {
+		t.Errorf("expected '-3.14', got %q", got)
+	}
+}
+
+// ── #21 format:date path/query value uses date-only format ──
+
+func TestStringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
+	t.Parallel()
+	when := time.Date(2024, 1, 15, 13, 45, 22, 0, time.UTC)
+	if got := stringifyDate(when); got != "2024-01-15" {
+		t.Errorf("expected '2024-01-15', got %q", got)
+	}
+}
+
+func TestStringifyDate_StringPassesThrough(t *testing.T) {
+	t.Parallel()
+	if got := stringifyDate("2024-12-31"); got != "2024-12-31" {
+		t.Errorf("expected '2024-12-31', got %q", got)
+	}
+}
+
+func TestStringifyDate_NilReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	if got := stringifyDate(nil); got != "" {
+		t.Errorf("expected empty string for nil, got %q", got)
+	}
+}
+
+// ── #13 Serializer drops nil/null fields (omitempty) ──
+
+func TestSerialize_OmitsNilFields(t *testing.T) {
+	t.Parallel()
+	pet := models.NewPet("OmitTest", []string{"http://example.com/a.png"})
+	data, err := serialize(pet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Optional pointer fields with no value should be absent from the JSON.
+	s := string(data)
+	if strings.Contains(s, "\"id\":null") || strings.Contains(s, "\"status\":null") {
+		t.Errorf("expected omitempty to drop nil fields, got %s", s)
+	}
+}
+
+// ── Gap AJ: required non-nullable fields reject null/missing on deserialize ──
+
+func TestDeserialize_RequiredFieldNullThrows(t *testing.T) {
+	t.Parallel()
+	raw := []byte(`{"name":null,"photoUrls":["u"]}`)
+	var pet models.Pet
+	err := deserialize(raw, &pet)
+	if err == nil {
+		t.Fatal("expected error when required non-nullable field 'name' is null")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "must not be null") && !strings.Contains(msg, "missing") {
+		t.Errorf("expected error to mention null/missing for 'name', got: %v", err)
+	}
+}
+
+func TestDeserialize_RequiredFieldMissingThrows(t *testing.T) {
+	t.Parallel()
+	raw := []byte(`{"photoUrls":["x"]}`)
+	var pet models.Pet
+	err := deserialize(raw, &pet)
+	if err == nil {
+		t.Fatal("expected error when required non-nullable field 'name' is missing")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "missing") && !strings.Contains(msg, "must not be null") {
+		t.Errorf("expected error to mention missing 'name', got: %v", err)
+	}
+}
+
+// ── #14 Deserializer ignores unknown fields ──
+
+func TestDeserialize_IgnoresUnknownFields(t *testing.T) {
+	t.Parallel()
+	// Use a Pet payload with a bogus extra field. encoding/json should
+	// silently drop it (no error, no mangled value).
+	raw := []byte(`{"id":99,"name":"Skip","photoUrls":[],"bogusExtra":"keep-going"}`)
+	var pet models.Pet
+	if err := deserialize(raw, &pet); err != nil {
+		t.Fatalf("expected unknown fields to be ignored, got %v", err)
+	}
+	if pet.Name != "Skip" {
+		t.Errorf("expected name 'Skip', got %q", pet.Name)
+	}
+}
+
+// ── default-on-deserialize: an absent field carrying a schema default must be
+// populated with that default during deserialize, matching the other SDKs.
+// Order.status declares `default: placed`; when the payload omits "status" the
+// deserialized model must report "placed", not a nil/zero value. ──
+
+func TestDeserialize_AppliesSchemaDefaultForAbsentField(t *testing.T) {
+	t.Parallel()
+	raw := []byte(`{"id":10,"petId":198772}`)
+	var order models.Order
+	if err := deserialize(raw, &order); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if order.Status == nil {
+		t.Fatal("expected status to default to 'placed', got nil")
+	}
+	if *order.Status != models.OrderStatusEnumPlaced {
+		t.Errorf("expected status %q, got %q", models.OrderStatusEnumPlaced, *order.Status)
+	}
+}
+
+// ── model-equality-swift-go: Equal() value equality ──
+
+func TestModelEqual_Identical(t *testing.T) {
+	t.Parallel()
+	id := int64(7)
+	name := "Fido"
+	a := models.Category{Id: &id, Name: &name}
+	id2 := int64(7)
+	name2 := "Fido"
+	b := models.Category{Id: &id2, Name: &name2}
+	if !a.Equal(b) {
+		t.Errorf("expected equal Category values to compare equal")
+	}
+}
+
+func TestModelEqual_Different(t *testing.T) {
+	t.Parallel()
+	name := "Fido"
+	other := "Rex"
+	a := models.Category{Name: &name}
+	b := models.Category{Name: &other}
+	if a.Equal(b) {
+		t.Errorf("expected differing Category values to compare unequal")
+	}
+}
+
+// A Pet carries slice/Set fields (PhotoUrls, Tags). The built-in `==` operator
+// panics at runtime on such values; Equal() must compare them without panicking.
+func TestModelEqual_SliceBearingModel(t *testing.T) {
+	t.Parallel()
+	a := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
+	b := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
+	if !a.Equal(b) {
+		t.Errorf("expected slice-bearing Pet values to compare equal via Equal()")
+	}
+	c := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "c"}}
+	if a.Equal(c) {
+		t.Errorf("expected Pets with differing PhotoUrls to compare unequal")
+	}
+}
+
+// A Metadata carries a map field (AdditionalProperties). A value of this type is
+// not even comparable with `==` (it would fail to compile); Equal() must work.
+func TestModelEqual_MapBearingModel(t *testing.T) {
+	t.Parallel()
+	a := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
+	b := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
+	if !a.Equal(b) {
+		t.Errorf("expected map-bearing Metadata values to compare equal via Equal()")
+	}
+	c := models.Metadata{AdditionalProperties: map[string]any{"k": "w"}}
+	if a.Equal(c) {
+		t.Errorf("expected Metadata with differing AdditionalProperties to compare unequal")
+	}
+}
+
+// A self-referential model ($ref to itself via an optional field) must
+// deserialize recursively: the nested object decodes into a real TreeNode, not
+// a raw map, and the absent grandchild stays nil.
+func TestDeserialize_RecursiveModelDecodesNestedNode(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"value":"root","child":{"value":"leaf"}}`)
+	var top models.TreeNode
+	if err := deserialize(input, &top); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if top.Value != "root" {
+		t.Errorf("expected top value 'root', got %q", top.Value)
+	}
+	if top.Child == nil {
+		t.Fatal("expected top.Child to be a non-nil *TreeNode")
+	}
+	if top.Child.Value != "leaf" {
+		t.Errorf("expected top.Child.Value 'leaf', got %q", top.Child.Value)
+	}
+	if top.Child.Child != nil {
+		t.Errorf("expected top.Child.Child to be nil, got %v", top.Child.Child)
+	}
+}
+
+func TestResolveOneOf_ReturnsFirstMatch(t *testing.T) {
+	t.Parallel()
+	candidates := []func(any) (any, error){
+		func(any) (any, error) { return nil, errors.New("variant A does not match") },
+		func(data any) (any, error) { return data, nil },
+	}
+	result, err := resolveOneOf("payload", candidates)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "payload" {
+		t.Errorf("expected first matching variant, got %v", result)
+	}
+}
+
+// A payload matching none of the declared variants is a contract violation and
+// must fail loudly with a non-nil error rather than be silently returned as nil.
+func TestResolveOneOf_ThrowsOnNoMatch(t *testing.T) {
+	t.Parallel()
+	candidates := []func(any) (any, error){
+		func(any) (any, error) { return nil, errors.New("variant A does not match") },
+		func(any) (any, error) { return nil, errors.New("variant B does not match") },
+	}
+	_, err := resolveOneOf(map[string]any{"unexpected": true}, candidates)
+	if err == nil {
+		t.Errorf("expected a non-nil error when no oneOf variant matched")
+	}
+}
+
+func TestResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
+	t.Parallel()
+	candidates := []func(any) (any, error){
+		func(any) (any, error) { return nil, errors.New("no match") },
+	}
+	_, err := resolveAnyOf(map[string]any{}, candidates)
+	if err == nil {
+		t.Errorf("expected a non-nil error when no anyOf variant matched")
+	}
+}
+
+// ── Scenario 1: integer-backed enum (Priority) round-trips as a JSON NUMBER ──
+//
+// The Priority enum is backed by int (type Priority int). Serializing a member
+// must emit a bare JSON number (2, not the quoted string "2"), and deserializing
+// the bare number must resolve back to the typed member. A String-backed
+// template would have quoted the value on the wire and broken this contract.
+
+func TestPriorityEnum_SerializesAsJSONNumber(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(models.PriorityNUMBER_2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != "2" {
+		t.Errorf("expected integer-backed enum to serialize as the bare number 2, got %q", string(data))
+	}
+	if strings.Contains(string(data), "\"") {
+		t.Errorf("integer-backed enum must not be quoted on the wire, got %q", string(data))
+	}
+}
+
+func TestPriorityEnum_DeserializesFromJSONNumber(t *testing.T) {
+	t.Parallel()
+	var p models.Priority
+	if err := deserialize([]byte("2"), &p); err != nil {
+		t.Fatalf("unexpected error deserializing integer enum: %v", err)
+	}
+	if p != models.PriorityNUMBER_2 {
+		t.Errorf("expected PriorityNUMBER_2, got %v", p)
+	}
+}
+
+func TestPriorityEnum_RejectsUnknownNumber(t *testing.T) {
+	t.Parallel()
+	var p models.Priority
+	if err := deserialize([]byte("99"), &p); err == nil {
+		t.Fatal("expected an error deserializing an undeclared integer enum value 99")
+	}
+}
+
+// ── Scenario 2: non-lowercase string enum (Availability) preserves wire casing ──
+//
+// Availability declares "Available", "Sold", and the hyphenated "on-hold". The
+// wire casing/spelling must round-trip exactly (no lowercasing, no identifier
+// mangling leaking to the wire), a known value must resolve to its member, and
+// an undeclared value must be rejected on deserialize.
+
+func TestAvailabilityEnum_PreservesWireCasingRoundTrip(t *testing.T) {
+	t.Parallel()
+	for _, v := range []models.Availability{
+		models.AvailabilityAvailable,
+		models.AvailabilitySold,
+		models.AvailabilityOnHold,
+	} {
+		data, err := serialize(v)
+		if err != nil {
+			t.Fatalf("unexpected error serializing %v: %v", v, err)
+		}
+		expected := "\"" + string(v) + "\""
+		if string(data) != expected {
+			t.Errorf("expected wire casing preserved as %s, got %q", expected, string(data))
+		}
+		var back models.Availability
+		if err := deserialize(data, &back); err != nil {
+			t.Fatalf("unexpected error round-tripping %v: %v", v, err)
+		}
+		if back != v {
+			t.Errorf("round-trip mismatch: expected %v, got %v", v, back)
+		}
+	}
+}
+
+func TestAvailabilityEnum_DeserializesKnownValue(t *testing.T) {
+	t.Parallel()
+	var a models.Availability
+	if err := deserialize([]byte("\"Available\""), &a); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if a != models.AvailabilityAvailable {
+		t.Errorf("expected AvailabilityAvailable, got %v", a)
+	}
+}
+
+func TestAvailabilityEnum_RejectsUnknownValue(t *testing.T) {
+	t.Parallel()
+	var a models.Availability
+	if err := deserialize([]byte("\"available\""), &a); err == nil {
+		t.Fatal("expected an error for the undeclared (wrong-cased) value \"available\"")
+	}
+}
+
+// ── Scenario 3: format:byte fields round-trip through base64 ──
+//
+// PetPassport.Thumbnail is a scalar byte field (*[]byte) and PetPassport.Scans
+// is an array-of-byte field (*[][]byte, mirroring PhotoMetadata-style scans).
+// Both must serialize to base64 JSON strings and decode back to the original
+// raw bytes, including bytes that are invalid UTF-8 (0x00, 0xFF).
+
+func TestByteField_ScalarRoundTripsThroughBase64(t *testing.T) {
+	t.Parallel()
+	raw := []byte{0x00, 0xFF, 0x10, 0x42}
+	passport := models.PetPassport{Thumbnail: &raw}
+
+	data, err := serialize(passport)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// encoding/json base64-encodes []byte; the raw bytes must NOT appear verbatim.
+	if !strings.Contains(string(data), "\"thumbnail\":\"AP8QQg==\"") {
+		t.Errorf("expected thumbnail base64 \"AP8QQg==\", got %s", string(data))
+	}
+
+	var back models.PetPassport
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("unexpected error deserializing byte field: %v", err)
+	}
+	if back.Thumbnail == nil || string(*back.Thumbnail) != string(raw) {
+		t.Errorf("scalar byte round-trip mismatch: got %v, want %v", back.Thumbnail, raw)
+	}
+}
+
+func TestByteField_ArrayRoundTripsThroughBase64(t *testing.T) {
+	t.Parallel()
+	scans := [][]byte{{0x01, 0x02}, {0xFE, 0xFF}}
+	passport := models.PetPassport{Scans: &scans}
+
+	data, err := serialize(passport)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var back models.PetPassport
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("unexpected error deserializing array-of-byte field: %v", err)
+	}
+	if back.Scans == nil {
+		t.Fatal("expected non-nil Scans after round-trip")
+	}
+	got := *back.Scans
+	if len(got) != 2 || string(got[0]) != string(scans[0]) || string(got[1]) != string(scans[1]) {
+		t.Errorf("array-of-byte round-trip mismatch: got %v, want %v", got, scans)
+	}
+}
+
+// ── Scenario 4: a double-typed field deserializes from an INTEGRAL JSON value ──
+//
+// PhotoMetadataLocation.Lat is a float64. A server emitting an integral value
+// ({"lat":5}) rather than {"lat":5.0} must deserialize cleanly into the float
+// field without a type-mismatch crash.
+
+func TestDoubleField_DeserializesFromIntegralJSON(t *testing.T) {
+	t.Parallel()
+	var loc models.PhotoMetadataLocation
+	if err := deserialize([]byte(`{"lat":5,"lng":-7}`), &loc); err != nil {
+		t.Fatalf("unexpected error deserializing integral value into double field: %v", err)
+	}
+	if loc.Lat == nil || *loc.Lat != 5.0 {
+		t.Errorf("expected lat 5.0, got %v", loc.Lat)
+	}
+	if loc.Lng == nil || *loc.Lng != -7.0 {
+		t.Errorf("expected lng -7.0, got %v", loc.Lng)
+	}
+}
+
+// ── Scenario 5: additionalProperties round-trips at the TOP level ──
+//
+// Metadata captures unknown JSON keys into its AdditionalProperties map on
+// deserialize, then re-emits them at the TOP level of the object on serialize —
+// NOT nested under an "additionalProperties"/"additional_properties" key.
+
+func TestAdditionalProperties_CapturedAndReSerializedAtTopLevel(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}`)
+
+	var metadata models.Metadata
+	if err := deserialize(input, &metadata); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if metadata.AdditionalProperties["customField"] != "customValue" {
+		t.Errorf("expected extra key 'customField' captured, got %v", metadata.AdditionalProperties["customField"])
+	}
+
+	data, err := serialize(metadata)
+	if err != nil {
+		t.Fatalf("unexpected error re-serializing: %v", err)
+	}
+	s := string(data)
+	if !strings.Contains(s, "\"customField\":\"customValue\"") {
+		t.Errorf("expected extra key re-emitted at top level, got %s", s)
+	}
+	// It must NOT be nested under an additionalProperties wrapper key.
+	if strings.Contains(s, "additionalProperties") || strings.Contains(s, "additional_properties") {
+		t.Errorf("extra keys must be flattened to the top level, not nested, got %s", s)
+	}
+}
+
+// ── Scenario 7: a nested container deep-round-trips to typed leaves ──
+//
+// StockItem.Matrix is an array-of-array of int32. Deserializing a nested JSON
+// array must produce real typed int32 leaves (not raw any/float64), and
+// re-serializing must reproduce the structure.
+
+func TestNestedContainer_ArrayOfArrayDeepRoundTrips(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"priority":1,"matrix":[[1,2,3],[4,5]]}`)
+
+	var item models.StockItem
+	if err := deserialize(input, &item); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item.Matrix == nil {
+		t.Fatal("expected non-nil Matrix")
+	}
+	matrix := *item.Matrix
+	if len(matrix) != 2 || len(matrix[0]) != 3 || len(matrix[1]) != 2 {
+		t.Fatalf("unexpected matrix shape: %v", matrix)
+	}
+	// Leaves must be typed int32, exercised here by direct int32 comparison.
+	var want int32 = 5
+	if matrix[1][1] != want {
+		t.Errorf("expected typed int32 leaf 5, got %v", matrix[1][1])
+	}
+
+	data, err := serialize(item)
+	if err != nil {
+		t.Fatalf("unexpected error re-serializing: %v", err)
+	}
+	if !strings.Contains(string(data), "\"matrix\":[[1,2,3],[4,5]]") {
+		t.Errorf("expected nested container re-serialized, got %s", string(data))
+	}
+}

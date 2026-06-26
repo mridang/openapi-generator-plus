@@ -1,0 +1,44 @@
+{{>api_info}}
+@file:Suppress("detekt:all")
+
+package {{invokerPackage}}.auth
+
+/**
+ * Interface for providing authentication credentials to the API client.
+ */
+interface Authenticator {
+    fun getHost(): String
+    suspend fun getAuthHeaders(): Map<String, String>
+    fun getQueryParams(): Map<String, String> = emptyMap()
+    fun getCookieParams(): Map<String, String> = emptyMap()
+}
+
+/**
+ * Internal no-auth sentinel.
+ *
+ * An operation declared `security: []` is explicitly unauthenticated. The
+ * generated operation method passes [NoAuth] (rather than `null`) as the
+ * per-call auth argument so [BaseApi.invokeApi] can distinguish three states:
+ *
+ *  - [NoAuth]                  -> apply NO authentication; the client-level
+ *                                 authenticator is deliberately suppressed so an
+ *                                 unauthenticated operation never leaks the
+ *                                 client credential.
+ *  - `null`                    -> no per-call override; fall back to the
+ *                                 client-level authenticator (a secured
+ *                                 operation with no override).
+ *  - any other [Authenticator] -> a real per-call override; use it.
+ *
+ * This is a private singleton: callers never construct or see it. It is
+ * identity-comparable (`auth === NoAuth`) and contributes no headers, query
+ * params, or cookies, so even if it were ever applied it would be a no-op.
+ */
+internal object NoAuth : Authenticator {
+    override fun getHost(): String = ""
+
+    override suspend fun getAuthHeaders(): Map<String, String> = emptyMap()
+
+    override fun getQueryParams(): Map<String, String> = emptyMap()
+
+    override fun getCookieParams(): Map<String, String> = emptyMap()
+}

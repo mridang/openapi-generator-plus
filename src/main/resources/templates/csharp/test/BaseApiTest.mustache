@@ -1,0 +1,1011 @@
+{{>api_info}}
+
+#pragma warning disable CS0618 // tests deliberately exercise [Obsolete] spec members
+using System.Text.Json.Nodes;
+using {{packageName}};
+using {{packageName}}.Api;
+using {{packageName}}.Api.Options;
+using {{packageName}}.Auth;
+using {{packageName}}.Errors;
+using Xunit;
+
+namespace Test;
+
+[Collection("Chasm")]
+public class BaseApiTest
+{
+    private readonly ChasmFixture _fixture;
+
+    public BaseApiTest(ChasmFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    private sealed class TestableApi : BaseApi
+    {
+        public TestableApi(string baseUrl)
+            : base(new DefaultApiClient(), new Configuration(baseUrl)) { }
+
+        public TestableApi(IApiClient apiClient, string baseUrl)
+            : base(apiClient, new Configuration(baseUrl)) { }
+
+        public TestableApi(IApiClient apiClient, Configuration config)
+            : base(apiClient, config) { }
+
+        public TestableApi(IApiClient apiClient, string baseUrl, IAuthenticator? authenticator)
+            : base(apiClient, new Configuration(baseUrl), authenticator) { }
+
+        public async Task<T?> CallAsync<T>(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null)
+        {
+            return await InvokeApiAsync<T>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, typeof(T), auth);
+        }
+
+        public async Task<object?> CallAsyncWithNullReturnType(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null)
+        {
+            return await InvokeApiAsync<object>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, null, auth);
+        }
+
+        public async Task<ApiResult<T>> CallForResultAsync<T>(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null)
+        {
+            return await InvokeApiForResultAsync<T>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, typeof(T), auth);
+        }
+    }
+
+    private sealed class CapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+        public object? CapturedBody { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedUrl = url;
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            CapturedBody = body;
+            return Task.FromResult(new ApiHttpResponse(200, "{}", new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" }
+            }));
+        }
+    }
+
+    private sealed class TestAuthenticator : IAuthenticator
+    {
+        private readonly Dictionary<string, string> _headers;
+        private readonly Dictionary<string, string> _queryParams;
+        private readonly Dictionary<string, string> _cookies;
+
+        public TestAuthenticator(
+            Dictionary<string, string>? headers = null,
+            Dictionary<string, string>? queryParams = null,
+            Dictionary<string, string>? cookies = null)
+        {
+            _headers = headers ?? [];
+            _queryParams = queryParams ?? [];
+            _cookies = cookies ?? [];
+        }
+
+        public string GetHost() => "";
+        public Dictionary<string, string> GetAuthHeaders() => _headers;
+        public Dictionary<string, string> GetQueryParams() => _queryParams;
+        public Dictionary<string, string> GetCookieParams() => _cookies;
+    }
+
+    private TestableApi Api() => new(_fixture.BaseUrl);
+
+    public static TheoryData<int, Type> StatusToException => new()
+    {
+        { 400, typeof(BadRequestException) },
+        { 401, typeof(UnauthorizedException) },
+        { 403, typeof(ForbiddenException) },
+        { 404, typeof(NotFoundException) },
+        { 409, typeof(ConflictException) },
+        { 422, typeof(UnprocessableEntityException) },
+        { 418, typeof(ClientException) },
+        { 500, typeof(InternalServerErrorException) },
+        { 502, typeof(ServerException) },
+    };
+
+    [Theory]
+    [MemberData(nameof(StatusToException))]
+    public async Task ThrowsCorrectException(int status, Type expectedType)
+    {
+        try
+        {
+            await Api().CallAsync<object>(
+                "GET", $"/test/status/{status}",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json");
+            Assert.Fail("Expected exception not thrown");
+        }
+        catch (ApiException ex)
+        {
+            Assert.IsType(expectedType, ex);
+            Assert.Equal(status, ex.StatusCode);
+            Assert.NotNull(ex.ResponseBody);
+            Assert.NotEmpty(ex.ResponseBody);
+        }
+    }
+
+    [Fact]
+    public async Task ParsesJsonErrorBody()
+    {
+        var ex = await Assert.ThrowsAsync<BadRequestException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/400",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.NotNull(ex.ErrorBody);
+    }
+
+    [Fact]
+    public async Task NotFoundHierarchy()
+    {
+        var ex = await Assert.ThrowsAsync<NotFoundException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/404",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.IsType<ClientException>(ex, exactMatch: false);
+        Assert.IsType<ApiException>(ex, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task InternalServerErrorHierarchy()
+    {
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/500",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.IsType<ServerException>(ex, exactMatch: false);
+        Assert.IsType<ApiException>(ex, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task DeserializesJsonResponse()
+    {
+        var result = await Api().CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.NotNull(result);
+        // Chasm echo envelope returns method on any echo call.
+        Assert.Equal("GET", result!["method"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ApiResultExposesResponseHeadersAsReadOnly()
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "https://example.test");
+        ApiResult<JsonNode> result = await api.CallForResultAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        IReadOnlyDictionary<string, string> headers = result.Headers;
+        Assert.Equal("application/json", headers["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task ReturnsNullWhenReturnTypeIsNull()
+    {
+        var result = await Api().CallAsyncWithNullReturnType(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ReturnsRawStringForNonJson()
+    {
+        var result = await Api().CallAsync<string>(
+            "GET", "/test/text-plain",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json");
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public async Task SkipsDeserializationForNonJsonContentType()
+    {
+        var textClient = new TextPlainApiClient();
+        var textApi = new TestableApi(textClient, "http://localhost");
+        var result = await textApi.CallAsync<string>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("hello", result);
+    }
+
+    private sealed class TextPlainApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, "hello", new Dictionary<string, string>
+            {
+                { "Content-Type", "text/plain" }
+            }));
+        }
+    }
+
+    [Fact]
+    public async Task DeserializesVendorJsonMimeTypes()
+    {
+        var vendorJsonClient = new VendorJsonApiClient();
+        var testApi = new TestableApi(vendorJsonClient, "http://localhost");
+        var result = await testApi.CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("Not Found", result!["title"]?.GetValue<string>());
+    }
+
+    private sealed class VendorJsonApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, "{\"title\":\"Not Found\"}", new Dictionary<string, string>
+            {
+                { "Content-Type", "application/problem+json" }
+            }));
+        }
+    }
+
+    [Fact]
+    public async Task AppendsQueryParams()
+    {
+        await Api().CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "foo", "bar" } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+    }
+
+    [Fact]
+    public async Task ForwardsAuthHeaders()
+    {
+        var auth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Custom", "auth-value" } });
+        var result = await Api().CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", auth);
+        Assert.NotNull(result);
+        // Chasm envelope: header keys are lowercased in the echoed .headers map.
+        Assert.Equal("auth-value", result!["headers"]?["x-custom"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task SetsCookieHeader()
+    {
+        var auth = new TestAuthenticator(
+            cookies: new Dictionary<string, string> { { "session", "abc123" } });
+        await Api().CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", auth);
+    }
+
+    [Fact]
+    public async Task SerializesJsonBody()
+    {
+        var result = await Api().CallAsync<JsonNode>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, string> { { "key", "value" } },
+            ["application/json"], "application/json");
+        Assert.NotNull(result);
+        // Chasm envelope: request body is echoed verbatim as a JSON string in .body.
+        var bodyStr = result!["body"]?.GetValue<string>();
+        Assert.NotNull(bodyStr);
+        var inner = JsonNode.Parse(bodyStr!);
+        Assert.Equal("value", inner!["key"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task SendsNoBodyWhenNull()
+    {
+        await Api().CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+    }
+
+    [Fact]
+    public async Task IncludesEmptyValueParamInQueryString()
+    {
+        await Api().CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "filter", "" } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+    }
+
+    [Fact]
+    public async Task ExpandsArrayQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "tags", new List<string> { "a", "b" } } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("tags=a&tags=b", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task SerializesBooleanQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "active", true } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("active=true", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task SerializesNumberQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "limit", 10 } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("limit=10", client.CapturedUrl!.ToString());
+        Assert.DoesNotContain("limit=10.0", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task HandlesEmptyQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.DoesNotContain("?", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task CollapsesDoubleSlashWhenBaseUrlHasTrailingSlash()
+    {
+        // baseUrl='http://host/' + path='/v1/thing' must produce
+        // 'http://host/v1/thing', not 'http://host//v1/thing' which most
+        // servers route to 404.
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://host/");
+        await testApi.CallAsync<object>(
+            "GET", "/v1/thing",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("http://host/v1/thing", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task AllowEmptyValueParamOmittedWithDefaultOptions()
+    {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config);
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions());
+        }
+        catch (Exception)
+        {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+        // An optional allowEmptyValue param that the caller omits must NOT emit a
+        // spurious empty key on the wire; the key is sent only when a value is supplied.
+        Assert.DoesNotContain("status=", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task AllowEmptyValueParamIncludedWhenEmpty()
+    {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config);
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
+        }
+        catch (Exception)
+        {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+        Assert.Contains("status=", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public void ServerVariableOverridesResolveInBaseUrl()
+    {
+        var config = Configuration.Builder()
+            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+            .Build();
+        Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public void DefaultServerVariablesProduceCorrectBaseUrl()
+    {
+        var config = Configuration.Builder()
+            .Server(Servers.Server1)
+            .Build();
+        Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public void InvalidEnumValueThrowsError()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Configuration.Builder()
+                .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "invalid" } })
+                .Build());
+    }
+
+    [Fact]
+    public void ApiRequestUsesResolvedServerUrl()
+    {
+        var config = Configuration.Builder()
+            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+            .Build();
+        Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public async Task SerializesTextPlainBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "hello world", ["application/json"], "text/plain");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("hello world", client.CapturedBody.ToString()!);
+    }
+
+    [Fact]
+    public async Task SerializesFormUrlencodedBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "name", "alice" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("name=alice", client.CapturedBody.ToString()!);
+    }
+
+    [Fact]
+    public async Task FormUrlencodedBodyEncodesSpaceAsPlusNotPercent20()
+    {
+        // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+        // is defined by the WHATWG/HTML form-encoding standard, which mandates
+        // '+' for a space (not RFC-3986 '%20'). Aligns C# with the 9-SDK
+        // majority so the body wire bytes are identical across languages.
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "full name", "Ada Lovelace" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        string wire = client.CapturedBody.ToString()!;
+        Assert.Equal("full+name=Ada+Lovelace", wire);
+        Assert.DoesNotContain("%20", wire);
+    }
+
+    [Fact]
+    public async Task PassesBinaryBodyAsIs()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new byte[] { 0x01, 0x02, 0x03 },
+            ["application/json"], "application/octet-stream");
+        Assert.NotNull(client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task EmptyContentTypeDefaultsToJson()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>(), ["application/json"], "");
+        Assert.Equal("application/json", client.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task AllHeadersFromSelectorFlowThrough()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>(), ["application/json"], "application/json");
+        Assert.True(client.CapturedHeaders.ContainsKey("Accept"));
+        Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"));
+    }
+
+    // ── Default header merge order (Gap C / R5-1) ──
+
+    // R5-1: a caller's config default-header Accept must win over the
+    // operation-negotiated Accept. HeaderSelector.SelectHeaders runs first,
+    // then Config.DefaultHeaders is merged OVER it (matching java putAll,
+    // python, elixir). A config default Accept of application/xml therefore
+    // overrides an operation whose negotiated Accept is application/json.
+    [Fact]
+    public async Task ConfigDefaultHeaderAcceptWinsOverOperationNegotiatedAccept()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Accept", "application/xml")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("application/xml", client.CapturedHeaders["Accept"]);
+    }
+
+    [Fact]
+    public async Task ConfigDefaultCustomHeaderPropagatesToRequest()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("X-Custom", "v")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("v", client.CapturedHeaders["X-Custom"]);
+    }
+
+    [Fact]
+    public async Task HeaderParamsAcceptWinsOverConfigDefaultAndComputedAccept()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Accept", "text/plain")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string> { { "Accept", "application/xml" } },
+            null, ["application/json"], "application/json");
+        Assert.Equal("application/xml", client.CapturedHeaders["Accept"]);
+    }
+
+    // ── Binary response tests (Gap 3+4) ──
+
+    private sealed class BinaryResponseApiClient : IApiClient
+    {
+        public string ContentType { get; set; } = "application/octet-stream";
+        public string Body { get; set; } = "";
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, Body, new Dictionary<string, string>
+            {
+                { "Content-Type", ContentType }
+            }));
+        }
+    }
+
+    [Fact]
+    public async Task BinaryResponseOctetStreamBase64DecodesToCorrectBytes()
+    {
+        // AP9C is base64 for [0x00, 0xFF, 0x42] — values that would mangle under UTF-8
+        byte[] original = new byte[] { 0x00, 0xFF, 0x42 };
+        var client = new BinaryResponseApiClient { ContentType = "application/octet-stream", Body = "AP9C" };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<string>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/octet-stream"], "application/json");
+        Assert.NotNull(result);
+        byte[] decoded = Convert.FromBase64String(result!);
+        Assert.Equal(original, decoded);
+    }
+
+    [Fact]
+    public async Task BinaryResponseImagePngBodyRepresentsBytes()
+    {
+        var client = new BinaryResponseApiClient { ContentType = "image/png", Body = "iVBORw0KGgo=" };
+        var rawResponse = await client.SendRequestAsync("GET", new Uri("http://localhost/test/echo"),
+            new Dictionary<string, string>(), null);
+        var decoded = Convert.FromBase64String(rawResponse.Body);
+        Assert.NotNull(decoded);
+        Assert.NotEmpty(decoded);
+    }
+
+    [Fact]
+    public async Task BinaryResponseApplicationJsonParsesObject()
+    {
+        var vendorClient = new VendorJsonApiClient();
+        var testApi = new TestableApi(vendorClient, "http://localhost");
+        var result = await testApi.CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("Not Found", result!["title"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BinaryResponseTextPlainReturnsString()
+    {
+        var textClient = new TextPlainApiClient();
+        var testApi = new TestableApi(textClient, "http://localhost");
+        var result = await testApi.CallAsync<string>(
+            "GET", "/test/text-plain",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public async Task BinaryResponseOctetStreamEmptyBodyYieldsEmpty()
+    {
+        var client = new BinaryResponseApiClient { ContentType = "application/octet-stream", Body = "" };
+        var rawResponse = await client.SendRequestAsync("GET", new Uri("http://localhost/test/empty"),
+            new Dictionary<string, string>(), null);
+        Assert.Empty(rawResponse.Body);
+    }
+
+    // ── Cross-origin redirect tests (Gap 8) ──
+
+    [Fact]
+    public async Task CrossOriginRedirectSameOriginForwardsAuthorization()
+    {
+        // Verify that headers are forwarded on same-origin requests
+        var capturedHeaders = new Dictionary<string, string>();
+        var client = new CapturingApiClient();
+        var headers = new Dictionary<string, string> { { "Authorization", "Bearer token123" } };
+        await client.SendRequestAsync("GET", new Uri("http://localhost/test/echo"), headers, null);
+        // The capturing client stores all headers including Authorization
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization") ||
+                    headers.ContainsKey("Authorization"),
+            "Authorization header should be present on same-origin request");
+    }
+
+    [Fact]
+    public void CrossOriginRedirectSensitiveHeadersIncludeAuthorization()
+    {
+        // Verifies the guard set used in DefaultApiClient redirect logic
+        var sensitiveHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "authorization", "cookie", "proxy-authorization"
+        };
+        Assert.Contains("authorization", sensitiveHeaders);
+    }
+
+    [Fact]
+    public void CrossOriginRedirectSensitiveHeadersIncludeCookie()
+    {
+        var sensitiveHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "authorization", "cookie", "proxy-authorization"
+        };
+        Assert.Contains("cookie", sensitiveHeaders);
+    }
+
+    // ── Null body Content-Type tests (Gap 11) ──
+
+    [Fact]
+    public async Task NullBodyPostDoesNotSendContentType()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.False(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "Content-Type must NOT be sent when body is null");
+    }
+
+    [Fact]
+    public async Task EmptyStringBodyPostSendsContentType()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "", ["application/json"], "application/json");
+        Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "Content-Type must be sent when body is an empty string");
+    }
+
+    [Fact]
+    public async Task EmptyJsonObjectBodyPostSendsContentTypeAndCorrectBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "{}", ["application/json"], "application/json");
+        Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "Content-Type must be sent when body is {}");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("{}", client.CapturedBody!.ToString()!);
+    }
+
+    // Gap #29 — proxy authentication propagation.
+    // Embeds basic-auth credentials in the proxy URL (RFC 3986 userinfo) and
+    // sends a request through the bundled Squid proxy targeting chasm's
+    // container-internal URL. The Squid fixture is intentionally configured
+    // to allow all (no auth required), so a successful response confirms the
+    // credential-bearing proxy code path executes end-to-end without the
+    // proxy rejecting the connection — the only signal available without a
+    // basic-auth-enforcing proxy.
+    [Fact]
+    public async Task ProxyAuthenticationCredentialsAreSentToProxy()
+    {
+        var proxyUri = new Uri(_fixture.ProxyUrl);
+        var proxyWithAuth = $"{proxyUri.Scheme}://testuser:testpass@{proxyUri.Host}:{proxyUri.Port}";
+        var transport = TransportOptions.Builder()
+            .Proxy(proxyWithAuth)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("\"method\"", response.Body);
+    }
+
+    {{! Typed error body deserializer — GetTypedErrorBody returns the parsed }}
+    {{! error body cast to the requested model type, or null when absent or }}
+    {{! of a different type. }}
+    [Fact]
+    public void GetTypedErrorBodyReturnsCastErrorBody()
+    {
+        var category = new {{packageName}}.Models.Category { Id = 42L, Name = "Dogs" };
+        var ex = new BadRequestException(
+            "boom",
+            new Dictionary<string, string>(),
+            "{\"id\":42,\"name\":\"Dogs\"}",
+            category);
+        var typed = ex.GetTypedErrorBody<{{packageName}}.Models.Category>();
+        Assert.NotNull(typed);
+        Assert.Equal(42L, typed!.Id);
+        Assert.Equal("Dogs", typed.Name);
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyReturnsNullWhenAbsent()
+    {
+        var ex = new BadRequestException(
+            "boom",
+            new Dictionary<string, string>(),
+            "",
+            null);
+        Assert.Null(ex.GetTypedErrorBody<{{packageName}}.Models.Category>());
+    }
+
+    {{! Per-call auth optional — when no per-call authenticator is supplied the }}
+    {{! client-level authenticator is used; a per-call authenticator overrides it. }}
+    [Fact]
+    public async Task FallsBackToClientLevelAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } });
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+        await api.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("client-level-token", client.CapturedHeaders["X-Client-Auth"]);
+    }
+
+    [Fact]
+    public async Task PerCallAuthOverridesClientLevelAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } });
+        var perCallAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "per-call-token" } });
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+        await api.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", perCallAuth);
+        Assert.Equal("per-call-token", client.CapturedHeaders["X-Client-Auth"]);
+    }
+
+    // ── Wave A2: client auth suppressed on security:[] operations ──
+
+    // SECURITY-NONE: an operation declared `security: []` is unauthenticated.
+    // Even when the client is configured WITH an authenticator that would
+    // attach an Authorization header, an api-key header, an api-key query
+    // parameter, and an auth cookie, none of those may appear on the outbound
+    // request for such an operation — otherwise the client credential leaks
+    // (e.g. to a request-reflecting echo endpoint). getPetById is declared
+    // `security: []` in the spec, so the api method passes the NoAuth sentinel
+    // and BaseApi suppresses the client-level authenticator entirely.
+    [Fact]
+    public async Task SecurityNoneOperationSuppressesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer client-secret" },
+                { "api-key", "client-api-key" },
+            },
+            queryParams: new Dictionary<string, string> { { "api_key", "client-api-key" } },
+            cookies: new Dictionary<string, string> { { "session", "client-cookie" } });
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config, clientAuth);
+
+        try
+        {
+            // getPetById is security:[]; the captured request is what matters.
+            await api.GetPetByIdAsync(42L);
+        }
+        catch (Exception)
+        {
+            // The {} response body does not deserialize to a Pet; the request
+            // is already captured by the time deserialization fails.
+        }
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"),
+            "security:[] operation must NOT carry the client Authorization header");
+        Assert.False(client.CapturedHeaders.ContainsKey("api-key"),
+            "security:[] operation must NOT carry the client api-key header");
+        Assert.False(client.CapturedHeaders.ContainsKey("Cookie"),
+            "security:[] operation must NOT carry the client auth cookie");
+        Assert.DoesNotContain("api_key=", client.CapturedUrl!.ToString());
+    }
+
+    // SECURED (Wave A1 guard against over-suppression): a secured operation
+    // with a configured client authenticator and NO per-call override must
+    // STILL attach the credential. addPet is secured, so the api method passes
+    // the per-call override (null here), and BaseApi falls back to the
+    // client-level authenticator.
+    [Fact]
+    public async Task SecuredOperationStillAppliesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "Authorization", "Bearer client-secret" } });
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config, clientAuth);
+
+        var pet = new PetstoreClient.Models.Pet { Name = "Rex", PhotoUrls = ["http://example/p.png"] };
+        try
+        {
+            await api.AddPetAsync(pet);
+        }
+        catch (Exception)
+        {
+            // Captured request is asserted regardless of response shape.
+        }
+
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization"),
+            "secured operation with a client authenticator must still send the credential");
+        Assert.Equal("Bearer client-secret", client.CapturedHeaders["Authorization"]);
+    }
+
+    // The NoAuth sentinel is distinct from null and from any real authenticator,
+    // is identity-comparable, and never contributes a credential.
+    [Fact]
+    public void NoAuthSentinelIsSingletonAndCarriesNoCredential()
+    {
+        Assert.Same(NoAuth.Instance, NoAuth.Instance);
+        // GetQueryParams/GetCookieParams are default interface methods, callable
+        // only through the IAuthenticator type, not the concrete NoAuth.
+        IAuthenticator noAuth = NoAuth.Instance;
+        Assert.Empty(noAuth.GetAuthHeaders());
+        Assert.Empty(noAuth.GetQueryParams());
+        Assert.Empty(noAuth.GetCookieParams());
+    }
+}

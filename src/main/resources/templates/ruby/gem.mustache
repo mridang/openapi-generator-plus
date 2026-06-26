@@ -1,0 +1,107 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+# Dependencies
+require 'dry-struct'
+require 'dry-types'
+
+# Common files
+require '{{modulePath}}/api_error'
+require '{{modulePath}}/errors/client_error'
+require '{{modulePath}}/errors/server_error'
+require '{{modulePath}}/errors/bad_request_error'
+require '{{modulePath}}/errors/unauthorized_error'
+require '{{modulePath}}/errors/forbidden_error'
+require '{{modulePath}}/errors/not_found_error'
+require '{{modulePath}}/errors/conflict_error'
+require '{{modulePath}}/errors/unprocessable_entity_error'
+require '{{modulePath}}/errors/internal_server_error'
+require '{{modulePath}}/version'
+require '{{modulePath}}/configuration'
+require '{{modulePath}}/transport_options'
+require '{{modulePath}}/server_configuration'
+require '{{modulePath}}/servers'
+require '{{modulePath}}/header_selector'
+require '{{modulePath}}/object_serializer'
+require '{{modulePath}}/value_serializer'
+require '{{modulePath}}/trace_context_util'
+require '{{modulePath}}/api_response'
+require '{{modulePath}}/api_result'
+require '{{modulePath}}/api_client'
+require '{{modulePath}}/default_api_client'
+require '{{modulePath}}/api/base_api'
+require '{{modulePath}}/auth/authenticator'
+require '{{modulePath}}/auth/base_authenticator'
+require '{{modulePath}}/auth/http_aware_authenticator'
+{{#hasBasicAuth}}
+require '{{modulePath}}/auth/basic_authenticator'
+{{/hasBasicAuth}}
+{{#hasBearerAuth}}
+require '{{modulePath}}/auth/bearer_authenticator'
+{{/hasBearerAuth}}
+{{#hasApiKeyAuth}}
+require '{{modulePath}}/auth/api_key_location'
+require '{{modulePath}}/auth/api_key_authenticator'
+{{/hasApiKeyAuth}}
+{{#hasAnyOAuth2}}
+require '{{modulePath}}/auth/oauth/oauth2_token_manager'
+{{/hasAnyOAuth2}}
+{{#hasOAuth2ClientCredentials}}
+require '{{modulePath}}/auth/oauth/client_auth_method'
+require '{{modulePath}}/auth/oauth/oauth2_client_credentials_authenticator'
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2Password}}
+{{^hasOAuth2ClientCredentials}}
+require '{{modulePath}}/auth/oauth/client_auth_method'
+{{/hasOAuth2ClientCredentials}}
+require '{{modulePath}}/auth/oauth/oauth2_password_authenticator'
+{{/hasOAuth2Password}}
+{{#hasOAuth2AuthorizationCode}}
+require '{{modulePath}}/auth/oauth/oauth2_auth_code_authenticator'
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Implicit}}
+require '{{modulePath}}/auth/oauth/oauth2_implicit_authenticator'
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+require '{{modulePath}}/auth/oauth/openid_connect_authenticator'
+{{/hasOpenIdConnect}}
+require '{{modulePath}}/{{clientClassFile}}'
+
+# Models
+{{#models}}
+{{#model}}
+require '{{modulePath}}/models/{{{classFilename}}}'
+{{/model}}
+{{/models}}
+
+# APIs
+{{#apiInfo}}
+{{#apis}}
+require '{{modulePath}}/api/{{{classFilename}}}'
+{{/apis}}
+{{/apiInfo}}
+
+{{#hasAnyOptionsClasses}}
+# Options
+{{#optionsRequires}}
+require '{{.}}'
+{{/optionsRequires}}
+{{/hasAnyOptionsClasses}}
+
+# :nodoc:
+module {{moduleName}}
+  class << self
+    # Configure the default Configuration instance using a builder.
+    #
+    #     {{moduleName}}.configure do |b|
+    #       b.base_url 'https://api.example.com'
+    #       b.default_header 'Authorization', 'Bearer token'
+    #     end
+    def configure
+      builder = Configuration.builder
+      yield(builder) if block_given?
+      Configuration.default = builder.build
+    end
+  end
+end

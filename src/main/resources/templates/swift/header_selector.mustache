@@ -1,0 +1,49 @@
+{{>api_info}}
+import Foundation
+
+/// HeaderSelector selects Accept and Content-Type headers for API requests
+/// based on the MIME types declared in the OpenAPI specification.
+internal final class HeaderSelector: Sendable {
+    private static let jsonMIMEPattern = try! NSRegularExpression(
+        pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#,
+        options: .caseInsensitive
+    )
+
+    init() {}
+
+    /// Selects the Accept and Content-Type headers for an API request.
+    ///
+    /// - Parameters:
+    ///   - accept: Acceptable MIME types for the response.
+    ///   - contentType: The Content-Type for the request body.
+    ///   - isMultipart: Whether this is a multipart request.
+    /// - Returns: A dictionary of header names to values.
+    func selectHeaders(accept: [String], contentType: String, isMultipart: Bool) -> [String: String] {
+        var headers: [String: String] = [:]
+
+        let acceptHeader = selectAcceptHeader(accept)
+        if !acceptHeader.isEmpty {
+            headers["Accept"] = acceptHeader
+        }
+
+        if !isMultipart {
+            let ct = contentType.isEmpty ? "application/json" : contentType
+            headers["Content-Type"] = ct
+        }
+
+        return headers
+    }
+
+    /// Detects whether a string contains a valid JSON MIME type.
+    func isJsonMime(_ searchString: String) -> Bool {
+        if searchString.isEmpty { return false }
+        let range = NSRange(searchString.startIndex..., in: searchString)
+        return Self.jsonMIMEPattern.firstMatch(in: searchString, range: range) != nil
+    }
+
+    private func selectAcceptHeader(_ accept: [String]) -> String {
+        let filtered = accept.filter { !$0.isEmpty }
+        if filtered.isEmpty { return "" }
+        return filtered.joined(separator: ", ")
+    }
+}

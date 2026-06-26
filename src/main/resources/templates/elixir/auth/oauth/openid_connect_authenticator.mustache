@@ -1,0 +1,216 @@
+{{>api_info}}
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+
+defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator do
+  @moduledoc """
+  Authenticator for OpenID Connect.
+
+  Fetches the OIDC discovery document to discover the authorization and
+  token endpoints, then delegates to an `OAuth2AuthorizationCodeAuthenticator`.
+
+  Implements `HttpAwareAuthenticator` so that both the discovery request
+  and subsequent token exchange requests use the shared `ApiClient`
+  with the same transport configuration (proxy, TLS, timeouts) as
+  regular API calls.
+  """
+
+  use {{moduleName}}.Auth.BaseAuthenticator
+  @behaviour {{moduleName}}.Auth.HttpAwareAuthenticator
+
+  @type t :: %__MODULE__{
+          host: String.t(),
+          openid_connect_url: String.t(),
+          client_id: String.t(),
+          client_secret: String.t(),
+          redirect_uri: String.t(),
+          scopes: [String.t()],
+          api_client: term() | nil,
+          delegate: term() | nil,
+          discovery_expiry: integer() | nil
+        }
+
+  # Redact the client secret and the delegate (which holds the live token
+  # manager) from the default Inspect representation.
+  @derive {Inspect, except: [:client_secret, :delegate]}
+  defstruct [
+    :host,
+    :openid_connect_url,
+    :client_id,
+    :client_secret,
+    :redirect_uri,
+    :scopes,
+    :api_client,
+    :delegate,
+    :discovery_expiry
+  ]
+
+  # RFC 8414 recommended default max-age for OIDC discovery documents.
+  @default_discovery_max_age_seconds 86_400
+
+  @doc """
+  Create a new OpenID Connect authenticator.
+
+  ## Parameters
+
+    * `host` - API base URL.
+    * `openid_connect_url` - OIDC discovery document URL.
+    * `client_id` - OAuth2 client ID.
+    * `client_secret` - OAuth2 client secret.
+    * `redirect_uri` - Redirect URI registered with the provider.
+    * `scopes` - Requested scopes.
+
+  """
+  @spec new(String.t(), String.t(), String.t(), String.t(), String.t(), [String.t()]) :: t()
+  def new(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes) do
+    %__MODULE__{
+      host: host,
+      openid_connect_url: openid_connect_url,
+      client_id: client_id,
+      client_secret: client_secret,
+      redirect_uri: redirect_uri,
+      scopes: scopes,
+      api_client: nil,
+      delegate: nil,
+      discovery_expiry: 0
+    }
+  end
+
+  @impl {{moduleName}}.Auth.HttpAwareAuthenticator
+  def set_api_client(%__MODULE__{} = self, client) do
+    %{self | api_client: client}
+  end
+
+  @doc """
+  Build the authorization URL using the discovered authorization endpoint.
+  """
+  @spec build_authorization_url(t(), String.t() | nil) :: String.t()
+  def build_authorization_url(%__MODULE__{} = self, state \\ nil) do
+    self = resolve_delegate(self)
+    {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(self.delegate, state)
+  end
+
+  @doc """
+  Exchange an authorization code for tokens using the discovered token endpoint.
+  """
+  @spec exchange_code(t(), String.t()) :: t()
+  def exchange_code(%__MODULE__{} = self, code) do
+    self = resolve_delegate(self)
+    delegate = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(self.delegate, code)
+    %{self | delegate: delegate}
+  end
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def host(%__MODULE__{} = self), do: self.host
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def auth_headers(%__MODULE__{} = self) do
+    self = resolve_delegate(self)
+    {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(self.delegate)
+  end
+
+  defp resolve_delegate(%__MODULE__{delegate: delegate, discovery_expiry: expiry} = self)
+       when not is_nil(delegate) do
+    if expiry != nil and System.system_time(:second) < expiry do
+      self
+    else
+      fetch_discovery(self)
+    end
+  end
+
+  defp resolve_delegate(%__MODULE__{api_client: nil}) do
+    raise "ApiClient has not been injected. " <>
+            "Ensure the {{clientClassName}} constructor calls set_api_client " <>
+            "on HttpAwareAuthenticator before making API requests."
+  end
+
+  defp resolve_delegate(%__MODULE__{} = self), do: fetch_discovery(self)
+
+  defp fetch_discovery(%__MODULE__{api_client: nil}) do
+    raise "ApiClient has not been injected. " <>
+            "Ensure the {{clientClassName}} constructor calls set_api_client " <>
+            "on HttpAwareAuthenticator before making API requests."
+  end
+
+  defp fetch_discovery(%__MODULE__{} = self) do
+    headers = %{"Accept" => "application/json"}
+
+    response =
+      case self.api_client do
+        %{__struct__: mod} = c -> mod.send_request(c, :get, self.openid_connect_url, headers, nil)
+        mod when is_atom(mod) -> mod.send_request(:get, self.openid_connect_url, headers, nil)
+      end
+
+    # Guard the HTTP status before parsing: a 500-HTML / 404 body would
+    # otherwise surface as a confusing "invalid JSON" error instead of a
+    # clear discovery-failure. Matches the other status-checking SDKs.
+    if response.status_code < 200 or response.status_code >= 300 do
+      raise "OIDC discovery request to #{self.openid_connect_url} failed " <>
+              "with HTTP status #{response.status_code}"
+    end
+
+    discovery = Jason.decode!(response.body)
+
+    authorization_endpoint = discovery["authorization_endpoint"]
+    token_endpoint = discovery["token_endpoint"]
+
+    # Validate the discovered endpoints are present and non-empty before
+    # building the delegate; otherwise we would silently construct a
+    # delegate with empty/nil endpoint URLs and fail much later with an
+    # opaque error.
+    if not is_binary(authorization_endpoint) or String.trim(authorization_endpoint) == "" do
+      raise "OIDC discovery document from #{self.openid_connect_url} is missing " <>
+              "a valid 'authorization_endpoint'"
+    end
+
+    if not is_binary(token_endpoint) or String.trim(token_endpoint) == "" do
+      raise "OIDC discovery document from #{self.openid_connect_url} is missing " <>
+              "a valid 'token_endpoint'"
+    end
+
+    delegate =
+      {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+        self.host,
+        self.client_id,
+        self.client_secret,
+        authorization_endpoint,
+        token_endpoint,
+        self.redirect_uri,
+        self.scopes
+      )
+
+    delegate = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(delegate, self.api_client)
+    response_headers = Map.get(response, :headers, %{}) || %{}
+    expiry = System.system_time(:second) + parse_max_age(response_headers)
+    %{self | delegate: delegate, discovery_expiry: expiry}
+  end
+
+  # Parse `Cache-Control: max-age=<seconds>` from response headers.
+  # Returns 86400 (RFC 8414 default) if the header is absent or does not
+  # contain a `max-age` directive.
+  defp parse_max_age(headers) when is_map(headers) do
+    cache_control =
+      Enum.find_value(headers, nil, fn {k, v} ->
+        if is_binary(k) and String.downcase(k) == "cache-control", do: v, else: nil
+      end)
+
+    case cache_control do
+      nil ->
+        @default_discovery_max_age_seconds
+
+      value when is_binary(value) ->
+        case Regex.run(~r/max-age=(\d+)/i, value) do
+          [_, seconds] -> String.to_integer(seconds)
+          _ -> @default_discovery_max_age_seconds
+        end
+
+      _ ->
+        @default_discovery_max_age_seconds
+    end
+  end
+
+  defp parse_max_age(_), do: @default_discovery_max_age_seconds
+end

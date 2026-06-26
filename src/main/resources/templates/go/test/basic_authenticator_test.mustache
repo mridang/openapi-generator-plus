@@ -1,0 +1,62 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+)
+
+func TestBasicAuthenticator_ValidCredentialsProduceBasicHeader(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Basic YWxpY2U6czNjcmV0"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBasicAuthenticator_RejectsUsernameWithCrlf(t *testing.T) {
+	t.Parallel()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic at construction for CRLF in username")
+		}
+	}()
+	_ = auth.NewBasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
+}
+
+func TestBasicAuthenticator_RejectsPasswordWithNul(t *testing.T) {
+	t.Parallel()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic at construction for NUL in password")
+		}
+	}()
+	_ = auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3c\x00ret")
+}
+
+func TestBasicAuthenticator_RejectsUsernameWithColon(t *testing.T) {
+	t.Parallel()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic at construction for ':' in username")
+		}
+	}()
+	_ = auth.NewBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+}
+
+func TestBasicRedactsSecret(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+		if strings.Contains(s, "s3cret") {
+			t.Errorf("expected password to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}

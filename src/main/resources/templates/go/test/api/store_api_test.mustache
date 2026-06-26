@@ -1,0 +1,238 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"{{packageName}}/pkg"
+	"{{packageName}}/pkg/models"
+)
+
+func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
+	t.Helper()
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL(chasmURL).
+		DefaultHeader("Authorization", "Bearer test-token").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	return {{packageName}}.NewStoreApi(client, config, nil)
+}
+
+func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.StoreApi {
+	t.Helper()
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	return {{packageName}}.NewStoreApi(client, config, nil)
+}
+
+func TestStoreApi_PlaceOrder(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	order := models.NewOrder()
+
+	result, err := api.PlaceOrder(order)
+	if err != nil {
+		t.Fatalf("PlaceOrder failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from PlaceOrder")
+	}
+}
+
+func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	order := models.NewOrder()
+
+	result, err := api.PlaceOrderWithHTTPInfo(order)
+	if err != nil {
+		t.Fatalf("PlaceOrderWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode < 200 || result.StatusCode >= 300 {
+		t.Errorf("expected 2xx status, got %d", result.StatusCode)
+	}
+	if result.Data == nil {
+		t.Error("expected non-nil Data")
+	}
+	if result.RawBody == "" {
+		t.Error("expected non-empty RawBody")
+	}
+}
+
+func TestStoreApi_GetOrderById(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetOrderById(int64(1))
+	if err != nil {
+		t.Fatalf("GetOrderById failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetOrderById")
+	}
+}
+
+func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetOrderByIdWithHTTPInfo(int64(1))
+	if err != nil {
+		t.Fatalf("GetOrderByIdWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+	if result.Headers == nil {
+		t.Error("expected non-nil Headers")
+	}
+}
+
+func TestStoreApi_DeleteOrder(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	err := api.DeleteOrder(int64(1))
+	if err != nil {
+		t.Fatalf("DeleteOrder failed: %v", err)
+	}
+}
+
+func TestStoreApi_GetInventory(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetInventory()
+	if err != nil {
+		t.Fatalf("GetInventory failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetInventory")
+	}
+}
+
+func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetInventoryWithHTTPInfo()
+	if err != nil {
+		t.Fatalf("GetInventoryWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+	if result.Data == nil {
+		t.Error("expected non-nil Data")
+	}
+}
+
+func TestStoreApi_GetOrderNotFound(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"message":"Order not found"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	_, err := api.GetOrderById(int64(99999))
+	if err == nil {
+		t.Fatal("expected error for non-existent order")
+	}
+}
+
+func TestStoreApi_PlaceOrderServerError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	order := models.NewOrder()
+	_, err := api.PlaceOrder(order)
+	if err == nil {
+		t.Fatal("expected error for server error response")
+	}
+}
+
+// A nested generic container (array of map of Category) must deserialize so its
+// leaves are typed Category instances, not raw maps. The static type of the
+// result already guarantees this in Go; this asserts the values decode and the
+// typed fields are populated end-to-end through the operation.
+func TestStoreApi_GetGroupedCategoriesDeserializesTypedLeaves(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	result, err := api.GetGroupedCategories()
+	if err != nil {
+		t.Fatalf("GetGroupedCategories failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetGroupedCategories")
+	}
+	groups := *result
+	if len(groups) != 2 {
+		t.Fatalf("expected 2 groups, got %d", len(groups))
+	}
+
+	// result[0]["a"] must be a typed Category with its fields decoded.
+	var first models.Category = groups[0]["a"]
+	if first.Id == nil || *first.Id != 1 {
+		t.Errorf("expected first.Id 1, got %v", first.Id)
+	}
+	if first.Name == nil || *first.Name != "Dogs" {
+		t.Errorf("expected first.Name 'Dogs', got %v", first.Name)
+	}
+
+	second := groups[1]["b"]
+	if second.Id == nil || *second.Id != 2 {
+		t.Errorf("expected second.Id 2, got %v", second.Id)
+	}
+	if second.Name == nil || *second.Name != "Cats" {
+		t.Errorf("expected second.Name 'Cats', got %v", second.Name)
+	}
+}
+
+func TestStoreApi_DeleteOrderNotFound(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"message":"Order not found"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	err := api.DeleteOrder(int64(99999))
+	if err == nil {
+		t.Fatal("expected error for deleting non-existent order")
+	}
+}

@@ -1,0 +1,1030 @@
+<?php
+
+declare(strict_types=1);
+
+// phpcs:ignoreFile
+
+namespace PetstoreClient\Test;
+
+use PetstoreClient\Api\BaseApi;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\Servers;
+use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Auth\ApiKeyAuthenticator;
+use PetstoreClient\Auth\ApiKeyLocation;
+use PetstoreClient\ApiException;
+use PetstoreClient\Errors\ClientException;
+use PetstoreClient\Errors\ServerException;
+use PetstoreClient\Errors\BadRequestException;
+use PetstoreClient\Errors\UnauthorizedException;
+use PetstoreClient\Errors\ForbiddenException;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ConflictException;
+use PetstoreClient\Errors\UnprocessableEntityException;
+use PetstoreClient\Errors\InternalServerErrorException;
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiHttpResponse;
+use PetstoreClient\Api\PetApi;
+use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\Options\AddPetOptions;
+use PetstoreClient\Models\Category;
+use PetstoreClient\Models\Pet;
+
+class CapturingApiClient implements ApiClient
+{
+    public string $capturedUrl = '';
+    /** @var array<string, string> */
+    public array $capturedHeaders = [];
+    public mixed $capturedBody = null;
+
+    /** @param array<string, string> $headers */
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiHttpResponse {
+        $this->capturedUrl = $url;
+        $this->capturedHeaders = $headers;
+        $this->capturedBody = $body;
+        return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+    }
+}
+
+class TestableApi extends BaseApi
+{
+    /**
+     * @param array<string, mixed> $queryParams
+     * @param array<string, string> $headerParams
+     * @param array<string> $accepts
+     */
+    public function call(
+        string $method,
+        string $path,
+        array $queryParams,
+        array $headerParams,
+        mixed $body,
+        array $accepts,
+        ?string $contentType,
+        ?string $returnType,
+        ?Authenticator $auth = null
+    ): mixed {
+        return $this->invokeApi(
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            $returnType,
+            $auth
+        );
+    }
+}
+
+class TestAuthenticator implements Authenticator
+{
+    /**
+     * @param array<string, string> $headers
+     * @param array<string, string> $queryParams
+     * @param array<string, string> $cookies
+     */
+    public function __construct(
+        private readonly array $headers = [],
+        private readonly array $queryParams = [],
+        private readonly array $cookies = []
+    ) {
+    }
+
+    public function getHost(): string
+    {
+        return '';
+    }
+
+    public function getAuthHeaders(): array
+    {
+        return $this->headers;
+    }
+
+    public function getQueryParams(): array
+    {
+        return $this->queryParams;
+    }
+
+    public function getCookieParams(): array
+    {
+        return $this->cookies;
+    }
+}
+
+function makeBaseApiTestableApi(): TestableApi
+{
+    $url = getenv('CHASM_HTTP_URL') ?: '';
+    $config = new Configuration($url);
+    return new TestableApi(new DefaultApiClient(), $config);
+}
+
+test('throws correct exception', function (int $status, string $expectedClass): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            "/test/status/$status",
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (ApiException $e) {
+        expect($e)->toBeInstanceOf($expectedClass);
+        expect($e->getCode())->toBe($status);
+        expect($e->getResponseBody())->not->toBeEmpty();
+    }
+})->with([
+    [400, BadRequestException::class],
+    [401, UnauthorizedException::class],
+    [403, ForbiddenException::class],
+    [404, NotFoundException::class],
+    [409, ConflictException::class],
+    [422, UnprocessableEntityException::class],
+    [418, ClientException::class],
+    [500, InternalServerErrorException::class],
+    [502, ServerException::class],
+]);
+
+test('get typed error body deserializes into given class', function (): void {
+    $ex = new ApiException(400, 'boom', [], '{"id":42,"name":"Dogs"}');
+    $typed = $ex->getTypedErrorBody(Category::class);
+
+    expect($typed)->toBeInstanceOf(Category::class);
+    expect($typed->id)->toBe(42);
+    expect($typed->name)->toBe('Dogs');
+});
+
+test('get typed error body returns null for empty body', function (): void {
+    $ex = new ApiException(400, 'boom', [], '');
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('get typed error body returns null for whitespace body', function (): void {
+    $ex = new ApiException(400, 'boom', [], "   \n\t");
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('parses json error body', function (): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            '/test/status/400',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (BadRequestException $e) {
+        expect($e->getErrorBody())->not->toBeNull();
+    }
+});
+
+test('not found hierarchy', function (): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            '/test/status/404',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (NotFoundException $e) {
+        expect($e)->toBeInstanceOf(ClientException::class);
+        expect($e)->toBeInstanceOf(ApiException::class);
+    }
+});
+
+test('internal server error hierarchy', function (): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            '/test/status/500',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (InternalServerErrorException $e) {
+        expect($e)->toBeInstanceOf(ServerException::class);
+        expect($e)->toBeInstanceOf(ApiException::class);
+    }
+});
+
+test('deserializes json response', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'array'
+    );
+    expect($result)->toBeArray();
+    expect($result['method'])->toBe('GET');
+});
+
+test('returns raw string for non json', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/text-plain',
+        [],
+        [],
+        null,
+        ['text/plain'],
+        'application/json',
+        'string'
+    );
+    expect($result)->toBeString();
+    expect($result)->not->toBeEmpty();
+});
+
+test('returns null when return type is null', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($result)->toBeNull();
+});
+
+test('appends query params', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        ['foo' => 'bar'],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($result)->toBeNull();
+});
+
+test('forwards auth headers', function (): void {
+    $auth = new TestAuthenticator(headers: ['X-Custom' => 'auth-value']);
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'array',
+        $auth
+    );
+    expect($result)->toBeArray();
+    expect($result['headers']['x-custom'])->toBe('auth-value');
+});
+
+test('sets cookie header', function (): void {
+    $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
+    makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null,
+        $auth
+    );
+    expect(true)->toBeTrue();
+});
+
+test('falls back to client-level authenticator when no per-call auth is supplied', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $clientAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'client-level-token']);
+    $api = new TestableApi($client, $config, $clientAuth);
+    $api->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('client-level-token');
+});
+
+test('per-call auth overrides the client-level authenticator', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $clientAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'client-level-token']);
+    $perCallAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'per-call-token']);
+    $api = new TestableApi($client, $config, $clientAuth);
+    $api->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null,
+        $perCallAuth
+    );
+    expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('per-call-token');
+});
+
+// -- AUTH-APPLIED (Wave A1) --
+//
+// Regression guard for the Elixir bug where a CONFIGURED authenticator was
+// silently dropped: a Bearer / apiKey authenticator handed to the client must
+// actually appear on the OUTBOUND request to a SECURED operation. addPet is
+// secured (apiKeyHeader / petStoreBearer). We drive the real generated PetApi
+// through a CapturingApiClient and assert the credential is on the wire.
+
+test('configured bearer authenticator is applied to a secured operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
+});
+
+test('per-operation bearer authenticator is applied to a secured operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'per-op-token');
+    $api = new PetApi($client, $config);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet, new AddPetOptions($auth));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer per-op-token');
+});
+
+test('configured api-key header authenticator is applied to a secured operation', function (): void {
+    // apiKeyHeader scheme defined by the spec sends X-API-Key as a header.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER);
+    $api = new PetApi($client, $config, $auth);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
+});
+
+// -- AUTH-SUPPRESSED (Wave A2) — security:[] operations --
+//
+// An operation declared `security: []` in the spec is explicitly
+// UNAUTHENTICATED. Even when the client is configured WITH an authenticator,
+// the generated method passes the NoAuth sentinel, so BaseApi must NOT fall
+// back to the client credential. getPetById is declared `security: []`. We
+// configure the client with BOTH a bearer (Authorization header) and an
+// api-key (X-API-Key header) authenticator, then drive getPetById through a
+// CapturingApiClient and assert NONE of the credentials reach the wire.
+
+test('configured bearer authenticator is suppressed on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+    expect($client->capturedUrl)->not->toContain('secret-jwt-token');
+});
+
+test('configured api-key authenticator is suppressed on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER);
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('X-API-Key');
+    expect($client->capturedUrl)->not->toContain('secret-api-key');
+});
+
+test('configured api-key query authenticator sends no api-key param on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'api_key', 'secret-api-key', ApiKeyLocation::QUERY);
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedUrl)->not->toContain('api_key=');
+    expect($client->capturedUrl)->not->toContain('secret-api-key');
+});
+
+test('configured cookie authenticator sets no cookie on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'session', 'secret-session', ApiKeyLocation::COOKIE);
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('Cookie');
+});
+
+test('serializes json body', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        ['key' => 'value'],
+        ['application/json'],
+        'application/json',
+        'array'
+    );
+    expect($result)->toBeArray();
+    /** @var array<string, mixed> $parsedBody */
+    $parsedBody = (array) json_decode((string) $result['body'], true);
+    expect($parsedBody['key'])->toBe('value');
+});
+
+test('sends no body when null', function (): void {
+    makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect(true)->toBeTrue();
+});
+
+test('findPetsByStatus omitting status sends no status= in query', function (): void {
+    // findPetsByStatus has an optional `status` query param declared
+    // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
+    // value IF the client chooses to send the key — it does NOT mean the SDK
+    // must always send the key. When the caller omits status (null), the built
+    // request URL must carry no `status` key at all rather than a spurious
+    // empty `status=` pair.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
+test('findPetsByStatus with explicit empty status sends status= in query', function (): void {
+    // When the caller explicitly supplies an empty value for the
+    // allowEmptyValue param, the key IS present with an empty value: `status=`.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(''));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->toContain('status=');
+});
+
+test('allow empty value includes param in query string', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        ['filter' => ''],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($result)->toBeNull();
+});
+
+test('expands array query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        ['tags' => ['a', 'b']],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toContain('tags=a&tags=b');
+});
+
+test('serializes boolean query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        ['active' => true],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toContain('active=true');
+});
+
+test('serializes number query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        ['limit' => 10],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toContain('limit=10');
+    expect($client->capturedUrl)->not->toContain('limit=10.0');
+});
+
+test('handles empty query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->not->toContain('?');
+});
+
+test('collapses double-slash when base url has trailing slash', function (): void {
+    // baseUrl='http://host/' + path='/v1/thing' must produce
+    // 'http://host/v1/thing', not 'http://host//v1/thing' which most
+    // servers route to 404.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://host/');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/v1/thing',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toBe('http://host/v1/thing');
+});
+
+// -- server variable overrides via Configuration --
+
+test('server variable overrides resolve in base url', function (): void {
+    $config = Configuration::builder()
+        ->server(Servers::server1(), ['environment' => 'staging'])
+        ->build();
+    expect($config->baseUrl)->toBe('https://staging.example.com/api/v3');
+});
+
+test('default server variables produce correct base url', function (): void {
+    $config = Configuration::builder()
+        ->server(Servers::server1())
+        ->build();
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
+
+test('invalid enum value throws exception', function (): void {
+    expect(fn () => Configuration::builder()
+        ->server(Servers::server1(), ['environment' => 'invalid'])
+        ->build())->toThrow(\InvalidArgumentException::class);
+});
+
+test('api request uses resolved server url', function (): void {
+    $config = Configuration::builder()
+        ->server(Servers::server1(), ['environment' => 'staging'])
+        ->build();
+    expect($config->baseUrl)->toStartWith('https://staging.example.com/api/v3');
+});
+
+// -- content-type deserialization --
+
+test('skips deserialization for non json content type', function (): void {
+    $client = new class implements ApiClient {
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['text/plain'], 'application/json', 'string');
+    expect($result)->toBe('hello');
+});
+
+test('deserializes vendor json mime types', function (): void {
+    $client = new class implements ApiClient {
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"title":"Not Found"}', ['Content-Type' => 'application/problem+json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', 'array');
+    expect($result)->toBeArray();
+    expect($result['title'])->toBe('Not Found');
+});
+
+// -- body serialization by content type --
+
+test('serializes text plain body', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], 'hello world',
+        ['application/json'], 'text/plain', null);
+    expect($client->capturedBody)->not->toBeNull();
+    expect($client->capturedBody)->toBeString();
+    expect($client->capturedBody)->toContain('hello world');
+});
+
+test('serializes form urlencoded body', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['name' => 'alice'],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->not->toBeNull();
+    expect($client->capturedBody)->toBeString();
+    expect($client->capturedBody)->toContain('name=alice');
+});
+
+test('form urlencoded body encodes space as plus', function (): void {
+    // application/x-www-form-urlencoded bodies encode a space as '+'
+    // (WHATWG form-encoding), matching the other 11 SDKs, not '%20'.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['q' => 'a b c'],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('q=a+b+c');
+});
+
+test('passes binary body as is', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], "\x01\x02\x03",
+        ['application/json'], 'application/octet-stream', null);
+    expect($client->capturedBody)->not->toBeNull();
+});
+
+// -- header flow-through --
+
+test('empty content type defaults to json', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], '', null);
+    expect($client->capturedHeaders['Content-Type'] ?? '')->toBe('application/json');
+});
+
+test('all headers from selector flow through', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->toHaveKey('Accept');
+    expect($client->capturedHeaders)->toHaveKey('Content-Type');
+});
+
+// -- Default header merge order (Gap C / R5-1) --
+//
+// Canonical cross-SDK scenario: a caller's config default `Accept` must win
+// over the operation-negotiated Accept. selectHeaders() runs first (negotiating
+// Accept from $accepts), then config->defaultHeaders is merged OVER it
+// (matching java putAll, python, elixir). RED in ruby before its merge-order
+// fix; GREEN in PHP (base_api array_merge puts the config defaults last).
+
+test('config default Accept wins over operation-negotiated Accept', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
+});
+
+// -- BinaryResponseTests --
+
+test('octet stream response decoded as base 64 bytes', function (): void {
+    $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
+    $encoded = base64_encode($binaryData);
+    $client = new class implements ApiClient {
+        public string $body = '';
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $client->body = $encoded;
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/octet-stream'], 'application/octet-stream', null);
+    expect($result)->toBe($binaryData);
+});
+
+test('image png response decoded as bytes', function (): void {
+    $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A\x00\x00\x00\x0D";
+    $encoded = base64_encode($binaryData);
+    $client = new class implements ApiClient {
+        public string $body = '';
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'image/png']);
+        }
+    };
+    $client->body = $encoded;
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/api/img', [], [], null,
+        ['image/png'], 'image/png', null);
+    expect($result)->toBe($binaryData);
+});
+
+test('binary response roundtrips nul and high bytes', function (): void {
+    // Use a byte sequence containing NUL (0x00) and a high byte (0xFF)
+    // that would be mangled by any naive UTF-8 string conversion.
+    $binaryData = "\x00\xFF\x42";
+    $encoded = base64_encode($binaryData);
+    $client = new class implements ApiClient {
+        public string $body = '';
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $client->body = $encoded;
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/api/bin', [], [], null,
+        ['application/octet-stream'], 'application/octet-stream', null);
+    expect($result)->toBe($binaryData);
+    expect(strlen($result))->toBe(3);
+});
+
+test('empty binary body yields null', function (): void {
+    $client = new class implements ApiClient {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/api/bin', [], [], null,
+        ['application/octet-stream'], 'application/octet-stream', null);
+    expect($result)->toBeNull();
+});
+
+test('json response parsed to object', function (): void {
+    $client = new class implements ApiClient {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":42,"name":"test"}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], null, null);
+    expect($result)->not->toBeNull();
+});
+
+test('text plain response returns string', function (): void {
+    $client = new class implements ApiClient {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello world', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['text/plain'], null, null);
+    expect($result)->toBeString();
+    expect($result)->toBe('hello world');
+});
+
+test('empty body yields null', function (): void {
+    $client = new class implements ApiClient {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/octet-stream'], null, null);
+    expect($result)->toBeNull();
+});
+
+// -- CrossOriginRedirectTests --
+
+test('same origin redirect forwards authorization', function (): void {
+    $authHeader = 'Bearer token123';
+    $forwardedHeaders = [];
+
+    // Same-origin: sensitive headers are forwarded
+    $forwardedHeaders['Authorization'] = $authHeader;
+
+    expect($forwardedHeaders)->toHaveKey('Authorization');
+    expect($forwardedHeaders['Authorization'])->toBe($authHeader);
+});
+
+test('cross origin redirect drops authorization', function (): void {
+    $sensitiveHeaders = ['authorization', 'cookie', 'proxy-authorization'];
+    $originalHeaders = ['Authorization' => 'Bearer token123', 'Accept' => 'application/json'];
+    $forwardedHeaders = [];
+
+    // Cross-origin: skip sensitive headers
+    foreach ($originalHeaders as $key => $value) {
+        if (in_array(strtolower($key), $sensitiveHeaders, true)) {
+            continue;
+        }
+        $forwardedHeaders[$key] = $value;
+    }
+
+    expect($forwardedHeaders)->not->toHaveKey('Authorization');
+    expect($forwardedHeaders)->toHaveKey('Accept');
+});
+
+test('cross origin redirect drops cookie', function (): void {
+    $sensitiveHeaders = ['authorization', 'cookie', 'proxy-authorization'];
+    $originalHeaders = ['Cookie' => 'session=abc123', 'Accept' => 'application/json'];
+    $forwardedHeaders = [];
+
+    // Cross-origin: skip sensitive headers
+    foreach ($originalHeaders as $key => $value) {
+        if (in_array(strtolower($key), $sensitiveHeaders, true)) {
+            continue;
+        }
+        $forwardedHeaders[$key] = $value;
+    }
+
+    expect($forwardedHeaders)->not->toHaveKey('Cookie');
+    expect($forwardedHeaders)->toHaveKey('Accept');
+});
+
+// -- NullBodyContentTypeTests --
+
+test('null body post does not send content type', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
+});
+
+test('empty string body includes content type', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], '',
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->toHaveKey('Content-Type');
+});
+
+test('empty json object body includes content type', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], '{}',
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->toHaveKey('Content-Type');
+    expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
+});

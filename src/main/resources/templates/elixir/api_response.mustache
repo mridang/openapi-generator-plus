@@ -1,0 +1,17 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.ApiHttpResponse do
+  @moduledoc """
+  Wraps an HTTP response with status code, body, and headers.
+  """
+
+  @type t :: %__MODULE__{
+          status_code: integer(),
+          body: String.t(),
+          headers: %{optional(String.t()) => String.t()}
+        }
+
+  defstruct status_code: nil,
+            body: "",
+            headers: %{}
+end

@@ -1,0 +1,210 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.oauth.OAuth2AuthorizationCodeAuthenticator
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+import java.util.LinkedList
+
+class OAuth2AuthCodeAuthenticatorTest {
+
+    private class FakeApiClient : ApiClient {
+        private val responses = LinkedList<ApiHttpResponse>()
+        var lastBody: String? = null
+            private set
+        var lastUrl: String? = null
+            private set
+
+        fun enqueue(body: String, statusCode: Int = 200) {
+            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
+        }
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse {
+            lastUrl = url
+            lastBody = body?.toString()
+            return responses.poll() ?: throw IllegalStateException("No responses queued")
+        }
+    }
+
+    private fun createAuthenticator(): OAuth2AuthorizationCodeAuthenticator {
+        return OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://auth.example.com/authorize",
+            tokenUrl = "https://auth.example.com/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read", "write")
+        )
+    }
+
+    @Test
+    fun buildsAuthorizationUrlWithRequiredParams() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("response_type=code"))
+        assertTrue(url.contains("client_id=my-client-id"))
+        assertTrue(url.contains("redirect_uri="))
+        assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"))
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"))
+    }
+
+    @Test
+    fun buildsAuthorizationUrlWithState() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("csrf-state-123")
+
+        assertTrue(url.contains("state=csrf-state-123"))
+    }
+
+    @Test
+    fun exchangesCodeWithCorrectGrantType() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        assertNotNull(client.lastBody)
+        assertTrue(client.lastBody!!.contains("grant_type=authorization_code"))
+        assertTrue(client.lastBody!!.contains("code=auth-code-xyz"))
+        assertTrue(client.lastBody!!.contains("client_id=my-client-id"))
+        assertTrue(client.lastBody!!.contains("client_secret=my-client-secret"))
+    }
+
+    @Test
+    fun `exchange_code_rejects_empty_or_blank_code`() {
+        // oauth-exchangecode-no-empty-code-guard: an empty/blank code must be
+        // rejected before the token POST, with no request sent.
+        val client = FakeApiClient()
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("   ") }
+        }
+        // No token request should have been dispatched.
+        assertNull(client.lastBody, "no token request should be sent for an empty code")
+    }
+
+    @Test
+    fun `exchange_code_rejects_whitespace_only_code`() {
+        // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+        // distinct from the empty-string case and must also be rejected before
+        // the token POST (isNotBlank guard), with no request sent.
+        val client = FakeApiClient()
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("   ") }
+        }
+        // No token request should have been dispatched.
+        assertNull(client.lastBody, "no token request should be sent for a whitespace-only code")
+    }
+
+    @Test
+    fun includesRefreshTokenOnRefresh() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertTrue(client.lastBody!!.contains("refresh_token=ref1"))
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"))
+        assertEquals("Bearer tok2", headers["Authorization"])
+    }
+
+    @Test
+    fun throwsBeforeExchangeCodeCalled() {
+        val auth = createAuthenticator()
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+    }
+
+    @Test
+    fun getHostReturnsConfiguredHost() {
+        val auth = createAuthenticator()
+
+        assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun `auth_headers_before_exchange_returns_recoverable_error`() {
+        val auth = createAuthenticator()
+
+        // Calling getAuthHeaders before exchangeCode is a precondition
+        // violation. It must surface as a catchable exception so callers
+        // can recover -- not as a process crash.
+        var caught: Throwable? = null
+        try {
+            runBlocking { auth.getAuthHeaders() }
+        } catch (t: Throwable) {
+            caught = t
+        }
+        assertNotNull(caught, "expected getAuthHeaders to throw before exchangeCode")
+        assertTrue(
+            caught is IllegalStateException,
+            "expected IllegalStateException, got " + caught!!::class.java.name
+        )
+
+        // Caller continues normally after catching -- no process crash.
+        assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun `authorize_url_with_existing_query_string_uses_amp_separator`() {
+        // RFC 6749 §3.1: the authorization endpoint URI MAY already include
+        // a query component (e.g. tenant-scoped Auth0 URLs). The builder
+        // must preserve existing query items alongside the OAuth2 ones
+        // using '&' as the separator, not '?'.
+        val auth = OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://x.auth0.com/authorize?audience=api",
+            tokenUrl = "https://x.auth0.com/oauth/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read")
+        )
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("audience=api"), "existing query param must be preserved: $url")
+        assertTrue(url.contains("response_type=code"), "response_type must be appended: $url")
+        assertEquals(1, url.count { it == '?' }, "result must contain exactly one '?': $url")
+    }
+
+    @Test
+    fun redactsSecret() {
+        val auth = createAuthenticator()
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("my-client-secret"))
+        assertTrue(rendered.contains("***"))
+    }
+}

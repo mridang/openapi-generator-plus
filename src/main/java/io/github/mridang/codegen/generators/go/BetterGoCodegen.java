@@ -1,0 +1,997 @@
+package io.github.mridang.codegen.generators.go;
+
+import com.samskivert.mustache.Mustache;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.NamingConvention;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.swagger.v3.oas.models.media.Schema;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Pattern;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Generates a Go API client that uses net/http for transport
+ * and encoding/json for model serialization. All exported
+ * identifiers use PascalCase per Go convention, while
+ * unexported fields use camelCase. Filenames use snake_case.
+ * The formatter pass invokes gofmt inside Docker to enforce
+ * canonical Go formatting.
+ */
+@SuppressWarnings("unused")
+public class BetterGoCodegen extends AbstractBetterCodegen {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterGoCodegen.class);
+
+    protected String packageName = "petstore";
+    protected String packageVersion = "1.0.0";
+
+    /**
+     * Guards one-time emission of the {@code pkg/options/authenticator.go} mirror
+     * interface. The options package declares its own {@code Authenticator}
+     * interface (structurally identical to the root package's) so authed Options
+     * structs can carry a per-operation auth field without importing the root
+     * package, which would form a cycle. The interface must be declared exactly
+     * once across all authed options files.
+     */
+    private boolean optionsAuthenticatorWritten = false;
+
+    /**
+     * Initializes type mappings, template paths, and reserved
+     * words for the Go language. Type mappings convert OpenAPI
+     * types to their Go equivalents (e.g. integer to int32,
+     * DateTime to time.Time). Reserved words are loaded from a
+     * bundled word-list to avoid generating identifiers that
+     * clash with Go keywords and predeclared identifiers.
+     */
+    public BetterGoCodegen() {
+        outputFolder = Path.of("generated-code", "go").toString();
+        embeddedTemplateDir = templateDir = "templates/go";
+
+        modelTemplateFiles.put("models/model.mustache", ".go");
+        apiTemplateFiles.put("api/api.mustache", ".go");
+
+        modelPackage = "";
+        apiPackage = "";
+
+        typeMapping.put("string", "string");
+        typeMapping.put("boolean", "bool");
+        typeMapping.put("int", "int32");
+        typeMapping.put("integer", "int32");
+        typeMapping.put("long", "int64");
+        typeMapping.put("short", "int32");
+        typeMapping.put("float", "float32");
+        typeMapping.put("double", "float64");
+        typeMapping.put("number", "float64");
+        typeMapping.put("decimal", "float64");
+        typeMapping.put("date", "string");
+        typeMapping.put("DateTime", "time.Time");
+        // 4.8: format:time and format:duration. Go's stdlib has no
+        // civil-time type and time.Duration's default JSON encoding is
+        // int64 nanoseconds, not the protobuf-JSON duration shape.
+        // cloud.google.com/go/civil would supply civil.Time but drags in
+        // a 100MB+ dep tree just for a struct, so both formats map to
+        // string on the wire. The generated iso8601.go file ships
+        // MarshalDurationProtoJSON / UnmarshalDurationProtoJSON helpers so
+        // callers can convert between time.Duration and the
+        // google.protobuf.Duration form ("<seconds>s", e.g. "3600s")
+        // that Zitadel's API requires, without reaching for a 3rd-party
+        // parser.
+        typeMapping.put("time", "string");
+        typeMapping.put("duration", "string");
+        typeMapping.put("array", "[]");
+        typeMapping.put("List", "[]");
+        typeMapping.put("map", "map");
+        typeMapping.put("object", "any");
+        typeMapping.put("AnyType", "any");
+        typeMapping.put("file", "*os.File");
+        typeMapping.put("binary", "[]byte");
+        typeMapping.put("ByteArray", "[]byte");
+        typeMapping.put("UUID", "uuid.UUID");
+        typeMapping.put("URI", "string");
+
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "string",
+                                "bool",
+                                "int32",
+                                "int64",
+                                "float32",
+                                "float64",
+                                "byte",
+                                "any",
+                                "error",
+                                "uuid.UUID"));
+
+        reservedWords = loadReservedWords("/reserved-words/go.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
+                CodegenConstants.PACKAGE_NAME_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated Go module (default: 1.0.0).").defaultValue("1.0.0"));
+    }
+
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
+    @Override
+    public String getName() {
+        return "go-plus";
+    }
+
+    /** Returns a short description shown in the help output. */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal Go client with net/http.";
+    }
+
+    /**
+     * Declares Go as the target language so that the framework
+     * can apply language-specific post-processing steps.
+     */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.GO;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTestFixturesDir() {
+        return "testdata";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSpecDir() {
+        return "spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getFilenameCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getParamCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "golang:1.26@sha256:2d6c80227255c3112a4d08e67ba98e58efd3846daf15d9d7d4c389565d881b1a";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            "go install golang.org/x/tools/cmd/goimports@v0.45.0",
+            "go mod tidy",
+            "goimports -w ."
+        };
+    }
+
+    /**
+     * Preserves all-uppercase identifiers like HTTP, URL, ID
+     * as Go convention keeps uppercase abbreviations intact.
+     */
+    @Override
+    protected UppercaseIdentifierStrategy getUppercaseIdentifierStrategy() {
+        return UppercaseIdentifierStrategy.PRESERVE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOperationIdReservedPrefix() {
+        return "call_";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("int32", "int64", "float32", "float64");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "nil";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "[]%2$s";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "map[%2$s]%3$s";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "Set[$1]";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^\\[\\](.+)$";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "pkg";
+    }
+
+    /**
+     * Returns {@code string} as the map key type because Go
+     * maps use string keys for JSON-derived schemas.
+     */
+    @Override
+    protected String getMapKeyType() {
+        return "string";
+    }
+
+    /**
+     * Returns {@code any} as the default map value
+     * type for Go's universal empty interface alias.
+     */
+    @Override
+    protected String getMapDefaultValueType() {
+        return "any";
+    }
+
+    /**
+     * Resolves user-supplied options and registers all
+     * supporting files for the Go package structure.
+     * Sets up the package layout including models, API
+     * classes, errors, auth, configuration, and serializers
+     * all in the root package directory.
+     */
+    @Override
+    public void processOpts() {
+        super.processOpts();
+
+        packageName = getPropertyOrDefault("packageName", packageName);
+        packageVersion = getPropertyOrDefault("packageVersion", packageVersion);
+        additionalProperties.put("packageName", packageName);
+        additionalProperties.put("userAgentDefault", packageName + "/" + packageVersion + " (go)");
+
+        additionalProperties.put(
+                "pascalcase",
+                (Mustache.Lambda)
+                        (fragment, writer) ->
+                                writer.write(
+                                        NamingConvention.PASCAL_CASE.apply(fragment.execute())));
+
+        additionalProperties.put(
+                "goVarName",
+                (Mustache.Lambda)
+                        (fragment, writer) -> {
+                            String type = fragment.execute().trim();
+                            String clean = type.replace("*", "");
+                            int sliceDepth = 0;
+                            while (clean.startsWith("[]")) {
+                                clean = clean.substring(2);
+                                sliceDepth++;
+                            }
+                            if (!clean.isEmpty()) {
+                                clean =
+                                        Character.toLowerCase(clean.charAt(0))
+                                                + clean.substring(1);
+                            }
+                            for (int i = 0; i < sliceDepth; i++) {
+                                clean += "Slice";
+                            }
+                            if (clean.isEmpty()) {
+                                clean = "val";
+                            }
+                            writer.write(clean);
+                        });
+
+        setModelPackage("");
+        setApiPackage("");
+
+        final String clientClassName =
+                Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
+        final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
+        additionalProperties.put("clientClassFile", clientClassFile);
+        supportingFiles.add(
+                new SupportingFile("client.mustache", "pkg", clientClassFile + ".go"));
+
+        if (generateTests) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/testcontainers_helper_test.mustache",
+                            "test",
+                            "testcontainers_helper_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/pet_api_test.mustache", "test", "pet_api_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/store_api_test.mustache", "test", "store_api_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_test.mustache",
+                            "test",
+                            "default_api_client_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object_serializer_test.mustache",
+                            "pkg",
+                            "object_serializer_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/iso8601_test.mustache",
+                            "test",
+                            "iso8601_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base_api_test.mustache",
+                            "test",
+                            "base_api_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/metadata_test.mustache",
+                            "test",
+                            "metadata_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/composed_schema_test.mustache",
+                            "test",
+                            "composed_schema_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "test",
+                            "client_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_error_test.mustache",
+                            "test",
+                            "api_error_test.go"));
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/basic_authenticator_test.mustache",
+                                "test",
+                                "basic_authenticator_test.go"));
+            }
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/bearer_authenticator_test.mustache",
+                                "test",
+                                "bearer_authenticator_test.go"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/api_key_authenticator_test.mustache",
+                                "test",
+                                "api_key_authenticator_test.go"));
+            }
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "test",
+                            "server_configuration_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "test",
+                            "server_variable_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache",
+                            "test",
+                            "api_result_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_token_manager_test.mustache",
+                            "test",
+                            "oauth2_token_manager_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_auth_code_authenticator_test.mustache",
+                            "test",
+                            "oauth2_auth_code_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_implicit_authenticator_test.mustache",
+                            "test",
+                            "oauth2_implicit_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_client_credentials_authenticator_test.mustache",
+                            "test",
+                            "oauth2_client_credentials_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_password_authenticator_test.mustache",
+                            "test",
+                            "oauth2_password_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/openid_connect_authenticator_test.mustache",
+                            "test",
+                            "openid_connect_authenticator_test.go"));
+        }
+
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "pkg",
+                            "value_serializer_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "pkg",
+                            "header_selector_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "test",
+                            "transport_options_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_test.mustache",
+                            "pkg",
+                            "trace_context_util_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "pkg",
+                            "default_api_client_unit_test.go"));
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        return List.of(
+                new SupportingFileSpec("readme.mustache", "", "README.md"),
+                new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+                new SupportingFileSpec("configuration.mustache", "pkg", "configuration.go"),
+                new SupportingFileSpec(
+                        "transport_options.mustache", "pkg", "transport_options.go"),
+                new SupportingFileSpec(
+                        "server_configuration.mustache", "pkg", "server_configuration.go"),
+                new SupportingFileSpec("servers.mustache", "pkg", "servers.go"),
+                new SupportingFileSpec(
+                        "errors/zitadel_error.mustache", "pkg/errors", "zitadel_error.go"),
+                new SupportingFileSpec("api_error.mustache", "pkg/errors", "api_error.go"),
+                new SupportingFileSpec(
+                        "errors/client_error.mustache", "pkg/errors", "client_error.go"),
+                new SupportingFileSpec(
+                        "errors/server_error.mustache", "pkg/errors", "server_error.go"),
+                new SupportingFileSpec(
+                        "errors/bad_request_error.mustache",
+                        "pkg/errors",
+                        "bad_request_error.go"),
+                new SupportingFileSpec(
+                        "errors/unauthorized_error.mustache",
+                        "pkg/errors",
+                        "unauthorized_error.go"),
+                new SupportingFileSpec(
+                        "errors/forbidden_error.mustache", "pkg/errors", "forbidden_error.go"),
+                new SupportingFileSpec(
+                        "errors/not_found_error.mustache", "pkg/errors", "not_found_error.go"),
+                new SupportingFileSpec(
+                        "errors/conflict_error.mustache", "pkg/errors", "conflict_error.go"),
+                new SupportingFileSpec(
+                        "errors/unprocessable_entity_error.mustache",
+                        "pkg/errors",
+                        "unprocessable_entity_error.go"),
+                new SupportingFileSpec(
+                        "errors/internal_server_error.mustache",
+                        "pkg/errors",
+                        "internal_server_error.go"),
+                new SupportingFileSpec("header_selector.mustache", "pkg", "header_selector.go"),
+                new SupportingFileSpec(
+                        "object_serializer.mustache", "pkg", "object_serializer.go"),
+                new SupportingFileSpec("iso8601.mustache", "pkg", "iso8601.go"),
+                new SupportingFileSpec("value_serializer.mustache", "pkg", "value_serializer.go"),
+                new SupportingFileSpec(
+                        "trace_context_util.mustache", "pkg", "trace_context_util.go"),
+                new SupportingFileSpec("api_response.mustache", "pkg", "api_response.go"),
+                new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
+                new SupportingFileSpec("api_client.mustache", "pkg", "api_client.go"),
+                new SupportingFileSpec(
+                        "default_api_client.mustache", "pkg", "default_api_client.go"),
+                new SupportingFileSpec("base_api.mustache", "pkg", "base_api.go"),
+                new SupportingFileSpec("path_utils.mustache", "pkg", "path_utils.go"),
+                new SupportingFileSpec("authenticator.mustache", "pkg", "authenticator.go"),
+                new SupportingFileSpec("go_mod.mustache", "", "go.mod"),
+                new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+                new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+                new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+                new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"),
+                new SupportingFileSpec("models/set.mustache", "pkg/models", "set.go"));
+    }
+
+    /**
+     * Returns the output directory for model source files.
+     * Models are placed in the {@code pkg/models/} sub-package.
+     */
+    @Override
+    public String modelFileFolder() {
+        return Path.of(getOutputDir(), "pkg", "models").toString();
+    }
+
+    /**
+     * Returns the output directory for API source files.
+     * APIs are placed in the {@code pkg/} directory alongside
+     * infrastructure types (Configuration, BaseApi, ApiClient).
+     */
+    @Override
+    public String apiFileFolder() {
+        return Path.of(getOutputDir(), "pkg").toString();
+    }
+
+    /**
+     * Returns the Go default value literal for the given
+     * schema. Numeric and boolean defaults use their string
+     * representation; string defaults are wrapped in double
+     * quotes. All other types return null to omit the default.
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (ModelUtils.isIntegerSchema(resolved)
+                || ModelUtils.isNumberSchema(resolved)
+                || ModelUtils.isBooleanSchema(resolved)) {
+            if (resolved.getDefault() != null) {
+                return resolved.getDefault().toString();
+            }
+        } else if (ModelUtils.isStringSchema(resolved)) {
+            if (resolved.getDefault() != null) {
+                return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+            }
+        }
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Map<String, String> getModelContextFlags() {
+        return Map.of(
+                "type:time.Time", "hasTimeImport",
+                "type:uuid.UUID", "hasUuidImport",
+                "oneOfAnyOf", "hasFmtImport",
+                "isEnum", "hasFmtImport",
+                "hasInlineEnum", "hasFmtImport",
+                "hasRequired", "hasFmtImport",
+                "isUnevaluatedPropertiesFalse", "hasFmtImport",
+                "hasOptionalDefault", "hasOptionalDefault");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Map<String, String> getOperationContextFlags() {
+        return Map.of(
+                "type:os.File", "hasOsImport",
+                "type:time.Time", "hasTimeImport",
+                "type:uuid.UUID", "hasUuidImport",
+                "servers", "hasStringsImport",
+                "cookieParams", "hasStringsImport",
+                "queryContent", "hasJsonImport");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<FileContentFixup> getFileContentFixups() {
+        return List.of(new FileContentFixup(
+                ".go",
+                Pattern.compile(", \\)"),
+                ")"));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final Set<String> goPrimitives =
+                Set.of(
+                        "string", "bool", "int32", "int64", "float32", "float64",
+                        "any", "byte", "[]byte");
+        boolean hasModelImport = false;
+        boolean hasOsImport = false;
+        boolean hasUuidImport = false;
+        boolean hasTimeImport = false;
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("name", NamingConvention.PASCAL_CASE.apply(p.paramName));
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            // A parameter declared `deprecated: true` in the spec must carry that
+            // signal onto its Options field. The native CodegenParameter.deprecated
+            // flag is threaded here so the template can emit the Go deprecation doc
+            // comment, mirroring the operation (api.mustache) and model-property
+            // (model.mustache) deprecation idioms.
+            param.put("deprecated", p.isDeprecated);
+            if (p.description != null && !p.description.isEmpty()) {
+                param.put("description", p.description);
+            }
+            params.add(param);
+            // A date-time options param emits time.Time / *time.Time and needs an
+            // `import "time"` in the generated options file. Detected on the raw
+            // dataType (independent of the primitive check) so the import block
+            // fires regardless of how the type maps.
+            if (p.dataType != null && p.dataType.contains("time.Time")) {
+                hasTimeImport = true;
+            }
+            if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
+                hasOsImport = true;
+            } else if (p.dataType != null && p.dataType.contains("uuid.UUID")) {
+                hasUuidImport = true;
+            } else if (!p.isPrimitiveType) {
+                String baseType = p.dataType.replace("[]", "").replace("*", "");
+                if (!goPrimitives.contains(baseType)
+                        && !baseType.startsWith("map[")
+                        && !baseType.equals("time.Time")
+                        && !baseType.equals("uuid.UUID")) {
+                    hasModelImport = true;
+                }
+            }
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("packageName", "options");
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("moduleName", packageName);
+        // Per-operation auth folded into the Options object. The optional `Auth`
+        // field carries the generic Authenticator. Go uses structural typing, so
+        // the options package declares its own mirror Authenticator interface
+        // (authImport stays empty) to avoid an import cycle with the root
+        // package, which dot-imports pkg/options.
+        injectAuthFieldContext(op, context);
+        context.put("authImport", "");
+        if (hasModelImport) {
+            context.put("hasModelImport", true);
+        }
+        if (hasOsImport) {
+            context.put("hasOsImport", true);
+        }
+        if (hasUuidImport) {
+            context.put("hasUuidImport", true);
+        }
+        if (hasTimeImport) {
+            context.put("hasTimeImport", true);
+        }
+        if (op.hasAuthMethods && !optionsAuthenticatorWritten) {
+            // Emit the shared mirror Authenticator interface exactly once, in its
+            // own file, so the per-op Options structs can reference it without a
+            // duplicate-declaration error.
+            final String authPath =
+                    Path.of(getOutputDir(), "pkg", "options", "authenticator.go").toString();
+            writeFile(
+                    authPath,
+                    renderOptionsTemplate("api/options_authenticator.mustache", new HashMap<>()));
+            postProcessFile(Path.of(authPath).toFile(), "source");
+            optionsAuthenticatorWritten = true;
+        }
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        return Path.of(getOutputDir(), "pkg", "options", fileName + ".go").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        return "pkg/auth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return "pkg/auth/oauth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem + ".go";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("package", spec.isOAuth() ? "oauth" : "auth");
+        ctx.put("imports", List.of());
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("name", name);
+            param.put("type", "string");
+            constructorParams.add(param);
+        }
+        ctx.put("constructorParams", constructorParams);
+        ctx.put("superArgs", buildGoSuperArgs(spec));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE",
+            justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
+                    + " — toLowerCase(Locale.ROOT) is intentional and safe here")
+    private List<String> buildGoSuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "token");
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.keyParamName() + "\"", "apiKey",
+                    "ApiKeyLocation" + NamingConvention.PASCAL_CASE.apply(spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header"));
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"", "nil");
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"",
+                    "username", "password", "nil", refreshArg);
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    "redirectUri", "nil", refreshArg);
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", "nil");
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
+                    "clientId", "clientSecret", "redirectUri", "nil");
+        }
+        return List.of();
+    }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The Go model template
+     * honours {@code defaultValue} on optional vars in the New*
+     * constructor, so the discriminator initialises to e.g.
+     * {@code "dry"} without the caller supplying it.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * Demotes the discriminator out of {@code requiredVars} so the
+     * generated {@code New*} constructor signature drops the
+     * discriminator parameter (e.g. {@code NewDryFood(weightKg float64)}
+     * instead of {@code NewDryFood(foodType string, weightKg float64)}).
+     * The Go struct field stays a non-pointer {@code string} because
+     * the property's {@code required} flag remains {@code true}, and
+     * the constructor body assigns the default literal via the
+     * optionalVars branch of {@code model.mustache}.
+     */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
+
+    /**
+     * Opts into the shared cycle-detection pass so a model property that
+     * participates in a reference cycle (a direct self-reference, or mutual
+     * recursion) is heap-indirected. Without this, a <em>required</em>
+     * recursive complex field emits a plain value-type field
+     * ({@code type TreeNode struct { Child TreeNode }}), which the Go compiler
+     * rejects as an {@code invalid recursive type}.
+     *
+     * <p>Optional fields already emit {@code *T} (the model template wraps every
+     * non-required field in a pointer), so only required fields need the extra
+     * indirection — see {@link #markRecursiveProperty(CodegenProperty)}.
+     */
+    @Override
+    protected boolean indirectsRecursiveProperties() {
+        return true;
+    }
+
+    /**
+     * Pointer-indirects a <em>required</em> recursive model property so the
+     * struct has a known, finite size. A pointer is transparent to
+     * {@code encoding/json}, so (de)serialization is unaffected.
+     *
+     * <p>Optional recursive fields are skipped: the model template already
+     * renders every optional field as {@code *T}, so marking them would yield a
+     * non-compiling double pointer {@code **T}. Idempotent — a property already
+     * pointer-typed (it appears across several var lists) is left untouched.
+     */
+    @Override
+    protected void markRecursiveProperty(CodegenProperty property) {
+        if (property.required
+                && property.dataType != null
+                && !property.dataType.startsWith("*")) {
+            property.dataType = "*" + property.dataType;
+        }
+    }
+
+    /**
+     * Rewrites binary ({@code format: binary}) response bodies from
+     * {@code *os.File} to the idiomatic {@code []byte}.
+     *
+     * <p>OpenAPI's {@code DefaultCodegen} resolves a
+     * {@code type: string, format: binary} schema to the {@code file}
+     * type, which {@link #typeMapping} maps to {@code *os.File}. For a
+     * response body the codegen then sets {@code op.returnType} to that
+     * pointer type and the api template wraps the convenience variant in
+     * a further pointer ({@code *T}), yielding a non-idiomatic
+     * {@code **os.File} double pointer (and {@code ApiResult[*os.File]}
+     * for the WithHTTPInfo variant).
+     *
+     * <p>The transport layer carries the response body as a base64
+     * string in {@code ApiHttpResponse.Body} and the api template's
+     * deserialization path already decodes a {@code *[]byte} return type
+     * via {@code decodeBinaryResponse}, so {@code []byte} is the single
+     * type the transport can cleanly produce. Rewriting the return type
+     * here (rather than globally in {@code getSchemaType}) leaves binary
+     * <em>request</em> bodies and multipart file uploads as {@code *os.File},
+     * which is the idiomatic Go type for streaming a file from disk.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    if ("os.File".equals(op.returnBaseType)
+                            || (op.returnType != null && op.returnType.contains("os.File"))) {
+                        op.returnType = "[]byte";
+                        op.returnBaseType = "byte";
+                        op.returnContainer = "array";
+                        op.isArray = true;
+                    }
+                    // Query/header/form/cookie params live on the per-operation
+                    // Options object passed to the generated method. A required one
+                    // therefore implies the caller must pass a non-nil options, and
+                    // the api template guards that with `if options == nil { ... }`.
+                    //
+                    // That guard must be emitted exactly once per operation. Emitting
+                    // it inside the per-param `{{#required}}` loops (as the template
+                    // previously did) produced byte-identical, unreachable duplicate
+                    // guards whenever an operation had two or more required non-string
+                    // params of the same kind — the second guard could never run
+                    // because the first already returned. Mustache cannot express
+                    // "emit once across these four sublists" without a positional or
+                    // boolean signal, so derive that boolean here. It is true when the
+                    // operation has any required param that is carried on the Options
+                    // object (path and body params are passed as plain arguments and
+                    // are validated separately, so they are deliberately excluded).
+                    final boolean hasRequiredOptionsParam =
+                            anyRequiredOptionsParam(op);
+                    op.vendorExtensions.put(
+                            "hasRequiredOptionsParam", hasRequiredOptionsParam);
+
+                    // An operation may declare more than one request Content-Type
+                    // (e.g. setPetAvatar declares image/jpeg, image/png and
+                    // application/json). The generated method historically pinned
+                    // the header to effectiveConsumes (the first declared type),
+                    // leaving the other declared types unreachable.
+                    //
+                    // When more than one type is declared we expose an OPTIONAL
+                    // request-content-type selector on the generated method (a
+                    // trailing variadic `requestContentType ...string` argument).
+                    // Mustache cannot test "consumes has more than one element", so
+                    // derive that boolean here, mirroring the hasRequiredOptionsParam
+                    // pattern above. Existing call sites omit the variadic argument
+                    // and keep sending the first declared type unchanged.
+                    final boolean hasMultipleConsumes =
+                            op.consumes != null && op.consumes.size() > 1;
+                    op.vendorExtensions.put(
+                            "hasMultipleConsumes", hasMultipleConsumes);
+                }
+            }
+        }
+        return super.postProcessOperationsWithModels(objs, allModels);
+    }
+
+    /**
+     * Returns whether the operation has any required parameter that is carried
+     * on the per-operation Options object — that is, a required query, header,
+     * form, or cookie parameter.
+     *
+     * <p>These are the parameters whose absence the generated method detects via
+     * a nil-options check, so the api template uses this to emit that guard
+     * exactly once. Path and body parameters are intentionally excluded: they
+     * are passed as plain positional arguments (not on the Options object) and
+     * are validated by their own dedicated checks in the template.
+     *
+     * @param op the operation to inspect
+     * @return {@code true} if at least one required query/header/form/cookie
+     *     parameter exists
+     */
+    private static boolean anyRequiredOptionsParam(final CodegenOperation op) {
+        final List<List<CodegenParameter>> optionsBorneParams =
+                Arrays.asList(
+                        op.queryParams, op.headerParams, op.formParams, op.cookieParams);
+        return optionsBorneParams.stream()
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .anyMatch(p -> p.required);
+    }
+}

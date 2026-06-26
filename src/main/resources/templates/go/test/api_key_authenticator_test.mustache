@@ -1,0 +1,126 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+)
+
+func TestApiKeyAuthenticator_ValidHeaderKeyPasses(t *testing.T) {
+	t.Parallel()
+	a := auth.NewApiKeyAuthenticator("https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
+	headers := a.AuthHeaders()
+	if got, want := headers["X-API-Key"], "abc123"; got != want {
+		t.Fatalf("X-API-Key header = %q, want %q", got, want)
+	}
+}
+
+func TestApiKeyAuthenticator_ValidQueryKeyPasses(t *testing.T) {
+	t.Parallel()
+	a := auth.NewApiKeyAuthenticator("https://api.example.com", "api_key", "abc123", auth.ApiKeyLocationQuery)
+	params := a.QueryParams()
+	if got, want := params["api_key"], "abc123"; got != want {
+		t.Fatalf("api_key query param = %q, want %q", got, want)
+	}
+}
+
+func TestApiKeyAuthenticator_ValidCookieKeyPasses(t *testing.T) {
+	t.Parallel()
+	a := auth.NewApiKeyAuthenticator("https://api.example.com", "session", "abc123", auth.ApiKeyLocationCookie)
+	cookies := a.CookieParams()
+	if got, want := cookies["session"], "abc123"; got != want {
+		t.Fatalf("session cookie = %q, want %q", got, want)
+	}
+}
+
+// A non-header location accepts non-ASCII characters because only the HTTP
+// header value is subject to the RFC 7230 printable-ASCII rule.
+func TestApiKeyAuthenticator_QueryLocationAcceptsNonAscii(t *testing.T) {
+	t.Parallel()
+	a := auth.NewApiKeyAuthenticator("https://api.example.com", "api_key", "kéy", auth.ApiKeyLocationQuery)
+	params := a.QueryParams()
+	if got, want := params["api_key"], "kéy"; got != want {
+		t.Fatalf("api_key query param = %q, want %q", got, want)
+	}
+}
+
+// Empty or whitespace-only API keys are programmer errors at every location.
+func TestApiKeyAuthenticator_RejectsEmptyOrWhitespaceKey(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		value    string
+		location auth.ApiKeyLocation
+	}{
+		{"header-empty", "", auth.ApiKeyLocationHeader},
+		{"query-empty", "", auth.ApiKeyLocationQuery},
+		{"cookie-empty", "", auth.ApiKeyLocationCookie},
+		{"header-whitespace", "   ", auth.ApiKeyLocationHeader},
+	}
+	for _, tc := range cases {
+		func(value string, location auth.ApiKeyLocation) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for empty/whitespace api key %q", value)
+				}
+			}()
+			_ = auth.NewApiKeyAuthenticator("https://api.example.com", "X-API-Key", value, location)
+		}(tc.value, tc.location)
+	}
+}
+
+// CR/LF/NUL are forbidden at every location to prevent header/cookie/query
+// injection.
+func TestApiKeyAuthenticator_RejectsControlCharsAtEveryLocation(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		value    string
+		location auth.ApiKeyLocation
+	}{
+		{"abc\r\n", auth.ApiKeyLocationQuery},
+		{"abc\n", auth.ApiKeyLocationCookie},
+		{"abc\rdef", auth.ApiKeyLocationHeader},
+		{"abc\x00def", auth.ApiKeyLocationHeader},
+	}
+	for _, tc := range cases {
+		func(value string, location auth.ApiKeyLocation) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for control-char api key %q", value)
+				}
+			}()
+			_ = auth.NewApiKeyAuthenticator("https://api.example.com", "X-API-Key", value, location)
+		}(tc.value, tc.location)
+	}
+}
+
+// RFC 7230 §3.2.6 — a header-location key must reject anything outside
+// printable ASCII + TAB to prevent silent UTF-8 mangling that varies per HTTP
+// lib.
+func TestApiKeyAuthenticator_HeaderLocationRejectsNonAscii(t *testing.T) {
+	t.Parallel()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic for non-ASCII header api key")
+		}
+	}()
+	_ = auth.NewApiKeyAuthenticator("https://api.example.com", "X-API-Key", "kéy", auth.ApiKeyLocationHeader)
+}
+
+// authenticator-secret-in-default-string-repr: the API key must not leak
+// through the default string/format representation.
+func TestApiKeyAuthenticator_RedactsSecret(t *testing.T) {
+	t.Parallel()
+	a := auth.NewApiKeyAuthenticator("https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+		if strings.Contains(s, "abc123") {
+			t.Errorf("expected api key to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}

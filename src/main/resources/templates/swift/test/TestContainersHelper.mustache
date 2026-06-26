@@ -1,0 +1,119 @@
+{{>api_info}}
+{{#generateTests}}
+import Foundation
+import TestcontainersCore
+
+nonisolated(unsafe) var proxyUrl: String = ""
+nonisolated(unsafe) var chasmUrl: String = ""
+nonisolated(unsafe) var chasmHttpUrl: String = ""
+nonisolated(unsafe) var chasmHttpsUrl: String = ""
+nonisolated(unsafe) var chasmInternalHttpUrl: String = ""
+nonisolated(unsafe) var chasmInternalHttpsUrl: String = ""
+nonisolated(unsafe) var caCertPath: String = ""
+
+nonisolated(unsafe) private var squidContainer: DockerContainer?
+nonisolated(unsafe) private var chasmContainer: DockerContainer?
+nonisolated(unsafe) private var sharedNetwork: Network?
+
+/// Serialization guard so multiple parallel @Suite inits race-free.
+/// First caller runs `_setUpContainers()`; later callers wait, then see globals already set.
+private actor ContainerSetupGuard {
+    static let shared = ContainerSetupGuard()
+    private var ready = false
+
+    func ensureReady() async throws {
+        if ready { return }
+        try await _setUpContainers()
+        ready = true
+    }
+}
+
+func setUpContainers() async throws {
+    try await ContainerSetupGuard.shared.ensureReady()
+}
+
+private func _setUpContainers() async throws {
+    let fixturesPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Tests/Fixtures")
+
+    let network = Network()
+    try await network.create()
+    sharedNetwork = network
+
+    caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
+
+    let squidConfPath = fixturesPath.appendingPathComponent("proxy/squid.conf")
+
+    let squid = DockerContainer("ubuntu/squid:5.2-22.04_beta")
+        .withExposedPorts([3128])
+        .withCopyIntoContainer(
+            .path(squidConfPath),
+            "/etc/squid/squid.conf"
+        )
+        .withNetwork(network)
+
+    try await squid.start()
+    squidContainer = squid
+    try await Task.sleep(for: .seconds(3))
+
+    let squidHost = try await squid.containerHostIp()
+    let squidPort = try await squid.exposedPort(3128)
+    proxyUrl = "http://\(squidHost):\(squidPort)"
+
+    let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
+    let chasmCertPath = fixturesPath.appendingPathComponent("certs/server.pem")
+    let chasmKeyPath = fixturesPath.appendingPathComponent("certs/server-key.pem")
+
+    let chasm = DockerContainer("mridang/chasm:1.3.0")
+        .withExposedPorts([4010, 8443])
+        .withCopyIntoContainer(
+            .path(specPath),
+            "/tmp/openapi.yaml"
+        )
+        .withCopyIntoContainer(
+            .path(chasmCertPath),
+            "/certs/cert.pem"
+        )
+        .withCopyIntoContainer(
+            .path(chasmKeyPath),
+            "/certs/key.pem"
+        )
+        .withCommand([
+            "mock", "/tmp/openapi.yaml", "--host", "0.0.0.0",
+            "--tls-cert", "/certs/cert.pem",
+            "--tls-key", "/certs/key.pem",
+            "--tls-port", "8443"
+        ])
+        .withNetwork(network)
+        .withNetworkAliases(["chasm"])
+        .waitingFor(LogMessageWaitStrategy("Listening on"))
+
+    try await chasm.start()
+    chasmContainer = chasm
+
+    let chasmHost = try await chasm.containerHostIp()
+    let chasmPort = try await chasm.exposedPort(4010)
+    let chasmHttpsPort = try await chasm.exposedPort(8443)
+    chasmUrl = "http://\(chasmHost):\(chasmPort)"
+    chasmHttpUrl = "http://\(chasmHost):\(chasmPort)"
+    chasmHttpsUrl = "https://\(chasmHost):\(chasmHttpsPort)"
+    chasmInternalHttpUrl = "http://chasm:4010"
+    chasmInternalHttpsUrl = "https://chasm:8443"
+
+    setenv("API_BASE_URL", chasmUrl, 1)
+    setenv("CA_CERT_PATH", caCertPath, 1)
+    setenv("PROXY_URL", proxyUrl, 1)
+}
+
+func tearDownContainers() async throws {
+    if let chasm = chasmContainer {
+        try await chasm.stop()
+    }
+    if let squid = squidContainer {
+        try await squid.stop()
+    }
+    if let network = sharedNetwork {
+        try await network.remove()
+    }
+}
+{{/generateTests}}

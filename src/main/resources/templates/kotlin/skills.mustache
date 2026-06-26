@@ -1,0 +1,268 @@
+# {{appName}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `build.gradle.kts`:
+
+```kotlin
+implementation("{{groupId}}:{{artifactId}}:{{artifactVersion}}")
+```
+
+Or with Maven:
+
+```xml
+<dependency>
+    <groupId>{{groupId}}</groupId>
+    <artifactId>{{artifactId}}</artifactId>
+    <version>{{artifactVersion}}</version>
+</dependency>
+```
+
+## Quick Start
+
+```kotlin
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.BearerAuthenticator
+
+val client = {{clientClassName}}.withToken("https://api.example.com", "your-token")
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```kotlin
+import {{invokerPackage}}.auth.BearerAuthenticator
+
+val authenticator = BearerAuthenticator("https://api.example.com", "your-token")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```kotlin
+import {{invokerPackage}}.auth.BasicAuthenticator
+
+val authenticator = BasicAuthenticator("https://api.example.com", "username", "password")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```kotlin
+import {{invokerPackage}}.auth.ApiKeyAuthenticator
+import {{invokerPackage}}.auth.ApiKeyLocation
+
+val authenticator = ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.HEADER)
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```kotlin
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator
+
+val authenticator = OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```kotlin
+import {{invokerPackage}}.auth.oauth.OAuth2AuthCodeAuthenticator
+
+val authenticator = OAuth2AuthCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```kotlin
+import {{invokerPackage}}.auth.oauth.OAuth2PasswordAuthenticator
+
+val authenticator = OAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```kotlin
+import {{invokerPackage}}.auth.oauth.OAuth2ImplicitAuthenticator
+
+val authenticator = OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```kotlin
+import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator
+
+val authenticator = OpenIdConnectAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/.well-known/openid-configuration")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators expose a `suspend fun authHeadersAsync(request): Map<String, String>` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `await` this call before sending the request. A synchronous overload is preserved for back-compat but the OAuth flows require the async path.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```kotlin
+import {{invokerPackage}}.auth.oauth.ClientAuthMethod
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator
+
+val authenticator = OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token",
+    clientAuthMethod = ClientAuthMethod.BASIC)
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `Servers` object exposes each as a `ServerConfiguration` property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. Pass the desired server's URL to the client:
+
+```kotlin
+import {{invokerPackage}}.Servers
+
+val client = {{clientClassName}}.withToken(Servers.SERVER_0.url(), "your-token")
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```kotlin
+val fake = object : Authenticator {
+    override fun getAuthHeaders(request: RequestContext) = mapOf("Authorization" to "Bearer test-token")
+    override fun getHost() = "https://api.example.com"
+}
+
+val client = {{clientClassName}}(fake)
+```
+
+## Error Handling
+
+All API errors extend `ApiException`. The error hierarchy is:
+
+- `ApiException` (base)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
+
+```kotlin
+import {{invokerPackage}}.ApiException
+import {{invokerPackage}}.errors.*
+
+try {
+    val result = client.petApi.getPetById(petId)
+} catch (e: NotFoundException) {
+    println("Not found: ${e.message}")
+} catch (e: ClientException) {
+    println("Client error ${e.statusCode}: ${e.message}")
+} catch (e: ServerException) {
+    println("Server error: ${e.message}")
+} catch (e: ApiException) {
+    println("API error: ${e.message}")
+}
+```
+
+## Configuration
+
+### Custom Transport Options
+
+```kotlin
+import {{invokerPackage}}.TransportOptions
+
+val transport = TransportOptions.builder()
+    .proxy("http://proxy:3128")
+    .timeout(5000L)
+    .build()
+
+val client = {{clientClassName}}(authenticator, transport)
+```
+
+## API Methods
+
+Each API group is exposed as a typed property on the client. API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+## Models
+
+Models are generated as Kotlin data classes. They are located in the `{{invokerPackage}}.models` package.
+
+```kotlin
+import {{invokerPackage}}.models.*
+
+val pet = Pet(name = "Fido", status = "available")
+```
+
+## Binary / File Uploads
+
+File upload parameters are typed as `java.io.File`. Binary response bodies are returned as `ByteArray`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`).
+
+```good
+/* This explains the logic */
+val x = 1
+```
+
+```bad
+// This explains the logic
+val x = 1
+```

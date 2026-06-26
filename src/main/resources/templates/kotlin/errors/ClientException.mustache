@@ -1,0 +1,17 @@
+{{>api_info}}
+@file:Suppress("detekt:all")
+
+package {{invokerPackage}}.errors
+
+import {{invokerPackage}}.ApiException
+
+/**
+ * Exception for HTTP 4xx client errors.
+ */
+open class ClientException(
+    statusCode: Int,
+    message: String,
+    responseHeaders: Map<String, String>?,
+    responseBody: String?,
+    errorBody: Any? = null
+) : ApiException(statusCode, message, responseHeaders, responseBody, errorBody)

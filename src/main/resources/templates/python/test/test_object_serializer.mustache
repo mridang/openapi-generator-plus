@@ -1,0 +1,1125 @@
+# ruff: noqa
+# mypy: ignore-errors
+import datetime
+from decimal import Decimal
+import pytest
+from {{packageName}}.object_serializer import ObjectSerializer, SerializationError
+from {{packageName}}.models.category import Category
+from {{packageName}}.models.order import OrderStatusEnum
+from {{packageName}}.models.pet import Pet
+
+
+class TestDateTimeOffsetPreservation:
+    def test_utc_datetime_serializes_containing_offset(self) -> None:
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45+00:00')
+        result = ObjectSerializer.stringify(dt)
+        assert '2024-01-01T12:30:45' in result
+        assert '+00:00' in result or result.endswith('Z')
+
+    def test_positive_offset_preserved(self) -> None:
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45+05:30')
+        result = ObjectSerializer.stringify(dt)
+        assert '+05:30' in result
+
+    def test_negative_offset_preserved(self) -> None:
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45-08:00')
+        result = ObjectSerializer.stringify(dt)
+        assert '-08:00' in result
+
+    def test_subseconds_preserved_in_serialized_datetime(self) -> None:
+        # The decoder (dateutil.parser.parse) accepts a fractional second, so
+        # the encoder must emit it too — truncating to whole seconds would make
+        # the wire round-trip lossy. We keep at least millisecond precision.
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45.123000+00:00')
+        result = ObjectSerializer.stringify(dt)
+        assert '.123' in result
+
+    def test_date_only_serializes_as_iso8601_date(self) -> None:
+        d = datetime.date(2024, 1, 1)
+        result = ObjectSerializer.stringify(d)
+        assert result == '2024-01-01'
+
+    def test_serialized_datetime_ends_with_offset(self) -> None:
+        dt = datetime.datetime(2024, 1, 1, 12, 30, 45, tzinfo=datetime.timezone.utc)
+        result = ObjectSerializer.stringify(dt)
+        import re
+        assert re.search(r'[+-]\d{2}:\d{2}$|Z$', result), f'should end with offset: {result}'
+
+    def test_round_trip_datetime_yields_equivalent_instant(self) -> None:
+        original = datetime.datetime.fromisoformat('2024-01-01T12:30:45+05:30')
+        serialized = ObjectSerializer.stringify(original)
+        parsed = datetime.datetime.fromisoformat(serialized)
+        assert original.utctimetuple() == parsed.utctimetuple()
+
+
+class TestDateTimeSubSecondPrecision:
+    """date-time serialization preserves sub-second precision.
+
+    A model carrying a ``format: date-time`` field (PhotoMetadata.takenAt)
+    must serialize a millisecond-precision instant WITH its fractional second
+    and round-trip back to the same millisecond — the encoder may not truncate
+    a fraction the decoder is willing to accept. Milliseconds (3 digits) is the
+    cross-SDK common denominator every native date-time type supports.
+    """
+
+    def test_model_datetime_preserves_milliseconds_and_round_trips(self) -> None:
+        from {{packageName}}.models.photo_metadata import PhotoMetadata
+
+        instant = datetime.datetime(
+            2020, 1, 2, 3, 4, 5, 123000, tzinfo=datetime.timezone.utc
+        )
+        model = PhotoMetadata(takenAt=instant)
+
+        serialized = ObjectSerializer().serialize(model)
+        # (1) the fractional-second component survived encoding.
+        assert '.123' in serialized
+
+        # (2) deserializing yields the same instant (lossless round-trip).
+        restored = ObjectSerializer().deserialize(serialized, 'PhotoMetadata')
+        assert restored is not None
+        assert restored.taken_at == instant
+
+
+class TestContainerDatetimeAwareDecodeRule:
+    """M11 — the top-level / container ``datetime`` decode path enforces the
+    SAME tz-awareness rule that model fields apply via pydantic AwareDatetime.
+
+    dateutil.parser.parse would otherwise return a NAIVE datetime for an
+    offset-less string, letting a container-typed value (List[datetime] /
+    Dict[str, datetime]) slip through naive while the identical value on a
+    model field is rejected. Both paths must decode by one consistent rule.
+    """
+
+    def test_container_datetime_accepts_offset_aware(self) -> None:
+        result = ObjectSerializer()._deserialize(
+            '2024-01-01T12:30:45+00:00', 'datetime'
+        )
+        assert isinstance(result, datetime.datetime)
+        assert result.tzinfo is not None
+
+    def test_container_datetime_accepts_zulu(self) -> None:
+        result = ObjectSerializer()._deserialize(
+            '2024-01-01T12:30:45Z', 'datetime'
+        )
+        assert result.tzinfo is not None
+
+    def test_container_datetime_rejects_naive(self) -> None:
+        # The bug: a naive (offset-less) instant used to be accepted on this
+        # path while AwareDatetime model fields reject it. It must now raise.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize('2024-01-01T12:30:45', 'datetime')
+
+    def test_awaredatetime_alias_rejects_naive(self) -> None:
+        # The 'AwareDatetime' type name resolves to the same decode rule.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize(
+                '2024-01-01T12:30:45', 'AwareDatetime'
+            )
+
+    def test_list_of_datetime_rejects_naive_element(self) -> None:
+        # The container path (List[datetime]) shares the same rule element-wise.
+        with pytest.raises((ValueError, SerializationError)):
+            ObjectSerializer()._deserialize(
+                ['2024-01-01T12:30:45'], 'List[datetime]'
+            )
+
+
+class TestNonAsciiSerialization:
+    def test_accented_character_not_unicode_escaped(self) -> None:
+        result = ObjectSerializer().serialize('café')
+        assert 'é' in result
+
+    def test_cjk_characters_not_unicode_escaped(self) -> None:
+        result = ObjectSerializer().serialize('日本')
+        assert '日本' in result
+
+    def test_tab_character_escaped_properly_in_json(self) -> None:
+        result = ObjectSerializer().serialize('a\tb')
+        assert r'\t' in result
+
+
+class TestDeserializationErrorWrapping:
+    def test_truncated_json_raises_serialization_error(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('{', 'Category')
+
+    def test_invalid_json_structure_raises_serialization_error(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('"hello"', 'int')
+
+    def test_thrown_serialization_error_has_cause(self) -> None:
+        with pytest.raises(SerializationError) as exc_info:
+            ObjectSerializer().deserialize('{', 'Category')
+        assert exc_info.value.cause is not None
+
+
+class TestStrictFloatAcceptsIntegralWireValue:
+    """A `format: double`/`float` field decodes an integral JSON number.
+
+    JSON has a single number type, so a server may emit `5` (no decimal point)
+    for a field declared `format: double`. Bare pydantic StrictFloat rejects
+    that because the parsed Python type is `int`; the SDK's LaxFloat alias
+    widens the lossless `int -> float` case while keeping the rest of the
+    StrictFloat strictness (str/bool still rejected). DryFood.weight_kg
+    (format: double → StrictFloat → LaxFloat) is the fixture shape.
+    """
+
+    def test_integral_json_decodes_to_float(self) -> None:
+        try:
+            restored = ObjectSerializer().deserialize(
+                '{"foodType": "dry", "weightKg": 5}', 'DryFood'
+            )
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'integral double value was rejected: {exc}')
+        assert restored is not None
+        assert restored.weight_kg == 5.0
+        assert isinstance(restored.weight_kg, float)
+
+    def test_fractional_json_still_decodes(self) -> None:
+        try:
+            restored = ObjectSerializer().deserialize(
+                '{"foodType": "dry", "weightKg": 1.5}', 'DryFood'
+            )
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'fractional double value was rejected: {exc}')
+        assert restored is not None
+        assert restored.weight_kg == 1.5
+
+    def test_string_value_still_rejected(self) -> None:
+        # LaxFloat only widens int -> float; a string is still a wire-type bug.
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(
+                '{"foodType": "dry", "weightKg": "5"}', 'DryFood'
+            )
+
+
+class TestUriRoundTripsByteIdentical:
+    """A `format: uri` field round-trips its wire value byte-identical.
+
+    pydantic.HttpUrl validates AND normalizes (appends a trailing slash to a
+    host-only URL, strips a default port, lowercases the host), which makes the
+    JSON round-trip lossy. The SDK maps `format: uri` to UrlStr — a validated
+    `str` that returns the value verbatim — so the URL survives unchanged.
+    Pet.homepage_url (format: uri) is the fixture shape.
+    """
+
+    def test_host_only_url_keeps_no_trailing_slash(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "https://example.com"}'
+        try:
+            restored = ObjectSerializer().deserialize(wire, 'Pet')
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'absolute URL was rejected: {exc}')
+        assert restored is not None
+        # HttpUrl would have mutated this to 'https://example.com/'.
+        assert restored.homepage_url == 'https://example.com'
+        reserialized = ObjectSerializer().serialize(restored)
+        assert '"https://example.com"' in reserialized
+        assert 'https://example.com/' not in reserialized
+
+    def test_default_port_and_host_case_preserved(self) -> None:
+        url = 'http://Example.COM:80/Path'
+        wire = (
+            '{"name": "Fido", "photoUrls": [], "homepageUrl": "' + url + '"}'
+        )
+        try:
+            restored = ObjectSerializer().deserialize(wire, 'Pet')
+        except SerializationError as exc:  # pragma: no cover - failure path
+            pytest.fail(f'absolute URL was rejected: {exc}')
+        assert restored is not None
+        # HttpUrl would lowercase the host and strip the :80 default port.
+        assert restored.homepage_url == url
+
+    def test_non_url_string_rejected(self) -> None:
+        # UrlStr still validates: a non-URL value is a real error.
+        wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "not a url"}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(wire, 'Pet')
+
+
+class TestDecimalNumberSerializesUnquoted:
+    """A bare `type: number` field serializes as an UNQUOTED JSON number.
+
+    The OpenAPI spec types `Pet.weightKg` as `type: number` (no `format`), so
+    on the wire it MUST be a JSON number (`1.5`), never a JSON string (`"1.5"`).
+    The SDK decodes it to a full-precision `decimal.Decimal` for fidelity, but a
+    plain pydantic `Decimal` serializes as a quoted string — which violates the
+    spec and diverges from the SDKs that emit a bare number. The `type: number`
+    mapping is the branded `JsonNumber` alias whose json-only PlainSerializer
+    widens the value to a float on encode so `model_dump_json` renders an
+    unquoted number. This is the cross-SDK DECIMAL-AS-NUMBER parity check.
+    """
+
+    def test_weight_serializes_as_unquoted_number(self) -> None:
+        pet = Pet(name='Fido', photoUrls=[], weightKg=Decimal('1.5'))
+        serialized = ObjectSerializer().serialize(pet)
+        # Unquoted number on the wire, NOT a quoted string.
+        assert '"weightKg":1.5' in serialized
+        assert '"weightKg":"1.5"' not in serialized
+
+    def test_weight_round_trips_as_number(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "weightKg": 1.5}'
+        restored = ObjectSerializer().deserialize(wire, 'Pet')
+        assert restored is not None
+        # Decode keeps full-precision Decimal semantics.
+        assert restored.weight_kg == Decimal('1.5')
+        # Re-encode still emits an unquoted JSON number, not a string.
+        reserialized = ObjectSerializer().serialize(restored)
+        assert '"weightKg":1.5' in reserialized
+        assert '"weightKg":"1.5"' not in reserialized
+
+
+class TestSetSanitization:
+    """`_sanitize_for_serialization` emits a set/frozenset as a JSON array.
+
+    JSON has no set type; a set must serialize as a JSON ARRAY, not the Python
+    repr string ('{1, 2, 3}') the bare `str(obj)` fallback used to produce.
+    """
+
+    def test_set_serializes_as_json_array(self) -> None:
+        result = ObjectSerializer().serialize({'values': {3, 1, 2}})
+        # Sorted for determinism, emitted as a JSON array (not '{1, 2, 3}').
+        assert '"values": [1, 2, 3]' in result
+        assert '{1, 2, 3}' not in result
+
+    def test_frozenset_serializes_as_json_array(self) -> None:
+        result = ObjectSerializer().serialize({'values': frozenset({'b', 'a'})})
+        assert '"values": ["a", "b"]' in result
+
+    def test_top_level_set_serializes_as_json_array(self) -> None:
+        result = ObjectSerializer().serialize({2, 1, 3})
+        assert result == '[1, 2, 3]'
+
+    def test_sanitize_set_returns_list(self) -> None:
+        sanitized = ObjectSerializer._sanitize_for_serialization({1, 2, 3})
+        assert isinstance(sanitized, list)
+        assert sorted(sanitized) == [1, 2, 3]
+
+
+class TestStringify:
+    def test_none_returns_empty_string(self) -> None:
+        assert ObjectSerializer.stringify(None) == ''
+
+    def test_boolean_true_returns_lowercase_string(self) -> None:
+        assert ObjectSerializer.stringify(True) == 'true'
+
+    def test_boolean_false_returns_lowercase_string(self) -> None:
+        assert ObjectSerializer.stringify(False) == 'false'
+
+    def test_integer_returns_string_representation(self) -> None:
+        assert ObjectSerializer.stringify(42) == '42'
+
+    def test_datetime_returns_iso8601_string(self) -> None:
+        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.timezone.utc)
+        result = ObjectSerializer.stringify(dt)
+        assert '2024-01-15' in result
+        assert '10:30:00' in result
+
+    def test_plain_string_passes_through_unchanged(self) -> None:
+        assert ObjectSerializer.stringify('hello') == 'hello'
+
+    def test_float_returns_string_representation(self) -> None:
+        assert ObjectSerializer.stringify(3.14) == '3.14'
+
+    def test_date_returns_iso8601_date_string(self) -> None:
+        d = datetime.date(2024, 1, 15)
+        assert ObjectSerializer.stringify(d) == '2024-01-15'
+
+
+class TestToPathValue:
+    def test_returns_empty_string_for_none(self) -> None:
+        assert ObjectSerializer.to_path_value(None) == ''
+
+    def test_returns_the_string_for_a_string_value(self) -> None:
+        assert ObjectSerializer.to_path_value('hello') == 'hello'
+
+    def test_converts_integer_to_string(self) -> None:
+        assert ObjectSerializer.to_path_value(42) == '42'
+
+    def test_converts_true_to_true(self) -> None:
+        assert ObjectSerializer.to_path_value(True) == 'true'
+
+    def test_converts_false_to_false(self) -> None:
+        assert ObjectSerializer.to_path_value(False) == 'false'
+
+
+class TestToQueryValue:
+    def test_returns_none_for_none(self) -> None:
+        assert ObjectSerializer.to_query_value(None) is None
+
+    def test_returns_the_string_for_a_string_value(self) -> None:
+        assert ObjectSerializer.to_query_value('hello') == 'hello'
+
+    def test_converts_integer_to_string(self) -> None:
+        assert ObjectSerializer.to_query_value(42) == '42'
+
+    def test_converts_true_to_true(self) -> None:
+        assert ObjectSerializer.to_query_value(True) == 'true'
+
+    def test_converts_false_to_false(self) -> None:
+        assert ObjectSerializer.to_query_value(False) == 'false'
+
+    def test_joins_array_with_comma_by_default(self) -> None:
+        assert ObjectSerializer.to_query_value(['a', 'b', 'c']) == 'a,b,c'
+
+    def test_joins_array_with_comma_for_csv(self) -> None:
+        assert ObjectSerializer.to_query_value(['a', 'b', 'c'], 'csv') == 'a,b,c'
+
+    def test_joins_array_with_space_for_ssv(self) -> None:
+        assert ObjectSerializer.to_query_value(['a', 'b', 'c'], 'ssv') == 'a b c'
+
+    def test_joins_array_with_tab_for_tsv(self) -> None:
+        assert ObjectSerializer.to_query_value(['a', 'b', 'c'], 'tsv') == 'a\tb\tc'
+
+    def test_joins_array_with_pipe_for_pipes(self) -> None:
+        assert ObjectSerializer.to_query_value(['a', 'b', 'c'], 'pipes') == 'a|b|c'
+
+    def test_returns_array_for_multi(self) -> None:
+        assert ObjectSerializer.to_query_value(['a', 'b', 'c'], 'multi') == ['a', 'b', 'c']
+
+    def test_keeps_empty_slot_for_null_array_element_in_csv(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'csv') == '1,,3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_default_csv(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3]) == '1,,3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_ssv(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'ssv') == '1  3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_pipes(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'pipes') == '1||3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_multi(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'multi') == ['1', '', '3']
+
+
+class TestToHeaderValue:
+    def test_returns_empty_string_for_none(self) -> None:
+        assert ObjectSerializer.to_header_value(None) == ''
+
+    def test_returns_the_string_for_a_string_value(self) -> None:
+        assert ObjectSerializer.to_header_value('hello') == 'hello'
+
+    def test_converts_integer_to_string(self) -> None:
+        assert ObjectSerializer.to_header_value(42) == '42'
+
+    def test_joins_array_with_comma(self) -> None:
+        assert ObjectSerializer.to_header_value(['a', 'b', 'c']) == 'a,b,c'
+
+
+class TestToFormValue:
+    def test_returns_empty_string_for_none(self) -> None:
+        assert ObjectSerializer.to_form_value(None) == ''
+
+    def test_returns_the_string_for_a_string_value(self) -> None:
+        assert ObjectSerializer.to_form_value('hello') == 'hello'
+
+    def test_converts_integer_to_string(self) -> None:
+        assert ObjectSerializer.to_form_value(42) == '42'
+
+    def test_converts_true_to_true(self) -> None:
+        assert ObjectSerializer.to_form_value(True) == 'true'
+
+    def test_converts_false_to_false(self) -> None:
+        assert ObjectSerializer.to_form_value(False) == 'false'
+
+
+class TestToCookieValue:
+    def test_returns_empty_string_for_none(self) -> None:
+        assert ObjectSerializer.to_cookie_value(None) == ''
+
+    def test_returns_the_string_for_a_string_value(self) -> None:
+        assert ObjectSerializer.to_cookie_value('hello') == 'hello'
+
+    def test_converts_integer_to_string(self) -> None:
+        assert ObjectSerializer.to_cookie_value(42) == '42'
+
+
+class TestSerialize:
+    def test_serializes_model_to_valid_json(self) -> None:
+        import json
+        category = Category(id=1, name='Dogs')
+        result = ObjectSerializer().serialize(category)
+        data = json.loads(result)
+        assert data['id'] == 1
+        assert data['name'] == 'Dogs'
+
+    def test_handles_none(self) -> None:
+        result = ObjectSerializer().serialize(None)
+        assert result == 'null'
+
+    def test_includes_fields_set_to_default_values(self) -> None:
+        import json
+        category = Category(id=0, name='')
+        result = ObjectSerializer().serialize(category)
+        data = json.loads(result)
+        assert 'id' in data, 'serialized JSON should include id field'
+        assert data['id'] == 0
+        assert 'name' in data, 'serialized JSON should include name field'
+        assert data['name'] == ''
+
+
+class TestUuidRoundtrip:
+    def test_serializes_uuid_to_string(self) -> None:
+        import uuid
+        u = uuid.UUID('12345678-1234-5678-1234-567812345678')
+        assert ObjectSerializer.stringify(u) == '12345678-1234-5678-1234-567812345678'
+
+    def test_deserializes_uuid_string(self) -> None:
+        import uuid
+        result = ObjectSerializer()._deserialize(
+            '12345678-1234-5678-1234-567812345678', 'uuid.UUID'
+        )
+        assert isinstance(result, uuid.UUID)
+        assert str(result) == '12345678-1234-5678-1234-567812345678'
+
+    def test_serializes_uuid_via_sanitize(self) -> None:
+        import json
+        import uuid
+        u = uuid.UUID('12345678-1234-5678-1234-567812345678')
+        result = ObjectSerializer().serialize(u)
+        assert json.loads(result) == '12345678-1234-5678-1234-567812345678'
+
+
+class TestExtraFieldsOnDeserialize:
+    def test_extra_field_in_json_is_ignored(self) -> None:
+        json_str = '{"id":1,"name":"Dogs","unknown_field":"extra"}'
+        category = ObjectSerializer().deserialize(json_str, 'Category')
+        assert isinstance(category, Category)
+        assert category.id == 1
+        assert category.name == 'Dogs'
+
+
+class TestExcludeNoneOnSerialize:
+    def test_none_values_are_omitted(self) -> None:
+        import json
+        # Category with id=None should not include the id key on the wire.
+        category = Category(id=None, name='Dogs')
+        result = ObjectSerializer().serialize(category)
+        data = json.loads(result)
+        assert 'id' not in data
+        assert data['name'] == 'Dogs'
+
+
+class TestDeserialize:
+    def test_deserializes_json_to_typed_model(self) -> None:
+        json_str = '{"id":1,"name":"Dogs"}'
+        category = ObjectSerializer().deserialize(json_str, 'Category')
+        assert isinstance(category, Category)
+        assert category.id == 1
+        assert category.name == 'Dogs'
+
+    def test_returns_none_for_empty_input(self) -> None:
+        assert ObjectSerializer().deserialize('', 'Category') is None
+
+    def test_returns_none_for_none_input(self) -> None:
+        assert ObjectSerializer().deserialize(None, 'Category') is None
+
+    def test_deserialize_applies_schema_default_for_absent_field(self) -> None:
+        # default-on-deserialize: Order.status carries a schema `default: placed`.
+        # When the JSON omits "status", deserialize must populate the enum
+        # default rather than leaving it None. All 12 SDKs converge here.
+        json_str = '{"id":10,"petId":198772}'
+        order = ObjectSerializer().deserialize(json_str, 'Order')
+        assert order.status == OrderStatusEnum.PLACED
+
+    def test_deserialize_defaults_absent_vs_explicit_null(self) -> None:
+        # absent-vs-null contract: a schema `default` fills a field only when
+        # the key is ABSENT from the payload. An explicit JSON null is a
+        # provided value and is PRESERVED as None, never replaced by the
+        # default. Defaults carries retries(default 3, non-enum scalar),
+        # mode(default "medium" — not the first enum variant), and
+        # label(nullable, default "untitled"). All 12 SDKs converge here.
+        from {{packageName}}.models.defaults import Defaults, DefaultsModeEnum
+
+        # (a) Empty object -> every default is applied.
+        filled = ObjectSerializer().deserialize('{}', 'Defaults')
+        assert isinstance(filled, Defaults)
+        assert filled.retries == 3
+        assert filled.mode == DefaultsModeEnum.MEDIUM
+        assert filled.label == 'untitled'
+
+        # (b) Explicit null on the nullable field is PRESERVED, not defaulted;
+        # the supplied retries overrides its default.
+        preserved = ObjectSerializer().deserialize(
+            '{"label":null,"retries":7}', 'Defaults'
+        )
+        assert isinstance(preserved, Defaults)
+        assert preserved.label is None
+        assert preserved.retries == 7
+
+    def test_deserializes_self_referential_model(self) -> None:
+        # A self-referential model (TreeNode.child is itself a TreeNode) must
+        # decode the nested level into a typed TreeNode instance, not a raw
+        # dict, and the absent grandchild must stay None.
+        from {{packageName}}.models.tree_node import TreeNode
+        json_str = '{"value":"root","child":{"value":"leaf"}}'
+        top = ObjectSerializer().deserialize(json_str, 'TreeNode')
+        assert isinstance(top, TreeNode)
+        assert top.value == 'root'
+        assert isinstance(top.child, TreeNode)
+        assert top.child.value == 'leaf'
+        assert top.child.child is None
+
+
+class TestBomTolerance:
+    def test_deserializes_bom_prefixed_json(self) -> None:
+        # P2: a UTF-8 BOM (U+FEFF) prefixing the JSON text must be tolerated.
+        # RFC 8259 forbids it, but Windows-generated payloads often include
+        # one; the serializer strips it transparently (parity with Java
+        # Jackson / C# System.Text.Json). GREEN across all 12.
+        json_str = '﻿{"id":1,"name":"Dogs"}'
+        category = ObjectSerializer().deserialize(json_str, 'Category')
+        assert isinstance(category, Category)
+        assert category.id == 1
+        assert category.name == 'Dogs'
+
+
+class TestRequiredFieldNullRejection:
+    """Gap AJ — null or missing on a required non-nullable field must raise.
+
+    Pydantic 2 already rejects None for non-Optional typed fields; this test
+    locks in that behaviour as a regression guard."""
+
+    def test_null_on_required_field_raises(self) -> None:
+        json_str = '{"name": null, "photoUrls": ["x"]}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'Pet')
+
+    def test_missing_required_field_raises(self) -> None:
+        json_str = '{"photoUrls": ["x"]}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'Pet')
+
+
+class TestUnknownEnumRejection:
+    """unknown-enum-deserialize-throws: an enum value not declared in the
+    schema must raise the SDK's SerializationError on deserialize, never fall
+    back to a silent default or an 'unknown' member. All 12 SDKs converge here.
+    """
+
+    def test_unknown_enum_value_on_scalar_raises(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('"teleported"', OrderStatusEnum)
+
+    def test_known_enum_value_on_scalar_round_trips(self) -> None:
+        result = ObjectSerializer().deserialize('"placed"', OrderStatusEnum)
+        assert result == OrderStatusEnum.PLACED
+
+    def test_unknown_enum_value_on_model_field_raises(self) -> None:
+        # The enum field lives on a model; an out-of-schema value must fail the
+        # whole deserialize rather than coerce to the field default.
+        json_str = '{"id": 1, "petId": 1, "quantity": 1, "status": "teleported"}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'Order')
+
+
+class TestNanInfinityRejection:
+    """Gap V — RFC 8259 §6 forbids NaN/Infinity/-Infinity in JSON.
+
+    Python's default json module accepts them; ObjectSerializer must
+    override that to align with Java/Go/Node/etc which reject."""
+
+    def test_serialize_nan_raises(self) -> None:
+        import math
+        with pytest.raises(SerializationError):
+            ObjectSerializer().serialize({'val': math.nan})
+
+    def test_serialize_infinity_raises(self) -> None:
+        import math
+        with pytest.raises(SerializationError):
+            ObjectSerializer().serialize({'val': math.inf})
+
+    def test_serialize_negative_infinity_raises(self) -> None:
+        import math
+        with pytest.raises(SerializationError):
+            ObjectSerializer().serialize({'val': -math.inf})
+
+    def test_deserialize_nan_raises(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('{"val": NaN}', 'object')
+
+    def test_deserialize_infinity_raises(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('{"val": Infinity}', 'object')
+
+
+class TestTimeFormat:
+    """4.8: ``format: time`` round-trips through ``datetime.time``."""
+
+    def test_stringify_time_emits_iso8601(self) -> None:
+        t = datetime.time(13, 45, 30)
+        assert ObjectSerializer.stringify(t) == '13:45:30'
+
+    def test_stringify_time_drops_microseconds(self) -> None:
+        # ``format: time`` serializes with second precision so the wire format
+        # matches the other 11 SDKs which all emit HH:MM:SS. (date-time keeps
+        # millisecond precision; this whole-second rule applies to time only.)
+        t = datetime.time(13, 45, 30, 123456)
+        assert ObjectSerializer.stringify(t) == '13:45:30'
+
+    def test_serialize_time_in_dict(self) -> None:
+        t = datetime.time(9, 0, 0)
+        result = ObjectSerializer().serialize({'opens_at': t})
+        assert '09:00:00' in result
+
+    def test_deserialize_time_from_iso8601(self) -> None:
+        result = ObjectSerializer()._deserialize('13:45:30', 'datetime.time')
+        assert result == datetime.time(13, 45, 30)
+
+    def test_round_trip_time_yields_same_value(self) -> None:
+        original = datetime.time(7, 30, 15)
+        serialized = ObjectSerializer.stringify(original)
+        parsed = ObjectSerializer()._deserialize(serialized, 'datetime.time')
+        assert parsed == original
+
+
+class TestDurationFormat:
+    """4.8: ``format: duration`` round-trips through ``datetime.timedelta``
+    using the protobuf-JSON duration grammar (``-?\\d+(\\.\\d{1,9})?s``).
+    Zitadel validates google.protobuf.Duration, so the wire form is a
+    decimal second count with an ``s`` suffix, not ISO-8601."""
+
+    def test_stringify_simple_duration(self) -> None:
+        td = datetime.timedelta(hours=1, minutes=30)
+        out = ObjectSerializer.stringify(td)
+        assert out == '5400s'
+
+    def test_stringify_duration_with_days(self) -> None:
+        td = datetime.timedelta(days=3, hours=4)
+        out = ObjectSerializer.stringify(td)
+        assert out == '273600s'
+
+    def test_stringify_zero_duration(self) -> None:
+        td = datetime.timedelta(0)
+        out = ObjectSerializer.stringify(td)
+        # "0s" is the canonical zero-duration representation.
+        assert out == '0s'
+
+    def test_stringify_fractional_duration(self) -> None:
+        td = datetime.timedelta(seconds=3600, microseconds=1)
+        out = ObjectSerializer.stringify(td)
+        # One microsecond is 1000 nanos -> six fractional digits.
+        assert out == '3600.000001s'
+
+    def test_stringify_negative_duration(self) -> None:
+        td = datetime.timedelta(seconds=-1)
+        out = ObjectSerializer.stringify(td)
+        assert out == '-1s'
+
+    def test_serialize_duration_in_dict(self) -> None:
+        td = datetime.timedelta(minutes=5)
+        result = ObjectSerializer().serialize({'ttl': td})
+        assert '300s' in result
+
+    def test_deserialize_duration_from_protobuf(self) -> None:
+        result = ObjectSerializer()._deserialize('5400s', 'datetime.timedelta')
+        assert result == datetime.timedelta(hours=1, minutes=30)
+
+    def test_deserialize_fractional_duration(self) -> None:
+        result = ObjectSerializer()._deserialize('3600.000000001s', 'datetime.timedelta')
+        # Nanosecond precision below 1µs is truncated by timedelta resolution.
+        assert result == datetime.timedelta(seconds=3600)
+
+    def test_round_trip_duration_yields_same_value(self) -> None:
+        original = datetime.timedelta(days=1, hours=2, minutes=3, seconds=4)
+        serialized = ObjectSerializer.stringify(original)
+        parsed = ObjectSerializer()._deserialize(serialized, 'datetime.timedelta')
+        assert parsed == original
+
+    def test_iso8601_duration_is_rejected(self) -> None:
+        # ISO-8601 durations are not valid protobuf-JSON and Zitadel
+        # rejects them with 400; surface the mismatch as a ValueError.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize('PT1H', 'datetime.timedelta')
+
+    def test_bare_integer_is_rejected(self) -> None:
+        # A second count without the trailing 's' is not a valid duration.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize('3600', 'datetime.timedelta')
+
+
+class TestModelDurationField:
+    """4.8 (model level): a pydantic model carrying a ``format: duration``
+    field must itself emit the protobuf-JSON wire form. The request *body*
+    is a pydantic model serialized via ``model_dump_json``; pydantic's own
+    default would emit ISO-8601 ("PT1H"), which Zitadel rejects with 400.
+    The ``ProtobufDuration`` annotated alias forces "3600s" on the model
+    path too, so these tests guard the path that the helper-only tests above
+    do not cover."""
+
+    def test_model_dump_json_emits_protobuf_duration(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        model = EdgeCases(retryAfter=datetime.timedelta(hours=1))
+        dumped = model.model_dump_json(by_alias=True, exclude_none=True)
+        # The protobuf-JSON form, NOT pydantic's default ISO-8601 "PT1H".
+        assert '"3600s"' in dumped
+        assert 'PT1H' not in dumped
+        assert 'PT' not in dumped
+
+    def test_serialize_model_emits_protobuf_duration(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        # Routed through the production code path (ObjectSerializer.serialize
+        # → model_dump_json), exactly as the request body is built.
+        model = EdgeCases(retryAfter=datetime.timedelta(minutes=5))
+        out = ObjectSerializer().serialize(model)
+        assert '"retryAfter":"300s"' in out.replace(' ', '')
+
+    def test_model_validate_parses_protobuf_duration(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        model = EdgeCases.model_validate({'retryAfter': '3600s'})
+        assert model.retry_after == datetime.timedelta(hours=1)
+
+    def test_model_duration_round_trips(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        original = EdgeCases(retryAfter=datetime.timedelta(days=1, seconds=30))
+        wire = ObjectSerializer().serialize(original)
+        restored = ObjectSerializer().deserialize(wire, EdgeCases)
+        assert restored is not None
+        assert restored.retry_after == datetime.timedelta(days=1, seconds=30)
+
+    def test_model_fractional_duration_emits_fraction(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        model = EdgeCases(retryAfter=datetime.timedelta(seconds=3600, microseconds=1))
+        dumped = model.model_dump_json(by_alias=True, exclude_none=True)
+        assert '"3600.000001s"' in dumped
+
+
+class TestDiscriminatorAutoInjection:
+    """Gap K — a subtype constructed without the discriminator must still
+    emit it on serialize. The generated DryFood/WetFood models default
+    ``food_type`` to their oneOf mapping value ("dry"/"wet")."""
+
+    def test_dry_subtype_auto_emits_discriminator(self) -> None:
+        import json
+        from {{packageName}}.models.dry_food import DryFood
+        dry = DryFood(weightKg=2.5)
+        data = json.loads(ObjectSerializer().serialize(dry))
+        assert data['foodType'] == 'dry'
+        assert data['weightKg'] == 2.5
+
+    def test_wet_subtype_auto_emits_discriminator(self) -> None:
+        import json
+        from {{packageName}}.models.wet_food import WetFood
+        wet = WetFood(volumeMl=350)
+        data = json.loads(ObjectSerializer().serialize(wet))
+        assert data['foodType'] == 'wet'
+
+    def test_deserialize_parent_routes_to_subtype_by_discriminator(self) -> None:
+        # A discriminator-tagged payload deserialized against the parent
+        # PetFood oneOf must resolve to the concrete DryFood subtype rather
+        # than the raw dict. get_discriminator_value maps foodType="dry" to
+        # DryFood, which the composed deserializer wraps in PetFood.
+        from {{packageName}}.models.dry_food import DryFood
+        json_str = '{"foodType": "dry", "weightKg": 2.5}'
+        result = ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert result is not None
+        assert isinstance(result.actual_instance, DryFood)
+        assert result.actual_instance.weight_kg == 2.5
+
+    def test_missing_discriminator_field_raises(self) -> None:
+        # Gap AU-residual — a PetFood payload missing the `foodType`
+        # discriminator must raise, not wrap the raw dict in the union
+        # container's `actual_instance`. get_discriminator_value raises a
+        # ValueError on the missing field, which the composed deserializer
+        # surfaces as a SerializationError. Matches the 10 SDKs that throw.
+        json_str = '{"weightKg": 5.0}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+
+
+class TestIntegerBackedEnum:
+    """Scenario 1 — an integer-backed enum (Priority) must round-trip as a
+    JSON NUMBER, not a quoted string. The model template mixes `int` (not
+    `str`) into the enum so a member serializes to `2` and deserializing the
+    bare number `2` yields the member. The 7 SDKs that hard-coded String
+    backing emitted `"2"` here; Python now matches Dart's int backing."""
+
+    def test_member_value_is_an_int(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        # The enum mixes in int, so a member IS an int and equals its value.
+        assert Priority(2) == 2
+        assert isinstance(Priority(2).value, int)
+
+    def test_serializes_to_bare_number_not_quoted_string(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        out = ObjectSerializer().serialize(Priority(2))
+        # A JSON number, never the quoted "2" that `str, Enum` would emit.
+        assert out == '2'
+        assert out != '"2"'
+
+    def test_serializes_inside_dict_as_number(self) -> None:
+        import json
+        from {{packageName}}.models.priority import Priority
+        out = ObjectSerializer().serialize({'priority': Priority(3)})
+        assert json.loads(out)['priority'] == 3
+        assert ':"3"' not in out.replace(' ', '')
+
+    def test_deserializes_number_to_member(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        result = ObjectSerializer().deserialize('2', Priority)
+        assert result == Priority(2)
+        assert isinstance(result, Priority)
+
+    def test_unknown_int_value_rejected(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('99', Priority)
+
+    def test_round_trip_preserves_member(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        original = Priority(1)
+        restored = ObjectSerializer().deserialize(
+            ObjectSerializer().serialize(original), Priority
+        )
+        assert restored == original
+
+
+class TestNonLowercaseStringEnum:
+    """Scenario 2 — a string enum whose values are NOT all lowercase
+    (Availability: "Available"/"Sold"/"on-hold") must round-trip with the
+    wire casing preserved, and the hyphenated "on-hold" value (whose member
+    identifier is sanitized) must still serialize back to its exact wire
+    form. An unknown value is rejected on deserialize."""
+
+    def test_wire_casing_preserved_on_serialize(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        assert ObjectSerializer().serialize(Availability('Available')) == '"Available"'
+        assert ObjectSerializer().serialize(Availability('Sold')) == '"Sold"'
+
+    def test_hyphenated_value_round_trips_exactly(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        member = Availability('on-hold')
+        assert member.value == 'on-hold'
+        assert ObjectSerializer().serialize(member) == '"on-hold"'
+
+    def test_deserialize_yields_correct_member(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        result = ObjectSerializer().deserialize('"Available"', Availability)
+        assert result == Availability('Available')
+
+    def test_unknown_value_rejected(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('"unavailable"', Availability)
+
+
+class TestByteFormatBase64RoundTrip:
+    """Scenario 3 — a `format: byte` field round-trips through base64, both a
+    scalar byte field (PetPassport.thumbnail) and an array-of-byte field
+    (PetPassport.scans). `_sanitize_for_serialization` base64-encodes bytes;
+    `_deserialize` base64-decodes them back to raw bytes."""
+
+    def test_scalar_byte_serializes_to_base64(self) -> None:
+        import base64
+        raw = b'\x89PNG\r\n\x1a\n'
+        out = ObjectSerializer().serialize(raw)
+        # serialize wraps the base64 text in JSON quotes.
+        assert out.strip('"') == base64.b64encode(raw).decode('ascii')
+
+    def test_scalar_byte_round_trips(self) -> None:
+        raw = b'test-thumbnail-bytes'
+        wire = ObjectSerializer().serialize(raw)
+        restored = ObjectSerializer().deserialize(wire, bytes)
+        assert restored == raw
+
+    def test_array_of_byte_serializes_each_element_to_base64(self) -> None:
+        import base64
+        import json
+        # PhotoMetadata-style array-of-byte (PetPassport.scans): every element
+        # must be base64-encoded on the wire, not emitted as a raw/latin1 blob.
+        scans = [b'page-one', b'page-two', b'\x00\x01\x02']
+        out = ObjectSerializer().serialize(scans)
+        decoded = [base64.b64decode(s) for s in json.loads(out)]
+        assert decoded == scans
+
+    def test_scalar_byte_decodes_from_base64_string(self) -> None:
+        # The deserialize side of the scalar byte path: a base64 wire string
+        # decodes back to the original raw bytes.
+        import base64
+        raw = b'\x89PNG\r\n\x1a\n'
+        wire = '"' + base64.b64encode(raw).decode('ascii') + '"'
+        assert ObjectSerializer().deserialize(wire, bytes) == raw
+
+
+class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
+    """setPetAvatarThumbnail byte oneOf round-trips through base64.
+
+    SetPetAvatarThumbnailRequest is a non-discriminator oneOf of a scalar
+    `format: byte` value and an array of `format: byte` values. `format: byte`
+    means the payload travels on the wire as a base64 STRING — never a JSON
+    int-array and never raw/unencoded bytes. The byte marker must survive the
+    union wrapper on BOTH encode and decode: the scalar variant must serialize
+    to "AQIDBA==" (not [1,2,3,4]) and round-trip back to the original 4 bytes,
+    and the array variant's elements must each be base64-decoded on the way back
+    (the `List[bytes]` TypeAdapter fast path does NOT base64-decode, so the
+    inner-bytes element is routed through the recursive base64 path instead).
+    The scalar variant must also win over the array variant on decode so a lone
+    base64 string is not walked character-by-character into a list."""
+
+    def _model(self):
+        from {{packageName}}.models.set_pet_avatar_thumbnail_request import (
+            SetPetAvatarThumbnailRequest,
+        )
+        return SetPetAvatarThumbnailRequest
+
+    def test_scalar_variant_serializes_to_base64_string(self) -> None:
+        model = self._model()
+        req = model(bytes([0x01, 0x02, 0x03, 0x04]))
+        wire = ObjectSerializer().serialize(req)
+        # base64 STRING, NOT a JSON int-array [1,2,3,4] and NOT raw bytes.
+        assert wire == '"AQIDBA=="'
+
+    def test_scalar_variant_round_trips_to_original_bytes(self) -> None:
+        model = self._model()
+        raw = bytes([0x01, 0x02, 0x03, 0x04])
+        wire = ObjectSerializer().serialize(model(raw))
+        restored = ObjectSerializer().deserialize(wire, model)
+        assert restored.actual_instance == raw
+        # The scalar variant must win over the array variant: a lone base64
+        # string must NOT be mis-parsed element-by-element into a list.
+        assert not isinstance(restored.actual_instance, list)
+
+    def test_array_variant_serializes_to_base64_strings(self) -> None:
+        import json
+        model = self._model()
+        payloads = [bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x05, 0x06, 0x07, 0x08])]
+        wire = ObjectSerializer().serialize(model(payloads))
+        assert json.loads(wire) == ['AQIDBA==', 'BQYHCA==']
+
+    def test_array_variant_round_trips_to_original_payloads(self) -> None:
+        model = self._model()
+        payloads = [bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x05, 0x06, 0x07, 0x08])]
+        wire = ObjectSerializer().serialize(model(payloads))
+        restored = ObjectSerializer().deserialize(wire, model)
+        # Each element must be base64-DECODED back to its raw bytes, not left
+        # as the UTF-8 bytes of the base64 text (b'AQIDBA==').
+        assert restored.actual_instance == payloads
+
+
+class TestNumberFieldFromIntegralJson:
+    """Scenario 4 — a double/number-typed field must deserialize from an
+    INTEGRAL JSON value (`{"lat":5}`, not `5.0`) without crashing. The
+    PhotoMetadataLocation.lat field is `format: double`; an integral wire
+    value is a legal JSON number for a float and must be coerced, not
+    rejected."""
+
+    def test_integral_value_coerced_to_float(self) -> None:
+        from {{packageName}}.models.photo_metadata_location import PhotoMetadataLocation
+        result = ObjectSerializer().deserialize('{"lat":5,"lng":-3}', 'PhotoMetadataLocation')
+        assert isinstance(result, PhotoMetadataLocation)
+        assert result.lat == 5.0
+        assert result.lng == -3.0
+
+    def test_fractional_value_still_parses(self) -> None:
+        result = ObjectSerializer().deserialize(
+            '{"lat":5.5,"lng":0.25}', 'PhotoMetadataLocation'
+        )
+        assert result.lat == 5.5
+        assert result.lng == 0.25
+
+
+class TestAdditionalPropertiesTopLevelRoundTrip:
+    """Scenario 5 — additionalProperties must round-trip: an extra JSON key is
+    captured on deserialize and re-serialized at the TOP level of the object,
+    NOT nested under an "additional_properties"/"additionalProperties" key.
+    Metadata carries `additionalProperties: {type: string}` alongside a fixed
+    `createdAt` field."""
+
+    def test_extra_key_captured_on_deserialize(self) -> None:
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu","tier":"gold"}',
+            'Metadata',
+        )
+        assert metadata is not None
+        assert metadata.additional_properties['region'] == 'eu'
+        assert metadata.additional_properties['tier'] == 'gold'
+
+    def test_extra_key_reserialized_at_top_level(self) -> None:
+        import json
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', 'Metadata'
+        )
+        data = json.loads(ObjectSerializer().serialize(metadata))
+        # The extra key sits at the TOP level, beside createdAt -- never nested.
+        assert data['region'] == 'eu'
+        assert 'additional_properties' not in data
+        assert 'additionalProperties' not in data
+
+    def test_full_round_trip_preserves_extra_keys(self) -> None:
+        import json
+        wire = '{"createdAt":"2024-01-01T00:00:00Z","region":"eu","tier":"gold"}'
+        metadata = ObjectSerializer().deserialize(wire, 'Metadata')
+        restored = ObjectSerializer().deserialize(
+            ObjectSerializer().serialize(metadata), 'Metadata'
+        )
+        assert restored.additional_properties['region'] == 'eu'
+        assert restored.additional_properties['tier'] == 'gold'
+
+
+class TestNestedContainerDeepRoundTrip:
+    """Scenario 7 — a nested container (array-of-array<int>) must deep-round-trip
+    to typed leaves. StockItem.matrix is `array<array<int>>` as a MODEL
+    property, exercising the recursive per-element deserialization path."""
+
+    def test_array_of_array_int_deserializes_to_typed_leaves(self) -> None:
+        from {{packageName}}.models.stock_item import StockItem
+        json_str = '{"priority":2,"matrix":[[1,2,3],[4,5],[]]}'
+        item = ObjectSerializer().deserialize(json_str, 'StockItem')
+        assert isinstance(item, StockItem)
+        assert item.matrix == [[1, 2, 3], [4, 5], []]
+        # Leaves are real ints, not strings or floats.
+        assert item.matrix[0][0] == 1
+        assert isinstance(item.matrix[0][0], int)
+
+    def test_nested_array_round_trips(self) -> None:
+        from {{packageName}}.models.stock_item import StockItem
+        original = ObjectSerializer().deserialize(
+            '{"priority":1,"matrix":[[7,8],[9]]}', 'StockItem'
+        )
+        restored = ObjectSerializer().deserialize(
+            ObjectSerializer().serialize(original), 'StockItem'
+        )
+        assert restored.matrix == [[7, 8], [9]]
+
+
+class TestReferencedEnumFieldRejection:
+    """Scenario 10 — a model field typed as a REFERENCED enum (`$ref`) must
+    reject an unknown wire value on deserialize. StockItem.availability is a
+    `$ref` to the Availability enum (distinct from Order.status, which is an
+    inline enum). An out-of-schema value fails the whole deserialize."""
+
+    def test_unknown_referenced_enum_value_rejected(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(
+                '{"priority":1,"availability":"teleported"}', 'StockItem'
+            )
+
+    def test_known_referenced_enum_value_accepted(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        item = ObjectSerializer().deserialize(
+            '{"priority":1,"availability":"on-hold"}', 'StockItem'
+        )
+        assert item.availability == Availability('on-hold')
+
+
+class TestSubMilliDurationNoScientificNotation:
+    """Scenario 9 (residual) — a sub-0.0001s duration magnitude must serialize
+    as a plain decimal with an `s` suffix, never in scientific notation
+    (`1e-06s`). A NEGATIVE duration is covered by TestDurationFormat above;
+    this guards the tiny-magnitude path where Python's default float repr
+    would otherwise switch to exponent form."""
+
+    def test_one_microsecond_is_plain_decimal(self) -> None:
+        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=1))
+        assert out == '0.000001s'
+        assert 'e' not in out.lower()
+
+    def test_negative_sub_milli_duration_is_plain_decimal(self) -> None:
+        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=-1))
+        assert out == '-0.000001s'
+        assert 'e' not in out.lower()

@@ -1,0 +1,33 @@
+package io.github.mridang.codegen.spec.php;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+/**
+ * Verifies that generated PHP code passes PHPStan static analysis at level 9. If this test fails,
+ * the PHP templates need to be fixed.
+ */
+@SuppressWarnings("NewClassNamingConvention")
+@Testcontainers
+@ResourceLock("generated-php")
+public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec implements PhpSpec {
+
+  @Override
+  protected String[] getBuildCommands() {
+    return new String[] {"vendor/bin/phpstan analyse --no-progress"};
+  }
+
+  @Test
+  void generatedCodeShouldPassStaticAnalysis() {
+    ExecResult result = executeInRuntimeContainer(getBuildCommands());
+
+    assertThat(result.isSuccess())
+        .withFailMessage(
+            "Generated PHP code has static analysis errors:\n%s", result.output())
+        .isTrue();
+  }
+}

@@ -1,0 +1,837 @@
+# ruff: noqa
+# mypy: ignore-errors
+"""Integration tests for the Pet API endpoints."""
+
+import pytest
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import Any, Dict, List
+from urllib.parse import unquote
+from {{packageName}}.api.pet_api import PetApi
+from {{packageName}}.api.options.add_pet_options import AddPetOptions
+from {{packageName}}.api.options.add_pet_photos_options import AddPetPhotosOptions
+from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
+from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
+from {{packageName}}.api.options.get_pet_by_name_options import GetPetByNameOptions
+from {{packageName}}.api.options.get_pet_tag_options import GetPetTagOptions
+from {{packageName}}.api.options.upload_pet_certificate_options import UploadPetCertificateOptions
+from {{packageName}}.api.options.upload_pet_document_options import UploadPetDocumentOptions
+from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
+from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator
+from {{packageName}}.auth.api_key_location import ApiKeyLocation
+from {{packageName}}.configuration import Configuration
+from {{packageName}}.models.api_response import ApiResponse
+from {{packageName}}.models.pet import Pet, PetStatusEnum
+from {{packageName}}.models.pet_passport import PetPassport
+from {{packageName}}.models.photo_metadata import PhotoMetadata
+from {{packageName}}.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest
+
+
+class TestPetApi:
+    """Test suite for PetApi operations."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, api_base_url: Any) -> None:
+        config = Configuration.builder() \
+            .base_url(api_base_url) \
+            .default_header('Authorization', 'Bearer test-token') \
+            .build()
+        self.api = PetApi(config=config)
+        self.auth = BearerAuthenticator(api_base_url, 'test-token')
+
+    async def test_add_pet(self) -> None:
+        pet = Pet(
+            id=12345,
+            name='TestDog',
+            photoUrls={'http://example.com/photo.jpg'},
+            status=PetStatusEnum.AVAILABLE
+        )
+
+        result = await self.api.add_pet(pet, AddPetOptions(auth=self.auth))
+
+        assert result is not None
+        assert result.name is not None
+
+    async def test_find_pets_by_status(self) -> None:
+        result = await self.api.find_pets_by_status(FindPetsByStatusOptions(status='available'))
+
+        assert isinstance(result, list)
+        assert len(result) > 0
+        assert isinstance(result[0], Pet)
+
+    async def test_find_pets_by_status_omitting_status_sends_no_status_in_query(self) -> None:
+        # Regression: `status` is an optional query parameter declared
+        # allowEmptyValue:true. When the caller omits it (status left as None),
+        # the SDK must NOT transmit a bare `status=` key — allowEmptyValue only
+        # permits an empty value IF the client chooses to send the key, it does
+        # not force the key onto the wire. Capture the outgoing request path and
+        # assert the query string carries no `status=` at all.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                captured['path'] = self.path
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'[]')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder() \
+            .base_url(f'http://127.0.0.1:{port}') \
+            .build()
+        api = PetApi(config=config)
+
+        await api.find_pets_by_status(FindPetsByStatusOptions())
+
+        assert 'status=' not in captured.get('path', '')
+
+    async def test_find_pets_by_status_explicit_empty_sends_status_key(self) -> None:
+        # Counterpart to the omission case: when the caller explicitly provides
+        # an empty string for `status`, allowEmptyValue:true means the SDK must
+        # send the key with an empty value, so `status=` is present on the wire.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                captured['path'] = self.path
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'[]')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder() \
+            .base_url(f'http://127.0.0.1:{port}') \
+            .build()
+        api = PetApi(config=config)
+
+        await api.find_pets_by_status(FindPetsByStatusOptions(status=''))
+
+        assert 'status=' in captured.get('path', '')
+
+    async def test_get_pet_by_id(self) -> None:
+        result = await self.api.get_pet_by_id(1)
+
+        assert result is not None
+        assert result.id is not None
+        assert result.name is not None
+
+    async def test_update_pet(self) -> None:
+        pet = Pet(
+            id=1,
+            name='UpdatedDog',
+            photoUrls={'http://example.com/updated.jpg'},
+            status=PetStatusEnum.PENDING
+        )
+
+        result = await self.api.update_pet(1, pet)
+
+        assert result is not None
+
+    async def test_delete_pet(self) -> None:
+        await self.api.delete_pet(1, DeletePetOptions(auth=self.auth))
+
+        assert True
+
+    async def test_set_pet_avatar(self) -> None:
+        await self.api.set_pet_avatar(1, b'\xFF\xD8\xFF')
+
+        assert True
+
+    async def test_set_pet_avatar_streams_raw_bytes_with_declared_content_type(self) -> None:
+        # Regression: setPetAvatar declares a request body of type:string
+        # format:binary with the declared Content-Type image/jpeg. The SDK must
+        # put the RAW bytes on the wire unchanged — NOT a JSON int-array like
+        # [255,216,...], NOT base64, NOT JSON-marshaled in any way — and must
+        # send the declared Content-Type (image/jpeg), NOT override it to
+        # application/octet-stream or application/json. Capture the outgoing
+        # request body and Content-Type header and assert both.
+        payload = b'\xFF\xD8\xFF\xE0'  # JPEG SOI marker
+        captured: Dict[str, Any] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_PUT(self) -> None:
+                length = int(self.headers.get('Content-Length', 0))
+                captured['body'] = self.rfile.read(length)
+                captured['content_type'] = self.headers.get('Content-Type')
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder() \
+            .base_url(f'http://127.0.0.1:{port}') \
+            .build()
+        api = PetApi(config=config)
+
+        await api.set_pet_avatar(1, payload)
+
+        assert captured.get('body') == payload
+        assert captured.get('content_type') == 'image/jpeg'
+
+    async def test_set_pet_avatar_honours_selected_request_content_type(self) -> None:
+        # setPetAvatar (PUT /pet/{petId}/avatar) declares request content types
+        # image/jpeg, image/png and application/json. The generated method now
+        # exposes an OPTIONAL request_content_type selector. Assert two cases:
+        #   (1) Called WITHOUT a selector, the request carries the FIRST declared
+        #       content type (image/jpeg) — backward compatible.
+        #   (2) Called WITH the selector set to 'image/png' and the same raw
+        #       bytes, the request carries Content-Type: image/png (NOT jpeg).
+        payload = b'\x89PNG\r\n\x1a\n'  # PNG signature
+        captured: List[Dict[str, Any]] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_PUT(self) -> None:
+                length = int(self.headers.get('Content-Length', 0))
+                captured.append({
+                    'body': self.rfile.read(length),
+                    'content_type': self.headers.get('Content-Type'),
+                })
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(
+            target=lambda: [server.handle_request(), server.handle_request()]
+        )
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder() \
+            .base_url(f'http://127.0.0.1:{port}') \
+            .build()
+        api = PetApi(config=config)
+
+        # (1) No selector — defaults to the first declared content type.
+        await api.set_pet_avatar(1, payload)
+        # (2) Selector set to image/png — overrides the Content-Type header.
+        await api.set_pet_avatar(1, payload, request_content_type='image/png')
+
+        assert len(captured) == 2
+        assert captured[0]['body'] == payload
+        assert captured[0]['content_type'] == 'image/jpeg'
+        assert captured[1]['body'] == payload
+        assert captured[1]['content_type'] == 'image/png'
+
+    async def test_get_pet_avatar(self) -> None:
+        result = await self.api.get_pet_avatar(1)
+
+        assert result is not None
+
+    async def test_get_pet_avatar_thumbnail(self) -> None:
+        result = await self.api.get_pet_avatar_thumbnail(1)
+
+        assert result is not None
+
+    async def test_set_pet_avatar_thumbnail(self) -> None:
+        request = SetPetAvatarThumbnailRequest(actual_instance=b'\x89PNG')
+
+        await self.api.set_pet_avatar_thumbnail(1, request)
+
+        assert True
+
+    async def test_upload_pet_certificate(self) -> None:
+        result = await self.api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'cert-data'))
+
+        assert result is not None
+        assert isinstance(result, ApiResponse)
+
+    async def test_upload_pet_document(self) -> None:
+        result = await self.api.upload_pet_document(1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup'))
+
+        assert result is not None
+        assert isinstance(result, ApiResponse)
+
+    async def test_upload_pet_document_honours_selected_request_content_type(self) -> None:
+        # uploadPetDocument (POST /pet/{petId}/documents) declares TWO request
+        # content types: multipart/form-data AND application/octet-stream. The
+        # generated method exposes an OPTIONAL request_content_type selector.
+        # Assert two cases by capturing the outbound Content-Type and raw body:
+        #   (1) Selecting application/octet-stream sends the file's RAW bytes
+        #       with Content-Type: application/octet-stream — NO multipart
+        #       envelope, NO boundary, NOT base64. The text metadata parts
+        #       (documentType, notes) have no place on the wire for a raw
+        #       stream and are dropped.
+        #   (2) Called WITHOUT a selector it defaults to the FIRST declared
+        #       type (multipart/form-data) and still sends a multipart body —
+        #       guards against over-correcting the octet-stream fix.
+        file_bytes = b"\x00\x01\x02PDFraw\xff"
+        captured: List[Dict[str, Any]] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                length = int(self.headers.get("Content-Length", 0))
+                captured.append(
+                    {
+                        "body": self.rfile.read(length),
+                        "content_type": self.headers.get("Content-Type"),
+                    }
+                )
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b"{}")
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(
+            target=lambda: [server.handle_request(), server.handle_request()]
+        )
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
+        api = PetApi(config=config)
+
+        # (1) Select application/octet-stream — raw bytes, no multipart.
+        await api.upload_pet_document(
+            1,
+            UploadPetDocumentOptions(file=file_bytes, document_type="x", notes="y"),
+            request_content_type="application/octet-stream",
+        )
+        # (2) No selector — defaults to multipart/form-data.
+        await api.upload_pet_document(
+            1,
+            UploadPetDocumentOptions(file=file_bytes, document_type="x", notes="y"),
+        )
+
+        assert len(captured) == 2
+
+        octet = captured[0]
+        assert octet["content_type"] == "application/octet-stream"
+        # The body is the file's RAW bytes — byte-for-byte, no envelope.
+        assert octet["body"] == file_bytes
+        # Hard guard against over-correction: no multipart framing whatsoever.
+        assert b"multipart" not in (octet["content_type"] or "").encode()
+        assert b"boundary" not in (octet["content_type"] or "").encode()
+        assert b"Content-Disposition" not in octet["body"]
+
+        multipart = captured[1]
+        assert (multipart["content_type"] or "").startswith("multipart/form-data")
+        assert b"boundary=" in (multipart["content_type"] or "").encode()
+        # The multipart envelope carries the file part and is NOT the bare bytes.
+        assert b"Content-Disposition" in multipart["body"]
+        assert multipart["body"] != file_bytes
+
+    async def test_add_pet_photos(self) -> None:
+        metadata = PhotoMetadata(caption='Test photo', isPrimary=True)
+
+        result = await self.api.add_pet_photos(1, AddPetPhotosOptions(files=[b'photo1'], metadata=metadata))
+
+        assert result is not None
+        assert isinstance(result, list)
+
+    def test_add_pet_photos_requires_options(self) -> None:
+        # Parity with the other 11 SDKs: when an operation's Options object has
+        # required fields, the options argument is required (no default). Omitting
+        # it must raise TypeError at call time, not silently pass None through.
+        with pytest.raises(TypeError):
+            self.api.add_pet_photos(1)
+
+    async def test_download_pet_document(self) -> None:
+        result = await self.api.download_pet_document(1, 1)
+
+        assert result is not None
+
+    async def test_get_pet_photo(self) -> None:
+        result = await self.api.get_pet_photo(1, 1)
+
+        assert result is not None
+
+    async def test_get_pet_passport(self) -> None:
+        result = await self.api.get_pet_passport(1)
+
+        assert result is not None
+        assert isinstance(result, PetPassport)
+
+    async def test_get_pet_tag_styled_params(self) -> None:
+        result = await self.api.get_pet_tag(5, 'cute', GetPetTagOptions(colors=['blue', 'black'], sizes=['S', 'M']))
+
+        assert result is not None
+
+    async def test_get_pet_tag_optional_array_query_params_serialize_styled(self) -> None:
+        # WAVE D OPTIONAL-ARRAY-PARAM: getPetTag declares two OPTIONAL array query
+        # parameters, `colors` (style pipeDelimited, explode false) and `sizes`
+        # (style spaceDelimited, explode false). When set to multiple values the
+        # SDK must encode each as the declared OAS style — `colors=blue|black`
+        # and `sizes=S M` — NOT a language debug representation of the list such
+        # as Python's repr `['blue', 'black']` (which would reach the wire as
+        # `colors=%5B%27blue%27%2C+%27black%27%5D`). Capture the outbound request
+        # path and assert the styled forms are present and no list-repr blob is.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                captured["path"] = self.path
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
+        api = PetApi(config=config)
+
+        await api.get_pet_tag(
+            5, "cute", GetPetTagOptions(colors=["blue", "black"], sizes=["S", "M"])
+        )
+
+        path = captured.get("path", "")
+        # The raw query string, percent-decoded so the pipe separator is literal.
+        # unquote (not unquote_plus) leaves '+' as '+', which is the wire form of
+        # a space in a query string, so the spaceDelimited value reads as 'S+M'.
+        decoded = unquote(path)
+        # colors is pipeDelimited (explode false): one key, values joined by '|'.
+        assert "colors=blue|black" in decoded, (
+            f"expected pipeDelimited colors=blue|black, got: {decoded}"
+        )
+        # sizes is spaceDelimited (explode false): one key, values joined by a
+        # space, urlencoded as '+'.
+        assert "sizes=S+M" in path, (
+            f"expected spaceDelimited sizes=S+M, got: {path}"
+        )
+        # Hard guard: the Python list-repr debug blob must never reach the wire,
+        # in either its encoded form or its decoded form.
+        assert "%5B" not in path and "[" not in decoded, (
+            f"list-repr blob leaked into query string: {path}"
+        )
+        assert "'blue'" not in decoded and "&#39;blue&#39;" not in path, (
+            f"list-repr blob leaked into query string: {path}"
+        )
+
+    @pytest.mark.skip(reason='Per-operation server points to external URL')
+    async def test_get_external_pet_info_uses_per_operation_server(self) -> None:
+        result = await self.api.get_external_pet_info(1)
+
+        assert result is not None
+
+
+def _create_mock_server(status: int, content_type: str, body: str) -> tuple[PetApi, HTTPServer]:
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(status)
+            self.send_header('Content-Type', content_type)
+            self.end_headers()
+            self.wfile.write(body.encode('utf-8'))
+
+        def do_POST(self) -> None:
+            self.send_response(status)
+            self.send_header('Content-Type', content_type)
+            self.end_headers()
+            self.wfile.write(body.encode('utf-8'))
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = HTTPServer(('127.0.0.1', 0), Handler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.handle_request)
+    thread.daemon = True
+    thread.start()
+
+    config = Configuration.builder() \
+        .base_url(f'http://127.0.0.1:{port}') \
+        .build()
+    api = PetApi(config=config)
+    return api, server
+
+
+class TestPetApiErrorHandling:
+    """Test suite for PetApi error handling."""
+
+    async def test_error_handling_not_found(self) -> None:
+        api, server = _create_mock_server(404, 'application/json', '{"message":"Pet not found"}')
+        with pytest.raises(Exception):
+            await api.get_pet_by_id(99999)
+
+    async def test_error_handling_server_error(self) -> None:
+        api, server = _create_mock_server(500, 'application/json', '{"message":"Internal server error"}')
+        with pytest.raises(Exception):
+            await api.get_pet_by_id(1)
+
+    async def test_empty_body_for_body_returning_op_raises(self) -> None:
+        # A body-returning operation that gets a 200 with an empty/undecodable
+        # body must raise the SDK's typed ApiException, not return None or
+        # crash under -O (the convenience method contract).
+        from {{packageName}}.errors import ApiException
+        api, server = _create_mock_server(200, 'application/json', '')
+        with pytest.raises(ApiException):
+            await api.get_pet_by_id(1)
+
+    async def test_required_string_param_empty_string_rejected(self) -> None:
+        # Parity with go/rust/swift/elixir: a required STRING parameter must
+        # reject the empty string the same way it rejects None, so the caller
+        # gets a clear error instead of silently sending an empty value.
+        api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
+        with pytest.raises(ValueError, match="Missing the required parameter 'category'"):
+            await api.get_pet_by_name('Fido', GetPetByNameOptions(category=''))
+
+    async def test_download_binary_mock(self) -> None:
+        api, server = _create_mock_server(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
+        result = await api.get_pet_avatar(1)
+        assert result is not None
+
+    async def test_upload_multipart_mock(self) -> None:
+        api, server = _create_mock_server(200, 'application/json', '{"code":200,"type":"","message":"success"}')
+        result = await api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'fake-cert-data'))
+        assert result is not None
+
+    async def test_add_pet_per_call_auth_override(self) -> None:
+        # Verify that an authenticator carried inside the Options object (not a
+        # standalone auth kwarg) is applied to the outgoing request. The default
+        # header carries one token; the per-call authenticator carries a
+        # different one and must win on the wire.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder() \
+            .base_url(base_url) \
+            .default_header('Authorization', 'Bearer default-token') \
+            .build()
+        api = PetApi(config=config)
+        per_call_auth = BearerAuthenticator(base_url, 'per-call-token')
+
+        pet = Pet(id=1, name='OverrideDog', photoUrls={'http://example.com/p.jpg'})
+        await api.add_pet(pet, AddPetOptions(auth=per_call_auth))
+
+        assert captured.get('Authorization') == 'Bearer per-call-token'
+
+    async def test_auth_in_options_is_applied(self) -> None:
+        # Regression: the per-operation authenticator now lives on the Options
+        # object's `auth` field. An Options instance carrying an authenticator
+        # must drive the Authorization header on the outgoing request.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder() \
+            .base_url(base_url) \
+            .default_header('Authorization', 'Bearer default-token') \
+            .build()
+        api = PetApi(config=config)
+        options_auth = BearerAuthenticator(base_url, 'options-token')
+
+        pet = Pet(id=2, name='OptionsAuthDog', photoUrls={'http://example.com/o.jpg'})
+        await api.add_pet(pet, AddPetOptions(auth=options_auth))
+
+        assert captured.get('Authorization') == 'Bearer options-token'
+
+    async def test_apikey_authenticator_is_applied_to_secured_request(self) -> None:
+        # WAVE A1 AUTH-APPLIED: a configured apiKey authenticator must actually
+        # reach the wire on a secured operation. add_pet accepts the apiKeyHeader
+        # scheme (X-API-Key). Construct an ApiKeyAuthenticator, pass it via the
+        # Options object, issue the request, and assert the outbound request
+        # carried the X-API-Key header — the regression guard for the Elixir bug
+        # where a configured authenticator was silently dropped.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder().base_url(base_url).build()
+        api = PetApi(config=config)
+        api_key_auth = ApiKeyAuthenticator(
+            host=base_url,
+            key_param_name='X-API-Key',
+            api_key='secret-api-key',
+            location=ApiKeyLocation.HEADER,
+        )
+
+        pet = Pet(id=4, name='ApiKeyDog', photoUrls={'http://example.com/k.jpg'})
+        await api.add_pet(pet, AddPetOptions(auth=api_key_auth))
+
+        assert captured.get('X-API-Key') == 'secret-api-key'
+
+    async def test_auth_omitted_uses_configuration_credentials(self) -> None:
+        # Regression: when no authenticator is supplied (Options omitted, or an
+        # Options instance with auth left as None), the base client falls back to
+        # the credentials configured on the Configuration object.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder() \
+            .base_url(base_url) \
+            .default_header('Authorization', 'Bearer config-default-token') \
+            .build()
+        api = PetApi(config=config)
+
+        pet = Pet(id=3, name='NoAuthDog', photoUrls={'http://example.com/n.jpg'})
+        await api.add_pet(pet)
+
+        assert captured.get('Authorization') == 'Bearer config-default-token'
+
+    def test_unsecured_op_options_has_no_auth_field(self) -> None:
+        # Regression: get_pet_by_id is an unsecured operation, so it must not
+        # mint an Options class carrying an `auth` field. The options package
+        # must expose no GetPetByIdOptions at all.
+        import importlib
+
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(
+                '{{packageName}}.api.options.get_pet_by_id_options'
+            )
+
+    async def test_security_none_op_suppresses_client_authenticator(self) -> None:
+        # WAVE A2 SECURITY-NONE: get_pet_by_id is declared `security: []`, so it
+        # is unauthenticated. Configure the client WITH a client-level
+        # authenticator and assert the outbound request carries NO Authorization
+        # header, NO api-key header, NO api-key query param, and NO auth cookie.
+        # The api method passes the no-auth sentinel, so base_api must NOT fall
+        # back to the client authenticator and leak the credential (the testEcho*
+        # / get_pet_by_id reflection-leak class of bug).
+        captured: Dict[str, str] = {}
+        captured_path: List[str] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                captured_path.append(self.path)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder().base_url(base_url).build()
+        # A client-level api-key-in-query authenticator: the most dangerous leak
+        # vector, since a stray query param would reflect straight back from an
+        # echo endpoint.
+        client_auth = ApiKeyAuthenticator(
+            host=base_url,
+            key_param_name='api_key',
+            api_key='secret-client-key',
+            location=ApiKeyLocation.QUERY,
+        )
+        api = PetApi(config=config, authenticator=client_auth)
+
+        await api.get_pet_by_id(1)
+
+        assert 'Authorization' not in captured, \
+            f'security:[] op must not send Authorization, got: {captured}'
+        assert 'Api_Key' not in captured and 'api_key' not in captured, \
+            'security:[] op must not send an api-key header'
+        assert 'Cookie' not in captured, \
+            'security:[] op must not send an auth cookie'
+        assert all('api_key=' not in p for p in captured_path), \
+            f'security:[] op must not send an api-key query param, got: {captured_path}'
+
+    async def test_secured_op_still_applies_client_authenticator(self) -> None:
+        # WAVE A1 GUARD (no over-suppression): add_pet IS secured. With a
+        # client-level authenticator configured and no per-call override, the
+        # credential must STILL reach the wire. This proves the no-auth sentinel
+        # only suppresses `security: []` operations, not secured ones.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder().base_url(base_url).build()
+        client_auth = BearerAuthenticator(base_url, 'client-level-token')
+        api = PetApi(config=config, authenticator=client_auth)
+
+        pet = Pet(id=5, name='SecuredDog', photoUrls={'http://example.com/s.jpg'})
+        await api.add_pet(pet)
+
+        assert captured.get('Authorization') == 'Bearer client-level-token', \
+            f'secured op must still apply the client credential, got: {captured}'
+
+
+class TestPetApiWithHttpInfo:
+    """Test suite for PetApi with_http_info methods."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, api_base_url: Any) -> None:
+        config = Configuration.builder() \
+            .base_url(api_base_url) \
+            .default_header('Authorization', 'Bearer test-token') \
+            .build()
+        self.api = PetApi(config=config)
+        self.auth = BearerAuthenticator(api_base_url, 'test-token')
+
+    async def test_get_pet_by_id_with_http_info(self) -> None:
+        result = await self.api.get_pet_by_id_with_http_info(1)
+
+        assert result is not None
+        assert result.status_code == 200
+        assert result.data is not None
+        assert result.raw_body is not None
+
+    async def test_add_pet_with_http_info(self) -> None:
+        pet = Pet(
+            id=99,
+            name='HttpInfoDog',
+            photoUrls={'http://example.com/photo.jpg'},
+            status=PetStatusEnum.AVAILABLE
+        )
+
+        result = await self.api.add_pet_with_http_info(pet, AddPetOptions(auth=self.auth))
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+        assert result.data is not None
+
+    async def test_update_pet_with_http_info(self) -> None:
+        pet = Pet(
+            id=1,
+            name='UpdatedDog',
+            photoUrls={'http://example.com/updated.jpg'},
+            status=PetStatusEnum.PENDING
+        )
+
+        result = await self.api.update_pet_with_http_info(1, pet)
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+
+    async def test_delete_pet_with_http_info(self) -> None:
+        result = await self.api.delete_pet_with_http_info(1, DeletePetOptions(auth=self.auth))
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+
+    async def test_find_pets_by_status_with_http_info(self) -> None:
+        result = await self.api.find_pets_by_status_with_http_info(FindPetsByStatusOptions(status='available'))
+
+        assert result is not None
+        assert result.status_code == 200
+
+    async def test_get_pet_passport_with_http_info(self) -> None:
+        result = await self.api.get_pet_passport_with_http_info(1)
+
+        assert result is not None
+        assert result.status_code == 200
+        assert result.data is not None

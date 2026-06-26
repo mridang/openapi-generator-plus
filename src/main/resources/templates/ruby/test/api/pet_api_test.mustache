@@ -1,0 +1,942 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+# Integration tests for the Pet API endpoints.
+
+require 'test_helper'
+require 'set'
+require 'stringio'
+require 'socket'
+require 'base64'
+
+describe {{moduleName}}::Api::PetApi do
+  parallelize_me!
+
+  before do
+    @api = {{moduleName}}::Api::PetApi.new
+    @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'
+    @auth = {{moduleName}}::Auth::BearerAuthenticator.new(@base_url, 'test-token')
+  end
+
+  describe '#add_pet' do
+    it 'creates a new pet' do
+      pet = {{moduleName}}::Models::Pet.new(
+        id: 12_345,
+        name: 'TestDog',
+        photo_urls: Set['http://example.com/photo.jpg'],
+        status: 'available'
+      )
+
+      result = @api.add_pet(pet, {{moduleName}}::Api::Options::AddPetOptions.new(auth: @auth))
+
+      _(result).wont_be_nil
+      _(result.name).wont_be_nil
+    end
+  end
+
+  describe '#find_pets_by_status' do
+    it 'returns pets by status' do
+      result = @api.find_pets_by_status({{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
+
+      _(result).must_be_kind_of(Array)
+      _(result).wont_be_empty
+      _(result.first).must_be_kind_of({{moduleName}}::Models::Pet)
+    end
+  end
+
+  describe '#get_pet_by_id' do
+    it 'returns a pet by id' do
+      result = @api.get_pet_by_id(1)
+
+      _(result).wont_be_nil
+      _(result.id).wont_be_nil
+      _(result.name).wont_be_nil
+    end
+  end
+
+  describe '#update_pet' do
+    it 'updates an existing pet' do
+      pet = {{moduleName}}::Models::Pet.new(
+        id: 1,
+        name: 'UpdatedDog',
+        photo_urls: Set['http://example.com/updated.jpg'],
+        status: 'pending'
+      )
+
+      result = @api.update_pet(1, pet)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#delete_pet' do
+    it 'deletes a pet' do
+      @api.delete_pet(1, {{moduleName}}::Api::Options::DeletePetOptions.new(auth: @auth))
+    end
+  end
+
+  describe '#set_pet_avatar' do
+    it 'uploads binary image data' do
+      @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
+    end
+
+    # Canonical regression (finding C1): setPetAvatar declares a request body of
+    # `type: string, format: binary` with a declared Content-Type of image/jpeg.
+    # The raw bytes must hit the wire UNCHANGED — not JSON-marshaled into "{}",
+    # not turned into a JSON int-array like [255,216,...], not base64-encoded —
+    # and the outgoing Content-Type must stay exactly "image/jpeg", never
+    # overridden to application/octet-stream or application/json.
+    #
+    # A one-shot TCP server captures the real outgoing body and Content-Type
+    # off the wire, exercising the operation's request_body construction plus
+    # BaseApi#serialize_body end-to-end rather than a helper in isolation.
+    def capture_avatar_request
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured_body = Queue.new
+      captured_content_type = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        content_length = 0
+        content_type = ''
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          elsif line.downcase.start_with?('content-type:')
+            content_type = line.split(':', 2).last.strip
+          end
+          break if line.strip.empty?
+        end
+        captured_content_type << content_type
+        captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(nil, config)
+      [api, server, thread, captured_body, captured_content_type]
+    end
+
+    it 'streams raw bytes with the declared content type' do
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        # JPEG SOI marker — a known, non-trivial binary payload. The high bytes
+        # (0xFF) and the non-printable run make every wrong encoding distinct
+        # from the raw form.
+        raw = "\xFF\xD8\xFF\xE0".b
+        api.set_pet_avatar(1, StringIO.new(raw))
+
+        content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        # (1) The body is the exact raw bytes — not JSON-marshaled, not a JSON
+        # int-array, not base64.
+        _(sent).must_equal raw
+        _(sent).wont_include '[255'
+        _(sent).wont_include '255,216'
+        _(sent).wont_equal '{}'
+        _(sent).wont_equal '//j/4A==' # base64 of the four bytes
+
+        # (2) The declared Content-Type is preserved verbatim.
+        _(content_type).must_equal 'image/jpeg'
+        _(content_type).wont_match(/octet-stream/)
+        _(content_type).wont_match(/application\/json/)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical regression: setPetAvatar declares THREE request content-types
+    # (image/jpeg, image/png, application/json). Before the optional
+    # `content_type:` selector the wire Content-Type always collapsed to the
+    # first declared type (image/jpeg) and image/png was unreachable. The
+    # selector lets the caller choose among the declared types while staying
+    # backward compatible: an unspecified content_type still sends the first.
+    it 'honours the selected request content type' do
+      # (1) Backward compatible — no selector sends the FIRST declared type.
+      api, server, thread, _captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\x89PNG\r\n\x1A\n".b
+        api.set_pet_avatar(1, StringIO.new(raw))
+        _(captured_content_type.pop).must_equal 'image/jpeg'
+      ensure
+        server.close
+        thread.join(2)
+      end
+
+      # (2) Selector set to image/png sends Content-Type: image/png for the
+      # same raw bytes — NOT image/jpeg.
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\x89PNG\r\n\x1A\n".b
+        api.set_pet_avatar(1, StringIO.new(raw), content_type: 'image/png')
+
+        content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        _(content_type).must_equal 'image/png'
+        _(content_type).wont_equal 'image/jpeg'
+        # The raw bytes still hit the wire unchanged — the selector only swaps
+        # the Content-Type header, it does not re-encode the body.
+        _(sent).must_equal raw
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_avatar' do
+    it 'downloads the pet avatar as binary' do
+      result = @api.get_pet_avatar(1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_pet_avatar_thumbnail' do
+    it 'base64-decodes the top-level byte response to raw bytes' do
+      # The response is a top-level `type: string, format: byte` schema served
+      # as application/json, so it arrives as a JSON string literal
+      # ("dGVzdC1pbWFnZQ=="). The SDK must JSON-parse then base64-decode it to
+      # raw bytes — not return the un-decoded base64 string or the quoted
+      # literal. The mock serves the spec example, which decodes to "test-image".
+      result = @api.get_pet_avatar_thumbnail(1)
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(String)
+      _(result).must_equal('test-image')
+    end
+  end
+
+  describe '#set_pet_avatar_thumbnail' do
+    it 'uploads a thumbnail from raw bytes (base64-encoded on the wire)' do
+      # SetPetAvatarThumbnailRequest is a oneOf [scalar format:byte, array of
+      # format:byte]. The caller supplies RAW bytes; the SDK base64-encodes
+      # the byte variant on the wire (the round-trip is asserted directly on
+      # the union in composed_schema_test). Here we only smoke the API call.
+      request = [0x89, 0x50, 0x4E, 0x47].pack('C*')
+
+      @api.set_pet_avatar_thumbnail(1, request)
+    end
+  end
+
+  describe '#upload_pet_certificate' do
+    it 'uploads a certificate via multipart' do
+      options = {{moduleName}}::Api::Options::UploadPetCertificateOptions.new(
+        file: StringIO.new('cert-data')
+      )
+      result = @api.upload_pet_certificate(1, options)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#upload_pet_document' do
+    it 'uploads a document with metadata via multipart' do
+      result = @api.upload_pet_document(
+        1,
+        {{moduleName}}::Api::Options::UploadPetDocumentOptions.new(
+          file: StringIO.new('doc-data'),
+          document_type: 'vaccination_record',
+          notes: 'Annual checkup'
+        )
+      )
+
+      _(result).wont_be_nil
+    end
+
+    # octet-stream-raw-body parity: uploadPetDocument declares TWO request
+    # content-types — multipart/form-data AND application/octet-stream. When the
+    # caller selects application/octet-stream the SDK must send the file's RAW
+    # bytes with Content-Type: application/octet-stream — NOT a multipart/form-data
+    # envelope, no multipart boundary, not base64. The request body is assembled
+    # as a form-parts Hash for the multipart case; the bug is that the transport
+    # dispatches multipart on `body.is_a?(Hash)`, so without unwrapping the single
+    # binary part an octet-stream selection silently still ships multipart. A
+    # one-shot TCP server captures the real outgoing Content-Type and body off the
+    # wire, exercising request_body construction plus BaseApi#serialize_body and
+    # the transport end-to-end.
+    def capture_document_request
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured_body = Queue.new
+      captured_content_type = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        content_length = 0
+        content_type = ''
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          elsif line.downcase.start_with?('content-type:')
+            content_type = line.split(':', 2).last.strip
+          end
+          break if line.strip.empty?
+        end
+        captured_content_type << content_type
+        captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(nil, config)
+      [api, server, thread, captured_body, captured_content_type]
+    end
+
+    it 'sends raw bytes when application/octet-stream is selected' do
+      api, server, thread, captured_body, captured_content_type = capture_document_request
+      begin
+        raw = "\x00\x01\x02PDFBYTES\xFF".b
+        api.upload_pet_document(
+          1,
+          {{moduleName}}::Api::Options::UploadPetDocumentOptions.new(file: StringIO.new(raw)),
+          content_type: 'application/octet-stream'
+        )
+
+        content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        # (1) Content-Type is the selected raw binary type — NOT multipart.
+        _(content_type).must_equal 'application/octet-stream'
+        _(content_type).wont_match(/multipart/)
+        _(content_type).wont_match(/boundary/)
+
+        # (2) The body is the exact raw bytes — not a multipart envelope, no
+        # boundary delimiter, no Content-Disposition part header, not base64.
+        _(sent).must_equal raw
+        _(sent).wont_include 'Content-Disposition'
+        _(sent).wont_include 'form-data'
+        _(sent).wont_match(/\A--/) # multipart boundary delimiter
+        _(sent).wont_include Base64.strict_encode64(raw)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'still sends a multipart body when multipart/form-data is selected (default)' do
+      # Guards against over-correction: the default (and explicit multipart)
+      # selection must keep shipping a multipart/form-data envelope.
+      [nil, 'multipart/form-data'].each do |selected|
+        api, server, thread, captured_body, captured_content_type = capture_document_request
+        begin
+          api.upload_pet_document(
+            1,
+            {{moduleName}}::Api::Options::UploadPetDocumentOptions.new(
+              file: StringIO.new('doc-data'),
+              document_type: 'vaccination_record'
+            ),
+            content_type: selected
+          )
+
+          content_type = captured_content_type.pop
+          sent = captured_body.pop.b
+
+          _(content_type).must_match(%r{\Amultipart/form-data})
+          _(content_type).must_match(/boundary=/)
+          _(sent).must_include 'Content-Disposition'
+          _(sent).must_include 'doc-data'
+        ensure
+          server.close
+          thread.join(2)
+        end
+      end
+    end
+  end
+
+  describe '#add_pet_photos' do
+    it 'uploads photos with metadata via multipart' do
+      metadata = {{moduleName}}::Models::PhotoMetadata.new(caption: 'Test photo', is_primary: true)
+
+      result = @api.add_pet_photos(
+        1,
+        {{moduleName}}::Api::Options::AddPetPhotosOptions.new(
+          files: [StringIO.new('photo1')],
+          metadata: metadata
+        )
+      )
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(Array)
+    end
+  end
+
+  describe '#download_pet_document' do
+    it 'downloads a document as binary' do
+      result = @api.download_pet_document(1, 1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_pet_photo' do
+    it 'returns a photo via content negotiation' do
+      result = @api.get_pet_photo(1, 1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_pet_passport' do
+    it 'returns a passport with embedded byte fields' do
+      result = @api.get_pet_passport(1)
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of({{moduleName}}::Models::PetPassport)
+    end
+  end
+
+  describe '#get_pet_tag' do
+    it 'sends styled path and query parameters' do
+      result = @api.get_pet_tag(
+        5,
+        'cute',
+        {{moduleName}}::Api::Options::GetPetTagOptions.new(colors: %w[blue black], sizes: %w[S M])
+      )
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_external_pet_info' do
+    it 'uses per-operation server URL' do
+      # The operation declares a per-operation server whose URL points at an
+      # external host. We cannot reach that host from the mock-server test
+      # environment, so instead of a live call we capture the request URL via
+      # a stub API client and assert the per-operation server URL was applied
+      # as the request origin (mirrors the Node CapturingApiClient approach).
+      captured_url = nil
+      api_client = Object.new
+      api_client.define_singleton_method(:send_request) do |_method, url, _headers, _body, **_kwargs|
+        captured_url = url
+        {{moduleName}}::ApiHttpResponse.new(
+          status_code: 200,
+          body: '{"id":1,"name":"Rex","photoUrls":["http://example.com/p.jpg"]}',
+          headers: { 'content-type' => 'application/json' }
+        )
+      end
+
+      api = {{moduleName}}::Api::PetApi.new(api_client)
+      server = {{moduleName}}::Api::GetExternalPetInfoServerServer0.new
+      api.get_external_pet_info(1, server: server)
+
+      _(captured_url).must_match(%r{\Ahttps://external-api\.example\.com/v1/pet/1/external})
+    end
+  end
+
+  # required-nested-param-validation: getPetByName has a simple string path
+  # param (name) AND a REQUIRED query param (category) carried on the Options
+  # object. The generated method must raise ArgumentError when either is nil,
+  # not just the path param — previously only path/body were guarded so a nil
+  # required query param sailed through to the wire.
+  describe '#get_pet_by_name required-param validation' do
+    it 'raises ArgumentError when the required query param category is nil' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', {{moduleName}}::Api::Options::GetPetByNameOptions.new(category: nil))
+      end
+      _(err.message).must_include 'category'
+    end
+
+    it 'raises ArgumentError when the required path param name is nil' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name(nil, {{moduleName}}::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+      end
+      _(err.message).must_include 'name'
+    end
+
+    it 'raises ArgumentError when the required string query param category is empty' do
+      # required-string-empty parity (go/rust/swift/elixir): an empty
+      # string for a required string param means the caller omitted it,
+      # so it must be rejected exactly like nil.
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', {{moduleName}}::Api::Options::GetPetByNameOptions.new(category: ''))
+      end
+      _(err.message).must_include 'category'
+    end
+
+    it 'raises ArgumentError when the required string path param name is empty' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('', {{moduleName}}::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+      end
+      _(err.message).must_include 'name'
+    end
+  end
+
+  describe 'error handling' do
+    def new_pet_api_for_mock(status, content_type, body)
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = server.accept rescue break
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(nil, config)
+      [api, server, thread]
+    end
+
+    it 'raises error on 404 response' do
+      api, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
+      begin
+        _(-> { api.get_pet_by_id(99_999) }).must_raise StandardError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'raises error on 500 response' do
+      api, server, thread = new_pet_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise StandardError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'handles binary download from mock' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
+      begin
+        result = api.get_pet_avatar(1)
+        _(result).wont_be_nil
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'handles multipart upload from mock' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"code":200,"type":"","message":"success"}')
+      begin
+        options = {{moduleName}}::Api::Options::UploadPetCertificateOptions.new(
+          file: StringIO.new('fake-cert-data')
+        )
+        result = api.upload_pet_certificate(1, options)
+        _(result).wont_be_nil
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # convenience-empty-body-handling: a body-returning operation that
+    # receives an empty 200 body must raise a typed ApiError from the
+    # unwrapped convenience method, never return a silent nil.
+    it 'raises ApiError when a body-returning op gets an empty body' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '')
+      begin
+        err = assert_raises({{moduleName}}::ApiError) do
+          api.get_pet_by_id(1)
+        end
+        _(err.status_code).must_equal 200
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # malformed-2xx-body-fails-loud (canonical 11): a 200 response whose body
+    # is present but NOT valid JSON for the declared model must propagate the
+    # deserialize failure, never return the raw string or a silent nil. The
+    # SDK wraps the parse error as SerializationError; the convenience method
+    # must let it surface so a corrupt-upstream bug is loud at the call site.
+    it 'raises when a 2xx body is malformed JSON for the declared model' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"id":1,"name":')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise {{moduleName}}::SerializationError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # path-double-encoding: a styled path-param value containing reserved
+  # characters must be percent-encoded EXACTLY ONCE. Before the fix the api
+  # template wrapped the already-encoded serializer output in a second
+  # encode_path_segment pass, turning a space into %2520 instead of %20.
+  describe 'path encoding' do
+    def capture_request_line(status, content_type, body)
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        captured << client.gets.to_s
+        while (line = client.gets)
+          break if line.strip.empty?
+        end
+        response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(nil, config)
+      [api, server, thread, captured]
+    end
+
+    it 'percent-encodes a path param value exactly once' do
+      body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
+      api, server, thread, captured = capture_request_line(200, 'application/json', body)
+      begin
+        # 'a b' (label style) serialises to '.a%20b'. The wrong (double)
+        # encoding would emit '.a%2520b'.
+        api.get_pet_tag(
+          5,
+          'a b',
+          {{moduleName}}::Api::Options::GetPetTagOptions.new
+        )
+        request_line = captured.pop
+        _(request_line).must_include '%20'
+        _(request_line).wont_include '%2520'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # optional-array-param parity (Wave D): an OPTIONAL array query parameter
+    # set to multiple values must serialise to its declared OAS style, never a
+    # language debug blob. getPetTag carries two optional array query params:
+    # `colors` (pipeDelimited) and `sizes` (spaceDelimited). The wrong (debug)
+    # form would inspect the Array itself, emitting something like
+    # `colors=%5B%22blue%22%2C+%22black%22%5D` ('["blue", "black"]') on the
+    # wire. Here we assert the styled forms reach the wire and that no
+    # debug/inspect blob does.
+    it 'serialises optional array query params as styled values, not a debug blob' do
+      body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
+      api, server, thread, captured = capture_request_line(200, 'application/json', body)
+      begin
+        api.get_pet_tag(
+          5,
+          'cute',
+          {{moduleName}}::Api::Options::GetPetTagOptions.new(
+            colors: %w[blue black], sizes: %w[S M]
+          )
+        )
+        request_line = captured.pop
+
+        # colors is pipeDelimited -> "blue|black"; the pipe is percent-encoded
+        # to %7C by CGI on the way out.
+        _(request_line).must_include 'colors=blue%7Cblack'
+        # sizes is spaceDelimited -> "S M"; the space encodes to '+'.
+        _(request_line).must_include 'sizes=S+M'
+
+        # The Array#inspect / to_s debug forms must NOT appear: no literal
+        # brackets, no quoted-element list, no `, ` joiner from Array#to_s.
+        _(request_line).wont_include '%5B' # '['
+        _(request_line).wont_include '%5D' # ']'
+        _(request_line).wont_include '%22' # '"'
+        _(request_line).wont_include 'colors=%5B'
+        _(request_line).wont_include '%2C+' # ', ' debug joiner
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'with_http_info methods' do
+    describe '#get_pet_by_id_with_http_info' do
+      it 'returns HTTP info along with the response' do
+        result = @api.get_pet_by_id_with_http_info(1)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+        _(result.data).wont_be_nil
+        _(result.raw_body).wont_be_nil
+      end
+    end
+
+    describe '#add_pet_with_http_info' do
+      it 'returns HTTP info on successful pet creation' do
+        pet = {{moduleName}}::Models::Pet.new(
+          id: 99,
+          name: 'HttpInfoDog',
+          photo_urls: Set['http://example.com/photo.jpg'],
+          status: 'available'
+        )
+
+        result = @api.add_pet_with_http_info(pet, {{moduleName}}::Api::Options::AddPetOptions.new(auth: @auth))
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+        _(result.data).wont_be_nil
+      end
+    end
+
+    describe '#update_pet_with_http_info' do
+      it 'returns HTTP info on successful update' do
+        pet = {{moduleName}}::Models::Pet.new(
+          id: 1,
+          name: 'UpdatedDog',
+          photo_urls: Set['http://example.com/updated.jpg'],
+          status: 'pending'
+        )
+
+        result = @api.update_pet_with_http_info(1, pet)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+      end
+    end
+
+    describe '#delete_pet_with_http_info' do
+      it 'returns HTTP info on successful deletion' do
+        result = @api.delete_pet_with_http_info(1, {{moduleName}}::Api::Options::DeletePetOptions.new(auth: @auth))
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+      end
+    end
+
+    describe '#find_pets_by_status_with_http_info' do
+      it 'returns HTTP info along with the list' do
+        result = @api.find_pets_by_status_with_http_info(
+          {{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+        )
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+      end
+    end
+
+    describe '#get_pet_passport_with_http_info' do
+      it 'returns HTTP info along with the passport' do
+        result = @api.get_pet_passport_with_http_info(1)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+        _(result.data).wont_be_nil
+      end
+    end
+  end
+
+  describe 'per-call auth override' do
+    # capture_auth_header: spin up a one-shot TCP server that records the
+    # Authorization header (if any) of the first request and returns a
+    # minimal Pet JSON body so the body-returning convenience method is happy.
+    def capture_auth_header
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        client.gets # request line
+        saw_auth = false
+        while (line = client.gets)
+          if line.downcase.start_with?('authorization:')
+            captured << line
+            saw_auth = true
+          end
+          break if line.strip.empty?
+        end
+        captured << :none unless saw_auth
+        body = '{"id":1,"name":"x","photoUrls":[]}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      [server, port, thread, captured]
+    end
+
+    # per-call-auth-override: an authenticator carried INSIDE the Options
+    # object must be applied to the outgoing request. The default header
+    # carries one token; the per-call authenticator carries a different one
+    # and must win on the wire.
+    it 'applies the per-call authenticator supplied in Options' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = {{moduleName}}::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer default-token' }
+        )
+        api = {{moduleName}}::Api::PetApi.new(nil, config)
+        per_call_auth = {{moduleName}}::Auth::BearerAuthenticator.new("http://127.0.0.1:#{port}", 'per-call-token')
+
+        pet = {{moduleName}}::Models::Pet.new(
+          id: 1,
+          name: 'OverrideDog',
+          photo_urls: Set['http://example.com/p.jpg']
+        )
+        api.add_pet(pet, {{moduleName}}::Api::Options::AddPetOptions.new(auth: per_call_auth))
+
+        header_line = captured.pop
+        _(header_line).must_include 'Bearer per-call-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # auth-omitted-uses-config-default: when no per-operation authenticator is
+    # supplied (auth omitted from Options entirely), the base client must fall
+    # back to the credentials configured on the Configuration object.
+    it 'falls back to the configured credentials when auth is omitted from Options' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = {{moduleName}}::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer config-default-token' }
+        )
+        api = {{moduleName}}::Api::PetApi.new(nil, config)
+
+        pet = {{moduleName}}::Models::Pet.new(
+          id: 1,
+          name: 'DefaultCredsDog',
+          photo_urls: Set['http://example.com/p.jpg']
+        )
+        # Options omits auth entirely; the minted Options object defaults its
+        # auth member to nil, so the configured default credentials apply.
+        api.add_pet(pet, {{moduleName}}::Api::Options::AddPetOptions.new)
+
+        header_line = captured.pop
+        _(header_line).must_include 'Bearer config-default-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # immutable-options: Options objects are constructed via keyword
+    # arguments only. The generated classes expose attr_reader members and
+    # freeze themselves at the end of #initialize, so reading values works
+    # but no writer (setter) is exposed and the instance is frozen.
+    it 'builds immutable Options from keyword arguments' do
+      options = {{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+
+      _(options.status).must_equal 'available'
+      refute options.respond_to?(:status=)
+      refute options.respond_to?(:auth=)
+      assert options.frozen?
+    end
+
+    # unsecured-op-has-no-auth-member: an unsecured operation
+    # (get_pet_by_id has no security requirement) must NOT mint an `auth`
+    # member on its Options object — indeed it has no Options object at all,
+    # so there is no AddPetOptions-style class for it. Guard the contract by
+    # asserting the GetPetByIdOptions constant is absent.
+    it 'does not expose an auth member on an unsecured operation' do
+      _({{moduleName}}::Api::Options.const_defined?(:GetPetByIdOptions)).must_equal false
+    end
+  end
+
+  # End-to-end form-urlencoded body assembly through the real generated
+  # set_pet_preferences operation (POST /pet/{petId}/preferences). These
+  # capture the raw request body off the wire so the assertions exercise the
+  # operation's request_body construction plus BaseApi#serialize_body, not
+  # just a helper in isolation.
+  describe 'form-urlencoded body assembly (set_pet_preferences)' do
+    # capture_request_body: one-shot TCP server that records the full request
+    # body and returns a minimal ApiResponse JSON so the convenience method
+    # is satisfied.
+    def capture_request_body
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        content_length = 0
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          end
+          break if line.strip.empty?
+        end
+        captured << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(nil, config)
+      [api, server, thread, captured]
+    end
+
+    # Canonical behavior 1 — a repeated-key array (`tags=a&tags=b`), not a
+    # comma-joined value or a bracketed `tags[]` form.
+    it 'expands an array form property to repeated keys' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', tags: %w[a b]
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'tags=a&tags=b'
+        _(sent).wont_include 'tags=a,b'
+        _(sent).wont_include 'tags%5B%5D'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical behavior 2 — optional `tags`/`note` left absent are omitted
+    # from the body entirely; only the required `nickname` is sent.
+    it 'omits absent optional form properties' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(nickname: 'Rex')
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_equal 'nickname=Rex'
+        _(sent).wont_include 'tags'
+        _(sent).wont_include 'note'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical behavior 3 — a space inside a form value is encoded as '+',
+    # never '%20' (WHATWG application/x-www-form-urlencoded rules).
+    it 'encodes a space in a form value as + not %20' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Mr Whiskers', note: 'good boy'
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'nickname=Mr+Whiskers'
+        _(sent).must_include 'note=good+boy'
+        _(sent).wont_include '%20'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+end

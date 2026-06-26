@@ -1,0 +1,1026 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
+import io.ktor.client.plugins.compression.ContentEncoding
+import io.ktor.http.Headers
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
+
+class DefaultApiClientUnitTest {
+
+    private fun mockClient(
+        statusCode: HttpStatusCode = HttpStatusCode.OK,
+        body: String = "{}",
+        requestCapture: ((io.ktor.client.request.HttpRequestData) -> Unit)? = null,
+    ): HttpClient {
+        val engine =
+            MockEngine { request ->
+                requestCapture?.invoke(request)
+                respond(
+                    content = body,
+                    status = statusCode,
+                    headers = headersOf("Content-Type", "application/json"),
+                )
+            }
+        return HttpClient(engine) { followRedirects = false }
+    }
+
+    @Nested
+    @DisplayName("User-Agent injection")
+    inner class UserAgentInjection {
+
+        @Test
+        @DisplayName("injects custom User-Agent header")
+        fun injectsCustomUserAgent() {
+            var capturedUserAgent: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedUserAgent = req.headers["User-Agent"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .userAgent("MyApp/1.0")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals("MyApp/1.0", capturedUserAgent)
+        }
+
+        @Test
+        @DisplayName("injects default User-Agent when not explicitly set")
+        fun injectsDefaultUserAgent() {
+            var capturedUserAgent: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedUserAgent = req.headers["User-Agent"]
+                })
+            val apiClient = DefaultApiClient(client)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertNotNull(capturedUserAgent)
+            assertTrue(capturedUserAgent!!.isNotEmpty())
+        }
+    }
+
+    @Nested
+    @DisplayName("X-Request-ID injection")
+    inner class RequestIdInjection {
+
+        @Test
+        @DisplayName("injects X-Request-ID when enabled")
+        fun injectsRequestId() {
+            var capturedRequestId: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedRequestId = req.headers["X-Request-ID"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertNotNull(capturedRequestId)
+            assertTrue(
+                capturedRequestId!!.matches(
+                    Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
+                ),
+            )
+        }
+
+        @Test
+        @DisplayName("does not inject X-Request-ID when disabled")
+        fun doesNotInjectRequestIdWhenDisabled() {
+            var capturedRequestId: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedRequestId = req.headers["X-Request-ID"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(false)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertNull(capturedRequestId)
+        }
+
+        @Test
+        @DisplayName("does not override caller-provided X-Request-ID")
+        fun doesNotOverrideCallerRequestId() {
+            var capturedRequestId: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedRequestId = req.headers["X-Request-ID"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            val headers = mapOf("X-Request-ID" to "caller-provided-id")
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", headers, null)
+            }
+            assertEquals("caller-provided-id", capturedRequestId)
+        }
+
+        @Test
+        @DisplayName("generates unique X-Request-ID per request")
+        fun generatesUniqueRequestIds() {
+            val ids = mutableListOf<String?>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    ids.add(req.headers["X-Request-ID"])
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals(2, ids.size)
+            assertNotEquals(ids[0], ids[1])
+        }
+    }
+
+    @Nested
+    @DisplayName("multipart filename directive")
+    inner class MultipartFilenameDirective {
+
+        @Test
+        @DisplayName("non-ASCII filename emits RFC 5987 filename* parameter")
+        fun multipartFilenameNonAsciiEmitsRFC5987() {
+            val directive = buildFilenameDirective("日本.pdf")
+            assertTrue(directive.contains("filename*=UTF-8''"),
+                "non-ASCII filename must emit RFC 5987 filename*= form, got: $directive")
+            assertTrue(directive.contains("%E6%97%A5%E6%9C%AC"),
+                "RFC 5987 value must be percent-encoded UTF-8, got: $directive")
+            assertTrue(directive.startsWith("filename=\""),
+                "must still include an ASCII fallback filename=\"...\", got: $directive")
+        }
+
+        @Test
+        @DisplayName("ASCII-only filename omits the filename* parameter")
+        fun multipartFilenameAsciiOnlyOmitsFilenameStar() {
+            val directive = buildFilenameDirective("pet.png")
+            assertEquals("filename=\"pet.png\"", directive)
+            assertFalse(directive.contains("filename*="),
+                "ASCII-only filename must not emit filename*=, got: $directive")
+        }
+
+        @Test
+        @DisplayName("CRLF/NUL in filename throws IllegalArgumentException")
+        fun multipartFilenameCRLFRejected() {
+            for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\u0000b.pdf")) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    validateMultipartFilename(bad)
+                }
+            }
+            // ASCII filename does not throw
+            validateMultipartFilename("pet.png")
+        }
+    }
+
+    @Nested
+    @DisplayName("per-part MIME sniffing")
+    inner class MultipartMimeSniffing {
+
+        @Test
+        @DisplayName(".png filename sets image/png")
+        fun pngFilenameSetsImagePng() {
+            assertEquals("image/png", contentTypeForFilename("image.png").toString())
+        }
+
+        @Test
+        @DisplayName(".pdf filename sets application/pdf")
+        fun pdfFilenameSetsApplicationPdf() {
+            assertEquals("application/pdf", contentTypeForFilename("doc.pdf").toString())
+        }
+
+        @Test
+        @DisplayName("filename without extension defaults to octet-stream")
+        fun noExtensionDefaultsToOctetStream() {
+            assertEquals("application/octet-stream", contentTypeForFilename("blob").toString())
+        }
+
+        @Test
+        @DisplayName("avatar.png file part Content-Type is image/png")
+        fun avatarPngFileSetsImagePng() {
+            // Parity rule 4: a multipart file part keyed by a name carrying an
+            // extension sniffs the per-part Content-Type from that extension,
+            // falling back to octet-stream. `avatar.png` => image/png.
+            assertEquals("image/png", contentTypeForFilename("avatar.png").toString())
+        }
+    }
+
+    @Nested
+    @DisplayName("multipart field name encoding")
+    inner class MultipartFieldNameEncoding {
+
+        @Test
+        @DisplayName("non-ASCII field name is preserved as raw UTF-8 on the wire")
+        fun nonAsciiFieldNamePreserved() {
+            // Parity rule 5: a multipart field NAME containing non-ASCII
+            // codepoints must be transmitted as raw UTF-8 in `name="..."`,
+            // never ASCII-folded to `?` placeholders. Send a part keyed by a
+            // non-ASCII name and assert the exact bytes survive in the body.
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+
+            val form: Map<String, Any?> = mapOf("café" to "value")
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    form,
+                )
+            }
+
+            val wire = String(bodyBytes!!, Charsets.UTF_8)
+            assertTrue(
+                wire.contains("name=\"café\""),
+                "multipart field name must be preserved as raw UTF-8, got: $wire",
+            )
+        }
+
+        @Test
+        @DisplayName("raw-bytes part reuses field name as filename and defaults to octet-stream")
+        fun rawBytesPartReusesNameAsFilenameOctetStream() {
+            // Cross-language contract: a multipart part carrying RAW BYTES with no
+            // explicit filename reuses the FIELD NAME as the filename and guesses
+            // the Content-Type from that name's extension, falling back to
+            // application/octet-stream when there is no/unknown extension. For a
+            // field named "file" (no extension) the part MUST emit
+            // filename="file" AND Content-Type: application/octet-stream.
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+
+            val form: Map<String, Any?> = mapOf("file" to byteArrayOf(0x00, 0x01, 0x02))
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    form,
+                )
+            }
+
+            val wire = String(bodyBytes!!, Charsets.UTF_8)
+            assertTrue(
+                wire.contains("name=\"file\"") && wire.contains("filename=\"file\""),
+                "raw-bytes part must reuse the field name as filename, got: $wire",
+            )
+            assertTrue(
+                wire.contains("Content-Type: application/octet-stream"),
+                "raw-bytes part with no extension must default to application/octet-stream, got: $wire",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("default headers")
+    inner class DefaultHeaders {
+
+        @Test
+        @DisplayName("includes transport-level default headers")
+        fun includesTransportDefaultHeaders() {
+            var capturedCustomHeader: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedCustomHeader = req.headers["X-Custom"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-Custom", "custom-value")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals("custom-value", capturedCustomHeader)
+        }
+
+        @Test
+        @DisplayName("caller headers override transport default headers")
+        fun callerHeadersOverrideDefaults() {
+            var capturedAccept: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedAccept = req.headers["Accept"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("Accept", "text/plain")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            val callerHeaders = mapOf("Accept" to "application/json")
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", callerHeaders, null)
+            }
+            assertEquals("application/json", capturedAccept)
+        }
+    }
+
+    @Nested
+    @DisplayName("basic HTTP")
+    inner class BasicHttp {
+
+        @Test
+        @DisplayName("sends GET request and returns response")
+        fun sendsGetRequestAndReturnsResponse() {
+            val client = mockClient(body = "{\"method\":\"GET\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("GET"))
+        }
+
+        @Test
+        @DisplayName("sends POST with JSON body")
+        fun sendsPostWithJsonBody() {
+            val client = mockClient(body = "{\"method\":\"POST\",\"body\":\"key\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest(
+                    "POST", "http://localhost/echo",
+                    mapOf("Content-Type" to "application/json"),
+                    "{\"key\":\"value\"}"
+                )
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("POST"))
+            assertTrue(response!!.body.contains("key"))
+        }
+
+        @Test
+        @DisplayName("returns response headers")
+        fun returnsResponseHeaders() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "ok",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("X-Test-Header", "test-value"),
+                )
+            }
+            val client = HttpClient(engine) { followRedirects = false }
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null)
+            }
+            val value = response!!.headers.entries
+                .firstOrNull { it.key.equals("X-Test-Header", ignoreCase = true) }
+                ?.value
+            assertEquals("test-value", value)
+        }
+
+        @Test
+        @DisplayName("returns non-2xx status code")
+        fun returnsNon2xxStatusCode() {
+            val client = mockClient(statusCode = HttpStatusCode.NotFound, body = "not found")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/not-found", emptyMap(), null)
+            }
+            assertEquals(404, response!!.statusCode)
+            assertEquals("not found", response!!.body)
+        }
+
+        @Test
+        @DisplayName("sends PUT request")
+        fun sendsPutRequest() {
+            val client = mockClient(body = "{\"method\":\"PUT\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("PUT", "http://localhost/echo", emptyMap(), "update")
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("PUT"))
+        }
+
+        @Test
+        @DisplayName("sends DELETE request")
+        fun sendsDeleteRequest() {
+            val client = mockClient(body = "{\"method\":\"DELETE\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("DELETE", "http://localhost/echo", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("DELETE"))
+        }
+
+        @Test
+        @DisplayName("returns JSON body for vendor JSON content type")
+        fun returnsJsonBodyForVendorJsonContentType() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "{\"format\":\"vendor\"}",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "application/vnd.api+json"),
+                )
+            }
+            val client = HttpClient(engine) { followRedirects = false }
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/vendor-json", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("vendor"))
+        }
+
+        @Test
+        @DisplayName("decodes response body with charset from Content-Type")
+        fun decodesResponseBodyWithDeclaredCharset() {
+            // 0xE9 is "é" in ISO-8859-1; in UTF-8 it would be a replacement char or mojibake.
+            val engine = MockEngine { _ ->
+                respond(
+                    content = byteArrayOf(0xE9.toByte()),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain; charset=ISO-8859-1"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/latin1", emptyMap(), null)
+            }
+            assertEquals("é", response.body, "ISO-8859-1 body must decode using the declared charset")
+        }
+
+        @Test
+        @DisplayName("decodes BOM-less utf-16 response body as big-endian (RFC 2781)")
+        fun decodesBomlessUtf16AsBigEndian() {
+            // A response declaring charset=utf-16 with NO byte-order mark must
+            // decode as UTF-16 BIG-ENDIAN per RFC 2781. The bytes 00 50 00 65
+            // 00 74 are "Pet" in UTF-16BE; the same bytes read little-endian
+            // would yield the wrong string, proving the byte-order choice.
+            val bigEndianNoBom = byteArrayOf(0x00, 0x50, 0x00, 0x65, 0x00, 0x74)
+            val engine = MockEngine { _ ->
+                respond(
+                    content = bigEndianNoBom,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain; charset=utf-16"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/utf16-no-bom", emptyMap(), null)
+            }
+            assertEquals(
+                "Pet",
+                response.body,
+                "BOM-less utf-16 must decode as big-endian",
+            )
+            // Same bytes interpreted little-endian must NOT equal "Pet",
+            // confirming the big-endian default is what produced the match.
+            val asLittleEndian = String(bigEndianNoBom, Charsets.UTF_16LE)
+            assertNotEquals(
+                "Pet",
+                asLittleEndian,
+                "little-endian interpretation of the same bytes must differ",
+            )
+        }
+
+        @Test
+        @DisplayName("defaults to UTF-8 when Content-Type has no charset")
+        fun defaultsToUtf8WhenNoCharset() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "héllo".toByteArray(Charsets.UTF_8),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/no-charset", emptyMap(), null)
+            }
+            assertEquals("héllo", response.body)
+        }
+
+        @Test
+        @DisplayName("falls back to UTF-8 for unknown charset without throwing")
+        fun fallsBackToUtf8ForUnknownCharset() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "hello".toByteArray(Charsets.UTF_8),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain; charset=not-a-real-charset"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/unknown-charset", emptyMap(), null)
+            }
+            assertEquals("hello", response.body, "unknown charset must fall back to UTF-8, never throw")
+        }
+
+        @Test
+        @DisplayName("joins multi-value response headers")
+        fun joinsMultiValueResponseHeaders() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "ok",
+                    status = HttpStatusCode.OK,
+                    headers = Headers.build {
+                        append("X-Custom-Value", "val1")
+                        append("X-Custom-Value", "val2")
+                    },
+                )
+            }
+            val client = HttpClient(engine) { followRedirects = false }
+            val apiClient = DefaultApiClient(client)
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/multi-header", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            val value = response!!.headers.entries
+                .firstOrNull { it.key.equals("X-Custom-Value", ignoreCase = true) }
+                ?.value
+            assertEquals("val1, val2", value)
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect guards")
+    inner class RedirectGuards {
+
+        @Test
+        @DisplayName("Gap 3.1: SENSITIVE_HEADER_NAMES includes static set")
+        fun sensitiveHeaderNamesIncludesStaticSet() {
+            // The constant must always contain the three RFC-standard sensitive
+            // headers regardless of whether the spec declared any apiKey schemes.
+            val names = DefaultApiClient.SENSITIVE_HEADER_NAMES
+            assertTrue(names.contains("authorization"))
+            assertTrue(names.contains("cookie"))
+            assertTrue(names.contains("proxy-authorization"))
+        }
+{{#hasApiKeyHeaderNames}}
+
+        @Test
+        @DisplayName("Gap 3.1: SENSITIVE_HEADER_NAMES includes API-key header names from spec")
+        fun sensitiveHeaderNamesIncludesApiKeyNames() {
+            val names = DefaultApiClient.SENSITIVE_HEADER_NAMES
+{{#apiKeyHeaderNames}}            assertTrue(
+                names.contains("{{lowerName}}"),
+                "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header '{{lowerName}}'"
+            )
+{{/apiKeyHeaderNames}}        }
+
+        @Test
+        @DisplayName("Gap 3.1: API-key header stripped on cross-origin redirect")
+        fun apiKeyHeaderStrippedOnCrossOriginRedirect() {
+{{#apiKeyHeaderNames}}{{#-first}}            val apiKeyHeader = "{{name}}"
+{{/-first}}{{/apiKeyHeaderNames}}            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "http://other.example.com/dest"),
+                    )
+                } else {
+                    hopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com/start",
+                    mapOf(apiKeyHeader to "secret"),
+                    null,
+                )
+            }
+            assertNull(hopHeaders?.get(apiKeyHeader),
+                "API-key header must be stripped on cross-origin redirect")
+        }
+{{/hasApiKeyHeaderNames}}
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=true returns the 307 verbatim")
+        fun noRedirectReturns307() {
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                respond(
+                    content = "",
+                    status = HttpStatusCode.TemporaryRedirect,
+                    headers = headersOf("Location", "http://other.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://first.example.com/token",
+                    emptyMap(),
+                    "grant_type=client_credentials",
+                    noRedirect = true,
+                )
+            }
+            // The 3xx surfaces to the caller as-is; the redirect target is
+            // never hit -- the token manager inspects/rejects the 3xx itself.
+            assertEquals(307, response.statusCode)
+            assertEquals("http://other.example.com/dest", response.headers["location"])
+            assertEquals(1, hopCount, "no follow-up request must be issued")
+        }
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=true returns the 308 verbatim")
+        fun noRedirectReturns308() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.PermanentRedirect,
+                    headers = headersOf("Location", "http://other.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://first.example.com/token",
+                    emptyMap(),
+                    "grant_type=client_credentials",
+                    noRedirect = true,
+                )
+            }
+            assertEquals(308, response.statusCode)
+        }
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=true returns a 302 verbatim (no follow)")
+        fun noRedirectReturns302() {
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "http://other.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "POST", "http://first.example.com/x", emptyMap(), "body", noRedirect = true,
+                )
+            }
+            assertEquals(302, response.statusCode)
+            assertEquals(1, hopCount, "no follow-up request must be issued")
+        }
+
+        @Test
+        @DisplayName("Gap 3.1: cross-origin redirect strips sensitive headers")
+        fun crossOriginRedirectStripsSensitiveHeaders() {
+            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://other.example.com/dest"),
+                    )
+                } else {
+                    hopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com/start",
+                    mapOf("Authorization" to "Bearer secret", "X-Trace" to "keep"),
+                    null,
+                )
+            }
+            assertNull(hopHeaders?.get("Authorization"),
+                "Authorization must be stripped on cross-origin redirect")
+            assertEquals("keep", hopHeaders?.get("X-Trace"),
+                "non-sensitive headers must be preserved across the redirect")
+        }
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=false follows redirects normally")
+        fun noRedirectFalseFollowsRedirects() {
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://first.example.com/dest"),
+                    )
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "GET", "http://first.example.com/start", emptyMap(), null, noRedirect = false,
+                )
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals(2, hopCount, "the redirect must be followed to completion")
+        }
+
+        @Test
+        @DisplayName("redirect to non-http(s) scheme throws ApiException")
+        fun redirectToNonHttpSchemeThrows() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "file:///etc/passwd"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://first.example.com/start", emptyMap(), null)
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("non-HTTP", ignoreCase = true),
+                "exception should mention the refused non-HTTP(S) target, got: ${ex.message}",
+            )
+        }
+
+        @Test
+        @DisplayName("Gap 3.3: refuses to replay body on HTTPS->HTTP downgrade")
+        fun refusesBodyReplayOnHttpsToHttpDowngrade() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.TemporaryRedirect,
+                    headers = headersOf("Location", "http://insecure.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "https://secure.example.com/x",
+                        emptyMap(),
+                        "secret-body",
+                    )
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("HTTPS->HTTP"),
+                "exception message should mention HTTPS->HTTP downgrade",
+            )
+        }
+
+        @Test
+        @DisplayName("Gap 3.3: HTTPS->HTTPS body replay allowed (no downgrade)")
+        fun httpsToHttpsBodyReplayAllowed() {
+            // Both legs are HTTPS, so a 307 with a body replays the body and
+            // completes — the downgrade guard fires only on HTTPS->HTTP.
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "https://secure.example.com/dest"),
+                    )
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "POST", "https://secure.example.com/start", emptyMap(), "payload",
+                )
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals(2, hopCount, "HTTPS->HTTPS body replay must be followed")
+        }
+
+        @Test
+        @DisplayName("Gap 3.3: HTTPS->HTTP without body still allowed (no payload to leak)")
+        fun httpsToHttpAllowedWithoutBody() {
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://insecure.example.com/dest"),
+                    )
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "https://secure.example.com/x", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+        }
+
+        @Test
+        @DisplayName("redirect-exhaustion-silent: throws when maxRedirects is exhausted")
+        fun throwsWhenRedirectBudgetExhausted() {
+            // Server returns a 302 to itself on every hop. With maxRedirects=2
+            // the budget is exhausted while the response is still a 3xx; the
+            // client must throw rather than silently return the last redirect.
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "http://localhost/loop"),
+                )
+            }
+            val transport =
+                TransportOptions.builder().followRedirects(true).maxRedirects(2).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/loop", emptyMap(), null)
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("Too many redirects"),
+                "exception should report redirect exhaustion, got: ${ex.message}",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("response body read error")
+    inner class ResponseBodyReadError {
+
+        @Test
+        @DisplayName("response-body-read-error-not-wrapped: body-read failure is wrapped in ApiException")
+        fun bodyReadFailureWrappedInApiException() {
+            // Headers are received (status 200) but the body channel is closed
+            // with a failure cause, simulating a connection reset / truncated
+            // body after the response started. Reading it must surface the
+            // SDK's ApiException, not leak the raw Ktor/IO exception.
+            val engine = MockEngine { _ ->
+                val channel = io.ktor.utils.io.ByteChannel(autoFlush = true)
+                // cancel(cause) fails the channel with the given throwable so a
+                // reader sees it mid-body; ByteChannel.close() takes no cause arg.
+                channel.cancel(java.io.IOException("simulated body read failure"))
+                respond(
+                    content = channel,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/body-fail", emptyMap(), null)
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Content-Encoding lie")
+    inner class ContentEncodingLie {
+
+        @Test
+        @DisplayName("Gap AL: Content-Encoding gzip on a non-gzip body surfaces ApiException")
+        fun lyingGzipContentEncodingWrappedInApiException() {
+            // A hostile/misconfigured server claims `Content-Encoding: gzip` but
+            // sends plaintext bytes. The production client installs the Ktor
+            // ContentEncoding plugin (gzip/deflate), so the gzip inflater runs
+            // over the body and fails. That decompression failure must surface as
+            // the SDK's ApiException -- never silently pass the corrupted bytes
+            // through. The mock client mirrors production by installing the same
+            // plugin so the lie is actually decoded here.
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "this is plain text, not gzip".toByteArray(Charsets.UTF_8),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Encoding", "gzip"),
+                )
+            }
+            val client = HttpClient(engine) {
+                followRedirects = false
+                install(ContentEncoding) {
+                    gzip()
+                    deflate()
+                }
+            }
+            val apiClient = DefaultApiClient(client)
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/lying-gzip", emptyMap(), null)
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("close lifecycle")
+    inner class CloseLifecycle {
+
+        @Test
+        @DisplayName("close-lifecycle-three-way: send after close throws ApiException")
+        fun sendAfterCloseThrowsApiException() {
+            val apiClient = DefaultApiClient(mockClient())
+            apiClient.close()
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("closed"),
+                "use-after-close must surface an SDK ApiException mentioning the closed state, got: ${ex.message}",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("CA certificate")
+    inner class CaCertificate {
+
+        @Test
+        @DisplayName("ca-cert-fail-fast: non-existent caCertPath fails at construction")
+        fun nonexistentCaCertPathFailsFast() {
+            // An explicitly configured CA certificate path that cannot be read
+            // or parsed must fail fast at construction rather than silently
+            // falling back to the system trust store (security theater).
+            val transport = TransportOptions.builder().caCertPath("/nonexistent/ca.pem").build()
+            assertThrows(Exception::class.java) {
+                DefaultApiClient(transport)
+            }
+        }
+    }
+}

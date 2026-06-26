@@ -1,0 +1,839 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+import 'testcontainers_helper.dart';
+
+class _TestAuth implements Authenticator {
+  @override
+  String host() => '';
+  @override
+  Map<String, String> authHeaders() => {'Authorization': 'Bearer test-token'};
+  @override
+  Future<Map<String, String>> authHeadersAsync() async => authHeaders();
+  @override
+  Map<String, String> queryParams() => {};
+  @override
+  Map<String, String> cookieParams() => {};
+}
+
+class _PerCallAuth implements Authenticator {
+  @override
+  String host() => '';
+  @override
+  Map<String, String> authHeaders() => {'Authorization': 'Bearer per-call-token'};
+  @override
+  Future<Map<String, String>> authHeadersAsync() async => authHeaders();
+  @override
+  Map<String, String> queryParams() => {};
+  @override
+  Map<String, String> cookieParams() => {};
+}
+
+PetApi _newPetApiForIntegration() {
+  final config = ConfigurationBuilder()
+      .baseUrl(chasmUrl)
+      .defaultHeader('Authorization', 'Bearer test-token')
+      .build();
+  final client = DefaultApiClient();
+  return PetApi(apiClient: client, config: config);
+}
+
+void main() {
+  setUpAll(() async {
+    await setUpContainers();
+  });
+
+  tearDownAll(() async {
+    await tearDownContainers();
+  });
+
+  group('PetApi', () {
+    test('addPet', () async {
+      final api = _newPetApiForIntegration();
+      final auth = _TestAuth();
+
+      final result = await api.addPet(Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}), AddPetOptions(auth: auth));
+      expect(result, isNotNull);
+    });
+
+    test('addPetWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+      final auth = _TestAuth();
+
+      final result = await api.addPetWithHTTPInfo(Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}), AddPetOptions(auth: auth));
+      expect(result.statusCode, greaterThanOrEqualTo(200));
+      expect(result.statusCode, lessThan(300));
+      expect(result.data, isNotNull);
+      expect(result.rawBody, isNotEmpty);
+    });
+
+    test('getPetById', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetById(1, null);
+      expect(result, isNotNull);
+    });
+
+    test('getPetByIdWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetByIdWithHTTPInfo(1, null);
+      expect(result.statusCode, equals(200));
+      expect(result.rawBody, isNotEmpty);
+      expect(result.headers, isNotNull);
+    });
+
+    test('findPetsByStatus', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.findPetsByStatus(const FindPetsByStatusOptions(status: 'available'));
+      expect(result, isNotNull);
+    });
+
+    test('findPetsByStatusWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.findPetsByStatusWithHTTPInfo(const FindPetsByStatusOptions(status: 'available'));
+      expect(result.statusCode, equals(200));
+    });
+
+    test('updatePet', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.updatePet(1, Pet(name: 'UpdatedFido', photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
+      expect(result, isNotNull);
+    });
+
+    test('updatePetWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.updatePetWithHTTPInfo(1, Pet(name: 'UpdatedFido', photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
+      expect(result.statusCode, greaterThanOrEqualTo(200));
+      expect(result.statusCode, lessThan(300));
+    });
+
+    test('deletePet', () async {
+      final api = _newPetApiForIntegration();
+      final auth = _TestAuth();
+
+      await api.deletePet(1, DeletePetOptions(auth: auth));
+    });
+
+    test('deletePetWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+      final auth = _TestAuth();
+
+      final result = await api.deletePetWithHTTPInfo(1, DeletePetOptions(auth: auth));
+      expect(result.statusCode, greaterThanOrEqualTo(200));
+      expect(result.statusCode, lessThan(300));
+    });
+
+    test('getPetPassport', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetPassport(1);
+      expect(result, isNotNull);
+    });
+
+    test('getPetPassportWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetPassportWithHTTPInfo(1);
+      expect(result.statusCode, equals(200));
+    });
+
+    test('setPetAvatar', () async {
+      final api = _newPetApiForIntegration();
+
+      await api.setPetAvatar(1, Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]));
+    });
+
+    /* binary-request-body-streamed-raw (canonical scenario C1): setPetAvatar's
+     * request body is declared `type: string, format: binary` with a declared
+     * Content-Type of `image/jpeg`. The raw bytes must reach the wire UNCHANGED
+     * — NOT JSON-marshaled (`{}`), NOT a JSON int-array (`[255,216,...]`), NOT
+     * base64 — and the outgoing Content-Type must be exactly the declared
+     * `image/jpeg`, NOT overridden to application/octet-stream or
+     * application/json. We capture the outgoing request against a local mock
+     * (the same idiom used by the query-string capture test above) and assert
+     * both the exact body bytes and the Content-Type header. */
+    test('setPetAvatar streams raw bytes with declared content type', () async {
+      List<int>? capturedBody;
+      String? capturedContentType;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        capturedContentType = request.headers.contentType?.toString();
+        final builder = BytesBuilder();
+        await for (final chunk in request) {
+          builder.add(chunk);
+        }
+        capturedBody = builder.takeBytes();
+        request.response
+          ..statusCode = 204
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
+        final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+        await api.setPetAvatar(1, payload);
+
+        // (1) The body bytes are EXACTLY the raw payload — not a JSON
+        // int-array, not "{}", not base64, not JSON-marshaled.
+        expect(capturedBody, equals([0xFF, 0xD8, 0xFF, 0xE0]));
+        // (2) The outgoing Content-Type is exactly the declared image/jpeg,
+        // not overridden to octet-stream or application/json.
+        expect(capturedContentType, equals('image/jpeg'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* optional-request-content-type-selector (decision H3): setPetAvatar
+     * declares THREE request Content-Types — image/jpeg, image/png and
+     * application/json. The operation otherwise collapses to the first
+     * (image/jpeg), leaving the others unreachable. The generated method now
+     * carries an OPTIONAL trailing `requestContentType` selector. We capture
+     * the outgoing Content-Type against a local mock and assert that:
+     *   (1) omitting the selector still sends the FIRST declared type
+     *       (image/jpeg) — backward compatible; and
+     *   (2) passing 'image/png' with the same raw bytes sends Content-Type
+     *       image/png, NOT image/jpeg. */
+    test('setPetAvatar honours the selected request content type', () async {
+      final captured = <String?>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        captured.add(request.headers.contentType?.toString());
+        await request.drain<void>();
+        request.response
+          ..statusCode = 204
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+
+        // (1) No selector — defaults to the first declared type (image/jpeg).
+        await api.setPetAvatar(1, payload);
+        // (2) Selector set to image/png — overrides the Content-Type header.
+        await api.setPetAvatar(1, payload, 'image/png');
+
+        expect(captured.length, equals(2));
+        expect(captured[0], equals('image/jpeg'));
+        expect(captured[1], equals('image/png'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('getPetAvatar', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetAvatar(1);
+      expect(result, isNotNull);
+    });
+
+    test('getPetAvatarThumbnail', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetAvatarThumbnail(1);
+      expect(result, isNotNull);
+    });
+
+    test('setPetAvatarThumbnail', () async {
+      final api = _newPetApiForIntegration();
+
+      await api.setPetAvatarThumbnail(
+        1,
+        SetPetAvatarThumbnailRequest.value(
+          Uint8List.fromList(<int>[1, 2, 3]),
+        ),
+      );
+    });
+
+    test('uploadPetCertificate', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.uploadPetCertificate(
+        1,
+        UploadPetCertificateOptions(file: Uint8List.fromList([0x25, 0x50, 0x44, 0x46])),
+      );
+      expect(result, isNotNull);
+    });
+
+    test('uploadPetDocument', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.uploadPetDocument(
+        1,
+        UploadPetDocumentOptions(
+          file: Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]),
+          documentType: 'vaccination_record',
+          notes: 'Annual checkup',
+        ),
+      );
+      expect(result, isNotNull);
+    });
+
+    /* octet-stream-raw-body (multi-content-type binary selection): the
+     * uploadPetDocument operation declares TWO request Content-Types —
+     * `multipart/form-data` AND `application/octet-stream`. When the caller
+     * selects `application/octet-stream`, the wire body MUST be the file's
+     * RAW bytes with Content-Type: application/octet-stream — NOT a
+     * multipart/form-data envelope, NO multipart boundary, and NOT a
+     * JSON-stringified form map. We capture the outgoing request against a
+     * local mock (the same idiom as the setPetAvatar raw-bytes test) and
+     * assert both the exact body bytes and the Content-Type header. */
+    test('uploadPetDocument streams raw bytes when octet-stream is selected', () async {
+      List<int>? capturedBody;
+      String? capturedContentType;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        capturedContentType = request.headers.contentType?.toString();
+        final builder = BytesBuilder();
+        await for (final chunk in request) {
+          builder.add(chunk);
+        }
+        capturedBody = builder.takeBytes();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType('application', 'json')
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final payload = Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]);
+        await api.uploadPetDocument(
+          1,
+          UploadPetDocumentOptions(file: payload),
+          'application/octet-stream',
+        );
+
+        // (1) The body is EXACTLY the raw file bytes — not a multipart
+        // envelope, not base64, not a JSON int-array.
+        expect(capturedBody, equals([0x66, 0x61, 0x6B, 0x65]));
+        // (2) The Content-Type is the selected octet-stream type, with no
+        // multipart boundary parameter.
+        expect(capturedContentType, equals('application/octet-stream'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* multipart-default-preserved (over-correction guard): selecting (or
+     * defaulting to) `multipart/form-data` must still send a multipart body —
+     * a `multipart/form-data; boundary=...` Content-Type and the raw file
+     * bytes embedded somewhere inside the multipart envelope (not as the whole
+     * body). This guards against the raw-body fix collapsing the multipart
+     * path. */
+    test('uploadPetDocument still sends multipart when that type is selected', () async {
+      List<int>? capturedBody;
+      String? capturedContentType;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        capturedContentType = request.headers.contentType?.toString();
+        final builder = BytesBuilder();
+        await for (final chunk in request) {
+          builder.add(chunk);
+        }
+        capturedBody = builder.takeBytes();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType('application', 'json')
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final payload = Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]);
+        // No selector — defaults to the first declared type
+        // (multipart/form-data).
+        await api.uploadPetDocument(
+          1,
+          UploadPetDocumentOptions(
+            file: payload,
+            documentType: 'vaccination_record',
+          ),
+        );
+
+        // (1) The Content-Type is multipart with a boundary parameter.
+        expect(capturedContentType, isNotNull);
+        expect(capturedContentType, startsWith('multipart/form-data; boundary='));
+        // (2) The raw file bytes are embedded INSIDE the multipart envelope
+        // (a Content-Disposition part header precedes them), so the body is
+        // strictly larger than the bare payload.
+        expect(capturedBody, isNotNull);
+        expect(capturedBody!.length, greaterThan(payload.length));
+        final bodyText = String.fromCharCodes(capturedBody!);
+        expect(bodyText, contains('Content-Disposition: form-data'));
+        expect(bodyText, contains('name="file"'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('addPetPhotos', () async {
+      final api = _newPetApiForIntegration();
+      final options = AddPetPhotosOptions(
+        files: [
+          Uint8List.fromList([1, 2, 3])
+        ],
+        metadata: PhotoMetadata(caption: 'test'),
+      );
+      final result = await api.addPetPhotos(1, options);
+      expect(result, isNotNull);
+    });
+
+    test('downloadPetDocument', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.downloadPetDocument(1, 1);
+      expect(result, isNotNull);
+    });
+
+    test('getPetPhoto', () async {
+      final api = _newPetApiForIntegration();
+      final result = await api.getPetPhoto(1, 1);
+      expect(result, isNotNull);
+    });
+
+    test('getPetTag', () async {
+      final api = _newPetApiForIntegration();
+      final result = await api.getPetTag(5, 'cute', GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
+      expect(result, isNotNull);
+    });
+
+    test('getExternalPetInfo', () async {
+      final api = _newPetApiForIntegration();
+      final result = await api.getExternalPetInfo(1, null);
+      expect(result, isNotNull);
+    }, skip: 'Per-operation server URL points to external host');
+
+    test('downloadBinaryMock', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType('application', 'octet-stream')
+          ..add([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetAvatarWithHTTPInfo(1);
+        expect(result.statusCode, equals(200));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('uploadMultipartMock', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"code":200,"type":"","message":"success"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.uploadPetCertificate(
+            1, UploadPetCertificateOptions(file: Uint8List.fromList([1, 2, 3])));
+        expect(result, isNotNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+     * operation that receives a 200 with an empty body must throw the
+     * typed ApiError from the plain convenience method (parity with
+     * C#/Swift), not a Dart runtime TypeError from `null as Pet`. */
+    test('emptyBodyMock throws ApiError from convenience method', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await expectLater(
+          api.getPetById(1, null),
+          throwsA(isA<ApiError>()),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* operation-cookie-param-crlf-fails-closed (canonical scenario 6): the
+     * deletePet `api_key` cookie param is interpolated straight into the
+     * Cookie request header. A value carrying CR/LF (or any control char)
+     * would smuggle in extra headers, so the generated op validates every
+     * assembled cookie value against the RFC 6265 cookie-value grammar and
+     * fails closed with an ArgumentError BEFORE any request is sent — mirroring
+     * the auth-cookie validation path. */
+    test('deletePet cookie param with CR/LF fails closed with RFC 6265 error', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      await expectLater(
+        api.deletePet(1, const DeletePetOptions(apiKey: 'sess\r\nInjected: yes')),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // A control character (not just CR/LF) is rejected the same way.
+      await expectLater(
+        api.deletePet(1, const DeletePetOptions(apiKey: 'sess\x00ion')),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    /* malformed-2xx-body-fails-loud (canonical scenario 11): a 200 response
+     * carrying a JSON content-type but an undecodable body must propagate the
+     * deserialize failure (SerializationError) rather than silently handing
+     * back the raw string. getPetById deserializes into Pet, so a garbage body
+     * must surface loudly. */
+    test('malformed 2xx JSON body propagates a deserialize error', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{ this is not valid json ::: }')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await expectLater(
+          api.getPetById(1, null),
+          throwsA(isA<SerializationError>()),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* per-call-auth-override: an Authenticator passed to the BASE operation
+     * method (not just WithHTTPInfo) must be applied to the outgoing request.
+     * The default header carries one token; the per-call authenticator carries
+     * a different one and must win on the wire. */
+    test('addPet per-call auth override', () async {
+      String? capturedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"x","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Authorization', 'Bearer default-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        final auth = _PerCallAuth();
+
+        await api.addPet(Pet(name: 'OverrideDog', photoUrls: <String>{'http://example.com/p.jpg'}), AddPetOptions(auth: auth));
+
+        expect(capturedAuth, equals('Bearer per-call-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* auth-in-options-applied: an Authenticator supplied via the Options
+     * object (AddPetOptions(auth: ...)) must be threaded onto the outgoing
+     * request, overriding the client's default header. This is the folded
+     * replacement for the removed standalone `auth:` parameter. */
+    test('addPet auth supplied via Options is applied', () async {
+      String? capturedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"x","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Authorization', 'Bearer default-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        final auth = _PerCallAuth();
+
+        await api.addPet(
+          Pet(name: 'OptDog', photoUrls: <String>{'http://example.com/p.jpg'}),
+          AddPetOptions(auth: auth),
+        );
+
+        expect(capturedAuth, equals('Bearer per-call-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* auth-omitted-uses-config-default: when no auth is supplied on the
+     * Options object, the call must fall back to the Configuration's
+     * credentials (here a default Authorization header) rather than sending
+     * no credentials at all. */
+    test('addPet without Options auth uses Configuration default', () async {
+      String? capturedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"x","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Authorization', 'Bearer default-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.addPet(
+          Pet(name: 'DefDog', photoUrls: <String>{'http://example.com/p.jpg'}),
+          const AddPetOptions(),
+        );
+
+        expect(capturedAuth, equals('Bearer default-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* unsecured-op-has-no-auth-field: getPetById is not secured, so its
+     * generated signature carries no Options auth slot at all — the call
+     * compiles and runs with only its path/server positional arguments. */
+    test('getPetById unsecured op has no auth field', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":7,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetById(7, null);
+        expect(result, isNotNull);
+        expect(result.id, equals(7));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* required-nested-param-validation: getPetByName's `category` is a
+     * REQUIRED query param carried on a REQUIRED (non-null) Options object,
+     * so GetPetByNameOptions generates it as a non-nullable field
+     * (`final String category` + `required this.category`). Dart's sound null
+     * safety therefore makes a missing value unrepresentable: it cannot be
+     * constructed, passed, or read as null without a compile error or a
+     * cast TypeError at the language boundary — i.e. the type system itself
+     * is the required-param guard, and the generated SDK additionally emits
+     * an explicit ArgumentError.checkNotNull enforcement point for parity.
+     * The observable, reachable contract we assert here is that a supplied
+     * category is REQUIRED to be present and is serialised onto the wire. */
+    test('getPetByName sends required category on the wire', () async {
+      String? capturedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByName(
+          'Rex',
+          const GetPetByNameOptions(category: 'dogs'),
+        );
+
+        expect(result, isNotNull);
+        expect(capturedQuery, contains('category=dogs'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* optional-array-query-param-styled (cross-SDK parity, Wave D): getPetTag
+     * carries TWO OPTIONAL array query params — `colors` (pipeDelimited) and
+     * `sizes` (spaceDelimited). Each must be serialised onto the wire using its
+     * declared OAS style, NOT a language-debug representation of the list. The
+     * canonical failure (seen in the go SDK, where an optional array is a
+     * pointer-to-slice formatted with %v) is a single blob like
+     * `colors=%5Bblue,+black%5D` / `&[blue black]`. Dart models an optional
+     * array as a plain nullable `List<String>?`, and the value serializer
+     * reflects over any `List` element type, so the styled form is produced
+     * correctly. We capture the outbound query against a local mock and assert
+     * the styled values are present and the debug blob is absent. */
+    test('getPetTag serializes optional array query params as styled', () async {
+      String? capturedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetTag(
+          5,
+          'cute',
+          GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']),
+        );
+        expect(result, isNotNull);
+
+        // Decode the captured raw query so percent-encoding of the structural
+        // separators (`|`, ` `) does not make the assertions brittle.
+        final decoded = Uri.decodeQueryComponent(capturedQuery ?? '');
+
+        // colors is pipeDelimited → colors=blue|black ; both members appear in
+        // order joined by the declared `|` separator.
+        expect(decoded, contains('colors=blue|black'));
+        // sizes is spaceDelimited → sizes=S M (members joined by a space).
+        expect(decoded, contains('sizes=S M'));
+
+        // The literal language-debug list form MUST NOT appear on the wire —
+        // this is exactly the garbage the go pointer-to-slice bug produced.
+        expect(decoded, isNot(contains('[blue')));
+        expect(decoded, isNot(contains('blue, black')));
+        expect(decoded, isNot(contains('blue black')));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* required-string-empty-rejected: for a REQUIRED string param, an empty
+     * string "" is treated as "absent" (parity with go/rust/swift/elixir),
+     * so the call must fail-fast with an ArgumentError rather than sending an
+     * empty value on the wire. getPetByName's `category` is a required string
+     * query param carried on the required Options object. */
+    test('getPetByName rejects empty-string required category', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      await expectLater(
+        api.getPetByName('Rex', const GetPetByNameOptions(category: '')),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('errorHandling_notFound', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('$chasmHttpUrl/test/status/404')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      try {
+        await api.getPetById(99999, null);
+        fail('Expected error for non-existent pet');
+      } on NotFoundError {
+        // Expected
+      }
+    });
+
+    test('errorHandling_serverError', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('$chasmHttpUrl/test/status/500')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      try {
+        await api.getPetById(1, null);
+        fail('Expected error for server error response');
+      } on InternalServerError {
+        // Expected
+      }
+    });
+  });
+}
+{{/generateTests}}

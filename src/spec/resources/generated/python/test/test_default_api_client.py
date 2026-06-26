@@ -1,0 +1,781 @@
+# ruff: noqa
+# mypy: ignore-errors
+import json
+
+import pytest
+from typing import Any
+
+from petstore_client.default_api_client import DefaultApiClient
+from petstore_client.transport_options import TransportOptions
+
+
+class TestTlsVerificationDisabled:
+    def test_makes_https_request_with_verify_ssl_false(
+        self, chasm_https_url: Any
+    ) -> None:
+        transport = TransportOptions.builder().verify_ssl(False).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        # chasm echo envelope always includes a method field
+        assert '"method"' in response.body
+
+
+class TestCustomCaBundle:
+    def test_makes_https_request_with_custom_ca_cert(
+        self, chasm_https_url: Any, ca_cert_path: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(True)
+            .ca_cert_path(ca_cert_path)
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        assert '"method"' in response.body
+
+
+class TestHttpProxy:
+    def test_makes_http_request_through_proxy(
+        self, chasm_internal_http_url: Any, proxy_url: Any
+    ) -> None:
+        transport = TransportOptions.builder().proxy(proxy_url).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_internal_http_url + "/test/echo", {}, None
+        )
+
+        assert response.status_code == 200
+        assert '"method"' in response.body
+
+
+class TestProxyWithCredentials:
+    # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    # and surfaced as Proxy-Authorization so the proxy can authenticate
+    # the tunnel — otherwise the proxy 407s. urllib3 2.x does NOT extract
+    # userinfo from the proxy URL natively (ProxyManager(url).proxy_headers
+    # is {}), so the client must build the header itself. Assert the live
+    # pool manager actually carries the Proxy-Authorization header, not just
+    # that the URL string preserves the userinfo.
+    def test_proxy_with_credentials_injects_basic_authorization(self) -> None:
+        transport = (
+            TransportOptions.builder()
+            .proxy("http://alice:s3cret@127.0.0.1:3128")
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        # urllib3.util.make_headers emits the header with a lowercase key,
+        # so look it up case-insensitively. HTTP header names are
+        # case-insensitive on the wire regardless.
+        proxy_headers = {
+            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+        }
+        assert proxy_headers.get("proxy-authorization") == "Basic YWxpY2U6czNjcmV0"
+
+    def test_proxy_with_percent_encoded_credentials_are_decoded(self) -> None:
+        import base64
+
+        # Reserved characters in the userinfo are percent-encoded in the URL
+        # and must be decoded before base64 (matching Java/Kotlin URLDecode).
+        transport = (
+            TransportOptions.builder()
+            .proxy("http://al%40ice:p%3Ass@127.0.0.1:3128")
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        proxy_headers = {
+            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+        }
+        expected = "Basic " + base64.b64encode(b"al@ice:p:ss").decode("ascii")
+        assert proxy_headers.get("proxy-authorization") == expected
+
+    def test_proxy_without_credentials_has_no_proxy_authorization(self) -> None:
+        transport = TransportOptions.builder().proxy("http://127.0.0.1:3128").build()
+        client = DefaultApiClient(transport)
+        proxy_headers = {
+            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+        }
+        assert "proxy-authorization" not in proxy_headers
+
+    def test_canonical_user_pass_proxy_carries_credentials(self) -> None:
+        # Gap AK (canonical scenario, AUDIT.md): a proxy URL of the form
+        # http://user:pass@127.0.0.1:3128 must carry the proxy credentials —
+        # the userinfo is extracted and surfaced as Proxy-Authorization
+        # rather than dropped. Java was the only SDK that dropped them; this
+        # locks the behaviour across the fleet.
+        import base64
+
+        transport = (
+            TransportOptions.builder().proxy("http://user:pass@127.0.0.1:3128").build()
+        )
+        client = DefaultApiClient(transport)
+        proxy_headers = {
+            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+        }
+        expected = "Basic " + base64.b64encode(b"user:pass").decode("ascii")
+        assert proxy_headers.get("proxy-authorization") == expected
+
+
+class TestHttpProxyWithTls:
+    def test_makes_https_request_through_proxy_with_verify_ssl_false(
+        self, chasm_internal_https_url: Any, proxy_url: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder().proxy(proxy_url).verify_ssl(False).build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_internal_https_url + "/test/echo", {}, None
+        )
+
+        assert response.status_code == 200
+        assert '"method"' in response.body
+
+
+class TestRequestTimeout:
+    def test_times_out_on_slow_endpoint(self, chasm_http_url: Any) -> None:
+        transport = TransportOptions.builder().timeout(1).build()
+        client = DefaultApiClient(transport)
+
+        with pytest.raises(Exception):
+            client.send_request("GET", chasm_http_url + "/test/slow", {}, None)
+
+
+class TestUserAgentHeader:
+    def test_injects_custom_user_agent_header(self, chasm_http_url: Any) -> None:
+        transport = TransportOptions.builder().user_agent("MyApp/1.0").build()
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        # chasm envelope lowercases all header keys
+        assert body["headers"]["user-agent"] == "MyApp/1.0"
+
+
+class TestRequestIdInjection:
+    def test_injects_request_id_header(self, chasm_http_url: Any) -> None:
+        transport = TransportOptions.builder().inject_request_id(True).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        request_id = body["headers"]["x-request-id"]
+        assert request_id
+        import re
+
+        assert re.match(
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            request_id,
+        )
+
+    def test_generates_unique_request_ids(self, chasm_http_url: Any) -> None:
+        transport = TransportOptions.builder().inject_request_id(True).build()
+        client = DefaultApiClient(transport)
+
+        response1 = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+        request_id1 = json.loads(response1.body)["headers"]["x-request-id"]
+
+        response2 = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+        request_id2 = json.loads(response2.body)["headers"]["x-request-id"]
+
+        assert request_id1 != request_id2
+
+
+class TestDefaultHeaders:
+    def test_includes_transport_default_headers(self, chasm_http_url: Any) -> None:
+        transport = (
+            TransportOptions.builder()
+            .default_header("X-Custom", "custom-value")
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        assert body["headers"]["x-custom"] == "custom-value"
+
+    def test_caller_headers_override_transport_defaults(
+        self, chasm_http_url: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder().default_header("Accept", "text/plain").build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_http_url + "/test/echo", {"Accept": "application/json"}, None
+        )
+
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        assert body["headers"]["accept"] == "application/json"
+
+
+class TestRedirectHandling:
+    def test_follows_redirects_when_enabled(self, chasm_http_url: Any) -> None:
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_http_url + "/test/redirect/302", {}, None
+        )
+
+        assert response.status_code == 200
+        # chasm 302 redirect target lands on the echo envelope
+        assert '"method"' in response.body
+
+    def test_returns_redirect_when_disabled(self, chasm_http_url: Any) -> None:
+        transport = TransportOptions.builder().follow_redirects(False).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_http_url + "/test/redirect/302", {}, None
+        )
+
+        assert response.status_code == 302
+
+    def test_redirect_303_switches_to_get_and_drops_body(
+        self, chasm_http_url: Any
+    ) -> None:
+        """Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4."""
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "POST",
+            chasm_http_url + "/test/redirect/303",
+            {"Content-Type": "application/json"},
+            "hello-body",
+        )
+
+        assert response.status_code == 200
+        import json as _json
+
+        parsed = _json.loads(response.body)
+        assert parsed["method"] == "GET"
+        assert parsed["body"] == ""
+
+    def test_multipart_body_replayed_on_307_redirect(self, chasm_http_url: Any) -> None:
+        """T-new-3: multipart bodies must be replayed across 307 redirects per
+        RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+        request after a 307 still carries the multipart form parts. chasm's
+        echo envelope returns the replayed body verbatim; we verify the
+        multipart parts are present in the body and method is preserved."""
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        )
+        client = DefaultApiClient(transport)
+        boundary = "test-boundary"
+        body = (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="description"\r\n\r\n'
+            "hello\r\n"
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="file"; filename="file"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+            "file-content-bytes\r\n"
+            f"--{boundary}--\r\n"
+        )
+        headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+        response = client.send_request(
+            "POST",
+            chasm_http_url + "/test/redirect/307-multipart",
+            headers,
+            body.encode("utf-8"),
+        )
+
+        assert response.status_code == 200
+        import json as _json
+
+        parsed = _json.loads(response.body)
+        assert parsed["method"] == "POST", "follow-up request method must remain POST"
+        # chasm has no `replayed` sentinel; verify the multipart body was
+        # replayed by checking the echoed body still contains the form parts.
+        assert "file-content-bytes" in parsed["body"], (
+            "redirect target must receive the replayed multipart body"
+        )
+
+
+class TestMaxRedirects:
+    def test_respects_max_redirects_limit(self) -> None:
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        )
+        client = DefaultApiClient(transport)
+        assert client is not None
+        assert transport.max_redirects == 5
+
+
+class TestRedirectSecurityGuards:
+    """Bucket 4.1: the three guards the urllib3.Retry path missed.
+
+    These exercise the manual redirect loop in DefaultApiClient.
+    """
+
+    def test_refuses_non_http_redirect_scheme(self) -> None:
+        """Guard 1: a Location: file:/// (or data:, javascript:, etc.)
+        must NOT be followed. urllib3's default Retry-based redirect
+        handling will happily walk into anything that parses as a URL,
+        which is a local-file / sandbox-escape vector."""
+        from petstore_client.errors import ApiException
+
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b""
+
+            def release_conn(self) -> None:
+                return None
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                # First response is a 302 pointing at file:///etc/passwd.
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {"location": "file:///etc/passwd"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "http://example.com/start", {}, None)
+        assert "non-HTTP(S)" in str(excinfo.value.message or "")
+        # The follow-up request must NEVER have been issued.
+        assert len(pool.calls) == 1
+
+    def test_strips_authorization_on_https_to_http_downgrade(self) -> None:
+        """Guard 2: an HTTPS -> HTTP redirect is a TLS downgrade and
+        MUST strip Authorization / Cookie before re-issuing. Same host
+        is not enough: the scheme change is the threat."""
+
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b""
+
+            def release_conn(self) -> None:
+                return None
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {"location": "http://example.com/insecure"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        headers = {"Authorization": "Bearer secret", "Cookie": "sid=abc"}
+        client.send_request("GET", "https://example.com/start", headers, None)
+        assert len(pool.calls) == 2
+        followup_headers = pool.calls[1][2]
+        # Sensitive headers must be gone on the downgraded follow-up.
+        assert not any(k.lower() == "authorization" for k in followup_headers)
+        assert not any(k.lower() == "cookie" for k in followup_headers)
+
+    def test_clears_proxy_authorization_on_cross_origin_redirect(self) -> None:
+        """Guard 3: Proxy-Authorization lives on the pool manager's
+        proxy_headers bag, which urllib3.Retry.remove_headers_on_redirect
+        cannot reach. The manual loop must explicitly clear it on a
+        cross-origin hop, then restore it afterwards so subsequent
+        unrelated requests still authenticate to the proxy."""
+
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b""
+
+            def release_conn(self) -> None:
+                return None
+
+        observed_proxy_headers_on_followup: dict[str, str] = {}
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.proxy_headers: dict[str, str] = {
+                    "Proxy-Authorization": "Basic dXNlcjpwYXNz"
+                }
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                if len(self.calls) == 1:
+                    return _FakeResp(
+                        302, {"location": "https://other.example.com/dest"}
+                    )
+                observed_proxy_headers_on_followup.update(self.proxy_headers)
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 2
+        # During the cross-origin follow-up, Proxy-Authorization must be absent.
+        assert not any(
+            k.lower() == "proxy-authorization"
+            for k in observed_proxy_headers_on_followup
+        )
+        # After the loop finishes, the original Proxy-Authorization is restored
+        # on the pool manager so the next request still authenticates.
+        assert pool.proxy_headers.get("Proxy-Authorization") == "Basic dXNlcjpwYXNz"
+
+
+class TestN1RedirectBodyReplayMatrix:
+    """N1 (canonical scenario, AUDIT.md): on an HTTPS -> HTTP downgrade the
+    body-replay guard must key on the redirect status, not refuse every
+    status. A 302 carrying a body PROCEEDS (the request becomes GET and the
+    body is dropped per RFC 7231 section 6.4), while a 307/308 carrying a
+    body THROWS (those statuses preserve method+body, so replaying over
+    plaintext would leak it). Node guarded every status and threw on 302
+    too; 11 SDKs guard only 307/308. This locks the 307/308-only behaviour.
+    """
+
+    class _FakeResp:
+        def __init__(self, status: int, headers: dict[str, Any]) -> None:
+            self.status = status
+            self.headers = headers
+
+        def read(self) -> bytes:
+            return b""
+
+        def release_conn(self) -> None:
+            return None
+
+    def _pool(self, first_status: int) -> Any:
+        outer = self
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, kwargs.get("body")))
+                if len(self.calls) == 1:
+                    return outer._FakeResp(
+                        first_status, {"location": "http://example.com/insecure"}
+                    )
+                return outer._FakeResp(200, {})
+
+        return _Pool()
+
+    def test_302_https_to_http_with_body_proceeds(self) -> None:
+        # 302 demotes POST -> GET and drops the body, so the plaintext hop
+        # carries no sensitive payload: it must proceed, not throw.
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(302)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        response = client.send_request(
+            "POST",
+            "https://example.com/secure",
+            {"Content-Type": "application/json"},
+            '{"secret":"value"}',
+        )
+        assert response.status_code == 200
+        assert len(pool.calls) == 2
+        # The follow-up is a GET with the body dropped.
+        assert pool.calls[1][0] == "GET"
+        assert pool.calls[1][2] is None
+
+    def test_307_https_to_http_with_body_raises(self) -> None:
+        from petstore_client.errors import ApiException
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(307)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                "POST",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        # The plaintext replay must never have been issued.
+        assert len(pool.calls) == 1
+
+    def test_308_https_to_http_with_body_raises(self) -> None:
+        from petstore_client.errors import ApiException
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(308)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                "PUT",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        assert len(pool.calls) == 1
+
+
+class TestConcurrentRedirects:
+    """WAVE E parity: redirect counting and the redirect-limit refusal must
+    be scoped to a SINGLE request, never shared on the client instance.
+
+    The threat (seen in the Swift SDK, whose URLSession delegate stored the
+    redirect counter and the refusal error on the shared delegate): two
+    requests issued CONCURRENTLY through ONE client corrupt each other's
+    redirect handling -- one request's hops inflate the other's count, or a
+    'too many redirects' refusal raised for one request surfaces on the
+    other.
+
+    The Python client drives the redirect loop in
+    ``DefaultApiClient._follow_redirects`` using only locals
+    (``redirects_remaining``, ``current_url``, ...), so no redirect state
+    lives on ``self``. These tests lock that in: many requests run
+    concurrently through one shared client, some legitimately exhausting the
+    redirect budget and some not, and each must get its OWN correct outcome.
+    """
+
+    class _FakeResp:
+        def __init__(self, status: int, headers: dict[str, Any]) -> None:
+            self.status = status
+            self.headers = headers
+
+        def read(self) -> bytes:
+            return b""
+
+        def release_conn(self) -> None:
+            return None
+
+    class _SharedChainPool:
+        """Thread-safe fake pool shared by every concurrent request.
+
+        Two virtual endpoints:
+          * ``/loop``  -> an unbounded redirect chain (always 302 -> /loop),
+            which any finite ``max_redirects`` budget must refuse.
+          * ``/once``  -> a single 302 -> /done that lands on 200.
+
+        A single ``request_count`` is shared across threads precisely to
+        prove the client does NOT lean on any per-instance counter: the only
+        per-request bookkeeping lives in ``_follow_redirects``' locals.
+        """
+
+        def __init__(self) -> None:
+            import threading
+
+            self._lock = threading.Lock()
+            self.request_count = 0
+
+        def request(self, method: str, url: str, **kwargs: Any) -> Any:
+            with self._lock:
+                self.request_count += 1
+            if url.endswith("/done"):
+                return TestConcurrentRedirects._FakeResp(200, {})
+            if "/once" in url:
+                return TestConcurrentRedirects._FakeResp(
+                    302, {"location": "http://example.com/done"}
+                )
+            # '/loop' (and its self-redirect target) -> never terminates.
+            return TestConcurrentRedirects._FakeResp(
+                302, {"location": "http://example.com/loop"}
+            )
+
+    def test_concurrent_requests_do_not_share_redirect_budget(self) -> None:
+        """One shared client; many threads. Half walk an infinite chain and
+        must each independently hit the limit, half follow a single hop and
+        must each independently reach 200. If the redirect counter or the
+        refusal error were shared on the client, the interleaving would make
+        a single-hop request inherit a loop request's exhausted budget (or
+        its 'too many redirects' error) and vice versa.
+        """
+        import concurrent.futures
+
+        from petstore_client.errors import ApiException
+
+        # A small, finite budget so the infinite chain refuses quickly while
+        # the single-hop request stays comfortably under it.
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(3).build()
+        )
+        pool = self._SharedChainPool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+
+        def hit_loop() -> str:
+            try:
+                client.send_request("GET", "http://example.com/loop", {}, None)
+                return "no-error"
+            except ApiException as exc:
+                return (
+                    "limit"
+                    if "Too many redirects" in str(exc.message or "")
+                    else "other-error"
+                )
+
+        def hit_once() -> Any:
+            return client.send_request("GET", "http://example.com/once", {}, None)
+
+        # Interleave the two request kinds so their redirect loops overlap in
+        # time on the shared client.
+        loop_n = 12
+        once_n = 12
+        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool_exec:
+            loop_futures = [pool_exec.submit(hit_loop) for _ in range(loop_n)]
+            once_futures = [pool_exec.submit(hit_once) for _ in range(once_n)]
+            loop_results = [f.result() for f in loop_futures]
+            once_results = [f.result() for f in once_futures]
+
+        # Every infinite-chain request refused with its OWN limit error...
+        assert loop_results == ["limit"] * loop_n, (
+            "a concurrent single-hop request must not have leaked its budget "
+            "into the infinite-chain requests"
+        )
+        # ...and every single-hop request reached 200 -- none was poisoned by
+        # a concurrent loop request's exhausted budget or refusal error.
+        assert all(r.status_code == 200 for r in once_results), (
+            "a single-hop request must not inherit a concurrent loop "
+            'request "too many redirects" refusal'
+        )
+
+    def test_concurrent_live_redirects_each_resolve_independently(
+        self, chasm_http_url: Any
+    ) -> None:
+        """End-to-end variant against the live mock: many concurrent
+        single-hop redirect follows through one shared client must every one
+        land on the echo envelope with status 200, interleaved with plain
+        non-redirect requests that must each return 200 too. No request's
+        redirect handling may disturb another's.
+        """
+        import concurrent.futures
+
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        )
+        client = DefaultApiClient(transport)
+
+        def follow() -> Any:
+            return client.send_request(
+                "GET", chasm_http_url + "/test/redirect/302", {}, None
+            )
+
+        def plain() -> Any:
+            return client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool_exec:
+            follow_futures = [pool_exec.submit(follow) for _ in range(8)]
+            plain_futures = [pool_exec.submit(plain) for _ in range(8)]
+            follow_results = [f.result() for f in follow_futures]
+            plain_results = [f.result() for f in plain_futures]
+
+        # Each followed redirect independently resolved to the echo envelope.
+        assert all(r.status_code == 200 for r in follow_results)
+        assert all('"method"' in r.body for r in follow_results)
+        # Each plain request independently returned 200.
+        assert all(r.status_code == 200 for r in plain_results)
+
+
+class TestMultipartBody:
+    def test_sends_multipart_form_data(self, chasm_http_url: Any) -> None:
+        client = DefaultApiClient()
+        form_data = {"description": "A test file", "file": b"file content"}
+        response = client.send_request(
+            "POST", chasm_http_url + "/test/echo", {}, form_data
+        )
+        assert response is not None
+
+    def test_multipart_field_name_with_crlf_rejected_on_string_value(
+        self, chasm_http_url: Any
+    ) -> None:
+        """W-new-2: multipart field-name validation must run on every branch
+        (not just binary). Even for a plain str value, a CR/LF in the field
+        name must be rejected to prevent Content-Disposition smuggling."""
+        client = DefaultApiClient()
+        bad_fields = {"name\r\nInjected: yes": "string-value"}
+        with pytest.raises(Exception):
+            client.send_request("POST", chasm_http_url + "/test/echo", {}, bad_fields)
+
+
+class TestHttpCompression:
+    def test_decompresses_gzip_response(self) -> None:
+        client = DefaultApiClient()
+        response = client.send_request(
+            "GET",
+            "https://jsonplaceholder.typicode.com/posts/1",
+            {"Accept-Encoding": "gzip"},
+            None,
+        )
+
+        assert response.status_code == 200
+        assert "userId" in response.body
+
+    def test_decompresses_brotli_response(self) -> None:
+        client = DefaultApiClient()
+        response = client.send_request(
+            "GET",
+            "https://jsonplaceholder.typicode.com/posts/1",
+            {"Accept-Encoding": "br"},
+            None,
+        )
+
+        assert response.status_code == 200
+        assert "userId" in response.body
+
+    def test_decompresses_zstd_response(self) -> None:
+        client = DefaultApiClient()
+        response = client.send_request(
+            "GET",
+            "https://jsonplaceholder.typicode.com/posts/1",
+            {"Accept-Encoding": "zstd"},
+            None,
+        )
+
+        assert response.status_code == 200
+        assert "userId" in response.body
+
+
+class TestNullBodyContentLength:
+    # Regression: POST/PUT/PATCH with body == None must emit an explicit
+    # Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+    # with no Content-Length (411 Length Required). The client sets the
+    # header explicitly on body-bearing verbs when the body is None.
+    def test_post_with_null_body_sends_content_length_zero(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        response = client.send_request("POST", chasm_http_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        payload = json.loads(response.body)
+        # chasm envelope uses camelCase `contentLength` as an integer (not string)
+        assert payload.get("contentLength") == 0
+
+
+class TestClientLifecycle:
+    # Gap T6: close() releases the underlying urllib3 PoolManager and is
+    # idempotent. A request issued on a closed client must surface the SDK's
+    # own ApiException (closed-flag guard), not a leaked transport error,
+    # matching the uniform use-after-close contract across SDKs.
+    def test_close_releases_underlying_client(self) -> None:
+        from petstore_client.errors import ApiException
+
+        client = DefaultApiClient()
+        client.close()
+        # close() is idempotent.
+        client.close()
+
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com", {}, None)
+        assert "closed" in str(excinfo.value)

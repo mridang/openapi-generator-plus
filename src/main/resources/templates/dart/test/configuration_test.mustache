@@ -1,0 +1,190 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('Configuration', () {
+    test('default values', () {
+      final config = Configuration.defaultConfiguration();
+
+      expect(config.baseUrl, equals('{{{basePath}}}'));
+      expect(config.defaultHeaders, isEmpty);
+    });
+
+    test('builder returns builder instance', () {
+      final builder = ConfigurationBuilder();
+      expect(builder, isNotNull);
+    });
+
+    test('builder sets baseUrl', () {
+      final config = ConfigurationBuilder()
+          .baseUrl('https://custom.example.com')
+          .build();
+
+      expect(config.baseUrl, equals('https://custom.example.com'));
+    });
+
+    test('builder sets default header', () {
+      final config = ConfigurationBuilder()
+          .defaultHeader('X-Custom', 'value')
+          .build();
+
+      final headers = config.defaultHeaders;
+      expect(headers['X-Custom'], equals('value'));
+    });
+
+    test('builder sets multiple default headers', () {
+      final config = ConfigurationBuilder()
+          .defaultHeaders({
+            'X-First': 'one',
+            'X-Second': 'two',
+          })
+          .build();
+
+      final headers = config.defaultHeaders;
+      expect(headers['X-First'], equals('one'));
+      expect(headers['X-Second'], equals('two'));
+    });
+
+    test('builder chaining', () {
+      final config = ConfigurationBuilder()
+          .baseUrl('https://api.example.com')
+          .defaultHeader('Authorization', 'Bearer token')
+          .build();
+
+      expect(config.baseUrl, equals('https://api.example.com'));
+      expect(config.defaultHeaders['Authorization'], equals('Bearer token'));
+    });
+
+    test('server URL resolution', () {
+      final server = ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: {
+          'env': const ServerVariable(
+            defaultValue: 'api',
+            enumValues: ['api', 'staging'],
+          ),
+          'version': const ServerVariable(
+            defaultValue: 'v3',
+            enumValues: ['v2', 'v3'],
+          ),
+        },
+      );
+
+      final config = ConfigurationBuilder()
+          .server(server, {'env': 'staging'})
+          .build();
+
+      expect(config.baseUrl, equals('https://staging.example.com/api/v3'));
+    });
+
+    test('server URL resolution with defaults', () {
+      final server = ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: {
+          'env': const ServerVariable(
+            defaultValue: 'api',
+            enumValues: ['api', 'staging'],
+          ),
+          'version': const ServerVariable(
+            defaultValue: 'v3',
+            enumValues: ['v2', 'v3'],
+          ),
+        },
+      );
+
+      final config = ConfigurationBuilder()
+          .server(server)
+          .build();
+
+      expect(config.baseUrl, equals('https://api.example.com/api/v3'));
+    });
+
+    test('baseUrl override', () {
+      final config = ConfigurationBuilder()
+          .baseUrl('https://original.example.com')
+          .baseUrl('https://override.example.com')
+          .build();
+
+      expect(config.baseUrl, equals('https://override.example.com'));
+    });
+
+    test('default headers copy isolation', () {
+      final config = ConfigurationBuilder()
+          .defaultHeader('X-Test', 'value')
+          .build();
+
+      final headers = config.defaultHeaders;
+      headers['X-Mutated'] = 'should-not-affect-config';
+
+      final original = config.defaultHeaders;
+      expect(original.containsKey('X-Mutated'), isFalse);
+    });
+
+    test('builder accumulates multiple headers', () {
+      final config = ConfigurationBuilder()
+          .defaultHeader('X-First', 'one')
+          .defaultHeader('X-Second', 'two')
+          .build();
+
+      final headers = config.defaultHeaders;
+      expect(headers.length, equals(2));
+      expect(headers['X-First'], equals('one'));
+      expect(headers['X-Second'], equals('two'));
+    });
+
+    test('builder merges single and bulk headers', () {
+      final config = ConfigurationBuilder()
+          .defaultHeader('X-First', 'one')
+          .defaultHeaders({'X-Second': 'two'})
+          .defaultHeader('X-Third', 'three')
+          .build();
+
+      final headers = config.defaultHeaders;
+      expect(headers.length, equals(3));
+      expect(headers['X-First'], equals('one'));
+      expect(headers['X-Second'], equals('two'));
+      expect(headers['X-Third'], equals('three'));
+    });
+
+    test('invalid server variable enum value throws', () {
+      const server = ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: {
+          'env': ServerVariable(
+            defaultValue: 'api',
+            enumValues: ['api', 'staging'],
+          ),
+        },
+      );
+
+      expect(
+        () => ConfigurationBuilder().server(server, {'env': 'invalid'}).build(),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('builder methods return the builder for chaining', () {
+      final builder = ConfigurationBuilder();
+      final server = ServerConfiguration(urlTemplate: 'https://example.com');
+
+      expect(identical(builder.baseUrl('https://example.com'), builder), isTrue);
+      expect(identical(builder.defaultHeader('X-Key', 'value'), builder), isTrue);
+      expect(identical(builder.defaultHeaders({'X-Other': 'val'}), builder), isTrue);
+      expect(identical(builder.server(server), builder), isTrue);
+    });
+
+    test('builder produces independent instances', () {
+      final builder = ConfigurationBuilder().baseUrl('https://example.com');
+      final first = builder.build();
+      final second = builder.build();
+
+      expect(first.baseUrl, equals(second.baseUrl));
+      expect(identical(first, second), isFalse);
+    });
+  });
+}
+{{/generateTests}}

@@ -1,0 +1,652 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import java.time.LocalDate
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class ValueSerializerTest {
+
+    /**
+     * N3/W3 parity: `format: date` path parameters must emit a date-only
+     * string (YYYY-MM-DD), not a full ISO datetime. Kotlin models
+     * `format: date` as [LocalDate], which `stringify` formats with
+     * [java.time.format.DateTimeFormatter.ISO_LOCAL_DATE].
+     */
+    @Nested
+    @DisplayName("format:date path parameter emits YYYY-MM-DD")
+    inner class FormatDatePathParamTests {
+
+        @Test
+        @DisplayName("LocalDate in path returns YYYY-MM-DD")
+        fun localDateInPathReturnsDateOnly() {
+            val date = LocalDate.of(2024, 1, 15)
+            assertEquals("2024-01-15", ValueSerializer.serialize(date, "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("LocalDate via serializeStyled simple path returns YYYY-MM-DD")
+        fun localDateViaSerializeStyledReturnsDateOnly() {
+            val date = LocalDate.of(2024, 1, 15)
+            assertEquals(
+                "2024-01-15",
+                ValueSerializer.serializeStyled(
+                    "since", date, "path", "string", null, "simple", false
+                )
+            )
+        }
+
+        @Test
+        @DisplayName("LocalDate at a day/year boundary still emits date-only (no time/offset leak)")
+        fun localDateBoundaryEmitsDateOnly() {
+            // UTC/midnight edge: a date sitting on the year boundary must
+            // serialise as a bare YYYY-MM-DD with no T00:00:00/offset suffix,
+            // matching the stringifyDate UTC behaviour of Go/Node/Swift/Dart.
+            val date = LocalDate.of(2024, 12, 31)
+            assertEquals("2024-12-31", ValueSerializer.serialize(date, "path", "string", null))
+        }
+    }
+
+    /**
+     * Cross-language parity tests for path-segment percent-encoding.
+     * Every SDK must produce identical encoded strings for these inputs.
+     */
+    @Nested
+    @DisplayName("path encoding parity")
+    inner class PathEncodingParityTests {
+
+        @Test
+        @DisplayName("ASCII-safe pass-through")
+        fun asciiSafePassThrough() {
+            assertEquals("abc123", ValueSerializer.serialize("abc123", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("space encoded as %20")
+        fun spaceEncoded() {
+            assertEquals("a%20b", ValueSerializer.serialize("a b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("slash encoded")
+        fun slashEncoded() {
+            assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("question mark encoded")
+        fun questionMarkEncoded() {
+            assertEquals("a%3Fb", ValueSerializer.serialize("a?b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("hash encoded")
+        fun hashEncoded() {
+            assertEquals("a%23b", ValueSerializer.serialize("a#b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("semicolon preserved (sub-delimiter)")
+        fun semicolonPreserved() {
+            assertEquals("a;b", ValueSerializer.serialize("a;b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("comma preserved (sub-delimiter)")
+        fun commaPreserved() {
+            assertEquals("a,b", ValueSerializer.serialize("a,b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("colon preserved (sub-delimiter)")
+        fun colonPreserved() {
+            assertEquals("a:b", ValueSerializer.serialize("a:b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("equals preserved (sub-delimiter)")
+        fun equalsPreserved() {
+            assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("unicode encoded as UTF-8 percent")
+        fun unicodeEncoded() {
+            assertEquals("%E6%97%A5%E6%9C%AC", ValueSerializer.serialize("日本", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("plus preserved (sub-delimiter)")
+        fun plusPreserved() {
+            assertEquals("a+b", ValueSerializer.serialize("a+b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("tilde preserved (unreserved, not over-encoded)")
+        fun tildePreserved() {
+            // java-kotlin-tilde-overencoded: URLEncoder emits `~`->`%7E`, but
+            // `~` is an RFC 3986 unreserved character and the other 10 SDKs
+            // leave it literal. Restore it so path segments match cross-SDK.
+            assertEquals("a~b", ValueSerializer.serialize("a~b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("already-percent-encoded is re-encoded (literal %)")
+        fun alreadyEncodedReencoded() {
+            assertEquals("a%2520b", ValueSerializer.serialize("a%20b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("matrix style with reserved char in value")
+        fun matrixStyleEncodesValue() {
+            assertEquals(";id=a%20b",
+                ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "matrix", false))
+        }
+
+        @Test
+        @DisplayName("simple style array with reserved chars")
+        fun simpleStyleArrayEncodesEachItem() {
+            assertEquals("a%20b,c%3Fd",
+                ValueSerializer.serializeStyled("ids", listOf("a b", "c?d"),
+                    "path", "array", null, "simple", false))
+        }
+
+        @Test
+        @DisplayName("path_array_item_with_reserved_char_is_percent_encoded")
+        fun path_array_item_with_reserved_char_is_percent_encoded() {
+            // Gap W1 regression: every per-item path value in a styled array
+            // must be percent-encoded BEFORE being joined with the structural
+            // separator. Otherwise '/', '?', '#', space leak into the URL.
+            val items = listOf("a/b", "c")
+            assertEquals("a%2Fb,c",
+                ValueSerializer.serializeStyled("name", items, "path", "array", null, "simple", false))
+            assertEquals(".a%2Fb.c",
+                ValueSerializer.serializeStyled("name", items, "path", "array", null, "label", true))
+            assertEquals(";name=a%2Fb,c",
+                ValueSerializer.serializeStyled("name", items, "path", "array", null, "matrix", false))
+        }
+
+        @Test
+        @DisplayName("empty string returns empty string")
+        fun emptyStringReturnsEmpty() {
+            assertEquals("", ValueSerializer.serialize("", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("null returns empty string in path location")
+        fun nullReturnsEmptyInPath() {
+            assertEquals("", ValueSerializer.serialize(null, "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("path value is encoded exactly once (no double-encoding)")
+        fun pathValueEncodedExactlyOnce() {
+            // path-double-encoding: serializeStyled already percent-encodes the
+            // path segment, so the api template must NOT wrap it again. A space
+            // must become %20 (never %2520) and a slash %2F (never %252F).
+            val space = ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "simple", false)
+            assertEquals("a%20b", space)
+            assertFalse((space as String).contains("%2520"))
+            val slash = ValueSerializer.serializeStyled("id", "a/b", "path", "string", null, "simple", false)
+            assertEquals("a%2Fb", slash)
+            assertFalse((slash as String).contains("%252F"))
+        }
+    }
+
+    @Nested
+    @DisplayName("serialize - query location")
+    inner class QuerySerializeTests {
+
+        @Test
+        @DisplayName("string returns as-is")
+        fun stringReturnsAsIs() {
+            assertEquals("hello", ValueSerializer.serialize("hello", "query", "string", null))
+        }
+
+        @Test
+        @DisplayName("null returns null")
+        fun nullReturnsNull() {
+            assertNull(ValueSerializer.serialize(null, "query", "string", null))
+        }
+
+        @Test
+        @DisplayName("integer returns string")
+        fun integerReturnsString() {
+            assertEquals("42", ValueSerializer.serialize(42, "query", "integer", null))
+        }
+
+        @Test
+        @DisplayName("boolean true returns true")
+        fun booleanTrueReturnsTrue() {
+            assertEquals("true", ValueSerializer.serialize(true, "query", "boolean", null))
+        }
+
+        @Test
+        @DisplayName("boolean false returns false")
+        fun booleanFalseReturnsFalse() {
+            assertEquals("false", ValueSerializer.serialize(false, "query", "boolean", null))
+        }
+
+        @Test
+        @DisplayName("array joins with comma by default (csv)")
+        fun arrayJoinsWithCommaByDefault() {
+            assertEquals("a,b,c", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", null))
+        }
+
+        @Test
+        @DisplayName("array returns list for multi")
+        fun arrayReturnsListForMulti() {
+            assertEquals(listOf("a", "b", "c"), ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "multi"))
+        }
+
+        @Test
+        @DisplayName("array joins with space for ssv")
+        fun arrayJoinsWithSpaceForSsv() {
+            assertEquals("a b c", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "ssv"))
+        }
+
+        @Test
+        @DisplayName("array joins with tab for tsv")
+        fun arrayJoinsWithTabForTsv() {
+            assertEquals("a\tb\tc", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "tsv"))
+        }
+
+        @Test
+        @DisplayName("array joins with pipe for pipes")
+        fun arrayJoinsWithPipeForPipes() {
+            assertEquals("a|b|c", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "pipes"))
+        }
+
+        @Test
+        @DisplayName("array joins with comma for csv")
+        fun arrayJoinsWithCommaForCsv() {
+            assertEquals("a,b,c", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "csv"))
+        }
+
+        @Test
+        @DisplayName("empty array returns empty string for csv")
+        fun emptyArrayReturnsEmptyStringForCsv() {
+            assertEquals("", ValueSerializer.serialize(emptyList<String>(), "query", "array", null))
+        }
+
+        @Test
+        @DisplayName("empty array returns empty list for multi")
+        fun emptyArrayReturnsEmptyListForMulti() {
+            assertEquals(emptyList<String>(), ValueSerializer.serialize(emptyList<String>(), "query", "array", "multi"))
+        }
+
+        @Test
+        @DisplayName("single-element array returns single value")
+        fun singleElementArrayReturnsSingleValue() {
+            assertEquals("a", ValueSerializer.serialize(listOf("a"), "query", "array", null))
+        }
+
+        @Test
+        @DisplayName("array of integers stringifies elements")
+        fun arrayOfIntegersStringifiesElements() {
+            assertEquals("1,2,3", ValueSerializer.serialize(listOf(1, 2, 3), "query", "array", null))
+        }
+
+        @Test
+        @DisplayName("array of booleans stringifies elements")
+        fun arrayOfBooleansStringifiesElements() {
+            assertEquals("true,false", ValueSerializer.serialize(listOf(true, false), "query", "array", null))
+        }
+    }
+
+    @Nested
+    @DisplayName("serialize - path location")
+    inner class PathSerializeTests {
+
+        @Test
+        @DisplayName("string returns URL-encoded value")
+        fun stringReturnsUrlEncodedValue() {
+            assertEquals("hello%20world", ValueSerializer.serialize("hello world", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("string with slash is URL-encoded")
+        fun stringWithSlashIsUrlEncoded() {
+            assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("simple string without encoding")
+        fun simpleStringNoEncoding() {
+            assertEquals("hello", ValueSerializer.serialize("hello", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serialize(null, "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("integer returns string")
+        fun integerReturnsString() {
+            assertEquals("42", ValueSerializer.serialize(42, "path", "integer", null))
+        }
+
+        @Test
+        @DisplayName("boolean true returns true")
+        fun booleanTrueReturnsTrue() {
+            assertEquals("true", ValueSerializer.serialize(true, "path", "boolean", null))
+        }
+
+        @Test
+        @DisplayName("boolean false returns false")
+        fun booleanFalseReturnsFalse() {
+            assertEquals("false", ValueSerializer.serialize(false, "path", "boolean", null))
+        }
+    }
+
+    @Nested
+    @DisplayName("serialize - header location")
+    inner class HeaderSerializeTests {
+
+        @Test
+        @DisplayName("string returns as-is")
+        fun stringReturnsAsIs() {
+            assertEquals("hello", ValueSerializer.serialize("hello", "header", "string", null))
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serialize(null, "header", "string", null))
+        }
+
+        @Test
+        @DisplayName("array joins with comma")
+        fun arrayJoinsWithComma() {
+            assertEquals("a,b,c", ValueSerializer.serialize(listOf("a", "b", "c"), "header", "array", null))
+        }
+
+        @Test
+        @DisplayName("integer returns string")
+        fun integerReturnsString() {
+            assertEquals("42", ValueSerializer.serialize(42, "header", "integer", null))
+        }
+
+        @Test
+        @DisplayName("boolean true returns true")
+        fun booleanTrueReturnsTrue() {
+            assertEquals("true", ValueSerializer.serialize(true, "header", "boolean", null))
+        }
+
+        @Test
+        @DisplayName("empty array joins to empty string")
+        fun emptyArrayJoinsToEmptyString() {
+            assertEquals("", ValueSerializer.serialize(emptyList<String>(), "header", "array", null))
+        }
+
+        @Test
+        @DisplayName("array of integers stringifies and joins")
+        fun arrayOfIntegersStringifiesAndJoins() {
+            assertEquals("1,2,3", ValueSerializer.serialize(listOf(1, 2, 3), "header", "array", null))
+        }
+    }
+
+    @Nested
+    @DisplayName("serialize - cookie location")
+    inner class CookieSerializeTests {
+
+        @Test
+        @DisplayName("string returns as-is")
+        fun stringReturnsAsIs() {
+            assertEquals("hello", ValueSerializer.serialize("hello", "cookie", "string", null))
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serialize(null, "cookie", "string", null))
+        }
+    }
+
+    @Nested
+    @DisplayName("serialize - form location")
+    inner class FormSerializeTests {
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serialize(null, "form", "string", null))
+        }
+
+        @Test
+        @DisplayName("string returns as-is")
+        fun stringReturnsAsIs() {
+            assertEquals("hello", ValueSerializer.serialize("hello", "form", "string", null))
+        }
+
+        @Test
+        @DisplayName("integer returns string")
+        fun integerReturnsString() {
+            assertEquals("42", ValueSerializer.serialize(42, "form", "integer", null))
+        }
+
+        @Test
+        @DisplayName("boolean true returns true")
+        fun booleanTrueReturnsTrue() {
+            assertEquals("true", ValueSerializer.serialize(true, "form", "boolean", null))
+        }
+
+        @Test
+        @DisplayName("boolean false returns false")
+        fun booleanFalseReturnsFalse() {
+            assertEquals("false", ValueSerializer.serialize(false, "form", "boolean", null))
+        }
+    }
+
+    @Nested
+    @DisplayName("serializeStyled - matrix style")
+    inner class MatrixStyleTests {
+
+        @Test
+        @DisplayName("scalar returns semicolon-prefixed name=value")
+        fun scalarReturnsSemicolonPrefixedNameValue() {
+            assertEquals(";color=blue", ValueSerializer.serializeStyled("color", "blue", "path", "string", null, "matrix", true))
+        }
+
+        @Test
+        @DisplayName("array with explode false joins with comma")
+        fun arrayExplodeFalseJoinsWithComma() {
+            assertEquals(";color=blue,black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "matrix", false))
+        }
+
+        @Test
+        @DisplayName("array with explode true repeats name")
+        fun arrayExplodeTrueRepeatsName() {
+            assertEquals(";color=blue;color=black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "matrix", true))
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serializeStyled("color", null, "path", "string", null, "matrix", true))
+        }
+    }
+
+    @Nested
+    @DisplayName("serializeStyled - label style")
+    inner class LabelStyleTests {
+
+        @Test
+        @DisplayName("scalar returns dot-prefixed value")
+        fun scalarReturnsDotPrefixedValue() {
+            assertEquals(".blue", ValueSerializer.serializeStyled("color", "blue", "path", "string", null, "label", true))
+        }
+
+        @Test
+        @DisplayName("array with explode false joins with comma")
+        fun arrayExplodeFalseJoinsWithComma() {
+            assertEquals(".blue,black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "label", false))
+        }
+
+        @Test
+        @DisplayName("array with explode true joins with dot separator")
+        fun arrayExplodeTrueJoinsWithDot() {
+            assertEquals(".blue.black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "label", true))
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serializeStyled("color", null, "path", "string", null, "label", true))
+        }
+    }
+
+    @Nested
+    @DisplayName("serializeStyled - simple style")
+    inner class SimpleStyleTests {
+
+        @Test
+        @DisplayName("scalar returns stringified value")
+        fun scalarReturnsStringifiedValue() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, "simple", false))
+        }
+
+        @Test
+        @DisplayName("array joins with comma")
+        fun arrayJoinsWithComma() {
+            assertEquals("3,4,5", ValueSerializer.serializeStyled("id", listOf("3", "4", "5"), "path", "array", null, "simple", false))
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serializeStyled("id", null, "path", "string", null, "simple", true))
+        }
+
+        @Test
+        @DisplayName("scalar URL-encodes path value")
+        fun scalarUrlEncodesPath() {
+            // Path-location values are percent-encoded so reserved chars don't break the URL.
+            assertEquals("hello%20world", ValueSerializer.serializeStyled("id", "hello world", "path", "string", null, "simple", false))
+        }
+    }
+
+    @Nested
+    @DisplayName("serializeStyled - form style")
+    inner class FormStyleTests {
+
+        @Test
+        @DisplayName("array with explode true returns list")
+        fun arrayExplodeTrueReturnsList() {
+            assertEquals(listOf("blue", "black"), ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "form", true))
+        }
+
+        @Test
+        @DisplayName("array with explode false joins with comma")
+        fun arrayExplodeFalseJoinsWithComma() {
+            assertEquals("blue,black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "form", false))
+        }
+
+        @Test
+        @DisplayName("null returns null for query location")
+        fun nullReturnsNullForQuery() {
+            assertNull(ValueSerializer.serializeStyled("color", null, "query", "string", null, "form", true))
+        }
+
+        @Test
+        @DisplayName("scalar with explode true returns string not list")
+        fun scalarExplodeTrueReturnsString() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true))
+        }
+
+        @Test
+        @DisplayName("single-element array with explode true returns list")
+        fun singleElementArrayExplodeTrueReturnsList() {
+            assertEquals(listOf("blue"), ValueSerializer.serializeStyled("color", listOf("blue"), "query", "array", null, "form", true))
+        }
+    }
+
+    @Nested
+    @DisplayName("serializeStyled - spaceDelimited style")
+    inner class SpaceDelimitedStyleTests {
+
+        @Test
+        @DisplayName("array joins with space")
+        fun arrayJoinsWithSpace() {
+            assertEquals("blue black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "spaceDelimited", false))
+        }
+
+        @Test
+        @DisplayName("scalar returns stringified value")
+        fun scalarReturnsStringifiedValue() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "spaceDelimited", false))
+        }
+    }
+
+    @Nested
+    @DisplayName("serializeStyled - pipeDelimited style")
+    inner class PipeDelimitedStyleTests {
+
+        @Test
+        @DisplayName("array joins with pipe")
+        fun arrayJoinsWithPipe() {
+            assertEquals("blue|black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "pipeDelimited", false))
+        }
+
+        @Test
+        @DisplayName("scalar returns stringified value")
+        fun scalarReturnsStringifiedValue() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "pipeDelimited", false))
+        }
+    }
+
+    @Nested
+    @DisplayName("serializeDeepObject")
+    inner class DeepObjectTests {
+
+        @Test
+        @DisplayName("basic map returns bracketed keys")
+        fun basicMapReturnsBracketedKeys() {
+            val result = ValueSerializer.serializeDeepObject("filter", mapOf("color" to "blue", "size" to "large"))
+            assertEquals("blue", result["filter[color]"])
+            assertEquals("large", result["filter[size]"])
+        }
+
+        @Test
+        @DisplayName("null returns empty map")
+        fun nullReturnsEmptyMap() {
+            val result = ValueSerializer.serializeDeepObject("filter", null)
+            assertTrue(result.isEmpty())
+        }
+    }
+
+    @Nested
+    @DisplayName("unknown/empty style fallback")
+    inner class FallbackTests {
+
+        @Test
+        @DisplayName("null style falls back to location-based serialization")
+        fun nullStyleFallsBack() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
+        }
+
+        @Test
+        @DisplayName("empty style falls back to location-based serialization")
+        fun emptyStyleFallsBack() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, "", false))
+        }
+
+        @Test
+        @DisplayName("empty string path param throws IllegalArgumentException")
+        fun emptyStringPathParamThrows() {
+            // Gap W — empty-string path values silently produce
+            // malformed URLs like `/pet//details`; reject at
+            // serialization time so callers see the real error rather
+            // than a downstream 404.
+            assertThrows(IllegalArgumentException::class.java) {
+                ValueSerializer.serializeStyled("id", "", "path", "string", null, "simple", false)
+            }
+        }
+    }
+}

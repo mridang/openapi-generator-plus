@@ -1,0 +1,50 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Servers do
+  @moduledoc """
+  Generated server configurations from the OpenAPI specification.
+
+  Each module attribute corresponds to a server entry defined in the spec's
+  `servers` array. Use these with `#{inspect({{moduleName}}.Configuration)}` to select a server:
+
+      config = {{moduleName}}.Configuration.new(
+        base_url: {{moduleName}}.Servers.server_0() |> {{moduleName}}.ServerConfiguration.url()
+      )
+
+  For servers with variables, pass overrides:
+
+      url = {{moduleName}}.Servers.server_1() |> {{moduleName}}.ServerConfiguration.url(%{"environment" => "staging"})
+  """
+
+{{#serverConfigs}}
+  @doc """
+  Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}}
+
+  {{serverDescription}}{{/serverDescription}}
+  """
+  @spec server_{{serverIndex}}() :: {{moduleName}}.ServerConfiguration.t()
+  def server_{{serverIndex}} do
+    %{{moduleName}}.ServerConfiguration{
+      url_template: "{{{serverUrl}}}",
+      description: {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}nil{{/serverDescription}},
+      variables: {{#hasVariables}}%{
+{{#serverVariables}}        "{{{varName}}}" => %{{moduleName}}.ServerVariable{
+          default_value: "{{{varDefault}}}",
+          description: {{#varDescription}}"{{{varDescription}}}"{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
+          enum_values: {{#hasEnumValues}}[{{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
+        }{{^-last}},{{/-last}}
+{{/serverVariables}}      }{{/hasVariables}}{{^hasVariables}}%{}{{/hasVariables}}
+    }
+  end
+
+{{/serverConfigs}}
+  @doc """
+  All server configurations in declaration order.
+  """
+  @spec all() :: [{{moduleName}}.ServerConfiguration.t()]
+  def all do
+    [
+{{#serverConfigs}}      server_{{serverIndex}}(){{^-last}},{{/-last}}
+{{/serverConfigs}}    ]
+  end
+end

@@ -1,0 +1,13 @@
+{{>api_info}}
+import 'client_error.dart';
+
+/// NotFoundError represents an HTTP 404 Not Found error.
+class NotFoundError extends ClientError {
+  const NotFoundError({
+    required super.statusCode,
+    required super.message,
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+  });
+}

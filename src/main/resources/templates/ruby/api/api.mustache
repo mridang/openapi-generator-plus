@@ -1,0 +1,435 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+# :nodoc:
+module {{moduleName}}
+  module Api
+{{#operations}}
+{{#serverTypeDefs}}
+
+    # Server type for the {{operationId}} operation.
+    class {{serverTypeName}}
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+    # Valid values for {{name}} in {{serverTypeName}}.
+    module {{serverTypeName}}{{pascalName}}
+{{#enumValues}}
+      {{name}} = '{{value}}'
+{{/enumValues}}
+    end
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+{{#hasDescription}}
+    # {{{description}}}
+{{/hasDescription}}
+{{^hasDescription}}
+    # {{variantName}} server variant.
+{{/hasDescription}}
+    class {{serverTypeName}}{{variantName}} < {{serverTypeName}}
+{{#hasVariables}}
+      def initialize({{#serverVariables}}{{snakeName}}:{{^-last}}, {{/-last}}{{/serverVariables}})
+        super()
+{{#serverVariables}}
+        @{{snakeName}} = {{snakeName}}
+{{/serverVariables}}
+      end
+
+{{/hasVariables}}
+      def url
+{{#hasVariables}}
+        url = '{{url}}'
+{{#serverVariables}}
+{{^-last}}
+        url = url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+{{/-last}}
+{{#-last}}
+        url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+{{/-last}}
+{{/serverVariables}}
+{{/hasVariables}}
+{{^hasVariables}}
+        '{{url}}'
+{{/hasVariables}}
+      end
+    end
+{{/variants}}
+{{/serverTypeDefs}}
+
+    # {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+    # {{{tagDescription}}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+    # @see {{url}} {{{description}}}
+{{/tagExternalDocs}}
+    class {{classname}} < BaseApi
+      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default, authenticator = nil)
+        super
+      end
+    {{#operation}}
+
+      # {{{summary}}}
+{{#notes}}
+      # {{{notes}}}
+{{/notes}}
+{{#pathParams}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+      # {{{summary}}}
+      # {{{description}}}
+      # Example: {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+      # {{{summary}}}
+      # {{{description}}}
+      # Example: {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
+      # @param options [{{{dataType}}}] options for query, header, form, and cookie parameters
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+      # @param content_type [String, nil] selects the request Content-Type among the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to '{{vendorExtensions.op.effectiveConsumes}}' when nil
+{{/vendorExtensions.hasMultipleConsumes}}
+      # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
+      # @raise [ApiError] if fails to make API call
+{{#isDeprecated}}
+      # @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+      # @see {{url}} {{{description}}}
+{{/externalDocs}}
+      def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+{{#pathParams}}
+{{#required}}
+        if {{{paramName}}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if {{{paramName}}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{{paramName}}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/cookieParams}}
+{{#returnType}}
+        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}})
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::{{moduleName}}::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+{{/returnType}}
+{{^returnType}}
+        {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
+{{/returnType}}
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+{{#pathParams}}
+{{#required}}
+        if {{{paramName}}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if {{{paramName}}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{{paramName}}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
+
+{{/required}}
+{{/cookieParams}}
+        path = '{{{path}}}'
+{{#pathParams}}
+{{=<% %>=}}
+        path = path.gsub('{<%baseName%>}', <%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
+<%={{ }}=%>
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if server
+          server_url = server.url
+          path = server_url + path if server_url.start_with?('http://', 'https://')
+        end
+{{/-first}}
+{{/servers}}
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+{{#queryParams}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+        unless options.nil? || options.{{paramName}}.nil?
+          query_params['{{baseName}}'] =
+            ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
+        end
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryDeepObject}}
+        query_params.merge!(::{{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}})) unless options.nil? || options.{{paramName}}.nil?
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+        query_params['{{baseName}}'] = JSON.generate(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyled}}
+        unless options.nil? || options.{{paramName}}.nil?
+          query_params['{{baseName}}'] =
+            ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
+        end
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+{{#headerParams}}
+        header_params['{{baseName}}'] = ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.nil? || options.{{paramName}}.nil?
+{{/headerParams}}
+{{#hasCookieParams}}
+        cookie_parts = [] # : Array[String]
+{{#cookieParams}}
+{{=<% %>=}}
+        unless options.nil? || options.<%paramName%>.nil?
+          # RFC 6265 — validate the operation-level cookie value the same way
+          # the auth-provided cookie path does in base_api, so a CR/LF or other
+          # control character fails closed instead of being injected into the
+          # Cookie request header. Pass the raw value through without
+          # URL-encoding, mirroring the auth path.
+          cookie_value = <%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', options.<%paramName%>, :cookie, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s
+          unless cookie_value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
+            raise ArgumentError, "Cookie value for '<%baseName%>' contains characters forbidden by RFC 6265"
+          end
+          cookie_parts << "<%baseName%>=#{cookie_value}"
+        end
+<%={{ }}=%>
+{{/cookieParams}}
+        header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        # @type var request_body: Hash[String, untyped]
+        request_body = {}
+{{#formParams}}
+{{#required}}
+        request_body['{{baseName}}'] = options.{{paramName}}
+{{/required}}
+{{^required}}
+        request_body['{{baseName}}'] = options.{{paramName}} unless options.{{paramName}}.nil?
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::{{moduleName}}::ObjectSerializer.encode_oneof_body({{{paramName}}}, '{{{dataType}}}')
+{{/bodyParam}}
+{{^bodyParam}}
+        request_body = nil
+{{/bodyParam}}
+{{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        # This operation declares multiple request content-types. The optional
+        # `content_type:` selector lets the caller choose among the declared
+        # types; when unset (or set to a type the operation does not declare) it
+        # falls back to the first declared type, preserving the historical
+        # behaviour of always sending '{{vendorExtensions.op.effectiveConsumes}}'.
+        # NOTE: this only changes the Content-Type header — the caller must still
+        # supply a body the selected content-type accepts.
+        declared_consumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}]
+        resolved_content_type = declared_consumes.include?(content_type) ? content_type : declared_consumes.first
+
+        invoke_api_for_result(
+          :{{httpMethod}}, path, query_params, header_params, request_body,
+          [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+          resolved_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+{{^vendorExtensions.hasMultipleConsumes}}
+        invoke_api_for_result(
+          :{{httpMethod}}, path, query_params, header_params, request_body,
+          [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+          '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.hasMultipleConsumes}}
+          {{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
+          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/hasAuthMethods}}
+        )
+      end
+    {{/operation}}
+    end
+{{/operations}}
+  end
+end

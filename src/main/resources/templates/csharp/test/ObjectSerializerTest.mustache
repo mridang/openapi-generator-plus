@@ -1,0 +1,1414 @@
+{{>api_info}}
+
+using System.Globalization;
+using {{packageName}};
+using {{packageName}}.Models;
+using Xunit;
+
+namespace Test;
+
+public class ObjectSerializerTest
+{
+    private readonly ObjectSerializer _serializer = new();
+
+    public class StringifyTests
+    {
+        [Fact]
+        public void NullReturnsEmptyString()
+        {
+            Assert.Equal("", ObjectSerializer.Stringify(null));
+        }
+
+        [Fact]
+        public void BooleanTrueReturnsLowercaseString()
+        {
+            Assert.Equal("true", ObjectSerializer.Stringify(true));
+        }
+
+        [Fact]
+        public void BooleanFalseReturnsLowercaseString()
+        {
+            Assert.Equal("false", ObjectSerializer.Stringify(false));
+        }
+
+        [Fact]
+        public void IntegerReturnsStringRepresentation()
+        {
+            Assert.Equal("42", ObjectSerializer.Stringify(42));
+        }
+
+        [Fact]
+        public void DateTimeReturnsIso8601String()
+        {
+            var dt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
+            string result = ObjectSerializer.Stringify(dt);
+            Assert.StartsWith("2024-01-15T10:30:00", result);
+        }
+
+        [Fact]
+        public void PlainStringPassesThroughUnchanged()
+        {
+            Assert.Equal("hello", ObjectSerializer.Stringify("hello"));
+        }
+
+        [Fact]
+        public void DoubleReturnsStringRepresentation()
+        {
+            Assert.Equal("3.14", ObjectSerializer.Stringify(3.14));
+        }
+
+        [Fact]
+        public void LongReturnsStringRepresentation()
+        {
+            Assert.Equal("9007199254740993", ObjectSerializer.Stringify(9007199254740993L));
+        }
+
+        [Fact]
+        public void GuidReturnsStringRepresentation()
+        {
+            var guid = System.Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
+            Assert.Equal("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.Stringify(guid));
+        }
+
+        [Fact]
+        public void DateOnlyReturnsIso8601DateString()
+        {
+            var date = new DateOnly(2024, 1, 15);
+            Assert.Equal("2024-01-15", ObjectSerializer.Stringify(date));
+        }
+    }
+
+    public class ToPathValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToPathValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToPathValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToPathValue(42));
+        }
+
+        [Fact]
+        public void ConvertsTrueToString()
+        {
+            Assert.Equal("true", ObjectSerializer.ToPathValue(true));
+        }
+
+        [Fact]
+        public void ConvertsFalseToString()
+        {
+            Assert.Equal("false", ObjectSerializer.ToPathValue(false));
+        }
+    }
+
+    public class ToQueryValueTests
+    {
+        [Fact]
+        public void ReturnsNullForNull()
+        {
+            Assert.Null(ObjectSerializer.ToQueryValue(null, null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToQueryValue("hello", null));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToQueryValue(42, null));
+        }
+
+        [Fact]
+        public void ConvertsTrueToString()
+        {
+            Assert.Equal("true", ObjectSerializer.ToQueryValue(true, null));
+        }
+
+        [Fact]
+        public void ConvertsFalseToString()
+        {
+            Assert.Equal("false", ObjectSerializer.ToQueryValue(false, null));
+        }
+
+        [Fact]
+        public void JoinsListWithCommaByDefault()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a,b,c", ObjectSerializer.ToQueryValue(list, null));
+        }
+
+        [Fact]
+        public void JoinsListWithCommaForCsv()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a,b,c", ObjectSerializer.ToQueryValue(list, "csv"));
+        }
+
+        [Fact]
+        public void JoinsListWithSpaceForSsv()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a b c", ObjectSerializer.ToQueryValue(list, "ssv"));
+        }
+
+        [Fact]
+        public void JoinsListWithTabForTsv()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a\tb\tc", ObjectSerializer.ToQueryValue(list, "tsv"));
+        }
+
+        [Fact]
+        public void JoinsListWithPipeForPipes()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a|b|c", ObjectSerializer.ToQueryValue(list, "pipes"));
+        }
+
+        [Fact]
+        public void ReturnsListForMulti()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal(list, ObjectSerializer.ToQueryValue(list, "multi"));
+        }
+    }
+
+    public class ToHeaderValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToHeaderValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToHeaderValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToHeaderValue(42));
+        }
+
+        [Fact]
+        public void JoinsListWithComma()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a,b,c", ObjectSerializer.ToHeaderValue(list));
+        }
+    }
+
+    public class ToFormValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToFormValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToFormValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToFormValue(42));
+        }
+
+        [Fact]
+        public void ConvertsTrueToString()
+        {
+            Assert.Equal("true", ObjectSerializer.ToFormValue(true));
+        }
+
+        [Fact]
+        public void ConvertsFalseToString()
+        {
+            Assert.Equal("false", ObjectSerializer.ToFormValue(false));
+        }
+    }
+
+    public class ToCookieValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToCookieValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToCookieValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToCookieValue(42));
+        }
+    }
+
+    public class DateTimeOffsetPreservationTests
+    {
+        [Fact]
+        public void UtcDateTimeSerializesContainingDateTimeAndOffset()
+        {
+            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45+00:00", CultureInfo.InvariantCulture);
+            var result = ObjectSerializer.Stringify(dt);
+            Assert.Contains("2024-01-01T12:30:45", result);
+            Assert.True(result.Contains("+00:00") || result.EndsWith('Z'), $"should contain UTC offset: {result}");
+        }
+
+        [Fact]
+        public void PositiveOffsetPreservedInSerializedString()
+        {
+            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45+05:30", CultureInfo.InvariantCulture);
+            var result = ObjectSerializer.Stringify(dt);
+            Assert.Contains("+05:30", result);
+        }
+
+        [Fact]
+        public void NegativeOffsetPreservedInSerializedString()
+        {
+            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45-08:00", CultureInfo.InvariantCulture);
+            var result = ObjectSerializer.Stringify(dt);
+            Assert.Contains("-08:00", result);
+        }
+
+        [Fact]
+        public void SubsecondsPreservedInSerializedDatetime()
+        {
+            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45.123+00:00", CultureInfo.InvariantCulture);
+            var result = ObjectSerializer.Stringify(dt);
+            Assert.Contains(".123", result);
+        }
+
+        [Fact]
+        public void DateOnlySerializesAsIso8601DateWithoutTimeComponent()
+        {
+            var date = new DateOnly(2024, 1, 1);
+            var result = ObjectSerializer.Stringify(date);
+            Assert.Equal("2024-01-01", result);
+        }
+
+        [Fact]
+        public void SerializedDatetimeStringEndsWithOffset()
+        {
+            var dt = new DateTimeOffset(2024, 1, 1, 12, 30, 45, TimeSpan.Zero);
+            var result = ObjectSerializer.Stringify(dt);
+            var hasOffset = result.EndsWith("+00:00", StringComparison.Ordinal) || result.EndsWith('Z');
+            if (!hasOffset)
+            {
+                Assert.Matches(@"[+-]\d{2}:\d{2}$", result);
+            }
+        }
+
+        [Fact]
+        public void RoundTripDatetimeYieldsEquivalentInstant()
+        {
+            var original = DateTimeOffset.Parse("2024-01-01T12:30:45+05:30", CultureInfo.InvariantCulture);
+            var serialized = ObjectSerializer.Stringify(original);
+            var parsed = DateTimeOffset.Parse(serialized, CultureInfo.InvariantCulture);
+            Assert.Equal(original.UtcDateTime, parsed.UtcDateTime);
+        }
+
+        /* Encoders previously truncated sub-second precision while the reader
+         * accepted fractions, making the JSON round-trip lossy. The instant
+         * 2020-01-02T03:04:05.123Z (UTC, millisecond precision) must serialize
+         * WITH the ".123" fraction and deserialize back to the same instant.
+         * Milliseconds (3 digits) are the cross-SDK common denominator every
+         * native date-time type supports. */
+        [Fact]
+        public void DateTimeSerializationPreservesSubSecondPrecision()
+        {
+            var serializer = new ObjectSerializer();
+            var instant = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero);
+            var metadata = new PhotoMetadata { TakenAt = instant };
+
+            string json = serializer.Serialize(metadata);
+            Assert.Contains(".123", json);
+
+            var roundTripped = serializer.Deserialize<PhotoMetadata>(json);
+            Assert.NotNull(roundTripped);
+            Assert.Equal(instant, roundTripped!.TakenAt);
+        }
+    }
+
+    public class NonAsciiSerializationTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void AccentedCharacterNotUnicodeEscaped()
+        {
+            var result = _serializer.Serialize("café");
+            Assert.Contains("é", result);
+        }
+
+        [Fact]
+        public void CjkCharactersNotUnicodeEscaped()
+        {
+            var result = _serializer.Serialize("日本");
+            Assert.Contains("日本", result);
+        }
+
+        [Fact]
+        public void TabCharacterEscapedProperlyInJson()
+        {
+            var result = _serializer.Serialize("a\tb");
+            Assert.Contains(@"\t", result);
+        }
+    }
+
+    // The public (de)serialize entry points must never leak the native
+    // System.Text.Json.JsonException to callers — they wrap it in the
+    // SDK-owned SerializationException (preserving the native exception as
+    // the inner exception), matching the other 11 language SDKs and keeping
+    // internal serde types off the public surface.
+    public class DeserializationErrorWrappingTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void TruncatedJsonThrowsSerializationException()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
+        }
+
+        [Fact]
+        public void InvalidJsonStructureThrowsSerializationException()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("\"hello\""));
+        }
+
+        [Fact]
+        public void ThrownSerializationExceptionHasMessage()
+        {
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
+            Assert.NotNull(ex.Message);
+        }
+
+        [Fact]
+        public void MalformedJsonDoesNotLeakNativeJsonException()
+        {
+            // The raw System.Text.Json.JsonException must never escape the
+            // public deserialize entry point.
+            var ex = Record.Exception(() => _serializer.Deserialize<Category>("{not valid json"));
+            Assert.IsNotType<System.Text.Json.JsonException>(ex);
+            Assert.IsType<SerializationException>(ex);
+        }
+
+        [Fact]
+        public void SerializationExceptionPreservesNativeInnerException()
+        {
+            // The native JsonException is preserved as the inner exception so
+            // callers who need the gory detail can still drill down.
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
+            Assert.NotNull(ex.InnerException);
+            Assert.IsAssignableFrom<System.Text.Json.JsonException>(ex.InnerException);
+        }
+    }
+
+    public class SerializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void SerializesModelToValidJson()
+        {
+            var category = new Category { Id = 1L, Name = "Dogs" };
+            var json = _serializer.Serialize(category);
+            Assert.Contains("\"id\":1", json);
+            Assert.Contains("\"name\":\"Dogs\"", json);
+        }
+
+        [Fact]
+        public void HandlesNull()
+        {
+            var json = _serializer.Serialize(null);
+            Assert.Equal("null", json);
+        }
+
+        [Fact]
+        public void IncludesFieldsSetToDefaultValues()
+        {
+            var category = new Category { Id = 0L, Name = "" };
+            var json = _serializer.Serialize(category);
+            Assert.Contains("\"id\":0", json);
+            Assert.Contains("\"name\":\"\"", json);
+        }
+    }
+
+    public class DeserializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DeserializesJsonToTypedModel()
+        {
+            var json = "{\"id\":1,\"name\":\"Dogs\"}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
+
+        [Fact]
+        public void ReturnsDefaultForEmptyInput()
+        {
+            var result = _serializer.Deserialize<Category>("");
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void ReturnsDefaultForNullInput()
+        {
+            var result = _serializer.Deserialize<Category>(null);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void StripsLeadingUtf8BomBeforeParsing()
+        {
+            // System.Text.Json does not strip a leading UTF-8 BOM (U+FEFF) and
+            // would otherwise throw a JsonException on the first token. The
+            // serializer must tolerate a BOM-prefixed body like the other SDKs.
+            var json = "\uFEFF{\"id\":1,\"name\":\"Dogs\"}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
+
+        [Fact]
+        public void DeserializesSelfReferentialModelPreservingNesting()
+        {
+            // A self-referential schema (TreeNode has an optional 'child' of its
+            // own type) must decode the full nesting: the outer node's child is
+            // itself a typed TreeNode, not a raw map. Canonical across all 12
+            // SDKs.
+            var json = "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}";
+            var top = _serializer.Deserialize<TreeNode>(json);
+            Assert.NotNull(top);
+            Assert.Equal("root", top!.Value);
+            Assert.NotNull(top.Child);
+            Assert.IsType<TreeNode>(top.Child);
+            Assert.Equal("leaf", top.Child!.Value);
+            Assert.Null(top.Child.Child);
+        }
+    }
+
+    {{! Divergence #10 — required-field strictness on deserialize. }}
+    {{! A required, non-nullable model field that is MISSING or explicitly }}
+    {{! NULL in the input JSON must hard-fail with the SDK-owned }}
+    {{! SerializationException (which wraps the native JsonException) rather }}
+    {{! than silently building }}
+    {{! a partial object. [JsonRequired] covers the missing case; the model }}
+    {{! constructor's null-guard covers the explicit-null case. Canonical }}
+    {{! across the product (Kotlin/PHP/Swift/Rust/Go/Python/Dart). Pet }}
+    {{! requires both 'name' and 'photoUrls'. }}
+    public class RequiredFieldStrictnessTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void CompletePetDeserializesSuccessfully()
+        {
+            var json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
+            var pet = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(pet);
+            Assert.Equal("Fido", pet!.Name);
+            Assert.Contains("https://example.com/fido.jpg", pet.PhotoUrls);
+        }
+
+        [Fact]
+        public void UnknownEnumValueThrows()
+        {
+            // Wire-format parity lock: a string enum value the schema does not
+            // declare ("banana" for Pet.status) must hard-fail on deserialize
+            // with the SDK-owned SerializationException rather than silently
+            // mapping to a default/unknown member. System.Text.Json's
+            // JsonStringEnumConverter throws a JsonException on an unknown
+            // value, which the serializer wraps. Canonical across all 12 SDKs.
+            var json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"],\"status\":\"banana\"}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void MissingRequiredStringFieldThrows()
+        {
+            // 'name' is required but absent — [JsonRequired] rejects it.
+            var json = "{\"id\":1,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void MissingRequiredArrayFieldThrows()
+        {
+            // 'photoUrls' is required but absent — [JsonRequired] rejects it.
+            var json = "{\"id\":1,\"name\":\"Fido\"}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void NullRequiredStringFieldThrows()
+        {
+            // 'name' is present but explicitly null — the model constructor's
+            // null-guard surfaces this; the serializer wraps it as a
+            // SerializationException.
+            var json = "{\"id\":1,\"name\":null,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void NullRequiredArrayFieldThrows()
+        {
+            // 'photoUrls' is present but explicitly null — the model
+            // constructor's null-guard surfaces this; the serializer wraps it
+            // as a SerializationException.
+            var json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":null}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void NullRequiredNonNullableFieldThrows()
+        {
+            // Canonical scenario AJ: a JSON null for the required,
+            // non-nullable 'name' field must hard-fail with the SDK
+            // deserialization error rather than silently building a partial
+            // object (go zero-inits, python/kotlin accept — the canonical is
+            // throw). C# already rejects it via the model constructor's
+            // null-guard, wrapped as SerializationException.
+            var json = "{\"name\":null,\"photoUrls\":[\"u\"]}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void NullRequiredByteArrayFieldThrows()
+        {
+            // SetPetAvatarRequest requires a byte[] 'data' field; an explicit
+            // null must hard-fail with the SDK serialization error rather than
+            // build a partial object with a null byte array.
+            var json = "{\"data\":null,\"mimeType\":\"image/png\"}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<SetPetAvatarRequest>(json));
+        }
+
+        [Fact]
+        public void MissingRequiredByteArrayFieldThrows()
+        {
+            var json = "{\"mimeType\":\"image/png\"}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<SetPetAvatarRequest>(json));
+        }
+
+        [Fact]
+        public void OptionalFieldsMayBeOmitted()
+        {
+            // Only the required fields are present; all optional fields absent.
+            var json = "{\"name\":\"Fido\",\"photoUrls\":[\"u\"]}";
+            var pet = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(pet);
+            Assert.Null(pet!.Id);
+            Assert.Null(pet.Category);
+        }
+
+        [Fact]
+        public void OptionalFieldsMayBeExplicitlyNull()
+        {
+            // An optional field explicitly null is tolerated (only required
+            // fields hard-fail on null).
+            var json = "{\"name\":\"Fido\",\"photoUrls\":[\"u\"],\"category\":null}";
+            var pet = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(pet);
+            Assert.Null(pet!.Category);
+        }
+    }
+
+    // Enum wire-value lock: enum members must round-trip as their OpenAPI wire
+    // string (e.g. "available"), NOT the C# member name ("Available"). Each
+    // generated enum carries its own [JsonConverter] that maps to the wire
+    // value; this guards against a global converter shadowing it (per the
+    // System.Text.Json rule that an options-registered converter outranks a
+    // type-level [JsonConverter] attribute). Canonical across all 12 SDKs.
+    public class EnumWireValueTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void EnumSerializesToWireValue()
+        {
+            var order = new Order { Status = Order.StatusEnum.Approved };
+            var json = _serializer.Serialize(order);
+            Assert.Contains("\"status\":\"approved\"", json);
+        }
+
+        [Fact]
+        public void EnumDeserializesFromWireValue()
+        {
+            var order = _serializer.Deserialize<Order>("{\"status\":\"delivered\"}");
+            Assert.Equal(Order.StatusEnum.Delivered, order!.Status);
+        }
+
+        [Fact]
+        public void EnumRoundTripsWireValue()
+        {
+            var order = _serializer.Deserialize<Order>("{\"status\":\"placed\"}");
+            var back = _serializer.Serialize(order);
+            Assert.Contains("\"status\":\"placed\"", back);
+        }
+
+        [Fact]
+        public void DeserializeAppliesSchemaDefaultForAbsentField()
+        {
+            // Order.status has schema `default: placed`. When the JSON response
+            // omits "status", the deserialized model must populate it with the
+            // schema default rather than leaving it null. The generated model
+            // initializes the property to StatusEnum.Placed and, because the
+            // field is optional, that initializer survives deserialization.
+            // Canonical across all 12 SDKs.
+            var order = _serializer.Deserialize<Order>("{\"id\":10,\"petId\":198772}");
+            Assert.NotNull(order);
+            Assert.Equal(Order.StatusEnum.Placed, order!.Status);
+        }
+
+        [Fact]
+        public void DefaultsAbsentFieldsTakeSchemaDefaultExplicitNullIsPreserved()
+        {
+            // default-vs-explicit-null contract: a schema `default` applies ONLY
+            // when the property is ABSENT from the payload. An explicit JSON null
+            // is a provided value and must be PRESERVED (the field stays null),
+            // not replaced by the default. Exercised against the dedicated
+            // Defaults model (retries/mode/label), matching go/rust/python/node.
+            var fromEmpty = _serializer.Deserialize<Defaults>("{}");
+            Assert.NotNull(fromEmpty);
+            Assert.Equal(3, fromEmpty!.Retries);
+            Assert.Equal(Defaults.ModeEnum.Medium, fromEmpty.Mode);
+            Assert.Equal("untitled", fromEmpty.Label);
+
+            var fromNull = _serializer.Deserialize<Defaults>("{\"label\":null,\"retries\":7}");
+            Assert.NotNull(fromNull);
+            Assert.Null(fromNull!.Label);
+            Assert.Equal(7, fromNull.Retries);
+            // mode was absent, so it keeps the schema default.
+            Assert.Equal(Defaults.ModeEnum.Medium, fromNull.Mode);
+        }
+    }
+
+    // Gap #13 — discard nulls on serialize.
+    // The ObjectSerializer's default JsonSerializerOptions configures
+    // DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull so
+    // properties whose value is null are omitted from the JSON payload.
+    public class NullPropertyOmissionOnSerializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void NullPropertyIsOmittedFromSerializedJson()
+        {
+            var category = new Category { Id = 1L, Name = null };
+            var json = _serializer.Serialize(category);
+            Assert.Contains("\"id\":1", json);
+            Assert.DoesNotContain("\"name\"", json);
+        }
+
+        [Fact]
+        public void AllNullPropertiesProduceEmptyJsonObject()
+        {
+            var category = new Category { Id = null, Name = null };
+            var json = _serializer.Serialize(category);
+            Assert.Equal("{}", json);
+        }
+
+        [Fact]
+        public void NonNullValuesArePreservedAlongsideOmittedNulls()
+        {
+            var category = new Category { Id = null, Name = "Dogs" };
+            var json = _serializer.Serialize(category);
+            Assert.DoesNotContain("\"id\"", json);
+            Assert.Contains("\"name\":\"Dogs\"", json);
+        }
+    }
+
+    // Gap #4.6 — Map-of-Model deep deserialise.
+    // When a JSON object's values are model schemas, deserialising into
+    // Dictionary<string, Foo> must return typed Foo entries with their
+    // fields populated, not raw JsonElement/object values. System.Text.Json
+    // handles this via reflection so long as no custom JsonConverter for
+    // Dictionary<string, T> intercepts the call and drops the element type.
+    public class MapOfModelDeepDeserializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DictionaryOfPetReturnsTypedPetEntries()
+        {
+            var json = "{"
+                + "\"fido\":{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"]},"
+                + "\"whiskers\":{\"id\":2,\"name\":\"Whiskers\",\"photoUrls\":[\"https://example.com/whiskers.jpg\"]}"
+                + "}";
+
+            var map = _serializer.Deserialize<Dictionary<string, Pet>>(json);
+
+            Assert.NotNull(map);
+            Assert.Equal(2, map!.Count);
+
+            var fido = map["fido"];
+            Assert.IsType<Pet>(fido);
+            Assert.Equal(1L, fido.Id);
+            Assert.Equal("Fido", fido.Name);
+            Assert.Contains("https://example.com/fido.jpg", fido.PhotoUrls);
+
+            var whiskers = map["whiskers"];
+            Assert.IsType<Pet>(whiskers);
+            Assert.Equal(2L, whiskers.Id);
+            Assert.Equal("Whiskers", whiskers.Name);
+            Assert.Contains("https://example.com/whiskers.jpg", whiskers.PhotoUrls);
+        }
+
+        [Fact]
+        public void DictionaryOfPetEntriesAreNotRawJsonElement()
+        {
+            var json = "{\"a\":{\"id\":7,\"name\":\"A\",\"photoUrls\":[\"u\"]}}";
+            var map = _serializer.Deserialize<Dictionary<string, Pet>>(json);
+
+            Assert.NotNull(map);
+            var entry = map!["a"];
+            Assert.IsNotType<System.Text.Json.JsonElement>(entry);
+            Assert.IsType<Pet>(entry);
+        }
+
+        [Fact]
+        public void EmptyDictionaryOfPetDeserializesToEmptyMap()
+        {
+            var map = _serializer.Deserialize<Dictionary<string, Pet>>("{}");
+            Assert.NotNull(map);
+            Assert.Empty(map!);
+        }
+    }
+
+    // Gap #14 — discard extras on deserialize.
+    // System.Text.Json silently skips unmapped JSON properties by default
+    // (UnmappedMemberHandling.Skip). Deserialising a payload containing
+    // unknown fields must succeed and return a populated model.
+    public class UnknownPropertyTolerantOnDeserializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void UnknownPropertyDoesNotThrow()
+        {
+            var json = "{\"id\":1,\"name\":\"Dogs\",\"unknownField\":\"ignored\"}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
+
+        [Fact]
+        public void MultipleUnknownPropertiesAreSilentlySkipped()
+        {
+            var json = "{\"extra1\":1,\"id\":42,\"extra2\":true,\"name\":\"Cats\",\"extra3\":[1,2,3]}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(42L, category!.Id);
+            Assert.Equal("Cats", category.Name);
+        }
+
+        [Fact]
+        public void NestedUnknownObjectIsSilentlySkipped()
+        {
+            var json = "{\"id\":1,\"name\":\"Dogs\",\"meta\":{\"nested\":{\"a\":1}}}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
+    }
+
+    // ---- 4.8 format:time + format:duration round-trip ----
+
+    public class TimeOnlyAndDurationTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void TimeOnlyStringifiesAsHourMinuteSecond()
+        {
+            var t = new TimeOnly(9, 30, 15);
+            Assert.Equal("09:30:15", ObjectSerializer.Stringify(t));
+        }
+
+        [Fact]
+        public void TimeSpanStringifiesAsProtobufDuration()
+        {
+            // 1h30m → 5400 seconds → "5400s"
+            var ts = new TimeSpan(1, 30, 0);
+            Assert.Equal("5400s", ObjectSerializer.Stringify(ts));
+        }
+
+        [Fact]
+        public void TimeSpanZeroStringifiesAs0s()
+        {
+            Assert.Equal("0s", ObjectSerializer.Stringify(TimeSpan.Zero));
+        }
+
+        [Fact]
+        public void DurationConverterRoundTrip_WholeSeconds()
+        {
+            // 2h15m30s → 8130 seconds → "8130s"
+            var original = new TimeSpan(2, 15, 30);
+            string formatted = ProtobufDurationConverter.Format(original);
+            Assert.Equal("8130s", formatted);
+            TimeSpan parsed = ProtobufDurationConverter.Parse(formatted);
+            Assert.Equal(original, parsed);
+        }
+
+        [Fact]
+        public void DurationConverterRoundTrip_DaysAndTime()
+        {
+            // 3d4h5m6s → 273906 seconds → "273906s"
+            var original = new TimeSpan(3, 4, 5, 6);
+            string formatted = ProtobufDurationConverter.Format(original);
+            Assert.Equal("273906s", formatted);
+            Assert.Equal(original, ProtobufDurationConverter.Parse(formatted));
+        }
+
+        [Fact]
+        public void DurationConverterRoundTrip_Negative()
+        {
+            var original = new TimeSpan(0, -45, 0);
+            string formatted = ProtobufDurationConverter.Format(original);
+            Assert.Equal("-2700s", formatted);
+            Assert.Equal(original, ProtobufDurationConverter.Parse(formatted));
+        }
+
+        [Fact]
+        public void DurationConverterFormatsSubSecondPrecision()
+        {
+            // 1 tick = 100ns → 9-digit fraction "3600.000000100s"
+            var oneHourPlusTick = TimeSpan.FromHours(1) + TimeSpan.FromTicks(1);
+            Assert.Equal("3600.000000100s", ProtobufDurationConverter.Format(oneHourPlusTick));
+
+            // Millisecond fraction trims to 3 digits (protobuf emits 3/6/9).
+            Assert.Equal("1.500s", ProtobufDurationConverter.Format(TimeSpan.FromMilliseconds(1500)));
+        }
+
+        [Fact]
+        public void DurationConverterParsesFractionalSeconds()
+        {
+            TimeSpan parsed = ProtobufDurationConverter.Parse("1.5s");
+            Assert.Equal(TimeSpan.FromMilliseconds(1500), parsed);
+        }
+
+        [Fact]
+        public void DurationConverterParsesNanosecondFraction()
+        {
+            // "3600.000000001s" rounds to 0 ticks of fraction (100ns resolution).
+            TimeSpan parsed = ProtobufDurationConverter.Parse("3600.000000001s");
+            Assert.Equal(TimeSpan.FromHours(1), parsed);
+            // "3600.000000100s" is exactly one tick beyond an hour.
+            TimeSpan parsedTick = ProtobufDurationConverter.Parse("3600.000000100s");
+            Assert.Equal(TimeSpan.FromHours(1) + TimeSpan.FromTicks(1), parsedTick);
+        }
+
+        [Fact]
+        public void DurationConverterRejectsInvalid()
+        {
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ProtobufDurationConverter.Parse("not-a-duration"));
+            // missing 's' suffix
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ProtobufDurationConverter.Parse("3600"));
+            // bare integer (protobuf number, not the string form)
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ProtobufDurationConverter.Parse("18000.000000000"));
+        }
+
+        [Fact]
+        public void DurationConverterRejectsIso8601()
+        {
+            // ISO-8601 durations are rejected by protobuf/gRPC-gateway backends.
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ProtobufDurationConverter.Parse("PT1H"));
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ProtobufDurationConverter.Parse("P1Y"));
+        }
+
+        [Fact]
+        public void DurationSerializesThroughObjectSerializer()
+        {
+            var ts = new TimeSpan(1, 30, 0);
+            string json = _serializer.Serialize(ts);
+            Assert.Equal("\"5400s\"", json);
+        }
+
+        [Fact]
+        public void DurationDeserializesThroughObjectSerializer()
+        {
+            TimeSpan ts = _serializer.Deserialize<TimeSpan>("\"8100s\"");
+            Assert.Equal(new TimeSpan(2, 15, 0), ts);
+        }
+
+        [Fact]
+        public void DurationFullRoundTripThroughObjectSerializer()
+        {
+            var original = new TimeSpan(1, 2, 30, 45);
+            string json = _serializer.Serialize(original);
+            TimeSpan parsed = _serializer.Deserialize<TimeSpan>(json);
+            Assert.Equal(original, parsed);
+        }
+    }
+
+    {{! Gap K — a subtype constructed without the discriminator must still emit }}
+    {{! it on serialize because the generated model defaults FoodType to its }}
+    {{! oneOf mapping value ("dry"/"wet"). }}
+    public class DiscriminatorAutoInjectionTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DrySubtypeAutoEmitsDiscriminator()
+        {
+            var dry = new DryFood(2.5);
+            var json = _serializer.Serialize(dry);
+            Assert.Contains("\"foodType\":\"dry\"", json);
+            Assert.Contains("\"weightKg\":2.5", json);
+        }
+
+        [Fact]
+        public void WetSubtypeAutoEmitsDiscriminator()
+        {
+            var wet = new WetFood(350);
+            var json = _serializer.Serialize(wet);
+            Assert.Contains("\"foodType\":\"wet\"", json);
+        }
+
+        [Fact]
+        public void DeserializeParentRoutesToSubtype()
+        {
+            // A discriminator-tagged payload deserialized against the parent
+            // PetFood type must come back as the concrete DryFood subtype via
+            // the PetFoodConverter routing on foodType="dry".
+            var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+            var food = _serializer.Deserialize<PetFood>(json);
+            Assert.NotNull(food);
+            var dry = Assert.IsType<DryFood>(food);
+            Assert.Equal(2.5, dry.WeightKg);
+        }
+
+        [Fact]
+        public void MissingDiscriminatorPropertyThrows()
+        {
+            // Canonical scenario AU-residual: a PetFood payload missing the
+            // 'foodType' discriminator property must hard-fail rather than wrap
+            // the raw dict in a union container (python/php wrap; the canonical
+            // is throw). The PetFoodConverter throws a JsonException for the
+            // absent discriminator, which the serializer wraps as the
+            // SDK-owned SerializationException.
+            var json = "{\"weightKg\":5.0}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<PetFood>(json));
+        }
+    }
+
+    {{! Gap 2.2 — a Guid field carried inside a model object must round-trip }}
+    {{! through System.Text.Json as its canonical string form. }}
+    public class GuidWithinModelTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        public sealed class GuidHolder
+        {
+            [System.Text.Json.Serialization.JsonPropertyName("id")]
+            public Guid Id { get; set; }
+        }
+
+        [Fact]
+        public void GuidFieldRoundTripsWithinModel()
+        {
+            var holder = new GuidHolder
+            {
+                Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440000"),
+            };
+            var json = _serializer.Serialize(holder);
+            Assert.Contains("\"id\":\"550e8400-e29b-41d4-a716-446655440000\"", json);
+
+            var decoded = _serializer.Deserialize<GuidHolder>(json);
+            Assert.NotNull(decoded);
+            Assert.Equal(holder.Id, decoded!.Id);
+        }
+
+        [Fact]
+        public void MalformedGuidFailsWithinModel()
+        {
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<GuidHolder>("{\"id\":\"not-a-guid\"}"));
+        }
+    }
+
+    public class ResolveOneOfTests
+    {
+        [Fact]
+        public void ResolveOneOfReturnsFirstMatchingVariant()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse("{\"k\":\"v\"}");
+            object result = ObjectSerializer.ResolveOneOf(
+                doc.RootElement,
+                _ => throw new System.Text.Json.JsonException("first miss"),
+                _ => "matched");
+            Assert.Equal("matched", result);
+        }
+
+        [Fact]
+        public void ResolveOneOfThrowsOnNoMatch()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse("{\"unexpected\":true}");
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ObjectSerializer.ResolveOneOf(
+                    doc.RootElement,
+                    _ => throw new System.Text.Json.JsonException("variant A does not match"),
+                    _ => throw new System.Text.Json.JsonException("variant B does not match")));
+        }
+
+        [Fact]
+        public void ResolveAnyOfThrowsOnNoMatch()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse("{}");
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ObjectSerializer.ResolveAnyOf(
+                    doc.RootElement,
+                    _ => (object?)null));
+        }
+    }
+
+    {{! Scenario 1 — integer-backed enum wire form. }}
+    {{! Priority is an integer-backed enum (NUMBER_1=1, NUMBER_2=2, ...). It }}
+    {{! must round-trip as a JSON NUMBER (2, not "2"): the generated }}
+    {{! PriorityConverter writes WriteNumberValue and reads a JSON number. }}
+    {{! Carried inside the shared StockItem fixture (Priority is required). }}
+    {{! Canonical across all 12 SDKs. }}
+    public class IntegerBackedEnumTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void PrioritySerializesAsJsonNumberNotString()
+        {
+            var item = new StockItem(Priority.NUMBER_2);
+            var json = _serializer.Serialize(item);
+            // The wire form is a bare number, never a quoted string.
+            Assert.Contains("\"priority\":2", json);
+            Assert.DoesNotContain("\"priority\":\"2\"", json);
+        }
+
+        [Fact]
+        public void PriorityDeserializesFromJsonNumber()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":3}");
+            Assert.NotNull(item);
+            Assert.Equal(Priority.NUMBER_3, item!.Priority);
+        }
+
+        [Fact]
+        public void PriorityRoundTripsThroughJsonNumber()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
+            var back = _serializer.Serialize(item);
+            Assert.Contains("\"priority\":1", back);
+        }
+
+        [Fact]
+        public void PriorityRejectsUnknownIntegerValue()
+        {
+            // A number outside the declared members must hard-fail with the
+            // SDK-owned SerializationException (the converter throws a
+            // JsonException, which the serializer wraps).
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":99}"));
+        }
+
+        [Fact]
+        public void PriorityRejectsStringWireValue()
+        {
+            // An integer-backed enum must reject a quoted "2" — the converter
+            // requires a JSON number token.
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":\"2\"}"));
+        }
+    }
+
+    {{! Scenario 2 — non-lowercase string enum preserves wire casing. }}
+    {{! Availability is a string enum whose wire values are NOT lowercased }}
+    {{! ("Available", "Sold", "on-hold"): the C# member OnHold maps to the }}
+    {{! hyphenated wire token. The generated AvailabilityConverter must emit }}
+    {{! and parse the exact wire casing and reject unknown values. Exercised }}
+    {{! through the shared StockItem fixture. Canonical across all 12 SDKs. }}
+    public class NonLowercaseStringEnumTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void AvailabilitySerializesPreservingWireCasing()
+        {
+            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.Available };
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"availability\":\"Available\"", json);
+        }
+
+        [Fact]
+        public void AvailabilitySerializesHyphenatedWireValue()
+        {
+            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.OnHold };
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"availability\":\"on-hold\"", json);
+        }
+
+        [Fact]
+        public void AvailabilityDeserializesFromWireCasing()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"Available\"}");
+            Assert.NotNull(item);
+            Assert.Equal(Availability.Available, item!.Availability);
+        }
+
+        [Fact]
+        public void AvailabilityDeserializesHyphenatedWireValue()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"on-hold\"}");
+            Assert.Equal(Availability.OnHold, item!.Availability);
+        }
+
+        [Fact]
+        public void AvailabilityRoundTripsAllWireValues()
+        {
+            foreach (var (wire, member) in new[]
+            {
+                ("Available", Availability.Available),
+                ("Sold", Availability.Sold),
+                ("on-hold", Availability.OnHold),
+            })
+            {
+                var payload = "{\"priority\":1,\"availability\":\"" + wire + "\"}";
+                var item = _serializer.Deserialize<StockItem>(payload);
+                Assert.Equal(member, item!.Availability);
+                Assert.Contains("\"availability\":\"" + wire + "\"", _serializer.Serialize(item));
+            }
+        }
+
+        [Fact]
+        public void AvailabilityRejectsUnknownWireValue()
+        {
+            // A lowercased "available" is NOT a declared wire value and must
+            // hard-fail rather than silently mapping to a member.
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":\"available\"}"));
+        }
+    }
+
+    {{! Scenario 3 — format:byte round-trips through base64. }}
+    {{! A byte[] field (PetPassport.Thumbnail / BiometricChip) and an }}
+    {{! array-of-byte field (PetPassport.Scans, List<byte[]>) must serialize }}
+    {{! as base64 strings and decode back to the original bytes. }}
+    {{! System.Text.Json base64-encodes byte[] by default. Canonical across }}
+    {{! all 12 SDKs. }}
+    public class ByteFormatBase64Tests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void ScalarByteFieldRoundTripsThroughBase64()
+        {
+            var bytes = new byte[] { 0x01, 0x02, 0x03, 0xFF };
+            var passport = new PetPassport { Thumbnail = bytes };
+            var json = _serializer.Serialize(passport);
+            // base64 of {1,2,3,255} is "AQID/w==".
+            Assert.Contains("\"thumbnail\":\"AQID/w==\"", json);
+
+            var decoded = _serializer.Deserialize<PetPassport>(json);
+            Assert.NotNull(decoded);
+            Assert.Equal(bytes, decoded!.Thumbnail);
+        }
+
+        [Fact]
+        public void ArrayOfByteFieldRoundTripsThroughBase64()
+        {
+            var scans = new List<byte[]>
+            {
+                new byte[] { 0x00, 0x10, 0x20 },
+                new byte[] { 0xDE, 0xAD, 0xBE, 0xEF },
+            };
+            var passport = new PetPassport { Scans = scans };
+            var json = _serializer.Serialize(passport);
+            // Each element is an independent base64 string.
+            Assert.Contains("\"ABAg\"", json);
+            Assert.Contains("\"3q2+7w==\"", json);
+
+            var decoded = _serializer.Deserialize<PetPassport>(json);
+            Assert.NotNull(decoded);
+            Assert.NotNull(decoded!.Scans);
+            Assert.Equal(2, decoded.Scans!.Count);
+            Assert.Equal(scans[0], decoded.Scans[0]);
+            Assert.Equal(scans[1], decoded.Scans[1]);
+        }
+    }
+
+    {{! Scenario 4 — a double-typed field accepts an INTEGRAL JSON value. }}
+    {{! PhotoMetadataLocation.Lat is a double; a payload carrying {"lat":5} }}
+    {{! (a bare integer, not 5.0) must decode without crashing — System.Text }}
+    {{! .Json widens the integer to the double. Canonical across all 12 SDKs. }}
+    public class NumberFieldFromIntegralJsonTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DoubleFieldDecodesFromIntegralJsonNumber()
+        {
+            var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5,\"lng\":-3}");
+            Assert.NotNull(loc);
+            Assert.Equal(5.0, loc!.Lat);
+            Assert.Equal(-3.0, loc.Lng);
+        }
+
+        [Fact]
+        public void DoubleFieldStillDecodesFromFractionalJsonNumber()
+        {
+            var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5.5}");
+            Assert.NotNull(loc);
+            Assert.Equal(5.5, loc!.Lat);
+        }
+    }
+
+    {{! Scenario 5 — additionalProperties flatten to the TOP level. }}
+    {{! An unmapped JSON key is captured on deserialize (via [JsonExtensionData] }}
+    {{! on Metadata.AdditionalProperties) and, crucially, re-serialized at the }}
+    {{! TOP level of the object — NOT nested under an "additionalProperties" }}
+    {{! wrapper key. Canonical across all 12 SDKs. }}
+    public class AdditionalPropertiesTopLevelTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void UnknownKeyIsCapturedOnDeserialize()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"createdAt\":\"2024-01-01T00:00:00Z\",\"region\":\"emea\"}");
+            Assert.NotNull(meta);
+            Assert.NotNull(meta!.AdditionalProperties);
+            Assert.Equal("emea", meta.AdditionalProperties!["region"].ToString());
+        }
+
+        [Fact]
+        public void CapturedExtraKeyReserializesAtTopLevelNotNested()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}");
+            var json = _serializer.Serialize(meta);
+            // The extra keys appear at the top level of the object verbatim.
+            Assert.Contains("\"region\":\"emea\"", json);
+            Assert.Contains("\"tier\":\"gold\"", json);
+            // They must NOT be wrapped under an additionalProperties /
+            // additional_properties container key.
+            Assert.DoesNotContain("additionalProperties", json);
+            Assert.DoesNotContain("additional_properties", json);
+        }
+
+        [Fact]
+        public void ExtraKeyRoundTripsValuePreserved()
+        {
+            var original = "{\"region\":\"emea\"}";
+            var meta = _serializer.Deserialize<Metadata>(original);
+            var back = _serializer.Deserialize<Metadata>(_serializer.Serialize(meta));
+            Assert.Equal("emea", back!.AdditionalProperties!["region"].ToString());
+        }
+    }
+
+    {{! Scenario 7 — nested container deep-round-trips to typed leaves. }}
+    {{! StockItem.Matrix is List<List<int>> (an array of integer arrays). It }}
+    {{! must decode to typed int leaves (not raw JsonElement) and re-encode }}
+    {{! identically. Canonical across all 12 SDKs. }}
+    public class NestedContainerDeepRoundTripTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void ArrayOfIntArraysDeserializesToTypedLeaves()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"matrix\":[[1,2],[3,4,5]]}");
+            Assert.NotNull(item);
+            Assert.NotNull(item!.Matrix);
+            Assert.Equal(2, item.Matrix!.Count);
+            Assert.Equal(new List<int> { 1, 2 }, item.Matrix[0]);
+            Assert.Equal(new List<int> { 3, 4, 5 }, item.Matrix[1]);
+            // Leaves are real ints, not boxed JsonElement.
+            Assert.IsType<int>(item.Matrix[0][0]);
+        }
+
+        [Fact]
+        public void ArrayOfIntArraysRoundTripsIdentically()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":2,\"matrix\":[[7,8],[9]]}");
+            var json = _serializer.Serialize(item);
+            Assert.Contains("\"matrix\":[[7,8],[9]]", json);
+        }
+    }
+
+    {{! DECIMAL-AS-NUMBER parity — Pet.WeightKg models the spec's `type: number` }}
+    {{! property with no `format`. Its wire form must be an UNQUOTED JSON number }}
+    {{! (1.5), never a quoted string ("1.5"). C# maps it to System.Decimal, which }}
+    {{! System.Text.Json emits as a bare number, so this passes natively and }}
+    {{! stays in lockstep with the SDKs that serialize a plain number. }}
+    public class DecimalNumberWireFormatTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void NonIntegerDecimalSerializesAsUnquotedNumber()
+        {
+            var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" })
+            {
+                WeightKg = 1.5m,
+            };
+            var json = _serializer.Serialize(pet);
+            Assert.Contains("\"weightKg\":1.5", json);
+            Assert.DoesNotContain("\"weightKg\":\"1.5\"", json);
+        }
+
+        [Fact]
+        public void DecimalSurvivesRoundTripAsNumber()
+        {
+            var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" })
+            {
+                WeightKg = 1.5m,
+            };
+            var json = _serializer.Serialize(pet);
+            var parsed = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(parsed);
+            Assert.Equal(1.5m, parsed!.WeightKg);
+        }
+    }
+}

@@ -1,0 +1,93 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.oauth.OAuth2ImplicitAuthenticator
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+
+class OAuth2ImplicitAuthenticatorTest {
+
+    private fun createAuthenticator(): OAuth2ImplicitAuthenticator {
+        return OAuth2ImplicitAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            authorizationUrl = "https://auth.example.com/authorize",
+            scopes = listOf("read", "write")
+        )
+    }
+
+    @Test
+    fun buildsAuthorizationUrlWithResponseTypeToken() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("response_type=token"))
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"))
+    }
+
+    @Test
+    fun buildsAuthorizationUrlWithClientId() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("client_id=my-client-id"))
+    }
+
+    @Test
+    fun buildsAuthorizationUrlWithScopes() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"))
+    }
+
+    @Test
+    fun buildsAuthorizationUrlWithState() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("my-state")
+
+        assertTrue(url.contains("state=my-state"))
+    }
+
+    @Test
+    fun getAuthHeadersReturnsBearerAfterSetAccessToken() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("implicit-tok")
+
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer implicit-tok", headers["Authorization"])
+    }
+
+    @Test
+    fun throwsWhenAccessTokenNotSet() {
+        val auth = createAuthenticator()
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+    }
+
+    @Test
+    fun getHostReturnsConfiguredHost() {
+        val auth = createAuthenticator()
+
+        assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun redactsSecret() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("implicit-tok")
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("implicit-tok"))
+        assertTrue(rendered.contains("***"))
+    }
+}

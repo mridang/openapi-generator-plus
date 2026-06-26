@@ -1,0 +1,219 @@
+{{>api_info}}
+
+import * as http from 'node:http';
+import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
+import { Configuration } from '../../src/configuration{{importFileExtension}}';
+import { Order, OrderStatusEnum, Category, Swatch } from '../../src/models/index{{importFileExtension}}';
+
+const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
+const config = Configuration.builder()
+  .baseUrl(baseUrl)
+  .defaultHeader('Authorization', 'Bearer test-token')
+  .build();
+const api = new StoreApi(undefined, config);
+
+describe('StoreApi', () => {
+  beforeAll(async () => {
+    for (let i = 0; i < 5; i++) {
+      try {
+        await fetch(baseUrl, { method: 'GET' });
+        return;
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  });
+
+  test('getInventory', async () => {
+    const result = await api.getInventory();
+
+    expect(result).toBeDefined();
+    expect(typeof result).toBe('object');
+  });
+
+  test('placeOrder', async () => {
+    const order = new Order({
+      id: 1,
+      petId: 12345,
+      quantity: 1,
+      shipDate: new Date(),
+      status: OrderStatusEnum.Placed,
+      complete: false,
+    });
+
+    const result = await api.placeOrder(order);
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
+  test('getInventoryWithHttpInfo', async () => {
+    const result = await api.getInventoryWithHttpInfo();
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('placeOrderWithHttpInfo', async () => {
+    const order = new Order({
+      id: 1,
+      petId: 12345,
+      quantity: 1,
+      shipDate: new Date(),
+      status: OrderStatusEnum.Placed,
+      complete: false,
+    });
+
+    const result = await api.placeOrderWithHttpInfo(order);
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('getOrderById', async () => {
+    const result = await api.getOrderById(1);
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
+  test('getOrderByIdWithHttpInfo', async () => {
+    const result = await api.getOrderByIdWithHttpInfo(1);
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('deleteOrder', async () => {
+    await api.deleteOrder(1);
+  });
+});
+
+function createMockServer(status: number, contentType: string, body: string): Promise<{ api: StoreApi; server: http.Server; close: () => void }> {
+  return new Promise((resolve) => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(status, { 'Content-Type': contentType });
+      res.end(body);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address() as { port: number };
+      const mockConfig = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .build();
+      const mockApi = new StoreApi(undefined, mockConfig);
+      resolve({ api: mockApi, server, close: () => server.close() });
+    });
+  });
+}
+
+describe('StoreApi nested container deserialization', () => {
+  test('getGroupedCategories decodes array-of-map leaves into typed Category instances', async () => {
+    // nested-container-deserialise: the operation returns Array<Record<string,
+    // Category>>. Each map leaf on the wire must be decoded into a typed
+    // Category instance, not left as a raw map, so field access and the
+    // instanceof check both hold.
+    const body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getGroupedCategories();
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(2);
+      expect(result[0]!['a']).toBeInstanceOf(Category);
+      expect(result[0]!['a']!.id).toBe(1);
+      expect(result[0]!['a']!.name).toBe('Dogs');
+      expect(result[1]!['b']).toBeInstanceOf(Category);
+      expect(result[1]!['b']!.name).toBe('Cats');
+    } finally {
+      close();
+    }
+  });
+
+  test('getMatrix decodes an array of integer arrays', async () => {
+    // nested-container-deserialise: Array<Array<number>> — the leaves are not
+    // maps, so the descent must not assume a map at any level.
+    const body = '[[1,2],[3,4]]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getMatrix();
+      expect(result).toEqual([[1, 2], [3, 4]]);
+      expect(typeof result[0]![0]).toBe('number');
+    } finally {
+      close();
+    }
+  });
+
+  test('getSwatchGroups decodes enum leaves into Swatch values', async () => {
+    // nested-container-deserialise: Array<Record<string, Swatch>> — an enum
+    // leaf must be carried through as its enum value, not run through a model
+    // class constructor.
+    const body = '[{"a":"red"},{"b":"blue"}]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getSwatchGroups();
+      expect(result).toHaveLength(2);
+      expect(result[0]!['a']).toBe(Swatch.Red);
+      expect(result[1]!['b']).toBe(Swatch.Blue);
+    } finally {
+      close();
+    }
+  });
+
+  test('getTimestampGroups decodes date-time leaves into Date', async () => {
+    // nested-container-deserialise: Array<Record<string, Date>> — a date-time
+    // leaf must be parsed into a Date, not left as a raw string.
+    const body = '[{"t":"2020-01-02T03:04:05Z"}]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getTimestampGroups();
+      expect(result).toHaveLength(1);
+      const ts = result[0]!['t'];
+      expect(ts).toBeInstanceOf(Date);
+      expect(ts!.getUTCFullYear()).toBe(2020);
+    } finally {
+      close();
+    }
+  });
+});
+
+describe('StoreApi error handling', () => {
+  test('getOrderById 404 throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Order not found"}');
+    try {
+      await expect(mockApi.getOrderById(99999)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  test('placeOrder 500 throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
+    try {
+      const order = new Order({
+        id: 1,
+        petId: 12345,
+        quantity: 1,
+        shipDate: new Date(),
+        status: OrderStatusEnum.Placed,
+        complete: false,
+      });
+      await expect(mockApi.placeOrder(order)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  test('deleteOrder 404 throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Order not found"}');
+    try {
+      await expect(mockApi.deleteOrder(99999)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+});

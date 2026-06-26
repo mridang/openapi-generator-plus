@@ -1,0 +1,464 @@
+{{>api_info}}
+
+using {{packageName}}.Auth;
+using {{packageName}}.Models;
+{{#optionsImports}}{{#-first}}
+using {{packageName}}.Api.Options;
+{{/-first}}{{/optionsImports}}
+
+namespace {{packageName}}.{{apiPackage}};
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+/// <summary>
+/// Server type for the {{operationId}} operation.
+/// </summary>
+public abstract class {{serverTypeName}}
+{
+    /// <summary>Gets the server URL.</summary>
+    public abstract string Url { get; }
+}
+{{#variants}}
+{{#serverVariables}}
+{{#hasEnumValues}}
+
+/// <summary>Enum for the {{name}} server variable.</summary>
+public sealed class {{pascalName}}Value
+{
+    private {{pascalName}}Value(string value) { Value = value; }
+
+    /// <summary>Gets the string value.</summary>
+    public string Value { get; }
+{{#enumValues}}
+
+    /// <summary>The {{value}} value.</summary>
+    public static {{pascalName}}Value {{name}} { get; } = new("{{value}}");
+{{/enumValues}}
+}
+{{/hasEnumValues}}
+{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+{{#hasDescription}}
+/// <summary>{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</summary>
+{{/hasDescription}}
+{{^hasDescription}}
+/// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
+{{/hasDescription}}
+{{#hasVariables}}
+public sealed class {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}}
+{
+{{#serverVariables}}
+    /// <summary>Gets the {{name}} value.</summary>
+    public {{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{pascalName}} { get; } = {{camelName}};
+
+{{/serverVariables}}
+    /// <inheritdoc />
+    public override string Url
+    {
+        get
+        {
+            string url = "{{url}}";
+{{#serverVariables}}
+            url = url.Replace("{" + "{{name}}" + "}", {{#hasEnumValues}}{{pascalName}}.Value{{/hasEnumValues}}{{^hasEnumValues}}{{pascalName}}{{/hasEnumValues}}, StringComparison.Ordinal);
+{{/serverVariables}}
+            return url;
+        }
+    }
+}
+{{/hasVariables}}
+{{^hasVariables}}
+{{^hasDescription}}
+/// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
+{{/hasDescription}}
+public sealed class {{variantName}} : {{serverTypeName}}
+{
+    /// <inheritdoc />
+    public override string Url => "{{url}}";
+}
+{{/hasVariables}}
+{{/variants}}
+{{/serverTypeDefs}}
+
+/// <summary>
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+{{/tagDescription}}
+/// </summary>
+{{#tagExternalDocs}}
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
+{{/tagExternalDocs}}
+public class {{classname}} : BaseApi
+{
+{{#operation}}{{#produces}}{{#-first}}
+    private static readonly string[] {{operationId}}Accepts = [{{/-first}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{#-last}}];
+{{/-last}}{{/produces}}{{/operation}}
+    /// <summary>Initializes a new instance of <see cref="{{classname}}"/> with defaults.</summary>
+    public {{classname}}()
+        : base() { }
+
+    /// <summary>Initializes a new instance of <see cref="{{classname}}"/> with the given client and configuration.</summary>
+    /// <param name="apiClient">The HTTP client used to make API calls.</param>
+    /// <param name="config">The configuration for the API client.</param>
+    public {{classname}}(IApiClient apiClient, Configuration config)
+        : base(apiClient, config) { }
+
+    /// <summary>Initializes a new instance of <see cref="{{classname}}"/> with the given client, configuration, and default authenticator.</summary>
+    /// <param name="apiClient">The HTTP client used to make API calls.</param>
+    /// <param name="config">The configuration for the API client.</param>
+    /// <param name="authenticator">Optional default authenticator applied when none is passed per-operation.</param>
+    public {{classname}}(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
+        : base(apiClient, config, authenticator) { }
+    {{#operation}}
+
+    /// <summary>
+    /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}}
+    /// </summary>
+{{#notes}}
+    /// <remarks>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</remarks>
+{{/notes}}
+    {{#pathParams}}
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{#vendorExtensions.pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{value}}{{/lambda.escapeXml}}</example>
+    {{/vendorExtensions.pluralExamples}}
+    {{/pathParams}}
+    {{#bodyParam}}
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{#vendorExtensions.pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{value}}{{/lambda.escapeXml}}</example>
+    {{/vendorExtensions.pluralExamples}}
+    {{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#servers}}
+{{#-first}}
+    /// <param name="server">Optional per-operation server override.</param>
+{{/-first}}
+{{/servers}}
+{{! Multi-consume selector: when an operation declares more than one request
+    content-type, the last consume is "not first" (the not-first gate fires
+    exactly once for two-or-more types and never for a single type), so this
+    optional param doc and the matching signature/delegation slots below are
+    emitted only for multi-consume operations. The default (null) preserves
+    the first declared content-type, the prior behaviour, so existing call
+    sites are unchanged. }}
+{{#consumes}}{{#-last}}{{^-first}}
+    /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type when null.</param>
+{{/-first}}{{/-last}}{{/consumes}}
+    {{#returnType}}
+    /// <returns><![CDATA[{{{returnType}}}]]></returns>
+    {{/returnType}}
+{{#externalDocs}}
+    /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
+{{/externalDocs}}
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+{{#isDeprecated}}
+    [Obsolete("This operation is deprecated.")]
+{{/isDeprecated}}
+    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
+    {
+        {{#returnType}}
+        Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}});
+        ApiResult<{{{returnType}}}> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody);
+        }
+        return result.Data!;
+        {{/returnType}}
+        {{^returnType}}
+        Task<ApiResult<object?>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}});
+        _ = await task.ConfigureAwait(false);
+        {{/returnType}}
+    }
+
+    /// <summary>
+    /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}} (with HTTP info)
+    /// </summary>
+{{#notes}}
+    /// <remarks>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</remarks>
+{{/notes}}
+    {{#pathParams}}
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{/pathParams}}
+    {{#bodyParam}}
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#servers}}
+{{#-first}}
+    /// <param name="server">Optional per-operation server override.</param>
+{{/-first}}
+{{/servers}}
+{{#consumes}}{{#-last}}{{^-first}}
+    /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type when null.</param>
+{{/-first}}{{/-last}}{{/consumes}}
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
+    {
+{{! L10: only guard `options` against null when the Options arg is non-nullable
+    (i.e. the operation has at least one REQUIRED query/header/form/cookie
+    param). When every param is optional the arg is generated as
+    `Options? options = null`, so the natural no-arg call passes null on
+    purpose; an unconditional ThrowIfNull(options) would make that call throw.
+    In that all-optional case the per-param accesses below are already null-safe
+    (`options != null && options.X`), so no guard is needed here. }}
+{{#vendorExtensions.op.optionsParamRequired}}
+        ArgumentNullException.ThrowIfNull(options);
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#queryParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
+        string path = "{{{path}}}";
+        {{#pathParams}}
+{{^isPrimitiveType}}
+{{^isEnum}}
+{{^isEnumRef}}
+        ArgumentNullException.ThrowIfNull({{paramName}}, nameof({{paramName}}));
+{{/isEnumRef}}
+{{/isEnum}}
+{{/isPrimitiveType}}
+{{#isString}}
+        if ({{paramName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof({{paramName}}));
+        }
+{{/isString}}
+        path = path.Replace(
+            "{" + nameof({{paramName}}) + "}",
+            (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!,
+            StringComparison.Ordinal
+        );
+        {{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if (server != null)
+        {
+            string serverUrl = server.Url;
+            if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
+            {
+                path = serverUrl + path;
+            }
+        }
+{{/-first}}
+{{/servers}}
+
+        Dictionary<string, object?> queryParams = [];
+{{#queryParams}}
+{{#vendorExtensions.param.queryContent}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            queryParams["{{baseName}}"] = System.Text.Json.JsonSerializer.Serialize(
+                options.{{vendorExtensions.pascalName}}
+            );
+        }
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryDeepObject}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
+                "{{baseName}}",
+                options.{{vendorExtensions.pascalName}}.ToDictionary(
+                    entry => entry.Key,
+                    entry => (object?)entry.Value
+                )
+            );
+            foreach (KeyValuePair<string, string> entry in deepObj)
+            {
+                queryParams[entry.Key] = entry.Value;
+            }
+        }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
+                "{{baseName}}",
+                options.{{vendorExtensions.pascalName}},
+                "query",
+                "{{{dataType}}}",
+                {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                "{{style}}",
+                {{isExplode}}
+            );
+        }
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
+                "{{baseName}}",
+                options.{{vendorExtensions.pascalName}},
+                "query",
+                "{{{dataType}}}",
+                {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                "{{style}}",
+                {{isExplode}}
+            );
+        }
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        Dictionary<string, string> headerParams = [];
+{{#headerParams}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            headerParams["{{baseName}}"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "{{baseName}}",
+                    options.{{vendorExtensions.pascalName}},
+                    "header",
+                    "{{{dataType}}}",
+                    null,
+                    "{{style}}",
+                    {{isExplode}}
+                )!;
+        }
+{{/headerParams}}
+{{#hasCookieParams}}
+        List<string> cookieParts = [];
+{{#cookieParams}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            /* RFC 6265 header-injection guard. An operation-level cookie
+               parameter (in: cookie) is interpolated straight into the
+               Cookie request header, so it must clear the same name/value
+               validation that auth-provided cookies pass through in
+               BaseApi. A CR/LF or control character here would otherwise
+               splice an extra header into the request — fail closed with
+               the identical ArgumentException the auth-cookie path raises. */
+            string cookieName = "{{baseName}}";
+            string cookieValue = (string)
+                ValueSerializer.SerializeStyled(
+                    "{{baseName}}",
+                    options.{{vendorExtensions.pascalName}},
+                    "cookie",
+                    "{{{dataType}}}",
+                    null,
+                    "{{style}}",
+                    {{isExplode}}
+                )!;
+            if (!IsValidCookieName(cookieName))
+            {
+                throw new ArgumentException(
+                    $"Cookie name '{cookieName}' contains characters forbidden by RFC 6265");
+            }
+            if (!IsValidCookieValue(cookieValue))
+            {
+                throw new ArgumentException(
+                    $"Cookie value for '{cookieName}' contains characters forbidden by RFC 6265");
+            }
+            cookieParts.Add(cookieName + "=" + cookieValue);
+        }
+{{/cookieParams}}
+        if (cookieParts.Count > 0)
+        {
+            headerParams["Cookie"] = string.Join("; ", cookieParts);
+        }
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        Dictionary<string, object> formBody = [];
+{{#formParams}}
+{{#required}}
+        formBody["{{baseName}}"] = options.{{vendorExtensions.pascalName}};
+{{/required}}
+{{^required}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            formBody["{{baseName}}"] = options.{{vendorExtensions.pascalName}};
+        }
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+        return await InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>(
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+{{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
+{{! Multi-consume operations route the optional selector here: the caller's
+    requestContentType (when non-null) overrides the request Content-Type;
+    null falls back to the first declared content-type, the prior literal.
+    Single-consume operations keep the plain literal. The not-first gate on
+    the last consume fires once only for two-or-more declared types. }}
+{{#consumes}}{{#-last}}{{^-first}}                requestContentType ?? "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{#-first}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/consumes}}
+                {{#returnType}}typeof({{{returnType}}}){{/returnType}}{{^returnType}}null{{/returnType}},
+{{! Auth argument (Wave A2). A secured operation passes the optional per-call
+    override (options?.Auth) — null there means "no override", so BaseApi falls
+    back to the client-level authenticator. An operation with NO auth methods
+    (security: []) is explicitly unauthenticated: pass the NoAuth sentinel so
+    BaseApi suppresses the client-level authenticator and attaches no credential
+    (passing null here would WRONGLY re-acquire it and leak the credential). }}
+                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}NoAuth.Instance{{/hasAuthMethods}}
+            )
+            .ConfigureAwait(false);
+    }
+    {{/operation}}
+}
+{{/operations}}

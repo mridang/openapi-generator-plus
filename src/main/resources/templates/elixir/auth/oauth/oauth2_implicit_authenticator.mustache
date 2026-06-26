@@ -1,0 +1,117 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator do
+  @moduledoc """
+  Authenticator for OAuth2 implicit flow.
+
+  Implements `HttpAwareAuthenticator` for interface consistency with
+  other OAuth2 authenticators. The implicit flow does not make token
+  exchange requests.
+
+  ## Usage
+
+  1. Call `build_authorization_url/2` to get the authorization URL.
+  2. Redirect the user to that URL.
+  3. Extract the access token from the fragment and call `set_access_token/2`.
+  4. Use the authenticator normally.
+  """
+
+  use {{moduleName}}.Auth.BaseAuthenticator
+  @behaviour {{moduleName}}.Auth.HttpAwareAuthenticator
+
+  @type t :: %__MODULE__{
+          host: String.t(),
+          client_id: String.t(),
+          authorization_url: String.t(),
+          scopes: [String.t()],
+          access_token: String.t() | nil
+        }
+
+  # Redact the access token from the default Inspect representation so it
+  # is never leaked into logs via `inspect/1` / `IO.inspect` / Logger.
+  @derive {Inspect, except: [:access_token]}
+  defstruct [:host, :client_id, :authorization_url, :scopes, :access_token]
+
+  @doc """
+  Create a new implicit flow authenticator.
+
+  ## Parameters
+
+    * `host` - API base URL.
+    * `client_id` - OAuth2 client ID.
+    * `authorization_url` - Authorization endpoint URL.
+    * `scopes` - Requested scopes.
+
+  """
+  @spec new(String.t(), String.t(), String.t(), [String.t()]) :: t()
+  def new(host, client_id, authorization_url, scopes) do
+    %__MODULE__{
+      host: host,
+      client_id: client_id,
+      authorization_url: authorization_url,
+      scopes: scopes,
+      access_token: nil
+    }
+  end
+
+  @impl {{moduleName}}.Auth.HttpAwareAuthenticator
+  def set_api_client(%__MODULE__{} = self, _client) do
+    # Implicit flow does not make token exchange requests,
+    # but implements the interface for consistency.
+    self
+  end
+
+  @doc """
+  Set the access token obtained from the authorization redirect fragment.
+
+  F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+  §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+  only fail at the next API call via the Authorization-header concat,
+  allowing HTTP header injection from a redirect-fragment-derived value.
+  Raises `ArgumentError` on invalid input.
+  """
+  @spec set_access_token(t(), String.t()) :: t()
+  def set_access_token(%__MODULE__{} = self, token) do
+    if Enum.any?(:binary.bin_to_list(token), fn b ->
+         b != ?\t and (b < 0x20 or b >= 0x7F)
+       end) do
+      raise ArgumentError,
+            "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
+    %{self | access_token: token}
+  end
+
+  @doc """
+  Build the authorization URL to redirect the user to.
+  """
+  @spec build_authorization_url(t(), String.t() | nil) :: String.t()
+  def build_authorization_url(%__MODULE__{} = self, state \\ nil) do
+    params = %{
+      "response_type" => "token",
+      "client_id" => self.client_id
+    }
+
+    params = if self.scopes != [], do: Map.put(params, "scope", Enum.join(self.scopes, " ")), else: params
+    params = if state, do: Map.put(params, "state", state), else: params
+
+    # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+    # a query component. Use '&' as the separator when one is already
+    # present so existing params are preserved, '?' otherwise.
+    separator = if String.contains?(self.authorization_url, "?"), do: "&", else: "?"
+
+    "#{self.authorization_url}#{separator}#{URI.encode_query(params)}"
+  end
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def host(%__MODULE__{} = self), do: self.host
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def auth_headers(%__MODULE__{access_token: nil}) do
+    raise "Must set access_token before making API requests"
+  end
+
+  def auth_headers(%__MODULE__{} = self) do
+    %{"Authorization" => "Bearer #{self.access_token}"}
+  end
+end

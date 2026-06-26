@@ -1,0 +1,354 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Immutable HTTP transport configuration for {@link DefaultApiClient}.
+ *
+ * <p>Controls low-level HTTP behavior such as TLS verification, proxy routing,
+ * timeouts, redirect handling, and automatic header injection. These settings
+ * are independent of API-level concerns (base URL, authentication headers)
+ * which belong in {@link Configuration}.
+ *
+ * <p>This class is immutable and thread-safe. Use {@link #builder()} to create instances:
+ * <pre>{@code
+ * TransportOptions transport = TransportOptions.builder()
+ *     .verifySsl(false)
+ *     .proxy("http://proxy.example.com:8080")
+ *     .timeout(5000)
+ *     .userAgent("MyApp/1.0")
+ *     .build();
+ * }</pre>
+ */
+public final class TransportOptions {
+
+    private final boolean         verifySsl;
+    @Nullable private final String          caCertPath;
+    @Nullable private final String          proxy;
+    @Nullable private final Integer         timeout;
+    private final boolean         followRedirects;
+    @Nullable private final Integer         maxRedirects;
+    @Nullable private final String          userAgent;
+    private final Map<String, String> defaultHeaders;
+    private final boolean         injectRequestId;
+
+    TransportOptions(
+            boolean         verifySsl,
+            @Nullable String          caCertPath,
+            @Nullable String          proxy,
+            @Nullable Integer         timeout,
+            boolean         followRedirects,
+            @Nullable Integer         maxRedirects,
+            @Nullable String          userAgent,
+            Map<String, String> defaultHeaders,
+            boolean         injectRequestId) {
+        this.verifySsl       = verifySsl;
+        this.caCertPath      = caCertPath;
+        this.proxy           = proxy;
+        this.timeout         = timeout;
+        this.followRedirects = followRedirects;
+        this.maxRedirects    = maxRedirects;
+        this.userAgent       = userAgent;
+        this.defaultHeaders  = Collections.unmodifiableMap(new HashMap<>(defaultHeaders));
+        this.injectRequestId = injectRequestId;
+    }
+
+    /**
+     * Create a new builder for constructing {@link TransportOptions} instances.
+     *
+     * @return a new builder with sensible defaults
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Whether TLS certificate verification is enabled.
+     *
+     * @return {@code true} if the client verifies server certificates (default),
+     *         {@code false} to accept any certificate
+     */
+    public boolean isVerifySsl() {
+        return verifySsl;
+    }
+
+    /**
+     * Path to a custom CA certificate bundle for TLS verification.
+     *
+     * <p>When set together with {@code verifySsl=true}, the client trusts
+     * certificates signed by this CA in addition to (or instead of) the
+     * system trust store, depending on the language runtime.
+     *
+     * @return the file path, or {@code null} to use the system default
+     */
+    @Nullable
+    public String getCaCertPath() {
+        return caCertPath;
+    }
+
+    /**
+     * HTTP or HTTPS proxy URL for all outbound requests.
+     *
+     * <p>Example: {@code "http://proxy.corp.example.com:3128"}.
+     *
+     * @return the proxy URL, or {@code null} for direct connections
+     */
+    @Nullable
+    public String getProxy() {
+        return proxy;
+    }
+
+    /**
+     * End-to-end request timeout in milliseconds.
+     *
+     * <p>Covers the entire request lifecycle: connection, TLS handshake,
+     * sending the request body, and reading the response. Defaults to
+     * 10000 ms (10 seconds) when the builder does not set a value.
+     *
+     * @return timeout in milliseconds, or {@code null} for no timeout
+     */
+    @Nullable
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    /**
+     * Whether the client follows HTTP 3xx redirects automatically.
+     *
+     * @return {@code true} to follow redirects (default), {@code false} to
+     *         return the redirect response as-is
+     */
+    public boolean isFollowRedirects() {
+        return followRedirects;
+    }
+
+    /**
+     * Maximum number of consecutive redirects to follow.
+     *
+     * <p>Only meaningful when {@link #isFollowRedirects()} is {@code true}.
+     * A value of {@code null} uses the HTTP client's built-in default.
+     *
+     * @return the maximum redirect hops, or {@code null} for the client default
+     */
+    @Nullable
+    public Integer getMaxRedirects() {
+        return maxRedirects;
+    }
+
+    /**
+     * Custom {@code User-Agent} header value.
+     *
+     * <p>When set, this value is sent as the {@code User-Agent} header on
+     * every request unless the caller explicitly provides one.
+     *
+     * @return the user agent string, or {@code null} to omit
+     */
+    @Nullable
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    /**
+     * Transport-level default headers included in every request.
+     *
+     * <p>These headers have the <em>lowest</em> priority: API-level headers
+     * from {@link Configuration#getDefaultHeaders()}, operation-specific
+     * headers, and authentication headers all take precedence.
+     *
+     * @return an unmodifiable map of header names to values
+     */
+    public Map<String, String> getDefaultHeaders() {
+        return defaultHeaders;
+    }
+
+    /**
+     * Whether to auto-inject an {@code X-Request-ID} header with a unique
+     * UUID on every request.
+     *
+     * <p>Useful for distributed tracing and log correlation. The header is
+     * only injected if the caller has not already set one.
+     *
+     * @return {@code true} to inject request IDs, {@code false} otherwise
+     */
+    public boolean isInjectRequestId() {
+        return injectRequestId;
+    }
+
+    /**
+     * Builder for creating immutable {@link TransportOptions} instances.
+     *
+     * <p>All fields have sensible defaults:
+     * <ul>
+     *   <li>{@code verifySsl} — {@code true}</li>
+     *   <li>{@code followRedirects} — {@code true}</li>
+     *   <li>{@code injectRequestId} — {@code false}</li>
+     *   <li>All other fields — {@code null} or empty</li>
+     * </ul>
+     */
+    public static final class Builder {
+
+        private boolean                verifySsl       = true;
+        @Nullable private String       caCertPath      = null;
+        @Nullable private String       proxy           = null;
+        @Nullable private Integer      timeout         = 10000;
+        private boolean                followRedirects = true;
+        @Nullable private Integer      maxRedirects    = null;
+        @Nullable private String       userAgent       = "{{userAgentDefault}}";
+        private final Map<String, String> defaultHeaders  = new HashMap<>();
+        private boolean                injectRequestId = false;
+
+        Builder() {}
+
+        /**
+         * Enable or disable TLS certificate verification.
+         *
+         * @param verifySsl {@code true} to verify (default), {@code false} to skip
+         * @return this builder
+         */
+        public Builder verifySsl(boolean verifySsl) {
+            this.verifySsl = verifySsl;
+            return this;
+        }
+
+        /**
+         * Set the path to a custom CA certificate bundle.
+         *
+         * @param caCertPath file path to a PEM-encoded CA certificate, or {@code null}
+         * @return this builder
+         */
+        public Builder caCertPath(@Nullable String caCertPath) {
+            this.caCertPath = caCertPath;
+            return this;
+        }
+
+        /**
+         * Set the HTTP/HTTPS proxy URL.
+         *
+         * @param proxy proxy URL (e.g. {@code "http://proxy:3128"}), or {@code null}
+         * @return this builder
+         * @throws IllegalArgumentException if the proxy URL is not a valid URI
+         */
+        public Builder proxy(@Nullable String proxy) {
+            if (proxy != null) {
+                java.net.URI uri;
+                try {
+                    uri = java.net.URI.create(proxy);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid proxy URL: " + proxy, e);
+                }
+                String scheme = uri.getScheme();
+                if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                    throw new IllegalArgumentException(
+                            "Invalid proxy URL (must use http or https scheme): " + proxy);
+                }
+                if (uri.getHost() == null || uri.getHost().isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Invalid proxy URL (missing host): " + proxy);
+                }
+            }
+            this.proxy = proxy;
+            return this;
+        }
+
+        /**
+         * Set the end-to-end request timeout in milliseconds.
+         *
+         * @param timeout timeout in milliseconds, or {@code null} for no timeout
+         * @return this builder
+         */
+        public Builder timeout(@Nullable Integer timeout) {
+            this.timeout = timeout;
+            return this;
+        }
+
+        /**
+         * Enable or disable automatic redirect following.
+         *
+         * @param followRedirects {@code true} to follow (default), {@code false} to stop
+         * @return this builder
+         */
+        public Builder followRedirects(boolean followRedirects) {
+            this.followRedirects = followRedirects;
+            return this;
+        }
+
+        /**
+         * Set the maximum number of redirects to follow.
+         *
+         * @param maxRedirects maximum redirect hops, or {@code null} for client default
+         * @return this builder
+         */
+        public Builder maxRedirects(@Nullable Integer maxRedirects) {
+            this.maxRedirects = maxRedirects;
+            return this;
+        }
+
+        /**
+         * Set a custom User-Agent header value.
+         *
+         * @param userAgent the user agent string, or {@code null} to omit
+         * @return this builder
+         */
+        public Builder userAgent(@Nullable String userAgent) {
+            this.userAgent = userAgent;
+            return this;
+        }
+
+        /**
+         * Add a single transport-level default header.
+         *
+         * @param name  header name
+         * @param value header value
+         * @return this builder
+         */
+        public Builder defaultHeader(String name, String value) {
+            this.defaultHeaders.put(name, value);
+            return this;
+        }
+
+        /**
+         * Add multiple transport-level default headers.
+         *
+         * @param headers map of header names to values
+         * @return this builder
+         */
+        public Builder defaultHeaders(Map<String, String> headers) {
+            this.defaultHeaders.putAll(headers);
+            return this;
+        }
+
+        /**
+         * Enable or disable automatic {@code X-Request-ID} header injection.
+         *
+         * @param injectRequestId {@code true} to inject, {@code false} to skip (default)
+         * @return this builder
+         */
+        public Builder injectRequestId(boolean injectRequestId) {
+            this.injectRequestId = injectRequestId;
+            return this;
+        }
+
+        /**
+         * Build and return an immutable {@link TransportOptions} instance.
+         *
+         * @return the configured transport options
+         */
+        public TransportOptions build() {
+            return new TransportOptions(
+                    verifySsl,
+                    caCertPath,
+                    proxy,
+                    timeout,
+                    followRedirects,
+                    maxRedirects,
+                    userAgent,
+                    new HashMap<>(defaultHeaders),
+                    injectRequestId);
+        }
+    }
+}

@@ -1,166 +1,1228 @@
 package io.github.mridang.codegen.generators.ruby;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.servers.Server;
-import org.apache.commons.lang3.StringUtils;
-import org.openapitools.codegen.CodegenOperation;
-import org.openapitools.codegen.languages.RubyClientCodegen;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.github.mridang.codegen.generators.NamingConvention;
+import io.github.mridang.codegen.generators.WithTypeSignatureSupport;
+import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
-import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-
-import static org.openapitools.codegen.utils.StringUtils.underscore;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A custom Ruby code generator that provides sane defaults for generating a
- * minimal, modern Ruby client using the Typhoeus HTTP library.
- * <p>
- * This generator is configured to:
- * <ul>
- * <li>Use the 'typhoeus' library for HTTP requests.</li>
- * <li>Set a default module name to 'Opigen::Client'.</li>
- * <li>Allow additional properties in models for forward compatibility.</li>
- * <li>Generate only model and API files, excluding tests, docs, and
- * other supporting project files.</li>
- * </ul>
+ * Generates a Ruby API client that uses Net::HTTP for transport
+ * and Dry::Struct for model deserialization. All identifiers use
+ * snake_case per Ruby convention, and the output directory layout
+ * follows Zeitwerk autoloading rules so that the generated gem
+ * can be loaded without explicit requires. RBS type-signature
+ * files are emitted alongside source files and then relocated
+ * under {@code sig/} during post-processing. The formatter pass
+ * invokes RuboCop inside Docker to enforce layout rules.
  */
 @SuppressWarnings("unused")
-public class BetterRubyCodegen extends RubyClientCodegen implements UnsupportedFeaturesValidator {
+public class BetterRubyCodegen extends AbstractBetterCodegen implements WithTypeSignatureSupport {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
+
+    private static final String DEFAULT_GEM_VERSION = "1.0.0";
+    private static final String DEFAULT_API_ERROR_PARENT = "StandardError";
+    private static final String LIB_FOLDER = "lib";
+
+    @Nullable protected String gemName;
+    protected String moduleName = "Opigen::Client";
 
     /**
-     * Initializes a new instance of the {@code BetterRubyCodegen} class,
-     * setting up the hardcoded default configurations for a minimal client.
+     * Initializes type mappings, template paths, and reserved
+     * words for the Ruby language. Type mappings convert OpenAPI
+     * types to their Ruby equivalents (e.g. integer to Integer,
+     * DateTime to Time). Reserved words are loaded from a bundled
+     * word-list to avoid generating identifiers that clash with
+     * Ruby keywords.
      */
     public BetterRubyCodegen() {
-        super();
+        outputFolder = Path.of("generated-code", "ruby").toString();
+        embeddedTemplateDir = templateDir = "templates/ruby";
 
-        this.setLibrary(TYPHOEUS);
-        this.setModuleName("Opigen::Client");
-        this.setDisallowAdditionalPropertiesIfNotPresent(false);
+        modelTemplateFiles.put("models/model.mustache", ".rb");
+        modelTemplateFiles.put("models/model_rbs.mustache", ".rbs");
+        apiTemplateFiles.put("api/api.mustache", ".rb");
+        apiTemplateFiles.put("api/api_rbs.mustache", ".rbs");
 
-        setTemplateDir("templates/ruby");
+        modelPackage = "models";
+        apiPackage = "api";
 
-        apiDocTemplateFiles.clear();
-        modelDocTemplateFiles.clear();
-        apiTestTemplateFiles.clear();
-        modelTestTemplateFiles.clear();
+        typeMapping.put("string", "String");
+        typeMapping.put("boolean", "Boolean");
+        typeMapping.put("char", "String");
+        typeMapping.put("int", "Integer");
+        typeMapping.put("integer", "Integer");
+        typeMapping.put("long", "Integer");
+        typeMapping.put("short", "Integer");
+        typeMapping.put("float", "Float");
+        typeMapping.put("double", "Float");
+        typeMapping.put("number", "Float");
+        typeMapping.put("decimal", "Float");
+        typeMapping.put("date", "Date");
+        typeMapping.put("DateTime", "Time");
+        // 4.8: format: time → tod gem (Tod::TimeOfDay) — no native
+        // time-of-day type in Ruby stdlib; tod is the canonical small,
+        // focused, well-maintained library for this surface.
+        typeMapping.put("time", "Tod::TimeOfDay");
+        // 4.8: format: duration → iso8601 gem (ISO8601::Duration) — Ruby
+        // stdlib has no ISO-8601 duration parser; iso8601 is small and
+        // well-maintained, far lighter than ActiveSupport::Duration.
+        typeMapping.put("duration", "ISO8601::Duration");
+        typeMapping.put("array", "Array");
+        typeMapping.put("set", "Set");
+        typeMapping.put("List", "Array");
+        typeMapping.put("map", "Hash");
+        typeMapping.put("object", "Object");
+        typeMapping.put("AnyType", "Object");
+        typeMapping.put("file", "File");
+        typeMapping.put("File", "File");
+        typeMapping.put("binary", "String");
+        typeMapping.put("ByteArray", "String");
+        typeMapping.put("UUID", "String");
+        typeMapping.put("URI", "String");
+
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "String", "Boolean", "Integer", "Float", "Date", "Time",
+                                "Tod::TimeOfDay", "ISO8601::Duration",
+                                "Array", "Set", "Hash", "File", "Object"));
+
+        instantiationTypes.put("map", "Hash");
+        instantiationTypes.put("array", "Array");
+
+        reservedWords = loadReservedWords("/reserved-words/ruby.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.GEM_NAME,
+                CodegenConstants.GEM_NAME_DESC));
+        cliOptions.add(CliOption.newString("gemVersion",
+                "Version of the generated gem (default: 1.0.0).")
+                .defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(CodegenConstants.MODULE_NAME,
+                CodegenConstants.MODULE_NAME_DESC));
+        cliOptions.add(CliOption.newString("apiErrorParent",
+                "Fully-qualified superclass for the generated ApiError, and the SDK-wide "
+                        + "error base under which all serialization/HTTP errors are rooted. "
+                        + "Set this to a hand-written base (e.g. a gem's ZitadelError) so a "
+                        + "single `rescue <base>` catches every SDK error. Defaults to "
+                        + "StandardError.")
+                .defaultValue(DEFAULT_API_ERROR_PARENT));
     }
 
-    @Override
-    public String getLibrary() {
-        return TYPHOEUS;
-    }
-
-    /**
-     * Gets the unique name of this generator. This name is used to select the
-     * generator from the command line or other tools.
-     *
-     * @return The unique generator name, "ruby-plus".
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "ruby-plus";
     }
 
+    /** Returns a short description shown in the help output. */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal Ruby client with Faraday.";
+    }
+
     /**
-     * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
+     * Declares Ruby as the target language so that the framework
+     * can apply language-specific post-processing steps.
      */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.RUBY;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSpecDir() {
+        return "spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.UPPER_SNAKE_CASE;
+    }
+
+    /**
+     * Returns {@code "Set<"} so that unique-item arrays are
+     * emitted as Ruby {@code Set} instead of {@code Array}.
+     * Ruby has {@code Set} in stdlib ({@code require 'set'}).
+     */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "Set<";
+    }
+
+    /**
+     * Returns the regex matching the {@code Array} container
+     * prefix so that it can be replaced with {@code Set} for
+     * unique-item properties.
+     */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^Array";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "ruby:3.4@sha256:439b61ca7ef0e20da3848a2d53a7ef9970018517c7cfacd1ab234964c9887b1a";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            // Start from a clean install dir so a leftover vendor/ or
+            // Gemfile.lock (e.g. from an integration-test run sharing this
+            // directory, or a previous formatter attempt) cannot poison the
+            // bundle install.
+            "rm -rf vendor .bundle",
+            "bundle config set --local path vendor/bundle",
+            "bundle install --quiet",
+            // rubocop -A exits 1 when it auto-corrects offenses and 2 on a real
+            // error; tolerate only the success-with-corrections case so genuine
+            // failures still fail loud (subshell isolates $? from the && chain).
+            "( bundle exec rubocop -A --cache false --only Layout || [ $? -eq 1 ] )",
+            "rm -rf vendor .bundle"
+        };
+    }
+
+    /**
+     * Resolves gem name and module path, then registers all
+     * supporting files: gem entry-point, configuration classes,
+     * error hierarchy, serializers, authenticators, test harness,
+     * RuboCop config, Steepfile, and Makefile. File paths use
+     * the Zeitwerk-compatible snake_case layout under lib/.
+     */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String resolvedModuleName = Optional.ofNullable(
+                (String) additionalProperties.get(CodegenConstants.MODULE_NAME))
+                .orElse(moduleName);
+        final String resolvedGemName = Optional.ofNullable(
+                (String) additionalProperties.get(CodegenConstants.GEM_NAME))
+                .orElseGet(() -> NamingConvention.SNAKE_CASE.apply(
+                        resolvedModuleName.replaceAll("[^\\w]+", "")));
+        final String modulePath = NamingConvention.SNAKE_CASE.apply(
+                resolvedModuleName.replaceAll("::", "/"));
+        final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
+        final String errorsPath = Path.of(libPath, "errors").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("gem.mustache", LIB_FOLDER, resolvedGemName + ".rb"),
+            new SupportingFileSpec("configuration.mustache", libPath, "configuration.rb"),
+            new SupportingFileSpec("transport_options.mustache", libPath, "transport_options.rb"),
+            new SupportingFileSpec("server_configuration.mustache", libPath, "server_configuration.rb"),
+            new SupportingFileSpec("servers.mustache", libPath, "servers.rb"),
+            new SupportingFileSpec("api_error.mustache", libPath, "api_error.rb"),
+            new SupportingFileSpec("errors/client_error.mustache", errorsPath, "client_error.rb"),
+            new SupportingFileSpec("errors/server_error.mustache", errorsPath, "server_error.rb"),
+            new SupportingFileSpec("errors/bad_request_error.mustache", errorsPath, "bad_request_error.rb"),
+            new SupportingFileSpec("errors/unauthorized_error.mustache", errorsPath, "unauthorized_error.rb"),
+            new SupportingFileSpec("errors/forbidden_error.mustache", errorsPath, "forbidden_error.rb"),
+            new SupportingFileSpec("errors/not_found_error.mustache", errorsPath, "not_found_error.rb"),
+            new SupportingFileSpec("errors/conflict_error.mustache", errorsPath, "conflict_error.rb"),
+            new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsPath, "unprocessable_entity_error.rb"),
+            new SupportingFileSpec("errors/internal_server_error.mustache", errorsPath, "internal_server_error.rb"),
+            new SupportingFileSpec("version.mustache", libPath, "version.rb"),
+            new SupportingFileSpec("header_selector.mustache", libPath, "header_selector.rb"),
+            new SupportingFileSpec("object_serializer.mustache", libPath, "object_serializer.rb"),
+            new SupportingFileSpec("value_serializer.mustache", libPath, "value_serializer.rb"),
+            new SupportingFileSpec("trace_context_util.mustache", libPath, "trace_context_util.rb"),
+            new SupportingFileSpec("api_response.mustache", libPath, "api_response.rb"),
+            new SupportingFileSpec("api_result.mustache", libPath, "api_result.rb"),
+            new SupportingFileSpec("api_client.mustache", libPath, "api_client.rb"),
+            new SupportingFileSpec("default_api_client.mustache", libPath, "default_api_client.rb"),
+            new SupportingFileSpec("base_api.mustache", Path.of(libPath, "api").toString(), "base_api.rb"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(libPath, "auth").toString(), "authenticator.rb"),
+            new SupportingFileSpec("gemfile.mustache", "", "Gemfile"),
+            new SupportingFileSpec("gemspec.mustache", "", resolvedGemName + ".gemspec"),
+            new SupportingFileSpec("rubocop.mustache", "", ".rubocop.yml"),
+            new SupportingFileSpec("steepfile.mustache", "", "Steepfile"),
+            new SupportingFileSpec("vendor_rbs.mustache", "sig", "vendor.rbs"),
+            new SupportingFileSpec("infrastructure_rbs.mustache", "sig", "infrastructure.rbs"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("rakefile.mustache", "", "Rakefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("yardopts.mustache", "", ".yardopts"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
-        this.supportingFiles.clear();
+
+        moduleName = getPropertyOrDefault(CodegenConstants.MODULE_NAME, moduleName);
+        gemName =
+                Optional.ofNullable((String) additionalProperties.get(CodegenConstants.GEM_NAME))
+                        .orElseGet(() -> NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("[^\\w]+", "")));
+        additionalProperties.put(CodegenConstants.GEM_NAME, gemName);
+        final String gemVersion = getPropertyOrDefault("gemVersion", DEFAULT_GEM_VERSION);
+        additionalProperties.put("gemVersion", gemVersion);
+        additionalProperties.put("userAgentDefault", gemName + "/" + gemVersion + " (ruby)");
+
+        // SDK-wide error base. ApiError (and through it the whole HTTP/OAuth
+        // error tree) and the serializer errors all subclass this, so a single
+        // `rescue <apiErrorParent>` catches every SDK error. When unset, the
+        // generator emits its own branded root `<moduleName>::Error < StandardError`
+        // unconditionally and roots the whole error tree (ApiError,
+        // SerializationError, SchemaMismatchError, OAuth) under it — so callers
+        // can `rescue <moduleName>::Error` to catch HTTP *and* serialization
+        // failures, mirroring the branded root every other SDK provides. An SDK
+        // with a hand-written base (e.g. ZitadelError) points this at that class
+        // so the two roots collapse into one.
+        String apiErrorParent =
+                getPropertyOrDefault("apiErrorParent", DEFAULT_API_ERROR_PARENT);
+        final boolean customApiErrorParent =
+                !DEFAULT_API_ERROR_PARENT.equals(apiErrorParent);
+        if (!customApiErrorParent) {
+            // No hand-written base supplied: brand our own root rather than
+            // leaving the tree at the bare StandardError.
+            apiErrorParent = moduleName + "::Error";
+        }
+        additionalProperties.put("apiErrorParent", apiErrorParent);
+
+        // The error base (whether our branded `<moduleName>::Error` or a custom
+        // hand-written class) lives outside the entrypoint's fixed-order requires,
+        // so api_error.rb must load it before evaluating `class ApiError < <parent>`.
+        // Make api_error.rb self-sufficient with a `require_relative`. The base
+        // lives in the same dir as api_error.rb, so the relative file name is the
+        // snake_case of the parent's unqualified class name (Zitadel::Client::
+        // ZitadelError -> zitadel_error; PetstoreClient::Error -> error).
+        final int sep = apiErrorParent.lastIndexOf("::");
+        final String parentSimpleName =
+                sep < 0 ? apiErrorParent : apiErrorParent.substring(sep + 2);
+        final String apiErrorParentFile = NamingConvention.SNAKE_CASE.apply(parentSimpleName);
+        additionalProperties.put("apiErrorParentFile", apiErrorParentFile);
+        additionalProperties.put("apiErrorParentSimpleName", parentSimpleName);
+        // The branded default root lives inside this gem's module, so we own its
+        // RBS declaration too. A custom hand-written base ships its own sig, so
+        // suppress ours to avoid a duplicate/conflicting declaration.
+        additionalProperties.put("brandedErrorRoot", !customApiErrorParent);
+
+        // Nested-module rendering for files that may be `require`d standalone
+        // (e.g. lib/.../version.rb pulled in by the gemspec before Zeitwerk has
+        // defined the namespace). A compact `module Zitadel::Client` crashes
+        // when `Zitadel` is not yet defined, so emit fully nested modules:
+        //   module Zitadel
+        //     module Client
+        //       VERSION = '...'
+        // The parts below let the version template build that nesting generically
+        // for any `::`-separated moduleName.
+        final java.util.List<String> moduleParts =
+            com.google.common.base.Splitter.on("::").splitToList(moduleName);
+        final StringBuilder nestedOpen = new StringBuilder();
+        final StringBuilder nestedClose = new StringBuilder();
+        for (int i = 0; i < moduleParts.size(); i++) {
+            nestedOpen.append("  ".repeat(i)).append("module ").append(moduleParts.get(i)).append('\n');
+        }
+        for (int i = moduleParts.size() - 1; i >= 0; i--) {
+            nestedClose.append("  ".repeat(i)).append("end");
+            if (i > 0) {
+                nestedClose.append('\n');
+            }
+        }
+        additionalProperties.put("moduleNameNestedOpen", nestedOpen.toString());
+        additionalProperties.put("moduleNameNestedClose", nestedClose.toString());
+        additionalProperties.put("moduleNameNestedIndent", "  ".repeat(moduleParts.size()));
+
+        setModelPackage("models");
+        setApiPackage("api");
+
+        final String modulePath = NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
+
+        // Lib-relative require root, mirroring the module nesting (e.g.
+        // moduleName "Zitadel::Client" -> "zitadel/client"). This is the path
+        // under lib/ where intra-gem files live and MUST be used for `require`
+        // statements; gemName (e.g. "zitadel-client") differs whenever the
+        // module name has multiple segments and would produce a LoadError.
+        additionalProperties.put("modulePath", modulePath.replace('\\', '/'));
+
+        final String clientClassName =
+                Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
+        final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
+        additionalProperties.put("clientClassFile", clientClassFile);
+        supportingFiles.add(
+                new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
+
+        // The generator owns the SDK-wide error base file in both cases: the
+        // branded default `<moduleName>::Error` and a custom hand-written base
+        // (e.g. ZitadelError). Emitting it unconditionally guarantees a single
+        // branded root the whole error tree (ApiError, SerializationError,
+        // SchemaMismatchError, OAuth) parents under, so one `rescue` catches
+        // every SDK error.
+        supportingFiles.add(
+                new SupportingFile(
+                        "error_parent.mustache", libPath, apiErrorParentFile + ".rb"));
+
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile("test/test_helper.mustache", "test", "test_helper.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "test",
+                            "default_api_client_unit_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "test",
+                            "transport_options_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "test",
+                            "header_selector_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "test",
+                            "value_serializer_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_test.mustache",
+                            "test",
+                            "trace_context_util_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.rb"));
+        }
+        if (generateTests) {
+            // The petstore golden has no gem_rbs_collection, so steep cannot see
+            // Faraday's types from a vendored gem signature the way real SDKs do.
+            // Emit a stub mirroring the gem's surface (and class hierarchy) for
+            // the fixture only; sig/vendor.rbs still adds the Connection#proxy=
+            // reopen the gem omits, in both this fixture and real clients.
+            supportingFiles.add(new SupportingFile("faraday_rbs.mustache", "sig", "faraday.rbs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/pet_api_test.mustache",
+                            Path.of("test", "api").toString(),
+                            "pet_api_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/store_api_test.mustache",
+                            Path.of("test", "api").toString(),
+                            "store_api_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_test.mustache",
+                            "test",
+                            "default_api_client_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object_serializer_test.mustache",
+                            "test",
+                            "object_serializer_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base_api_test.mustache",
+                            "test",
+                            "base_api_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/metadata_test.mustache",
+                            "test",
+                            "metadata_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/composed_schema_test.mustache",
+                            "test",
+                            "composed_schema_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "test",
+                            "client_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_error_test.mustache",
+                            "test",
+                            "api_error_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache",
+                            "test",
+                            "api_result_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "test",
+                            "server_configuration_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "test",
+                            "server_variable_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer_authenticator_test.mustache",
+                            "test",
+                            "bearer_authenticator_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_key_authenticator_test.mustache",
+                            "test",
+                            "api_key_authenticator_test.rb"));
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/basic_authenticator_test.mustache",
+                                "test",
+                                "basic_authenticator_test.rb"));
+            }
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_token_manager_test.mustache",
+                            "test",
+                            "oauth2_token_manager_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_auth_code_authenticator_test.mustache",
+                            "test",
+                            "oauth2_auth_code_authenticator_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_implicit_authenticator_test.mustache",
+                            "test",
+                            "oauth2_implicit_authenticator_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_client_credentials_authenticator_test.mustache",
+                            "test",
+                            "oauth2_client_credentials_authenticator_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_password_authenticator_test.mustache",
+                            "test",
+                            "oauth2_password_authenticator_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/openid_connect_authenticator_test.mustache",
+                            "test",
+                            "openid_connect_authenticator_test.rb"));
+        }
+    }
+
+    /** Sentinel return type for a top-level {@code format: byte} response. */
+    private static final String BYTE_RETURN_TYPE = "ByteArray";
+
+    /**
+     * Re-types a top-level bare {@code format: byte} response so the transport
+     * base64-decodes it instead of handing back the raw base64 string.
+     *
+     * <p>Such a response (a {@code type: string, format: byte} schema carried as
+     * {@code application/json}) arrives on the wire as a JSON string literal
+     * ({@code "dGVzdC1pbWFnZQ=="}). Its Ruby surface type is {@code String}, but
+     * the deserialize path must JSON-parse <em>and</em> base64-decode it to raw
+     * bytes. {@code String} is indistinguishable from a plain string response, so
+     * we route the deserialize type through the {@code ByteArray} sentinel (which
+     * {@code ObjectSerializer#convert_to_type} base64-decodes) while leaving the
+     * public method/RBS return type as {@code String}. Nested {@code format: byte}
+     * model fields already decode correctly via {@code OPENAPI_FORMATS}; only the
+     * top-level bare response needs this. Mirrors the python {@code bytes} /
+     * java {@code byte[]} return types.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return objs;
+        }
+        final List<CodegenOperation> ops =
+                (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return objs;
+        }
+        for (final CodegenOperation op : ops) {
+            // A top-level byte response: the return schema itself is
+            // `format: byte` (not a byte *field* of a model, which decodes via
+            // OPENAPI_FORMATS, and not `binary`, which streams as a File).
+            if (op.returnProperty != null
+                    && "byte".equals(op.returnProperty.dataFormat)
+                    && !op.returnProperty.isArray
+                    && !op.returnProperty.isMap) {
+                if (op.vendorExtensions == null) {
+                    op.vendorExtensions = new HashMap<>();
+                }
+                op.vendorExtensions.put("deserializeReturnType", BYTE_RETURN_TYPE);
+            }
+
+            // When an operation declares MORE THAN ONE request content-type
+            // (e.g. setPetAvatar's image/jpeg, image/png, application/json) the
+            // wire Content-Type collapses to the first declared type
+            // (effectiveConsumes) and the remaining types are unreachable. This
+            // flag lets the api template emit an OPTIONAL `content_type:` keyword
+            // selector so the caller can pick among the declared types; when
+            // unset it defaults to the first (current behaviour). Mustache cannot
+            // count list elements, so the "two-or-more" decision is computed here
+            // in the language-scoped codegen rather than in the template.
+            if (op.consumes != null && op.consumes.size() > 1) {
+                if (op.vendorExtensions == null) {
+                    op.vendorExtensions = new HashMap<>();
+                }
+                op.vendorExtensions.put("hasMultipleConsumes", true);
+            }
+        }
+        return objs;
     }
 
     /**
-     * Overrides the default behavior to create a directory structure that
-     * respects Ruby namespaces defined in the {@code moduleName}.
-     * <p>
-     * The default implementation bases the path on the sanitized {@code gemName},
-     * which flattens namespaces (e.g., 'My::Module' becomes 'my_module').
-     * This method correctly converts '::' in the module name to a path
-     * separator, creating the expected nested directory structure (e.g.,
-     * 'lib/my/module/models').
-     *
-     * @return The correctly nested path to the model files.
+     * Builds the output directory for model source files. The
+     * path follows the Zeitwerk layout: {@code lib/<module>/<modelPackage>}.
      */
     @Override
-    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     public String modelFileFolder() {
-        String path = moduleName.replaceAll("::", "/");
-        return Paths.get(getOutputDir(), libFolder, underscore(path), modelPackage().replace(".", File.separator))
-            .toString();
+        final String path = moduleName.replaceAll("::", "/");
+        return Path.of(
+                        getOutputDir(),
+                        LIB_FOLDER,
+                        NamingConvention.SNAKE_CASE.apply(path),
+                        modelPackage().replace(".", File.separator))
+                .toString();
     }
 
     /**
-     * Overrides the default behavior to create a directory structure that
-     * respects Ruby namespaces defined in the {@code moduleName}.
-     * <p>
-     * The default implementation bases the path on the sanitized {@code gemName},
-     * which flattens namespaces (e.g., 'My::Module' becomes 'my_module').
-     * This method correctly converts '::' in the module name to a path
-     * separator, creating the expected nested directory structure (e.g.,
-     * 'lib/my/module/api').
-     *
-     * @return The correctly nested path to the API files.
+     * Builds the output directory for API source files. The
+     * path follows the Zeitwerk layout: {@code lib/<module>/<apiPackage>}.
      */
     @Override
-    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     public String apiFileFolder() {
-        String path = moduleName.replaceAll("::", "/");
-        return Paths.get(getOutputDir(), libFolder, underscore(path), apiPackage().replace(".", File.separator))
-            .toString();
+        final String path = moduleName.replaceAll("::", "/");
+        return Path.of(
+                        getOutputDir(),
+                        LIB_FOLDER,
+                        NamingConvention.SNAKE_CASE.apply(path),
+                        apiPackage().replace(".", File.separator))
+                .toString();
     }
 
     /**
-     * Converts a model class name to a Zeitwerk-compatible snake_case file name.
-     * For example, 'MyOIDCModel' becomes 'my_o_i_d_c_model'.
-     *
-     * @param name The name of the model.
-     * @return The model's filename (without the .rb extension).
+     * Returns the Ruby default value literal for the given
+     * schema. Numeric and boolean defaults use their string
+     * representation; string defaults are wrapped in single
+     * quotes. All other types return null to omit the default.
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (ModelUtils.isIntegerSchema(resolved)
+                || ModelUtils.isNumberSchema(resolved)
+                || ModelUtils.isBooleanSchema(resolved)) {
+            if (resolved.getDefault() != null) {
+                return resolved.getDefault().toString();
+            }
+        } else if (ModelUtils.isStringSchema(resolved)) {
+            if (resolved.getDefault() != null) {
+                return "'" + escapeText(String.valueOf(resolved.getDefault())) + "'";
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Overrides the base class to use Zeitwerk autoloading
+     * conventions for model filenames. Cannot be standardized
+     * because Zeitwerk's inflection rules are Ruby-specific.
      */
     @Override
     public String toModelFilename(String name) {
-        String modelName = super.toModelName(name);
-        return toZeitwerkFilename(modelName);
+        return toZeitwerkFilename(toModelName(name));
     }
 
     /**
-     * Converts an API class name to a Zeitwerk-compatible snake_case file name.
-     * For example, 'DefaultApi' becomes 'default_api'.
-     *
-     * @param name The name of the API.
-     * @return The API's filename (without the .rb extension).
+     * Overrides the base class to use Zeitwerk autoloading
+     * conventions for API filenames. Cannot be standardized
+     * because Zeitwerk's inflection rules are Ruby-specific.
      */
     @Override
-    public String toApiFilename(final String name) {
-        String apiName = super.toApiName(name);
-        return toZeitwerkFilename(apiName);
+    public String toApiFilename(String name) {
+        return toZeitwerkFilename(toApiName(name));
     }
 
     /**
-     * Implements a custom underscoring logic that correctly handles acronyms
-     * for Zeitwerk compatibility. It prepends an underscore to all capital
-     * letters and then converts the result to lowercase.
-     *
-     * @param name The CamelCase or PascalCase class name.
-     * @return A Zeitwerk-compatible snake_case string.
+     * Lowercases all-uppercase identifiers (e.g. {@code HTTP_METHOD})
+     * before applying snake_case, to prevent Ruby's underscore
+     * helper from treating them as constants and producing
+     * unexpected casing. Cannot be standardized because Java
+     * preserves these identifiers instead.
+     */
+    @Override
+    protected UppercaseIdentifierStrategy getUppercaseIdentifierStrategy() {
+        return UppercaseIdentifierStrategy.LOWERCASE_FIRST;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOperationIdReservedPrefix() {
+        return "call_";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("Integer", "Float");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected char getQuoteChar() {
+        return '\'';
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeQuotationMark() {
+        return false;
+    }
+
+    /**
+     * Overrides the base class because Ruby uses heredoc markers
+     * ({@code =begin}/{@code =end}) and string interpolation
+     * instead of block comments. Cannot be standardized because
+     * other languages use block comments (handled by the base
+     * class).
+     */
+    @Override
+    public String escapeUnsafeCharacters(String input) {
+        return input.replace("=end", "=_end").replace("=begin", "=_begin").replace("#{", "\\#{");
+    }
+
+    /**
+     * Overrides the base class to add RBS type-conversion
+     * lambdas ({@code rbsType}, {@code rbsApiType},
+     * {@code stripGenerics}, {@code camelize}) for generating
+     * Ruby type-signature files. Cannot be standardized because
+     * RBS is Ruby-specific.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "rbsType",
+                        (fragment, writer) -> writer.write(toRbsType(fragment.execute())))
+                .put(
+                        "rbsApiType",
+                        (fragment, writer) -> writer.write(toRbsApiType(fragment.execute())))
+                .put(
+                        "stripGenerics",
+                        (fragment, writer) -> {
+                            final String text = fragment.execute();
+                            final int idx = text.indexOf('<');
+                            writer.write(idx >= 0 ? text.substring(0, idx) : text);
+                        })
+                .put(
+                        "camelize",
+                        (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())));
+    }
+
+    /*
+     * Overrides the base class to move {@code .rbs} type-signature
+     * files from {@code lib/} to {@code sig/} as required by Ruby's
+     * Steep type-checking tooling. The base class handles this via
+     * {@link WithTypeSignatureSupport} dispatch.
+     */
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        return Path.of(LIB_FOLDER, modulePath, "auth").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem + ".rb";
+    }
+
+    /**
+     * Renders a per-scheme authenticator Ruby source file using
+     * the scheme_authenticator.mustache template.
+     */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("isOAuth", spec.isOAuth());
+        ctx.put("imports", List.of());
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("name", NamingConvention.SNAKE_CASE.apply(name));
+            param.put("type", "String");
+            constructorParams.add(param);
+        }
+        ctx.put("constructorParams", constructorParams);
+        ctx.put("superArgs", buildRubySuperArgs(spec));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    private static String formatRubyScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        return "['" + String.join("', '", scopes.keySet()) + "']";
+    }
+
+    private List<String> buildRubySuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "token");
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "'" + spec.keyParamName() + "'", "api_key",
+                    "ApiKeyLocation::" + spec.keyIn());
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            final String scopes = formatRubyScopes(spec.scopes());
+            return List.of("host", "client_id", "client_secret",
+                    "'" + spec.tokenUrl() + "'", scopes);
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "nil";
+            final String scopes = formatRubyScopes(spec.scopes());
+            return List.of("host", "client_id", "client_secret",
+                    "'" + spec.tokenUrl() + "'",
+                    "username", "password", scopes,
+                    "refresh_url: " + refreshArg);
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "nil";
+            final String scopes = formatRubyScopes(spec.scopes());
+            return List.of("host", "client_id", "client_secret",
+                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    "redirect_uri", scopes,
+                    "refresh_url: " + refreshArg);
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            final String scopes = formatRubyScopes(spec.scopes());
+            return List.of("host", "client_id",
+                    "'" + spec.authorizationUrl() + "'", scopes);
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "'" + spec.openIdConnectUrl() + "'",
+                    "client_id", "client_secret", "redirect_uri", "[]");
+        }
+        return List.of();
+    }
+
+    /**
+     * Converts a Ruby type string to its RBS equivalent for use
+     * in API return-type signatures, qualifying non-primitive
+     * types with the Models:: namespace and replacing generics
+     * syntax.
+     */
+    private String toRbsApiType(@Nullable String type) {
+        return Optional.ofNullable(type)
+                .map(
+                        t ->
+                                qualifyModelTypes(t)
+                                        .replace("Boolean", "bool")
+                                        .replace("Object", "untyped")
+                                        .replace("<", "[")
+                                        .replace(">", "]"))
+                .orElse("void");
+    }
+
+    /**
+     * Walks a type string token-by-token, qualifying each
+     * non-primitive type with the {@code Models::} prefix so
+     * that RBS signatures resolve correctly within the gem
+     * namespace.
+     */
+    private String qualifyModelTypes(String type) {
+        final StringBuilder result = new StringBuilder();
+        final StringBuilder token = new StringBuilder();
+        for (int i = 0; i < type.length(); i++) {
+            final char c = type.charAt(i);
+            if (c == '<' || c == '>' || c == ',' || c == ' ') {
+                if (token.length() > 0) {
+                    result.append(qualifySingleType(token.toString()));
+                    token.setLength(0);
+                }
+                result.append(c);
+            } else {
+                token.append(c);
+            }
+        }
+        if (token.length() > 0) {
+            result.append(qualifySingleType(token.toString()));
+        }
+        return result.toString();
+    }
+
+    /**
+     * Prefixes a single type name with {@code Models::} unless
+     * it is a language-specific primitive that needs no
+     * qualification.
+     */
+    private String qualifySingleType(String type) {
+        if (languageSpecificPrimitives.contains(type)) {
+            return type;
+        }
+        return "Models::" + type;
+    }
+
+    /**
+     * Converts a Ruby type string to its RBS equivalent by
+     * replacing Boolean with bool, Object with untyped, and
+     * angle brackets with square brackets.
+     */
+    private String toRbsType(@Nullable String type) {
+        if (type == null) {
+            return "void";
+        }
+        return type.replace("Boolean", "bool")
+                .replace("Object", "untyped")
+                .replace("<", "[")
+                .replace(">", "]");
+    }
+
+    /**
+     * Converts a PascalCase class name to a Zeitwerk-compatible
+     * filename by inserting underscores before each uppercase
+     * letter boundary and lowering the result.
      */
     private String toZeitwerkFilename(String name) {
-        if (StringUtils.isBlank(name)) {
+        if (isBlank(name)) {
             return name;
         }
-        String result = name.replaceAll("([A-Z])", "_$1").replaceAll("^_", "");
-        return result.toLowerCase(Locale.ROOT);
+        return NamingConvention.SNAKE_CASE.apply(name);
     }
 
+    /** {@inheritDoc} */
     @Override
-    public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        boolean hasAnyRequired = false;
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("required", p.required);
+            // Per-field YARD documentation: mirror the `# @param` lines
+            // api.mustache emits for direct operation parameters, so option
+            // fields are documented with the same type and description as the
+            // parameters they wrap. dataType is the unqualified surface type
+            // (matching api.mustache); description/isDeprecated may be absent.
+            param.put("dataType", p.dataType);
+            if (p.description != null && !p.description.isEmpty()) {
+                param.put("description", p.description);
+            }
+            param.put("isDeprecated", p.isDeprecated);
+            params.add(param);
+            if (p.required) {
+                hasAnyRequired = true;
+            }
+        }
+
+        // Collect model type imports for require_relative
+        final List<String> modelRequires = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.isArray && !p.isMap && !p.isPrimitiveType && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)) {
+                final String modelFile = NamingConvention.SNAKE_CASE.apply(p.baseType);
+                modelRequires.add("require_relative '../../models/" + modelFile + "'");
+            }
+            if ((p.isArray || p.isMap) && p.items != null && p.items.baseType != null
+                    && !p.items.isPrimitiveType
+                    && !languageSpecificPrimitives.contains(p.items.baseType)) {
+                final String modelFile = NamingConvention.SNAKE_CASE.apply(p.items.baseType);
+                final String req = "require_relative '../../models/" + modelFile + "'";
+                if (!modelRequires.contains(req)) {
+                    modelRequires.add(req);
+                }
+            }
+            // A $ref to a top-level enum carries its type name in dataType
+            // (baseType is null), so the two branches above skip it. The RBS
+            // sig already types the reader as Models::<Enum>, so the source
+            // file must require it too — mirror node/java/kotlin/php/csharp.
+            if (p.isEnumRef && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)) {
+                final String modelFile = NamingConvention.SNAKE_CASE.apply(p.dataType);
+                final String req = "require_relative '../../models/" + modelFile + "'";
+                if (!modelRequires.contains(req)) {
+                    modelRequires.add(req);
+                }
+            }
+        }
+
+        final StringBuilder sig = new StringBuilder();
+        boolean first = true;
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            sig.append(p.paramName).append(":");
+        }
+        for (final CodegenParameter p : optionsParams) {
+            if (p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            sig.append(p.paramName).append(": nil");
+        }
+        // Authed operations carry an optional per-operation `auth` keyword,
+        // typed as the generic Authenticator. It never has a required value
+        // (defaults to nil → fall back to Configuration credentials) and is
+        // always appended last so it stays out of the required-keyword block.
+        if (op.hasAuthMethods) {
+            if (!first) sig.append(", ");
+            sig.append("auth: nil");
+        }
+
+        // Single grouped attr_accessor line (Style/AccessorGrouping): all
+        // option params plus the optional `auth` member when present.
+        final StringBuilder accessors = new StringBuilder();
+        boolean firstAcc = true;
+        for (final CodegenParameter p : optionsParams) {
+            if (!firstAcc) accessors.append(", ");
+            firstAcc = false;
+            accessors.append(':').append(p.paramName);
+        }
+        if (op.hasAuthMethods) {
+            if (!firstAcc) accessors.append(", ");
+            accessors.append(":auth");
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("moduleName", moduleName);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("hasAnyRequired", hasAnyRequired);
+        context.put("initializeSignature", sig.toString());
+        context.put("accessorList", accessors.toString());
+        context.put("modelRequires", modelRequires);
+        context.put("hasModelRequires", !modelRequires.isEmpty());
+        injectAuthFieldContext(op, context);
+        // The per-operation auth field is typed as the generic Authenticator
+        // interface. In Ruby it lives in the gem's Auth module; no extra
+        // require is needed because the Auth module is autoloaded via Zeitwerk
+        // and referenced through the gem namespace at runtime.
+        context.put("authImport", moduleName + "::Auth::" + getAuthenticatorTypeName());
+
+        generateOptionsRbsFile(op, optionsParams, className, op.hasAuthMethods);
+
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Qualifies an RBS type string with the {@code Models::} prefix
+     * when the parameter's base type is a non-primitive model type.
+     * Uses word-boundary-safe regex replacement to avoid matching
+     * substrings of longer type names.
+     */
+    private String qualifyRbsModelType(String rbsType, CodegenParameter p) {
+        if (p.baseType != null && !languageSpecificPrimitives.contains(p.baseType)
+                && !rbsType.contains("Models::")) {
+            return rbsType.replaceAll(
+                    "\\b" + Pattern.quote(p.baseType) + "\\b", "Models::" + p.baseType);
+        }
+        // A $ref to a top-level enum carries its type name in dataType (baseType
+        // is null); its RBS type lives under Models:: too.
+        if (p.isEnumRef && p.dataType != null
+                && !languageSpecificPrimitives.contains(p.dataType)
+                && !rbsType.contains("Models::")) {
+            return rbsType.replaceAll(
+                    "\\b" + Pattern.quote(p.dataType) + "\\b", "Models::" + p.dataType);
+        }
+        return rbsType;
+    }
+
+    /**
+     * Generates the RBS type-signature file for an Options class.
+     * The file is written alongside the source file and relocated
+     * to {@code sig/} by {@link #postProcessFile}.
+     */
+    private void generateOptionsRbsFile(
+            CodegenOperation op,
+            List<CodegenParameter> optionsParams,
+            String className,
+            boolean hasAuthField) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("rbsType", qualifyRbsModelType(toRbsType(p.dataType), p));
+            param.put("required", p.required);
+            params.add(param);
+        }
+
+        final StringBuilder sig = new StringBuilder();
+        boolean first = true;
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
+            sig.append(p.paramName).append(": ").append(rbsType);
+        }
+        for (final CodegenParameter p : optionsParams) {
+            if (p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
+            sig.append('?').append(p.paramName).append(": ").append(rbsType).append('?');
+        }
+        // Optional per-operation authenticator keyword, typed as the generic
+        // Authenticator interface. Always nullable; always last.
+        if (hasAuthField) {
+            if (!first) sig.append(", ");
+            sig.append("?auth: ::").append(moduleName)
+                    .append("::Auth::").append(getAuthenticatorTypeName()).append('?');
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("moduleName", moduleName);
+        context.put("params", params);
+        context.put("initializeSignature", sig.toString());
+        context.put("hasAuthField", hasAuthField);
+
+        final String content = renderOptionsTemplate("api/options_rbs.mustache", context);
+
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String rbsFileName = NamingConvention.SNAKE_CASE.apply(className);
+        final String rbsPath =
+                Path.of(
+                                getOutputDir(),
+                                LIB_FOLDER,
+                                modulePath,
+                                "api",
+                                "options",
+                                rbsFileName + ".rbs")
+                        .toString();
+        writeFile(rbsPath, content);
+        postProcessFile(Path.of(rbsPath).toFile(), "source");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        return Path.of(getOutputDir(), LIB_FOLDER, modulePath, "api", "options", fileName + ".rb")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void enrichOptionsMetadata(
+            Map<String, String> meta, String operationId, String optionsClassName) {
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        meta.put("requirePath", modulePath + "/api/options/" + fileName);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "nil";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "lib";
+    }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The Ruby model template
+     * (Dry::Struct) honours {@code defaultValue} on required
+     * attributes via {@code Types::Required.default(value)} so the
+     * discriminator renders as a required attribute with a default,
+     * eliminating the need for the caller to set it.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * Returns a single-quoted Ruby string literal for the
+     * discriminator default value, matching the rest of the Ruby
+     * codegen's string conventions (cf. {@link #fixEnumDefaultValue}).
+     */
+    @Override
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "'" + mappingName + "'";
     }
 }

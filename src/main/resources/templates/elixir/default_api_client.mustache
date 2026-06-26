@@ -1,0 +1,1035 @@
+{{>api_info}}
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+
+defmodule {{moduleName}}.DefaultApiClient do
+  import Bitwise
+
+  @moduledoc false
+  # Internal: default HTTP client implementation backed by Req. The public
+  # seam is the `{{moduleName}}.ApiClient` behaviour; this concrete impl is
+  # constructed internally by `{{moduleName}}.Client.new/1` and is not part of
+  # the advertised public API.
+  #
+  # Applies transport-level settings from `{{moduleName}}.TransportOptions`: TLS
+  # verification, custom CA certificates, proxy routing, timeouts, redirect
+  # handling, User-Agent injection, X-Request-ID injection, and
+  # transport-level default headers.
+  #
+  # Header merge order (lowest to highest priority):
+  # 1. `TransportOptions.default_headers` -- transport-level defaults
+  # 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+  # 3. `TransportOptions.user_agent` -- injected if not already set
+  # 4. `TransportOptions.inject_request_id` -- injected if not already set
+
+  @behaviour {{moduleName}}.ApiClient
+
+  # `base_req` holds a `Req.Request` and `closed` holds an `:atomics`
+  # reference; both are internal transport plumbing. They are typed as
+  # `term()` and the struct type is `@opaque` so the Req/atomics types never
+  # surface in the public typespec.
+  @opaque t :: %__MODULE__{
+            transport_options: {{moduleName}}.TransportOptions.t(),
+            base_req: term(),
+            proxy_auth_header: String.t() | nil,
+            closed: term()
+          }
+
+  # `closed` carries an `:atomics` reference — a process-less piece of
+  # mutable shared state. `close/1` flips it to 1; `send_request` checks
+  # it and raises an SDK error on use-after-close. This gives the uniform
+  # closed-flag + SDK-error contract without a per-client process, despite
+  # the struct itself being immutable.
+  defstruct [:transport_options, :base_req, :proxy_auth_header, :closed]
+
+  @doc """
+  Creates a new DefaultApiClient with the given transport options.
+
+  If no transport options are provided, defaults are used. A `Req.Request`
+  struct is built once with all static transport settings (proxy, TLS,
+  timeouts, redirect policy) so the underlying Finch connection pool is
+  reused across requests instead of being torn down per call.
+  """
+  @spec new({{moduleName}}.TransportOptions.t() | nil) :: t()
+  def new(transport_options \\ nil) do
+    opts = transport_options || {{moduleName}}.TransportOptions.new()
+
+    validate_ca_cert_path(opts.ca_cert_path)
+
+    %__MODULE__{
+      transport_options: opts,
+      base_req: Req.new(build_static_req_options(opts)),
+      proxy_auth_header: build_proxy_auth_header(opts.proxy),
+      closed: :atomics.new(1, signed: false)
+    }
+  end
+
+  # Gap T4: fail fast on a user-supplied CA cert that cannot be read or
+  # parsed rather than silently falling back to the system trust store.
+  # If the caller explicitly asked for SSL pinning we must not pretend it
+  # succeeded -- validate the PEM eagerly at construction.
+  defp validate_ca_cert_path(nil), do: :ok
+
+  defp validate_ca_cert_path(path) when is_binary(path) do
+    case File.read(path) do
+      {:error, reason} ->
+        raise {{moduleName}}.ApiError,
+          message:
+            "failed to read CA certificate from #{inspect(path)}: #{to_string(:file.format_error(reason))}",
+          status_code: 0
+
+      {:ok, contents} ->
+        case :public_key.pem_decode(contents) do
+          [] ->
+            raise {{moduleName}}.ApiError,
+              message:
+                "failed to parse CA certificate from #{inspect(path)}: no PEM blocks found or unparseable",
+              status_code: 0
+
+          _entries ->
+            :ok
+        end
+    end
+  end
+
+  # Gap AK: Finch's proxy tuple has no slot for basic-auth credentials,
+  # so userinfo embedded in the proxy URL (`http://user:pass@host:port`)
+  # is silently dropped. Extract it once at construction and inject as
+  # a Proxy-Authorization header on every outbound request, matching
+  # the Java/C# SDKs.
+  defp build_proxy_auth_header(nil), do: nil
+
+  defp build_proxy_auth_header(proxy_url) when is_binary(proxy_url) do
+    case URI.parse(proxy_url).userinfo do
+      nil ->
+        nil
+
+      "" ->
+        nil
+
+      userinfo ->
+        decoded =
+          userinfo
+          |> String.split(":", parts: 2)
+          |> Enum.map(&URI.decode/1)
+          |> Enum.join(":")
+
+        "Basic " <> Base.encode64(decoded)
+    end
+  end
+
+  defp build_proxy_auth_header(_), do: nil
+
+  @doc false
+  def proxy_auth_header(%__MODULE__{proxy_auth_header: header}), do: header
+
+  @doc """
+  Send an HTTP request with transport-level settings applied.
+
+  Merges headers according to the priority order documented on the module,
+  then dispatches via Req.
+  """
+  @impl {{moduleName}}.ApiClient
+  @spec send_request(
+          t(),
+          method :: atom(),
+          url :: String.t(),
+          headers :: %{optional(String.t()) => String.t()},
+          body :: term() | nil
+        ) :: {{moduleName}}.ApiHttpResponse.t()
+  def send_request(%__MODULE__{} = client, method, url, headers, body) do
+    send_request(client, method, url, headers, body, [])
+  end
+
+  @doc """
+  Variant of `send_request/5` that takes a per-request `opts` keyword list.
+
+  Currently honoured options:
+
+    * `:no_redirect` -- when `true`, suppress redirect following for this
+      single call regardless of the transport-level
+      `TransportOptions.follow_redirects` setting. Used by
+      `Auth.OAuth.OAuth2TokenManager` to refuse 307/308 token-endpoint
+      replays.
+  """
+  @impl {{moduleName}}.ApiClient
+  @spec send_request(
+          t(),
+          method :: atom(),
+          url :: String.t(),
+          headers :: %{optional(String.t()) => String.t()},
+          body :: term() | nil,
+          opts :: keyword()
+        ) :: {{moduleName}}.ApiHttpResponse.t()
+  def send_request(%__MODULE__{} = client, method, url, headers, body, request_opts)
+      when is_list(request_opts) do
+    # Gap T6 / close-lifecycle: reject use-after-close with a typed SDK
+    # error rather than letting the call proceed against a logically
+    # closed client.
+    if client.closed != nil and :atomics.get(client.closed, 1) == 1 do
+      raise {{moduleName}}.ApiError,
+        message: "ApiClient has been closed and can no longer be used",
+        status_code: 0
+    end
+
+    opts = client.transport_options
+    merged = Map.merge(opts.default_headers, headers)
+
+    merged =
+      if opts.user_agent && !Map.has_key?(merged, "User-Agent") do
+        Map.put(merged, "User-Agent", opts.user_agent)
+      else
+        merged
+      end
+
+    merged =
+      if opts.inject_request_id && !Map.has_key?(merged, "X-Request-ID") do
+        Map.put(merged, "X-Request-ID", generate_uuid())
+      else
+        merged
+      end
+
+    merged =
+      if !Map.has_key?(merged, "Accept-Encoding") do
+        # Only advertise "br" when the optional :brotli NIF is actually
+        # loaded; otherwise a server may return a brotli-compressed body
+        # that Req cannot decode, leaving raw bytes the caller can't parse.
+        accept_encoding =
+          if Code.ensure_loaded?(:brotli) do
+            "gzip, deflate, br"
+          else
+            "gzip, deflate"
+          end
+
+        Map.put(merged, "Accept-Encoding", accept_encoding)
+      else
+        merged
+      end
+
+    merged =
+      if client.proxy_auth_header do
+        Map.put(merged, "Proxy-Authorization", client.proxy_auth_header)
+      else
+        merged
+      end
+
+    {serialized_body, merged} = prepare_body(body, merged)
+
+    # Some servers / WAFs treat POST/PUT/PATCH with no body and no
+    # Content-Length as malformed (411 Length Required) or behave
+    # inconsistently. Send an empty-string body on body-bearing verbs
+    # so Finch / Req emits an explicit `Content-Length: 0`, matching
+    # Kotlin's `ByteArray(0)` and the other 11 SDKs.
+    {serialized_body, merged} =
+      if serialized_body == nil and
+           String.upcase(to_string(method)) in ["POST", "PUT", "PATCH"] do
+        {"", Map.put_new(merged, "Content-Length", "0")}
+      else
+        {serialized_body, merged}
+      end
+
+    # Gap BH: Req re-sends Authorization / Cookie / Proxy-Authorization
+    # across cross-origin 3xx redirects by default, which leaks bearer
+    # tokens to attacker-controlled hosts via malicious 302. We've
+    # disabled Req's built-in redirect follower (redirect: false in
+    # build_static_req_options) and follow Location: headers manually
+    # here, stripping the sensitive headers when the next URL's origin
+    # (scheme + host + port) differs from the original.
+    # Gap 3.2: callers (notably Auth.OAuth.OAuth2TokenManager) can pass
+    # `no_redirect: true` to refuse to follow any 3xx for this single
+    # request, regardless of the transport-level follow_redirects setting.
+    no_redirect = Keyword.get(request_opts, :no_redirect, false)
+
+    response =
+      try do
+        do_request_with_redirects(
+          client,
+          method,
+          url,
+          merged,
+          serialized_body,
+          opts.max_redirects || 20,
+          no_redirect
+        )
+      rescue
+        e -> raise {{moduleName}}.ApiError, message: Exception.message(e), status_code: 0, cause: e
+      end
+
+    headers = normalize_headers(response.headers)
+    content_type = Map.get(headers, "content-type") || ""
+    content_encoding = Map.get(headers, "content-encoding") || ""
+    body_binary = decompress_body(response.body || "", content_encoding)
+
+    response_body =
+      if is_text_content_type(content_type) do
+        decode_text_body(body_binary, content_type)
+      else
+        Base.encode64(body_binary)
+      end
+
+    %{{moduleName}}.ApiHttpResponse{
+      status_code: response.status,
+      body: response_body,
+      headers: headers
+    }
+  end
+
+  # Explicitly decompress a response body keyed on its Content-Encoding. Req's
+  # auto-decompression is disabled (raw: true) because its behaviour varies
+  # across Req 0.5.x patch releases; doing it here is deterministic and matches
+  # the explicit decompression performed by the other 11 SDKs. A malformed
+  # compressed body surfaces as a typed ApiError rather than a raw library
+  # crash (parity with the cross-SDK "wrap decompression failures" contract).
+  @spec decompress_body(binary(), String.t()) :: binary()
+  defp decompress_body(body, encoding) when is_binary(body) do
+    case encoding |> to_string() |> String.trim() |> String.downcase() do
+      "" -> body
+      "identity" -> body
+      "gzip" -> gunzip_body(body, "gzip")
+      "x-gzip" -> gunzip_body(body, "x-gzip")
+      "deflate" -> inflate_body(body)
+      "br" -> brotli_body(body)
+      other ->
+        raise {{moduleName}}.ApiError,
+          message: "Unsupported Content-Encoding '#{other}' in response body",
+          status_code: 0
+    end
+  end
+
+  # Only gunzip when the body actually carries the gzip magic bytes (0x1F 0x8B).
+  defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label) do
+    :zlib.gunzip(body)
+  rescue
+    e ->
+      raise {{moduleName}}.ApiError,
+        message: "Failed to decompress #{label} response body: #{Exception.message(e)}",
+        status_code: 0,
+        cause: e
+  end
+
+  # An empty body declared gzip is a degenerate but harmless case (nothing to
+  # decompress); pass it through untouched rather than failing the request.
+  defp gunzip_body(<<>>, _label), do: <<>>
+
+  # Gap AL: the body claims `Content-Encoding: gzip` but lacks the gzip magic
+  # bytes (0x1F 0x8B). A mislabelling server (or a tampered response) handed us
+  # bytes that cannot be a gzip stream, so silently returning them would pass
+  # corrupt data straight to the caller as if it were the decoded payload.
+  # Surface a typed ApiError instead — the decode failure must not be hidden.
+  # Matches the java/python/ruby/go/php "wrap decompression failures as the
+  # SDK error" contract; previously Elixir passed these bytes through unchanged.
+  defp gunzip_body(_body, label) do
+    raise {{moduleName}}.ApiError,
+      message:
+        "Failed to decompress #{label} response body: " <>
+          "Content-Encoding declared #{label} but the body is not a valid gzip stream",
+      status_code: 0
+  end
+
+  # HTTP "deflate" is nominally zlib-wrapped, but some servers emit raw
+  # (headerless) DEFLATE; try zlib first, then fall back to raw inflate.
+  defp inflate_body(body) do
+    try do
+      :zlib.uncompress(body)
+    rescue
+      _ ->
+        try do
+          z = :zlib.open()
+
+          try do
+            :zlib.inflateInit(z, -15)
+            out = :zlib.inflate(z, body)
+            :zlib.inflateEnd(z)
+            IO.iodata_to_binary(out)
+          after
+            :zlib.close(z)
+          end
+        rescue
+          e ->
+            raise {{moduleName}}.ApiError,
+              message: "Failed to decompress deflate response body: #{Exception.message(e)}",
+              status_code: 0,
+              cause: e
+        end
+    end
+  end
+
+  # `br` is only advertised in Accept-Encoding when the optional :brotli NIF is
+  # loaded, so a server should never send it otherwise; guard anyway.
+  defp brotli_body(body) do
+    if Code.ensure_loaded?(:brotli) do
+      case :brotli.decode(body) do
+        {:ok, decoded} ->
+          decoded
+
+        _ ->
+          raise {{moduleName}}.ApiError,
+            message: "Failed to decompress br response body",
+            status_code: 0
+      end
+    else
+      raise {{moduleName}}.ApiError,
+        message: "Received a br-encoded response but the :brotli decoder is unavailable",
+        status_code: 0
+    end
+  end
+
+  @doc """
+  Decode a response body to a binary string honouring the `charset` directive
+  parsed from the `Content-Type` header. Defaults to UTF-8 when no charset is
+  provided. Falls back to the raw bytes (treated as UTF-8) when the charset is
+  unknown or conversion fails -- never raises.
+
+  This is exposed for use by error-body decoding paths as well.
+  """
+  @spec decode_text_body(binary(), String.t()) :: binary()
+  def decode_text_body(body, content_type) when is_binary(body) do
+    charset = parse_charset(content_type)
+
+    case charset do
+      nil ->
+        body
+
+      "utf-8" ->
+        body
+
+      "utf8" ->
+        body
+
+      "us-ascii" ->
+        body
+
+      "ascii" ->
+        body
+
+      other ->
+        encoding = charset_to_atom(other)
+
+        case encoding do
+          nil ->
+            body
+
+          atom ->
+            try do
+              case :unicode.characters_to_binary(body, atom, :utf8) do
+                result when is_binary(result) -> result
+                _ -> body
+              end
+            rescue
+              _ -> body
+            catch
+              _, _ -> body
+            end
+        end
+    end
+  end
+
+  def decode_text_body(body, _content_type), do: body
+
+  defp parse_charset(content_type) when is_binary(content_type) do
+    content_type
+    |> String.split(";")
+    |> Enum.drop(1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.find_value(fn part ->
+      case String.split(part, "=", parts: 2) do
+        [k, v] ->
+          if String.downcase(String.trim(k)) == "charset" do
+            v
+            |> String.trim()
+            |> String.trim("\"")
+            |> String.downcase()
+          else
+            nil
+          end
+
+        _ ->
+          nil
+      end
+    end)
+  end
+
+  defp parse_charset(_), do: nil
+
+  defp charset_to_atom("iso-8859-1"), do: :latin1
+  defp charset_to_atom("latin1"), do: :latin1
+  defp charset_to_atom("latin-1"), do: :latin1
+  defp charset_to_atom("utf-16"), do: :utf16
+  defp charset_to_atom("utf16"), do: :utf16
+  defp charset_to_atom("utf-16le"), do: {:utf16, :little}
+  defp charset_to_atom("utf-16be"), do: {:utf16, :big}
+  defp charset_to_atom("utf-32"), do: :utf32
+  defp charset_to_atom("utf32"), do: :utf32
+  defp charset_to_atom("utf-32le"), do: {:utf32, :little}
+  defp charset_to_atom("utf-32be"), do: {:utf32, :big}
+  defp charset_to_atom(_), do: nil
+
+  @doc false
+  def send_request(method, url, headers, body) do
+    new() |> send_request(method, url, headers, body)
+  end
+
+  @doc """
+  Gap T6: release resources held by the client and mark it closed.
+
+  Req/Finch owns a globally supervised connection pool, so there is no
+  socket to tear down here, but `close/1` flips the client's closed flag
+  so any subsequent `send_request/5,6` raises a typed SDK error instead
+  of silently proceeding (uniform use-after-close contract). Idempotent.
+  """
+  @impl {{moduleName}}.ApiClient
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{closed: closed}) do
+    if closed != nil, do: :atomics.put(closed, 1, 1)
+    :ok
+  end
+
+  # Build the static portion of the Req options (everything that depends on
+  # TransportOptions and is fixed for the lifetime of the ApiClient). The
+  # per-request options (method, url, headers, body) are merged at the call
+  # site via Req.request!/2.
+  defp build_static_req_options(opts) do
+    # Gap BH: always disable Req's auto-redirect; we follow Location
+    # manually in send_request so we can strip Authorization / Cookie /
+    # Proxy-Authorization on cross-origin hops.
+    # `raw: true` disables Req's built-in body decoding AND decompression. We
+    # decompress explicitly in send_request keyed on the Content-Encoding
+    # response header (see decompress_body/2). Req 0.5.x patch releases differ
+    # in whether they auto-decompress when body decoding is disabled, which
+    # left gzip bodies undecoded nondeterministically across CI runs; doing it
+    # ourselves is version-independent and matches the explicit decompression
+    # the other 11 SDKs perform.
+    req_opts = [
+      raw: true,
+      redirect: false
+    ]
+    _ = opts.follow_redirects
+
+    req_opts =
+      if opts.timeout do
+        Keyword.put(req_opts, :receive_timeout, opts.timeout)
+      else
+        req_opts
+      end
+
+    req_opts =
+      if opts.max_redirects do
+        Keyword.put(req_opts, :max_redirects, opts.max_redirects)
+      else
+        req_opts
+      end
+
+    req_opts =
+      if opts.proxy do
+        proxy_uri = URI.parse(opts.proxy)
+
+        case proxy_uri.scheme do
+          "https" ->
+            Keyword.put(req_opts, :connect_options,
+              proxy: {:https, String.to_charlist(proxy_uri.host), proxy_uri.port || 443, [hostname: proxy_uri.host]}
+            )
+
+          _ ->
+            Keyword.put(req_opts, :connect_options,
+              proxy: {:http, String.to_charlist(proxy_uri.host), proxy_uri.port || 80, [hostname: proxy_uri.host]}
+            )
+        end
+      else
+        req_opts
+      end
+
+    req_opts =
+      cond do
+        !opts.verify_ssl ->
+          connect_opts = Keyword.get(req_opts, :connect_options, [])
+
+          transport_opts =
+            Keyword.get(connect_opts, :transport_opts, [])
+            |> Keyword.put(:verify, :verify_none)
+
+          connect_opts = Keyword.put(connect_opts, :transport_opts, transport_opts)
+          Keyword.put(req_opts, :connect_options, connect_opts)
+
+        opts.ca_cert_path ->
+          connect_opts = Keyword.get(req_opts, :connect_options, [])
+
+          transport_opts =
+            Keyword.get(connect_opts, :transport_opts, [])
+            |> Keyword.put(:verify, :verify_peer)
+            |> Keyword.put(:cacertfile, String.to_charlist(opts.ca_cert_path))
+
+          connect_opts = Keyword.put(connect_opts, :transport_opts, transport_opts)
+          Keyword.put(req_opts, :connect_options, connect_opts)
+
+        true ->
+          req_opts
+      end
+
+    req_opts =
+      if opts.timeout do
+        connect_opts = Keyword.get(req_opts, :connect_options, [])
+        connect_opts = Keyword.put(connect_opts, :timeout, opts.timeout)
+        Keyword.put(req_opts, :connect_options, connect_opts)
+      else
+        req_opts
+      end
+
+    req_opts
+  end
+
+  # Gap BH (+ apiKey allowlist): credential-bearing headers that must be stripped
+  # before following a cross-origin redirect. Includes the static OAuth/cookie
+  # set plus any apiKey-in-header names declared by the OpenAPI security schemes
+  # so a malicious 302 can't exfiltrate a tenant's API key by sending the client
+  # at an attacker host. Names are compared case-insensitively (lower-cased here
+  # to match `String.downcase/1` of the request header key at the call site).
+  @sensitive_redirect_headers [
+    "authorization",
+    "cookie",
+    "proxy-authorization"{{#hasApiKeyHeaderNames}},{{/hasApiKeyHeaderNames}}{{#apiKeyHeaderNames}}
+    "{{nameLower}}"{{^-last}},{{/-last}}{{/apiKeyHeaderNames}}
+  ]
+
+  defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect) do
+    do_request_with_redirects(client, method, url, url, headers, body, max_redirects, 0, no_redirect)
+  end
+
+  defp do_request_with_redirects(_client, _method, _url, _orig_url, _headers, _body, max, hops, _no_redirect)
+       when hops > max do
+    raise {{moduleName}}.ApiError, message: "too many redirects", status_code: 0
+  end
+
+  defp do_request_with_redirects(client, method, url, orig_url, headers, body, max, hops, no_redirect) do
+    # Catch inside the task so it always returns a tagged value and never
+    # crashes the linked caller: Task.async links, so an uncaught raise
+    # would take down this process before Task.yield could observe it.
+    req_fun = fn ->
+      try do
+        {:ok,
+         Req.request!(
+           client.base_req,
+           method: method,
+           url: url,
+           headers: Enum.map(headers, fn {k, v} -> {k, v} end),
+           body: body
+         )}
+      rescue
+        exception -> {:raised, exception, __STACKTRACE__}
+      end
+    end
+
+    response =
+      case client.transport_options.timeout do
+        nil ->
+          case req_fun.() do
+            {:ok, result} -> result
+            {:raised, exception, stacktrace} -> reraise(exception, stacktrace)
+          end
+
+        total ->
+          # Gap F-W5-2: Req/Finch's :receive_timeout is per-chunk inactivity
+          # (it resets on every received packet), so a slow-trickle response
+          # can run arbitrarily long without tripping it. Enforce a hard
+          # end-to-end wall-clock budget by running the call in a Task and
+          # shutting it down if it overruns the configured timeout.
+          task = Task.async(req_fun)
+
+          case Task.yield(task, total) || Task.shutdown(task) do
+            {:ok, {:ok, result}} ->
+              result
+
+            {:ok, {:raised, exception, stacktrace}} ->
+              reraise(exception, stacktrace)
+
+            nil ->
+              raise {{moduleName}}.ApiError,
+                message: "request exceeded total timeout of #{total}ms",
+                status_code: 0
+          end
+      end
+
+    if not no_redirect and client.transport_options.follow_redirects and is_redirect_status(response.status) do
+      case redirect_location(response.headers) do
+        nil ->
+          response
+
+        location ->
+          next_url = resolve_url(url, location)
+
+          cond do
+            next_url == nil ->
+              response
+
+            not http_scheme?(next_url) ->
+              # Refuse to follow a redirect to a non-http(s) scheme
+              # (e.g. file:, javascript:, data:). Silently returning the
+              # 3xx would hide a potential SSRF / local-file-read vector;
+              # surface it as a typed SDK error instead.
+              raise {{moduleName}}.ApiError,
+                message:
+                  "refusing to follow redirect to non-http(s) Location " <>
+                    "(#{response.status} redirect from #{orig_url} to #{next_url})",
+                status_code: 0
+
+            true ->
+              cross_origin = not same_origin?(orig_url, next_url)
+
+              # Gap 3.3: refuse to replay a request body across a transport
+              # downgrade (HTTPS -> HTTP). A 307/308 normally preserves the
+              # method and body, but doing so would leak any sensitive payload
+              # the caller sent under TLS onto a plaintext wire. Abort the
+              # redirect chain instead of silently replaying.
+              if downgrade?(orig_url, next_url) and body != nil and
+                   response.status in [307, 308] do
+                raise {{moduleName}}.ApiError,
+                  message:
+                    "refusing to replay request body across HTTPS->HTTP downgrade " <>
+                      "(#{response.status} redirect from #{orig_url} to #{next_url})",
+                  status_code: 0
+              end
+
+              # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+              #   307 + 308: preserve original method and body.
+              #   303:       force GET, drop the body (and Content-Type/Length).
+              #   301 + 302: historical browser behaviour — switch to GET for
+              #              non-GET/HEAD requests, drop the body.
+              method_str = method |> to_string() |> String.upcase()
+
+              {next_method, next_body} =
+                cond do
+                  response.status in [307, 308] -> {method, body}
+                  response.status == 303 -> {:get, nil}
+                  method_str in ["GET", "HEAD"] -> {method, body}
+                  true -> {:get, nil}
+                end
+
+              stripped_headers =
+                if cross_origin do
+                  strip_sensitive_headers(headers)
+                else
+                  headers
+                end
+
+              next_headers =
+                if next_body == nil do
+                  strip_body_headers(stripped_headers)
+                else
+                  stripped_headers
+                end
+
+              do_request_with_redirects(
+                client,
+                next_method,
+                next_url,
+                orig_url,
+                next_headers,
+                next_body,
+                max,
+                hops + 1,
+                no_redirect
+              )
+          end
+      end
+    else
+      response
+    end
+  end
+
+  defp is_redirect_status(code) when code in [301, 302, 303, 307, 308], do: true
+  defp is_redirect_status(_), do: false
+
+  defp redirect_location(headers) when is_map(headers) do
+    Enum.find_value(headers, fn {k, v} ->
+      if String.downcase(to_string(k)) == "location" do
+        case v do
+          [first | _] -> first
+          val when is_binary(val) -> val
+          _ -> nil
+        end
+      end
+    end)
+  end
+
+  defp redirect_location(headers) when is_list(headers) do
+    Enum.find_value(headers, fn {k, v} ->
+      if String.downcase(to_string(k)) == "location" do
+        to_string(v)
+      end
+    end)
+  end
+
+  defp redirect_location(_), do: nil
+
+  defp http_scheme?(url) do
+    case URI.parse(url) do
+      %URI{scheme: s} when s in ["http", "https"] -> true
+      _ -> false
+    end
+  end
+
+  defp resolve_url(base, location) do
+    case URI.parse(location) do
+      %URI{scheme: s} when not is_nil(s) -> location
+      _ -> base |> URI.merge(location) |> URI.to_string()
+    end
+  rescue
+    _ -> nil
+  end
+
+  defp same_origin?(a, b) do
+    pa = URI.parse(a)
+    pb = URI.parse(b)
+    same_scheme = pa.scheme && pb.scheme && String.downcase(pa.scheme) == String.downcase(pb.scheme)
+    same_host = pa.host && pb.host && String.downcase(pa.host) == String.downcase(pb.host)
+    port_a = pa.port || default_port(pa.scheme)
+    port_b = pb.port || default_port(pb.scheme)
+    same_scheme && same_host && port_a == port_b
+  end
+
+  @doc false
+  # Gap 3.3: detect an HTTPS -> HTTP scheme downgrade between the original
+  # request URL and the next redirect hop. Returns true only when the
+  # original was `https` and the next is `http` (case-insensitive); same-
+  # scheme and HTTP -> HTTPS upgrades are safe.
+  @spec downgrade?(String.t(), String.t()) :: boolean()
+  def downgrade?(orig, next_url) do
+    o = URI.parse(orig)
+    n = URI.parse(next_url)
+
+    os = if o.scheme, do: String.downcase(o.scheme), else: nil
+    ns = if n.scheme, do: String.downcase(n.scheme), else: nil
+    os == "https" and ns == "http"
+  end
+
+  defp default_port("https"), do: 443
+  defp default_port("http"), do: 80
+  defp default_port(_), do: nil
+
+  defp strip_sensitive_headers(headers) when is_map(headers) do
+    Enum.reject(headers, fn {k, _v} ->
+      String.downcase(to_string(k)) in @sensitive_redirect_headers
+    end)
+    |> Map.new()
+  end
+
+  defp strip_body_headers(headers) when is_map(headers) do
+    Enum.reject(headers, fn {k, _v} ->
+      String.downcase(to_string(k)) in ["content-type", "content-length"]
+    end)
+    |> Map.new()
+  end
+
+  defp strip_body_headers(headers) when is_list(headers) do
+    Enum.reject(headers, fn {k, _v} ->
+      String.downcase(to_string(k)) in ["content-type", "content-length"]
+    end)
+  end
+
+  defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
+
+  defp prepare_body(body, headers) when is_map(body) do
+    boundary = generate_uuid()
+    content_type = "multipart/form-data; boundary=#{boundary}"
+    headers = Map.put(headers, "Content-Type", content_type)
+    serialized = build_multipart_body(body, boundary)
+    {serialized, headers}
+  end
+
+  defp prepare_body(body, headers), do: {body, headers}
+
+  @doc false
+  # Public for testability: this is the exact serializer `prepare_body/2`
+  # uses for multipart/form-data request bodies. Exposed so the generated
+  # test suite can assert on per-part Content-Type derivation and field
+  # name preservation without reaching through the transport layer.
+  def build_multipart_body(form_parts, boundary) do
+    parts =
+      Enum.flat_map(form_parts, fn {name, value} ->
+        case value do
+          values when is_list(values) ->
+            Enum.map(values, fn item -> multipart_part(name, item, boundary) end)
+
+          _ ->
+            [multipart_part(name, value, boundary)]
+        end
+      end)
+
+    Enum.join(parts) <> "--#{boundary}--\r\n"
+  end
+
+  defp multipart_part(name, {:file, filename, content}, boundary) do
+    multipart_file_part(name, filename, content, nil, boundary)
+  end
+
+  defp multipart_part(name, {:file, filename, content, content_type}, boundary) do
+    multipart_file_part(name, filename, content, content_type, boundary)
+  end
+
+  # A raw-bytes part carries binary content with no explicit filename. The
+  # cross-language contract (go/node/java) reuses the field name as the
+  # filename and derives the Content-Type from that name's extension,
+  # falling back to application/octet-stream when there is none.
+  defp multipart_part(name, {:raw, content}, boundary) do
+    multipart_file_part(name, to_string(name), content, nil, boundary)
+  end
+
+  defp multipart_part(name, value, boundary) when is_binary(value) do
+    safe = sanitize_multipart_field_name(name)
+    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{value}\r\n"
+  end
+
+  defp multipart_part(name, value, boundary) when is_map(value) do
+    safe = sanitize_multipart_field_name(name)
+    json_str = {{moduleName}}.ObjectSerializer.serialize(value)
+
+    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n" <>
+      "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
+  end
+
+  defp multipart_part(name, value, boundary) do
+    safe = sanitize_multipart_field_name(name)
+    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{to_string(value)}\r\n"
+  end
+
+  # Gap W2: validate/escape a multipart form field name before
+  # interpolating it into a Content-Disposition header. Rejects
+  # CR/LF/NUL (header-injection) and backslash-escapes embedded
+  # quotes and backslashes.
+  defp sanitize_multipart_field_name(name) do
+    str = to_string(name)
+
+    if String.contains?(str, ["\r", "\n", <<0>>]) do
+      raise ArgumentError,
+            "multipart field name must not contain CR, LF, or NUL characters (got: #{inspect(str)})"
+    end
+
+    escape_quoted(str)
+  end
+
+  defp multipart_file_part(name, filename, content, content_type, boundary) do
+    disposition = build_content_disposition(name, filename)
+    ct = content_type || guess_mime_type(filename)
+
+    "--#{boundary}\r\n#{disposition}\r\n" <>
+      "Content-Type: #{ct}\r\n\r\n#{content}\r\n"
+  end
+
+  @doc """
+  Build a sanitized `Content-Disposition` header for a multipart file part.
+
+  Validates the filename to prevent header injection (CRLF/NUL) and escapes
+  `"` and `\\` inside the quoted ASCII fallback. When the filename contains
+  non-ASCII characters, emits an RFC 5987 `filename*=UTF-8''<percent-encoded>`
+  parameter alongside the sanitized ASCII `filename=` fallback.
+
+  Raises `ArgumentError` when the filename contains `\\r`, `\\n`, or NUL.
+  """
+  @spec build_content_disposition(String.t(), String.t()) :: String.t()
+  def build_content_disposition(name, filename) when is_binary(filename) do
+    if String.contains?(filename, ["\r", "\n", <<0>>]) do
+      raise ArgumentError,
+            "multipart filename must not contain CR, LF, or NUL characters (got: #{inspect(filename)})"
+    end
+
+    # Gap W2: validate the field name to reject CR/LF/NUL header
+    # injection in addition to escaping embedded quotes / backslashes.
+    escaped_name = sanitize_multipart_field_name(name)
+
+    if ascii?(filename) do
+      "Content-Disposition: form-data; name=\"#{escaped_name}\"; filename=\"#{escape_quoted(filename)}\""
+    else
+      ascii_fallback = filename |> to_ascii_fallback() |> escape_quoted()
+      encoded = URI.encode(filename, &URI.char_unreserved?/1)
+
+      "Content-Disposition: form-data; name=\"#{escaped_name}\"; " <>
+        "filename=\"#{ascii_fallback}\"; filename*=UTF-8''#{encoded}"
+    end
+  end
+
+  defp escape_quoted(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace("\"", "\\\"")
+  end
+
+  defp ascii?(binary) do
+    :binary.bin_to_list(binary) |> Enum.all?(fn b -> b < 128 end)
+  end
+
+  defp to_ascii_fallback(filename) do
+    filename
+    |> :binary.bin_to_list()
+    |> Enum.map(fn
+      b when b < 128 -> b
+      _ -> ?_
+    end)
+    |> :binary.list_to_bin()
+  end
+
+  defp guess_mime_type(filename) when is_binary(filename) do
+    if Code.ensure_loaded?(MIME) and function_exported?(MIME, :from_path, 1) do
+      try do
+        MIME.from_path(filename) || "application/octet-stream"
+      rescue
+        _ -> "application/octet-stream"
+      end
+    else
+      "application/octet-stream"
+    end
+  end
+
+  defp guess_mime_type(_), do: "application/octet-stream"
+
+  # Gap BE+BF: response header keys are normalised to lowercase so callers can
+  # look them up consistently regardless of the casing the server used (HTTP
+  # header names are case-insensitive per RFC 7230 section 3.2, and HTTP/2
+  # mandates lowercase on the wire). Repeated header lines are joined with
+  # ", " to preserve order per RFC 7230 section 3.2.2. The joined form is
+  # not directly parseable for Set-Cookie; callers that need structured
+  # cookie access should split on ", " with care or use a dedicated cookie
+  # library such as `:cookies` or parse the original `Req.Response.headers/0`
+  # map themselves.
+  defp normalize_headers(headers) do
+    Enum.reduce(headers, %{}, fn {key, values}, acc ->
+      value =
+        case values do
+          list when is_list(list) -> Enum.join(list, ", ")
+          v when is_binary(v) -> v
+          _ -> to_string(values)
+        end
+
+      Map.put(acc, String.downcase(to_string(key)), value)
+    end)
+  end
+
+  defp is_text_content_type(content_type) do
+    media_type =
+      content_type
+      |> String.split(";")
+      |> List.first()
+      |> String.trim()
+      |> String.downcase()
+
+    cond do
+      media_type == "" -> true
+      String.starts_with?(media_type, "text/") -> true
+      media_type in ["application/json", "application/xml", "application/javascript"] -> true
+      String.ends_with?(media_type, "+json") -> true
+      String.ends_with?(media_type, "+xml") -> true
+      true -> false
+    end
+  end
+
+  defp generate_uuid do
+    <<a::32, b::16, _::4, c::12, _::2, d::62>> = :crypto.strong_rand_bytes(16)
+
+    :io_lib.format(
+      "~8.16.0b-~4.16.0b-4~3.16.0b-~4.16.0b-~12.16.0b",
+      [a, b, c &&& 0xFFF, (d >>> 48 &&& 0x3FFF) ||| 0x8000, d &&& 0xFFFFFFFFFFFF]
+    )
+    |> to_string()
+  end
+end

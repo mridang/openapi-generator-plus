@@ -1,0 +1,64 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.ApiClient do
+  @moduledoc """
+  Behaviour for HTTP clients. Implementations must define `send_request/5`
+  to perform the actual HTTP call.
+
+  Implementations may optionally accept a 6th `opts` keyword list via
+  `send_request/6` to carry per-request transport hints. Currently recognised
+  keys:
+
+    * `:no_redirect` -- when `true`, refuse to follow any 3xx response and
+      surface the raw redirect to the caller. The Auth.OAuth.OAuth2TokenManager
+      uses this on token endpoint POSTs so a malicious 307/308 cannot be
+      coerced into replaying client credentials at an attacker host.
+  """
+
+  @doc """
+  Send an HTTP request.
+
+  ## Parameters
+
+    * `method` - HTTP method atom (e.g. `:get`, `:post`, `:put`, `:delete`).
+    * `url` - Fully qualified URL string.
+    * `headers` - Map of header names to values.
+    * `body` - Request body (string, map, or nil).
+
+  ## Returns
+
+    An `#{inspect({{moduleName}}.ApiHttpResponse)}` struct.
+  """
+  @callback send_request(
+              client :: struct(),
+              method :: atom(),
+              url :: String.t(),
+              headers :: %{optional(String.t()) => String.t()},
+              body :: term() | nil
+            ) :: {{moduleName}}.ApiHttpResponse.t()
+
+  @doc """
+  Variant of `send_request/5` that carries a per-request `opts` keyword list.
+  Implementations are encouraged to delegate to `send_request/5` when no opts
+  are set, so legacy clients without this callback remain valid behaviours.
+  """
+  @callback send_request(
+              client :: struct(),
+              method :: atom(),
+              url :: String.t(),
+              headers :: %{optional(String.t()) => String.t()},
+              body :: term() | nil,
+              opts :: keyword()
+            ) :: {{moduleName}}.ApiHttpResponse.t()
+
+  @doc """
+  Gap T6: release any resources held by the client.
+
+  Default implementations may be a no-op when the underlying HTTP library
+  uses a globally supervised connection pool (as Req/Finch does).
+  Callers should still invoke `close/1` for forwards compatibility with
+  implementations that own per-client state.
+  """
+  @callback close(client :: struct()) :: :ok
+  @optional_callbacks close: 1, send_request: 6
+end

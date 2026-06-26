@@ -1,0 +1,272 @@
+# {{appName}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>{{groupId}}</groupId>
+    <artifactId>{{artifactId}}</artifactId>
+    <version>{{artifactVersion}}</version>
+</dependency>
+```
+
+Or with Gradle:
+
+```groovy
+implementation '{{groupId}}:{{artifactId}}:{{artifactVersion}}'
+```
+
+## Quick Start
+
+```java
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.BearerAuthenticator;
+
+{{clientClassName}} client = {{clientClassName}}.withToken("https://api.example.com", "your-token");
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```java
+import {{invokerPackage}}.auth.BearerAuthenticator;
+
+var authenticator = new BearerAuthenticator("https://api.example.com", "your-token");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```java
+import {{invokerPackage}}.auth.BasicAuthenticator;
+
+var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```java
+import {{invokerPackage}}.auth.ApiKeyAuthenticator;
+import {{invokerPackage}}.auth.ApiKeyLocation;
+
+var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.HEADER);
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```java
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+
+var authenticator = new OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```java
+import {{invokerPackage}}.auth.oauth.OAuth2AuthCodeAuthenticator;
+
+var authenticator = new OAuth2AuthCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```java
+import {{invokerPackage}}.auth.oauth.OAuth2PasswordAuthenticator;
+
+var authenticator = new OAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```java
+import {{invokerPackage}}.auth.oauth.OAuth2ImplicitAuthenticator;
+
+var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```java
+import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator;
+
+var authenticator = new OpenIdConnectAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/.well-known/openid-configuration");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 (and OpenID Connect) authenticators resolve the access token by making an HTTP call to the token endpoint, so they implement `HttpAwareAuthenticator`. The shared `ApiClient` is injected into the authenticator by the `{{clientClassName}}` constructor via `setApiClient(...)`, so the token exchange reuses the same transport configuration (proxy, TLS, timeouts) as regular API calls. The call is made synchronously inside `getAuthHeaders()` before the request is sent; do not call `getAuthHeaders()` on an OAuth2/OIDC authenticator before the `ApiClient` has been injected.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```java
+import {{invokerPackage}}.auth.oauth.ClientAuthMethod;
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+
+var authenticator = new OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", java.util.List.of(), ClientAuthMethod.BASIC);
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus an `Servers.ALL` list. Pass the desired server's URL to the client:
+
+```java
+import {{invokerPackage}}.Servers;
+
+var client = {{clientClassName}}.withToken(Servers.SERVER_0.url(), "your-token");
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```java
+import {{invokerPackage}}.auth.Authenticator;
+
+var fake = new Authenticator() {
+    public java.util.Map<String, String> getAuthHeaders(RequestContext req) {
+        return java.util.Map.of("Authorization", "Bearer test-token");
+    }
+    public String getHost() { return "https://api.example.com"; }
+};
+
+var client = new {{clientClassName}}(fake);
+```
+
+## Error Handling
+
+All API errors extend `ApiException`. The error hierarchy is:
+
+- `ApiException` (base)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
+
+```java
+import {{invokerPackage}}.errors.*;
+
+try {
+    var result = client.petApi.getPetById(petId);
+} catch (NotFoundException e) {
+    System.out.println("Not found: " + e.getMessage());
+} catch (ClientException e) {
+    System.out.println("Client error " + e.getStatusCode() + ": " + e.getMessage());
+} catch (ServerException e) {
+    System.out.println("Server error: " + e.getMessage());
+} catch (ApiException e) {
+    System.out.println("API error: " + e.getMessage());
+}
+```
+
+## Configuration
+
+### Custom Transport Options
+
+```java
+import {{invokerPackage}}.TransportOptions;
+
+var transport = TransportOptions.builder()
+    .proxy("http://proxy:3128")
+    .timeout(5000)
+    .build();
+
+var client = new {{clientClassName}}(authenticator, transport);
+```
+
+## API Methods
+
+Each API group is exposed as a typed field on the client. API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+## Models
+
+Models are generated as Java classes with builder patterns. They are located in `{{apiPackage}}` and model packages.
+
+```java
+import {{invokerPackage}}.models.*;
+
+var pet = new Pet();
+pet.setName("Fido");
+pet.setStatus("available");
+```
+
+## Binary / File Uploads
+
+File upload parameters are typed as `File`. Binary response bodies are returned as `byte[]`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`).
+
+```good
+/* This explains the logic */
+int x = 1;
+```
+
+```bad
+// This explains the logic
+int x = 1;
+```

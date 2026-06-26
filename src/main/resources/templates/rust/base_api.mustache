@@ -1,0 +1,658 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use base64::Engine;
+use serde::de::DeserializeOwned;
+
+use crate::api_client::{ApiClient, MultipartValue, RequestBody};
+use crate::api_error::ApiError;
+use crate::api_response::ApiHttpResponse;
+use crate::api_result::ApiResult;
+use crate::auth::Authenticator;
+use crate::configuration::Configuration;
+use crate::errors::bad_request_error::BadRequestError;
+use crate::errors::client_error::ClientError;
+use crate::errors::conflict_error::ConflictError;
+use crate::errors::forbidden_error::ForbiddenError;
+use crate::errors::internal_server_error::InternalServerError;
+use crate::errors::not_found_error::NotFoundError;
+use crate::errors::server_error::ServerError;
+use crate::errors::unauthorized_error::UnauthorizedError;
+use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
+use crate::header_selector::HeaderSelector;
+use crate::trace_context_util;
+use crate::utils::form_url_encode;
+
+/// No-auth sentinel for operations declared `security: []`.
+///
+/// Three-state auth contract shared by all generated SDKs:
+///   - `auth` IS the sentinel  -> the operation is explicitly unauthenticated
+///     (spec `security: []`); NO credential is applied and the client-level
+///     authenticator is NOT consulted (the bug this fixes: such operations
+///     used to fall back to the client authenticator and leak its credential
+///     on reflect-style endpoints like testEcho*).
+///   - `auth` is `None`        -> a secured operation with no per-call override;
+///     fall back to the client-level authenticator wired into the BaseApi.
+///   - `auth` is `Some(real)`  -> a per-call override; use it.
+///
+/// `NoAuth` is a private zero-sized `Authenticator` whose host is empty and
+/// which contributes no headers, query params, or cookies. It is never handed
+/// to callers; the api template passes `no_auth_sentinel()` for `security: []`
+/// operations, and BaseApi recognises it by pointer identity (`is_no_auth`),
+/// distinct from any real authenticator and from `None`.
+struct NoAuth;
+
+impl Authenticator for NoAuth {
+    fn host(&self) -> &str {
+        ""
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async { HashMap::new() })
+    }
+}
+
+/// The single shared no-auth sentinel instance. A `'static` so its address is
+/// stable for the lifetime of the program, which is what `is_no_auth` compares
+/// against.
+static NO_AUTH: NoAuth = NoAuth;
+
+/// Returns the no-auth sentinel as an `Authenticator` trait object. The api
+/// template passes this for operations declared `security: []` so BaseApi can
+/// distinguish "explicitly unauthenticated" from "no per-call override" (`None`).
+pub(crate) fn no_auth_sentinel() -> &'static dyn Authenticator {
+    &NO_AUTH
+}
+
+/// Reports whether `auth` is the no-auth sentinel, by comparing the trait
+/// object's data pointer against the sentinel's address. Identity comparison —
+/// not a value/`PartialEq` check — so it can never be spoofed by a real
+/// authenticator that happens to look empty.
+fn is_no_auth(auth: &dyn Authenticator) -> bool {
+    // Cast the fat trait-object pointer to a thin data pointer (drops the
+    // vtable) and compare it to the sentinel's address. `std::ptr::eq` over
+    // thin pointers is a pure identity check.
+    let data_ptr = auth as *const dyn Authenticator as *const ();
+    let sentinel_ptr = &NO_AUTH as *const NoAuth as *const ();
+    std::ptr::eq(data_ptr, sentinel_ptr)
+}
+
+/// InvokeApiParams holds parameters for the invoke_api call.
+pub(crate) struct InvokeApiParams<'a> {
+    pub method: &'a str,
+    pub path: &'a str,
+    pub query_params: Vec<(String, String)>,
+    pub header_params: HashMap<String, String>,
+    pub body: Option<Vec<u8>>,
+    /// Multipart/form-data fields. When set, the request is sent as
+    /// `multipart/form-data` and `body` is ignored. File parts carry their
+    /// bytes via `MultipartValue::Bytes`, repeated fields via
+    /// `MultipartValue::List`, object parts via `MultipartValue::Json` (which
+    /// carries `Content-Type: application/json`), and scalar form fields via
+    /// `MultipartValue::Text`.
+    /// Serialization (boundary, per-part Content-Type from the field-name
+    /// extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
+    /// preservation) is performed by the API client's `serialize_multipart_body`.
+    pub multipart: Option<HashMap<String, MultipartValue>>,
+    pub accepts: Vec<&'a str>,
+    pub content_type: &'a str,
+    pub return_type: &'a str,
+    pub auth: Option<&'a dyn Authenticator>,
+}
+
+/// BaseApi provides common functionality for all API classes.
+pub(crate) struct BaseApi {
+    config: Configuration,
+    api_client: Arc<dyn ApiClient>,
+    header_selector: HeaderSelector,
+    authenticator: Option<Arc<dyn Authenticator>>,
+}
+
+impl BaseApi {
+    /// Creates a new BaseApi instance.
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+        Self {
+            config,
+            api_client,
+            header_selector: HeaderSelector::new(),
+            authenticator,
+        }
+    }
+
+    /// Dispatches an API request and returns the full response.
+    pub async fn invoke_api(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let mut request_url = params.path.to_string();
+        if !request_url.starts_with("http://") && !request_url.starts_with("https://") {
+            /* Strip trailing slash from baseUrl when path starts with `/`
+             * so baseUrl='https://x/' + path='/y' produces 'https://x/y',
+             * not 'https://x//y' which most servers route to 404. Matches
+             * Java/C#/Go/Swift/Dart/Kotlin which collapse via URI parsers. */
+            let base = self.config.base_url();
+            let base_trimmed = if params.path.starts_with('/') {
+                base.trim_end_matches('/')
+            } else {
+                base
+            };
+            request_url = format!("{}{}", base_trimmed, params.path);
+        }
+
+        /* Resolve the effective authenticator under the three-state contract:
+         *   - params.auth IS the no-auth sentinel -> the operation is declared
+         *     `security: []`; apply NO auth and do NOT fall back to the
+         *     client-level authenticator (prevents leaking the client
+         *     credential on unauthenticated endpoints).
+         *   - params.auth is None                 -> secured op with no per-call
+         *     override; fall back to the client-level authenticator.
+         *   - params.auth is Some(real)           -> per-call override; use it. */
+        let mut query_params = params.query_params;
+        let effective_auth: Option<&dyn Authenticator> = match params.auth {
+            Some(a) if is_no_auth(a) => None,
+            Some(a) => Some(a),
+            None => self.authenticator.as_ref().map(|a| a.as_ref()),
+        };
+        if let Some(auth) = effective_auth {
+            for (k, v) in auth.query_params() {
+                query_params.push((k, v));
+            }
+        }
+
+        /* Build query string */
+        let query_string = build_query_string(&query_params);
+        if !query_string.is_empty() {
+            request_url = format!("{}?{}", request_url, query_string);
+        }
+
+        /* Select headers */
+        let is_multipart = params.content_type == "multipart/form-data";
+        let mut headers = self.header_selector.select_headers(&params.accepts, params.content_type, is_multipart);
+
+        /* Merge config default headers */
+        for (k, v) in self.config.default_headers() {
+            headers.insert(k, v);
+        }
+
+        /* Merge operation-specific headers */
+        for (k, v) in &params.header_params {
+            headers.insert(k.clone(), v.clone());
+        }
+
+        /* Merge auth headers */
+        if let Some(auth) = effective_auth {
+            for (k, v) in auth.auth_headers().await {
+                headers.insert(k, v);
+            }
+            /* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
+             * most cookie parsers don't URL-decode, so `=` (base64 padding) would
+             * arrive as literal `%3D` and break JWT/session cookies. Validate and
+             * pass through raw instead. panic on invalid input — programmer error. */
+            let cookies = auth.cookie_params();
+            if !cookies.is_empty() {
+                let cookie_parts: Vec<String> = cookies
+                    .iter()
+                    .map(|(k, v)| {
+                        if !is_valid_cookie_name(k) {
+                            panic!("Cookie name '{}' contains characters forbidden by RFC 6265", k);
+                        }
+                        if !is_valid_cookie_value(v) {
+                            panic!("Cookie value for '{}' contains characters forbidden by RFC 6265", k);
+                        }
+                        format!("{}={}", k, v)
+                    })
+                    .collect();
+                let cookie_str = cookie_parts.join("; ");
+                if let Some(existing) = headers.get("Cookie").cloned() {
+                    headers.insert(
+                        "Cookie".to_string(),
+                        format!("{}; {}", existing, cookie_str),
+                    );
+                } else {
+                    headers.insert("Cookie".to_string(), cookie_str);
+                }
+            }
+        }
+
+        /* Inject trace context */
+        trace_context_util::inject_trace_context(&mut headers);
+
+        /* Serialize body. For multipart/form-data we hand the structured
+         * fields to the API client as `RequestBody::Multipart`; the client's
+         * `serialize_multipart_body` generates the boundary, sets the
+         * `Content-Type` header (overriding the placeholder selected above),
+         * derives each file part's Content-Type from its field-name extension,
+         * emits RFC 5987 directives for non-ASCII filenames, and preserves
+         * non-ASCII field names as UTF-8. The placeholder Content-Type chosen
+         * by the header selector lacks the boundary, so we drop it here and let
+         * the client install the boundary-bearing value. */
+        let serialized_body: Option<RequestBody> = if let Some(fields) = params.multipart {
+            headers.remove("Content-Type");
+            if fields.is_empty() {
+                None
+            } else {
+                Some(RequestBody::Multipart(fields))
+            }
+        } else {
+            serialize_body(params.body, params.content_type)?.map(RequestBody::Bytes)
+        };
+
+        if serialized_body.is_none() {
+            headers.remove("Content-Type");
+        }
+
+        /* Send request */
+        let response = self
+            .api_client
+            .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
+            .await?;
+
+        /* Check for errors */
+        if response.status_code() < 200 || response.status_code() >= 300 {
+            return Err(throw_api_error(&response));
+        }
+
+        Ok(response)
+    }
+
+    /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+    pub async fn invoke_api_for_result<T: DeserializeOwned>(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
+        /* Capture the target return type before `params` is consumed by
+         * invoke_api. Binary operations set this to "Vec<u8>" so we can route
+         * non-JSON bodies straight to the raw-bytes path below. */
+        let is_binary_return = params.return_type == "Vec<u8>";
+        let response = self.invoke_api(params).await?;
+
+        /* Check Content-Type before deserializing -- only deserialize JSON responses */
+        let resp_content_type = response.headers().iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+            .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_string());
+
+        let is_json = match &resp_content_type {
+            None => true,
+            Some(ct) => {
+                let selector = HeaderSelector::new();
+                selector.is_json_mime(ct)
+            }
+        };
+
+        let data = if is_binary_return && !response.body().is_empty() {
+            /* Binary return type (T = Vec<u8>). Mock/real servers encode binary
+             * payloads inconsistently: some send a base64-encoded transport body
+             * (non-JSON content-type), others a JSON string of base64, others a
+             * JSON array of byte values. Normalise all three to raw bytes and
+             * present them as a JSON array, which is how serde deserializes
+             * Vec<u8>. from_utf8_lossy is deliberately avoided -- it would
+             * corrupt non-UTF-8 binary. */
+            use base64::Engine as _;
+            let bytes: Vec<u8> = if is_json {
+                match serde_json::from_slice::<serde_json::Value>(response.body().as_bytes()) {
+                    /* Base64 string of the binary payload. */
+                    Ok(serde_json::Value::String(s)) => base64::engine::general_purpose::STANDARD
+                        .decode(s.as_bytes())
+                        .unwrap_or_default(),
+                    /* JSON array of byte values -- already the target shape. */
+                    Ok(arr @ serde_json::Value::Array(_)) => {
+                        return Ok(ApiResult::new(
+                            response.status_code(),
+                            serde_json::from_value(arr).ok(),
+                            response.body().to_string(),
+                            response.headers().clone(),
+                        ));
+                    }
+                    _ => Vec::new(),
+                }
+            } else {
+                /* Non-JSON content-type: transport layer base64-encoded the raw
+                 * bytes; decode them back. */
+                base64::engine::general_purpose::STANDARD
+                    .decode(response.body().as_bytes())
+                    .unwrap_or_default()
+            };
+            let arr = serde_json::Value::Array(
+                bytes.iter().map(|&b| serde_json::Value::from(b)).collect(),
+            );
+            serde_json::from_value(arr).ok()
+        } else if is_json && !response.body().is_empty() {
+            crate::object_serializer::deserialize(response.body().as_bytes())?
+        } else if !is_json && !response.body().is_empty() {
+            /* Non-JSON, non-binary response -- transport layer base64-encoded
+             * the bytes; decode them back and surface as a string. */
+            use base64::Engine as _;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(response.body().as_bytes())
+                .unwrap_or_default();
+            serde_json::from_value(serde_json::Value::String(
+                String::from_utf8_lossy(&bytes).into_owned()
+            )).ok()
+        } else {
+            None
+        };
+
+        Ok(ApiResult::new(
+            response.status_code(),
+            data,
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
+    }
+
+    /// Dispatches an API request and returns an ApiResult with unit data (for operations with no return type).
+    pub async fn invoke_api_for_empty_result(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        let response = self.invoke_api(params).await?;
+        Ok(ApiResult::new(
+            response.status_code(),
+            Some(()),
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
+    }
+}
+
+fn build_query_string(query_params: &[(String, String)]) -> String {
+    if query_params.is_empty() {
+        return String::new();
+    }
+
+    let parts: Vec<String> = query_params
+        .iter()
+        .map(|(k, v)| {
+            format!(
+                "{}={}",
+                urlencoding::encode(k),
+                urlencoding::encode(v)
+            )
+        })
+        .collect();
+
+    parts.join("&")
+}
+
+/* multipart/form-data serialization (boundary, per-part Content-Type from the
+ * field-name extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
+ * preservation, repeated-field expansion, field-name validation/escaping) lives
+ * in `default_api_client::serialize_multipart_body`. `invoke_api` hands the
+ * structured `HashMap<String, MultipartValue>` to the client as
+ * `RequestBody::Multipart`; the client owns the wire format so the same bytes
+ * and boundary can be replayed across 307/308 redirects. */
+
+pub(crate) fn serialize_body(
+    body: Option<Vec<u8>>,
+    content_type: &str,
+) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    let body = match body {
+        Some(b) => b,
+        None => return Ok(None),
+    };
+
+    if content_type == "multipart/form-data" {
+        /* Multipart is handled separately by the API client */
+        return Ok(None);
+    }
+
+    if content_type.starts_with("image/") || content_type == "application/octet-stream" {
+        return Ok(Some(body));
+    }
+
+    if content_type == "text/plain" {
+        /* Ensure the body is valid UTF-8 text */
+        let text = String::from_utf8(body)?;
+        return Ok(Some(text.into_bytes()));
+    }
+
+    if content_type == "application/x-www-form-urlencoded" {
+        /* The body arrives as a JSON array of `[key, value]` pairs in
+         * spec-declaration order (built by the operation template). Each value
+         * is one of:
+         *   - a JSON array  → emitted as REPEATED keys (`tags=a&tags=b`), the
+         *                     form-explode convention shared by all 12 SDKs
+         *                     (never a bracketed/joined `tags=[a, b]`);
+         *   - JSON null     → OMITTED entirely (an absent optional field must
+         *                     not appear as an empty `note=` pair);
+         *   - any scalar    → stringified and emitted as a single pair.
+         * Encoding uses the shared `form_url_encode` helper so the byte-level
+         * escape set matches the OAuth2 token-endpoint helper exactly: a space
+         * becomes `+` (the application/x-www-form-urlencoded convention), not
+         * `%20`, and every other non-unreserved byte becomes `%XX`. */
+        let pairs: Vec<(String, serde_json::Value)> = serde_json::from_slice(&body)?;
+        let mut encoded: Vec<String> = Vec::new();
+        for (key, value) in pairs {
+            match value {
+                serde_json::Value::Null => {}
+                serde_json::Value::Array(items) => {
+                    for item in items {
+                        encoded.push(format!(
+                            "{}={}",
+                            form_url_encode(&key),
+                            form_url_encode(&form_scalar_to_string(&item))
+                        ));
+                    }
+                }
+                scalar => {
+                    encoded.push(format!(
+                        "{}={}",
+                        form_url_encode(&key),
+                        form_url_encode(&form_scalar_to_string(&scalar))
+                    ));
+                }
+            }
+        }
+        return Ok(Some(encoded.join("&").into_bytes()));
+    }
+
+    /* Default: JSON -- body is already serialized by the caller */
+    Ok(Some(body))
+}
+
+/// Renders a single JSON scalar as the string form used on the wire for a
+/// form-urlencoded value. Mirrors `object_serializer::stringify`: strings pass
+/// through unquoted, numbers/booleans use their natural rendering, null becomes
+/// empty, and any residual composite is rendered as compact JSON.
+fn form_scalar_to_string(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
+fn throw_api_error(response: &ApiHttpResponse) -> Box<dyn std::error::Error + Send + Sync> {
+    let code = response.status_code();
+    let msg = format!("API returned status code {}", code);
+    let body = response.body().to_string();
+
+    let base_err = ApiError::new(
+        code,
+        msg,
+        Some(body),
+        Some(response.headers().clone()),
+    );
+
+    if code >= 400 && code < 500 {
+        let client_err = ClientError::from(base_err);
+        return match code {
+            400 => Box::new(BadRequestError::from(client_err)),
+            401 => Box::new(UnauthorizedError::from(client_err)),
+            403 => Box::new(ForbiddenError::from(client_err)),
+            404 => Box::new(NotFoundError::from(client_err)),
+            409 => Box::new(ConflictError::from(client_err)),
+            422 => Box::new(UnprocessableEntityError::from(client_err)),
+            _ => Box::new(client_err),
+        };
+    }
+
+    if code >= 500 {
+        let server_err = ServerError::from(base_err);
+        return match code {
+            500 => Box::new(InternalServerError::from(server_err)),
+            _ => Box::new(server_err),
+        };
+    }
+
+    Box::new(base_err)
+}
+
+/// RFC 6265 cookie-name validation (RFC 7230 token).
+fn is_valid_cookie_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || "!#$%&'*+-.^_`|~".contains(c)
+    })
+}
+
+/// RFC 6265 cookie-value validation (cookie-octet*).
+fn is_valid_cookie_value(value: &str) -> bool {
+    value.chars().all(|c| {
+        let v = c as u32;
+        v == 0x21
+            || (0x23..=0x2B).contains(&v)
+            || (0x2D..=0x3A).contains(&v)
+            || (0x3C..=0x5B).contains(&v)
+            || (0x5D..=0x7E).contains(&v)
+    })
+}
+
+// These `serialize_body` unit tests live in-crate (rather than under tests/)
+// because `serialize_body` and `BaseApi` are crate-private (internal transport
+// helpers, not part of the public API). The behavioural integration tests that
+// drive the public API surface remain in `tests/base_api_test.rs`.
+#[cfg(test)]
+mod tests {
+    use super::serialize_body;
+
+    /// Encodes a list of form pairs the way the operation template does: a JSON
+    /// array of `[key, value]` tuples preserving declaration order.
+    fn encode_form_pairs(pairs: &[(&str, serde_json::Value)]) -> Vec<u8> {
+        let owned: Vec<(String, serde_json::Value)> = pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect();
+        serde_json::to_vec(&owned).unwrap()
+    }
+
+    #[test]
+    fn test_serialize_body_form_urlencoded() {
+        let json_bytes = encode_form_pairs(&[("name", serde_json::json!("alice"))]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        ).unwrap();
+        assert!(result.is_some());
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "name=alice", "expected URL-encoded form data, got: {}", body_str);
+    }
+
+    // form-body-space-encoding (behavior 3): a space in an
+    // application/x-www-form-urlencoded value MUST be encoded as `+`, not `%20`.
+    #[test]
+    fn test_serialize_body_form_urlencoded_space_as_plus() {
+        let json_bytes =
+            encode_form_pairs(&[("full name", serde_json::json!("Ada Lovelace"))]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        ).unwrap();
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "full+name=Ada+Lovelace");
+        assert!(!body_str.contains("%20"), "space must encode as +, not %20: {}", body_str);
+    }
+
+    // form-array-repeated-keys (behavior 1): an array form field MUST serialize
+    // as repeated keys (`tags=a&tags=b`), never a bracketed/joined `tags=[a, b]`
+    // or `tags=a,b`.
+    #[test]
+    fn test_serialize_body_form_urlencoded_array_repeated_keys() {
+        let json_bytes = encode_form_pairs(&[
+            ("nickname", serde_json::json!("Rex")),
+            ("tags", serde_json::json!(["fluffy", "good boy"])),
+        ]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        )
+        .unwrap()
+        .unwrap();
+        let body_str = String::from_utf8(result).unwrap();
+        assert_eq!(body_str, "nickname=Rex&tags=fluffy&tags=good+boy");
+        // No bracketed / comma-joined collapse.
+        assert!(!body_str.contains('['), "must not bracket the array: {}", body_str);
+        assert!(!body_str.contains("tags=fluffy%2Cgood"), "must not comma-join: {}", body_str);
+        assert!(!body_str.contains("tags=fluffy,good"), "must not comma-join: {}", body_str);
+    }
+
+    // form-optional-null-omitted (behavior 2): an optional field whose value is
+    // null/absent MUST be omitted entirely — no empty `note=` pair on the wire.
+    #[test]
+    fn test_serialize_body_form_urlencoded_null_field_omitted() {
+        let json_bytes = encode_form_pairs(&[
+            ("nickname", serde_json::json!("Rex")),
+            ("note", serde_json::Value::Null),
+        ]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        )
+        .unwrap()
+        .unwrap();
+        let body_str = String::from_utf8(result).unwrap();
+        assert_eq!(body_str, "nickname=Rex");
+        assert!(!body_str.contains("note"), "null field must be omitted: {}", body_str);
+    }
+
+    #[test]
+    fn test_serialize_body_text_plain() {
+        let body = b"hello world".to_vec();
+        let result = serialize_body(
+            Some(body),
+            "text/plain",
+        ).unwrap();
+        assert!(result.is_some());
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "hello world");
+    }
+
+    #[test]
+    fn test_serialize_body_binary() {
+        let body = vec![0x01, 0x02, 0x03];
+        let result = serialize_body(
+            Some(body.clone()),
+            "application/octet-stream",
+        ).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), body);
+    }
+
+    #[test]
+    fn test_serialize_body_json_passthrough() {
+        let body = b"{\"key\":\"value\"}".to_vec();
+        let result = serialize_body(
+            Some(body.clone()),
+            "application/json",
+        ).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), body);
+    }
+
+    #[test]
+    fn test_serialize_body_none() {
+        let result = serialize_body(
+            None,
+            "application/json",
+        ).unwrap();
+        assert!(result.is_none());
+    }
+}

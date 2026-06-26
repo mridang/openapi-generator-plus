@@ -1,0 +1,259 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+
+	"{{packageName}}/pkg"
+)
+
+func TestConfiguration_DefaultValues(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.DefaultConfiguration()
+
+	if config.BaseURL() != "{{{basePath}}}" {
+		t.Errorf("expected default base URL %q, got %q", "{{{basePath}}}", config.BaseURL())
+	}
+	if len(config.DefaultHeaders()) != 0 {
+		t.Errorf("expected empty default headers, got %v", config.DefaultHeaders())
+	}
+}
+
+func TestConfiguration_BuilderReturnsBuilderInstance(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewConfigurationBuilder()
+	if builder == nil {
+		t.Fatal("expected non-nil builder")
+	}
+}
+
+func TestConfiguration_BuilderSetsBaseURL(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("https://custom.example.com").
+		Build()
+
+	if config.BaseURL() != "https://custom.example.com" {
+		t.Errorf("expected base URL 'https://custom.example.com', got %q", config.BaseURL())
+	}
+}
+
+func TestConfiguration_BuilderSetsDefaultHeader(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeader("X-Custom", "value").
+		Build()
+
+	headers := config.DefaultHeaders()
+	if headers["X-Custom"] != "value" {
+		t.Errorf("expected default header X-Custom='value', got %q", headers["X-Custom"])
+	}
+}
+
+func TestConfiguration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeaders(map[string]string{
+			"X-First":  "one",
+			"X-Second": "two",
+		}).
+		Build()
+
+	headers := config.DefaultHeaders()
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestConfiguration_BuilderAccumulatesMultipleHeaders(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeader("X-Second", "two").
+		Build()
+
+	headers := config.DefaultHeaders()
+	if len(headers) != 2 {
+		t.Errorf("expected 2 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestConfiguration_BuilderMergesSingleAndBulkHeaders(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeaders(map[string]string{"X-Second": "two"}).
+		DefaultHeader("X-Third", "three").
+		Build()
+
+	headers := config.DefaultHeaders()
+	if len(headers) != 3 {
+		t.Errorf("expected 3 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+	if headers["X-Third"] != "three" {
+		t.Errorf("expected X-Third='three', got %q", headers["X-Third"])
+	}
+}
+
+func TestConfiguration_BuilderChaining(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("https://api.example.com").
+		DefaultHeader("Authorization", "Bearer token").
+		Build()
+
+	if config.BaseURL() != "https://api.example.com" {
+		t.Errorf("expected base URL 'https://api.example.com', got %q", config.BaseURL())
+	}
+	if config.DefaultHeaders()["Authorization"] != "Bearer token" {
+		t.Errorf("expected Authorization header, got %v", config.DefaultHeaders())
+	}
+}
+
+func TestConfiguration_ServerURLResolution(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env":     {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": {{packageName}}.NewServerVariable("v3", "", []string{"v2", "v3"}),
+		},
+	)
+
+	builder, err := {{packageName}}.NewConfigurationBuilder().
+		Server(server, map[string]string{"env": "staging"})
+	if err != nil {
+		t.Fatalf("Server() returned error: %v", err)
+	}
+	config := builder.Build()
+
+	expected := "https://staging.example.com/api/v3"
+	if config.BaseURL() != expected {
+		t.Errorf("expected base URL %q, got %q", expected, config.BaseURL())
+	}
+}
+
+func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env":     {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": {{packageName}}.NewServerVariable("v3", "", []string{"v2", "v3"}),
+		},
+	)
+
+	builder, err := {{packageName}}.NewConfigurationBuilder().
+		Server(server, nil)
+	if err != nil {
+		t.Fatalf("Server() returned error: %v", err)
+	}
+	config := builder.Build()
+
+	expected := "https://api.example.com/api/v3"
+	if config.BaseURL() != expected {
+		t.Errorf("expected base URL %q, got %q", expected, config.BaseURL())
+	}
+}
+
+func TestConfiguration_BaseURLOverride(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("https://original.example.com").
+		BaseURL("https://override.example.com").
+		Build()
+
+	if config.BaseURL() != "https://override.example.com" {
+		t.Errorf("expected overridden base URL, got %q", config.BaseURL())
+	}
+}
+
+func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeader("X-Test", "value").
+		Build()
+
+	headers := config.DefaultHeaders()
+	headers["X-Mutated"] = "should-not-affect-config"
+
+	original := config.DefaultHeaders()
+	if _, found := original["X-Mutated"]; found {
+		t.Error("modifying returned headers should not affect the configuration")
+	}
+}
+
+func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
+		},
+	)
+
+	_, err := {{packageName}}.NewConfigurationBuilder().
+		Server(server, map[string]string{"env": "invalid"})
+	if err == nil {
+		t.Error("expected error for invalid enum value, got nil")
+	}
+}
+
+func TestConfiguration_BuilderMethodsReturnBuilderForChaining(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewConfigurationBuilder()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://example.com",
+		"",
+		nil,
+	)
+
+	if builder.BaseURL("https://example.com") != builder {
+		t.Error("BaseURL should return the same builder")
+	}
+	if builder.DefaultHeader("X-Key", "value") != builder {
+		t.Error("DefaultHeader should return the same builder")
+	}
+	if builder.DefaultHeaders(map[string]string{"X-Other": "val"}) != builder {
+		t.Error("DefaultHeaders should return the same builder")
+	}
+	returned, err := builder.Server(server, nil)
+	if err != nil {
+		t.Fatalf("Server() returned error: %v", err)
+	}
+	if returned != builder {
+		t.Error("Server should return the same builder")
+	}
+}
+
+func TestConfiguration_BuilderProducesIndependentInstances(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewConfigurationBuilder().BaseURL("https://example.com")
+	first := builder.Build()
+	second := builder.Build()
+
+	if first.BaseURL() != second.BaseURL() {
+		t.Errorf("expected same base URL, got %q and %q", first.BaseURL(), second.BaseURL())
+	}
+	if first == second {
+		t.Error("expected Build() to produce independent instances")
+	}
+}

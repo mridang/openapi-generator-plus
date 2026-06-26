@@ -1,0 +1,290 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"fmt"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+	"{{packageName}}/pkg/auth/oauth"
+)
+
+// fakeOIDCClient implements auth.ApiClient for OpenID Connect tests.
+type fakeOIDCClient struct {
+	responses  []fakeOIDCResponse
+	index      int32
+	getCount   int32
+	LastBody   string
+	LastURL    string
+	LastMethod string
+}
+
+type fakeOIDCResponse struct {
+	body       string
+	statusCode int
+}
+
+func (c *fakeOIDCClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *fakeOIDCClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	_ = opts
+	c.LastMethod = method
+	c.LastURL = url
+	if method == "GET" {
+		atomic.AddInt32(&c.getCount, 1)
+	}
+	if body != nil {
+		if b, ok := body.([]byte); ok {
+			c.LastBody = string(b)
+		}
+	}
+	idx := atomic.AddInt32(&c.index, 1) - 1
+	resp := c.responses[idx]
+	return &auth.ApiHttpResponse{
+		StatusCode: resp.statusCode,
+		Body:       resp.body,
+		Headers:    map[string]string{},
+	}, nil
+}
+
+func createOpenIdConnectAuthenticator() *oauth.OpenIdConnectAuthenticator {
+	return oauth.NewOpenIdConnectAuthenticator(
+		"https://api.example.com",
+		"https://auth.example.com/.well-known/openid-configuration",
+		"my-client-id",
+		"my-client-secret",
+		"https://app.example.com/callback",
+		[]string{"openid", "profile"},
+	)
+}
+
+func TestOpenIdConnect_BuildsAuthorizationUrlFromDiscovery(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+		},
+	}
+
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	url, err := authObj.BuildAuthorizationURL("my-state")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.HasPrefix(url, "https://auth.example.com/authorize?") {
+		t.Errorf("expected URL to start with authorization endpoint, got %q", url)
+	}
+	if !strings.Contains(url, "response_type=code") {
+		t.Error("expected URL to contain response_type=code")
+	}
+	if !strings.Contains(url, "client_id=my-client-id") {
+		t.Error("expected URL to contain client_id=my-client-id")
+	}
+	if !strings.Contains(url, "state=my-state") {
+		t.Error("expected URL to contain state=my-state")
+	}
+}
+
+func TestOpenIdConnect_FetchesDiscoveryDocument(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+		},
+	}
+
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if client.LastMethod != "GET" {
+		t.Errorf("expected GET method for discovery, got %q", client.LastMethod)
+	}
+	if client.LastURL != "https://auth.example.com/.well-known/openid-configuration" {
+		t.Errorf("expected discovery URL, got %q", client.LastURL)
+	}
+}
+
+func TestOpenIdConnect_ObtainsTokenAfterCodeExchange(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			// Discovery document
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+			// Token response
+			{body: `{"access_token":"oidc-tok","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("oidc-code")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(client.LastBody, "grant_type=authorization_code") {
+		t.Errorf("expected body to contain grant_type=authorization_code, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "code=oidc-code") {
+		t.Errorf("expected body to contain code=oidc-code, got %q", client.LastBody)
+	}
+}
+
+func TestOpenIdConnect_GetAuthHeadersReturnsBearerAfterExchange(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			// Discovery document
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+			// Token response for ExchangeCode
+			{body: `{"access_token":"oidc-tok","expires_in":3600}`, statusCode: 200},
+			// Token response for AuthHeaders refresh
+			{body: `{"access_token":"oidc-tok","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("oidc-code")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	headers := authObj.AuthHeaders()
+
+	if headers["Authorization"] != "Bearer oidc-tok" {
+		t.Errorf("expected Authorization 'Bearer oidc-tok', got %q", headers["Authorization"])
+	}
+}
+
+func TestOpenIdConnect_ThrowsWhenNoApiClientInjected(t *testing.T) {
+	t.Parallel()
+	authObj := createOpenIdConnectAuthenticator()
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err == nil {
+		t.Fatal("expected error when no API client injected, got nil")
+	}
+}
+
+// oauth-oidc-missing-endpoint-guard: a discovery document missing
+// authorization_endpoint or token_endpoint must produce an error rather than a
+// delegate built with empty endpoint URLs.
+func TestOpenIdConnect_MissingAuthorizationEndpointErrors(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+		},
+	}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err == nil {
+		t.Fatal("expected error when authorization_endpoint is missing")
+	}
+	if !strings.Contains(err.Error(), "authorization_endpoint") {
+		t.Errorf("expected error to mention authorization_endpoint, got %v", err)
+	}
+}
+
+func TestOpenIdConnect_MissingTokenEndpointErrors(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize"}`, statusCode: 200},
+		},
+	}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err == nil {
+		t.Fatal("expected error when token_endpoint is missing")
+	}
+	if !strings.Contains(err.Error(), "token_endpoint") {
+		t.Errorf("expected error to mention token_endpoint, got %v", err)
+	}
+}
+
+// oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
+// surface as a status error, not a misleading JSON-parse failure.
+func TestOpenIdConnect_DiscoveryNon2xxErrors(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `<html>500 Internal Server Error</html>`, statusCode: 500},
+		},
+	}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err == nil {
+		t.Fatal("expected error when discovery returns a non-2xx status")
+	}
+	if !strings.Contains(err.Error(), "status 500") {
+		t.Errorf("expected error to mention status 500, got %v", err)
+	}
+}
+
+func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
+	authObj := createOpenIdConnectAuthenticator()
+
+	if authObj.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+func TestOpenIdConnectRedactsSecret(t *testing.T) {
+	t.Parallel()
+	authObj := createOpenIdConnectAuthenticator()
+	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%s", authObj)} {
+		if strings.Contains(s, "my-client-secret") {
+			t.Errorf("expected client secret to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+func TestOpenIdConnect_FetchesDiscoveryDocumentOnlyOnce(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+		},
+	}
+
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The cached discovery document must be reused on the second call.
+	if got := atomic.LoadInt32(&client.getCount); got != 1 {
+		t.Errorf("expected discovery to be fetched once, got %d GET requests", got)
+	}
+}

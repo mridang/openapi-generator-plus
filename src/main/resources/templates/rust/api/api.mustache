@@ -1,0 +1,807 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::api::base_api::BaseApi;
+use crate::api::base_api::InvokeApiParams;
+use crate::api_client::ApiClient;
+use crate::api_client::MultipartValue;
+use crate::api_error::ApiError;
+use crate::api_result::ApiResult;
+use crate::auth::Authenticator;
+use crate::configuration::Configuration;
+use crate::models::*;
+use crate::object_serializer;
+use crate::value_serializer;
+use crate::api::options::*;
+use crate::value_serializer::SerializedValue;
+{{#operations}}
+{{#serverTypeDefs}}
+
+/// Per-operation server URL trait for {{operationId}}.
+pub trait {{serverTypeName}} {
+    /// Returns the server URL.
+    fn get_url(&self) -> String;
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+/// Valid values for the {{name}} server variable in {{serverTypeName}}.
+#[derive(Debug, Clone)]
+pub enum {{serverTypeName}}{{pascalName}} {
+{{#enumValues}}
+    {{name}},
+{{/enumValues}}
+}
+
+impl {{serverTypeName}}{{pascalName}} {
+    pub fn as_str(&self) -> &str {
+        match self {
+{{#enumValues}}
+            Self::{{name}} => "{{value}}",
+{{/enumValues}}
+        }
+    }
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+/// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+#[derive(Debug, Clone)]
+pub struct {{serverTypeName}}{{variantName}} {
+{{#serverVariables}}
+    pub {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}},
+{{/serverVariables}}
+}
+
+impl {{serverTypeName}} for {{serverTypeName}}{{variantName}} {
+    fn get_url(&self) -> String {
+{{#serverVariables}}{{#-first}}
+        let mut url = "{{url}}".to_string();
+{{/-first}}{{/serverVariables}}
+{{#serverVariables}}
+        url = url.replace(&("{".to_owned() + "{{name}}" + "}"), {{#hasEnumValues}}self.{{snakeName}}.as_str(){{/hasEnumValues}}{{^hasEnumValues}}&self.{{snakeName}}{{/hasEnumValues}});
+{{/serverVariables}}
+{{#serverVariables}}{{#-last}}
+        url
+{{/-last}}{{/serverVariables}}
+{{^serverVariables}}
+        "{{url}}".to_string()
+{{/serverVariables}}
+    }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+/// See <{{url}}> {{description}}
+{{/tagExternalDocs}}
+pub struct {{classname}} {
+    base: BaseApi,
+}
+
+impl {{classname}} {
+    /// Creates a new {{classname}} instance.
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+        Self {
+            base: BaseApi::new(api_client, config, authenticator),
+        }
+    }
+{{#operation}}
+
+{{#summary}}
+    /// {{{summary}}}
+{{/summary}}
+{{#notes}}
+    /// {{{.}}}
+{{/notes}}
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+{{#externalDocs}}
+    /// See <{{url}}> {{description}}
+{{/externalDocs}}
+{{#allParams}}
+{{#description}}
+    /// * `{{paramName}}`: {{description}}
+{{/description}}
+{{/allParams}}
+{{#allParams}}{{#vendorExtensions.pluralExamples}}    /// ### `{{paramName}}` — {{summary}}
+    /// {{description}}
+    /// ```json
+    /// {{value}}
+    /// ```
+{{/vendorExtensions.pluralExamples}}{{/allParams}}    pub async fn {{operationId}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+    ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.{{operationId}}_with_http_info(
+{{#vendorExtensions.op.signatureArgs}}
+            {{paramName}},
+{{/vendorExtensions.op.signatureArgs}}
+        ).await?;
+{{#returnType}}
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+{{/returnType}}
+{{^returnType}}
+        let _ = result;
+        Ok(())
+{{/returnType}}
+    }
+
+    /// Performs the {{operationId}} operation and returns the full API result.
+    pub async fn {{operationId}}_with_http_info(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        // {{#consumes}}`{{{mediaType}}}`{{^-last}}, {{/-last}}{{/consumes}} as request content-types.
+        // The public {{operationId}}_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // {{vendorExtensions.op.effectiveConsumes}} — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the {{operationId}}_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.{{operationId}}_invoke(
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}            {{paramName}},
+{{/isPath}}{{#isBody}}            {{paramName}},
+{{/isBody}}{{#isOptions}}            options,
+{{/isOptions}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+            "{{vendorExtensions.op.effectiveConsumes}}",
+        )
+        .await
+    }
+{{#consumes.1}}
+
+    /// Performs the {{operationId}} operation with an explicit request
+    /// Content-Type, returning the full API result.
+    ///
+    /// This operation declares more than one request content-type
+    /// ({{#consumes}}`{{{mediaType}}}`{{^-last}}, {{/-last}}{{/consumes}}). The
+    /// `request_content_type` argument selects which one is sent on the wire;
+    /// pass one of the declared values. The selector only sets the Content-Type
+    /// header — when the chosen content-type expects a different body shape than
+    /// the one this method's body parameter carries, the caller is responsible
+    /// for supplying a body the server accepts for that type.
+    pub async fn {{operationId}}_with_content_type(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+        request_content_type: &str,
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+        self.{{operationId}}_invoke(
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}            {{paramName}},
+{{/isPath}}{{#isBody}}            {{paramName}},
+{{/isBody}}{{#isOptions}}            options,
+{{/isOptions}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+            request_content_type,
+        )
+        .await
+    }
+{{/consumes.1}}
+
+    /// Shared implementation for the {{operationId}} operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn {{operationId}}_invoke(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+        request_content_type: &str,
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+{{#hasAuthMethods}}
+        // Per-operation auth is folded into the Options struct: source the
+        // authenticator from `options.auth` when present, otherwise pass None so
+        // the base client falls back to the Configuration credentials.
+        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+{{/hasAuthMethods}}
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        if {{paramName}}.is_empty() {
+            return Err(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{paramName}}").into());
+        }
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+
+        let mut path = "{{{path}}}".to_string();
+{{#pathParams}}
+{{=<% %>=}}
+<%#isArray%>
+        let items: Vec<String> = <%paramName%>.iter().map(|i| object_serializer::to_path_value(i)).collect();
+<%/isArray%>
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "<%baseName%>",
+            <%#isArray%>None<%/isArray%><%^isArray%>Some(&object_serializer::to_path_value(&<%paramName%>))<%/isArray%>,
+            <%#isArray%>Some(&items)<%/isArray%><%^isArray%>None<%/isArray%>,
+            "path",
+            "<%dataType%>",
+            "",
+            "<%style%>",
+            <%isExplode%>,
+        ) {
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{<%baseName%>}", &v);
+        }
+<%={{ }}=%>
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if let Some(s) = server {
+            let server_url = s.get_url();
+            if server_url.starts_with("http://") || server_url.starts_with("https://") {
+                path = format!("{}{}", server_url, path);
+            }
+        }
+{{/-first}}
+{{/servers}}
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+{{#queryParams}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#required}}
+        // Required query parameter (allowEmptyValue): a missing Options is a
+        // programming error and is rejected up front.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+{{#isArray}}
+        let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+        if let Some(serialized) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
+            "query",
+            "{{{dataType}}}",
+            "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            match serialized {
+                SerializedValue::Single(v) => {
+                    query_params.push(("{{baseName}}".to_string(), v));
+                }
+                SerializedValue::Multi(values) => {
+                    for v in values {
+                        query_params.push(("{{baseName}}".to_string(), v));
+                    }
+                }
+            }
+        }
+{{/required}}
+{{^required}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
+                    "query",
+                    "{{{dataType}}}",
+                    "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("{{baseName}}".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("{{baseName}}".to_string(), v));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+{{/required}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryDeepObject}}
+{{#required}}
+        // Required deepObject query parameter: a missing Options is rejected.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &opts.{{paramName}}) {
+            query_params.push((k, v));
+        }
+{{/required}}
+{{^required}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+                for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", val) {
+                    query_params.push((k, v));
+                }
+            }
+        }
+{{/required}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+{{#required}}
+        // Required content query parameter: a missing Options is rejected.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        query_params.push(("{{baseName}}".to_string(), serde_json::to_string(&opts.{{paramName}}).unwrap_or_default()));
+{{/required}}
+{{^required}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+                query_params.push(("{{baseName}}".to_string(), serde_json::to_string(val).unwrap_or_default()));
+            }
+        }
+{{/required}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyled}}
+{{#required}}
+        // Required query parameter: the caller must supply it via Options. A
+        // missing Options is a programming error and is rejected up front,
+        // matching the required-param validation the other SDKs perform.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+{{#isArray}}
+        let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+        if let Some(serialized) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
+            "query",
+            "{{{dataType}}}",
+            "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            match serialized {
+                SerializedValue::Single(v) => {
+                    query_params.push(("{{baseName}}".to_string(), v));
+                }
+                SerializedValue::Multi(values) => {
+                    for v in values {
+                        query_params.push(("{{baseName}}".to_string(), v));
+                    }
+                }
+            }
+        }
+{{/required}}
+{{^required}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
+                    "query",
+                    "{{{dataType}}}",
+                    "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("{{baseName}}".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("{{baseName}}".to_string(), v));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+{{/required}}
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+{{#headerParams}}
+{{#required}}
+        // Required header parameter: a missing Options is a programming error.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+{{#isArray}}
+        let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
+            "header",
+            "{{{dataType}}}",
+            "",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            header_params.insert("{{baseName}}".to_string(), v);
+        }
+{{/required}}
+{{^required}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
+                    "header",
+                    "{{{dataType}}}",
+                    "",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    header_params.insert("{{baseName}}".to_string(), v);
+                }
+            }
+        }
+{{/required}}
+{{/headerParams}}
+{{#hasCookieParams}}
+        let mut cookie_parts: Vec<String> = Vec::new();
+{{#cookieParams}}
+{{#required}}
+        // Required cookie parameter: a missing Options is a programming error.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            Some(&object_serializer::stringify(&opts.{{paramName}})),
+            None,
+            "cookie",
+            "{{{dataType}}}",
+            "",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            // header-injection guard: an operation cookie value is interpolated
+            // raw into the Cookie request header (RFC 6265 forbids percent-
+            // encoding it), so a CR/LF/control-char value would otherwise split
+            // the header and inject arbitrary ones. Reject anything outside the
+            // RFC 6265 cookie-octet set, failing closed by returning the SDK's
+            // typed error — the same RFC 6265 rejection the auth-cookie path
+            // performs in BaseApi, but surfaced as an error here because this
+            // operation returns a Result rather than panicking mid-function.
+            // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+            let cookie_value_valid = v.chars().all(|c| {
+                let o = c as u32;
+                o == 0x21
+                    || (0x23..=0x2B).contains(&o)
+                    || (0x2D..=0x3A).contains(&o)
+                    || (0x3C..=0x5B).contains(&o)
+                    || (0x5D..=0x7E).contains(&o)
+            });
+            if !cookie_value_valid {
+                return Err(format!(
+                    "cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
+                    "{{baseName}}"
+                ).into());
+            }
+            cookie_parts.push(format!("{{baseName}}={}", v));
+        }
+{{/required}}
+{{^required}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "cookie",
+                    "{{{dataType}}}",
+                    "",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    // header-injection guard: see the required-branch comment
+                    // above. The serialized value is interpolated raw into the
+                    // Cookie header (no percent-encoding per RFC 6265), so a
+                    // CR/LF/control-char value is rejected here, failing closed
+                    // by returning the SDK's typed error and mirroring the
+                    // auth-cookie RFC 6265 check in BaseApi.
+                    // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+                    let cookie_value_valid = v.chars().all(|c| {
+                        let o = c as u32;
+                        o == 0x21
+                            || (0x23..=0x2B).contains(&o)
+                            || (0x2D..=0x3A).contains(&o)
+                            || (0x3C..=0x5B).contains(&o)
+                            || (0x5D..=0x7E).contains(&o)
+                    });
+                    if !cookie_value_valid {
+                        return Err(format!(
+                            "cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
+                            "{{baseName}}"
+                        ).into());
+                    }
+                    cookie_parts.push(format!("{{baseName}}={}", v));
+                }
+            }
+        }
+{{/required}}
+{{/cookieParams}}
+        if !cookie_parts.is_empty() {
+            header_params.insert("Cookie".to_string(), cookie_parts.join("; "));
+        }
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+{{#isMultipart}}
+        // multipart/form-data. Each form param is mapped to a MultipartValue so
+        // the API client's serialize_multipart_body owns the wire format:
+        //   - file params (Vec<u8>)      -> Bytes (one file part; its part
+        //     Content-Type is derived from the field-name extension, falling
+        //     back to application/octet-stream);
+        //   - arrays of files           -> List(Bytes ...) (repeated parts);
+        //   - text arrays               -> List(Text ...) (repeated parts);
+        //   - objects / scalars         -> Text;
+        //   - absent optional fields    -> omitted entirely.
+        // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
+        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
+{{#vendorExtensions.op.requiredMultipartBody}}
+        // Required multipart request body: the parts come from the Options
+        // struct, so a missing Options would emit a body-less request. Reject it
+        // up front (matching the required path/query/header param validation)
+        // instead of silently sending an empty body.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "options").into()
+        })?;
+{{/vendorExtensions.op.requiredMultipartBody}}
+{{^vendorExtensions.op.requiredMultipartBody}}
+        if let Some(opts) = options {
+{{/vendorExtensions.op.requiredMultipartBody}}
+{{#formParams}}
+{{#required}}
+{{#isArray}}
+{{#items.isFile}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()));
+{{/items.isFile}}
+{{^items.isFile}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()));
+{{/items.isFile}}
+{{/isArray}}
+{{^isArray}}
+{{#isFile}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::Bytes(opts.{{paramName}}.clone()));
+{{/isFile}}
+{{^isFile}}
+{{#isPrimitiveType}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}})));
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(&opts.{{paramName}})?));
+{{/isPrimitiveType}}
+{{/isFile}}
+{{/isArray}}
+{{/required}}
+{{^required}}
+            if let Some(ref val) = opts.{{paramName}} {
+{{#isArray}}
+{{#items.isFile}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()));
+{{/items.isFile}}
+{{^items.isFile}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()));
+{{/items.isFile}}
+{{/isArray}}
+{{^isArray}}
+{{#isFile}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::Bytes(val.clone()));
+{{/isFile}}
+{{^isFile}}
+{{#isPrimitiveType}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val)));
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(val)?));
+{{/isPrimitiveType}}
+{{/isFile}}
+{{/isArray}}
+            }
+{{/required}}
+{{/formParams}}
+{{^vendorExtensions.op.requiredMultipartBody}}
+        }
+{{/vendorExtensions.op.requiredMultipartBody}}
+{{#consumes.1}}
+        // multi-content-type-multipart-or-raw: this operation also declares a
+        // non-multipart binary request content-type (e.g.
+        // application/octet-stream). When the caller selected that type the
+        // multipart envelope built above is wrong — the server expects the raw
+        // bytes of the single binary part with the chosen Content-Type, exactly
+        // as the dedicated set_*-style raw-binary path sends them. Only forward
+        // the multipart map when multipart/form-data is the resolved type;
+        // otherwise discard it and stream the file part's raw octets so the
+        // request body is NOT wrapped in a multipart boundary.
+        let mut request_body: Option<Vec<u8>> = None;
+        let mut multipart: Option<HashMap<String, MultipartValue>> = Some(multipart);
+        if request_content_type != "multipart/form-data" {
+            // A non-multipart binary content-type was selected: stream the single
+            // required file part as the raw body and drop the multipart map so the
+            // bytes are sent verbatim with the chosen Content-Type.
+{{#formParams}}
+{{#required}}
+{{^isArray}}
+{{#isFile}}
+            request_body = Some(opts.{{paramName}}.clone());
+            multipart = None;
+{{/isFile}}
+{{/isArray}}
+{{/required}}
+{{/formParams}}
+        }
+{{/consumes.1}}
+{{^consumes.1}}
+        let request_body: Option<Vec<u8>> = None;
+        let multipart = Some(multipart);
+{{/consumes.1}}
+{{/isMultipart}}
+{{^isMultipart}}
+        // application/x-www-form-urlencoded. The body is an ordered list of
+        // [key, value] pairs (spec-declaration order). Array values are emitted
+        // as repeated keys by serialize_body; null/absent optional fields are
+        // omitted entirely; spaces are encoded as `+`.
+        let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
+        if let Some(opts) = options {
+{{#formParams}}
+{{#required}}
+            form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?));
+{{/required}}
+{{^required}}
+            if let Some(ref val) = opts.{{paramName}} {
+                form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(val)?));
+            }
+{{/required}}
+{{/formParams}}
+        }
+        let request_body = Some(serde_json::to_vec(&form_pairs)?);
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/isMultipart}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+{{#isBinary}}
+{{#nullable}}
+        // Optional binary (`type: string, format: binary`) request body. The
+        // parameter is `Option<Vec<u8>>` (raw bytes); when present we stream the
+        // bytes UNCHANGED — no JSON / base64 / byte-array re-encoding — so the
+        // declared Content-Type ({{vendorExtensions.op.effectiveConsumes}}) carries
+        // the exact octets. When `None` we send no body and invoke_api drops the
+        // Content-Type. (serialize_body passes image/* and
+        // application/octet-stream bodies through verbatim.)
+        let request_body = {{paramName}};
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/nullable}}
+{{^nullable}}
+        // Binary (`type: string, format: binary`) request body. The parameter is
+        // `Vec<u8>` (raw bytes) and must be streamed UNCHANGED — JSON-serializing
+        // it would emit a byte array like `[255,216,...]` and base64 would
+        // re-encode it, either of which corrupts the payload. The raw octets are
+        // handed straight to invoke_api with the declared Content-Type
+        // ({{vendorExtensions.op.effectiveConsumes}}) preserved; serialize_body
+        // passes image/* and application/octet-stream bodies through verbatim.
+        let request_body = Some({{paramName}});
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/nullable}}
+{{/isBinary}}
+{{^isBinary}}
+{{#nullable}}
+        // Optional (not-`required`) request body. The parameter is
+        // `Option<{{{dataType}}}>`; when the caller passes `None` we send NO
+        // body at all (and invoke_api drops the Content-Type) rather than
+        // serializing a literal JSON `null`, which a strict server may reject or
+        // treat differently from an absent body.
+        let request_body = {{paramName}}
+            .as_ref()
+            .map(|b| object_serializer::serialize(b))
+            .transpose()?
+            .map(String::into_bytes);
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/nullable}}
+{{^nullable}}
+        let request_body = Some(object_serializer::serialize(&{{paramName}})?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/nullable}}
+{{/isBinary}}
+{{/bodyParam}}
+{{^bodyParam}}
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+        let params = InvokeApiParams {
+            method: "{{httpMethod}}",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
+            content_type: request_content_type,
+            return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
+{{#hasAuthMethods}}
+            // Secured operation: pass the resolved per-call authenticator (or
+            // None for no override, which lets BaseApi fall back to the
+            // client-level authenticator).
+            auth,
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+            // security-none suppression: this operation is declared
+            // `security: []` (explicitly unauthenticated). Pass the no-auth
+            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
+            // than falling back to the client-level authenticator, which would
+            // leak the client credential on reflect-style endpoints.
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+{{/hasAuthMethods}}
+        };
+
+{{#returnType}}
+        self.base.invoke_api_for_result::<{{{.}}}>(params).await
+{{/returnType}}
+{{^returnType}}
+        self.base.invoke_api_for_empty_result(params).await
+{{/returnType}}
+    }
+{{/operation}}
+}
+{{/operations}}

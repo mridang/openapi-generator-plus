@@ -1,0 +1,888 @@
+{{>api_info}}
+
+@file:Suppress("detekt:all", "ktlint:standard:value-parameter-comment", "ktlint:standard:no-consecutive-comments")
+@file:UseSerializers(Base64ByteArraySerializer::class)
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
+package {{modelPackage}}
+
+{{#imports}}
+import {{import}}
+{{/imports}}
+import {{invokerPackage}}.Base64ByteArraySerializer
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
+import kotlinx.serialization.json.JsonClassDiscriminator
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+{{#isInteger}}
+{{#description}}
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+{{/description}}
+@Serializable(with = {{classname}}.Serializer::class)
+enum class {{classname}}(val value: Int) {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  companion object {
+    fun fromValue(value: Int): {{classname}} =
+      entries.firstOrNull { it.value == value }
+        ?: throw IllegalArgumentException("Unexpected value '$value'")
+  }
+
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+        "{{classname}}", kotlinx.serialization.descriptors.PrimitiveKind.INT)
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) = encoder.encodeInt(value.value)
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} =
+      fromValue(decoder.decodeInt())
+  }
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+{{#description}}
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+{{/description}}
+@Serializable(with = {{classname}}.Serializer::class)
+enum class {{classname}}(val value: Long) {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  companion object {
+    fun fromValue(value: Long): {{classname}} =
+      entries.firstOrNull { it.value == value }
+        ?: throw IllegalArgumentException("Unexpected value '$value'")
+  }
+
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+        "{{classname}}", kotlinx.serialization.descriptors.PrimitiveKind.LONG)
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) = encoder.encodeLong(value.value)
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} =
+      fromValue(decoder.decodeLong())
+  }
+}
+{{/isLong}}
+{{^isLong}}
+{{#description}}
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+{{/description}}
+@Serializable
+enum class {{classname}}(val value: String) {
+  {{#allowableValues}}
+  {{#enumVars}}
+  @SerialName({{{value}}})
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  companion object {
+    fun fromValue(value: String): {{classname}} =
+      entries.firstOrNull { it.value == value }
+        ?: throw IllegalArgumentException("Unexpected value '$value'")
+  }
+}
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated("This schema is deprecated.")
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+{{#discriminator}}
+/*
+ * Discriminated oneOf wrapper. The previous shape was an empty
+ * `abstract class {{classname}}` annotated with @JsonClassDiscriminator, but the
+ * variant schemas ({{#discriminator.mappedModels}}{{modelName}}{{^-last}}, {{/-last}}{{/discriminator.mappedModels}}) are emitted as
+ * independent data classes that neither extend this type nor register a
+ * @SerialName subtype. kotlinx-serialization would build a PolymorphicSerializer
+ * with ZERO registered subclasses, so every encode/decode of {{classname}} threw
+ * "not registered for polymorphic serialization" at runtime.
+ *
+ * Instead this is a wrapper holding the resolved variant in [actualInstance],
+ * with a hand-written serializer that dispatches on the
+ * `{{discriminator.propertyBaseName}}` discriminator property — mirroring the
+ * other SDKs (e.g. Swift's PetFood, which switches on the discriminator and
+ * decodes the matching concrete type). [ObjectSerializer.serialize] unwraps
+ * [actualInstance] via reflection, so serialization of the bare variant works
+ * the same way it does for non-discriminated unions.
+ */
+@Serializable(with = {{classname}}.Serializer::class)
+class {{classname}}(
+  @Contextual
+  val actualInstance: Any? = null
+) {
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be serialized to JSON")
+      val instance = value.actualInstance
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} has no actualInstance to serialize")
+      // Dispatch on the concrete variant type and encode it as its own bare
+      // object; the discriminator property lives on the variant itself.
+      // encodeSerializableValue is an Encoder member, so no extra import is
+      // needed and the variant's own (possibly contextual) serializer is used.
+      when (instance) {
+        {{#discriminator.mappedModels}}
+        is {{modelName}} ->
+          jsonEncoder.encodeSerializableValue({{modelName}}.serializer(), instance)
+        {{/discriminator.mappedModels}}
+        else -> throw kotlinx.serialization.SerializationException(
+          "Unsupported {{classname}} variant: ${instance::class.simpleName}")
+      }
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} {
+      val jsonDecoder = decoder as? kotlinx.serialization.json.JsonDecoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be deserialized from JSON")
+      val element = jsonDecoder.decodeJsonElement()
+      val obj = element as? kotlinx.serialization.json.JsonObject
+        ?: throw kotlinx.serialization.SerializationException(
+          "Expected a JSON object for {{classname}} but found ${element::class.simpleName}")
+      val discriminator =
+        (obj["{{discriminator.propertyBaseName}}"]
+          as? kotlinx.serialization.json.JsonPrimitive)?.content
+          ?: throw kotlinx.serialization.SerializationException(
+            "{{classname}} is missing the '{{discriminator.propertyBaseName}}' discriminator property")
+      // Resolve the variant from the discriminator value, then decode the
+      // matching concrete type. An unknown value fails loud rather than
+      // silently yielding an empty wrapper.
+      val instance: Any = when (discriminator) {
+        {{#discriminator.mappedModels}}
+        "{{mappingName}}" ->
+          jsonDecoder.json.decodeFromJsonElement({{modelName}}.serializer(), obj)
+        {{/discriminator.mappedModels}}
+        else -> throw kotlinx.serialization.SerializationException(
+          "Unknown {{classname}} discriminator value: '$discriminator'")
+      }
+      return {{classname}}(instance)
+    }
+  }
+}
+{{/discriminator}}
+{{^discriminator}}
+/*
+ * Non-discriminated oneOf wrapper. The default generated object serializer
+ * would expect a `{"actualInstance": ...}` envelope, but the wire payload is a
+ * bare variant — so deserialization silently dropped every key and left
+ * [actualInstance] null. The hand-written serializer below tries each declared
+ * variant in turn (first match wins) and emits the bare variant on serialize,
+ * matching the resolveOneOf contract used by the other SDKs.
+ *
+ * Variant serializers are resolved via the reified `serializer<T>()` so the
+ * union works for class variants AND primitive/collection variants (e.g.
+ * `ByteArray`, `List<ByteArray>`), which cannot use a `Type.serializer()`
+ * companion call or an `is Type` check on an erased generic.
+ */
+@Serializable(with = {{classname}}.Serializer::class)
+class {{classname}}(
+  @Contextual
+  val actualInstance: Any? = null
+) {
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
+
+    @Suppress("UNCHECKED_CAST")
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be serialized to JSON")
+      val instance = value.actualInstance
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} has no actualInstance to serialize")
+      // format:byte variants travel on the wire as base64 strings, NOT as JSON
+      // int-arrays. The reified serializer<ByteArray>() / serializer<List<ByteArray>>()
+      // used by the generic loop below resolve kotlinx's built-in ByteArraySerializer,
+      // which emits an int-array and never consults the @file Base64ByteArraySerializer
+      // (an @file:UseSerializers directive only rewrites lexically-typed properties at
+      // compile time, not a runtime reified lookup). Route ByteArray / List<ByteArray>
+      // instances through Base64ByteArraySerializer explicitly, ahead of the generic
+      // variant loop, so the byte variant is base64-encoded on the wire.
+      when (instance) {
+        is ByteArray -> {
+          jsonEncoder.encodeSerializableValue(Base64ByteArraySerializer, instance)
+          return
+        }
+        is List<*> -> {
+          if (instance.isNotEmpty() && instance.all { it is ByteArray }) {
+            jsonEncoder.encodeSerializableValue(
+              kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
+              instance as List<ByteArray>)
+            return
+          }
+        }
+        else -> { /* not a byte variant; fall through to the generic loop */ }
+      }
+      // Encode the wrapped value with the first variant serializer that accepts
+      // it; a value matching no variant fails loud. encodeSerializableValue is
+      // an Encoder member, so no extra import is needed.
+      {{#oneOf}}
+      try {
+        jsonEncoder.encodeSerializableValue(
+          kotlinx.serialization.serializer<{{{.}}}>(), instance as {{{.}}})
+        return
+      } catch (_: Exception) {
+        // wrapped value is not this variant; try the next
+      }
+      {{/oneOf}}
+      throw kotlinx.serialization.SerializationException(
+        "Unsupported {{classname}} variant: ${instance::class.simpleName}")
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} {
+      val jsonDecoder = decoder as? kotlinx.serialization.json.JsonDecoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be deserialized from JSON")
+      val element = jsonDecoder.decodeJsonElement()
+      // Decode variants with a STRICT Json (ignoreUnknownKeys = false) rather
+      // than the SDK's lenient decoder. Two variants that differ ONLY by an
+      // optional field would otherwise both decode against the first variant —
+      // the lenient decoder silently drops the discriminating extra key — so the
+      // union mis-resolves to whichever variant is declared first. Strict
+      // decoding rejects a payload carrying keys the candidate variant does not
+      // declare, so each variant only matches a payload shaped exactly like it.
+      // The contextual module is copied so @Contextual variant fields still
+      // resolve their serializers.
+      val strictJson = kotlinx.serialization.json.Json(jsonDecoder.json) {
+        ignoreUnknownKeys = false
+      }
+      // Try each declared variant against the raw payload; the first that
+      // decodes without error wins. A payload matching no variant is spec
+      // drift and fails loud rather than yielding an empty wrapper.
+      {{#oneOf}}
+      try {
+        return {{classname}}(
+          strictJson.decodeFromJsonElement(
+            kotlinx.serialization.serializer<{{{.}}}>(), element))
+      } catch (_: Exception) {
+        // variant did not match; fall through to the next
+      }
+      {{/oneOf}}
+      // Base64 fallback for format:byte variants. A base64 scalar arrives as a
+      // JSON STRING and an array of base64 values as a JSON array of strings —
+      // neither of which the generic loop above can decode, because the reified
+      // serializer<ByteArray>() expects a JSON int-array (its built-in wire form)
+      // rather than a base64 string. The scalar branch is tried FIRST so a lone
+      // base64 string deserializes to the scalar ByteArray variant and is never
+      // mis-parsed element-by-element into a List<ByteArray>. These attempts only
+      // succeed for genuine base64 payloads, so unions without a byte variant are
+      // unaffected (they have already failed loud above).
+      try {
+        return {{classname}}(
+          strictJson.decodeFromJsonElement(Base64ByteArraySerializer, element))
+      } catch (_: Exception) {
+        // not a base64 scalar; try the array-of-base64 form
+      }
+      try {
+        return {{classname}}(
+          strictJson.decodeFromJsonElement(
+            kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer), element))
+      } catch (_: Exception) {
+        // not an array of base64 values either; fall through to fail loud
+      }
+      throw kotlinx.serialization.SerializationException(
+        "No oneOf variant of {{classname}} matched the response body")
+    }
+  }
+}
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated("This schema is deprecated.")
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+/*
+ * anyOf wrapper (lossless retain-all). A non-discriminated anyOf is documented
+ * as matching any one OR several of its declared variants at once, so a payload
+ * that satisfies more than one variant must retain ALL of them — dropping the
+ * extras and keeping only the first match loses data on re-encode.
+ *
+ * This wrapper holds EVERY variant that successfully decodes in [instances].
+ * On decode each declared variant is tried leniently (a variant matches when
+ * its own required fields are present; sibling keys it does not declare are
+ * ignored, NOT rejected) and every match is retained. On encode the JSON
+ * objects of all retained variants are MERGED into a single union object, so a
+ * co-satisfied payload round-trips losslessly with no silent field drop.
+ *
+ * [actualInstance] exposes the first retained variant for callers that treat
+ * the union as a single value (e.g. format:byte variants, which are mutually
+ * exclusive scalar/array shapes that cannot be merged).
+ */
+@Serializable(with = {{classname}}.Serializer::class)
+class {{classname}}(
+  @Contextual
+  val instances: List<Any?> = emptyList()
+) {
+  // Convenience constructor for the common single-variant case; keeps the
+  // historical `{{classname}}(actualInstance = x)` call-site working.
+  constructor(actualInstance: Any?) : this(
+    if (actualInstance == null) emptyList() else listOf(actualInstance))
+
+  // The first retained variant, or null when none decoded. Callers that expect
+  // a single wrapped value (byte/scalar variants) read this.
+  val actualInstance: Any?
+    get() = instances.firstOrNull()
+
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
+
+    @Suppress("UNCHECKED_CAST")
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be serialized to JSON")
+      if (value.instances.isEmpty()) {
+        throw kotlinx.serialization.SerializationException(
+          "{{classname}} has no instance to serialize")
+      }
+      // format:byte variants travel on the wire as base64 strings, NOT as JSON
+      // int-arrays. The reified serializer<ByteArray>() / serializer<List<ByteArray>>()
+      // used by the generic loop below resolve kotlinx's built-in ByteArraySerializer,
+      // which emits an int-array and never consults the @file Base64ByteArraySerializer
+      // (an @file:UseSerializers directive only rewrites lexically-typed properties at
+      // compile time, not a runtime reified lookup). Route ByteArray / List<ByteArray>
+      // instances through Base64ByteArraySerializer explicitly, ahead of the generic
+      // variant loop, so the byte variant is base64-encoded on the wire. Byte/scalar
+      // variants are mutually exclusive and cannot be merged, so only the first
+      // retained instance is consulted here.
+      val firstInstance = value.instances.first()
+      when (firstInstance) {
+        is ByteArray -> {
+          jsonEncoder.encodeSerializableValue(Base64ByteArraySerializer, firstInstance)
+          return
+        }
+        is List<*> -> {
+          if (firstInstance.isNotEmpty() && firstInstance.all { it is ByteArray }) {
+            jsonEncoder.encodeSerializableValue(
+              kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),
+              firstInstance as List<ByteArray>)
+            return
+          }
+        }
+        else -> { /* not a byte variant; fall through to the merge loop */ }
+      }
+      // Encode every retained variant to its JSON object and MERGE the fields
+      // into one union object, so a payload that co-satisfied several variants
+      // re-encodes losslessly. A variant that does not encode to a JSON object
+      // (or that no declared serializer accepts) is skipped. encodeSerializableValue
+      // is an Encoder member, so no extra import is needed.
+      val merged = linkedMapOf<String, kotlinx.serialization.json.JsonElement>()
+      for (instance in value.instances) {
+        var element: kotlinx.serialization.json.JsonElement? = null
+        {{#anyOf}}
+        if (element == null) {
+          try {
+            element = jsonEncoder.json.encodeToJsonElement(
+              kotlinx.serialization.serializer<{{{.}}}>(), instance as {{{.}}})
+          } catch (_: Exception) {
+            // wrapped value is not this variant; try the next
+          }
+        }
+        {{/anyOf}}
+        val obj = element as? kotlinx.serialization.json.JsonObject
+        if (obj != null) {
+          merged.putAll(obj)
+        }
+      }
+      if (merged.isEmpty()) {
+        throw kotlinx.serialization.SerializationException(
+          "Unsupported {{classname}} variant: " +
+            "${value.instances.first()!!::class.simpleName}")
+      }
+      jsonEncoder.encodeJsonElement(kotlinx.serialization.json.JsonObject(merged))
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} {
+      val jsonDecoder = decoder as? kotlinx.serialization.json.JsonDecoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be deserialized from JSON")
+      val element = jsonDecoder.decodeJsonElement()
+      // Decode variants LENIENTLY (ignoreUnknownKeys = true) so a payload that
+      // co-satisfies several variants matches EACH of them: every variant picks
+      // up the fields it declares and ignores sibling keys it does not. A variant
+      // only fails when one of its OWN required fields is absent, so a
+      // single-variant payload still matches just that one variant. The
+      // contextual module is copied so @Contextual variant fields still resolve
+      // their serializers.
+      val lenientJson = kotlinx.serialization.json.Json(jsonDecoder.json) {
+        ignoreUnknownKeys = true
+      }
+      // Retain EVERY declared variant that decodes against the raw payload.
+      val retained = mutableListOf<Any?>()
+      {{#anyOf}}
+      try {
+        retained.add(
+          lenientJson.decodeFromJsonElement(
+            kotlinx.serialization.serializer<{{{.}}}>(), element))
+      } catch (_: Exception) {
+        // variant did not match; try the next
+      }
+      {{/anyOf}}
+      if (retained.isNotEmpty()) {
+        return {{classname}}(instances = retained)
+      }
+      // Base64 fallback for format:byte variants. A base64 scalar arrives as a
+      // JSON STRING and an array of base64 values as a JSON array of strings --
+      // neither of which the generic loop above can decode, because the reified
+      // serializer<ByteArray>() expects a JSON int-array (its built-in wire form)
+      // rather than a base64 string. The scalar branch is tried FIRST so a lone
+      // base64 string deserializes to the scalar ByteArray variant and is never
+      // mis-parsed element-by-element into a List<ByteArray>.
+      try {
+        return {{classname}}(instances =
+          listOf<Any?>(lenientJson.decodeFromJsonElement(Base64ByteArraySerializer, element)))
+      } catch (_: Exception) {
+        // not a base64 scalar; try the array-of-base64 form
+      }
+      try {
+        return {{classname}}(instances =
+          listOf<Any?>(lenientJson.decodeFromJsonElement(
+            kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer), element)))
+      } catch (_: Exception) {
+        // not an array of base64 values either; fall through to fail loud
+      }
+      throw kotlinx.serialization.SerializationException(
+        "No anyOf variant of {{classname}} matched the response body")
+    }
+  }
+}
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+{{#isDeprecated}}
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+{{/description}}
+@Deprecated("This schema is deprecated.")
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+@Serializable
+{{#parent}}open {{/parent}}data class {{classname}}(
+{{#vars}}
+  {{#deprecated}}
+  {{#description}}
+  /**
+   * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+   *
+  {{#example}}
+   * Example: `{{{.}}}`
+   *
+  {{/example}}
+   * @deprecated This property is deprecated.
+   */
+  {{/description}}
+  {{^description}}
+  {{#example}}
+  /**
+   * Example: `{{{.}}}`
+   *
+   * @deprecated This property is deprecated.
+   */
+  {{/example}}
+  {{^example}}
+  /** @deprecated This property is deprecated. */
+  {{/example}}
+  {{/description}}
+  @Deprecated("This property is deprecated.")
+  {{/deprecated}}
+  {{^deprecated}}
+  {{#description}}
+  {{#example}}
+  /**
+   * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+   *
+   * Example: `{{{example}}}`
+   */
+  {{/example}}
+  {{^example}}
+  /** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+  {{/example}}
+  {{/description}}
+  {{^description}}
+  {{#example}}
+  /** Example: `{{{.}}}` */
+  {{/example}}
+  {{/description}}
+  {{/deprecated}}
+  {{#vendorExtensions.pluralExamples}}
+  /* Example "{{summary}}" — {{description}}; value: {{value}} */
+  {{/vendorExtensions.pluralExamples}}
+  @SerialName("{{baseName}}")
+{{^isEnum}}{{!
+    Strict per-field serializers, keyed off the property's Kotlin type. The
+    OpenAPI integer flags overlap (an int32 sets both isInteger and isShort),
+    so the integer family is nested most-specific-first and Short/Byte only
+    fire when neither isLong nor isInteger is set, guaranteeing exactly one
+    @Serializable(with=...) per numeric/boolean property.
+}}{{#isLong}}  @Serializable(with = {{invokerPackage}}.StrictLongSerializer::class)
+{{/isLong}}{{^isLong}}{{#isInteger}}  @Serializable(with = {{invokerPackage}}.StrictIntSerializer::class)
+{{/isInteger}}{{^isInteger}}{{#isShort}}  @Serializable(with = {{invokerPackage}}.StrictShortSerializer::class)
+{{/isShort}}{{^isShort}}{{#isByte}}  @Serializable(with = {{invokerPackage}}.StrictByteSerializer::class)
+{{/isByte}}{{/isShort}}{{/isInteger}}{{/isLong}}{{#isFloat}}  @Serializable(with = {{invokerPackage}}.StrictFloatSerializer::class)
+{{/isFloat}}{{^isFloat}}{{#isDouble}}  @Serializable(with = {{invokerPackage}}.StrictDoubleSerializer::class)
+{{/isDouble}}{{/isFloat}}{{#isBoolean}}  @Serializable(with = {{invokerPackage}}.StrictBooleanSerializer::class)
+{{/isBoolean}}{{/isEnum}}{{#isDateTime}}  @Contextual
+{{/isDateTime}}{{#isDate}}  @Contextual
+{{/isDate}}{{#isUuid}}  @Contextual
+{{/isUuid}}{{#isUri}}  @Contextual
+{{/isUri}}{{#vendorExtensions.isDuration}}  @Contextual
+{{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
+{{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
+{{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{#required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/required}}{{^-last}},{{/-last}}
+{{/vars}}
+){{#parent}} : {{{.}}}(){{/parent}} {
+{{#vars}}
+{{#isEnum}}
+{{#isInteger}}
+
+  @Serializable(with = {{enumName}}.Serializer::class)
+  enum class {{enumName}}(val value: Int) {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    companion object {
+      fun fromValue(value: Int): {{enumName}} =
+        entries.firstOrNull { it.value == value }
+          ?: throw IllegalArgumentException("Unexpected value '$value'")
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<{{enumName}}> {
+      override val descriptor =
+        kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+          "{{enumName}}", kotlinx.serialization.descriptors.PrimitiveKind.INT)
+
+      override fun serialize(
+        encoder: kotlinx.serialization.encoding.Encoder,
+        value: {{enumName}},
+      ) = encoder.encodeInt(value.value)
+
+      override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{enumName}} =
+        fromValue(decoder.decodeInt())
+    }
+  }
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+
+  @Serializable(with = {{enumName}}.Serializer::class)
+  enum class {{enumName}}(val value: Long) {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    companion object {
+      fun fromValue(value: Long): {{enumName}} =
+        entries.firstOrNull { it.value == value }
+          ?: throw IllegalArgumentException("Unexpected value '$value'")
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<{{enumName}}> {
+      override val descriptor =
+        kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+          "{{enumName}}", kotlinx.serialization.descriptors.PrimitiveKind.LONG)
+
+      override fun serialize(
+        encoder: kotlinx.serialization.encoding.Encoder,
+        value: {{enumName}},
+      ) = encoder.encodeLong(value.value)
+
+      override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{enumName}} =
+        fromValue(decoder.decodeLong())
+    }
+  }
+{{/isLong}}
+{{^isLong}}
+
+  @Serializable
+  enum class {{enumName}}(val value: String) {
+    {{#allowableValues}}
+    {{#enumVars}}
+    @SerialName({{{value}}})
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    companion object {
+      fun fromValue(value: String): {{enumName}} =
+        entries.firstOrNull { it.value == value }
+          ?: throw IllegalArgumentException("Unexpected value '$value'")
+    }
+  }
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+  @kotlinx.serialization.Transient
+  val additionalProperties: MutableMap<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}@Contextual Any?{{/additionalPropertiesType}}> = mutableMapOf()
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+   * deserializers must reject any JSON key not declared above. Callers should
+   * decode this class with [parseStrict] (or a Json configured with
+   * ignoreUnknownKeys = false) so unknown keys raise IllegalArgumentException. */
+  companion object {
+    fun parseStrict(raw: String): {{classname}} {
+      val strict = kotlinx.serialization.json.Json {
+        ignoreUnknownKeys = false
+        isLenient = false
+        // Reuse the SDK's configured contextual serializers (date-time, date,
+        // uuid, decimal, duration, uri, free-form Any). A bare `Json {}` carries
+        // no serializersModule, so a model with a @Contextual field would throw
+        // "serializer not found" here even though normal decoding handles it.
+        serializersModule = {{invokerPackage}}.ObjectSerializer.contextualSerializersModule
+      }
+      try {
+        return strict.decodeFromString(serializer(), raw)
+      } catch (e: kotlinx.serialization.SerializationException) {
+        throw IllegalArgumentException(
+          "Unknown property on {{classname}} (unevaluatedProperties:false): " + e.message, e)
+      }
+    }
+  }
+{{/isUnevaluatedPropertiesFalse}}
+{{#hasContentEqualsField}}
+
+  /* Kotlin's synthesized data-class equals/hashCode compare Array and
+   * ByteArray by reference identity (and List<ByteArray> bottoms out in
+   * reference-equal elements), so two instances decoded from identical JSON
+   * would not be equal and would hash differently. The overrides below route
+   * those fields through contentEquals/contentHashCode (element-wise for
+   * List<ByteArray>) while every other field keeps ordinary == semantics. */
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other == null || this::class != other::class) return false
+    other as {{classname}}
+{{#vars}}
+{{#vendorExtensions.eqByteArray}}
+{{#required}}
+    if (!{{name}}.contentEquals(other.{{name}})) return false
+{{/required}}
+{{^required}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if (!{{name}}.contentEquals(other.{{name}})) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/required}}
+{{/vendorExtensions.eqByteArray}}
+{{#vendorExtensions.eqListByteArray}}
+{{#required}}
+    if ({{name}}.size != other.{{name}}.size) return false
+    if (!{{name}}.zip(other.{{name}}).all { (a, b) -> a.contentEquals(b) }) return false
+{{/required}}
+{{^required}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if ({{name}}.size != other.{{name}}.size) return false
+      if (!{{name}}.zip(other.{{name}}).all { (a, b) -> a.contentEquals(b) }) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/required}}
+{{/vendorExtensions.eqListByteArray}}
+{{^vendorExtensions.eqByteArray}}
+{{^vendorExtensions.eqListByteArray}}
+    if ({{name}} != other.{{name}}) return false
+{{/vendorExtensions.eqListByteArray}}
+{{/vendorExtensions.eqByteArray}}
+{{/vars}}
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var result = 0
+{{#vars}}
+{{#vendorExtensions.eqByteArray}}
+{{#required}}
+    result = 31 * result + {{name}}.contentHashCode()
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.contentHashCode() ?: 0)
+{{/required}}
+{{/vendorExtensions.eqByteArray}}
+{{#vendorExtensions.eqListByteArray}}
+{{#required}}
+    result = 31 * result + {{name}}.fold(0) { acc, e -> 31 * acc + e.contentHashCode() }
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.fold(0) { acc, e -> 31 * acc + e.contentHashCode() } ?: 0)
+{{/required}}
+{{/vendorExtensions.eqListByteArray}}
+{{^vendorExtensions.eqByteArray}}
+{{^vendorExtensions.eqListByteArray}}
+{{#required}}
+    result = 31 * result + {{name}}.hashCode()
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.hashCode() ?: 0)
+{{/required}}
+{{/vendorExtensions.eqListByteArray}}
+{{/vendorExtensions.eqByteArray}}
+{{/vars}}
+    return result
+  }
+{{/hasContentEqualsField}}
+}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

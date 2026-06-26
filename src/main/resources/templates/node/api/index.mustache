@@ -1,0 +1,12 @@
+{{>api_info}}
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+export * from './{{classFilename}}{{importFileExtension}}';
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+{{#hasAnyOptionsClasses}}
+export * from './options/index{{importFileExtension}}';
+{{/hasAnyOptionsClasses}}

@@ -1,0 +1,313 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"fmt"
+	"net/url"
+	"reflect"
+	"strings"
+)
+
+// encodePathSegment percent-encodes a string for use as a URL path segment,
+// while preserving the RFC 3986 sub-delimiters that OAS 3.0 parameter styles
+// use as structural separators: ; = , : @ ! $ & ' ( ) * +
+//
+// This matches the canonical encoding used by Java, Node, C#, Swift, etc.
+func encodePathSegment(value string) string {
+	if value == "" {
+		return value
+	}
+	// url.PathEscape encodes everything except unreserved characters.
+	// Restore the sub-delimiters that must be preserved in path segments.
+	encoded := url.PathEscape(value)
+	encoded = strings.ReplaceAll(encoded, "%3B", ";")
+	encoded = strings.ReplaceAll(encoded, "%3D", "=")
+	encoded = strings.ReplaceAll(encoded, "%2C", ",")
+	encoded = strings.ReplaceAll(encoded, "%3A", ":")
+	encoded = strings.ReplaceAll(encoded, "%40", "@")
+	encoded = strings.ReplaceAll(encoded, "%21", "!")
+	encoded = strings.ReplaceAll(encoded, "%24", "$")
+	encoded = strings.ReplaceAll(encoded, "%26", "&")
+	encoded = strings.ReplaceAll(encoded, "%27", "'")
+	encoded = strings.ReplaceAll(encoded, "%28", "(")
+	encoded = strings.ReplaceAll(encoded, "%29", ")")
+	encoded = strings.ReplaceAll(encoded, "%2A", "*")
+	encoded = strings.ReplaceAll(encoded, "%2B", "+")
+	return encoded
+}
+
+// serializeValue serializes a parameter value for HTTP requests based on its location.
+//
+// Parameters:
+//   - value: the value to serialize
+//   - location: "path", "query", "header", or "cookie"
+//   - schemaType: the schema type (e.g. "string", "array")
+//   - collectionFormat: legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi")
+//
+// Returns the serialized string value.
+func serializeValue(value any, location, schemaType, collectionFormat string) any {
+	if value == nil {
+		return serializeNil(location)
+	}
+
+	if items, ok := toStringSlice(value); ok {
+		if location == "query" {
+			switch collectionFormat {
+			case "multi":
+				return items
+			case "ssv":
+				return strings.Join(items, " ")
+			case "tsv":
+				return strings.Join(items, "\t")
+			case "pipes":
+				return strings.Join(items, "|")
+			default:
+				return strings.Join(items, ",")
+			}
+		}
+		return strings.Join(items, ",")
+	}
+
+	strVal := stringify(value)
+	if location == "path" {
+		return encodePathSegment(strVal)
+	}
+	return strVal
+}
+
+// serializeDeepObject serializes a deepObject-style query parameter.
+//
+// Produces a map of flattened keys in the form paramName[key] to stringified values.
+// Accepts map[string]any, map[string]string, or pointers to these types.
+func serializeDeepObject(paramName string, value any) map[string]string {
+	result := make(map[string]string)
+	if value == nil {
+		return result
+	}
+
+	switch m := value.(type) {
+	case map[string]any:
+		for key, val := range m {
+			result[fmt.Sprintf("%s[%s]", paramName, key)] = stringify(val)
+		}
+	case map[string]string:
+		for key, val := range m {
+			result[fmt.Sprintf("%s[%s]", paramName, key)] = val
+		}
+	case *map[string]any:
+		if m != nil {
+			for key, val := range *m {
+				result[fmt.Sprintf("%s[%s]", paramName, key)] = stringify(val)
+			}
+		}
+	case *map[string]string:
+		if m != nil {
+			for key, val := range *m {
+				result[fmt.Sprintf("%s[%s]", paramName, key)] = val
+			}
+		}
+	}
+	return result
+}
+
+// serializeStyled serializes a parameter value according to OAS 3.0 style and explode rules.
+//
+// Parameters:
+//   - paramName: the parameter name
+//   - value: the value to serialize
+//   - location: "path", "query", "header", "cookie"
+//   - schemaType: the schema type
+//   - collectionFormat: legacy collection format
+//   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
+//   - explode: whether to explode array values
+func serializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
+	/* Path parameters are required components of the URL — accepting an
+	 * empty string would silently produce a malformed URL like
+	 * `/pet//details`, which most servers route to 404 instead of
+	 * surfacing the bug at the call site. The required-non-nil check
+	 * lives in the operation method; here we catch the empty-string
+	 * case that slips through it. panic is appropriate because this
+	 * is a programmer error, not a recoverable runtime condition. */
+	if location == "path" {
+		/* A named string enum path param (e.g. Swatch) has dynamic type Swatch,
+		 * not string, so a plain `value.(string)` assertion misses an empty
+		 * zero-value enum. Dereference any pointer and inspect the underlying
+		 * kind via reflection so a string-kinded value of any named type is
+		 * caught. */
+		rv := reflect.ValueOf(value)
+		if rv.Kind() == reflect.Ptr {
+			if rv.IsNil() {
+				panic(fmt.Sprintf("path parameter '%s' must not be empty", paramName))
+			}
+			rv = rv.Elem()
+		}
+		if rv.Kind() == reflect.String && rv.String() == "" {
+			panic(fmt.Sprintf("path parameter '%s' must not be empty", paramName))
+		}
+	}
+
+	if style == "" {
+		return serializeValue(value, location, schemaType, collectionFormat)
+	}
+
+	items, isArray := toStringSlice(value)
+
+	// For path styles, percent-encode each individual item BEFORE applying
+	// the structural separators (";", "=", ".", ",") that the style defines.
+	// This ensures reserved characters inside the value are escaped while
+	// the style's structural punctuation remains literal.
+	if location == "path" {
+		encoded := make([]string, len(items))
+		for i, item := range items {
+			encoded[i] = encodePathSegment(item)
+		}
+		items = encoded
+		if !isArray && value != nil {
+			value = encodePathSegment(stringify(value))
+		}
+	}
+
+	switch style {
+	case "matrix":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				var parts []string
+				for _, v := range items {
+					parts = append(parts, fmt.Sprintf(";%s=%s", paramName, v))
+				}
+				return strings.Join(parts, "")
+			}
+			return fmt.Sprintf(";%s=%s", paramName, strings.Join(items, ","))
+		}
+		return fmt.Sprintf(";%s=%s", paramName, stringify(value))
+
+	case "label":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				return "." + strings.Join(items, ".")
+			}
+			return "." + strings.Join(items, ",")
+		}
+		return "." + stringify(value)
+
+	case "spaceDelimited":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			return strings.Join(items, " ")
+		}
+		return stringify(value)
+
+	case "pipeDelimited":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			return strings.Join(items, "|")
+		}
+		return stringify(value)
+
+	case "form":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				return items
+			}
+			return strings.Join(items, ",")
+		}
+		return stringify(value)
+
+	case "simple":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			return strings.Join(items, ",")
+		}
+		return stringify(value)
+
+	default:
+		return serializeValue(value, location, schemaType, collectionFormat)
+	}
+}
+
+func serializeNil(location string) any {
+	if location == "query" {
+		return nil
+	}
+	return ""
+}
+
+// toStringSlice attempts to convert an any to a []string.
+// Returns the string slice and true if the conversion was successful.
+//
+// The fast-path type switches cover the common []string / []any shapes. For
+// everything else — pointers to slices (e.g. *[]string for an OPTIONAL array
+// parameter), and slices of named element types (e.g. []Color, *[]MyEnum) —
+// it falls back to reflection: any pointer is dereferenced, and a slice or
+// array of any element type is stringified per element. Without this, an
+// optional array param arrives as *[]string and misses both type switch
+// cases, falling through to %v debug formatting that emits garbage like
+// `&[blue black]` into the query string instead of properly styled values.
+func toStringSlice(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		return v, true
+	case []any:
+		items := make([]string, len(v))
+		for i, item := range v {
+			items[i] = stringify(item)
+		}
+		return items, true
+	}
+
+	rv := reflect.ValueOf(value)
+	// Dereference a pointer (e.g. *[]string for an optional array param). A nil
+	// pointer is not an array value, so report no slice.
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return nil, false
+		}
+		rv = rv.Elem()
+	}
+	// Reflect over slices and arrays of arbitrary element types (named string
+	// enums, typed scalars) that the type switch above cannot name. Each element
+	// is stringified through the same per-element path as []any, so enum and
+	// scalar elements encode identically whether boxed as []any or a typed slice.
+	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+		items := make([]string, rv.Len())
+		for i := range rv.Len() {
+			items[i] = stringify(rv.Index(i).Interface())
+		}
+		return items, true
+	}
+
+	return nil, false
+}

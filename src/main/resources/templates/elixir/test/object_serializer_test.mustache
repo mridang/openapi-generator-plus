@@ -1,0 +1,933 @@
+{{#generateTests}}
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+# enum-unknown-value-silent-vs-throw test helper. Defined at the top level
+# (NOT inside the test module) so it lives at its real
+# {{moduleName}}.Models.TestEnumStatus address that ObjectSerializer.
+# convert_to_type/2 resolves. Defining it inside the test module would
+# register a {{moduleName}}.Models namespace local to the test and shadow
+# real {{moduleName}}.Models.* struct references elsewhere in the file.
+defmodule {{moduleName}}.Models.TestEnumStatus do
+  def available, do: :available
+  def pending, do: :pending
+  def sold, do: :sold
+  def all_values, do: [available(), pending(), sold()]
+
+  # Mirror a generated enum's wire->atom inverse (used by ObjectSerializer's
+  # atomize_enum). Wire values here equal the atom names, so the match is a
+  # case-sensitive 1:1; an unknown/mis-cased value returns {:error, value}.
+  def from_value("available"), do: :available
+  def from_value("pending"), do: :pending
+  def from_value("sold"), do: :sold
+  def from_value(value), do: {:error, value}
+end
+
+defmodule {{moduleName}}.ObjectSerializerTest do
+  use ExUnit.Case, async: true
+
+  describe "DateTimeOffsetPreservation" do
+    test "UTC datetime serializes containing date-time and UTC offset" do
+      dt = ~U[2024-01-01 12:30:45Z]
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, "2024-01-01")
+      assert String.contains?(result, "12:30:45")
+      assert String.contains?(result, "+00:00") or String.ends_with?(result, "Z")
+    end
+
+    test "positive timezone offset is preserved in serialized string" do
+      # DateTime.from_iso8601/1 normalizes to UTC, so we construct the struct
+      # directly to preserve the +05:30 offset in the serialized output.
+      dt = %DateTime{
+        year: 2024, month: 1, day: 1, hour: 12, minute: 30, second: 45,
+        microsecond: {0, 0}, utc_offset: 19800, std_offset: 0,
+        zone_abbr: "+05:30", time_zone: "Etc/UTC+5", calendar: Calendar.ISO
+      }
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, "+05:30"), "should contain +05:30: #{result}"
+    end
+
+    test "negative timezone offset is preserved in serialized string" do
+      # DateTime.from_iso8601/1 normalizes to UTC, so we construct the struct
+      # directly to preserve the -08:00 offset in the serialized output.
+      dt = %DateTime{
+        year: 2024, month: 1, day: 1, hour: 12, minute: 30, second: 45,
+        microsecond: {0, 0}, utc_offset: -28800, std_offset: 0,
+        zone_abbr: "-08:00", time_zone: "Etc/UTC-8", calendar: Calendar.ISO
+      }
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, "-08:00"), "should contain -08:00: #{result}"
+    end
+
+    test "date-time serialization preserves sub-second precision" do
+      # 2020-01-02T03:04:05.123Z carries millisecond precision (the cross-SDK
+      # common denominator). The encoder must keep the ".123" so the wire form
+      # round-trips losslessly with the decoder, which accepts fractions.
+      {:ok, dt, _} = DateTime.from_iso8601("2020-01-02T03:04:05.123Z")
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, ".123"), "milliseconds must survive: #{result}"
+
+      {:ok, parsed, _} = DateTime.from_iso8601(result)
+      assert DateTime.compare(parsed, dt) == :eq
+    end
+
+    test "whole-second datetime serializes without a fractional component" do
+      {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45+00:00")
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      refute String.contains?(result, ".123")
+    end
+
+    test "date-only serializes as ISO 8601 date without time component" do
+      d = ~D[2024-01-01]
+      result = {{moduleName}}.ObjectSerializer.stringify(d)
+      assert result == "2024-01-01"
+    end
+
+    test "serialized datetime string contains an offset marker" do
+      dt = ~U[2024-01-01 12:30:45Z]
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      has_offset = String.contains?(result, "+") or String.contains?(result, "-") or String.ends_with?(result, "Z")
+      assert has_offset, "should contain timezone indicator: #{result}"
+    end
+
+    test "round-trip: serialize then deserialize yields equivalent datetime" do
+      {:ok, original, _} = DateTime.from_iso8601("2024-01-01T12:30:45+05:30")
+      serialized = {{moduleName}}.ObjectSerializer.stringify(original)
+      {:ok, parsed, _} = DateTime.from_iso8601(serialized)
+      assert DateTime.to_unix(original) == DateTime.to_unix(parsed)
+    end
+
+    test "model date-time field serialization preserves sub-second precision" do
+      # Canonical cross-SDK regression: a model carrying a format:date-time
+      # field (PhotoMetadata.takenAt) must keep millisecond precision through
+      # a full JSON-body serialize, and deserialize back to the same instant.
+      {:ok, instant, _} = DateTime.from_iso8601("2020-01-02T03:04:05.123Z")
+      model = %{{moduleName}}.Models.PhotoMetadata{taken_at: instant}
+
+      json = {{moduleName}}.ObjectSerializer.serialize(model)
+      assert String.contains?(json, ".123"), "milliseconds must survive in body: #{json}"
+
+      decoded = {{moduleName}}.ObjectSerializer.deserialize(json, "PhotoMetadata")
+      assert DateTime.compare(decoded.taken_at, instant) == :eq
+    end
+
+    test "multipart model part is serialized through the configured serializer with wire names" do
+      # Cross-SDK parity regression: addPetPhotos sends a multipart/form-data
+      # body whose `metadata` part is a PhotoMetadata MODEL. That part must go
+      # through the SDK's configured ObjectSerializer so it carries WIRE
+      # property names (isPrimary / takenAt), NOT the snake_case struct field
+      # names (is_primary / taken_at), and the date-time uses the SDK's
+      # ISO-8601 format with sub-second precision preserved. We drive the
+      # lowest-level multipart-building path (DefaultApiClient.build_multipart_body,
+      # the exact function prepare_body/2 uses for multipart bodies) so the
+      # assertion captures the genuine outgoing wire body.
+      {:ok, instant, _} = DateTime.from_iso8601("2020-01-02T03:04:05.123Z")
+      metadata = %{{moduleName}}.Models.PhotoMetadata{is_primary: true, taken_at: instant}
+
+      body =
+        {{moduleName}}.DefaultApiClient.build_multipart_body(
+          %{"metadata" => metadata},
+          "boundary123"
+        )
+
+      # The model part is emitted as an application/json part.
+      assert String.contains?(body, "Content-Type: application/json")
+
+      # WIRE property names appear; snake_case struct field names do NOT.
+      assert String.contains?(body, "\"isPrimary\":true")
+      assert String.contains?(body, "\"takenAt\":")
+      refute String.contains?(body, "is_primary"), "must use wire name isPrimary: #{body}"
+      refute String.contains?(body, "taken_at"), "must use wire name takenAt: #{body}"
+
+      # The date-time carries the proper ISO-8601 string with milliseconds.
+      assert String.contains?(body, "\"takenAt\":\"2020-01-02T03:04:05.123Z\""),
+             "takenAt must be the wire date-time string: #{body}"
+    end
+  end
+
+  describe "NonAsciiSerialization" do
+    test "accented character serializes without unicode escape" do
+      result = {{moduleName}}.ObjectSerializer.serialize("café")
+      assert String.contains?(result, "é"), "should contain literal é: #{result}"
+    end
+
+    test "CJK characters serialize without unicode escape" do
+      result = {{moduleName}}.ObjectSerializer.serialize("日本")
+      assert String.contains?(result, "日本"), "should contain literal CJK chars: #{result}"
+    end
+
+    test "tab character is properly escaped in JSON" do
+      result = {{moduleName}}.ObjectSerializer.serialize("a\tb")
+      assert String.contains?(result, "\\t"), "tab should be escaped: #{result}"
+    end
+  end
+
+  describe "DeserializationErrorWrapping" do
+    test "truncated JSON raises SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize("{", "Category")
+      end
+    end
+
+    test "incomplete JSON object raises SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize("{\"name\":", "Category")
+      end
+    end
+
+    test "thrown SerializationError has a message referencing the failure" do
+      try do
+        {{moduleName}}.ObjectSerializer.deserialize("{", "Category")
+        flunk("Expected SerializationError to be raised")
+      rescue
+        e in {{moduleName}}.SerializationError ->
+          assert e.message != nil and e.message != ""
+      end
+    end
+  end
+
+  # enum-unknown-value-silent-vs-throw: an out-of-spec enum wire value must
+  # raise on deserialize, not be silently retained. The TestEnumStatus
+  # helper module is defined at the top of this file (see note there).
+  describe "enum unknown value" do
+    test "known enum value coerces to its atom" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type("available", "TestEnumStatus") ==
+               :available
+    end
+
+    test "unknown enum value raises SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("banana", "TestEnumStatus")
+      end
+    end
+
+    test "mis-cased enum value raises (case-sensitive match)" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("AVAILABLE", "TestEnumStatus")
+      end
+    end
+  end
+
+  describe "stringify/1" do
+    test "returns empty string for nil" do
+      assert {{moduleName}}.ObjectSerializer.stringify(nil) == ""
+    end
+
+    test "returns 'true' for boolean true" do
+      assert {{moduleName}}.ObjectSerializer.stringify(true) == "true"
+    end
+
+    test "returns 'false' for boolean false" do
+      assert {{moduleName}}.ObjectSerializer.stringify(false) == "false"
+    end
+
+    test "returns string representation of integer" do
+      assert {{moduleName}}.ObjectSerializer.stringify(42) == "42"
+    end
+
+    test "passes through plain string unchanged" do
+      assert {{moduleName}}.ObjectSerializer.stringify("hello") == "hello"
+    end
+
+    test "returns string representation of float" do
+      assert {{moduleName}}.ObjectSerializer.stringify(3.14) == "3.14"
+    end
+
+    test "returns ISO 8601 date string for Date" do
+      assert {{moduleName}}.ObjectSerializer.stringify(~D[2024-01-15]) == "2024-01-15"
+    end
+  end
+
+  describe "to_path_value/1" do
+    test "returns empty string for nil" do
+      assert {{moduleName}}.ObjectSerializer.to_path_value(nil) == ""
+    end
+
+    test "returns the string for a string value" do
+      assert {{moduleName}}.ObjectSerializer.to_path_value("hello") == "hello"
+    end
+
+    test "converts integer to string" do
+      assert {{moduleName}}.ObjectSerializer.to_path_value(42) == "42"
+    end
+
+    test "converts true to 'true'" do
+      assert {{moduleName}}.ObjectSerializer.to_path_value(true) == "true"
+    end
+
+    test "converts false to 'false'" do
+      assert {{moduleName}}.ObjectSerializer.to_path_value(false) == "false"
+    end
+  end
+
+  describe "to_query_value/2" do
+    test "returns nil for nil" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(nil) == nil
+    end
+
+    test "returns the string for a string value" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value("hello") == "hello"
+    end
+
+    test "converts integer to string" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(42) == "42"
+    end
+
+    test "converts true to 'true'" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(true) == "true"
+    end
+
+    test "converts false to 'false'" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(false) == "false"
+    end
+
+    test "joins array with comma by default" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"]) == "a,b,c"
+    end
+
+    test "joins array with comma for csv" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"], :csv) == "a,b,c"
+    end
+
+    test "joins array with space for ssv" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"], :ssv) == "a b c"
+    end
+
+    test "joins array with tab for tsv" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"], :tsv) == "a\tb\tc"
+    end
+
+    test "joins array with pipe for pipes" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"], :pipes) == "a|b|c"
+    end
+
+    test "returns array as-is for multi" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"], :multi) == ["a", "b", "c"]
+    end
+  end
+
+  describe "to_header_value/1" do
+    test "returns empty string for nil" do
+      assert {{moduleName}}.ObjectSerializer.to_header_value(nil) == ""
+    end
+
+    test "returns the string for a string value" do
+      assert {{moduleName}}.ObjectSerializer.to_header_value("hello") == "hello"
+    end
+
+    test "converts integer to string" do
+      assert {{moduleName}}.ObjectSerializer.to_header_value(42) == "42"
+    end
+
+    test "joins array with comma" do
+      assert {{moduleName}}.ObjectSerializer.to_header_value(["a", "b", "c"]) == "a,b,c"
+    end
+  end
+
+  describe "to_form_value/1" do
+    test "returns empty string for nil" do
+      assert {{moduleName}}.ObjectSerializer.to_form_value(nil) == ""
+    end
+
+    test "returns the string for a string value" do
+      assert {{moduleName}}.ObjectSerializer.to_form_value("hello") == "hello"
+    end
+
+    test "converts integer to string" do
+      assert {{moduleName}}.ObjectSerializer.to_form_value(42) == "42"
+    end
+
+    test "converts true to 'true'" do
+      assert {{moduleName}}.ObjectSerializer.to_form_value(true) == "true"
+    end
+
+    test "converts false to 'false'" do
+      assert {{moduleName}}.ObjectSerializer.to_form_value(false) == "false"
+    end
+  end
+
+  describe "to_cookie_value/1" do
+    test "returns empty string for nil" do
+      assert {{moduleName}}.ObjectSerializer.to_cookie_value(nil) == ""
+    end
+
+    test "returns the string for a string value" do
+      assert {{moduleName}}.ObjectSerializer.to_cookie_value("hello") == "hello"
+    end
+
+    test "converts integer to string" do
+      assert {{moduleName}}.ObjectSerializer.to_cookie_value(42) == "42"
+    end
+  end
+
+  describe "serialize/1" do
+    test "serializes a model to valid JSON" do
+      category = %{{moduleName}}.Models.Category{id: 1, name: "Dogs"}
+      json = {{moduleName}}.ObjectSerializer.serialize(category)
+      data = Jason.decode!(json)
+      assert data["id"] == 1
+      assert data["name"] == "Dogs"
+    end
+
+    test "handles nil" do
+      json = {{moduleName}}.ObjectSerializer.serialize(nil)
+      assert json == "null"
+    end
+
+    test "includes fields explicitly set to default values" do
+      category = %{{moduleName}}.Models.Category{id: 0, name: ""}
+      json = {{moduleName}}.ObjectSerializer.serialize(category)
+      data = Jason.decode!(json)
+      assert Map.has_key?(data, "id"), "serialized JSON should include id field"
+      assert data["id"] == 0
+      assert Map.has_key?(data, "name"), "serialized JSON should include name field"
+      assert data["name"] == ""
+    end
+  end
+
+  describe "format: byte (ByteArray)" do
+    test "decodes base64 wire value to raw bytes" do
+      bytes = {{moduleName}}.ObjectSerializer.convert_to_type("aGVsbG8=", "ByteArray")
+      assert bytes == "hello"
+    end
+
+    test "rejects malformed base64 with SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("not-base64!!!", "ByteArray")
+      end
+    end
+
+    test "rejects non-string payload with ArgumentError" do
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type(123, "ByteArray")
+      end
+    end
+
+    test "round-trip via base64 encoding" do
+      original = <<1, 2, 3, 255, 0, 128>>
+      encoded = Base.encode64(original)
+      decoded = {{moduleName}}.ObjectSerializer.convert_to_type(encoded, "ByteArray")
+      assert decoded == original
+    end
+  end
+
+  describe "format: uuid (UUID)" do
+    test "accepts canonical lower-case UUID" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(uuid, "UUID") == uuid
+    end
+
+    test "accepts upper-case UUID" do
+      uuid = "550E8400-E29B-41D4-A716-446655440000"
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(uuid, "UUID") == uuid
+    end
+
+    test "rejects malformed UUID" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("not-a-uuid", "UUID")
+      end
+    end
+
+    test "rejects UUID with wrong segment lengths" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("550e8400-e29b-41d4-a716-44665544", "UUID")
+      end
+    end
+
+    test "rejects non-string payload" do
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type(42, "UUID")
+      end
+    end
+  end
+
+  describe "deserialize/2" do
+    test "deserializes JSON to typed model" do
+      json_str = ~s({"id":1,"name":"Dogs"})
+      category = {{moduleName}}.ObjectSerializer.deserialize(json_str, "Category")
+      assert %{{moduleName}}.Models.Category{} = category
+      assert category.id == 1
+      assert category.name == "Dogs"
+    end
+
+    # P2 (BOM tolerance): RFC 8259 §8.1 forbids a leading UTF-8 BOM in JSON
+    # text and Jason rejects it, but Windows-generated payloads often include
+    # one. deserialize/2 strips it transparently (parity with Java Jackson /
+    # C# System.Text.Json), so a BOM-prefixed body still yields a typed model.
+    test "strips a leading UTF-8 BOM before deserializing" do
+      json_str = <<0xEF, 0xBB, 0xBF>> <> ~s({"id":1,"name":"Dogs"})
+      category = {{moduleName}}.ObjectSerializer.deserialize(json_str, "Category")
+      assert %{{moduleName}}.Models.Category{} = category
+      assert category.id == 1
+      assert category.name == "Dogs"
+    end
+
+    test "returns nil for empty input" do
+      assert {{moduleName}}.ObjectSerializer.deserialize("", "Category") == nil
+    end
+
+    test "returns nil for nil input" do
+      assert {{moduleName}}.ObjectSerializer.deserialize(nil, "Category") == nil
+    end
+
+    # default-on-deserialize: Order.status carries a schema `default: placed`.
+    # When the wire payload omits "status", deserialize must fall back to that
+    # default rather than leaving the field nil — the struct's `status: :placed`
+    # default survives because the reducer skips absent keys. status is an enum,
+    # so the default is the atom `:placed`, identical to the value the
+    # deserializer produces for a present "status" wire string. Canonical across
+    # the product; the asserted value is the schema default placed.
+    test "deserialize applies schema default for absent field" do
+      json_str = ~s({"id":10,"petId":198772})
+      order = {{moduleName}}.ObjectSerializer.deserialize(json_str, "Order")
+      assert %{{moduleName}}.Models.Order{} = order
+      assert order.status == :placed
+    end
+
+    # Defaults contract (canonical across all 12 SDKs): a schema `default`
+    # applies ONLY when the property is absent from the payload. An explicit
+    # JSON null is a provided value and is preserved (the field stays nil),
+    # never replaced by the default. The Defaults model declares
+    # retries (int, default 3), mode (enum, default medium — not the first
+    # variant), and label (nullable string, default "untitled").
+    test "deserialize applies defaults for an empty object" do
+      defaults = {{moduleName}}.ObjectSerializer.deserialize(~s({}), "Defaults")
+      assert %{{moduleName}}.Models.Defaults{} = defaults
+      assert defaults.retries == 3
+      assert defaults.mode == :medium
+      assert defaults.label == "untitled"
+    end
+
+    test "deserialize preserves an explicit null over the default" do
+      json_str = ~s({"label":null,"retries":7})
+      defaults = {{moduleName}}.ObjectSerializer.deserialize(json_str, "Defaults")
+      assert %{{moduleName}}.Models.Defaults{} = defaults
+      # label is present-but-null on the wire: the null is preserved, NOT
+      # replaced by the "untitled" default (absent-vs-null distinction).
+      assert defaults.label == nil
+      assert defaults.retries == 7
+    end
+
+    # Recursive self-referential model: TreeNode.child is a $ref back to
+    # TreeNode. Deserialization must decode the nested child into a typed
+    # TreeNode struct (not a raw map) at every level, with the absent
+    # grandchild left nil.
+    test "deserializes a self-referential TreeNode and decodes the nesting" do
+      json_str = ~s({"value":"root","child":{"value":"leaf"}})
+      top = {{moduleName}}.ObjectSerializer.deserialize(json_str, "TreeNode")
+      assert %{{moduleName}}.Models.TreeNode{} = top
+      assert top.value == "root"
+      assert %{{moduleName}}.Models.TreeNode{} = top.child
+      assert top.child.value == "leaf"
+      assert top.child.child == nil
+    end
+  end
+
+  # Divergence #10: deserialization must hard-fail when a required,
+  # non-nullable field is missing or explicitly null, instead of silently
+  # building a partial struct. Pet declares `name` and `photoUrls` as
+  # required non-nullable fields. Optional fields (id, status, ...) stay
+  # untouched. Canonical across the product; parity with Go/PHP/Kotlin/
+  # Swift/Rust which all reject a missing/null required field.
+  describe "required field strictness (Divergence #10)" do
+    test "deserializing a complete object still succeeds" do
+      json = ~s({"name":"Rex","photoUrls":["http://example.com/rex.jpg"]})
+      pet = {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      assert %{{moduleName}}.Models.Pet{} = pet
+      assert pet.name == "Rex"
+      assert pet.photo_urls == MapSet.new(["http://example.com/rex.jpg"])
+    end
+
+    test "missing required field raises SerializationError" do
+      # photoUrls (required, non-nullable) is absent.
+      json = ~s({"name":"Rex"})
+
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
+
+    test "explicitly-null required field raises SerializationError" do
+      json = ~s({"name":"Rex","photoUrls":null})
+
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
+
+    test "null on a required field other than the first also raises" do
+      # Guard against only the first required field being checked: here
+      # `name` is null while `photoUrls` is present and valid.
+      json = ~s({"name":null,"photoUrls":["http://example.com/rex.jpg"]})
+
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
+
+    test "omitting an optional field does not raise" do
+      # `status` is optional; its absence must not trip the required check.
+      json = ~s({"name":"Rex","photoUrls":["http://example.com/rex.jpg"]})
+      pet = {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      assert pet.status == nil
+    end
+
+    # Gap AJ: JSON null on a required, non-nullable field. The canonical
+    # cross-SDK payload `{"name":null,"photoUrls":["u"]}` (name required +
+    # non-nullable, present-but-null) MUST raise the SDK's deserialization
+    # error. go zero-inits (""), python (pydantic) accepts, kotlin
+    # (explicitNulls=false) accepts → silent contract violation; the other 9
+    # (elixir among them) throw. Canonical = throw. GREEN in elixir — the
+    # assert_required_present guard rejects an explicitly-null required field.
+    test "Gap AJ: null on required non-nullable name raises SerializationError" do
+      json = ~s({"name":null,"photoUrls":["u"]})
+
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
+  end
+
+  describe "format: time round-tripping" do
+    test "stringify emits HH:MM:SS for a Time" do
+      assert {{moduleName}}.ObjectSerializer.stringify(~T[13:45:30]) == "13:45:30"
+    end
+
+    test "serialize emits HH:MM:SS for a Time inside a map" do
+      json = {{moduleName}}.ObjectSerializer.serialize(%{"opens_at" => ~T[09:00:00]})
+      assert Jason.decode!(json)["opens_at"] == "09:00:00"
+    end
+  end
+
+  describe "format: duration round-tripping" do
+    test "stringify emits canonical protobuf duration for a Duration" do
+      d = Duration.new!(hour: 1, minute: 30)
+      assert {{moduleName}}.ObjectSerializer.stringify(d) == "5400s"
+    end
+
+    test "serialize emits the canonical duration string inside a map" do
+      d = Duration.new!(minute: 5)
+      json = {{moduleName}}.ObjectSerializer.serialize(%{"ttl" => d})
+      assert Jason.decode!(json)["ttl"] == "300s"
+    end
+  end
+
+  # Integer-backed enum (Priority) must round-trip as a JSON NUMBER, not a
+  # quoted string. Priority is `type: integer` with enum [1, 2, 3]; the
+  # generated module maps atom -> int via value/1 and int -> atom via
+  # from_value/1. Serialize must emit the bare integer (2, never "2") and
+  # deserialize must invert it back to the member atom.
+  describe "integer-backed enum (Priority) round-trips as a JSON number" do
+    test "serialize emits the bare integer wire value" do
+      # StockItem.priority is typed "Priority", so sanitize routes the atom
+      # through Priority.value/1 and emits the int. matrix is omitted (nil)
+      # so only the required priority field surfaces.
+      item = %{{moduleName}}.Models.StockItem{priority: :number_2}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))
+      assert data["priority"] == 2
+      assert is_integer(data["priority"])
+      refute data["priority"] == "2"
+    end
+
+    test "deserialize maps the JSON number back to the member atom" do
+      json = ~s({"priority":2})
+      item = {{moduleName}}.ObjectSerializer.deserialize(json, "StockItem")
+      assert %{{moduleName}}.Models.StockItem{} = item
+      assert item.priority == :number_2
+    end
+
+    test "convert_to_type inverts the integer wire value via from_value" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(3, "Priority") == :number_3
+    end
+  end
+
+  # Non-lowercase string enum (Availability) must round-trip with its wire
+  # casing preserved: "Available", "Sold", and the hyphenated "on-hold".
+  # The atom names are sanitized (:available / :sold / :on_hold) but value/1
+  # restores the exact wire string and from_value/1 inverts it. An unknown
+  # wire value is spec drift and must raise.
+  describe "non-lowercase string enum (Availability) round-trips with wire casing" do
+    test "serialize restores the exact non-lowercase wire string" do
+      item = %{{moduleName}}.Models.StockItem{priority: :number_1, availability: :available}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))
+      assert data["availability"] == "Available"
+    end
+
+    test "serialize restores the hyphenated wire string" do
+      item = %{{moduleName}}.Models.StockItem{priority: :number_1, availability: :on_hold}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))
+      assert data["availability"] == "on-hold"
+    end
+
+    test "deserialize maps the wire casing back to the member atom" do
+      item = {{moduleName}}.ObjectSerializer.deserialize(~s({"priority":1,"availability":"Available"}), "StockItem")
+      assert item.availability == :available
+    end
+
+    test "convert_to_type inverts each wire value via from_value" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type("Available", "Availability") == :available
+      assert {{moduleName}}.ObjectSerializer.convert_to_type("Sold", "Availability") == :sold
+      assert {{moduleName}}.ObjectSerializer.convert_to_type("on-hold", "Availability") == :on_hold
+    end
+  end
+
+  # Scenario 10: a model field typed as a REFERENCED enum component must reject
+  # an unknown wire value on deserialize rather than mint an arbitrary atom.
+  # StockItem.availability is a $ref to the Availability enum; an out-of-spec
+  # value reaches atomize_enum via the field's declared type and raises.
+  describe "referenced enum field rejects unknown wire value" do
+    test "unknown Availability wire value on a model field raises SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(~s({"priority":1,"availability":"Discontinued"}), "StockItem")
+      end
+    end
+
+    test "unknown Priority wire value on a model field raises SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(~s({"priority":99}), "StockItem")
+      end
+    end
+  end
+
+  # Scenario 7: a nested container property (array-of-array<int>) must
+  # deep-round-trip to typed integer leaves, not stop at the outer list.
+  # StockItem.matrix is typed "[[integer()]]"; convert_to_type peels each
+  # container level so every leaf is a strict integer.
+  describe "nested container (array-of-array int) deep round-trips" do
+    test "deserialize decodes every leaf to a typed integer" do
+      json = ~s({"priority":1,"matrix":[[1,2],[3,4,5]]})
+      item = {{moduleName}}.ObjectSerializer.deserialize(json, "StockItem")
+      assert item.matrix == [[1, 2], [3, 4, 5]]
+      assert Enum.all?(List.flatten(item.matrix), &is_integer/1)
+    end
+
+    test "serialize re-emits the nested integer grid" do
+      item = %{{moduleName}}.Models.StockItem{priority: :number_1, matrix: [[7, 8], [9]]}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))
+      assert data["matrix"] == [[7, 8], [9]]
+    end
+  end
+
+  # Scenario 4: a double/number-typed field must deserialize from an INTEGRAL
+  # JSON value (e.g. {"lat":5}, not 5.0) without crashing. PhotoMetadataLocation
+  # lat/lng are typed "float()"; convert_to_type's int->float clause coerces a
+  # JSON integer into a float so a server emitting a whole number does not trip
+  # the strict primitive guard.
+  describe "double field deserializes from an integral JSON value" do
+    test "integral lat/lng coerce to floats" do
+      json = ~s({"lat":5,"lng":-8})
+      loc = {{moduleName}}.ObjectSerializer.deserialize(json, "PhotoMetadataLocation")
+      assert %{{moduleName}}.Models.PhotoMetadataLocation{} = loc
+      assert loc.lat == 5.0
+      assert is_float(loc.lat)
+      assert loc.lng == -8.0
+      assert is_float(loc.lng)
+    end
+
+    test "convert_to_type coerces a bare integer to a float" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(5, "float()") == 5.0
+    end
+  end
+
+  # Scenario 5: additionalProperties round-trip. An undeclared wire key is
+  # captured on deserialize into the struct's additional_properties map and
+  # re-emitted at the TOP level on serialize (never nested under an
+  # "additionalProperties"/"additional_properties" key). Metadata declares
+  # additional_properties/0 == true with a single declared field createdAt.
+  describe "additionalProperties round-trip at the top level" do
+    test "deserialize captures an undeclared key into additional_properties" do
+      json = ~s({"createdAt":"2024-01-01T00:00:00Z","region":"eu","weight":42})
+      meta = {{moduleName}}.ObjectSerializer.deserialize(json, "Metadata")
+      assert %{{moduleName}}.Models.Metadata{} = meta
+      assert meta.additional_properties["region"] == "eu"
+      assert meta.additional_properties["weight"] == 42
+    end
+
+    test "serialize re-emits the extra key at the top level" do
+      meta = %{{moduleName}}.Models.Metadata{additional_properties: %{"region" => "eu"}}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(meta))
+      assert data["region"] == "eu"
+      refute Map.has_key?(data, "additionalProperties")
+      refute Map.has_key?(data, "additional_properties")
+    end
+
+    test "an extra key survives a full deserialize -> serialize round-trip" do
+      json = ~s({"region":"eu"})
+      meta = {{moduleName}}.ObjectSerializer.deserialize(json, "Metadata")
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(meta))
+      assert data["region"] == "eu"
+      refute Map.has_key?(data, "additional_properties")
+    end
+  end
+
+  # Scenario 3 (array-of-byte): a format:byte ARRAY field must round-trip
+  # through base64 just like a scalar byte field. PetPassport.scans is typed
+  # "[binary()]"; each element decodes from base64 on deserialize and re-encodes
+  # on serialize, symmetric with the scalar ByteArray path tested above.
+  describe "format: byte array field round-trips through base64" do
+    test "deserialize decodes each base64 scan element to raw bytes" do
+      raw_a = <<1, 2, 3>>
+      raw_b = <<255, 0, 128>>
+      json =
+        Jason.encode!(%{"scans" => [Base.encode64(raw_a), Base.encode64(raw_b)]})
+
+      passport = {{moduleName}}.ObjectSerializer.deserialize(json, "PetPassport")
+      assert %{{moduleName}}.Models.PetPassport{} = passport
+      assert passport.scans == [raw_a, raw_b]
+    end
+
+    test "serialize re-encodes each raw scan element to base64" do
+      raw = <<10, 20, 30>>
+      passport = %{{moduleName}}.Models.PetPassport{scans: [raw]}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(passport))
+      assert data["scans"] == [Base.encode64(raw)]
+    end
+
+    test "scalar and array byte fields round-trip together" do
+      thumb = <<0, 1, 2>>
+      scan = <<3, 4, 5>>
+      passport = %{{moduleName}}.Models.PetPassport{thumbnail: thumb, scans: [scan]}
+      json = {{moduleName}}.ObjectSerializer.serialize(passport)
+      decoded = {{moduleName}}.ObjectSerializer.deserialize(json, "PetPassport")
+      assert decoded.thumbnail == thumb
+      assert decoded.scans == [scan]
+    end
+  end
+
+  # ── Gap K — discriminator auto-injection on subtype serialize ──
+
+  describe "discriminator auto-injection" do
+    test "dry subtype serialize auto-emits the discriminator" do
+      # DryFood defaults food_type to "dry", so a caller that omits it
+      # still gets the discriminator on the wire.
+      dry = %{{moduleName}}.Models.DryFood{weight_kg: 2.5}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(dry))
+      assert data["foodType"] == "dry"
+      assert data["weightKg"] == 2.5
+    end
+
+    test "wet subtype serialize auto-emits the discriminator" do
+      wet = %{{moduleName}}.Models.WetFood{volume_ml: 350}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(wet))
+      assert data["foodType"] == "wet"
+    end
+
+    test "deserializing the oneOf parent routes to the subtype by discriminator" do
+      # A discriminator-tagged payload deserialized against the parent
+      # PetFood oneOf must come back as the concrete DryFood subtype, not
+      # the raw map — PetFood.build resolves foodType="dry" to DryFood.
+      json = ~s({"foodType":"dry","weightKg":2.5})
+      result = {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
+      assert %{{moduleName}}.Models.DryFood{} = result
+      assert result.weight_kg == 2.5
+    end
+
+    # Gap AU-residual: a PetFood payload missing the `foodType` discriminator
+    # property MUST raise rather than wrap the raw map in a union container.
+    # python/php wrap (silent contract violation); the other 10 (elixir among
+    # them) throw. Canonical = throw. GREEN in elixir — PetFood.build raises
+    # ArgumentError ("Missing discriminator 'foodType' for PetFood") when the
+    # discriminator value is absent, before any subtype can be resolved.
+    test "Gap AU-resid: missing discriminator on PetFood raises" do
+      json = ~s({"weightKg":5.0})
+
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
+      end
+    end
+  end
+
+  # ── Gap #13 — null fields omitted on serialize ──
+
+  describe "nil discard on serialize" do
+    test "omits model fields that are nil" do
+      # Category's id is optional; left nil it must be dropped from the
+      # payload rather than emitted as "id": null.
+      category = %{{moduleName}}.Models.Category{id: nil, name: "Dogs"}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(category))
+      refute Map.has_key?(data, "id")
+      assert data["name"] == "Dogs"
+    end
+  end
+
+  # type:number (no format) field must serialize as an UNQUOTED JSON number,
+  # never a quoted string. Pet.weightKg is `type: number` with no `format`;
+  # the Elixir model types it as a native `float()`, so sanitize emits the bare
+  # value and Jason encodes `1.5` (not "1.5"). Cross-SDK parity regression: the
+  # python/node SDKs modelled this as an arbitrary-precision Decimal and emitted
+  # a quoted string, diverging from the spec's `type: number`. This SDK is
+  # correct because it carries the value as a plain float through the wire.
+  describe "type:number field serializes as an unquoted JSON number" do
+    test "weightKg set to 1.5 emits a bare JSON number, not a quoted string" do
+      pet = %{{moduleName}}.Models.Pet{
+        name: "Rex",
+        photo_urls: ["http://example.com/rex.jpg"],
+        weight_kg: 1.5
+      }
+
+      json = {{moduleName}}.ObjectSerializer.serialize(pet)
+
+      # Raw wire form: unquoted number, never the quoted-string spelling.
+      assert String.contains?(json, "\"weightKg\":1.5"),
+             "weightKg must be an unquoted number: #{json}"
+      refute String.contains?(json, "\"weightKg\":\"1.5\""),
+             "weightKg must NOT be a quoted string: #{json}"
+
+      # Decoded back, the value is a JSON number (float), not a string.
+      data = Jason.decode!(json)
+      assert data["weightKg"] == 1.5
+      assert is_float(data["weightKg"])
+    end
+
+    test "weightKg survives a serialize -> deserialize round-trip as a number" do
+      pet = %{{moduleName}}.Models.Pet{
+        name: "Rex",
+        photo_urls: ["http://example.com/rex.jpg"],
+        weight_kg: 1.5
+      }
+
+      json = {{moduleName}}.ObjectSerializer.serialize(pet)
+      decoded = {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+
+      assert %{{moduleName}}.Models.Pet{} = decoded
+      assert decoded.weight_kg == 1.5
+      assert is_float(decoded.weight_kg)
+    end
+  end
+
+  describe "oneOf/anyOf no-match" do
+    test "resolve_one_of returns the first matching variant" do
+      candidates = [
+        fn _ -> raise "variant A does not match" end,
+        fn data -> {:matched, data} end
+      ]
+
+      result = {{moduleName}}.ObjectSerializer.resolve_one_of(%{"k" => "v"}, candidates)
+      assert result == {:matched, %{"k" => "v"}}
+    end
+
+    test "resolve_one_of raises when no variant matches" do
+      # A payload matching none of the declared variants is a contract violation
+      # and must fail loudly rather than be silently returned as nil.
+      candidates = [
+        fn _ -> raise "variant A does not match" end,
+        fn _ -> raise "variant B does not match" end
+      ]
+
+      assert_raise {{moduleName}}.SchemaMismatchError, fn ->
+        {{moduleName}}.ObjectSerializer.resolve_one_of(%{"unexpected" => true}, candidates)
+      end
+    end
+
+    test "resolve_any_of raises when no variant matches" do
+      candidates = [fn _ -> raise "no match" end]
+
+      assert_raise {{moduleName}}.SchemaMismatchError, fn ->
+        {{moduleName}}.ObjectSerializer.resolve_any_of(%{}, candidates)
+      end
+    end
+  end
+end
+{{/generateTests}}

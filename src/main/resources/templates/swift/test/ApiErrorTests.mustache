@@ -1,0 +1,136 @@
+{{>api_info}}
+import Foundation
+import Testing
+@testable import {{packageName}}
+
+@Suite final class ApiErrorTests {
+
+    @Test func testExposesStatusMessageBodyHeadersErrorBody() {
+        let err = ApiError(
+            statusCode: 404,
+            message: "not found",
+            responseBody: #"{"id":7,"name":"missing"}"#,
+            responseHeaders: ["content-type": "application/json"],
+            errorBody: nil
+        )
+
+        #expect(err.statusCode == 404)
+        #expect(err.message == "not found")
+        #expect(err.responseBody == #"{"id":7,"name":"missing"}"#)
+        #expect(err.responseHeaders?["content-type"] == "application/json")
+        #expect(err.errorBody == nil)
+    }
+
+    @Test func testNilHeadersAndBodyMarkTransportNoResponse() {
+        // apierror-responsebody-headers-nullable-split: nil is distinct from an
+        // empty header map / empty body so a pre-response transport failure can
+        // be encoded.
+        let err = ApiError(
+            statusCode: 0,
+            message: "connection reset",
+            responseBody: nil,
+            responseHeaders: nil
+        )
+
+        #expect(err.responseHeaders == nil)
+        #expect(err.responseBody == nil)
+    }
+
+    @Test func testConformsToErrorAndHasDescription() {
+        let err = ApiError(statusCode: 500, message: "boom")
+
+        let _: any Error = err
+        #expect(err.errorDescription?.isEmpty == false)
+    }
+
+    @Test func testGetTypedErrorBodyDeserializesBody() throws {
+        let err = ApiError(
+            statusCode: 400,
+            message: "bad request",
+            responseBody: #"{"id":42,"name":"Dogs"}"#
+        )
+
+        let typed = try err.getTypedErrorBody(Category.self)
+        #expect(typed != nil)
+        #expect(typed?.id == 42)
+        #expect(typed?.name == "Dogs")
+    }
+
+    @Test func testGetTypedErrorBodyReturnsNilWhenNoBody() throws {
+        let err = ApiError(statusCode: 500, message: "oops", responseBody: nil)
+
+        let typed = try err.getTypedErrorBody(Category.self)
+        #expect(typed == nil)
+    }
+
+    @Test func testApiErrorConformsToZitadelError() {
+        // Branded root: every SDK-thrown error reaches ZitadelError, so a
+        // caller can catch the whole hierarchy with one `as? ZitadelError`.
+        let err: any Error = ApiError(statusCode: 500, message: "boom")
+
+        #expect(err is ZitadelError)
+        #expect(err as? ZitadelError != nil)
+    }
+
+    @Test func testTypedErrorConformsToApiErrorAndZitadelError() {
+        // A typed HTTP error subclasses ApiError and therefore conforms to
+        // ZitadelError transitively.
+        let err: any Error = BadRequestError(statusCode: 400, message: "bad")
+
+        #expect(err is ApiError)
+        #expect(err is ZitadelError)
+        #expect(err as? ZitadelError != nil)
+    }
+
+    @Test func testSerializationErrorConformsToZitadelError() {
+        // The serialization failure value type is branded too, so a single
+        // ZitadelError catch covers transport, HTTP, and (de)serialization.
+        let err: any Error = SerializationError(message: "decode failed")
+
+        #expect(err is ZitadelError)
+        #expect(err as? ZitadelError != nil)
+    }
+
+    @Test func testGetTypedErrorBodyIgnoresExtraneousFields() throws {
+        let err = ApiError(
+            statusCode: 422,
+            message: "unprocessable",
+            responseBody: #"{"id":1,"name":"Cat","extra":"drop-me"}"#
+        )
+
+        let typed = try err.getTypedErrorBody(Category.self)
+        #expect(typed != nil)
+        #expect(typed?.id == 1)
+        #expect(typed?.name == "Cat")
+    }
+
+    @Test func testAuthAndConfigAndDurationErrorsConformToZitadelError() {
+        // INVARIANT: every SDK-thrown error type — including the auth, config,
+        // and duration value types that do not subclass ApiError — is branded
+        // with ZitadelError, so a single `as? ZitadelError` catch covers the
+        // entire surface the SDK can throw.
+        let errors: [any Error] = [
+            ProtobufDurationError("not a duration"),
+            TransportOptionsError.invalidProxyURL("://bad"),
+            ServerConfigurationError.invalidVariableValue(
+                variable: "region",
+                value: "mars",
+                allowed: ["us", "eu"]
+            ),
+            OAuth2AuthorizationCodeError.codeNotExchanged,
+            OAuth2TokenError.missingAccessToken("empty access_token"),
+            OAuth2ServerError(
+                statusCode: 400,
+                code: "invalid_grant",
+                description: "expired",
+                uri: nil,
+                rawBody: #"{"error":"invalid_grant"}"#
+            ),
+        ]
+
+        for err in errors {
+            #expect(err is ZitadelError)
+            #expect(err as? ZitadelError != nil)
+        }
+    }
+}

@@ -1,0 +1,100 @@
+{{>api_info}}
+package {{packageName}}
+
+// Configuration holds API-level configuration for generated client classes.
+//
+// It stores the base URL and default headers that are applied to every API
+// request. Transport-level settings (TLS, proxy, timeouts) belong in
+// TransportOptions and are configured on the DefaultApiClient.
+//
+// Configuration is immutable once built. Use NewConfigurationBuilder to create instances:
+//
+//	config := {{packageName}}.NewConfigurationBuilder().
+//		BaseURL("https://api.example.com").
+//		DefaultHeader("Authorization", "Bearer token").
+//		Build()
+type Configuration struct {
+	/* baseURL is the base URL for all API requests. Defaults to the first server URL
+	 * from the OpenAPI specification. */
+	baseURL string
+
+	/* defaultHeaders are included in every API request. These headers are
+	 * merged after transport-level headers from TransportOptions but before
+	 * operation-specific headers and authentication headers. */
+	defaultHeaders map[string]string
+}
+
+// BaseURL returns the base URL for all API requests.
+func (c *Configuration) BaseURL() string {
+	return c.baseURL
+}
+
+// DefaultHeaders returns a copy of the default headers included in every API request.
+func (c *Configuration) DefaultHeaders() map[string]string {
+	result := make(map[string]string, len(c.defaultHeaders))
+	for k, v := range c.defaultHeaders {
+		result[k] = v
+	}
+	return result
+}
+
+// DefaultConfiguration returns a Configuration with default values.
+func DefaultConfiguration() *Configuration {
+	return NewConfigurationBuilder().Build()
+}
+
+// ConfigurationBuilder builds immutable Configuration instances.
+type ConfigurationBuilder struct {
+	baseURL        string
+	defaultHeaders map[string]string
+}
+
+// NewConfigurationBuilder creates a new builder for constructing Configuration instances.
+func NewConfigurationBuilder() *ConfigurationBuilder {
+	return &ConfigurationBuilder{
+		baseURL:        "{{{basePath}}}",
+		defaultHeaders: make(map[string]string),
+	}
+}
+
+// BaseURL sets the base URL for all API requests.
+func (b *ConfigurationBuilder) BaseURL(val string) *ConfigurationBuilder {
+	b.baseURL = val
+	return b
+}
+
+// DefaultHeader adds a single default header to include in every API request.
+func (b *ConfigurationBuilder) DefaultHeader(name, value string) *ConfigurationBuilder {
+	b.defaultHeaders[name] = value
+	return b
+}
+
+// DefaultHeaders adds multiple default headers to include in every API request.
+func (b *ConfigurationBuilder) DefaultHeaders(headers map[string]string) *ConfigurationBuilder {
+	for k, v := range headers {
+		b.defaultHeaders[k] = v
+	}
+	return b
+}
+
+// Server sets the base URL from a server configuration with optional variable overrides.
+func (b *ConfigurationBuilder) Server(server *ServerConfiguration, variables map[string]string) (*ConfigurationBuilder, error) {
+	url, err := server.URL(variables)
+	if err != nil {
+		return nil, err
+	}
+	b.baseURL = url
+	return b, nil
+}
+
+// Build creates and returns an immutable Configuration instance.
+func (b *ConfigurationBuilder) Build() *Configuration {
+	headers := make(map[string]string, len(b.defaultHeaders))
+	for k, v := range b.defaultHeaders {
+		headers[k] = v
+	}
+	return &Configuration{
+		baseURL:        b.baseURL,
+		defaultHeaders: headers,
+	}
+}

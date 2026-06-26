@@ -1,0 +1,80 @@
+{{>api_info}}
+import 'dart:convert';
+
+import 'zitadel_exception.dart';
+
+/// ApiError represents an error returned by the API, including the HTTP status
+/// code, response headers, and response body.
+///
+/// Extends [ZitadelException], the branded root of the exception hierarchy, so
+/// that `apiError is ZitadelException` holds. The typed subclasses
+/// ([ClientError], [ServerError] and their leaves) extend [ApiError] and are
+/// therefore [ZitadelException]s as well.
+class ApiError extends ZitadelException {
+  /// The HTTP status code.
+  final int statusCode;
+
+  /// The error message.
+  @override
+  final String message;
+
+  /// The raw response body, or null when the transport failed before a
+  /// body was produced. A null value is distinct from an empty body.
+  final String? responseBody;
+
+  /// The response headers, or null when the transport failed before any
+  /// headers were received. A null value is distinct from an empty header
+  /// map.
+  final Map<String, String>? responseHeaders;
+
+  /// The parsed response body, if JSON.
+  final Object? errorBody;
+
+  /// The underlying transport error, if any. Set when wrapping a
+  /// SocketException or other lower-level failure so callers can drill
+  /// down via `underlyingError`.
+  final Object? underlyingError;
+
+  const ApiError({
+    required this.statusCode,
+    required this.message,
+    this.responseBody,
+    this.responseHeaders,
+    this.errorBody,
+    this.underlyingError,
+  });
+
+  @override
+  String toString() {
+    final buf = StringBuffer(message.isEmpty
+        ? 'Error message: the server returns an error'
+        : message);
+    if (statusCode != 0) {
+      buf.write('\nHTTP status code: $statusCode');
+    }
+    final headers = responseHeaders;
+    if (headers != null && headers.isNotEmpty) {
+      buf.write('\nResponse headers: $headers');
+    }
+    final body = responseBody;
+    if (body != null && body.isNotEmpty) {
+      buf.write('\nResponse body: $body');
+    }
+    return buf.toString();
+  }
+
+  /// Deserializes the response body into a typed value.
+  /// Returns null if the body is empty or deserialization fails.
+  T? typedErrorBody<T>(T Function(Map<String, dynamic>) fromJson) {
+    final body = responseBody;
+    if (body == null || body.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(body);
+      return fromJson(decoded as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+}

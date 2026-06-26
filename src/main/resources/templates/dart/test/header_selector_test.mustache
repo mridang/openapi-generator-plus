@@ -1,0 +1,143 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/src/header_selector.dart';
+
+void main() {
+  group('HeaderSelector', () {
+    test('isJsonMime', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('application/json'), isTrue);
+      expect(hs.isJsonMime('application/json; charset=utf-8'), isTrue);
+      expect(hs.isJsonMime('application/vnd.api+json'), isTrue);
+      expect(hs.isJsonMime('application/xml'), isFalse);
+      expect(hs.isJsonMime('text/plain'), isFalse);
+      expect(hs.isJsonMime(''), isFalse);
+      expect(hs.isJsonMime('application/octet-stream'), isFalse);
+      expect(hs.isJsonMime('application/hal+json'), isTrue);
+    });
+
+    test('isJsonMime case insensitive', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('APPLICATION/JSON'), isTrue);
+    });
+
+    test('selectHeaders with single accept', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/json'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('application/json'));
+      expect(headers['Content-Type'], equals('application/json'));
+    });
+
+    test('selectHeaders joins multiple accepts in declaration order', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['image/jpeg', 'image/png', 'application/json'],
+        'application/json',
+        false,
+      );
+
+      expect(
+        headers['Accept'],
+        equals('image/jpeg, image/png, application/json'),
+      );
+    });
+
+    test('selectHeaders does not reorder or weight JSON types', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['text/html', 'application/vnd.api+json', 'application/json'],
+        'application/json',
+        false,
+      );
+
+      expect(
+        headers['Accept'],
+        equals('text/html, application/vnd.api+json, application/json'),
+      );
+    });
+
+    test('selectHeaders with empty accepts', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders([], 'application/json', false);
+
+      expect(headers.containsKey('Accept'), isFalse);
+    });
+
+    test('selectHeaders filters out empty entries', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['', 'application/json', ''],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('application/json'));
+    });
+
+    test('selectHeaders returns no Accept when all entries empty', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(['', ''], 'application/json', false);
+
+      expect(headers.containsKey('Accept'), isFalse);
+    });
+
+    test('selectHeaders multipart omits Content-Type', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/json'],
+        'multipart/form-data',
+        true,
+      );
+
+      expect(headers.containsKey('Content-Type'), isFalse);
+    });
+
+    test('selectHeaders default Content-Type', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/json'],
+        '',
+        false,
+      );
+
+      expect(headers['Content-Type'], equals('application/json'));
+    });
+
+    test('selectHeaders single non-JSON accept as-is', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(['text/html'], 'application/json', false);
+
+      expect(headers['Accept'], equals('text/html'));
+    });
+
+    test('selectHeaders joins non-JSON types in order', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['text/html', 'text/plain'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('text/html, text/plain'));
+    });
+  });
+}
+{{/generateTests}}

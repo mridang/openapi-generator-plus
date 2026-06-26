@@ -1,0 +1,321 @@
+{{>api_info}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+import '../../api_client.dart';
+import '../../errors/zitadel_exception.dart';
+
+/// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and
+/// refreshing.
+///
+/// Uses the shared [ApiClient] instance so that token exchange requests
+/// honour the same transport configuration (proxy, TLS, timeouts) as regular
+/// API calls.
+class OAuth2TokenManager {
+  /// Safety margin applied to token expiry checks so that we refresh slightly
+  /// before the token actually expires, avoiding a race against the server clock.
+  static const Duration _expirySafetyMargin = Duration(seconds: 60);
+
+  ApiClient? _apiClient;
+  String _accessToken = '';
+  String _refreshToken = '';
+  DateTime? _tokenExpiry;
+
+  /// In-flight refresh future. When non-null, a refresh is already in
+  /// progress and concurrent callers should await this future rather than
+  /// issuing their own token request (single-flight pattern).
+  Future<String>? _inflightRefresh;
+
+  /// Sets the shared API client for making token requests.
+  void setApiClient(ApiClient client) {
+    _apiClient = client;
+  }
+
+  /// Returns the current refresh token, if any.
+  String get refreshToken => _refreshToken;
+
+  /// Returns a valid access token, fetching or refreshing as necessary.
+  ///
+  /// Concurrent callers that arrive while a refresh is in flight share a
+  /// single network request: the first caller starts the refresh, all
+  /// others await the same [Future]. This avoids a thundering-herd of
+  /// refresh requests against the OAuth2 provider when many requests race
+  /// to refresh an expired token.
+  Future<String> getAccessToken(
+    String tokenUrl,
+    Map<String, String> params, [
+    Map<String, String> extraHeaders = const {},
+  ]) async {
+    if (_accessToken.isNotEmpty &&
+        (_tokenExpiry == null ||
+            DateTime.now().isBefore(_tokenExpiry!.subtract(_expirySafetyMargin)))) {
+      return _accessToken;
+    }
+
+    final existing = _inflightRefresh;
+    if (existing != null) {
+      return existing;
+    }
+
+    final refresh = _doRefresh(tokenUrl, params, extraHeaders);
+    _inflightRefresh = refresh;
+    try {
+      return await refresh;
+    } finally {
+      _inflightRefresh = null;
+    }
+  }
+
+  Future<String> _doRefresh(
+    String tokenUrl,
+    Map<String, String> params,
+    Map<String, String> extraHeaders,
+  ) async {
+    if (_refreshToken.isNotEmpty) {
+      final refreshParams = <String, String>{
+        'grant_type': 'refresh_token',
+        'refresh_token': _refreshToken,
+      };
+      final clientId = params['client_id'];
+      if (clientId != null) {
+        refreshParams['client_id'] = clientId;
+      }
+      final clientSecret = params['client_secret'];
+      if (clientSecret != null) {
+        refreshParams['client_secret'] = clientSecret;
+      }
+      try {
+        await _fetchToken(tokenUrl, refreshParams, extraHeaders);
+        if (_accessToken.isNotEmpty) {
+          return _accessToken;
+        }
+      } catch (_) {
+        /* Refresh failed (e.g. refresh token revoked or expired). Fall back to
+         * re-running the original grant below. */
+      }
+    }
+
+    await _fetchToken(tokenUrl, params, extraHeaders);
+    return _accessToken;
+  }
+
+  /// Invalidates the cached access token so that the next call to
+  /// [getAccessToken] fetches a fresh token from the token endpoint.
+  /// Intended for tests and recovery flows.
+  void invalidateAccessToken() {
+    _accessToken = '';
+    _tokenExpiry = null;
+  }
+
+  /// Manually sets an access token, bypassing the token endpoint.
+  void setAccessToken(String token) {
+    _accessToken = token;
+    _tokenExpiry = null;
+  }
+
+  Future<void> _fetchToken(
+    String tokenUrl,
+    Map<String, String> params, [
+    Map<String, String> extraHeaders = const {},
+  ]) async {
+    final client = _apiClient;
+    if (client == null) {
+      throw StateError(
+        'API client has not been injected. '
+        'Ensure the {{clientClassName}} constructor calls setApiClient '
+        'on HttpAwareAuthenticator before making API requests',
+      );
+    }
+
+    final body = params.entries
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+
+    final bodyBytes = Uint8List.fromList(utf8.encode(body));
+
+    final headers = <String, String>{
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json',
+      ...extraHeaders,
+    };
+
+    final response = await client.sendRequest(
+      'POST',
+      tokenUrl,
+      headers,
+      bodyBytes,
+      noRedirect: true,
+    );
+
+    /* Gap 3.2: refuse ANY 3xx on OAuth2 token POSTs (RFC 6749 §3.2 forbids
+     * redirects at the token endpoint). The transport layer normally
+     * re-emits the request body across 307/308 hops, which on a token
+     * endpoint would replay `client_id` / `client_secret` / `refresh_token`
+     * to whatever host the redirect points at. Silently trusting a redirect
+     * on a credential endpoint is a credential-leak primitive; we surface it
+     * instead. We also pass `noRedirect: true` above so the ApiClient does
+     * not strip the body or otherwise mutate the request before we get to
+     * see the status code. */
+    if (response.statusCode >= 300 && response.statusCode < 400) {
+      throw OAuth2TokenError(
+        'Token endpoint returned ${response.statusCode} redirect. '
+        'Refusing to replay credentials to a redirected URL.',
+      );
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+       * `error` (required), `error_description`, `error_uri`. Parse them
+       * into a typed OAuth2ServerError so callers can recover via
+       * `on OAuth2ServerError`. Fall back to the raw body when the
+       * response is not a valid error object. */
+      throw _parseOAuth2ServerError(response.statusCode, response.body);
+    }
+
+    final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+    final accessTokenValue = parsed['access_token'];
+    if (accessTokenValue is! String || accessTokenValue.isEmpty) {
+      throw OAuth2TokenError(
+        'Token response missing or empty access_token field',
+      );
+    }
+    _accessToken = accessTokenValue;
+    final newRefreshToken = parsed['refresh_token'] as String?;
+    if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+      _refreshToken = newRefreshToken;
+    }
+    if (parsed.containsKey('expires_in') && parsed['expires_in'] != null) {
+      /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+       * providers (Salesforce, some Apigee deployments) send a quoted
+       * string and others send a JSON float. Accept ints, floor floats,
+       * parse digit strings; on anything unparseable or non-positive,
+       * mark the token as immediately stale so the next call refetches
+       * (preferable to caching a token of unknown lifetime forever). */
+      final expiresIn = _parseExpiresIn(parsed['expires_in']);
+      if (expiresIn > 0) {
+        final bufferSecs = expiresIn < 30 ? expiresIn : 30;
+        _tokenExpiry =
+            DateTime.now().add(Duration(seconds: expiresIn - bufferSecs));
+      } else {
+        _tokenExpiry = DateTime.now();
+      }
+    }
+  }
+
+  /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+  /// [OAuth2ServerError]. Falls back to a generic error using the raw body
+  /// when the body is not a valid OAuth2 error object.
+  OAuth2ServerError _parseOAuth2ServerError(int statusCode, String body) {
+    dynamic parsed;
+    try {
+      parsed = jsonDecode(body);
+    } catch (_) {
+      return OAuth2ServerError(statusCode, null, null, null, body);
+    }
+    if (parsed is Map<String, dynamic>) {
+      final code = parsed['error'];
+      if (code is String && code.isNotEmpty) {
+        final description = parsed['error_description'];
+        final uri = parsed['error_uri'];
+        return OAuth2ServerError(
+          statusCode,
+          code,
+          description is String ? description : null,
+          uri is String ? uri : null,
+          body,
+        );
+      }
+    }
+    return OAuth2ServerError(statusCode, null, null, null, body);
+  }
+
+  /// Defensive parse of the `expires_in` field per RFC 6749 §5.1.
+  /// Returns `0` (caller skips caching) when missing, unparseable, or
+  /// non-positive. Accepts integers, floors floats, and parses digit
+  /// strings (e.g. `"3600"` from Salesforce).
+  int _parseExpiresIn(Object? raw) {
+    if (raw == null) {
+      return 0;
+    }
+    if (raw is int) {
+      return raw;
+    }
+    if (raw is double) {
+      if (raw.isNaN || raw.isInfinite) {
+        return 0;
+      }
+      return raw.floor();
+    }
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        return 0;
+      }
+      final parsed = double.tryParse(trimmed);
+      if (parsed == null || parsed.isNaN || parsed.isInfinite) {
+        return 0;
+      }
+      return parsed.floor();
+    }
+    return 0;
+  }
+}
+
+/// Thrown when the token endpoint returns a 2xx response whose body is
+/// missing or contains an empty `access_token` field.
+///
+/// A token-endpoint HTTP error (4xx/5xx) instead throws the sibling
+/// [OAuth2ServerError] (RFC 6749 §5.2), matching the other SDKs where the
+/// two are independent error types.
+class OAuth2TokenError extends ZitadelException {
+  @override
+  final String message;
+
+  OAuth2TokenError(this.message);
+
+  @override
+  String toString() => 'OAuth2TokenError: $message';
+}
+
+/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// [code] field carries the OAuth2 error code (e.g. `invalid_grant`,
+/// `invalid_client`); [description] and [uri] are the optional
+/// human-readable description and a URL to a page describing the error.
+/// [rawBody] preserves the original response payload for diagnostics when
+/// the body is not a well-formed OAuth2 error object.
+class OAuth2ServerError extends ZitadelException {
+  final int statusCode;
+  final String? code;
+  final String? description;
+  final String? uri;
+  final String rawBody;
+  @override
+  final String message;
+
+  OAuth2ServerError(
+    this.statusCode,
+    this.code,
+    this.description,
+    this.uri,
+    this.rawBody,
+  ) : message = _buildMessage(statusCode, code, description, rawBody);
+
+  static String _buildMessage(
+    int statusCode,
+    String? code,
+    String? description,
+    String rawBody,
+  ) {
+    if (code == null) {
+      return 'Token request failed with status $statusCode: $rawBody';
+    }
+    if (description != null) {
+      return 'Token request failed with status $statusCode: $code -- $description';
+    }
+    return 'Token request failed with status $statusCode: $code';
+  }
+
+  @override
+  String toString() => 'OAuth2ServerError: $message';
+}

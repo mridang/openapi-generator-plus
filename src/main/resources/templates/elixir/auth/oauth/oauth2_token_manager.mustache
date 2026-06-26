@@ -1,0 +1,386 @@
+{{>api_info}}
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
+  @moduledoc """
+  Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+
+  Uses the shared `ApiClient` instance so that token exchange requests
+  honour the same transport configuration (proxy, TLS, timeouts) as
+  regular API calls.
+
+  This module uses an Agent for thread-safe state management.
+  """
+
+  use Agent
+
+  # Safety margin (in seconds) applied to token expiry checks so that we
+  # refresh slightly before the token actually expires, avoiding a race
+  # against the server clock.
+  @expiry_safety_margin_s 60
+
+  @type state :: %{
+          api_client: term() | nil,
+          access_token: String.t() | nil,
+          refresh_token: String.t() | nil,
+          token_expiry: float() | nil
+        }
+
+  @doc """
+  Start a new token manager.
+  """
+  @spec start_link(keyword()) :: Agent.on_start()
+  def start_link(opts \\ []) do
+    Agent.start_link(
+      fn ->
+        %{
+          api_client: nil,
+          access_token: nil,
+          refresh_token: nil,
+          token_expiry: nil
+        }
+      end,
+      opts
+    )
+  end
+
+  @doc """
+  Set the API client for making token requests.
+  """
+  @spec set_api_client(pid(), term()) :: :ok
+  def set_api_client(manager, client) do
+    Agent.update(manager, &Map.put(&1, :api_client, client))
+  end
+
+  @doc """
+  Get the current refresh token.
+  """
+  @spec refresh_token(pid()) :: String.t() | nil
+  def refresh_token(manager) do
+    Agent.get(manager, & &1.refresh_token)
+  end
+
+  @doc """
+  Get a valid access token, fetching or refreshing as necessary.
+
+  Uses `Agent.get_and_update/3` so the expiry check and fetch run atomically in
+  a single closure. While one caller is fetching/refreshing, all other callers
+  block in the Agent's message queue, then observe the freshly cached token --
+  preventing thundering-herd refreshes against the OP token endpoint.
+
+  Exceptions raised during the fetch are caught inside the closure (to avoid
+  crashing the Agent process), returned as a sentinel result, and re-raised in
+  the caller so callers see the original exception class.
+  """
+  @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}, %{optional(String.t()) => String.t()}) :: String.t()
+  def get_access_token(manager, token_url, params, extra_headers \\ %{}) do
+    result =
+      Agent.get_and_update(
+        manager,
+        fn state ->
+          now = System.system_time(:second)
+
+          cond do
+            state.access_token &&
+                (is_nil(state.token_expiry) ||
+                   now < state.token_expiry - @expiry_safety_margin_s) ->
+              {{:ok, state.access_token}, state}
+
+            is_binary(state.refresh_token) and state.refresh_token != "" ->
+              refresh_params =
+                %{"grant_type" => "refresh_token", "refresh_token" => state.refresh_token}
+                |> maybe_put(params, "client_id")
+                |> maybe_put(params, "client_secret")
+
+              case try_fetch_token(state, token_url, refresh_params, extra_headers) do
+                {:ok, new_state} ->
+                  {{:ok, new_state.access_token}, new_state}
+
+                :error ->
+                  # Refresh failed (e.g. refresh token revoked or expired).
+                  # Fall back to re-running the original grant.
+                  try do
+                    new_state = fetch_token(state, token_url, params, extra_headers)
+                    {{:ok, new_state.access_token}, new_state}
+                  rescue
+                    e -> {{:raise, e, __STACKTRACE__}, state}
+                  end
+              end
+
+            true ->
+              try do
+                new_state = fetch_token(state, token_url, params, extra_headers)
+                {{:ok, new_state.access_token}, new_state}
+              rescue
+                e -> {{:raise, e, __STACKTRACE__}, state}
+              end
+          end
+        end,
+        :infinity
+      )
+
+    case result do
+      {:ok, token} -> token
+      {:raise, exception, stacktrace} -> reraise exception, stacktrace
+    end
+  end
+
+  defp maybe_put(map, params, key) do
+    case Map.get(params, key) do
+      nil -> map
+      value -> Map.put(map, key, value)
+    end
+  end
+
+  defp try_fetch_token(state, token_url, params, extra_headers) do
+    try do
+      {:ok, fetch_token(state, token_url, params, extra_headers)}
+    rescue
+      _ -> :error
+    end
+  end
+
+  @doc """
+  Manually set an access token, bypassing the token endpoint.
+  """
+  @spec set_access_token(pid(), String.t()) :: :ok
+  def set_access_token(manager, token) do
+    Agent.update(manager, fn state ->
+      %{state | access_token: token, token_expiry: nil}
+    end)
+  end
+
+  @doc """
+  Invalidate the cached access token so that the next call to
+  `get_access_token/4` fetches a fresh token from the token endpoint.
+  Intended for tests and recovery flows.
+  """
+  @spec invalidate_access_token(pid()) :: :ok
+  def invalidate_access_token(manager) do
+    Agent.update(manager, fn state ->
+      %{state | access_token: nil, token_expiry: nil}
+    end)
+  end
+
+  defp fetch_token(state, token_url, params, extra_headers) do
+    client = state.api_client
+
+    if is_nil(client) do
+      raise "ApiClient has not been injected. " <>
+              "Ensure the {{clientClassName}} constructor calls set_api_client " <>
+              "on HttpAwareAuthenticator before making API requests."
+    end
+
+    headers =
+      Map.merge(
+        %{"Content-Type" => "application/x-www-form-urlencoded", "Accept" => "application/json"},
+        extra_headers
+      )
+
+    body = URI.encode_query(params)
+
+    # Gap 3.2: refuse to follow a 307/308 redirect on a token-endpoint POST.
+    # 307 + 308 preserve method *and* body, so a malicious or compromised
+    # token server (or an MITM that can inject a Location: header) could
+    # use a single redirect to coerce this client into POSTing
+    # `client_secret` + `refresh_token` + grant params at an attacker host.
+    # We pass `no_redirect: true` to the ApiClient when it supports the
+    # 6-arity callback; impls that only define `send_request/5` keep the
+    # legacy behaviour and we enforce the refusal on the response below.
+    response =
+      case client do
+        %{__struct__: mod} = c ->
+          if function_exported?(mod, :send_request, 6) do
+            mod.send_request(c, :post, token_url, headers, body, no_redirect: true)
+          else
+            mod.send_request(c, :post, token_url, headers, body)
+          end
+
+        mod when is_atom(mod) ->
+          mod.send_request(:post, token_url, headers, body)
+      end
+
+    # Gap 3.2: refuse ANY 3xx (RFC 6749 §3.2 forbids redirects at the token
+    # endpoint). 307/308 preserve method and body; 301/302/303 are equally
+    # rejected so a misconfigured or malicious server cannot bounce the
+    # credential-bearing POST anywhere.
+    if response.status_code >= 300 and response.status_code < 400 do
+      raise {{moduleName}}.Auth.OAuth.OAuth2TokenError,
+            message:
+              "OAuth2 token endpoint returned #{response.status_code} redirect; " <>
+                "refusing to replay client credentials at the redirect target " <>
+                "(potential credential exfiltration via malicious Location header)"
+    end
+
+    if response.status_code < 200 or response.status_code >= 300 do
+      # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+      # `error` (required), `error_description`, `error_uri`. Raise a typed
+      # OAuth2ServerError so callers can rescue it specifically. Fall back
+      # to the raw body when the response is not a valid error object.
+      raise parse_oauth2_server_error(response.status_code, response.body)
+    end
+
+    parsed = Jason.decode!(response.body)
+
+    access_token = parsed["access_token"]
+
+    unless is_binary(access_token) and access_token != "" do
+      raise {{moduleName}}.Auth.OAuth.OAuth2TokenError,
+            message: "Token response missing or empty access_token field"
+    end
+
+    new_state = %{state | access_token: access_token}
+
+    new_state =
+      case parsed["refresh_token"] do
+        rt when is_binary(rt) and rt != "" -> %{new_state | refresh_token: rt}
+        _ -> new_state
+      end
+
+    new_state =
+      cond do
+        not Map.has_key?(parsed, "expires_in") ->
+          new_state
+
+        is_nil(parsed["expires_in"]) ->
+          new_state
+
+        true ->
+          # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+          # providers (Salesforce, some Apigee deployments) send a quoted
+          # string and others send a JSON float. Accept ints, floor floats,
+          # parse digit strings; on anything unparseable or non-positive,
+          # mark the token as immediately stale so the next call refetches
+          # (preferable to caching a token of unknown lifetime forever).
+          case parse_expires_in(parsed["expires_in"]) do
+            expires_in when expires_in > 0 ->
+              buffer_secs = min(expires_in, 30)
+              expiry = System.system_time(:second) + expires_in - buffer_secs
+              %{new_state | token_expiry: expiry}
+
+            _ ->
+              %{new_state | token_expiry: System.system_time(:second)}
+          end
+      end
+
+    new_state
+  end
+
+  defp parse_oauth2_server_error(status_code, body) do
+    parsed =
+      case Jason.decode(body) do
+        {:ok, decoded} when is_map(decoded) -> decoded
+        _ -> nil
+      end
+
+    case parsed do
+      %{"error" => code} when is_binary(code) and code != "" ->
+        description = if is_binary(parsed["error_description"]), do: parsed["error_description"], else: nil
+        uri = if is_binary(parsed["error_uri"]), do: parsed["error_uri"], else: nil
+
+        {{moduleName}}.Auth.OAuth.OAuth2ServerError.exception(
+          status_code: status_code,
+          code: code,
+          description: description,
+          uri: uri,
+          raw_body: body
+        )
+
+      _ ->
+        {{moduleName}}.Auth.OAuth.OAuth2ServerError.exception(
+          status_code: status_code,
+          code: nil,
+          description: nil,
+          uri: nil,
+          raw_body: body
+        )
+    end
+  end
+
+  defp parse_expires_in(value) when is_integer(value), do: value
+
+  defp parse_expires_in(value) when is_float(value) do
+    # Erlang/Elixir floats cannot represent NaN/Infinity, and Jason rejects
+    # them during decode, so a plain floor is safe here.
+    trunc(:math.floor(value))
+  end
+
+  defp parse_expires_in(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    cond do
+      trimmed == "" ->
+        0
+
+      true ->
+        case Integer.parse(trimmed) do
+          {n, ""} ->
+            n
+
+          _ ->
+            case Float.parse(trimmed) do
+              {f, ""} -> trunc(:math.floor(f))
+              _ -> 0
+            end
+        end
+    end
+  end
+
+  defp parse_expires_in(_), do: 0
+end
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenError do
+  @moduledoc """
+  Raised when the OAuth2 token endpoint returns a 2xx response whose body
+  is missing or contains an empty `access_token` field. Distinct from
+  `{{moduleName}}.Auth.OAuth.OAuth2ServerError` (which represents RFC 6749
+  §5.2 error responses on 4xx/5xx) so callers can `rescue` them separately.
+  """
+
+  defexception [:message]
+end
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2ServerError do
+  @moduledoc """
+  Typed representation of an RFC 6749 §5.2 OAuth2 error response.
+
+  Fields:
+
+    * `:status_code` -- HTTP status code returned by the token endpoint.
+    * `:code` -- the OAuth2 error code (e.g. `"invalid_grant"`).
+    * `:description` -- optional human-readable description.
+    * `:uri` -- optional URI to a page describing the error.
+    * `:raw_body` -- the original response payload (for diagnostics).
+  """
+
+  defexception [:status_code, :code, :description, :uri, :raw_body, :message]
+
+  @impl true
+  def exception(opts) do
+    status_code = Keyword.fetch!(opts, :status_code)
+    code = Keyword.get(opts, :code)
+    description = Keyword.get(opts, :description)
+    uri = Keyword.get(opts, :uri)
+    raw_body = Keyword.get(opts, :raw_body, "")
+
+    message =
+      cond do
+        is_nil(code) -> "Token request failed with status #{status_code}: #{raw_body}"
+        is_binary(description) -> "Token request failed with status #{status_code}: #{code} -- #{description}"
+        true -> "Token request failed with status #{status_code}: #{code}"
+      end
+
+    %__MODULE__{
+      status_code: status_code,
+      code: code,
+      description: description,
+      uri: uri,
+      raw_body: raw_body,
+      message: message
+    }
+  end
+end

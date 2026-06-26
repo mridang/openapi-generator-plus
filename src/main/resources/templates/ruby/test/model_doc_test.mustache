@@ -1,0 +1,52 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+require 'test_helper'
+
+# Guards the YARD doc comments emitted onto generated model properties.
+#
+# The upstream codegen synthesises the literal string "null" as a property's
+# example whenever the spec declares none (DefaultCodegen#toExampleValue). That
+# literal is a non-empty, truthy string under Mustache, so an unguarded example
+# section would stamp "# @example null" onto nearly every property — a false
+# claim that null is a documented example value. The model template routes the
+# example through the `exampleDoc` lambda, which emits the "# @example" line
+# only for a genuine example and nothing for the "null" sentinel. These tests
+# read the generated model sources back from disk and assert the pollution is
+# gone while real, spec-declared examples survive.
+describe 'generated model doc comments' do
+  parallelize_me!
+
+  MODELS_GLOB = File.join(
+    File.expand_path('..', __dir__), 'lib', '{{gemName}}', 'models', '*.rb'
+  )
+
+  it 'finds the generated model sources on disk' do
+    # Sanity check: the glob must resolve to real files, otherwise the
+    # pollution assertions below would pass vacuously.
+    _(Dir.glob(MODELS_GLOB)).wont_be_empty
+  end
+
+  it 'never documents the synthesized "null" example on any property' do
+    offenders = Dir.glob(MODELS_GLOB).select do |path|
+      source = File.read(path)
+      source.include?('# @example null') || source.include?('@example null')
+    end
+
+    # An empty offenders list means no model file falsely advertises a "null"
+    # example. The message names the offending files when the guard regresses.
+    _(offenders).must_equal([], "models still document a null example: #{offenders.inspect}")
+  end
+
+  it 'still documents genuine spec-declared examples' do
+    # Category#id (example: 1) and Category#name (example: Dogs) declare real
+    # examples in the spec, so the guard must keep their "# @example" lines.
+    # This proves the null filter does not over-suppress legitimate docs.
+    category = File.read(
+      File.join(File.expand_path('..', __dir__), 'lib', '{{gemName}}', 'models', 'category.rb')
+    )
+
+    _(category).must_include('# @example 1')
+    _(category).must_include('# @example Dogs')
+  end
+end

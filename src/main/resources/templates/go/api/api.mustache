@@ -1,0 +1,472 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+{{#hasJsonImport}}
+	"encoding/json"
+{{/hasJsonImport}}
+	"fmt"
+{{#hasOsImport}}
+	"os"
+{{/hasOsImport}}
+{{#hasStringsImport}}
+	"strings"
+{{/hasStringsImport}}
+{{#hasTimeImport}}
+	"time"
+{{/hasTimeImport}}
+{{#hasUuidImport}}
+
+	"github.com/google/uuid"
+{{/hasUuidImport}}
+
+	. "{{packageName}}/pkg/models"
+{{#optionsImports}}
+{{#-first}}
+	opts "{{packageName}}/pkg/options"
+{{/-first}}
+{{/optionsImports}}
+)
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+// {{serverTypeName}} is the interface for per-operation server URLs for {{operationId}}.
+type {{serverTypeName}} interface {
+	/* GetUrl returns the server URL. */
+	GetUrl() string
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+// {{serverTypeName}}{{pascalName}} represents valid values for the {{name}} server variable.
+type {{serverTypeName}}{{pascalName}} string
+
+const (
+{{#enumValues}}
+	{{serverTypeName}}{{pascalName}}{{name}} {{serverTypeName}}{{pascalName}} = "{{value}}"
+{{/enumValues}}
+)
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+// {{serverTypeName}}{{variantName}} is a server variant for {{serverTypeName}}.
+{{#hasDescription}}
+// {{description}}
+{{/hasDescription}}
+type {{serverTypeName}}{{variantName}} struct {
+{{#serverVariables}}
+	{{pascalName}} {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}
+{{/serverVariables}}
+}
+
+// GetUrl returns the server URL.
+func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
+	url := "{{url}}"
+{{#serverVariables}}
+	url = strings.ReplaceAll(url, "{" + "{{name}}" + "}", {{#hasEnumValues}}string(s.{{pascalName}}){{/hasEnumValues}}{{^hasEnumValues}}s.{{pascalName}}{{/hasEnumValues}})
+{{/serverVariables}}
+	return url
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+// {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+// See {{url}} {{description}}
+{{/tagExternalDocs}}
+type {{classname}} struct {
+	*baseApi
+}
+
+// New{{classname}} creates a new {{classname}} instance.
+func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator Authenticator) *{{classname}} {
+	return &{{classname}}{
+		baseApi: newBaseApi(apiClient, config, authenticator),
+	}
+}
+{{#operation}}
+
+{{#summary}}
+// {{operationId}} {{{summary}}}
+{{/summary}}
+{{#notes}}
+// {{{.}}}
+{{/notes}}
+{{#isDeprecated}}
+// Deprecated: This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+// See {{url}} {{description}}
+{{/externalDocs}}
+{{#allParams}}
+{{#description}}
+// param {{paramName}}: {{description}}
+{{/description}}
+{{/allParams}}
+{{#allParams}}{{#vendorExtensions.pluralExamples}}
+// Example for `{{paramName}}` — {{summary}}: {{value}}
+{{/vendorExtensions.pluralExamples}}{{/allParams}}
+func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
+	result, err := a.{{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType...{{/vendorExtensions.hasMultipleConsumes}})
+	if err != nil {
+		return {{#returnType}}nil, {{/returnType}}err
+	}
+{{#returnType}}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("{{operationId}}", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+{{/returnType}}
+{{^returnType}}
+	_ = result
+	return nil
+{{/returnType}}
+}
+
+// {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
+func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
+{{#hasAuthMethods}}
+	/* Per-operation auth is sourced from the Options object's Auth field. A nil
+	 * options or a nil Auth falls back to the client's configured credentials. */
+	var auth Authenticator
+	if options != nil {
+		auth = options.Auth
+	}
+{{/hasAuthMethods}}
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+	if {{paramName}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+{{! required-nested-param-validation: query/header/form/cookie params live on
+    the Options object. A required one is a non-pointer field, so a nil options
+    (or, for strings, an empty value) means the caller omitted it. Guard here so
+    the caller gets a clear error instead of silently sending the zero value.
+
+    The `options == nil` guard is emitted once for the whole operation (driven by
+    hasRequiredOptionsParam, set in BetterGoCodegen). Emitting it per required
+    param produced duplicate, unreachable guards when an operation had two or
+    more required non-string params of the same kind. The per-field presence
+    checks below run after it, so they can safely dereference `options`. }}
+{{#vendorExtensions.hasRequiredOptionsParam}}
+	if options == nil {
+		return nil, fmt.Errorf("missing required options when calling {{classname}}.{{operationId}}")
+	}
+{{/vendorExtensions.hasRequiredOptionsParam}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{! A required form/file param is only meaningfully present if its field is set.
+    Enforce that per field type: empty string for string params, nil for a single
+    *os.File, and an empty slice for repeated files / array params. Other shapes
+    (e.g. a model value type) have no unset sentinel, so the nil-options guard
+    above is the only check that applies. }}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{^isString}}
+{{#isFile}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isFile}}
+{{^isFile}}
+{{#isArray}}
+	if len(options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) == 0 {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isArray}}
+{{/isFile}}
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
+
+
+	path := "{{{path}}}"
+{{#pathParams}}
+{{#isDate}}
+	path = replacePathParam(path, "{{baseName}}", encodePathSegment(stringifyDate({{paramName}})))
+{{/isDate}}
+{{^isDate}}
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", serializeStyled("{{baseName}}", {{paramName}}, "path", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
+{{/isDate}}
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
+{{/-first}}
+{{/servers}}
+
+	queryParams := make(map[string]any)
+{{#queryParams}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+	/* allowEmptyValue means the server tolerates an empty value WHEN the client
+	 * sends the key; it does not require the SDK to always send the key. When the
+	 * caller omits the optional value, the key is omitted entirely (matching the
+	 * other optional query params above). An explicit empty value supplied by the
+	 * caller still flows through serializeStyled and emits the bare "key=". */
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+	}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryDeepObject}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		for k, v := range serializeDeepObject("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) {
+			queryParams[k] = v
+		}
+	}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		jsonBytes, _ := json.Marshal(options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+		queryParams["{{baseName}}"] = string(jsonBytes)
+	}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyled}}
+{{#required}}
+	/* Required query param: the Options field is a non-pointer value, so it is
+	 * always present (validated above) and serialized directly. */
+	queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+{{/required}}
+{{^required}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+	}
+{{/required}}
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+
+	headerParams := make(map[string]string)
+{{#headerParams}}
+{{#required}}
+	/* Required header param: non-pointer Options field, always present. */
+	headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+{{/required}}
+{{^required}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+	}
+{{/required}}
+{{/headerParams}}
+{{#hasCookieParams}}
+	var cookieParts []string
+{{#cookieParams}}
+{{#required}}
+	/* Required cookie param: non-pointer Options field, always present.
+	 * The serialized value is routed through isValidCookieValue (the same
+	 * RFC 6265 cookie-octet check the auth-cookie path in base_api applies)
+	 * so a CR/LF/control-char value fails closed before it can be folded
+	 * into the Cookie request header, preventing header injection. Unlike
+	 * the auth path (which panics on a programmer-supplied bad cookie),
+	 * an operation cookie is caller input, so we fail closed by returning
+	 * an error here, matching how this function reports every other
+	 * invalid-parameter condition. */
+	{
+		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", "{{baseName}}")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
+	}
+{{/required}}
+{{^required}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		/* Optional cookie param: same RFC 6265 validation as the required
+		 * branch above. Fail closed by returning an error so a CR/LF or
+		 * control-char value cannot be injected into the Cookie header. */
+		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", "{{baseName}}")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
+	}
+{{/required}}
+{{/cookieParams}}
+	if len(cookieParts) > 0 {
+		headerParams["Cookie"] = strings.Join(cookieParts, "; ")
+	}
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+	formBody := make(map[string]any)
+	if options != nil {
+{{#formParams}}
+{{#required}}
+		formBody["{{baseName}}"] = options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
+{{/required}}
+{{^required}}
+		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+			formBody["{{baseName}}"] = *options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
+		}
+{{/required}}
+{{/formParams}}
+	}
+	var requestBody any = formBody
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+	var requestBody any = {{paramName}}
+{{/bodyParam}}
+{{^bodyParam}}
+	var requestBody any
+{{/bodyParam}}
+{{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+	/* This operation declares more than one request Content-Type. The optional
+	 * trailing requestContentType selector lets the caller choose among the
+	 * declared types; when omitted (or set to a type the operation does not
+	 * declare) it falls back to the first declared type, preserving the
+	 * historical behaviour of always sending "{{vendorExtensions.op.effectiveConsumes}}".
+	 * NOTE: this only changes the Content-Type header — the caller must still
+	 * supply a body the selected content-type accepts. The declared types are,
+	 * in order:
+{{#consumes}}
+	 *   - {{{mediaType}}}
+{{/consumes}}
+	 */
+	declaredConsumes := []string{ {{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}} }
+	requestContentTypeValue := declaredConsumes[0]
+	if len(requestContentType) > 0 {
+		for _, declared := range declaredConsumes {
+			if declared == requestContentType[0] {
+				requestContentTypeValue = requestContentType[0]
+				break
+			}
+		}
+	}
+{{#hasFormParams}}
+	/* When a multipart/form-data operation ALSO declares a raw binary request
+	 * Content-Type (e.g. application/octet-stream), selecting that type must put
+	 * the single binary part's RAW BYTES on the wire — not the multipart form
+	 * map (which base_api would otherwise json.Marshal to "{}"). The multipart
+	 * formBody is only correct for multipart/form-data; for any other selected
+	 * type we stream the file part itself so serializeBody emits the raw bytes
+	 * under the chosen Content-Type. */
+	if requestContentTypeValue != "multipart/form-data" {
+{{#formParams}}
+{{#isFile}}
+		requestBody = options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
+{{/isFile}}
+{{/formParams}}
+	}
+{{/hasFormParams}}
+{{/vendorExtensions.hasMultipleConsumes}}
+
+	response, err := a.invokeApi(invokeApiParams{
+		method:       "{{httpMethod}}",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
+		contentType:  {{#vendorExtensions.hasMultipleConsumes}}requestContentTypeValue{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
+		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
+		{{! security-none-sentinel: an operation declared `security: []` has no auth
+		    methods. It must pass the noAuth sentinel (not nil) so base_api applies
+		    NO authentication instead of falling back to the client-level
+		    authenticator and leaking its credential. A secured op passes the
+		    per-call override (or nil for no-override), unchanged. }}
+		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}noAuth{{/hasAuthMethods}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+{{#returnType}}
+	var data {{{.}}}
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *{{{.}}}
+	if response.Body != "" {
+		respContentType := ""
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[{{{returnType}}}]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+{{/returnType}}
+{{^returnType}}
+	return &ApiResult[any]{
+		StatusCode: response.StatusCode,
+		Data:       nil,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+{{/returnType}}
+}
+{{/operation}}
+{{/operations}}

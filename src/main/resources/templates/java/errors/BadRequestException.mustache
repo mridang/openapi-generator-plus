@@ -1,0 +1,30 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Exception for HTTP 400 Bad Request.
+ */
+public class BadRequestException extends ClientException {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a new exception.
+     *
+     * @param message the error message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the deserialized error body, if available
+     */
+    public BadRequestException(
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable Object errorBody) {
+        super(400, message, responseHeaders, responseBody, errorBody);
+    }
+}

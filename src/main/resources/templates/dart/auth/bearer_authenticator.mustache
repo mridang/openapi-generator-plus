@@ -1,0 +1,53 @@
+{{>api_info}}
+import 'base_authenticator.dart';
+
+/// BearerAuthenticator provides HTTP Bearer token authentication.
+class BearerAuthenticator extends BaseAuthenticator {
+  final String _host;
+  final String _token;
+
+  /// Creates a new Bearer authenticator.
+  BearerAuthenticator({
+    required String host,
+    required String token,
+  })  : _host = host,
+        _token = token {
+    /* Cross-cutting `bearer-no-empty-token-guard`: reject an empty or
+     * whitespace-only token up front. Otherwise the authenticator would
+     * emit a bare `Authorization: Bearer ` header — an unauthenticated
+     * request masquerading as an authenticated one. Mirrors the api-key
+     * authenticator's own empty guard. */
+    if (token.trim().isEmpty) {
+      throw ArgumentError('Bearer token must not be empty or whitespace');
+    }
+    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+     * Reject anything outside printable ASCII + TAB so callers see a
+     * clear error rather than HTTP header injection from CR/LF or
+     * silently-mangled non-ASCII bytes. */
+    if (token.codeUnits.any((c) => c != 0x09 && (c < 0x20 || c >= 0x7F))) {
+      throw ArgumentError(
+        'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)',
+      );
+    }
+  }
+
+  @override
+  String host() => _host;
+
+  @override
+  Map<String, String> authHeaders() {
+    /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+     * from env files are commonly stored already-prefixed; emitting
+     * "Bearer Bearer xyz" would otherwise silently break auth. */
+    var value = _token;
+    if (value.length >= 7 && value.substring(0, 7).toLowerCase() == 'bearer ') {
+      value = value.substring(7);
+    }
+    return {'Authorization': 'Bearer $value'};
+  }
+
+  /// Redacts the bearer token so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() => '$runtimeType(host: $_host, token: ***)';
+}

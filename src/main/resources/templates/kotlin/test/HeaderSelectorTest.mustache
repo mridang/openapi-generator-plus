@@ -1,0 +1,279 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
+
+class HeaderSelectorTest {
+
+    private lateinit var selector: HeaderSelector
+
+    @BeforeEach
+    fun setUp() {
+        selector = HeaderSelector()
+    }
+
+    @Nested
+    @DisplayName("isJsonMime")
+    inner class IsJsonMimeTests {
+
+        @Test
+        @DisplayName("returns true for application/json")
+        fun returnsTrueForApplicationJson() {
+            assertTrue(selector.isJsonMime("application/json"))
+        }
+
+        @Test
+        @DisplayName("returns true for application/json with charset")
+        fun returnsTrueForApplicationJsonWithCharset() {
+            assertTrue(selector.isJsonMime("application/json; charset=UTF-8"))
+        }
+
+        @Test
+        @DisplayName("returns true for APPLICATION/JSON (case insensitive)")
+        fun returnsTrueForUppercaseApplicationJson() {
+            assertTrue(selector.isJsonMime("APPLICATION/JSON"))
+        }
+
+        @Test
+        @DisplayName("returns true for vendor JSON types")
+        fun returnsTrueForVendorJsonTypes() {
+            assertTrue(selector.isJsonMime("application/vnd.api+json"))
+            assertTrue(selector.isJsonMime("application/vnd.company+json"))
+            assertTrue(selector.isJsonMime("application/hal+json"))
+        }
+
+        @Test
+        @DisplayName("returns false for text/html")
+        fun returnsFalseForTextHtml() {
+            assertFalse(selector.isJsonMime("text/html"))
+        }
+
+        @Test
+        @DisplayName("returns false for application/xml")
+        fun returnsFalseForApplicationXml() {
+            assertFalse(selector.isJsonMime("application/xml"))
+        }
+
+        @Test
+        @DisplayName("returns false for null")
+        fun returnsFalseForNull() {
+            assertFalse(selector.isJsonMime(null))
+        }
+
+        @Test
+        @DisplayName("returns false for empty string")
+        fun returnsFalseForEmptyString() {
+            assertFalse(selector.isJsonMime(""))
+        }
+
+        @Test
+        @DisplayName("returns false for text/plain")
+        fun returnsFalseForTextPlain() {
+            assertFalse(selector.isJsonMime("text/plain"))
+        }
+
+        @Test
+        @DisplayName("returns false for application/octet-stream")
+        fun returnsFalseForOctetStream() {
+            assertFalse(selector.isJsonMime("application/octet-stream"))
+        }
+    }
+
+    @Nested
+    @DisplayName("selectAcceptHeader")
+    inner class SelectAcceptHeaderTests {
+
+        @Test
+        @DisplayName("returns empty string for empty accept list")
+        fun returnsEmptyStringForEmptyAccepts() {
+            assertEquals("", selector.selectAcceptHeader(arrayOf()))
+        }
+    }
+
+    @Nested
+    @DisplayName("selectHeaders")
+    inner class SelectHeadersTests {
+
+        @Test
+        @DisplayName("sets Accept header for single accept")
+        fun setsAcceptHeaderForSingleAccept() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json"),
+                "application/json",
+                false
+            )
+            assertEquals("application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("joins media types in declaration order with comma-space")
+        fun joinsInDeclarationOrder() {
+            val headers = selector.selectHeaders(
+                arrayOf("image/jpeg", "image/png", "application/json"),
+                "application/json",
+                false
+            )
+            assertEquals("image/jpeg, image/png, application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("returns single accept as-is")
+        fun returnsSingleAcceptAsIs() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json"),
+                "application/json",
+                false
+            )
+            assertEquals("application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("does not reorder or JSON-prioritize")
+        fun doesNotReorderOrPrioritizeJson() {
+            val headers = selector.selectHeaders(
+                arrayOf("text/html", "application/json", "text/plain"),
+                "application/json",
+                false
+            )
+            assertEquals("text/html, application/json, text/plain", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("does not add quality weights")
+        fun doesNotAddQualityWeights() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json", "text/html"),
+                "application/json",
+                false
+            )
+            val accept = headers["Accept"]
+            assertNotNull(accept)
+            assertFalse(accept!!.contains("q="))
+            assertEquals("application/json, text/html", accept)
+        }
+
+        @Test
+        @DisplayName("filters out empty and blank entries")
+        fun filtersOutEmptyAndBlankEntries() {
+            val headers = selector.selectHeaders(
+                arrayOf("", "image/jpeg", "   ", "application/json"),
+                "application/json",
+                false
+            )
+            assertEquals("image/jpeg, application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("returns null Accept when only blank entries")
+        fun returnsNullAcceptWhenOnlyBlank() {
+            val headers = selector.selectHeaders(
+                arrayOf("", "   "),
+                "application/json",
+                false
+            )
+            assertNull(headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("does not set Accept header for empty accepts")
+        fun doesNotSetAcceptForEmptyAccepts() {
+            val headers = selector.selectHeaders(
+                arrayOf(),
+                "application/json",
+                false
+            )
+            assertNull(headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("does not set Accept header for null accepts")
+        fun doesNotSetAcceptForNullAccepts() {
+            val headers = selector.selectHeaders(
+                null,
+                "application/json",
+                false
+            )
+            assertNull(headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("multipart omits Content-Type")
+        fun multipartOmitsContentType() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json"),
+                "application/json",
+                true
+            )
+            assertNull(headers["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("sets Content-Type when not multipart")
+        fun setsContentTypeWhenNotMultipart() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json"),
+                "application/json",
+                false
+            )
+            assertEquals("application/json", headers["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("defaults Content-Type to application/json when empty")
+        fun defaultsContentTypeToJsonWhenEmpty() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json"),
+                "",
+                false
+            )
+            assertEquals("application/json", headers["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("defaults Content-Type to application/json when null")
+        fun defaultsContentTypeToJsonWhenNull() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json"),
+                null,
+                false
+            )
+            assertEquals("application/json", headers["Content-Type"])
+        }
+    }
+
+    @Nested
+    @DisplayName("declaration-order Accept join")
+    inner class DeclarationOrderJoin {
+
+        @Test
+        @DisplayName("joins mixed types in declaration order without weights")
+        fun joinsMixedTypesInDeclarationOrder() {
+            val headers = selector.selectHeaders(
+                arrayOf("text/html", "application/vnd.api+json", "application/json"),
+                "application/json",
+                false
+            )
+            assertEquals(
+                "text/html, application/vnd.api+json, application/json",
+                headers["Accept"]
+            )
+        }
+
+        @Test
+        @DisplayName("does not prioritize vendor JSON over non-JSON")
+        fun doesNotPrioritizeVendorJson() {
+            val headers = selector.selectHeaders(
+                arrayOf("text/plain", "application/vnd.api+json"),
+                "application/json",
+                false
+            )
+            assertEquals("text/plain, application/vnd.api+json", headers["Accept"])
+        }
+    }
+}

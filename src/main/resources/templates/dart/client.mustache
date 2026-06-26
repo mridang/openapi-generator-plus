@@ -1,0 +1,116 @@
+{{>api_info}}
+import 'auth/authenticator.dart';
+import 'auth/bearer_authenticator.dart';
+import 'auth/http_aware_authenticator.dart';
+import 'configuration.dart';
+import 'default_api_client.dart';
+import 'transport_options.dart';
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import 'api/{{classFilename}}.dart';
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+/// {{clientClassName}} is the unified entry point for all API services.
+///
+/// Takes an [Authenticator] and optionally [TransportOptions], then exposes
+/// each API group as a typed field. If the authenticator implements
+/// [HttpAwareAuthenticator], the shared HTTP client is injected so that
+/// authentication HTTP calls (token exchange, discovery) use the same
+/// transport configuration as regular API calls.
+///
+/// Example with default transport:
+///
+/// ```dart
+/// final client = {{clientClassName}}(authenticator: authenticator);
+/// ```
+///
+/// Example with custom transport (proxy, timeouts, etc.):
+///
+/// ```dart
+/// final transport = TransportOptionsBuilder()
+///   .proxy('http://proxy:3128')
+///   .timeout(5000)
+///   .build();
+/// final client = {{clientClassName}}(
+///   authenticator: authenticator,
+///   transportOptions: transport,
+/// );
+/// ```
+class {{clientClassName}} {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  /// Provides methods for the {{baseName}} API group.
+  final {{classname}} {{clientPropertyName}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+  /// Creates a new client with the given authenticator and optional transport
+  /// options.
+  ///
+  /// A single shared [DefaultApiClient] is created and used by all API groups
+  /// and the authenticator (if it implements [HttpAwareAuthenticator]), so that
+  /// token exchange and discovery requests use the same proxy, TLS, and timeout
+  /// settings as regular API calls.
+  {{clientClassName}}._({
+    required Authenticator authenticator,
+    required DefaultApiClient apiClient,
+  }) : {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(authenticator, apiClient){{^-last}},
+       {{/-last}}{{#-last}};{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
+
+  factory {{clientClassName}}({
+    required Authenticator authenticator,
+    TransportOptions? transportOptions,
+  }) {
+    final apiClient = DefaultApiClient(transportOptions: transportOptions);
+    if (authenticator is HttpAwareAuthenticator) {
+      authenticator.setApiClient(apiClient);
+    }
+    return {{clientClassName}}._(authenticator: authenticator, apiClient: apiClient);
+  }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  static {{classname}} _create{{classname}}(Authenticator authenticator, DefaultApiClient apiClient) {
+    final config = ConfigurationBuilder()
+        .baseUrl(authenticator.host())
+        .build();
+    return {{classname}}(apiClient: apiClient, config: config, authenticator: authenticator);
+  }
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+  /// Creates a client authenticated with a static Bearer token.
+  factory {{clientClassName}}.withToken({
+    required String host,
+    required String accessToken,
+    TransportOptions? transportOptions,
+  }) {
+    return {{clientClassName}}(
+      authenticator: BearerAuthenticator(host: host, token: accessToken),
+      transportOptions: transportOptions,
+    );
+  }
+
+  /// Creates a client from any [Authenticator].
+  ///
+  /// This is the generic entry point for bespoke authenticators such as client
+  /// credentials, JWT private key, or personal access token (PAT) flows. Pass
+  /// optional [transportOptions] to share proxy, TLS, and timeout settings with
+  /// the authenticator's own HTTP calls.
+  static {{clientClassName}} withAuthenticator(
+    Authenticator authenticator, [
+    TransportOptions? transportOptions,
+  ]) {
+    return {{clientClassName}}(
+      authenticator: authenticator,
+      transportOptions: transportOptions,
+    );
+  }
+}

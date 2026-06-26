@@ -1,0 +1,269 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\ObjectSerializer;
+use {{modelPackage}}\DryFood;
+use {{modelPackage}}\WetFood;
+use {{modelPackage}}\Medication;
+use {{modelPackage}}\Surgery;
+use {{modelPackage}}\PetFood;
+use {{modelPackage}}\PetTreatment;
+use {{modelPackage}}\PetWithOwner;
+use {{modelPackage}}\SetPetAvatarThumbnailRequest;
+
+// -- oneOf with discriminator: PetFood --
+
+test('one of deserializes dry food', function (): void {
+    $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+    $result = PetFood::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(DryFood::class);
+    expect($result->getActualInstance()->foodType)->toBe('dry');
+});
+
+test('one of deserializes wet food', function (): void {
+    $data = ['foodType' => 'wet', 'volumeMl' => 400];
+    $result = PetFood::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(WetFood::class);
+    expect($result->getActualInstance()->foodType)->toBe('wet');
+});
+
+test('one of missing discriminator throws', function (): void {
+    // Gap AU: missing discriminator field must throw, not silently wrap.
+    $data = ['weightKg' => 2.5];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Missing discriminator');
+});
+
+test('one of empty discriminator throws', function (): void {
+    // Gap AU: empty discriminator value must throw.
+    $data = ['foodType' => '', 'weightKg' => 2.5];
+    expect(fn () => PetFood::build($data))->toThrow(\InvalidArgumentException::class);
+});
+
+test('one of unknown discriminator throws', function (): void {
+    // Gap AU: unknown discriminator value must throw.
+    $data = ['foodType' => 'raw', 'calories' => 300];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Unknown discriminator');
+});
+
+test('one of serializes dry food', function (): void {
+    $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+    $result = PetFood::build($data);
+    $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+    expect($serialized)->not->toBeFalse();
+    expect($serialized)->toContain('dry');
+});
+
+// -- anyOf without discriminator: PetTreatment --
+
+test('any of deserializes medication', function (): void {
+    $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+    $result = PetTreatment::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(Medication::class);
+    expect($result->getActualInstance()->drugName)->toBe('Amoxicillin');
+});
+
+test('any of deserializes surgery', function (): void {
+    $data = ['procedureName' => 'Spay', 'durationMinutes' => 45];
+    $result = PetTreatment::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(Surgery::class);
+});
+
+test('any of serialize round trip', function (): void {
+    $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+    $result = PetTreatment::build($data);
+    $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+    expect($serialized)->not->toBeFalse();
+    expect($serialized)->not->toBeEmpty();
+});
+
+test('any of no matching variant throws', function (): void {
+    // oneof-nondiscriminator-no-match-silent: a body matching neither
+    // Medication nor Surgery must throw rather than yield a silently-empty
+    // union. resolveAnyOfAll throws UnexpectedValueException on union no-match.
+    $data = ['unrelatedKey' => 'value', 'anotherUnknown' => 123];
+    expect(fn () => PetTreatment::build($data))
+        ->toThrow(\UnexpectedValueException::class);
+});
+
+test('any of retains all matching variants (medication and surgery) losslessly', function (): void {
+    // anyOf matches one OR MORE schemas: a payload that co-satisfies BOTH
+    // Medication and Surgery must retain BOTH variants, not silently keep the
+    // first and drop the rest. Deserialize a body satisfying both at once.
+    $data = [
+        'drugName' => 'Amoxicillin',
+        'dosage' => '250mg',
+        'procedureName' => 'Spay',
+        'durationMinutes' => 45,
+    ];
+    $result = PetTreatment::build($data);
+
+    // Both variants are accessible — locate each by type rather than position.
+    $instances = $result->getActualInstances();
+    expect($instances)->toHaveCount(2);
+
+    $medication = null;
+    $surgery = null;
+    foreach ($instances as $instance) {
+        if ($instance instanceof Medication) {
+            $medication = $instance;
+        }
+        if ($instance instanceof Surgery) {
+            $surgery = $instance;
+        }
+    }
+
+    expect($medication)->toBeInstanceOf(Medication::class);
+    expect($medication->drugName)->toBe('Amoxicillin');
+    expect($medication->dosage)->toBe('250mg');
+
+    expect($surgery)->toBeInstanceOf(Surgery::class);
+    expect($surgery->procedureName)->toBe('Spay');
+    expect($surgery->durationMinutes)->toBe(45);
+
+    // Re-serialize the WRAPPER: the union of all retained variants' fields must
+    // round-trip — all four fields present, nothing silently dropped.
+    $serialized = ObjectSerializer::serialize($result);
+    expect($serialized)->toContain('drugName');
+    expect($serialized)->toContain('dosage');
+    expect($serialized)->toContain('procedureName');
+    expect($serialized)->toContain('durationMinutes');
+    /** @var array<string, mixed> $roundTripped */
+    $roundTripped = json_decode($serialized, true);
+    expect($roundTripped)->toMatchArray([
+        'drugName' => 'Amoxicillin',
+        'dosage' => '250mg',
+        'procedureName' => 'Spay',
+        'durationMinutes' => 45,
+    ]);
+});
+
+test('any of single variant still round-trips after retain-all', function (): void {
+    // The retain-all change must not regress the single-variant case: a
+    // medication-only payload still decodes and serializes as just Medication.
+    $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+    $result = PetTreatment::build($data);
+    expect($result->getActualInstances())->toHaveCount(1);
+    expect($result->getActualInstance())->toBeInstanceOf(Medication::class);
+
+    $serialized = ObjectSerializer::serialize($result);
+    /** @var array<string, mixed> $roundTripped */
+    $roundTripped = json_decode($serialized, true);
+    expect($roundTripped)->toMatchArray(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
+    expect($roundTripped)->not->toHaveKey('procedureName');
+});
+
+// -- allOf: PetWithOwner --
+
+test('all of deserializes pet with owner', function (): void {
+    $json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],'
+        . '"ownerName":"John","ownerEmail":"john@example.com"}';
+    /** @var PetWithOwner $result */
+    $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    expect($result)->toBeInstanceOf(PetWithOwner::class);
+    expect($result->name)->toBe('doggie');
+    expect($result->ownerName)->toBe('John');
+    expect($result->ownerEmail)->toBe('john@example.com');
+});
+
+test('all of serializes pet with owner', function (): void {
+    $json = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}';
+    /** @var PetWithOwner $result */
+    $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    $serialized = json_encode(ObjectSerializer::serialize($result));
+    expect($serialized)->not->toBeFalse();
+    expect($serialized)->toContain('Fido');
+    expect($serialized)->toContain('John Doe');
+});
+
+test('all of round trip', function (): void {
+    $json = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}';
+    /** @var PetWithOwner $original */
+    $original = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    $serialized = json_encode(ObjectSerializer::serialize($original));
+    /** @var PetWithOwner $restored */
+    $restored = ObjectSerializer::deserialize($serialized, PetWithOwner::class);
+    expect($restored->name)->toBe($original->name);
+    expect($restored->ownerName)->toBe($original->ownerName);
+});
+
+// -- 4.7 discriminator non-listed $ref --
+
+test('one of non-listed discriminator ref throws not falls through', function (): void {
+    /* 4.7: a discriminator value that doesn't appear in DISCRIMINATOR_MAPPING
+     * — including the case where the spec's oneOf lists a $ref without a
+     * corresponding mapping entry — must throw rather than wrap the raw
+     * array in an unmatchable container. */
+    $data = ['foodType' => 'frozen', 'weightKg' => 1.0];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Unknown discriminator');
+});
+
+test('one of non-string discriminator ref throws', function (): void {
+    /* 4.7: a non-string discriminator value must throw deterministically
+     * rather than silently fall through to a wrap-the-raw-payload path. */
+    $data = ['foodType' => 42, 'weightKg' => 1.0];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+// -- C2/R1/H12: byte oneOf round-trips through base64 --
+//
+// SetPetAvatarThumbnailRequest is a oneOf of [ a scalar `format: byte` value,
+// an array of `format: byte` values ]. `format: byte` means the value travels
+// on the wire as a base64 STRING — NOT a JSON int-array and NOT raw/unencoded
+// bytes. The union must preserve the byte marker that the flattened oneOf set
+// dropped, route each branch through the same base64 (de)serialization the
+// bare scalar byte field uses, and keep scalar-before-array order so a base64
+// STRING is resolved to the SCALAR variant rather than mis-parsed
+// element-by-element into a list.
+
+test('set pet avatar thumbnail byte oneOf round-trips through base64', function (): void {
+    // (1) SCALAR variant: construct from raw bytes [0x01,0x02,0x03,0x04].
+    $raw = "\x01\x02\x03\x04";
+    $request = SetPetAvatarThumbnailRequest::fromBytes($raw);
+
+    // Serialize and assert the JSON value is the base64 STRING "AQIDBA==" —
+    // not a JSON int-array [1,2,3,4], not the raw bytes, not object garbage.
+    $json = ObjectSerializer::serialize($request);
+    expect($json)->toBe('"AQIDBA=="');
+
+    // Deserialize that JSON back and recover exactly the original 4 bytes.
+    /** @var SetPetAvatarThumbnailRequest $restored */
+    $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
+    expect($restored->getActualInstance())->toBe('AQIDBA==');
+    expect($restored->getActualInstanceAsBytes())->toBe($raw);
+});
+
+test('set pet avatar thumbnail byte oneOf array variant round-trips', function (): void {
+    // (2) ARRAY variant: construct from a list of two byte payloads. Both
+    // payloads are chosen so their base64 contains no '/' (json_encode
+    // escapes '/' to '\/' by default) to keep the literal assertion exact.
+    $first = "\x01\x02\x03\x04";   // base64: AQIDBA==
+    $second = "\x00\x10\x83";       // base64: ABCD
+    $request = SetPetAvatarThumbnailRequest::fromByteList([$first, $second]);
+
+    // Serialize: the JSON is an array of base64 strings, not int-arrays.
+    $json = ObjectSerializer::serialize($request);
+    expect($json)->toBe('["AQIDBA==","ABCD"]');
+
+    // Round-trips back to the same two byte payloads.
+    /** @var SetPetAvatarThumbnailRequest $restored */
+    $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
+    expect($restored->getActualInstanceAsByteList())->toBe([$first, $second]);
+});
+
+test('set pet avatar thumbnail scalar base64 does not parse as a list', function (): void {
+    // ORDERING: a scalar base64 STRING input must deserialize to the SCALAR
+    // variant (one value), NOT be mis-parsed element-by-element into a list.
+    // The scalar branch is declared first, so resolveOneOf must select it.
+    /** @var SetPetAvatarThumbnailRequest $restored */
+    $restored = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    expect($restored->getActualInstance())->toBeString();
+    expect($restored->getActualInstance())->toBe('AQIDBA==');
+    expect($restored->getActualInstanceAsBytes())->toBe("\x01\x02\x03\x04");
+    // The array accessor must yield null for a scalar payload.
+    expect($restored->getActualInstanceAsByteList())->toBeNull();
+});

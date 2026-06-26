@@ -1,0 +1,261 @@
+{{>api_info}}
+
+import { ObjectSerializer, DeserializationError } from '../src/object-serializer{{importFileExtension}}';
+import { PetWithOwner, PetFood, DryFood, WetFood, PetTreatment, Medication, Surgery } from '../src/models/index{{importFileExtension}}';
+
+describe('Composed Schema', () => {
+  // -- oneOf with discriminator: PetFood --
+
+  test('oneOf: PetFood resolves to DryFood', () => {
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    expect(result).toBeDefined();
+    const instance = result!.getActualInstance();
+    expect(instance).toBeDefined();
+    expect(instance).toBeInstanceOf(DryFood);
+  });
+
+  test('oneOf: PetFood resolves to WetFood', () => {
+    const data = { foodType: 'wet', volumeMl: 400 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    expect(result).toBeDefined();
+    const instance = result!.getActualInstance();
+    expect(instance).toBeDefined();
+    expect(instance).toBeInstanceOf(WetFood);
+  });
+
+  test('oneOf: unknown discriminator throws DeserializationError (4.7)', () => {
+    // 4.7 — A discriminator value that is not listed in the schema mapping
+    // used to silently fall through to the base envelope. We now surface
+    // the wire/spec mismatch so callers see the bug instead of an
+    // inexplicable empty object.
+    const data = { foodType: 'raw', calories: 300 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(DeserializationError);
+  });
+
+  test('oneOf: unknown discriminator error names the offending value', () => {
+    const data = { foodType: 'raw', calories: 300 };
+    try {
+      ObjectSerializer.deserialize(data, PetFood);
+      fail('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(DeserializationError);
+      expect((e as Error).message).toContain('raw');
+      expect((e as Error).message).toContain('foodType');
+    }
+  });
+
+  test('oneOf: discriminator maps to unresolvable class throws DeserializationError (4.7)', () => {
+    // Simulate a misconfigured spec where the discriminator mapping names a
+    // class that does not exist in the generated models index. Previously
+    // we returned null and silently fell through; now we throw so
+    // spec/codegen drift is visible at the seam where it matters.
+    const FakePetFood = class {
+      static readonly ONE_OF_SCHEMAS: string[] = ['DryFood', 'WetFood'];
+      static readonly DISCRIMINATOR_PROPERTY = 'foodType';
+      static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
+        dry: 'NonExistentModelClass'
+      };
+      private actualInstance: unknown;
+      constructor(instance: unknown) {
+        this.actualInstance = instance;
+      }
+      getActualInstance(): unknown {
+        return this.actualInstance;
+      }
+    };
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, FakePetFood)).toThrow(DeserializationError);
+  });
+
+  test('oneOf: missing discriminator throws DeserializationError', () => {
+    // A payload omitting the discriminator property entirely cannot route to
+    // any variant; the deserializer throws rather than structurally guessing
+    // a variant. Aligns Node with Python / Swift / PHP / Ruby / Dart / Rust.
+    const data = { weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(DeserializationError);
+  });
+
+  test('oneOf: missing discriminator error names the property', () => {
+    const data = { weightKg: 2.5 };
+    try {
+      ObjectSerializer.deserialize(data, PetFood);
+      fail('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(DeserializationError);
+      expect((e as Error).message).toContain('foodType');
+    }
+  });
+
+  test('oneOf: empty discriminator throws DeserializationError', () => {
+    // An empty discriminator value is present but not listed in the schema
+    // mapping; it must throw rather than route to a structurally-fitting
+    // variant. Aligns Node with Python / PHP on empty-discriminator rejection.
+    const data = { foodType: '', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(DeserializationError);
+  });
+
+  test('oneOf: serializes DryFood back to JSON', () => {
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    const serialized = ObjectSerializer.serialize(result!.getActualInstance());
+    expect(serialized).toBeDefined();
+    expect(serialized).toContain('dry');
+    expect(serialized).toContain('2.5');
+  });
+
+  // -- anyOf without discriminator: PetTreatment --
+
+  test('anyOf: PetTreatment is a constructable class', () => {
+    // PetTreatment must be a class (not just a type alias) to support runtime deserialization
+    expect(typeof PetTreatment).toBe('function');
+  });
+
+  test('anyOf: PetTreatment deserializes Medication', () => {
+    const data = { drugName: 'Amoxicillin', dosage: '500mg' };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    expect(result!.getActualInstance()).toBeDefined();
+    expect(result!.getActualInstance()).toBeInstanceOf(Medication);
+  });
+
+  test('anyOf: PetTreatment deserializes Surgery', () => {
+    const data = { procedureName: 'Spay', durationMinutes: 45 };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    expect(result!.getActualInstance()).toBeDefined();
+    expect(result!.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  test('anyOf: PetTreatment with no matching variant throws DeserializationError', () => {
+    // oneof-nondiscriminator-no-match-silent: a payload matching neither
+    // Medication nor Surgery used to fall through to a generic
+    // plainToInstance that stored the raw bag-of-keys (type confusion).
+    // It must now surface as a DeserializationError so callers see the
+    // payload matches no declared variant.
+    const data = { unrelatedKey: 'value', anotherUnknown: 123 };
+    expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(DeserializationError);
+  });
+
+  test('anyOf: PetTreatment rejects a type-invalid variant field', () => {
+    // oneof-nondiscriminator-type-invalid-silent: a non-discriminated variant
+    // was matched purely structurally via plainToInstance + a hasValues check,
+    // without re-running the variant model's constructor type-assertions. A
+    // type-wrong field (here durationMinutes carrying a string on a numeric
+    // field) was silently retained. The union loop now routes each candidate
+    // through its own constructor, so a type-invalid candidate is skipped and
+    // resolution falls through to the no-match throw.
+    const data = { procedureName: 'Spay', durationMinutes: 'forty-five' };
+    expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(DeserializationError);
+  });
+
+  test('anyOf: PetTreatment serialize round-trip', () => {
+    const data = { drugName: 'Amoxicillin', dosage: '500mg' };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    const serialized = ObjectSerializer.serialize(result!.getActualInstance());
+    expect(serialized).toBeDefined();
+  });
+
+  test('anyOf retains all matching variants (medication and surgery) losslessly', () => {
+    // PetTreatment is a non-discriminated anyOf of Medication (drugName,
+    // dosage) and Surgery (procedureName, durationMinutes), documented as
+    // matching a medication, a surgery, OR BOTH. A payload satisfying BOTH
+    // variants at once must retain every variant's data — a first-match
+    // wrapper would keep only Medication and silently drop the Surgery fields,
+    // losing them on re-encode.
+    const data = {
+      drugName: 'Amoxicillin',
+      dosage: '250mg',
+      procedureName: 'Spay',
+      durationMinutes: 45,
+    };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+
+    // Both variants are retained and accessible, not just the first.
+    const matched = result!.getMatchedInstances();
+    const medication = matched.find((m) => m instanceof Medication) as
+      | Medication
+      | undefined;
+    const surgery = matched.find((m) => m instanceof Surgery) as
+      | Surgery
+      | undefined;
+    expect(medication).toBeInstanceOf(Medication);
+    expect(surgery).toBeInstanceOf(Surgery);
+    expect(medication!.drugName).toBe('Amoxicillin');
+    expect(medication!.dosage).toBe('250mg');
+    expect(surgery!.procedureName).toBe('Spay');
+    expect(surgery!.durationMinutes).toBe(45);
+
+    // Re-serialize: the JSON still contains ALL FOUR fields — the
+    // co-satisfied data round-trips with no silent drop.
+    const serialized = ObjectSerializer.serialize(result!);
+    const reparsed = JSON.parse(serialized) as Record<string, unknown>;
+    expect(reparsed.drugName).toBe('Amoxicillin');
+    expect(reparsed.dosage).toBe('250mg');
+    expect(reparsed.procedureName).toBe('Spay');
+    expect(reparsed.durationMinutes).toBe(45);
+  });
+
+  test('anyOf single-variant payloads still decode correctly', () => {
+    // The both-variants retention must not break the single-variant case: a
+    // medication-only and a surgery-only payload each still decode, exposing
+    // exactly one matched variant.
+    const medicationOnly = ObjectSerializer.deserialize(
+      { drugName: 'Amoxicillin', dosage: '500mg' },
+      PetTreatment,
+    );
+    expect(medicationOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(medicationOnly!.getActualInstance()).toBeInstanceOf(Medication);
+
+    const surgeryOnly = ObjectSerializer.deserialize(
+      { procedureName: 'Spay', durationMinutes: 45 },
+      PetTreatment,
+    );
+    expect(surgeryOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(surgeryOnly!.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  // -- allOf: PetWithOwner --
+
+  test('allOf: PetWithOwner deserializes all properties', () => {
+    const data = {
+      name: 'doggie',
+      photoUrls: ['http://example.com/photo.jpg'],
+      ownerName: 'John',
+      ownerEmail: 'john@example.com'
+    };
+    const result = ObjectSerializer.deserialize(data, PetWithOwner);
+    expect(result).toBeDefined();
+    expect(result!.name).toBe('doggie');
+    expect(result!.ownerName).toBe('John');
+    expect(result!.ownerEmail).toBe('john@example.com');
+  });
+
+  test('allOf: PetWithOwner serializes to JSON', () => {
+    const data = {
+      name: 'Fido',
+      photoUrls: ['http://example.com/fido.jpg'],
+      ownerName: 'John Doe'
+    };
+    const result = ObjectSerializer.deserialize(data, PetWithOwner);
+    const serialized = ObjectSerializer.serialize(result);
+    expect(serialized).toBeDefined();
+    expect(serialized).toContain('Fido');
+    expect(serialized).toContain('John Doe');
+  });
+
+  test('allOf: PetWithOwner round-trip preserves fields', () => {
+    const data = {
+      name: 'Buddy',
+      photoUrls: ['http://example.com/buddy.jpg'],
+      ownerName: 'Jane Smith'
+    };
+    const original = ObjectSerializer.deserialize(data, PetWithOwner);
+    const serialized = ObjectSerializer.serialize(original);
+    const restored = ObjectSerializer.deserialize(JSON.parse(serialized), PetWithOwner);
+    expect(restored!.name).toBe(original!.name);
+    expect(restored!.ownerName).toBe(original!.ownerName);
+  });
+});

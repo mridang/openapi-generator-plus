@@ -1,3 +1,4 @@
+<!--suppress VulnerableLibrariesLocal, VulnerableLibrariesLocal -->
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
@@ -38,7 +39,35 @@
     <system>GitHub</system>
     <url>https://github.com/mridang/openapi-generator-plus/issues</url>
   </issueManagement>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>1.21.4</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <build>
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+      </testResource>
+      <testResource>
+        <directory>src/spec/resources</directory>
+        <excludes>
+          <exclude>**/target/**</exclude>
+          <exclude>**/node_modules/**</exclude>
+          <exclude>**/vendor/**</exclude>
+          <exclude>**/__pycache__/**</exclude>
+          <exclude>**/.out/**</exclude>
+          <exclude>**/*.class</exclude>
+          <exclude>**/.build/**</exclude>
+        </excludes>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>com.github.spotbugs</groupId>
@@ -83,6 +112,12 @@
           <maxmem>512m</maxmem>
           <compilerArgs>
             <arg>-Xlint:all</arg>
+            <!-- Java 25-introduced check: 'this' references during super-class
+                 constructor. Triggered by DefaultCodegen.modifyFeatureSet
+                 call in our constructor; restructuring requires upstream
+                 refactor in openapi-generator core. Pragmatically disabled. -->
+            <arg>-Xlint:-this-escape</arg>
+            <arg>-Werror</arg>
             <arg>-J-Xss4m</arg>
           </compilerArgs>
 
@@ -119,11 +154,25 @@
               <value>conf/log4j.properties</value>
             </property>
           </systemPropertyVariables>
-          <argLine>${jacoco.agent} -Xms512m -Xmx1500m</argLine>
+          <!-- JDK 24+ noise from transitive deps:
+               enable-native-access=ALL-UNNAMED silences the
+                 "restricted method ... will be blocked in a future
+                 release unless native access is enabled" warnings
+                 from JNA 5.12.1 (transitive via openapi-generator,
+                 used by testcontainers) and Truffle 24.2.2
+                 (transitive via graalvm polyglot/js, used for
+                 Mustache JS engine).
+               sun-misc-unsafe-memory-access=allow silences the
+                 "sun.misc.Unsafe::objectFieldOffset has been called"
+                 warning from Caffeine 2.9.3 (transitive via
+                 openapi-generator). Caffeine 3.x dropped Unsafe but
+                 we can't bump it without bumping openapi-generator. -->
+          <argLine>@{jacoco.agent} -Xms512m -Xmx1500m --enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argLine>
           <parallel>methods</parallel>
           <useUnlimitedThreads>true</useUnlimitedThreads>
           <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <trimStackTrace>false</trimStackTrace>
+          <skipTests>${skipUnitTests}</skipTests>
         </configuration>
       </plugin>
       <plugin>
@@ -207,7 +256,7 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>3.11.2</version>
         <configuration>
-          <doclint>none</doclint>
+          <doclint>all,-missing</doclint>
           <source>11</source>
         </configuration>
         <executions>
@@ -242,6 +291,9 @@
             <goals>
               <goal>prepare-agent</goal>
             </goals>
+            <configuration>
+              <propertyName>jacoco.agent</propertyName>
+            </configuration>
           </execution>
           <execution>
             <id>report-html</id>
@@ -288,8 +340,8 @@
           <includes>
             <include>**/*Spec.java</include>
           </includes>
-          <parallel>methods</parallel>
-          <useUnlimitedThreads>true</useUnlimitedThreads>
+          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+          <argLine>@{jacoco.agent} --enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argLine>
         </configuration>
       </plugin>
       <plugin>
@@ -326,6 +378,25 @@
           <autoPublish>true</autoPublish>
           <waitUntil>uploaded</waitUntil>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <id>cleanup-test-containers</id>
+            <phase>post-integration-test</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>sh</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>docker ps -aq --filter "label=com.mridang.openapi.testcontainer=true" | xargs -r docker rm -f || true</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
@@ -372,6 +443,7 @@
               </execution>
             </executions>
           </plugin>
+          <!--suppress MavenModelInspection -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
@@ -436,7 +508,9 @@
                 <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:all</arg>
                 <arg>-Xlint:-path</arg>
-                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.mridang</arg>
+                <arg>-Xlint:-this-escape</arg>
+                <arg>-Werror</arg>
+                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -Xep:MissingOverride:ERROR -Xep:InvalidBlockTag:ERROR -Xep:InvalidInlineTag:ERROR -Xep:NonApiType:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.mridang</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -492,6 +566,22 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.26.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>com.google.errorprone</groupId>
       <artifactId>error_prone_annotations</artifactId>
       <version>2.40.0</version>
@@ -500,13 +590,13 @@
     <dependency>
       <groupId>org.openapitools</groupId>
       <artifactId>openapi-generator</artifactId>
-      <version>7.14.0</version>
+      <version>7.22.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.openapitools</groupId>
       <artifactId>openapi-generator-core</artifactId>
-      <version>7.14.0</version>
+      <version>7.22.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -529,7 +619,7 @@
   </dependencies>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <!--suppress XmlUnresolvedReference -->
-    <jacoco.agent>${argLine}</jacoco.agent>
+    <jacoco.agent></jacoco.agent>
+    <skipUnitTests>false</skipUnitTests>
   </properties>
 </project>

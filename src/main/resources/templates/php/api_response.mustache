@@ -1,0 +1,23 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * ApiHttpResponse Class
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+class ApiHttpResponse
+{
+    /**
+     * @param int                    $statusCode HTTP status code
+     * @param string                 $body       Response body
+     * @param array<string, string>  $headers    Response headers
+     */
+    public function __construct(
+        public readonly int $statusCode,
+        public readonly string $body,
+        public readonly array $headers
+    ) {
+    }
+}

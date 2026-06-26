@@ -1,0 +1,208 @@
+# ruff: noqa
+# mypy: ignore-errors
+import pytest
+
+from petstore_client.object_serializer import ObjectSerializer
+from petstore_client.models.dry_food import DryFood
+from petstore_client.models.wet_food import WetFood
+from petstore_client.models.medication import Medication
+from petstore_client.models.surgery import Surgery
+from petstore_client.models.set_pet_avatar_thumbnail_request import (
+    SetPetAvatarThumbnailRequest,
+)
+
+
+class TestOneOfPetFood:
+    """oneOf with discriminator: PetFood"""
+
+    def test_deserializes_dry_food(self) -> None:
+        json_str = '{"foodType":"dry","weightKg":2.5}'
+        result = ObjectSerializer().deserialize(json_str, "PetFood")
+        assert result is not None
+        assert result.actual_instance is not None
+        assert isinstance(result.actual_instance, DryFood)
+
+    def test_deserializes_wet_food(self) -> None:
+        json_str = '{"foodType":"wet","volumeMl":400}'
+        result = ObjectSerializer().deserialize(json_str, "PetFood")
+        assert result is not None
+        assert result.actual_instance is not None
+        assert isinstance(result.actual_instance, WetFood)
+
+    def test_missing_discriminator_raises(self) -> None:
+        """Gap AU: missing discriminator field must raise, not silently wrap."""
+        json_str = '{"weightKg":2.5}'
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, "PetFood")
+        assert "Missing discriminator" in str(exc_info.value)
+
+    def test_empty_discriminator_raises(self) -> None:
+        """Gap AU: empty discriminator value must raise."""
+        json_str = '{"foodType":"","weightKg":2.5}'
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, "PetFood")
+        assert "Empty discriminator" in str(
+            exc_info.value
+        ) or "Unknown discriminator" in str(exc_info.value)
+
+    def test_unknown_discriminator_raises(self) -> None:
+        """Gap AU: unknown discriminator value must raise."""
+        json_str = '{"foodType":"raw","calories":300}'
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, "PetFood")
+        assert "Unknown discriminator" in str(exc_info.value)
+
+    def test_serializes_dry_food(self) -> None:
+        json_str = '{"foodType":"dry","weightKg":2.5}'
+        result = ObjectSerializer().deserialize(json_str, "PetFood")
+        serialized = ObjectSerializer().serialize(result)
+        assert "dry" in serialized
+        assert "2.5" in serialized
+
+
+class TestAnyOfPetTreatment:
+    """anyOf without discriminator: PetTreatment"""
+
+    def test_deserializes_medication(self) -> None:
+        json_str = '{"drugName":"Amoxicillin","dosage":"500mg"}'
+        result = ObjectSerializer().deserialize(json_str, "PetTreatment")
+        assert result is not None
+        assert result.actual_instance is not None
+        assert isinstance(result.actual_instance, Medication)
+
+    def test_deserializes_surgery(self) -> None:
+        json_str = '{"procedureName":"Spay","durationMinutes":45}'
+        result = ObjectSerializer().deserialize(json_str, "PetTreatment")
+        assert result is not None
+        assert result.actual_instance is not None
+        assert isinstance(result.actual_instance, Surgery)
+
+    def test_serialize_round_trip(self) -> None:
+        json_str = '{"drugName":"Amoxicillin","dosage":"500mg"}'
+        result = ObjectSerializer().deserialize(json_str, "PetTreatment")
+        serialized = ObjectSerializer().serialize(result)
+        assert serialized is not None
+        assert len(serialized) > 0
+
+    def test_no_matching_variant_raises(self) -> None:
+        """oneof-nondiscriminator-no-match-silent: a payload matching neither
+        Medication nor Surgery must raise rather than yield a silently-empty
+        union.
+        """
+        json_str = '{"unrelatedKey":"value","anotherUnknown":123}'
+        with pytest.raises(Exception):
+            ObjectSerializer().deserialize(json_str, "PetTreatment")
+
+    def test_anyof_retains_all_matching_variants_losslessly(self) -> None:
+        """anyOf retains all matching variants (medication and surgery)
+        losslessly.
+
+        PetTreatment is a non-discriminated anyOf of Medication and Surgery,
+        documented as matching a medication, a surgery, OR BOTH. A payload that
+        satisfies BOTH variants at once must retain BOTH -- the Medication data
+        AND the Surgery data must all be accessible on the decoded value, not
+        just the first variant -- and must re-serialize to JSON containing ALL
+        FOUR fields so the co-satisfied data round-trips with no silent drop.
+        """
+        json_str = (
+            '{"drugName":"Amoxicillin","dosage":"250mg",'
+            '"procedureName":"Spay","durationMinutes":45}'
+        )
+        result = ObjectSerializer().deserialize(json_str, "PetTreatment")
+        assert result is not None
+
+        # BOTH variants are retained on the decoded value, not just the first.
+        medications = [m for m in result.matched_instances if isinstance(m, Medication)]
+        surgeries = [s for s in result.matched_instances if isinstance(s, Surgery)]
+        assert len(medications) == 1
+        assert len(surgeries) == 1
+        assert medications[0].drug_name == "Amoxicillin"
+        assert medications[0].dosage == "250mg"
+        assert surgeries[0].procedure_name == "Spay"
+        assert surgeries[0].duration_minutes == 45
+
+        # Re-serialize: all four fields survive the round-trip (lossless).
+        serialized = ObjectSerializer().serialize(result)
+        assert "Amoxicillin" in serialized
+        assert "250mg" in serialized
+        assert "Spay" in serialized
+        assert "45" in serialized
+        for field in ("drugName", "dosage", "procedureName", "durationMinutes"):
+            assert field in serialized
+
+    def test_anyof_single_variant_still_round_trips(self) -> None:
+        """Retain-all must not regress the single-variant case: a
+        medication-only and a surgery-only payload each still decode to exactly
+        one retained variant and serialize back without leaking the other
+        variant's fields.
+        """
+        med = ObjectSerializer().deserialize(
+            '{"drugName":"Amoxicillin","dosage":"500mg"}', "PetTreatment"
+        )
+        assert isinstance(med.actual_instance, Medication)
+        assert len(med.matched_instances) == 1
+        med_json = ObjectSerializer().serialize(med)
+        assert "drugName" in med_json
+        assert "procedureName" not in med_json
+
+        surg = ObjectSerializer().deserialize(
+            '{"procedureName":"Spay","durationMinutes":45}', "PetTreatment"
+        )
+        assert isinstance(surg.actual_instance, Surgery)
+        assert len(surg.matched_instances) == 1
+        surg_json = ObjectSerializer().serialize(surg)
+        assert "procedureName" in surg_json
+        assert "drugName" not in surg_json
+
+
+class TestOneOfNonDiscriminatorValidator:
+    """oneof-multiple-match: the non-discriminator oneOf validator now uses
+    FIRST-match semantics -- it returns the first variant the payload
+    validates against rather than counting matches and raising 'Multiple
+    matches found' on more than one. This aligns Python with the other 11
+    SDKs. SetPetAvatarThumbnailRequest is the spec's non-discriminator oneOf
+    (bytes | List[bytes]); these tests cover the first-match-returns and
+    no-match-still-raises branches of the rewritten validator.
+    """
+
+    def test_first_variant_match_returns_value(self) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=b"avatar-bytes")
+        assert req.actual_instance == b"avatar-bytes"
+
+    def test_second_variant_match_returns_value(self) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=[b"a", b"b"])
+        assert req.actual_instance == [b"a", b"b"]
+
+    def test_no_matching_variant_still_raises(self) -> None:
+        """The no-match error path is preserved by the first-match rewrite."""
+        with pytest.raises(Exception):
+            SetPetAvatarThumbnailRequest(actual_instance=object())
+
+
+class TestAllOfPetWithOwner:
+    """allOf: PetWithOwner"""
+
+    def test_deserializes_all_properties(self) -> None:
+        json_str = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'
+        result = ObjectSerializer().deserialize(json_str, "PetWithOwner")
+        assert result is not None
+        assert result.name == "doggie"
+        assert result.owner_name == "John"
+        assert result.owner_email == "john@example.com"
+
+    def test_serializes_to_json(self) -> None:
+        json_str = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}'
+        result = ObjectSerializer().deserialize(json_str, "PetWithOwner")
+        serialized = ObjectSerializer().serialize(result)
+        assert "Fido" in serialized
+        assert "John Doe" in serialized
+
+    def test_round_trip_preserves_fields(self) -> None:
+        json_str = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}'
+        original = ObjectSerializer().deserialize(json_str, "PetWithOwner")
+        serialized = ObjectSerializer().serialize(original)
+        restored = ObjectSerializer().deserialize(serialized, "PetWithOwner")
+        assert original is not None
+        assert restored is not None
+        assert restored.name == original.name
+        assert restored.owner_name == original.owner_name

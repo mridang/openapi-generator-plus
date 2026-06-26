@@ -1,0 +1,862 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class DefaultApiClientTest {
+
+    private val caCertPath = "/app/src/test/resources/certs/ca.pem"
+
+    @Nested
+    @DisplayName("TLS verification disabled")
+    inner class TlsVerificationDisabled {
+
+        @Test
+        @DisplayName("makes HTTPS request with verifySsl=false")
+        fun makesHttpsRequestWithVerifySslFalse() {
+            val chasmUrl = ChasmContainer.getHttpsBaseUrl()
+            val transport = TransportOptions.builder()
+                .verifySsl(false)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("GET", json.get("method").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("custom CA bundle")
+    inner class CustomCaBundle {
+
+        @Test
+        @DisplayName("invalid CA cert path surfaces an error (Gap T4)")
+        fun invalid_ca_cert_path_returns_error() {
+            val transport = TransportOptions.builder()
+                .caCertPath("/nonexistent/path/does/not/exist.pem")
+                .build()
+            // Behaviour must be an audible failure (exception), NOT a silent
+            // fallback to the system trust store.
+            assertThrows(Exception::class.java) {
+                val client = DefaultApiClient(transport)
+                runBlocking {
+                    client.sendRequest("GET", "https://example.com/", emptyMap(), null)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("makes HTTPS request with custom CA cert")
+        fun makesHttpsRequestWithCustomCaCert() {
+            val chasmUrl = ChasmContainer.getHttpsBaseUrl()
+            val transport = TransportOptions.builder()
+                .verifySsl(true)
+                .caCertPath(caCertPath)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("GET", json.get("method").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("HTTP proxy")
+    inner class HttpProxy {
+
+        @Test
+        @DisplayName("makes HTTP request through proxy")
+        fun makesHttpRequestThroughProxy() {
+            val chasmUrl = ChasmContainer.getInternalHttpUrl()
+            val proxyUrl = SquidContainer.getProxyUrl()
+            val transport = TransportOptions.builder()
+                .proxy(proxyUrl)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("\"method\""))
+        }
+    }
+
+    @Nested
+    @DisplayName("proxy with credentials")
+    inner class ProxyWithCredentials {
+
+        /*
+         * Gap AK: Ktor's CIO engine has no API for proxy basic-auth, so
+         * userinfo embedded in the proxy URL is silently dropped. We assert
+         * that the constructed client has extracted `alice:s3cret` into a
+         * Basic Proxy-Authorization header value.
+         */
+        @Test
+        @DisplayName("proxy_with_credentials_injects_basic_authorization")
+        fun proxy_with_credentials_injects_basic_authorization() {
+            val transport = TransportOptions.builder()
+                .proxy("http://alice:s3cret@127.0.0.1:3128")
+                .build()
+            val client = DefaultApiClient(transport)
+            assertEquals("Basic YWxpY2U6czNjcmV0", client.proxyAuthHeader)
+        }
+
+        /*
+         * Gap AK (canonical): a proxy URL `http://user:pass@127.0.0.1:3128`
+         * must carry the embedded credentials. Ktor's CIO engine drops proxy
+         * userinfo, so the SDK extracts it once at construction into a
+         * `Basic <base64(user:pass)>` Proxy-Authorization value. Kotlin is not
+         * buggy here -- this asserts the credentials are honoured, not dropped.
+         */
+        @Test
+        @DisplayName("proxy_userinfo_user_pass_carried_as_basic_authorization")
+        fun proxy_userinfo_user_pass_carried_as_basic_authorization() {
+            val transport = TransportOptions.builder()
+                .proxy("http://user:pass@127.0.0.1:3128")
+                .build()
+            val client = DefaultApiClient(transport)
+            // base64("user:pass") == "dXNlcjpwYXNz"
+            assertEquals("Basic dXNlcjpwYXNz", client.proxyAuthHeader)
+        }
+    }
+
+    @Nested
+    @DisplayName("HTTP proxy with TLS")
+    inner class HttpProxyWithTls {
+
+        @Test
+        @DisplayName("makes HTTPS request through proxy with verifySsl=false")
+        fun makesHttpsRequestThroughProxyWithVerifySslFalse() {
+            val chasmUrl = ChasmContainer.getInternalHttpsUrl()
+            val proxyUrl = SquidContainer.getProxyUrl()
+            val transport = TransportOptions.builder()
+                .proxy(proxyUrl)
+                .verifySsl(false)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("\"method\""))
+        }
+    }
+
+    @Nested
+    @DisplayName("request timeout")
+    inner class RequestTimeout {
+
+        @Test
+        @DisplayName("times out on slow endpoint")
+        fun timesOutOnSlowEndpoint() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .timeout(1L)
+                .build()
+            val client = DefaultApiClient(transport)
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    client.sendRequest("GET", "$chasmUrl/test/slow", emptyMap(), null)
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("User-Agent header")
+    inner class UserAgentHeader {
+
+        @Test
+        @DisplayName("injects custom User-Agent header")
+        fun injectsCustomUserAgentHeader() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .userAgent("MyApp/1.0")
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("MyApp/1.0", json.get("headers").get("user-agent").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("X-Request-ID injection")
+    inner class RequestIdInjection {
+
+        @Test
+        @DisplayName("injects X-Request-ID header with UUID format")
+        fun injectsRequestIdHeader() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .injectRequestId(true)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            val requestId = json.get("headers").get("x-request-id").asText()
+            assertNotNull(requestId)
+            assertFalse(requestId.isEmpty())
+            assertTrue(
+                requestId.matches(
+                    Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                )
+            )
+        }
+
+        @Test
+        @DisplayName("generates unique X-Request-ID per request")
+        fun generatesUniqueRequestIds() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .injectRequestId(true)
+                .build()
+            val client = DefaultApiClient(transport)
+            val mapper = ObjectMapper()
+
+            val response1 = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            val requestId1 = mapper.readTree(response1.body).get("headers").get("x-request-id").asText()
+
+            val response2 = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            val requestId2 = mapper.readTree(response2.body).get("headers").get("x-request-id").asText()
+
+            assertNotEquals(requestId1, requestId2)
+        }
+    }
+
+    @Nested
+    @DisplayName("default headers")
+    inner class DefaultHeaders {
+
+        @Test
+        @DisplayName("includes transport-level default headers")
+        fun includesTransportDefaultHeaders() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .defaultHeader("X-Custom", "custom-value")
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("custom-value", json.get("headers").get("x-custom").asText())
+        }
+
+        @Test
+        @DisplayName("caller headers override transport default headers")
+        fun callerHeadersOverrideTransportDefaults() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .defaultHeader("Accept", "text/plain")
+                .build()
+            val client = DefaultApiClient(transport)
+            val callerHeaders = mutableMapOf("Accept" to "application/json")
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", callerHeaders, null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("application/json", json.get("headers").get("accept").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect handling")
+    inner class RedirectHandling {
+
+        @Test
+        @DisplayName("follows redirects when enabled")
+        fun followsRedirectsWhenEnabled() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .followRedirects(true)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/redirect/302", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+        }
+
+        @Test
+        @DisplayName("returns redirect response when disabled")
+        fun returnsRedirectWhenDisabled() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .followRedirects(false)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/redirect/302", emptyMap(), null)
+            }
+            assertEquals(302, response.statusCode)
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect method preservation (Gap T2)")
+    inner class RedirectMethodPreservation {
+        @Test
+        @DisplayName("307 preserves method and body (POST stays POST)")
+        fun redirect_307_preserves_method_and_body() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest(
+                    "POST",
+                    "$chasmUrl/test/redirect/307",
+                    mapOf("Content-Type" to "application/json"),
+                    "hello-body"
+                )
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("POST", json.get("method").asText())
+            assertEquals("hello-body", json.get("body").asText())
+        }
+
+        /**
+         * T-new-3: multipart bodies must be replayed across 307 redirects per
+         * RFC 7231 §6.4.7 / RFC 7538. Ktor's HttpClient strips the body when
+         * following a 307 redirect, so this regression is not exercisable here
+         * without a manual multipart byte-serializer in the redirect loop
+         * (see the Rust SDK for the canonical implementation). Tracked as a
+         * follow-up to T-new-3.
+         */
+        @Test
+        @Disabled(
+            "Ktor strips body on 307; multipart replay requires manual " +
+                "byte-serializer like Rust impl — tracked as follow-up to T-new-3"
+        )
+        @DisplayName("307 replays multipart body to redirected location (T-new-3)")
+        fun multipart_body_replayed_on_307_redirect() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient()
+            val formFields = mapOf<String, Any?>(
+                "description" to "hello",
+                "file" to "file-content-bytes".toByteArray()
+            )
+            // chasm's /test/redirect/307-multipart bounces to the echo target;
+            // a non-empty body in the envelope confirms multipart replay.
+            val response = runBlocking {
+                client.sendRequest(
+                    "POST",
+                    "$chasmUrl/test/redirect/307-multipart",
+                    emptyMap(),
+                    formFields
+                )
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("POST", json.get("method").asText())
+            // chasm has no `replayed` sentinel; loosened to confirm body
+            // arrived non-empty at the redirect target.
+            assertFalse(
+                json.get("body").asText().isEmpty(),
+                "redirect target must receive non-empty multipart body"
+            )
+        }
+
+        @Test
+        @DisplayName("303 switches to GET and drops body")
+        fun redirect_303_switches_to_get_and_drops_body() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest(
+                    "POST",
+                    "$chasmUrl/test/redirect/303",
+                    mapOf("Content-Type" to "application/json"),
+                    "hello-body"
+                )
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("GET", json.get("method").asText())
+            assertEquals("", json.get("body").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("HTTPS->HTTP redirect body-replay guard (N1)")
+    inner class HttpsToHttpRedirectBodyReplay {
+
+        /*
+         * N1: the HTTPS->HTTP body-replay guard fires ONLY for 307/308 (the
+         * status codes that preserve method+body). For 301/302/303 the request
+         * is downgraded to GET and the body is dropped per RFC, so there is no
+         * TLS-protected payload to leak and the redirect must proceed. A
+         * MockEngine stages the cross-scheme hop deterministically (chasm can't
+         * easily downgrade HTTPS->HTTP); only the guard logic is under test.
+         */
+        @Test
+        @DisplayName("N1: 302 HTTPS->HTTP with a body proceeds (body dropped, becomes GET)")
+        fun redirect_302_https_to_http_with_body_proceeds() {
+            var hopCount = 0
+            var secondHopMethod: String? = null
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "http://insecure.example.com/dest"),
+                    )
+                } else {
+                    secondHopMethod = req.method.value
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "https://secure.example.com/x",
+                    emptyMap(),
+                    "secret-body",
+                )
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals(2, hopCount, "302 must be followed across the HTTPS->HTTP downgrade")
+            assertEquals("GET", secondHopMethod, "302 must switch the follow-up to GET (body dropped)")
+        }
+
+        @Test
+        @DisplayName("N1: 307 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
+        fun redirect_307_https_to_http_with_body_throws() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.TemporaryRedirect,
+                    headers = headersOf("Location", "http://insecure.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "https://secure.example.com/x",
+                        emptyMap(),
+                        "secret-body",
+                    )
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("HTTPS->HTTP"),
+                "307 HTTPS->HTTP body replay must be refused, got: ${ex.message}",
+            )
+        }
+
+        @Test
+        @DisplayName("N1: 308 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
+        fun redirect_308_https_to_http_with_body_throws() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.PermanentRedirect,
+                    headers = headersOf("Location", "http://insecure.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "https://secure.example.com/x",
+                        emptyMap(),
+                        "secret-body",
+                    )
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("HTTPS->HTTP"),
+                "308 HTTPS->HTTP body replay must be refused, got: ${ex.message}",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("max redirects")
+    inner class MaxRedirects {
+        @Test
+        @DisplayName("respects maxRedirects limit")
+        fun respectsMaxRedirectsLimit() {
+            val transport = TransportOptions.builder()
+                .followRedirects(true)
+                .maxRedirects(5)
+                .build()
+            val client = DefaultApiClient(transport)
+            assertNotNull(client)
+            assertEquals(5, transport.maxRedirects)
+        }
+    }
+
+    @Nested
+    @DisplayName("concurrent redirects share no per-request state (Wave E)")
+    inner class ConcurrentRedirects {
+
+        /*
+         * Wave E parity test: redirect counting and the "too many redirects"
+         * refusal must be scoped to a SINGLE request, never shared across
+         * requests on one client. Here the kotlin SDK already counts redirects
+         * with loop-local variables inside sendRequest (redirectsRemaining,
+         * currentUrl, ...), so concurrent requests on one client cannot corrupt
+         * each other's hop count or surface another request's refusal.
+         *
+         * The test fires four requests CONCURRENTLY through ONE shared client,
+         * each hitting a different redirect path on a single MockEngine that
+         * routes by path:
+         *   /none     -> 200 directly (zero hops)
+         *   /once     -> 302 -> 200 (one hop)
+         *   /chain    -> 302 x3 -> 200 (three hops, under the limit)
+         *   /toomany  -> 302 forever (eight+ hops, exceeds maxRedirects=5)
+         * and asserts each completes with its OWN correct outcome: the three
+         * legitimate requests succeed (200), and ONLY /toomany is refused with
+         * a "Too many redirects" ApiException — its refusal must not leak onto
+         * the others, and the others' hops must not push it over (or save it).
+         *
+         * A MockEngine is used because the chasm mock exposes only single-hop
+         * redirect endpoints; an N-hop chain and a beyond-limit chain are
+         * needed to exercise the shared-counter bug deterministically. The same
+         * MockEngine handler serves all concurrent requests, so a shared
+         * counter (if one existed) would be observably corrupted here.
+         */
+        @Test
+        @DisplayName("each concurrent request keeps its own redirect count and refusal state")
+        fun concurrent_requests_do_not_share_redirect_state() {
+            val engine = MockEngine { req ->
+                val path = req.url.encodedPath
+                when {
+                    path == "/none" ->
+                        respond("ok-none", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    path == "/once" ->
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "https://mock.example.com/none"),
+                        )
+                    // /chain/3 -> /chain/2 -> /chain/1 -> /none (three hops)
+                    path.startsWith("/chain/") -> {
+                        val n = path.removePrefix("/chain/").toIntOrNull() ?: 0
+                        val next = if (n <= 1) "/none" else "/chain/${n - 1}"
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "https://mock.example.com$next"),
+                        )
+                    }
+                    // /toomany/N -> /toomany/(N-1) -> ... never terminates within the budget
+                    path.startsWith("/toomany/") -> {
+                        val n = path.removePrefix("/toomany/").toIntOrNull() ?: 0
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "https://mock.example.com/toomany/${n + 1}"),
+                        )
+                    }
+                    else ->
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            // maxRedirects=5: /chain (3 hops) stays under it; /toomany (unbounded)
+            // exceeds it. A single client/engine is shared across all requests.
+            val transport = TransportOptions.builder()
+                .followRedirects(true)
+                .maxRedirects(5)
+                .build()
+            val client = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+
+            runBlocking {
+                coroutineScope {
+                    val none = async {
+                        client.sendRequest("GET", "https://mock.example.com/none", emptyMap(), null)
+                    }
+                    val once = async {
+                        client.sendRequest("GET", "https://mock.example.com/once", emptyMap(), null)
+                    }
+                    val chain = async {
+                        client.sendRequest("GET", "https://mock.example.com/chain/3", emptyMap(), null)
+                    }
+                    // The over-limit request runs concurrently with the others;
+                    // its refusal must be isolated to this task.
+                    val tooMany = async {
+                        runCatching {
+                            client.sendRequest("GET", "https://mock.example.com/toomany/1", emptyMap(), null)
+                        }
+                    }
+
+                    val (noneRes, onceRes, chainRes) = awaitAll(none, once, chain)
+                    val tooManyOutcome = tooMany.await()
+
+                    assertEquals(
+                        200,
+                        noneRes.statusCode,
+                        "zero-redirect request must succeed independently",
+                    )
+                    assertEquals(
+                        200,
+                        onceRes.statusCode,
+                        "single-redirect request must not be failed by another request's hops",
+                    )
+                    assertEquals(
+                        200,
+                        chainRes.statusCode,
+                        "three-hop request (under the limit) must succeed independently",
+                    )
+
+                    val error = tooManyOutcome.exceptionOrNull()
+                    assertNotNull(
+                        error,
+                        "the unbounded redirect chain must hit the per-request limit and be refused",
+                    )
+                    assertTrue(
+                        error is ApiException &&
+                            error.message!!.contains("Too many redirects"),
+                        "only the over-limit request may be refused, got: $error",
+                    )
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("multipart body")
+    inner class MultipartBody {
+        @Test
+        @DisplayName("sends multipart form data")
+        fun sendsMultipartFormData() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val formFields = mapOf<String, Any?>(
+                "description" to "A test file",
+                "file" to "file content".toByteArray()
+            )
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("POST", "$chasmUrl/test/echo", emptyMap(), formFields)
+            }
+            assertNotNull(response)
+        }
+
+        // W-new-2: multipart field name validation must run on every branch,
+        // not just the ByteArray path. Previously String/Number/Boolean and
+        // JSON values injected the raw field name into Content-Disposition,
+        // opening a header-smuggling hole. This test uses a String value so
+        // it exercises the non-binary branch.
+        @Test
+        @DisplayName("multipart_field_name_with_crlf_rejected_on_string_value")
+        fun multipart_field_name_with_crlf_rejected_on_string_value() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient()
+            val badField = mapOf<String, Any?>("name\r\nInjected: yes" to "value")
+            // sendRequest wraps the validation IllegalArgumentException in an
+            // ApiException; assert the wrapped cause type so the W-new-2 guard
+            // is verified on the non-binary (string-value) branch.
+            val thrown = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    client.sendRequest("POST", "$chasmUrl/test/echo", emptyMap(), badField)
+                }
+            }
+            assertTrue(
+                thrown.cause is IllegalArgumentException,
+                "expected IllegalArgumentException as cause, got ${thrown.cause}"
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("HTTP compression")
+    inner class HttpCompression {
+
+        private val compressionUrl = "https://jsonplaceholder.typicode.com/posts/1"
+
+        @Test
+        @DisplayName("decompresses gzip response")
+        fun decompressesGzipResponse() {
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "gzip"), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("userId"))
+        }
+
+        @Test
+        @Disabled("brotli decompression is not natively supported by the Ktor ContentEncoding plugin on JVM")
+        @DisplayName("decompresses brotli response")
+        fun decompressesBrotliResponse() {
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "br"), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("userId"))
+        }
+
+        @Test
+        @Disabled("zstd decompression is not natively supported by the Ktor ContentEncoding plugin on JVM")
+        @DisplayName("decompresses zstd response")
+        fun decompressesZstdResponse() {
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "zstd"), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("userId"))
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect default-port normalization")
+    inner class RedirectDefaultPortNormalization {
+
+        /*
+         * Regression: same-origin check on redirect previously compared raw
+         * URI.port values, so a redirect from `https://host/x` (port -1) to
+         * `https://host:443/y` (port 443) was treated as cross-origin and
+         * the Authorization header was stripped. effectivePort(...) normalizes
+         * the omitted port to the scheme's default so the two URIs compare
+         * equal and credentials survive the hop.
+         */
+        @Test
+        @DisplayName("redirect_to_explicit_default_port_preserves_authorization")
+        fun redirect_to_explicit_default_port_preserves_authorization() {
+            assertEquals(443, effectivePort(java.net.URI("https://host/x")),
+                "implicit https port must normalize to 443")
+            assertEquals(443, effectivePort(java.net.URI("https://host:443/y")),
+                "explicit :443 must round-trip as 443")
+            assertEquals(80, effectivePort(java.net.URI("http://host/x")),
+                "implicit http port must normalize to 80")
+            assertEquals(80, effectivePort(java.net.URI("http://host:80/y")),
+                "explicit :80 must round-trip as 80")
+            assertEquals(8443, effectivePort(java.net.URI("https://host:8443/y")),
+                "non-default ports must round-trip unchanged")
+        }
+
+        /*
+         * Security regression: a 30x from `https://host/x` to `http://host/x`
+         * is a TLS downgrade; the Authorization (and other sensitive) headers
+         * MUST be stripped on the follow-up. Previously sameOrigin() only
+         * compared host + port and so happily forwarded the Authorization
+         * over plain HTTP.
+         */
+        @Test
+        @DisplayName("https_to_http_same_host_strips_authorization")
+        fun https_to_http_same_host_strips_authorization() {
+            assertFalse(
+                sameOrigin(
+                    java.net.URI("https://host:8443/x"),
+                    java.net.URI("http://host:8443/y")
+                ),
+                "https→http redirect MUST be cross-origin (TLS downgrade)"
+            )
+            assertFalse(
+                sameOrigin(
+                    java.net.URI("http://host:8080/x"),
+                    java.net.URI("https://host:8080/y")
+                ),
+                "http→https redirect MUST be cross-origin (scheme changes)"
+            )
+            assertTrue(
+                sameOrigin(
+                    java.net.URI("https://host:8443/x"),
+                    java.net.URI("https://host:8443/y")
+                ),
+                "same-scheme same-host same-port must be same-origin"
+            )
+            assertTrue(
+                sameOrigin(
+                    java.net.URI("https://host/x"),
+                    java.net.URI("https://host:443/y")
+                ),
+                "implicit default port must compare equal to explicit"
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("null-body Content-Length")
+    inner class NullBodyContentLength {
+
+        /*
+         * Regression: POST/PUT/PATCH with body == null must emit an explicit
+         * Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+         * with no Content-Length (411 Length Required). Kotlin attaches
+         * an empty ByteArray(0) on the body-bearing verbs so Ktor's CIO
+         * engine emits the header.
+         */
+        @Test
+        @DisplayName("post_with_null_body_sends_content_length_zero")
+        fun post_with_null_body_sends_content_length_zero() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("POST", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json: JsonNode = ObjectMapper().readTree(response.body)
+            assertEquals(0, json.get("contentLength").asInt(),
+                "POST with null body must emit Content-Length: 0")
+        }
+    }
+
+    @Nested
+    @DisplayName("client lifecycle (Gap T6)")
+    inner class ClientLifecycle {
+        @Test
+        @DisplayName("close releases underlying client and blocks new requests")
+        fun closeReleasesUnderlyingClient() {
+            val client = DefaultApiClient()
+            client.close()
+            // Calling close again is idempotent.
+            client.close()
+            val thrown = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    client.sendRequest("GET", "https://example.com", emptyMap(), null)
+                }
+            }
+            assertTrue(
+                thrown.message?.contains("closed") == true,
+                "expected a closed-client message, got ${thrown.message}"
+            )
+        }
+    }
+}

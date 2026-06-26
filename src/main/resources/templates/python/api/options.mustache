@@ -1,0 +1,31 @@
+{{>api_info}}
+
+from __future__ import annotations
+
+{{#imports}}
+{{{.}}}
+{{/imports}}
+{{#hasAuthField}}
+{{authImport}}
+{{/hasAuthField}}
+
+
+@dataclass(frozen=True)
+class {{className}}:
+    """Options for the {{operationId}} operation."""
+
+{{#requiredParams}}
+{{#deprecated}}
+    # .. deprecated:: This parameter is deprecated.
+{{/deprecated}}
+    {{paramName}}: {{dataType}}
+{{/requiredParams}}
+{{#optionalParams}}
+{{#deprecated}}
+    # .. deprecated:: This parameter is deprecated.
+{{/deprecated}}
+    {{paramName}}: Optional[{{dataType}}] = None
+{{/optionalParams}}
+{{#hasAuthField}}
+    auth: Optional[{{authFieldType}}] = None
+{{/hasAuthField}}

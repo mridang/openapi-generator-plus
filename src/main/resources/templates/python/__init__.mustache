@@ -1,0 +1,51 @@
+{{>api_info}}
+__version__ = '{{packageVersion}}'
+
+# Define package exports
+__all__ = [
+    {{#apiInfo}}{{#apis}}'{{classname}}',
+    {{/apis}}{{/apiInfo}}'Authenticator',
+    '{{clientClassName}}',
+    'ApiClient',
+    'Configuration',
+    'TransportOptions',
+    'ServerConfiguration',
+    'ServerVariable',
+    'ZitadelException',
+    'OpenApiException',
+    'ApiException',
+    {{#hasHttpSignatureMethods}}'HttpSigningConfiguration',
+    {{/hasHttpSignatureMethods}}{{#models}}{{#model}}'{{classname}}'{{^-last}},
+    {{/-last}}{{#-last}},{{/-last}}{{/model}}{{/models}}
+]
+
+# import apis into sdk package
+{{#apiInfo}}{{#apis}}from {{apiPackage}}.{{classFilename}} import {{classname}} as {{classname}}
+{{/apis}}{{/apiInfo}}
+# import ApiClient
+from {{packageName}}.api_client import ApiClient as ApiClient
+from {{packageName}}.auth.authenticator import Authenticator as Authenticator
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}} as {{clientClassName}}
+from {{packageName}}.configuration import Configuration as Configuration
+from {{packageName}}.transport_options import TransportOptions as TransportOptions
+from {{packageName}}.server_configuration import ServerConfiguration as ServerConfiguration
+from {{packageName}}.server_configuration import ServerVariable as ServerVariable
+from {{packageName}}.errors import ZitadelException as ZitadelException
+from {{packageName}}.errors import OpenApiException as OpenApiException
+from {{packageName}}.errors import ApiException as ApiException
+{{#hasHttpSignatureMethods}}
+from {{packageName}}.signing import HttpSigningConfiguration as HttpSigningConfiguration
+{{/hasHttpSignatureMethods}}
+
+# import models into sdk package
+{{#models}}
+{{#model}}
+from {{modelPackage}}.{{classFilename}} import (
+    {{classname}} as {{classname}},
+)
+{{/model}}
+{{/models}}
+{{#recursionLimit}}
+
+__import__('sys').setrecursionlimit({{{.}}})
+{{/recursionLimit}}

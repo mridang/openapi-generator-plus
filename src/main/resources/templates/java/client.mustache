@@ -1,0 +1,151 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import {{apiPackage}}.{{classname}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import {{invokerPackage}}.auth.Authenticator;
+import {{invokerPackage}}.auth.BearerAuthenticator;
+import {{invokerPackage}}.auth.HttpAwareAuthenticator;
+
+/**
+ * Unified entry point for all API services.
+ *
+ * <p>Takes an {@link Authenticator} and optionally {@link TransportOptions},
+ * then exposes each API group as a typed property. If the authenticator
+ * implements {@link HttpAwareAuthenticator}, the shared {@link ApiClient}
+ * is injected so that authentication HTTP calls (token exchange, discovery)
+ * use the same transport configuration as regular API calls.
+ *
+ * <p>Usage:
+ * <pre>{@code
+ * // Default transport
+ * {{clientClassName}} client = new {{clientClassName}}(authenticator);
+ *
+ * // Custom transport (proxy, timeouts, etc.)
+ * TransportOptions transport = TransportOptions.builder()
+ *     .proxy("http://proxy:3128")
+ *     .timeout(5000)
+ *     .build();
+ * {{clientClassName}} client = new {{clientClassName}}(authenticator, transport);
+ * }</pre>
+ */
+@SuppressFBWarnings(
+    value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
+    justification = "generated code")
+public final class {{clientClassName}} {
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /** API operations for the {{classname}} group. */
+    public final {{classname}} {{clientPropertyName}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /**
+     * Creates a new client with the given authenticator and default transport settings.
+     *
+     * @param authenticator provides host URL and auth credentials
+     * @throws ApiException if the transport cannot be configured (never thrown for
+     *     default transport, which configures no custom CA certificate)
+     */
+    public {{clientClassName}}(Authenticator authenticator) {
+        this(authenticator, TransportOptions.builder().build());
+    }
+
+    /**
+     * Creates a new client with the given authenticator and transport options.
+     *
+     * <p>If the authenticator implements {@link HttpAwareAuthenticator}, the
+     * shared {@link ApiClient} is injected so that token exchange and
+     * discovery requests use the same proxy, TLS, and timeout settings.
+     *
+     * @param authenticator  provides host URL and auth credentials
+     * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+     */
+    public {{clientClassName}}(Authenticator authenticator, TransportOptions transportOptions) {
+        ApiClient apiClient = new DefaultApiClient(transportOptions);
+
+        if (authenticator instanceof HttpAwareAuthenticator httpAware) {
+            httpAware.setApiClient(apiClient);
+        }
+
+        Configuration config = Configuration.builder()
+                .baseUrl(authenticator.getHost())
+                .build();
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        this.{{clientPropertyName}} = new {{classname}}(apiClient, config, authenticator);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token and default transport.
+     *
+     * @param host             API base URL
+     * @param accessToken      Bearer token
+     * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @return configured client instance
+     * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withToken(
+            String host,
+            String accessToken,
+            @javax.annotation.Nullable TransportOptions transportOptions) {
+        return (transportOptions != null)
+                ? new {{clientClassName}}(new BearerAuthenticator(host, accessToken), transportOptions)
+                : new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token and default transport.
+     *
+     * @param host        API base URL
+     * @param accessToken Bearer token
+     * @return configured client instance
+     * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withToken(String host, String accessToken) {
+        return withToken(host, accessToken, null);
+    }
+
+    /**
+     * Creates a client from any {@link Authenticator} implementation with default transport.
+     *
+     * <p>This is the generic entry point for bespoke authenticators (client credentials, JWT
+     * private key, personal access token, etc.): construct the authenticator and pass it here,
+     * e.g. {@code {{clientClassName}}.withAuthenticator(new ClientCredentialsAuthenticator(host, id, secret))}.
+     *
+     * @param authenticator provides host URL and auth credentials
+     * @return configured client instance
+     * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withAuthenticator(Authenticator authenticator) {
+        return new {{clientClassName}}(authenticator);
+    }
+
+    /**
+     * Creates a client from any {@link Authenticator} implementation with the given transport.
+     *
+     * @param authenticator    provides host URL and auth credentials
+     * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @return configured client instance
+     * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withAuthenticator(
+            Authenticator authenticator, TransportOptions transportOptions) {
+        return new {{clientClassName}}(authenticator, transportOptions);
+    }
+}

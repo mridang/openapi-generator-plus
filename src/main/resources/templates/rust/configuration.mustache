@@ -1,0 +1,108 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+
+use crate::server_configuration::ServerConfiguration;
+
+/// Configuration holds API-level configuration for generated client classes.
+///
+/// It stores the base URL and default headers that are applied to every API
+/// request. Transport-level settings (TLS, proxy, timeouts) belong in
+/// `TransportOptions` and are configured on the `DefaultApiClient`.
+///
+/// Configuration is immutable once built. Use `ConfigurationBuilder` to create instances:
+///
+/// ```rust,no_run
+/// # use {{packageName}}::ConfigurationBuilder;
+/// let config = ConfigurationBuilder::new()
+///     .base_url("https://api.example.com")
+///     .default_header("Authorization", "Bearer token")
+///     .build();
+/// ```
+#[derive(Debug, Clone)]
+pub struct Configuration {
+    /// The base URL for all API requests. Defaults to the first server URL
+    /// from the OpenAPI specification.
+    base_url: String,
+
+    /// Default headers included in every API request. These headers are
+    /// merged after transport-level headers from TransportOptions but before
+    /// operation-specific headers and authentication headers.
+    default_headers: HashMap<String, String>,
+}
+
+impl Configuration {
+    /// Returns the base URL for all API requests.
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
+    /// Returns a copy of the default headers included in every API request.
+    pub fn default_headers(&self) -> HashMap<String, String> {
+        self.default_headers.clone()
+    }
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        ConfigurationBuilder::new().build()
+    }
+}
+
+/// ConfigurationBuilder builds immutable Configuration instances.
+pub struct ConfigurationBuilder {
+    base_url: String,
+    default_headers: HashMap<String, String>,
+}
+
+impl ConfigurationBuilder {
+    /// Creates a new builder for constructing Configuration instances.
+    pub fn new() -> Self {
+        Self {
+            base_url: "{{{basePath}}}".to_string(),
+            default_headers: HashMap::new(),
+        }
+    }
+
+    /// Sets the base URL for all API requests.
+    pub fn base_url(mut self, val: &str) -> Self {
+        self.base_url = val.to_string();
+        self
+    }
+
+    /// Adds a single default header to include in every API request.
+    pub fn default_header(mut self, name: &str, value: &str) -> Self {
+        self.default_headers.insert(name.to_string(), value.to_string());
+        self
+    }
+
+    /// Adds multiple default headers to include in every API request.
+    pub fn default_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.default_headers.extend(headers);
+        self
+    }
+
+    /// Sets the base URL from a server configuration with optional variable overrides.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a variable override is not in the variable's enum constraint.
+    pub fn server(mut self, server: &ServerConfiguration, variables: &HashMap<String, String>) -> Result<Self, Box<dyn std::error::Error>> {
+        self.base_url = server.url(variables)?;
+        Ok(self)
+    }
+
+    /// Creates and returns an immutable Configuration instance.
+    pub fn build(self) -> Configuration {
+        Configuration {
+            base_url: self.base_url,
+            default_headers: self.default_headers,
+        }
+    }
+}
+
+impl Default for ConfigurationBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

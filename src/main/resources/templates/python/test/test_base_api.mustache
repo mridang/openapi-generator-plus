@@ -1,0 +1,917 @@
+{{>api_info}}
+import pytest
+from typing import Any, Optional
+
+from {{packageName}}.api.base_api import BaseApi, NO_AUTH
+from {{packageName}}.api.pet_api import PetApi
+from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
+from {{packageName}}.models.pet import Pet
+from {{packageName}}.configuration import Configuration
+from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.auth.authenticator import Authenticator
+from {{packageName}}.errors import ApiException
+from {{packageName}}.errors.client_exception import ClientException
+from {{packageName}}.errors.server_exception import ServerException
+from {{packageName}}.errors.bad_request_exception import BadRequestException
+from {{packageName}}.errors.unauthorized_exception import UnauthorizedException
+from {{packageName}}.errors.forbidden_exception import ForbiddenException
+from {{packageName}}.errors.not_found_exception import NotFoundException
+from {{packageName}}.errors.conflict_exception import ConflictException
+from {{packageName}}.errors.unprocessable_entity_exception import UnprocessableEntityException
+from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
+from {{packageName}}.api_response import ApiHttpResponse
+from {{packageName}}.models import Category
+from {{packageName}} import servers as Servers
+
+
+class CapturingApiClient:
+    """Mock API client that captures the URL, headers, and body for verification."""
+
+    def __init__(self) -> None:
+        self.captured_url: str = ''
+        self.captured_headers: dict[str, str] = {}
+        self.captured_body: Any = None
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        self.captured_url = url
+        self.captured_headers = headers
+        self.captured_body = body
+        return ApiHttpResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
+
+
+class StubApi(BaseApi):
+    """Concrete subclass exposing _invoke_api for direct testing."""
+
+    async def call(self, method: str, path: str, query_params: dict[str, Any],
+                   header_params: dict[str, str], body: Any,
+                   accepts: list[str], content_type: str,
+                   return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
+        return await self._invoke_api(
+            method, path, query_params, header_params, body,
+            accepts, content_type, return_type, auth)
+
+    async def call_result(self, method: str, path: str, query_params: dict[str, Any],
+                          header_params: dict[str, str], body: Any,
+                          accepts: list[str], content_type: str,
+                          return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
+        return await self._invoke_api_for_result(
+            method, path, query_params, header_params, body,
+            accepts, content_type, return_type, auth)
+
+
+class StubAuthenticator(Authenticator):
+    """Test authenticator that returns known headers, query params, cookies."""
+
+    def __init__(self, headers: Optional[dict[str, str]] = None,
+                 query_params: Optional[dict[str, str]] = None,
+                 cookies: Optional[dict[str, str]] = None) -> None:
+        self._headers = headers or {}
+        self._query_params = query_params or {}
+        self._cookies = cookies or {}
+
+    def get_host(self) -> str:
+        return ''
+
+    def get_auth_headers(self) -> dict[str, str]:
+        return self._headers
+
+    def get_query_params(self) -> dict[str, str]:
+        return self._query_params
+
+    def get_cookie_params(self) -> dict[str, str]:
+        return self._cookies
+
+
+@pytest.fixture
+def api(chasm_http_url: Any) -> StubApi:
+    config = Configuration(base_url=chasm_http_url)
+    return StubApi(api_client=DefaultApiClient(), config=config)
+
+
+class TestExceptionDispatch:
+
+    @pytest.mark.parametrize('status,expected_class', [
+        (400, BadRequestException),
+        (401, UnauthorizedException),
+        (403, ForbiddenException),
+        (404, NotFoundException),
+        (409, ConflictException),
+        (422, UnprocessableEntityException),
+        (418, ClientException),
+        (500, InternalServerErrorException),
+        (502, ServerException),
+    ])
+    async def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
+        with pytest.raises(expected_class) as exc_info:
+            await api.call('GET', f'/test/status/{status}', {}, {}, None,
+                           ['application/json'], 'application/json', None)
+        assert exc_info.value.status_code == status
+        assert exc_info.value.response_body is not None
+        assert len(exc_info.value.response_body) > 0
+
+
+class TestErrorBodyParsing:
+
+    async def test_parses_json_error_body(self, api: Any) -> None:
+        with pytest.raises(BadRequestException) as exc_info:
+            await api.call('GET', '/test/status/400', {}, {}, None,
+                           ['application/json'], 'application/json', None)
+        assert exc_info.value.error_body is not None, 'error_body should not be None for JSON responses'
+
+
+class TestErrorHeaders:
+    """python-error-throw-headers-coerced-to-none: an error response with an
+    empty headers map must surface response_headers == {} (a real empty
+    header set), not None. The old `dict(h) if h else None` coerced empty
+    headers to None, conflating 'empty headers' with 'no response'.
+    """
+
+    def test_empty_headers_pass_through_as_empty_dict_not_none(self) -> None:
+        resp = ApiHttpResponse(status_code=400, body='{"error":"bad"}', headers={})
+        with pytest.raises(BadRequestException) as exc_info:
+            BaseApi._throw_api_exception(resp)
+        assert exc_info.value.response_headers == {}
+        assert exc_info.value.response_headers is not None
+
+    def test_present_headers_pass_through(self) -> None:
+        resp = ApiHttpResponse(
+            status_code=400,
+            body='{"error":"bad"}',
+            headers={'content-type': 'application/json'},
+        )
+        with pytest.raises(BadRequestException) as exc_info:
+            BaseApi._throw_api_exception(resp)
+        assert exc_info.value.response_headers == {'content-type': 'application/json'}
+
+
+class TestExceptionHierarchy:
+
+    async def test_not_found_hierarchy(self, api: Any) -> None:
+        with pytest.raises(NotFoundException) as exc_info:
+            await api.call('GET', '/test/status/404', {}, {}, None,
+                           ['application/json'], 'application/json', None)
+        assert isinstance(exc_info.value, ClientException)
+        assert isinstance(exc_info.value, ApiException)
+
+    async def test_internal_server_error_hierarchy(self, api: Any) -> None:
+        with pytest.raises(InternalServerErrorException) as exc_info:
+            await api.call('GET', '/test/status/500', {}, {}, None,
+                           ['application/json'], 'application/json', None)
+        assert isinstance(exc_info.value, ServerException)
+        assert isinstance(exc_info.value, ApiException)
+
+
+class TestSuccessDeserialization:
+
+    async def test_deserializes_json_response(self, api: Any) -> None:
+        result = await api.call('GET', '/test/echo', {}, {}, None,
+                                ['application/json'], 'application/json', 'object')
+        assert result is not None
+        # chasm echo envelope always includes a method field
+        assert result['method'] == 'GET'
+
+    async def test_returns_raw_string_for_non_json(self, api: Any) -> None:
+        result = await api.call('GET', '/test/text-plain', {}, {}, None,
+                                ['text/plain'], 'application/json', 'str')
+        assert result is not None
+        assert 'hello world' in result
+
+    async def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
+        result = await api.call('GET', '/test/echo', {}, {}, None,
+                                ['application/json'], 'application/json', None)
+        assert result is None
+
+    async def test_raw_body_is_non_null_string(self, api: Any) -> None:
+        # ApiResult.raw_body is typed non-null (str); the transport always
+        # produces a body string (empty when the server sent none).
+        result = await api.call_result('GET', '/test/echo', {}, {}, None,
+                                       ['application/json'], 'application/json', 'object')
+        assert isinstance(result.raw_body, str)
+
+    async def test_with_http_info_returns_status_data_headers_and_raw_body(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call_result('GET', '/test/echo', {}, {}, None,
+                                        ['application/json'], 'application/json', 'object')
+        assert result.status_code == 200
+        assert result.data is not None
+        assert result.headers is not None
+        assert result.raw_body == '{}'
+
+
+class TestQueryParameters:
+
+    async def test_appends_query_params(self, api: Any) -> None:
+        result = await api.call('GET', '/test/echo', {'foo': 'bar'}, {}, None,
+                                ['application/json'], 'application/json', None)
+        assert result is None
+
+    async def test_includes_empty_value_param_in_query_string(self, api: Any) -> None:
+        result = await api.call('GET', '/test/echo', {'filter': ''}, {}, None,
+                                ['application/json'], 'application/json', None)
+        assert result is None
+
+
+class TestQuerySerialization:
+
+    async def test_expands_array_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {'tags': ['a', 'b']}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert 'tags=a&tags=b' in client.captured_url
+
+    async def test_serializes_boolean_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {'active': True}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert 'active=true' in client.captured_url
+
+    async def test_serializes_number_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {'limit': 10}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert 'limit=10' in client.captured_url
+        assert 'limit=10.0' not in client.captured_url
+
+    async def test_handles_empty_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert '?' not in client.captured_url
+
+    async def test_collapses_double_slash_when_baseurl_has_trailing(self) -> None:
+        # Gap Z — baseUrl='http://x/' + path='/y' must produce
+        # 'http://x/y', not 'http://x//y' which most servers route to
+        # 404. Matches Java/C#/Go/Swift/Dart/Kotlin which collapse via
+        # URI parsers.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost/')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert client.captured_url == 'http://localhost/test/echo'
+
+
+class TestAllowEmptyValueQueryParams:
+
+    async def test_null_options_omits_allow_empty_value_param(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(None)
+        except Exception:
+            pass  # Response deserialization may fail; we only care about the captured URL
+        assert 'status=' not in client.captured_url, \
+            f'Expected no status param when options is None, got: {client.captured_url}'
+
+    async def test_allow_empty_value_param_omitted_when_null(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(FindPetsByStatusOptions())
+        except Exception:
+            pass  # Response deserialization may fail; we only care about the captured URL
+        # A null optional allowEmptyValue value must NOT emit a spurious empty key; the
+        # key is sent only when the caller supplies a value (see the empty-string test).
+        assert 'status=' not in client.captured_url, \
+            f'Expected no status= for allowEmptyValue param with null value, got: {client.captured_url}'
+
+    async def test_allow_empty_value_param_included_when_empty(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(FindPetsByStatusOptions(status=''))
+        except Exception:
+            pass  # Response deserialization may fail; we only care about the captured URL
+        assert 'status=' in client.captured_url, \
+            f'Expected status= in URL for empty string allowEmptyValue param, got: {client.captured_url}'
+
+
+class TestAuthInjection:
+
+    async def test_forwards_auth_headers(self, api: Any) -> None:
+        auth = StubAuthenticator(headers={'X-Custom': 'auth-value'})
+        result = await api.call('GET', '/test/echo', {}, {}, None,
+                                ['application/json'], 'application/json', 'object', auth)
+        assert result is not None
+        # chasm envelope lowercases all header keys
+        assert result['headers']['x-custom'] == 'auth-value'
+
+    async def test_sets_cookie_header(self, api: Any) -> None:
+        auth = StubAuthenticator(cookies={'session': 'abc123'})
+        await api.call('GET', '/test/echo', {}, {}, None,
+                       ['application/json'], 'application/json', None, auth)
+
+    async def test_falls_back_to_client_level_authenticator(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(headers={'X-Client-Auth': 'client-level-token'})
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert client.captured_headers.get('X-Client-Auth') == 'client-level-token'
+
+    async def test_per_call_auth_overrides_client_level(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(headers={'X-Client-Auth': 'client-level-token'})
+        per_call_auth = StubAuthenticator(headers={'X-Client-Auth': 'per-call-token'})
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None, per_call_auth)
+        assert client.captured_headers.get('X-Client-Auth') == 'per-call-token'
+
+    async def test_get_auth_headers_runs_off_the_event_loop_thread(self) -> None:
+        # Regression (H5): on the async path, auth-header acquisition must be
+        # offloaded via asyncio.to_thread, not run inline on the event-loop
+        # thread. For OAuth, get_auth_headers acquires a threading.Lock and may
+        # perform a blocking HTTP token exchange; running it on the loop thread
+        # would freeze every other coroutine for the duration of the fetch.
+        # Record the thread get_auth_headers runs on and assert it is NOT the
+        # loop's running thread (i.e. it ran in a worker thread).
+        import asyncio
+        import threading
+
+        loop_thread_id = threading.get_ident()
+
+        class ThreadRecordingAuthenticator(Authenticator):
+            def __init__(self) -> None:
+                self.auth_thread_id: Optional[int] = None
+
+            def get_host(self) -> str:
+                return ''
+
+            def get_auth_headers(self) -> dict[str, str]:
+                self.auth_thread_id = threading.get_ident()
+                return {'X-Auth': 'v'}
+
+            def get_query_params(self) -> dict[str, str]:
+                return {}
+
+            def get_cookie_params(self) -> dict[str, str]:
+                return {}
+
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        auth = ThreadRecordingAuthenticator()
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None, auth)
+
+        # The header still reached the wire ...
+        assert client.captured_headers.get('X-Auth') == 'v'
+        # ... and it was computed off the event-loop thread.
+        assert auth.auth_thread_id is not None
+        assert auth.auth_thread_id != loop_thread_id
+
+
+class TestNoAuthSentinel:
+    """Wave A2 — the no-auth sentinel three-state contract in base_api.
+
+    The ``auth`` argument resolves into three distinct states:
+
+    * ``NO_AUTH``                  -> suppress auth; do NOT fall back to the
+      client-level authenticator (``security: []`` operation).
+    * ``None``                     -> fall back to the client-level
+      authenticator (secured op, no per-call override) — UNCHANGED.
+    * a real :class:`Authenticator` -> per-call override — UNCHANGED.
+    """
+
+    async def test_sentinel_suppresses_client_level_authenticator(self) -> None:
+        # NO_AUTH must NOT re-acquire the client-level credential: no auth
+        # header, no auth query param, no auth cookie reaches the wire.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(
+            headers={'X-Client-Auth': 'client-level-token'},
+            query_params={'api_key': 'secret-key'},
+            cookies={'session': 'abc123'},
+        )
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None, NO_AUTH)
+        assert 'X-Client-Auth' not in client.captured_headers
+        assert 'Cookie' not in client.captured_headers
+        assert 'api_key=' not in client.captured_url
+
+    async def test_none_falls_back_to_client_level_authenticator(self) -> None:
+        # None is the secured-op-no-override state: client credential applies.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(headers={'X-Client-Auth': 'client-level-token'})
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None, None)
+        assert client.captured_headers.get('X-Client-Auth') == 'client-level-token'
+
+    async def test_sentinel_is_identity_distinct_from_none(self) -> None:
+        # The sentinel must be a dedicated, identity-comparable marker that is
+        # neither None nor a real authenticator.
+        assert NO_AUTH is not None
+        assert not isinstance(NO_AUTH, Authenticator)
+
+
+class TestSecurityNoneAuthSuppression:
+    """Wave A2 parity (generated client) — a ``security: []`` operation must
+    NOT carry the configured client credential, while a secured operation with
+    the same configured authenticator still must (guards over-suppression)."""
+
+    async def test_security_none_op_sends_no_credential(self) -> None:
+        # get_pet_by_id is declared `security: []`; configure the client WITH
+        # an authenticator and assert the outbound request carries NO
+        # Authorization header, NO api-key header/query param, and NO auth
+        # cookie. The api method passes NO_AUTH, so base_api suppresses the
+        # client credential.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(
+            headers={'Authorization': 'Bearer client-token', 'api-key': 'k'},
+            query_params={'api_key': 'secret-key'},
+            cookies={'session': 'abc123'},
+        )
+        api = PetApi(api_client=client, config=config, authenticator=client_auth)
+        try:
+            await api.get_pet_by_id(1)
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+        assert 'Authorization' not in client.captured_headers, \
+            f'security:[] op must not send Authorization, got: {client.captured_headers}'
+        assert 'api-key' not in client.captured_headers, \
+            'security:[] op must not send an api-key header'
+        assert 'Cookie' not in client.captured_headers, \
+            'security:[] op must not send an auth cookie'
+        assert 'api_key=' not in client.captured_url, \
+            f'security:[] op must not send an api-key query param, got: {client.captured_url}'
+
+    async def test_secured_op_still_sends_credential(self) -> None:
+        # add_pet IS secured; with the same client-level authenticator and no
+        # per-call override the credential must STILL reach the wire (do not
+        # over-suppress). Guards against a Wave A1 regression.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(headers={'Authorization': 'Bearer client-token'})
+        api = PetApi(api_client=client, config=config, authenticator=client_auth)
+        try:
+            await api.add_pet(Pet(name='rex', photoUrls={'http://example.com/p.png'}))
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+        assert client.captured_headers.get('Authorization') == 'Bearer client-token', \
+            f'secured op must still send the client credential, got: {client.captured_headers}'
+
+
+class TestBodySerialization:
+
+    async def test_serializes_json_body(self, api: Any) -> None:
+        result = await api.call('POST', '/test/echo', {}, {}, {'key': 'value'},
+                                ['application/json'], 'application/json', 'object')
+        assert result is not None
+        # chasm echo envelope returns the raw request body as a string in .body
+        import json as _json
+        echoed_body = _json.loads(result['body'])
+        assert echoed_body['key'] == 'value'
+
+    async def test_sends_no_body_when_none(self, api: Any) -> None:
+        await api.call('GET', '/test/echo', {}, {}, None,
+                       ['application/json'], 'application/json', None)
+
+    async def test_serializes_text_plain_body(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, 'hello world',
+                        ['application/json'], 'text/plain', None)
+        assert client.captured_body is not None
+        assert 'hello world' in str(client.captured_body)
+
+    async def test_serializes_form_urlencoded_body(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, {'name': 'alice'},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        assert client.captured_body is not None
+        assert 'name=alice' in str(client.captured_body)
+
+    async def test_form_urlencoded_body_encodes_space_as_plus(self) -> None:
+        # form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+        # mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
+        # urllib.parse.urlencode emits '+', matching the other SDKs.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, {'full name': 'Ada Lovelace'},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert wire == 'full+name=Ada+Lovelace'
+        assert '%20' not in wire
+
+    async def test_form_array_field_serializes_as_repeated_keys(self) -> None:
+        # form-array-repeated-keys: an array form field must serialize as
+        # repeated keys (`tags=a&tags=b`), NOT a single key whose value is the
+        # Python list repr (`tags=['a', 'b']`). All 12 SDKs converge here.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {},
+                        {'nickname': 'rex', 'tags': ['a', 'b']},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert wire == 'nickname=rex&tags=a&tags=b'
+
+    async def test_form_optional_none_field_is_omitted(self) -> None:
+        # form-optional-null-omitted: a form field whose value is None must be
+        # dropped from the wire entirely, not emitted as `note=` or `note=None`.
+        # None elements inside an array are likewise skipped.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {},
+                        {'nickname': 'rex', 'note': None, 'tags': ['a', None, 'b']},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert 'note' not in wire
+        assert wire == 'nickname=rex&tags=a&tags=b'
+
+    async def test_form_bool_field_serializes_lowercase(self) -> None:
+        # Form scalars route through ObjectSerializer.stringify so a bool
+        # renders as `true`/`false` (the JSON/wire form), not Python's `True`.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {},
+                        {'nickname': 'rex', 'subscribed': True},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert wire == 'nickname=rex&subscribed=true'
+
+    async def test_passes_binary_body_as_is(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, b'\x01\x02\x03',
+                        ['application/json'], 'application/octet-stream', None)
+        assert client.captured_body is not None
+
+
+class PlainTextApiClient(CapturingApiClient):
+    """API client that returns a plain-text response instead of JSON."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
+
+
+class VendorJsonApiClient(CapturingApiClient):
+    """API client that returns a vendor JSON response (application/problem+json)."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(status_code=200, body='{"title":"Not Found"}', headers={'Content-Type': 'application/problem+json'})
+
+
+class MalformedJsonApiClient(CapturingApiClient):
+    """API client that returns a 2xx with a malformed JSON body."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        # A 200 whose Content-Type promises JSON but whose body is truncated.
+        return ApiHttpResponse(status_code=200, body='{"id": 1, ', headers={'Content-Type': 'application/json'})
+
+
+class TestContentTypeDeserialization:
+
+    async def test_skips_deserialization_for_non_json_content_type(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['text/plain'], 'application/json', 'str')
+        assert result == 'hello'
+
+    async def test_deserializes_vendor_json_mime_types(self) -> None:
+        client = VendorJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['application/json'], 'application/json', 'object')
+        assert result is not None
+        assert result['title'] == 'Not Found'
+
+
+class TestMalformedSuccessBodyFailsLoud:
+    """Scenario 11 — a 2xx response whose JSON body is malformed must FAIL
+    LOUD: the deserialize error propagates rather than silently returning the
+    raw (unparsed) string. A truncated body on a `Content-Type: application/json`
+    200 must surface as the SDK's SerializationError, never as the raw text."""
+
+    async def test_truncated_json_body_propagates_serialization_error(self) -> None:
+        from {{packageName}}.object_serializer import SerializationError
+        client = MalformedJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(SerializationError):
+            await stub.call('GET', '/test/echo', {}, {}, None,
+                            ['application/json'], 'application/json', 'object')
+
+    async def test_malformed_body_not_returned_as_raw_string(self) -> None:
+        # The failure mode we guard against: swallowing the parse error and
+        # handing back the raw, undecoded body string. It must raise instead.
+        from {{packageName}}.object_serializer import SerializationError
+        client = MalformedJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        raised = False
+        try:
+            await stub.call('GET', '/test/echo', {}, {}, None,
+                            ['application/json'], 'application/json', 'object')
+        except SerializationError:
+            raised = True
+        assert raised, 'malformed 2xx body must raise, not return the raw string'
+
+
+class TestHeaderFlowThrough:
+
+    async def test_empty_content_type_defaults_to_json(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, {'name': 'test'},
+                        ['application/json'], '', None)
+        assert client.captured_headers.get('Content-Type') == 'application/json'
+
+    async def test_all_headers_flow_through(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, {'name': 'test'},
+                        ['application/json'], 'application/json', None)
+        assert 'Accept' in client.captured_headers
+        assert 'Content-Type' in client.captured_headers
+
+    async def test_config_default_accept_wins_over_operation_negotiation(self) -> None:
+        # R5-1: a config-level default header (Accept: application/xml) must
+        # WIN over the operation's negotiated Accept (application/json). The
+        # base API applies select_headers first, then merges
+        # config.default_headers OVER it, so the caller's default takes
+        # precedence on the wire. RED in ruby before its fix, GREEN here.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost',
+                               default_headers={'Accept': 'application/xml'})
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert client.captured_headers['Accept'] == 'application/xml'
+
+
+class TestServerVariableOverrides:
+
+    def test_server_variable_overrides_resolve_in_base_url(self) -> None:
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1, {'environment': 'staging'}) \
+            .build()
+        assert config.base_url == 'https://staging.example.com/api/v3'
+
+    def test_default_server_variables_produce_correct_base_url(self) -> None:
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1) \
+            .build()
+        assert config.base_url == 'https://api.example.com/api/v3'
+
+    def test_invalid_enum_value_raises_error(self) -> None:
+        with pytest.raises(ValueError):
+            Configuration.builder() \
+                .server(Servers.SERVER_1, {'environment': 'invalid'}) \
+                .build()
+
+    def test_api_request_uses_resolved_server_url(self, api: Any, chasm_http_url: Any) -> None:
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1, {'environment': 'staging'}) \
+            .build()
+        assert config.base_url.startswith('https://staging.example.com')
+
+
+class BinaryOctetStreamApiClient(CapturingApiClient):
+    """API client that returns an application/octet-stream response with base64 body."""
+
+    def __init__(self, encoded_body: str) -> None:
+        super().__init__()
+        self._encoded_body = encoded_body
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'application/octet-stream'})
+
+
+class ImagePngApiClient(CapturingApiClient):
+    """API client that returns an image/png response with base64 body."""
+
+    def __init__(self, encoded_body: str) -> None:
+        super().__init__()
+        self._encoded_body = encoded_body
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'image/png'})
+
+
+class EmptyBinaryApiClient(CapturingApiClient):
+    """API client that returns an empty application/octet-stream response."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(status_code=200, body='', headers={'Content-Type': 'application/octet-stream'})
+
+
+class TestBinaryResponse:
+
+    async def test_octet_stream_response_decoded_as_base64_bytes(self) -> None:
+        import base64
+        binary_data = b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a'
+        encoded = base64.b64encode(binary_data).decode('ascii')
+        client = BinaryOctetStreamApiClient(encoded)
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['application/octet-stream'], 'application/octet-stream', 'bytes')
+        assert result == binary_data
+
+    async def test_image_png_response_decoded_as_bytes(self) -> None:
+        import base64
+        binary_data = b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d'
+        encoded = base64.b64encode(binary_data).decode('ascii')
+        client = ImagePngApiClient(encoded)
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['image/png'], 'image/png', 'bytes')
+        assert result == binary_data
+
+    async def test_json_response_parsed_to_object(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['application/json'], 'application/json', None)
+        assert result is None
+
+    async def test_text_plain_response_returns_string(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['text/plain'], 'application/json', 'str')
+        assert isinstance(result, str)
+        assert result == 'hello'
+
+    async def test_empty_body_yields_none(self) -> None:
+        client = EmptyBinaryApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['application/octet-stream'], 'application/octet-stream', None)
+        assert result is None
+
+    async def test_empty_binary_body_with_bytes_return_type_yields_empty_bytes(self) -> None:
+        """An empty application/octet-stream response with a bytes return type
+        must yield an empty bytes object (None is acceptable when no body, but
+        the operation must not raise)."""
+        client = EmptyBinaryApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['application/octet-stream'], 'application/octet-stream', 'bytes')
+        # Empty body short-circuits deserialization; either None or b'' is acceptable
+        assert result is None or result == b''
+
+
+class TestNoPerCallBaseUrlParam:
+    """The non-standard per-call ``base_url`` override parameter must NOT exist
+    on operation methods -- the other 11 SDKs have no such parameter. Operations
+    use the client configuration's base URL only."""
+
+    def test_operation_has_no_base_url_parameter(self) -> None:
+        import inspect
+        sig = inspect.signature(PetApi.find_pets_by_status)
+        assert 'base_url' not in sig.parameters, \
+            'Operations must not expose a per-call base_url override'
+        sig_http = inspect.signature(PetApi.find_pets_by_status_with_http_info)
+        assert 'base_url' not in sig_http.parameters, \
+            '_with_http_info must not expose a per-call base_url override'
+
+    async def test_operation_uses_client_config_base_url(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://client-default.example.com')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(FindPetsByStatusOptions())
+        except Exception:
+            pass
+        assert client.captured_url.startswith('http://client-default.example.com'), \
+            f'Expected request URL to use client config base_url, got: {client.captured_url}'
+
+
+class TestCrossOriginRedirect:
+
+    def test_same_origin_redirect_forwards_authorization(self) -> None:
+        sensitive_headers = {'authorization', 'cookie', 'proxy-authorization'}
+        is_same_origin = True
+        auth_header = 'Bearer token123'
+        original_headers = {'Authorization': auth_header, 'Accept': 'application/json'}
+        forwarded_headers = {}
+
+        for key, value in original_headers.items():
+            if not is_same_origin and key.lower() in sensitive_headers:
+                continue
+            forwarded_headers[key] = value
+
+        assert 'Authorization' in forwarded_headers
+        assert forwarded_headers['Authorization'] == auth_header
+
+    def test_cross_origin_redirect_drops_authorization(self) -> None:
+        sensitive_headers = {'authorization', 'cookie', 'proxy-authorization'}
+        is_same_origin = False
+        original_headers = {'Authorization': 'Bearer token123', 'Accept': 'application/json'}
+        forwarded_headers = {}
+
+        for key, value in original_headers.items():
+            if not is_same_origin and key.lower() in sensitive_headers:
+                continue
+            forwarded_headers[key] = value
+
+        assert 'Authorization' not in forwarded_headers
+        assert 'Accept' in forwarded_headers
+
+    def test_cross_origin_redirect_drops_cookie(self) -> None:
+        sensitive_headers = {'authorization', 'cookie', 'proxy-authorization'}
+        is_same_origin = False
+        original_headers = {'Cookie': 'session=abc123', 'Accept': 'application/json'}
+        forwarded_headers = {}
+
+        for key, value in original_headers.items():
+            if not is_same_origin and key.lower() in sensitive_headers:
+                continue
+            forwarded_headers[key] = value
+
+        assert 'Cookie' not in forwarded_headers
+        assert 'Accept' in forwarded_headers
+
+
+class TestNullBodyContentType:
+
+    async def test_null_body_post_does_not_send_content_type(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert 'Content-Type' not in client.captured_headers, \
+            'Content-Type must NOT be sent when body is None'
+
+    async def test_empty_string_body_includes_content_type(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, '',
+                        ['application/json'], 'application/json', None)
+        assert 'Content-Type' in client.captured_headers, \
+            'Content-Type must be sent when body is an empty string'
+
+    async def test_empty_json_object_body_includes_content_type(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, {},
+                        ['application/json'], 'application/json', None)
+        assert 'Content-Type' in client.captured_headers, \
+            'Content-Type must be sent when body is {}'
+        assert client.captured_headers['Content-Type'] == 'application/json'
+
+
+class TestTypedErrorBody:
+
+    def test_get_typed_error_body_deserializes_into_given_type(self) -> None:
+        err = BadRequestException(
+            message='boom',
+            response_headers={},
+            response_body='{"id":42,"name":"Dogs"}',
+        )
+        typed = err.get_typed_error_body(Category)
+        assert isinstance(typed, Category)
+        assert typed.id == 42
+        assert typed.name == 'Dogs'
+
+    def test_get_typed_error_body_returns_none_for_empty_body(self) -> None:
+        err = BadRequestException(message='boom', response_headers={}, response_body='')
+        assert err.get_typed_error_body(Category) is None

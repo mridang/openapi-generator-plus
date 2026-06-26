@@ -1,0 +1,1414 @@
+{{>api_info}}
+
+import {
+  ObjectSerializer,
+  SerializationError,
+  DeserializationError,
+  durationToProtoJson,
+  durationFromProtoJson,
+} from '../src/object-serializer{{importFileExtension}}';
+import { ZitadelError } from '../src/errors/index{{importFileExtension}}';
+import { Category, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag } from '../src/models/index{{importFileExtension}}';
+// SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
+// bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
+import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
+import { uuid, isUuid } from '../src/brand{{importFileExtension}}';
+import { Temporal } from 'temporal-polyfill';
+
+describe('ObjectSerializer', () => {
+  describe('unified exception hierarchy', () => {
+    // SerializationError and its DeserializationError subclass must extend
+    // the branded ZitadelError root so callers can catch every SDK-originated
+    // error — transport and serde alike — with a single `instanceof
+    // ZitadelError` check.
+    test('SerializationError extends ZitadelError and Error', () => {
+      const err = new SerializationError('boom');
+      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(Error);
+      expect(err.name).toBe('SerializationError');
+    });
+
+    test('DeserializationError extends SerializationError and ZitadelError', () => {
+      const err = new DeserializationError('boom');
+      expect(err).toBeInstanceOf(SerializationError);
+      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(Error);
+      expect(err.name).toBe('DeserializationError');
+    });
+  });
+
+  describe('DateTimeOffsetPreservationTests', () => {
+    test('UTC datetime serializes containing date-time and offset', () => {
+      // A JS Date is an absolute instant; serialization pins UTC so the
+      // wire bytes are host-timezone-independent (deterministic across
+      // machines), matching the fixed-offset behaviour of the other SDKs.
+      const date = new Date('2024-01-01T12:30:45.000Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).toBe('2024-01-01T12:30:45+00:00');
+    });
+
+    test('datetime serializes in UTC regardless of host timezone', () => {
+      const date = new Date('2024-01-01T12:30:45.000Z');
+      const result = ObjectSerializer.stringify(date);
+      // Always the UTC designator +00:00, never a host-local offset.
+      expect(result).toMatch(/\+00:00$/);
+    });
+
+    test('date-time serialization preserves sub-second precision', () => {
+      // H4: the encoder must emit the millisecond fraction the decoder
+      // already accepts, so a sub-second instant round-trips losslessly
+      // instead of being silently truncated to whole seconds.
+      const date = new Date('2020-01-02T03:04:05.123Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).toContain('.123');
+      expect(result).toBe('2020-01-02T03:04:05.123+00:00');
+      // Round-trip back to the same millisecond.
+      expect(new Date(result).getTime()).toBe(date.getTime());
+    });
+
+    test('model date-time field preserves sub-second precision through JSON body', () => {
+      // H4 canonical: a model carrying a `format: date-time` field
+      // (PhotoMetadata.takenAt -> Date) must serialize and round-trip the
+      // millisecond fraction losslessly on the JSON-body path.
+      const takenAt = new Date('2020-01-02T03:04:05.123Z');
+      const meta = new PhotoMetadata({ caption: 'sub-second', takenAt });
+
+      const serialized = ObjectSerializer.serialize(meta);
+      expect(serialized).toContain('.123');
+
+      const back = ObjectSerializer.deserialize(
+        ObjectSerializer.parseJson(serialized),
+        PhotoMetadata,
+      );
+      expect(back!.takenAt!.getTime()).toBe(takenAt.getTime());
+    });
+
+    test('whole-second datetime omits the fractional component', () => {
+      const date = new Date('2024-01-01T00:00:00.000Z');
+      const result = ObjectSerializer.stringify(date);
+      // A zero-millisecond instant keeps its bare seconds shape.
+      expect(result).not.toMatch(/\.\d+/);
+      expect(result).toBe('2024-01-01T00:00:00+00:00');
+    });
+
+    test('serialized datetime string ends with an offset', () => {
+      const date = new Date('2024-01-01T12:30:45.000Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).toMatch(/[+-]\d{2}:\d{2}$|Z$/);
+    });
+
+    test('date formatted as ISO 8601 date-time contains T separator', () => {
+      const date = new Date('2024-01-01T00:00:00.000Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).toContain('T');
+    });
+
+    test('round-trip: serialize a date and reparse yields equivalent time', () => {
+      const original = new Date('2024-06-15T10:30:00.000Z');
+      const serialized = ObjectSerializer.stringify(original);
+      const parsed = new Date(serialized);
+      expect(parsed.getTime()).toBe(original.getTime());
+    });
+  });
+
+  describe('NonAsciiSerializationTests', () => {
+    test('accented character serializes without unicode escape', () => {
+      const result = ObjectSerializer.serialize('café');
+      expect(result).toContain('é');
+    });
+
+    test('CJK characters serialize without unicode escape', () => {
+      const result = ObjectSerializer.serialize('日本');
+      expect(result).toContain('日本');
+    });
+
+    test('tab character is properly escaped in JSON', () => {
+      const result = ObjectSerializer.serialize('a\tb');
+      expect(result).toContain('\\t');
+    });
+  });
+
+  describe('DeserializationErrorWrappingTests', () => {
+    test('truncated JSON throws SerializationError not raw parse error', () => {
+      expect(() => {
+        JSON.parse('{');
+      }).toThrow();
+    });
+
+    test('serialize throws SerializationError on circular reference', () => {
+      const a: Record<string, unknown> = {};
+      a['self'] = a;
+      expect(() => ObjectSerializer.serialize(a)).toThrow();
+    });
+
+    test('thrown error has a message referencing the original failure', () => {
+      let caughtError: unknown = null;
+      try {
+        const a: Record<string, unknown> = {};
+        a['self'] = a;
+        ObjectSerializer.serialize(a);
+      } catch (e) {
+        caughtError = e;
+      }
+      expect(caughtError).not.toBeNull();
+      expect((caughtError as Error).message).toBeTruthy();
+    });
+  });
+
+  describe('toPathValue', () => {
+    test('returns empty string for null', () => {
+      expect(ObjectSerializer.toPathValue(null)).toBe('');
+    });
+
+    test('returns the string for a string value', () => {
+      expect(ObjectSerializer.toPathValue('hello')).toBe('hello');
+    });
+
+    test('converts integer to string', () => {
+      expect(ObjectSerializer.toPathValue(42)).toBe('42');
+    });
+
+    test('converts true to "true"', () => {
+      expect(ObjectSerializer.toPathValue(true)).toBe('true');
+    });
+
+    test('converts false to "false"', () => {
+      expect(ObjectSerializer.toPathValue(false)).toBe('false');
+    });
+  });
+
+  describe('toQueryValue', () => {
+    test('returns undefined for null', () => {
+      expect(ObjectSerializer.toQueryValue(null)).toBeUndefined();
+    });
+
+    test('returns the string for a string value', () => {
+      expect(ObjectSerializer.toQueryValue('hello')).toBe('hello');
+    });
+
+    test('converts integer to string', () => {
+      expect(ObjectSerializer.toQueryValue(42)).toBe('42');
+    });
+
+    test('converts true to "true"', () => {
+      expect(ObjectSerializer.toQueryValue(true)).toBe('true');
+    });
+
+    test('converts false to "false"', () => {
+      expect(ObjectSerializer.toQueryValue(false)).toBe('false');
+    });
+
+    test('joins array with comma by default', () => {
+      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'])).toBe('a,b,c');
+    });
+
+    test('joins array with comma for csv', () => {
+      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'csv')).toBe('a,b,c');
+    });
+
+    test('joins array with space for ssv', () => {
+      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'ssv')).toBe('a b c');
+    });
+
+    test('joins array with tab for tsv', () => {
+      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'tsv')).toBe('a\tb\tc');
+    });
+
+    test('joins array with pipe for pipes', () => {
+      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'pipes')).toBe('a|b|c');
+    });
+
+    test('returns array as-is for multi', () => {
+      expect(ObjectSerializer.toQueryValue(['a', 'b', 'c'], 'multi')).toEqual(['a', 'b', 'c']);
+    });
+  });
+
+  describe('toHeaderValue', () => {
+    test('returns empty string for null', () => {
+      expect(ObjectSerializer.toHeaderValue(null)).toBe('');
+    });
+
+    test('returns the string for a string value', () => {
+      expect(ObjectSerializer.toHeaderValue('hello')).toBe('hello');
+    });
+
+    test('converts integer to string', () => {
+      expect(ObjectSerializer.toHeaderValue(42)).toBe('42');
+    });
+
+    test('joins array with comma', () => {
+      expect(ObjectSerializer.toHeaderValue(['a', 'b', 'c'])).toBe('a,b,c');
+    });
+  });
+
+  describe('toFormValue', () => {
+    test('returns empty string for null', () => {
+      expect(ObjectSerializer.toFormValue(null)).toBe('');
+    });
+
+    test('returns the string for a string value', () => {
+      expect(ObjectSerializer.toFormValue('hello')).toBe('hello');
+    });
+
+    test('converts integer to string', () => {
+      expect(ObjectSerializer.toFormValue(42)).toBe('42');
+    });
+
+    test('converts true to "true"', () => {
+      expect(ObjectSerializer.toFormValue(true)).toBe('true');
+    });
+
+    test('converts false to "false"', () => {
+      expect(ObjectSerializer.toFormValue(false)).toBe('false');
+    });
+  });
+
+  describe('toCookieValue', () => {
+    test('returns empty string for null', () => {
+      expect(ObjectSerializer.toCookieValue(null)).toBe('');
+    });
+
+    test('returns the string for a string value', () => {
+      expect(ObjectSerializer.toCookieValue('hello')).toBe('hello');
+    });
+
+    test('converts integer to string', () => {
+      expect(ObjectSerializer.toCookieValue(42)).toBe('42');
+    });
+  });
+
+  describe('stringify', () => {
+    test('null returns empty string', () => {
+      expect(ObjectSerializer.stringify(null)).toBe('');
+    });
+
+    test('undefined returns empty string', () => {
+      expect(ObjectSerializer.stringify(undefined)).toBe('');
+    });
+
+    test('boolean true returns "true"', () => {
+      expect(ObjectSerializer.stringify(true)).toBe('true');
+    });
+
+    test('boolean false returns "false"', () => {
+      expect(ObjectSerializer.stringify(false)).toBe('false');
+    });
+
+    test('integer returns string representation', () => {
+      expect(ObjectSerializer.stringify(42)).toBe('42');
+    });
+
+    test('date-time returns ISO 8601 string', () => {
+      const date = new Date('2024-01-15T10:30:00.000Z');
+      expect(ObjectSerializer.stringify(date)).toBe('2024-01-15T10:30:00+00:00');
+    });
+
+    test('plain string passes through unchanged', () => {
+      expect(ObjectSerializer.stringify('hello')).toBe('hello');
+    });
+
+    test('float returns string representation', () => {
+      expect(ObjectSerializer.stringify(3.14)).toBe('3.14');
+    });
+  });
+
+  describe('serialize', () => {
+    test('serializes a model to JSON string', () => {
+      const category = new Category();
+      category.id = 1;
+      category.name = 'Dogs';
+      const result = ObjectSerializer.serialize(category);
+      expect(typeof result).toBe('string');
+      const parsed = JSON.parse(result);
+      expect(parsed.id).toBe(1);
+      expect(parsed.name).toBe('Dogs');
+    });
+
+    test('handles null', () => {
+      const result = ObjectSerializer.serialize(null);
+      expect(result).toBe('null');
+    });
+
+    test('handles undefined', () => {
+      const result = ObjectSerializer.serialize(undefined);
+      expect(result).toBe('null');
+    });
+
+    test('excludes null-valued properties from serialized output', () => {
+      const pet: Record<string, unknown> = { name: 'Fido', status: null };
+      const result = ObjectSerializer.serialize(pet);
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveProperty('name', 'Fido');
+      expect(parsed).not.toHaveProperty('status');
+    });
+
+    test('includes fields explicitly set to default values', () => {
+      const category = new Category();
+      category.id = 0;
+      category.name = '';
+      const result = ObjectSerializer.serialize(category);
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveProperty('id', 0);
+      expect(parsed).toHaveProperty('name', '');
+    });
+
+    test('emits a type:number (no-format) Decimal field as an unquoted JSON number', () => {
+      // 2.5 — Pet.weightKg is `type: number` with no format, carried as a
+      // branded Decimal string at runtime. The wire form must be a JSON
+      // number, not a quoted string, or a server validating `type: number`
+      // rejects it. The raw text is preserved (no lossy Number() round-trip).
+      const pet = new Pet({
+        name: 'Fido',
+        photoUrls: ['u'],
+        weightKg: '12.345' as unknown as Pet['weightKg'],
+      });
+      const result = ObjectSerializer.serialize(pet);
+      // Unquoted in the raw JSON text...
+      expect(result).toContain('"weightKg":12.345');
+      expect(result).not.toContain('"weightKg":"12.345"');
+      // ...and parses back to a real JSON number.
+      const parsed = JSON.parse(result);
+      expect(parsed.weightKg).toBe(12.345);
+      expect(typeof parsed.weightKg).toBe('number');
+    });
+
+    test('preserves Decimal precision beyond IEEE-754 on the wire', () => {
+      // A high-precision decimal that a JS number cannot hold exactly must
+      // survive verbatim in the wire text (the whole reason Decimal is a
+      // string), so the unquoted emission keeps every digit.
+      const pet = new Pet({
+        name: 'Fido',
+        photoUrls: ['u'],
+        weightKg: '12.34567890123456789' as unknown as Pet['weightKg'],
+      });
+      const result = ObjectSerializer.serialize(pet);
+      expect(result).toContain('"weightKg":12.34567890123456789');
+    });
+
+    test('emits the Decimal field unquoted for a PLAIN-OBJECT request body', () => {
+      // Wave B — request bodies are typically passed as plain object literals
+      // (the body parameter type is DeepInput<Pet>), NOT constructed Pet
+      // instances. A plain object's constructor is `Object`, which carries no
+      // `__decimalFields`, so the per-constructor lookup misses and the Decimal
+      // would be quoted as a JSON string ("1.5"). The holder-independent global
+      // registry must still emit it as an unquoted JSON number (1.5) so a
+      // server validating `type: number` accepts it, matching the SDKs that
+      // emit a bare number and the constructed-instance path above.
+      const body = {
+        name: 'Fido',
+        photoUrls: ['u'],
+        weightKg: '1.5' as unknown as Pet['weightKg'],
+      };
+      const result = ObjectSerializer.serialize(body);
+      expect(result).toContain('"weightKg":1.5');
+      expect(result).not.toContain('"weightKg":"1.5"');
+      // Survives serialize -> deserialize as a real JSON number.
+      const parsed = JSON.parse(result);
+      expect(parsed.weightKg).toBe(1.5);
+      expect(typeof parsed.weightKg).toBe('number');
+    });
+  });
+
+  describe('deserialize', () => {
+    test('deserializes JSON to typed model', () => {
+      const json = { id: 1, name: 'Dogs' };
+      const category = ObjectSerializer.deserialize(json, Category);
+      expect(category).toBeDefined();
+      expect(category!.id).toBe(1);
+      expect(category!.name).toBe('Dogs');
+    });
+
+    test('accepts a valid enum value on a model property', () => {
+      const json = { name: 'Fido', photoUrls: [], status: 'available' };
+      const pet = ObjectSerializer.deserialize(json, Pet);
+      expect(pet!.status).toBe(PetStatusEnum.Available);
+    });
+
+    test('throws on an unknown enum wire value instead of silently keeping it', () => {
+      // enum-unknown-value-silent-vs-throw: an out-of-spec enum value (e.g.
+      // status:"banana") must surface as a deserialize error rather than
+      // being stored verbatim on the typed field (type confusion).
+      const json = { name: 'Fido', photoUrls: [], status: 'banana' };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
+    });
+
+    test('deserializing a complete object still succeeds (no regression)', () => {
+      // Divergence #10 control: the strict required-field guard must not
+      // affect a payload that supplies every required field. Pet requires
+      // name + photoUrls; both are present here.
+      const json = { id: 5, name: 'Rex', photoUrls: ['http://example.com/rex.jpg'] };
+      const pet = ObjectSerializer.deserialize(json, Pet);
+      expect(pet).toBeDefined();
+      expect(pet!.name).toBe('Rex');
+    });
+
+    test('throws when a required field is ABSENT from the payload', () => {
+      // Divergence #10: a required, non-nullable field missing from the wire
+      // payload must hard-fail with the SDK serialization error rather than
+      // silently building a partial object. Pet requires `name`; it is
+      // omitted here while the other required field (photoUrls) is present.
+      const json = { id: 5, photoUrls: ['http://example.com/rex.jpg'] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+    });
+
+    test('throws when a required field is explicitly NULL in the payload', () => {
+      // Divergence #10: a required, non-nullable field present but explicitly
+      // null on the wire is just as invalid as an absent one and must
+      // hard-fail rather than store null on a non-null-typed field.
+      const json = { id: 5, name: null, photoUrls: ['http://example.com/rex.jpg'] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+    });
+
+    test('canonical AJ: {"name":null,"photoUrls":["u"]} into Pet throws', () => {
+      // Canonical scenario AJ — a JSON null on the required, non-nullable
+      // `name` field is a silent contract violation in go (zero-inits ""),
+      // python (pydantic accepts) and kotlin (explicitNulls=false accepts);
+      // the other 9 SDKs, Node included, throw. This pins Node on the
+      // throw side with the exact canonical input/expected pair so the
+      // behaviour cannot regress in any direction.
+      const json = { name: null, photoUrls: ['u'] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+    });
+
+    test('deserialize applies schema default for absent field', () => {
+      // default-on-deserialize: Order.status carries a schema `default: placed`.
+      // When the wire payload OMITS status, deserialize must populate it with
+      // the enum default (OrderStatusEnum.Placed) rather than leaving it
+      // null/undefined. status is absent from this payload.
+      const json = { id: 10, petId: 198772 };
+      const order = ObjectSerializer.deserialize(json, Order);
+      expect(order!.status).toBe(OrderStatusEnum.Placed);
+    });
+
+    test('Defaults: absent fields take the schema default, explicit null is preserved', () => {
+      // default-vs-explicit-null contract: a schema `default` applies ONLY when
+      // the property is ABSENT from the payload. An explicit JSON null is a
+      // provided value and must be PRESERVED (the field stays null), not
+      // replaced by the default. This matches go/rust/python.
+      const fromEmpty = ObjectSerializer.deserialize({}, Defaults);
+      expect(fromEmpty!.retries).toBe(3);
+      expect(fromEmpty!.mode).toBe(DefaultsModeEnum.Medium);
+      expect(fromEmpty!.label).toBe('untitled');
+
+      const fromNull = ObjectSerializer.deserialize(
+        { label: null, retries: 7 },
+        Defaults,
+      );
+      expect(fromNull!.label).toBeNull();
+      expect(fromNull!.retries).toBe(7);
+    });
+
+    test('deserializes a self-referential model and decodes the nesting', () => {
+      // recursive-self-ref: TreeNode.child is a $ref back to TreeNode. The
+      // nested child object on the wire must decode into a TreeNode instance,
+      // not be left as a raw plain object, so the recursion is honoured all
+      // the way down. The leaf's own child is absent and must stay null.
+      const json = { value: 'root', child: { value: 'leaf' } };
+      const top = ObjectSerializer.deserialize(json, TreeNode);
+      expect(top).toBeDefined();
+      expect(top!.value).toBe('root');
+      expect(top!.child).toBeInstanceOf(TreeNode);
+      expect(top!.child!.value).toBe('leaf');
+      expect(top!.child!.child == null).toBe(true);
+    });
+  });
+
+  describe('SerializeDiscardsNullFields', () => {
+    test('null field is absent from JSON output', () => {
+      const obj: Record<string, unknown> = { keep: 'yes', drop: null };
+      const json = ObjectSerializer.serialize(obj);
+      const parsed = JSON.parse(json);
+      expect(parsed).toHaveProperty('keep', 'yes');
+      expect(parsed).not.toHaveProperty('drop');
+      expect(json).not.toContain('null');
+    });
+
+    test('nested null field inside an object is omitted', () => {
+      const obj = { outer: { keep: 1, drop: null } };
+      const json = ObjectSerializer.serialize(obj);
+      const parsed = JSON.parse(json);
+      expect(parsed.outer).toEqual({ keep: 1 });
+    });
+  });
+
+  describe('DeserializeDiscardsExtraneousFields', () => {
+    test('unknown JSON keys do not appear on the deserialized instance', () => {
+      const json: Record<string, unknown> = {
+        id: 7,
+        name: 'Cats',
+        unknownField: 'should-be-dropped',
+        anotherExtra: 99,
+      };
+      const category = ObjectSerializer.deserialize(json, Category);
+      expect(category).toBeDefined();
+      expect(category!.id).toBe(7);
+      expect(category!.name).toBe('Cats');
+      expect(category as unknown as Record<string, unknown>).not.toHaveProperty('unknownField');
+      expect(category as unknown as Record<string, unknown>).not.toHaveProperty('anotherExtra');
+    });
+  });
+
+  describe('DeserializeStrictModelRejectsUnknownKeys (L11)', () => {
+    // A model declaring unevaluatedProperties:false (StrictTag) is STRICT:
+    // an undeclared wire key is a contract violation that the real
+    // deserialize path must REJECT, not silently drop via
+    // excludeExtraneousValues. Without the __strictDeclaredKeys gate this
+    // payload would deserialize cleanly and lose the extra key, leaving the
+    // OAS 3.1 strict contract unenforced.
+
+    test('deserialize throws on an undeclared wire key for a strict model', () => {
+      const json: Record<string, unknown> = {
+        id: 7,
+        name: 'Important',
+        unexpected: 'reject-me',
+      };
+      expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
+        DeserializationError,
+      );
+      expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
+        /Unknown property 'unexpected'/,
+      );
+    });
+
+    test('deserialize accepts a strict model when every key is declared', () => {
+      const json: Record<string, unknown> = { id: 9, name: 'Fine' };
+      const tag = ObjectSerializer.deserialize(json, StrictTag);
+      expect(tag).toBeDefined();
+      expect((tag as StrictTag).id).toBe(9);
+      expect((tag as StrictTag).name).toBe('Fine');
+    });
+
+    test('fromJsonStrict and __strictDeclaredKeys agree on the declared set', () => {
+      // The deserialize gate keys off the same static set fromJsonStrict
+      // validates against, so both reject the identical undeclared key.
+      expect(StrictTag.__strictDeclaredKeys.has('id')).toBe(true);
+      expect(StrictTag.__strictDeclaredKeys.has('name')).toBe(true);
+      expect(StrictTag.__strictDeclaredKeys.has('unexpected')).toBe(false);
+      expect(() =>
+        StrictTag.fromJsonStrict({ id: 1, name: 'x', unexpected: true }),
+      ).toThrow(/Unknown property 'unexpected'/);
+    });
+  });
+
+  describe('ByteArrayBufferRoundTrip (2.1)', () => {
+    // 2.1 — `format: byte` values round-trip Buffer <-> base64 string at
+    // the serde boundary. The model holds Buffer; the wire holds base64.
+
+    test('serialize: Buffer field encodes to base64 in the wire payload', () => {
+      const passport = new PetPassport({
+        thumbnail: Buffer.from('hello-world', 'utf-8') as unknown as PetPassport['thumbnail'],
+      });
+      const json = ObjectSerializer.serialize(passport);
+      const parsed = JSON.parse(json) as Record<string, unknown>;
+      expect(parsed['thumbnail']).toBe(Buffer.from('hello-world', 'utf-8').toString('base64'));
+    });
+
+    test('deserialize: base64 string on the wire decodes to a Buffer field', () => {
+      const wire = { thumbnail: Buffer.from('round-trip', 'utf-8').toString('base64') };
+      const passport = ObjectSerializer.deserialize(wire, PetPassport);
+      expect(passport).toBeDefined();
+      expect(Buffer.isBuffer((passport as PetPassport).thumbnail)).toBe(true);
+      expect(((passport as PetPassport).thumbnail as unknown as Buffer).toString('utf-8')).toBe('round-trip');
+    });
+
+    test('round-trip: serialize then deserialize preserves the Buffer bytes', () => {
+      const original = Buffer.from([0x00, 0x01, 0xff, 0xee, 0xab]);
+      const passport = new PetPassport({ thumbnail: original as unknown as PetPassport['thumbnail'] });
+      const json = ObjectSerializer.serialize(passport);
+      const restored = ObjectSerializer.deserialize(JSON.parse(json), PetPassport);
+      expect(restored).toBeDefined();
+      expect(Buffer.compare((restored as PetPassport).thumbnail as unknown as Buffer, original)).toBe(0);
+    });
+
+    test('constructor: a non-Buffer/non-string thumbnail is rejected with TypeError', () => {
+      expect(
+        () => new PetPassport({ thumbnail: 42 as unknown as PetPassport['thumbnail'] }),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe('UuidBrandedTypeValidation (2.2)', () => {
+    // 2.2 — `format: uuid` produces a branded `UUID = string & {...}`.
+    // The brand exists only at the type level; runtime validation happens
+    // through `uuid()` / `isUuid()` exported from src/brand.ts.
+
+    test('uuid(): accepts a canonical 8-4-4-4-12 hex UUID', () => {
+      const v = '550e8400-e29b-41d4-a716-446655440000';
+      expect(() => uuid(v)).not.toThrow();
+      expect(uuid(v)).toBe(v);
+    });
+
+    test('uuid(): rejects an arbitrary free-form string', () => {
+      expect(() => uuid('not-a-uuid')).toThrow(TypeError);
+    });
+
+    test('uuid(): rejects a string with the wrong segment lengths', () => {
+      expect(() => uuid('550e8400-e29b-41d4-a716-44665544000')).toThrow(TypeError);
+    });
+
+    test('isUuid(): narrows a valid string to UUID', () => {
+      expect(isUuid('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+      expect(isUuid('not-a-uuid')).toBe(false);
+      expect(isUuid(42)).toBe(false);
+    });
+  });
+
+  describe('MapOfModelDeepDeserialise (4.6)', () => {
+    // 4.6 — When a field is typed `Record<string, Foo>`, the helper must
+    // return Foo instances, not raw JSON values. The dedicated
+    // `deserializeMap` helper walks the entries.
+
+    test('deserializeMap returns model instances for each value', () => {
+      const wire = {
+        dogs: { id: 1, name: 'Dogs' },
+        cats: { id: 2, name: 'Cats' },
+      };
+      const out = ObjectSerializer.deserializeMap(wire, Category);
+      expect(Object.keys(out).sort()).toEqual(['cats', 'dogs']);
+      expect(out['dogs']).toBeInstanceOf(Category);
+      expect(out['dogs']!.id).toBe(1);
+      expect(out['cats']!.name).toBe('Cats');
+    });
+
+    test('deserializeMap of an empty object yields an empty record', () => {
+      expect(ObjectSerializer.deserializeMap({}, Category)).toEqual({});
+    });
+
+    test('deserializeMap rejects an array (must be an object)', () => {
+      expect(() => ObjectSerializer.deserializeMap([], Category)).toThrow();
+    });
+
+    test('deserializeMap of null returns an empty record (lenient null)', () => {
+      expect(ObjectSerializer.deserializeMap(null, Category)).toEqual({});
+    });
+  });
+
+  describe('IntegerEnumValidation', () => {
+    // An integer-backed enum is emitted as a TypeScript numeric enum, which
+    // carries a reverse mapping — so Object.values(Priority) contains the
+    // member-name strings too. Validation must reject a string payload that
+    // happens to match a member name; only the numeric wire values are valid.
+
+    test('rejects a reverse-mapped member name string as priority', () => {
+      expect(
+        () => new StockItem({ priority: 'NUMBER_1' as unknown as Priority }),
+      ).toThrow();
+    });
+
+    test('rejects deserializing a member-name string into the int enum field', () => {
+      const json = { priority: 'NUMBER_1' };
+      expect(() => ObjectSerializer.deserialize(json, StockItem)).toThrow(
+        SerializationError,
+      );
+    });
+
+    test('accepts a valid integer wire value', () => {
+      const item = new StockItem({ priority: Priority.NUMBER_2 });
+      expect(item.priority).toBe(2);
+    });
+
+    test('rejects an out-of-range integer', () => {
+      expect(
+        () => new StockItem({ priority: 99 as unknown as Priority }),
+      ).toThrow();
+    });
+  });
+
+  describe('UniqueItemsSetCoercion', () => {
+    // A `uniqueItems` array field is typed Set<T>; deserialization and
+    // hand-construction deliver a plain Array, so the constructor must coerce
+    // it to a real Set or callers calling .has()/.add() get a TypeError.
+
+    test('deserialize coerces a uniqueItems array into a runtime Set', () => {
+      const json = { name: 'Fido', photoUrls: ['a', 'b', 'a'] };
+      const pet = ObjectSerializer.deserialize(json, Pet);
+      expect(pet!.photoUrls).toBeInstanceOf(Set);
+      // duplicate collapses per uniqueItems
+      expect((pet!.photoUrls as Set<string>).size).toBe(2);
+      expect((pet!.photoUrls as Set<string>).has('a')).toBe(true);
+    });
+
+    test('hand-constructed model also yields a Set for photoUrls', () => {
+      const pet = new Pet({ name: 'Fido', photoUrls: ['x'] as unknown as Pet['photoUrls'] });
+      expect(pet.photoUrls).toBeInstanceOf(Set);
+      expect((pet.photoUrls as Set<string>).has('x')).toBe(true);
+    });
+
+    test('serializes a Set-valued uniqueItems field back to a JSON array', () => {
+      const pet = new Pet({ name: 'Fido', photoUrls: ['x', 'y'] as unknown as Pet['photoUrls'] });
+      const parsed = JSON.parse(ObjectSerializer.serialize(pet));
+      expect(Array.isArray(parsed.photoUrls)).toBe(true);
+      expect(parsed.photoUrls.sort()).toEqual(['x', 'y']);
+    });
+  });
+
+  describe('DeserializeArrayNullHandling', () => {
+    // For a primitive/enum element deserializer a null is a legitimate
+    // nullable wire value and must be preserved (array length and index
+    // alignment intact). For a model-class element type a null is a
+    // failed-parse sentinel and is dropped.
+
+    test('preserves null elements for a primitive element deserializer', () => {
+      const out = ObjectSerializer.deserializeArray(
+        ['a', null, 'b'],
+        (x) => x as string | null,
+      );
+      expect(out).toEqual(['a', null, 'b']);
+      expect(out.length).toBe(3);
+    });
+
+    test('drops null elements for a model-class element type', () => {
+      const out = ObjectSerializer.deserializeArray(
+        [{ id: 1, name: 'Dogs' }, null],
+        Category,
+      );
+      expect(out.length).toBe(1);
+      expect(out[0]).toBeInstanceOf(Category);
+    });
+
+    test('deserializeMap preserves a null value for a primitive value type', () => {
+      const out = ObjectSerializer.deserializeMap(
+        { a: 'x', b: null },
+        (x) => x as string | null,
+      );
+      expect(out).toEqual({ a: 'x', b: null });
+      expect(Object.keys(out).sort()).toEqual(['a', 'b']);
+    });
+  });
+
+  describe('NullableDateLeafDeserializer (M9)', () => {
+    // The leaf deserializer the generator emits for a date/date-time element
+    // of a nested container is a null-guarded `new Date(...)` arrow. A null (or
+    // absent) wire value must yield null: `new Date(null)` would yield the
+    // epoch Date(0) and `new Date(undefined)` an Invalid Date, either of which
+    // silently corrupts a nullable timestamp container. This mirrors the exact
+    // arrow text emitted by deserialize_arg.mustache.
+    const dateLeaf = (x: unknown) =>
+      x === null || x === undefined ? null : new Date(x as string);
+
+    test('deserializeMap preserves a null value for a Date leaf instead of epoch', () => {
+      const out = ObjectSerializer.deserializeMap(
+        { a: '2024-01-02T03:04:05.123Z', b: null },
+        dateLeaf,
+      );
+      expect(out.a).toBeInstanceOf(Date);
+      expect((out.a as unknown as Date).getTime()).toBe(
+        new Date('2024-01-02T03:04:05.123Z').getTime(),
+      );
+      expect(out.b).toBeNull();
+      // Guard against the regression: a null must not become the epoch Date(0).
+      expect(out.b).not.toBeInstanceOf(Date);
+      expect(Object.keys(out).sort()).toEqual(['a', 'b']);
+    });
+
+    test('deserializeArray preserves null Date leaves and index alignment', () => {
+      const out = ObjectSerializer.deserializeArray(
+        ['2020-01-02T03:04:05.123Z', null, '2021-06-15T00:00:00.000Z'],
+        dateLeaf,
+      );
+      expect(out.length).toBe(3);
+      expect(out[0]).toBeInstanceOf(Date);
+      expect(out[1]).toBeNull();
+      expect(out[2]).toBeInstanceOf(Date);
+      expect((out[0] as unknown as Date).getTime()).toBe(
+        new Date('2020-01-02T03:04:05.123Z').getTime(),
+      );
+    });
+  });
+
+  describe('DiscriminatorAutoInjectionTests', () => {
+    test('dry subtype serialization includes discriminator without caller setting it', () => {
+      const dry = new DryFood({ weightKg: 2.5 });
+      const json = ObjectSerializer.serialize(dry);
+      const parsed = JSON.parse(json);
+      expect(parsed.foodType).toBe('dry');
+      expect(parsed.weightKg).toBe(2.5);
+    });
+
+    test('wet subtype defaults discriminator to its mapping name', () => {
+      const wet = new WetFood({ volumeMl: 350 });
+      const json = ObjectSerializer.serialize(wet);
+      const parsed = JSON.parse(json);
+      expect(parsed.foodType).toBe('wet');
+      expect(parsed.volumeMl).toBe(350);
+    });
+
+    test('caller-supplied discriminator overrides the default', () => {
+      const dry = new DryFood({ foodType: 'custom', weightKg: 1 });
+      const json = ObjectSerializer.serialize(dry);
+      const parsed = JSON.parse(json);
+      expect(parsed.foodType).toBe('custom');
+    });
+
+    test('deserialize discriminator-tagged JSON returns subtype instance', () => {
+      const dryJson = { foodType: 'dry', weightKg: 2.5 };
+      const dry = ObjectSerializer.deserialize(dryJson, DryFood);
+      expect(dry).toBeDefined();
+      expect(dry).toBeInstanceOf(DryFood);
+      expect(dry!.foodType).toBe('dry');
+      expect(dry!.weightKg).toBe(2.5);
+    });
+
+    test('canonical AU-resid: PetFood payload missing the foodType discriminator throws', () => {
+      // Canonical scenario AU-residual — a discriminated-union payload that
+      // omits the discriminator property must hard-fail, not wrap the raw
+      // dict in a union container (the python/php divergence). PetFood is a
+      // oneOf discriminated by `foodType`; {"weightKg":5.0} supplies a
+      // subtype field but no discriminator, so deserialization MUST throw.
+      // Node already routes this through the "Missing discriminator property"
+      // guard in ObjectSerializer.deserialize, so it is GREEN.
+      const json = { weightKg: 5.0 };
+      expect(() => ObjectSerializer.deserialize(json, PetFood)).toThrow(SerializationError);
+    });
+  });
+
+  describe('TemporalRoundTrip (4.8)', () => {
+    // 4.8 — `format: time` maps to Temporal.PlainTime, round-tripping
+    // through its ISO 8601 canonical string. `format: duration` maps to
+    // Temporal.Duration but round-trips through the protobuf-JSON wire
+    // form ("3600s"), not ISO-8601 (#4). These tests exercise the
+    // ObjectSerializer scalar paths directly — generated model field
+    // round-trip is covered by the model-level constructor + @Transform
+    // decorators emitted by model.mustache.
+
+    describe('Temporal.PlainTime', () => {
+      test('stringify: PlainTime emits canonical HH:MM:SS', () => {
+        const t = Temporal.PlainTime.from('14:30:00');
+        expect(ObjectSerializer.stringify(t)).toBe('14:30:00');
+      });
+
+      test('stringify: PlainTime preserves sub-second precision', () => {
+        const t = Temporal.PlainTime.from('09:15:30.250');
+        expect(ObjectSerializer.stringify(t)).toBe('09:15:30.25');
+      });
+
+      test('toQueryValue: PlainTime serialises to its ISO string', () => {
+        const t = Temporal.PlainTime.from('06:00:00');
+        expect(ObjectSerializer.toQueryValue(t)).toBe('06:00:00');
+      });
+
+      test('toHeaderValue: PlainTime serialises to its ISO string', () => {
+        const t = Temporal.PlainTime.from('23:59:59');
+        expect(ObjectSerializer.toHeaderValue(t)).toBe('23:59:59');
+      });
+
+      test('toPathValue: PlainTime serialises to its ISO string', () => {
+        const t = Temporal.PlainTime.from('00:00:00');
+        expect(ObjectSerializer.toPathValue(t)).toBe('00:00:00');
+      });
+
+      test('serialize: PlainTime in a plain object becomes a JSON string', () => {
+        const json = ObjectSerializer.serialize({ openAt: Temporal.PlainTime.from('08:00:00') });
+        expect(JSON.parse(json)).toEqual({ openAt: '08:00:00' });
+      });
+
+      test('Temporal.PlainTime.from: rejects a malformed time string', () => {
+        expect(() => Temporal.PlainTime.from('25:99:99')).toThrow();
+      });
+
+      test('round-trip: stringify then PlainTime.from yields an equal value', () => {
+        const original = Temporal.PlainTime.from('11:22:33');
+        const restored = Temporal.PlainTime.from(ObjectSerializer.stringify(original));
+        expect(restored.equals(original)).toBe(true);
+      });
+    });
+
+    // #4 — `format: duration` is a google.protobuf.Duration. The native
+    // type stays Temporal.Duration, but the wire form is protobuf-JSON
+    // (a decimal number of seconds suffixed with "s", e.g. "3600s"), NOT
+    // ISO-8601 ("PT1H"). Empirically confirmed against the live Zitadel
+    // server: "3600s" -> 201, "3600.000000001s" -> 201, "PT1H" -> 400,
+    // 3600 -> 400.
+    describe('Temporal.Duration (protobuf-JSON)', () => {
+      test('stringify: whole-second duration emits "<secs>s"', () => {
+        const d = Temporal.Duration.from({ minutes: 15 });
+        expect(ObjectSerializer.stringify(d)).toBe('900s');
+      });
+
+      test('stringify: composite hours/minutes/seconds collapses to seconds', () => {
+        const d = Temporal.Duration.from('PT2H30M15S');
+        expect(ObjectSerializer.stringify(d)).toBe('9015s');
+      });
+
+      test('stringify: day-level duration collapses to seconds', () => {
+        const d = Temporal.Duration.from('P3D');
+        expect(ObjectSerializer.stringify(d)).toBe('259200s');
+      });
+
+      test('stringify: 1h is "3600s"', () => {
+        expect(ObjectSerializer.stringify(Temporal.Duration.from('PT1H'))).toBe('3600s');
+      });
+
+      test('toQueryValue: Duration serialises to protobuf-JSON', () => {
+        const d = Temporal.Duration.from('PT45S');
+        expect(ObjectSerializer.toQueryValue(d)).toBe('45s');
+      });
+
+      test('toHeaderValue: Duration serialises to protobuf-JSON', () => {
+        const d = Temporal.Duration.from('PT1H');
+        expect(ObjectSerializer.toHeaderValue(d)).toBe('3600s');
+      });
+
+      test('serialize: Duration in a plain object becomes a protobuf-JSON string', () => {
+        const json = ObjectSerializer.serialize({ ttl: Temporal.Duration.from('PT5M') });
+        expect(JSON.parse(json)).toEqual({ ttl: '300s' });
+      });
+
+      describe('durationToProtoJson', () => {
+        test('zero', () => {
+          expect(durationToProtoJson(Temporal.Duration.from({ seconds: 0 }))).toBe('0s');
+        });
+
+        test('one nanosecond -> 9-digit fraction', () => {
+          expect(
+            durationToProtoJson(Temporal.Duration.from({ seconds: 3600, nanoseconds: 1 }))
+          ).toBe('3600.000000001s');
+        });
+
+        test('millisecond fraction trims to 3 digits', () => {
+          expect(
+            durationToProtoJson(Temporal.Duration.from({ seconds: 1, milliseconds: 500 }))
+          ).toBe('1.500s');
+        });
+
+        test('microsecond fraction trims to 6 digits', () => {
+          expect(
+            durationToProtoJson(Temporal.Duration.from({ seconds: 1, microseconds: 250 }))
+          ).toBe('1.000250s');
+        });
+
+        test('negative duration carries the sign', () => {
+          expect(
+            durationToProtoJson(Temporal.Duration.from({ seconds: -90 }))
+          ).toBe('-90s');
+        });
+
+        test('negative fractional duration', () => {
+          expect(
+            durationToProtoJson(Temporal.Duration.from({ seconds: -1, milliseconds: -500 }))
+          ).toBe('-1.500s');
+        });
+      });
+
+      describe('durationFromProtoJson', () => {
+        test('parses whole seconds', () => {
+          expect(durationFromProtoJson('3600s').total({ unit: 'seconds' })).toBe(3600);
+        });
+
+        test('parses fractional seconds down to the nanosecond', () => {
+          const d = durationFromProtoJson('3600.000000001s');
+          expect(d.total({ unit: 'nanoseconds' })).toBe(3600000000001);
+        });
+
+        test('parses negative durations', () => {
+          expect(durationFromProtoJson('-90s').total({ unit: 'seconds' })).toBe(-90);
+        });
+
+        test('rejects ISO-8601 (PT1H)', () => {
+          expect(() => durationFromProtoJson('PT1H')).toThrow(SerializationError);
+        });
+
+        test('rejects a bare number with no "s" suffix', () => {
+          expect(() => durationFromProtoJson('3600')).toThrow(SerializationError);
+        });
+
+        test('rejects more than 9 fractional digits', () => {
+          expect(() => durationFromProtoJson('1.0000000001s')).toThrow(SerializationError);
+        });
+      });
+
+      test('round-trip: stringify then durationFromProtoJson is lossless', () => {
+        const original = Temporal.Duration.from('PT1H30M');
+        const restored = durationFromProtoJson(ObjectSerializer.stringify(original));
+        expect(restored.total({ unit: 'seconds' })).toBe(original.total({ unit: 'seconds' }));
+      });
+
+      test('round-trip: sub-second precision survives stringify -> parse', () => {
+        const original = Temporal.Duration.from({ seconds: 42, nanoseconds: 123456789 });
+        const restored = durationFromProtoJson(ObjectSerializer.stringify(original));
+        expect(restored.total({ unit: 'nanoseconds' })).toBe(
+          original.total({ unit: 'nanoseconds' })
+        );
+      });
+    });
+  });
+
+  describe('oneOf/anyOf no-match', () => {
+    test('resolveOneOf returns the first matching variant', () => {
+      const result = ObjectSerializer.resolveOneOf<string>('payload', [
+        () => {
+          throw new Error('variant A does not match');
+        },
+        (json) => 'matched:' + json,
+      ]);
+      expect(result).toBe('matched:payload');
+    });
+
+    test('resolveOneOf throws when no variant matches', () => {
+      // A payload matching none of the declared variants is a contract
+      // violation and must fail loudly rather than be silently returned as null.
+      expect(() =>
+        ObjectSerializer.resolveOneOf<string>('{"unexpected":true}', [
+          () => {
+            throw new Error('variant A does not match');
+          },
+          () => {
+            throw new Error('variant B does not match');
+          },
+        ]),
+      ).toThrow(SerializationError);
+    });
+
+    test('resolveAnyOf throws when no variant matches', () => {
+      expect(() =>
+        ObjectSerializer.resolveAnyOf<string>('{}', [() => null]),
+      ).toThrow(SerializationError);
+    });
+  });
+
+  describe('Canonical behavior #6 — unknown enum value on deserialize throws', () => {
+    // Deserializing a payload whose enum field carries an out-of-schema
+    // value must raise the SDK's (de)serialization error, never silently
+    // pass the unknown value through or coerce it to a default/unknown
+    // member. ObjectSerializer.deserialize routes plainToInstance output
+    // back through the model constructor, where the enum membership check
+    // fires.
+    test('out-of-schema enum value raises SerializationError', () => {
+      const wire = {
+        id: 1,
+        name: 'Rex',
+        photoUrls: ['http://example.com/p.jpg'],
+        status: 'galloping',
+      };
+      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(SerializationError);
+    });
+
+    test('error message names the offending enum value', () => {
+      const wire = {
+        id: 1,
+        name: 'Rex',
+        photoUrls: ['http://example.com/p.jpg'],
+        status: 'galloping',
+      };
+      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(/galloping/);
+    });
+
+    test('an in-schema enum value still deserializes cleanly', () => {
+      const wire = {
+        id: 1,
+        name: 'Rex',
+        photoUrls: ['http://example.com/p.jpg'],
+        status: PetStatusEnum.Available,
+      };
+      const pet = ObjectSerializer.deserialize(wire, Pet);
+      expect(pet?.status).toBe(PetStatusEnum.Available);
+    });
+  });
+
+  describe('Canonical #1 — integer-backed enum round-trips as a JSON NUMBER', () => {
+    // Priority is `type: integer` enum [1,2,3]. The wire form must be a bare
+    // JSON number (2), never the quoted string "2" nor the reverse-mapped
+    // member-name "NUMBER_2"; a server validating `type: integer` rejects a
+    // string. Deserializing the number 2 must yield the Priority.NUMBER_2
+    // member (which is === 2 for a numeric TS enum).
+    test('serialize emits the int enum field as an unquoted JSON number', () => {
+      const item = new StockItem({ priority: Priority.NUMBER_2 });
+      const text = ObjectSerializer.serialize(item);
+      expect(text).toContain('"priority":2');
+      expect(text).not.toContain('"priority":"2"');
+      expect(text).not.toContain('NUMBER_2');
+      const parsed = JSON.parse(text) as { priority: unknown };
+      expect(parsed.priority).toBe(2);
+      expect(typeof parsed.priority).toBe('number');
+    });
+
+    test('deserialize of the JSON number 2 yields the Priority member', () => {
+      const item = ObjectSerializer.deserialize({ priority: 2 }, StockItem);
+      expect(item!.priority).toBe(Priority.NUMBER_2);
+      expect(item!.priority).toBe(2);
+    });
+
+    test('round-trip: serialize then deserialize preserves the int enum member', () => {
+      const original = new StockItem({ priority: Priority.NUMBER_3 });
+      const restored = ObjectSerializer.deserialize(
+        JSON.parse(ObjectSerializer.serialize(original)),
+        StockItem,
+      );
+      expect(restored!.priority).toBe(Priority.NUMBER_3);
+    });
+  });
+
+  describe('Canonical #2 — non-lowercase string enum preserves wire casing', () => {
+    // Availability is a string enum whose values are NOT all lowercase
+    // ("Available", "Sold") and one of which is not a legal identifier
+    // ("on-hold"). The wire bytes must preserve the exact declared casing/
+    // hyphenation, deserialize must map the wire string to the right member,
+    // and an out-of-schema value must be rejected.
+    test('serialize preserves the exact wire casing of each member', () => {
+      const available = new StockItem({ priority: Priority.NUMBER_1, availability: Availability.Available });
+      expect(JSON.parse(ObjectSerializer.serialize(available)).availability).toBe('Available');
+
+      const sold = new StockItem({ priority: Priority.NUMBER_1, availability: Availability.Sold });
+      expect(JSON.parse(ObjectSerializer.serialize(sold)).availability).toBe('Sold');
+
+      const onHold = new StockItem({ priority: Priority.NUMBER_1, availability: Availability.OnHold });
+      expect(JSON.parse(ObjectSerializer.serialize(onHold)).availability).toBe('on-hold');
+    });
+
+    test('deserialize maps the wire string back to the right member', () => {
+      const item = ObjectSerializer.deserialize(
+        { priority: 1, availability: 'Available' },
+        StockItem,
+      );
+      expect(item!.availability).toBe(Availability.Available);
+
+      const hyphen = ObjectSerializer.deserialize(
+        { priority: 1, availability: 'on-hold' },
+        StockItem,
+      );
+      expect(hyphen!.availability).toBe(Availability.OnHold);
+    });
+
+    test('deserialize rejects an unknown availability wire value', () => {
+      expect(() =>
+        ObjectSerializer.deserialize({ priority: 1, availability: 'available' }, StockItem),
+      ).toThrow(SerializationError);
+    });
+
+    test('round-trip preserves the member through serialize then deserialize', () => {
+      const original = new StockItem({ priority: Priority.NUMBER_2, availability: Availability.OnHold });
+      const restored = ObjectSerializer.deserialize(
+        JSON.parse(ObjectSerializer.serialize(original)),
+        StockItem,
+      );
+      expect(restored!.availability).toBe(Availability.OnHold);
+    });
+  });
+
+  describe('Canonical #3 — array-of-byte field round-trips through base64', () => {
+    // 3 (array variant) — PetPassport.scans is Array<Buffer> where each
+    // element is `format: byte`. The model holds Buffers; the wire holds an
+    // array of base64 strings. (The scalar byte field is covered above in
+    // ByteArrayBufferRoundTrip.)
+    test('serialize encodes each scan Buffer to base64 in the wire array', () => {
+      const passport = new PetPassport({
+        scans: [
+          Buffer.from('page-one', 'utf-8'),
+          Buffer.from('page-two', 'utf-8'),
+        ] as unknown as PetPassport['scans'],
+      });
+      const parsed = JSON.parse(ObjectSerializer.serialize(passport)) as Record<string, unknown>;
+      expect(parsed['scans']).toEqual([
+        Buffer.from('page-one', 'utf-8').toString('base64'),
+        Buffer.from('page-two', 'utf-8').toString('base64'),
+      ]);
+    });
+
+    test('deserialize decodes each base64 scan string to a Buffer', () => {
+      const wire = {
+        scans: [
+          Buffer.from('alpha', 'utf-8').toString('base64'),
+          Buffer.from('beta', 'utf-8').toString('base64'),
+        ],
+      };
+      const passport = ObjectSerializer.deserialize(wire, PetPassport);
+      const scans = (passport as PetPassport).scans as unknown as Buffer[];
+      expect(scans).toHaveLength(2);
+      expect(Buffer.isBuffer(scans[0])).toBe(true);
+      expect(scans[0]!.toString('utf-8')).toBe('alpha');
+      expect(scans[1]!.toString('utf-8')).toBe('beta');
+    });
+
+    test('round-trip preserves raw scan bytes', () => {
+      const original = [Buffer.from([0x00, 0xff, 0x10]), Buffer.from([0xab, 0xcd])];
+      const passport = new PetPassport({ scans: original as unknown as PetPassport['scans'] });
+      const restored = ObjectSerializer.deserialize(
+        JSON.parse(ObjectSerializer.serialize(passport)),
+        PetPassport,
+      );
+      const scans = (restored as PetPassport).scans as unknown as Buffer[];
+      expect(Buffer.compare(scans[0]!, original[0]!)).toBe(0);
+      expect(Buffer.compare(scans[1]!, original[1]!)).toBe(0);
+    });
+  });
+
+  describe('setPetAvatarThumbnail byte oneOf round-trips through base64', () => {
+    // SetPetAvatarThumbnailRequest is a non-discriminated `oneOf` of
+    //   [ scalar `format: byte`, array of `format: byte` ]
+    // rendered as the bare TypeScript union `Array<Buffer> | Buffer`. There is
+    // no wrapper class — the `format: byte` marker must survive INSIDE the
+    // union so each byte variant travels on the wire as a base64 STRING, the
+    // exact path the bare scalar `format: byte` field already uses. The bug
+    // guarded here: a byte variant emitted as a JSON int-array ([1,2,3,4]) or
+    // as raw/unencoded bytes, or a scalar base64 string mis-parsed
+    // element-by-element into a list on the way back.
+
+    // (1) SCALAR variant — a single Buffer.
+    test('scalar Buffer variant serializes to a base64 STRING, not an int-array', () => {
+      const request: SetPetAvatarThumbnailRequest = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+      const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
+      // Must be the base64 string "AQIDBA==" — NOT the int-array [1,2,3,4],
+      // NOT the raw bytes, NOT a { type: 'Buffer', data: [...] } object.
+      expect(typeof wire).toBe('string');
+      expect(wire).toBe('AQIDBA==');
+      expect(Array.isArray(wire)).toBe(false);
+    });
+
+    test('scalar base64 string deserializes back to the original 4 bytes', () => {
+      // The union has no runtime decode wrapper, so the scalar variant decodes
+      // through the same base64 path the bare `format: byte` field uses:
+      // a JSON string -> Buffer.from(str, 'base64').
+      const original = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+      const wire = JSON.parse(ObjectSerializer.serialize(original as SetPetAvatarThumbnailRequest)) as unknown;
+      expect(typeof wire).toBe('string');
+      const restored = Buffer.from(wire as string, 'base64');
+      expect(Buffer.isBuffer(restored)).toBe(true);
+      expect(Buffer.compare(restored, original)).toBe(0);
+    });
+
+    // (2) ARRAY variant — a list of two byte payloads.
+    test('array-of-Buffer variant serializes to an array of base64 strings and round-trips', () => {
+      const payloads = [Buffer.from([0x01, 0x02, 0x03, 0x04]), Buffer.from([0x05, 0x06])];
+      const request: SetPetAvatarThumbnailRequest = payloads;
+      const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
+      // An array of base64 strings, NOT an array of int-arrays nor raw bytes.
+      expect(Array.isArray(wire)).toBe(true);
+      expect(wire).toEqual(['AQIDBA==', 'BQY=']);
+      const restored = (wire as string[]).map((s) => Buffer.from(s, 'base64'));
+      expect(restored).toHaveLength(2);
+      expect(Buffer.compare(restored[0]!, payloads[0]!)).toBe(0);
+      expect(Buffer.compare(restored[1]!, payloads[1]!)).toBe(0);
+    });
+
+    // ORDERING — a scalar base64 string must resolve to the SCALAR variant
+    // (one Buffer), never be mis-parsed element-by-element into a list. The
+    // bare-union encoding keeps the two cases structurally distinct: a scalar
+    // is a JSON string, the array is a JSON array, so the wire form alone
+    // disambiguates and a scalar string can never decode as a list.
+    test('a scalar base64 wire value resolves to the scalar variant, not a list', () => {
+      const wire = JSON.parse(ObjectSerializer.serialize(Buffer.from([0x01, 0x02, 0x03, 0x04]) as SetPetAvatarThumbnailRequest)) as unknown;
+      expect(Array.isArray(wire)).toBe(false);
+      expect(typeof wire).toBe('string');
+      const restored = Buffer.from(wire as string, 'base64');
+      // One value, the original 4 bytes — not [0x01],[0x02],[0x03],[0x04].
+      expect(Buffer.isBuffer(restored)).toBe(true);
+      expect(restored).toHaveLength(4);
+      expect(Buffer.compare(restored, Buffer.from([0x01, 0x02, 0x03, 0x04]))).toBe(0);
+    });
+  });
+
+  describe('Canonical #4 — double field deserializes from an INTEGRAL JSON value', () => {
+    // PhotoMetadataLocation.lat/lng are `type: number, format: double`. A
+    // server emitting a whole-number coordinate sends {"lat":5}, not 5.0 (JSON
+    // has no distinct float literal). The double field must accept the integral
+    // value without crashing, since JS numbers are uniformly doubles.
+    test('an integral lat value deserializes into a number field', () => {
+      const loc = ObjectSerializer.deserialize({ lat: 5, lng: -3 }, PhotoMetadataLocation);
+      expect(loc!.lat).toBe(5);
+      expect(typeof loc!.lat).toBe('number');
+      expect(loc!.lng).toBe(-3);
+    });
+
+    test('an integral double inside a nested model field deserializes', () => {
+      // location is a $ref to PhotoMetadataLocation nested under PhotoMetadata,
+      // so the integral coordinate must survive the nested decode too.
+      const meta = ObjectSerializer.deserialize(
+        { caption: 'x', location: { lat: 0, lng: 42 } },
+        PhotoMetadata,
+      );
+      expect(meta!.location).toBeInstanceOf(PhotoMetadataLocation);
+      expect(meta!.location!.lat).toBe(0);
+      expect(meta!.location!.lng).toBe(42);
+    });
+
+    test('a fractional double still deserializes alongside the integral case', () => {
+      const loc = ObjectSerializer.deserialize({ lat: 12.5, lng: 5 }, PhotoMetadataLocation);
+      expect(loc!.lat).toBe(12.5);
+      expect(loc!.lng).toBe(5);
+    });
+  });
+
+  describe('Canonical #5 — additionalProperties re-serialize at the TOP level', () => {
+    // Metadata declares additionalProperties: string. An extra property carried
+    // on the model (via its `[key: string]: unknown` index signature) must be
+    // re-emitted at the TOP level of the JSON object on serialize — never
+    // nested under an "additionalProperties"/"additional_properties" wrapper
+    // key. (Node's serialize walks the instance with JSON.stringify, so extra
+    // own keys land flat alongside the declared fields.)
+    test('an extra property serializes flat at the top level, not nested', () => {
+      const meta = new Metadata({ createdAt: new Date('2024-01-01T00:00:00Z') });
+      (meta as unknown as Record<string, unknown>)['region'] = 'eu-west';
+      const parsed = JSON.parse(ObjectSerializer.serialize(meta)) as Record<string, unknown>;
+      expect(parsed['region']).toBe('eu-west');
+      // Declared field still present alongside the extra key.
+      expect(parsed).toHaveProperty('createdAt');
+      // The extra key sits at the top level — never under a wrapper.
+      expect(parsed).not.toHaveProperty('additionalProperties');
+      expect(parsed).not.toHaveProperty('additional_properties');
+    });
+
+    test('multiple extra properties all land at the top level', () => {
+      const meta = new Metadata();
+      (meta as unknown as Record<string, unknown>)['a'] = 'one';
+      (meta as unknown as Record<string, unknown>)['b'] = 'two';
+      const parsed = JSON.parse(ObjectSerializer.serialize(meta)) as Record<string, unknown>;
+      expect(parsed['a']).toBe('one');
+      expect(parsed['b']).toBe('two');
+      expect(parsed).not.toHaveProperty('additionalProperties');
+    });
+  });
+});
+
+describe('model value-equality', () => {
+  // node-model-equality: generated models expose a value-based equals(),
+  // matching the value-equality the other SDKs provide.
+  test('structurally identical scalar models are equal', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    const b = new Category({ id: 1, name: 'Dogs' });
+    expect(a.equals(b)).toBe(true);
+    expect(b.equals(a)).toBe(true);
+  });
+
+  test('a model is equal to itself', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    expect(a.equals(a)).toBe(true);
+  });
+
+  test('models differing in a single field are not equal', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    const b = new Category({ id: 1, name: 'Cats' });
+    expect(a.equals(b)).toBe(false);
+    expect(b.equals(a)).toBe(false);
+  });
+
+  test('a model is never equal to a non-model value', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    expect(a.equals(null)).toBe(false);
+    expect(a.equals(undefined)).toBe(false);
+    expect(a.equals({ id: 1, name: 'Dogs' })).toBe(false);
+  });
+
+  test('deep equality compares nested models and collections structurally', () => {
+    const a = new Pet({
+      id: 7,
+      name: 'Rex',
+      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
+      category: new Category({ id: 1, name: 'Dogs' }),
+    });
+    const b = new Pet({
+      id: 7,
+      name: 'Rex',
+      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
+      category: new Category({ id: 1, name: 'Dogs' }),
+    });
+    expect(a.equals(b)).toBe(true);
+
+    const c = new Pet({
+      id: 7,
+      name: 'Rex',
+      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
+      category: new Category({ id: 2, name: 'Cats' }),
+    });
+    expect(a.equals(c)).toBe(false);
+  });
+});

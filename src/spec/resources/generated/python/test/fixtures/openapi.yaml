@@ -1,0 +1,1966 @@
+openapi: 3.1.0
+info:
+  title: Swagger Petstore - OpenAPI 3.0
+  description: A simplified Pet Store API for integration testing.
+  version: 1.0.0
+tags:
+  - name: pet
+    description: Everything about your Pets
+    externalDocs:
+      description: Find out more about pets
+      url: https://example.com/docs/pets
+  - name: store
+    description: Access to Petstore orders
+servers:
+  - url: /api/v3
+    description: Relative URL (no variables)
+  - url: https://{environment}.example.com/api/{version}
+    description: Main API server with variables
+    variables:
+      environment:
+        default: api
+        description: API environment
+        enum:
+          - api
+          - staging
+          - sandbox
+      version:
+        default: v3
+        description: API version
+        enum:
+          - v2
+          - v3
+paths:
+
+  # ─── Pet CRUD ────────────────────────────────────────────────────────────────
+
+  /pet:
+    post:
+      tags:
+        - pet
+      summary: Add a new pet to the store
+      operationId: addPet
+      security:
+        - apiKeyHeader: []
+        - petStoreBearer: []
+      requestBody:
+        description: Create a new pet in the store
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '400':
+          description: Invalid input
+
+  /pet/findByStatus:
+    get:
+      tags:
+        - pet
+      summary: Finds Pets by status
+      operationId: findPetsByStatus
+      deprecated: true
+      externalDocs:
+        description: Find out more about filtering
+        url: https://example.com/docs/filtering
+      parameters:
+        - name: status
+          in: query
+          description: Status values that need to be considered for filter
+          required: false
+          deprecated: true
+          allowEmptyValue: true
+          schema:
+            type: string
+            default: available
+            enum:
+              - available
+              - pending
+              - sold
+          examples:
+            available_only:
+              summary: Available only
+              description: Show only pets currently in stock
+              value: available
+            sold_pets:
+              summary: Sold pets
+              description: Show pets that have been sold
+              value: sold
+        - name: filter
+          in: query
+          description: Filter criteria as key-value pairs
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+        '400':
+          description: Invalid status value
+
+  /pet/{petId}:
+    get:
+      tags:
+        - pet
+      summary: Find pet by ID
+      description: Returns a single pet
+      operationId: getPetById
+      deprecated: true
+      servers:
+        - url: https://cdn.petstore.io/v3
+          description: CDN-backed read endpoint for pet details
+      parameters:
+        - name: petId
+          in: path
+          description: ID of pet to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+          examples:
+            small_breed:
+              summary: Small breed ID
+              description: A common small-breed pet identifier
+              value: 1
+            large_breed:
+              summary: Large breed ID
+              description: A common large-breed pet identifier
+              value: 42
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Pet not found
+    put:
+      tags:
+        - pet
+      summary: Update an existing pet
+      operationId: updatePet
+      parameters:
+        - name: petId
+          in: path
+          description: ID of pet to update
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Pet object that needs to be updated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Pet not found
+    delete:
+      tags:
+        - pet
+      summary: Deletes a pet
+      operationId: deletePet
+      security:
+        - adminBasic: []
+        - machineAuth:
+            - pets:write
+      parameters:
+        - name: petId
+          in: path
+          description: Pet id to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: api_key
+          in: cookie
+          description: Session cookie used for authentication
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pet deleted
+        '400':
+          description: Invalid pet value
+
+  # ─── Avatar ──────────────────────────────────────────────────────────────────
+  # Case 1:  binary request,  direct specific MIME  (PUT image/jpeg or image/png)
+  # Case 10: byte   request,  nested in JSON object  (PUT application/json with format:byte property)
+  # Case 7:  binary response, direct specific MIME  (GET image/jpeg or image/png)
+
+  /pet/{petId}/avatar:
+    put:
+      tags:
+        - pet
+      summary: Set the pet's profile photo
+      description: >-
+        Accepts either raw image bytes (image/jpeg or image/png) or a JSON
+        envelope carrying a base64-encoded image for clients that prefer a
+        JSON-only workflow.
+      operationId: setPetAvatar
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          # Case 1 — binary request, direct specific MIME
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          # Case 10 — byte request, nested in JSON object
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+                - mimeType
+              properties:
+                data:
+                  type: string
+                  format: byte
+                  description: Base64-encoded image data
+                mimeType:
+                  type: string
+                  example: image/jpeg
+      responses:
+        '204':
+          description: Avatar updated
+        '404':
+          description: Pet not found
+    get:
+      tags:
+        - pet
+      summary: Get the pet's profile photo
+      description: Returns the raw image bytes of the pet's current avatar.
+      operationId: getPetAvatar
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            # Case 7 — binary response, direct specific MIME
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Pet not found
+
+  # ─── Avatar thumbnail ────────────────────────────────────────────────────────
+  # Case 11: byte request,  top-level bare   (PUT — single base64 string or array)
+  # Case 12: byte request,  array items      (PUT — array variant via oneOf)
+  # Case 13: byte response, top-level bare   (GET — bare base64 string)
+
+  /pet/{petId}/avatar/thumbnail:
+    put:
+      tags:
+        - pet
+      summary: Set the pet's avatar thumbnail as base64
+      description: >-
+        Accepts either a single base64-encoded thumbnail or an array of
+        candidates; the server selects the most suitable one.
+      operationId: setPetAvatarThumbnail
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                # Case 11 — byte request, top-level bare
+                - type: string
+                  format: byte
+                  description: Single base64-encoded thumbnail
+                # Case 12 — byte request, array items
+                - type: array
+                  items:
+                    type: string
+                    format: byte
+                  description: Multiple base64-encoded candidates; server picks best
+      responses:
+        '204':
+          description: Thumbnail updated
+        '404':
+          description: Pet not found
+    get:
+      tags:
+        - pet
+      summary: Get the pet's avatar thumbnail as base64
+      description: >-
+        Returns a compact base64-encoded thumbnail suitable for embedding
+        directly in mobile UI without a separate image request.
+      operationId: getPetAvatarThumbnail
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                # Case 13 — byte response, top-level bare
+                type: string
+                format: byte
+                example: "dGVzdC1pbWFnZQ=="
+        '404':
+          description: Pet not found
+
+  # ─── Photo gallery ───────────────────────────────────────────────────────────
+  # Case 5: binary request, multipart file + JSON object part  (encoding block)
+  # Case 6: binary request, multipart array of files
+  # Case 9: binary response, content negotiation (image/* vs application/json)
+
+  /pet/{petId}/photos:
+    post:
+      tags:
+        - pet
+      summary: Add photos to the pet's gallery
+      description: >-
+        Uploads one or more photos with structured metadata. The metadata
+        part is serialised as JSON within the multipart body.
+      operationId: addPetPhotos
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+                - metadata
+              properties:
+                # Case 6 — binary request, multipart array of files
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                # Case 5 — binary request, multipart file + JSON object part
+                metadata:
+                  $ref: '#/components/schemas/PhotoMetadata'
+            encoding:
+              metadata:
+                contentType: application/json
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Photo'
+        '404':
+          description: Pet not found
+
+  /pet/{petId}/photos/{photoId}:
+    get:
+      tags:
+        - pet
+      summary: Get a photo or its metadata
+      description: >-
+        Returns the raw image bytes or JSON metadata depending on the
+        Accept header sent by the client.
+      operationId: getPetPhoto
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            # Case 9 — binary response, content negotiation
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Photo'
+        '404':
+          description: Photo not found
+
+  # ─── Adoption certificate ────────────────────────────────────────────────────
+  # Case 3: binary request, multipart single file, no companions
+
+  /pet/{petId}/certificate:
+    post:
+      tags:
+        - pet
+      summary: Upload the pet's adoption certificate
+      description: >-
+        Attaches a single adoption certificate document. No metadata fields
+        are required alongside the file.
+      operationId: uploadPetCertificate
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                # Case 3 — binary request, multipart single file, no companions
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: Pet not found
+
+  # ─── Form-encoded preferences ────────────────────────────────────────────────
+  # Case 10: application/x-www-form-urlencoded body with a required scalar, an
+  # ARRAY field (exercises repeated-key array serialization parity) and an
+  # OPTIONAL field (exercises null-field omission parity) across all SDKs.
+
+  /pet/{petId}/preferences:
+    post:
+      tags:
+        - pet
+      summary: Update a pet's notification preferences
+      description: >-
+        Submits preferences as an application/x-www-form-urlencoded form. Used to
+        exercise array-field (repeated-key) serialization and optional-field
+        omission so the wire bytes are identical across every SDK.
+      operationId: setPetPreferences
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - nickname
+              properties:
+                nickname:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: Pet not found
+
+  # ─── Vet documents ───────────────────────────────────────────────────────────
+  # Case 2: binary request,  octet-stream  (POST application/octet-stream)
+  # Case 4: binary request,  multipart file + scalar companions
+  # Case 8: binary response, octet-stream  (GET application/octet-stream)
+
+  /pet/{petId}/documents:
+    post:
+      tags:
+        - pet
+      summary: Attach a vet document or health record
+      description: >-
+        Accepts either a multipart upload with document classification fields,
+        or a raw octet-stream for server-to-server and CLI clients that prefer
+        to stream bytes directly.
+      operationId: uploadPetDocument
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          # Case 4 — binary request, multipart file + scalar companions
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                documentType:
+                  type: string
+                  enum:
+                    - health_certificate
+                    - vaccination_record
+                    - microchip_record
+                notes:
+                  type: string
+          # Case 2 — binary request, direct octet-stream
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: Pet not found
+
+  /pet/{petId}/documents/{documentId}:
+    get:
+      tags:
+        - pet
+      summary: Download a vet document
+      description: >-
+        Returns the raw document bytes as an octet-stream. The original MIME
+        type is communicated via the Content-Type response header.
+      operationId: downloadPetDocument
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            # Case 8 — binary response, octet-stream
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Document not found
+
+  # ─── Pet passport ─────────────────────────────────────────────────────────────
+  # Case 14: byte response, nested in JSON object   (thumbnail property)
+  # Case 15: byte response, array items             (scans array)
+
+  /pet/{petId}/passport:
+    get:
+      tags:
+        - pet
+      summary: Get the pet's passport
+      description: >-
+        Returns a single JSON document combining the pet's profile with an
+        embedded base64 thumbnail and base64-encoded scans of each passport
+        page, suitable for mobile clients that prefer a single-request workflow.
+      operationId: getPetPassport
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetPassport'
+        '404':
+          description: Pet not found
+
+  # ─── Pet treatment ──────────────────────────────────────────────────────────
+
+  /pet/{petId}/treatment:
+    post:
+      tags:
+        - pet
+      summary: Record a treatment for a pet
+      operationId: addPetTreatment
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PetTreatment'
+      responses:
+        '200':
+          description: Treatment recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetTreatment'
+      security:
+        - petstore_auth:
+            - write:pets
+
+  # ─── Styled parameters ─────────────────────────────────────────────────────
+
+  /pet/{petId}/tag/{tagName}:
+    get:
+      tags:
+        - pet
+      summary: Get a tag for a pet
+      operationId: getPetTag
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          style: matrix
+          explode: false
+          schema:
+            type: integer
+            format: int64
+        - name: tagName
+          in: path
+          required: true
+          style: label
+          schema:
+            type: string
+        - name: colors
+          in: query
+          style: pipeDelimited
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sizes
+          in: query
+          style: spaceDelimited
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: filter
+          in: query
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
+  /pet/byName/{name}:
+    get:
+      tags:
+        - pet
+      summary: Look up a pet by name (simple string path param + required query)
+      operationId: getPetByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
+  # ─── Per-operation servers ────────────────────────────────────────────────
+
+  /pet/{petId}/external:
+    get:
+      servers:
+        - url: https://external-api.example.com/v1
+      tags:
+        - pet
+      summary: Get external pet info
+      operationId: getExternalPetInfo
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
+  /pet/{petId}/staging:
+    get:
+      servers:
+        - url: https://{environment}.example.com/api/{version}
+          description: Staging server
+          variables:
+            environment:
+              default: staging
+              description: Deployment environment
+              enum:
+                - staging
+                - sandbox
+            version:
+              default: v3
+              description: API version
+              enum:
+                - v2
+                - v3
+      tags:
+        - pet
+      summary: Get staging pet info
+      operationId: getStagingPetInfo
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
+  /pet/{petId}/multi:
+    get:
+      servers:
+        - url: https://primary.example.com/v1
+          description: Primary
+        - url: https://{region}.example.com/v1
+          description: Regional
+          variables:
+            region:
+              default: us
+              description: Geographic region
+              enum:
+                - us
+                - eu
+                - ap
+      tags:
+        - pet
+      summary: Get multi-server pet info
+      operationId: getMultiServerPetInfo
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
+  # ─── Store ───────────────────────────────────────────────────────────────────
+
+  /store/inventory:
+    get:
+      tags:
+        - store
+      summary: Returns pet inventories by status
+      operationId: getInventory
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+                  format: int32
+
+  /store/tree:
+    get:
+      tags:
+        - store
+      summary: Returns a self-referential tree (recursive-type codegen fixture)
+      operationId: getTree
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreeNode'
+
+  /store/by-swatch/{pathSwatch}:
+    get:
+      tags:
+        - store
+      summary: Echoes a swatch supplied via path, query and header parameters.
+      operationId: getBySwatch
+      security: []
+      parameters:
+        # Required named-enum ($ref) param: a path param is a required method
+        # argument on the API class (not an Options member). Its enum type must
+        # be referenced/imported correctly there in every SDK.
+        - name: pathSwatch
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Swatch'
+        # Optional named-enum ($ref) parameters: these land in the generated
+        # Options class, which must import/qualify the enum type (its generated
+        # type lives in the models namespace) across every SDK.
+        - name: querySwatch
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Swatch'
+        - name: Preferred-Swatch
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/Swatch'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+
+  /store/swatch:
+    get:
+      tags:
+        - store
+      summary: Returns a bare enum (value-type response codegen fixture).
+      operationId: getSwatch
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Swatch'
+
+  /store/department:
+    get:
+      tags:
+        - store
+      summary: Returns a department (mutual-recursion codegen fixture).
+      operationId: getDepartment
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+
+  /store/defaults:
+    get:
+      tags:
+        - store
+      summary: Returns a model exercising schema defaults on deserialize.
+      operationId: getDefaults
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Defaults'
+
+  /store/grouped-categories:
+    get:
+      tags:
+        - store
+      summary: Returns categories grouped into an array of string-keyed maps.
+      operationId: getGroupedCategories
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Category'
+
+  /store/matrix:
+    get:
+      tags:
+        - store
+      summary: Returns a matrix as an array of integer arrays.
+      operationId: getMatrix
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+
+  /store/stock-item:
+    get:
+      tags:
+        - store
+      summary: Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+      operationId: getStockItem
+      security: []
+      parameters:
+        # Optional date-time OPERATION query param. Exercises finding 2.10:
+        # Go's options/api paths emit time.Time without importing "time" when a
+        # date-time appears as an operation parameter (the model path imports it
+        # correctly, but the operation path was masked because petstore only
+        # used date-time in model bodies).
+        - name: asOf
+          in: query
+          required: false
+          description: Only consider stock as of this instant
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockItem'
+
+  /store/swatch-groups:
+    get:
+      tags:
+        - store
+      summary: Returns swatches grouped as an array of string-keyed enum maps.
+      operationId: getSwatchGroups
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Swatch'
+
+  /store/timestamp-groups:
+    get:
+      tags:
+        - store
+      summary: Returns timestamps grouped as an array of string-keyed maps.
+      operationId: getTimestampGroups
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties:
+                    type: string
+                    format: date-time
+
+  /store/order:
+    post:
+      tags:
+        - store
+      summary: Place an order for a pet
+      operationId: placeOrder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid Order
+
+  /store/order/{orderId}:
+    get:
+      tags:
+        - store
+      summary: Find purchase order by ID
+      operationId: getOrderById
+      parameters:
+        - name: orderId
+          in: path
+          description: ID of order to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Order not found
+    delete:
+      tags:
+        - store
+      summary: Delete purchase order by ID
+      operationId: deleteOrder
+      parameters:
+        - name: orderId
+          in: path
+          description: ID of the order to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order deleted
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Order not found
+
+  # ─── Transport-test endpoints ─────────────────────────────────────────────
+  # Served by chasm; filtered out of SDK generation by DropInternalOperationsRule
+  # (each operation carries x-internal: true). Echo, delay, compression,
+  # redirects, error statuses, multi-value headers, text/empty bodies.
+  /test/echo:
+    parameters: []
+    get:    { operationId: testEchoGet,    x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo of the request as JSON envelope, content: { application/json: { schema: { type: object } } } } } }
+    post:   { operationId: testEchoPost,   x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+    put:    { operationId: testEchoPut,    x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+    patch:  { operationId: testEchoPatch,  x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+    delete: { operationId: testEchoDelete, x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+
+  /test/slow:
+    get:
+      operationId: testSlow
+      x-internal: true
+      tags: [test]
+      security: []
+      x-chasm-delay-ms: 5000
+      responses:
+        '200':
+          description: Slow response after 5 seconds
+          content:
+            application/json:
+              schema: { type: object }
+              example: { ok: true }
+
+  /test/compressed/gzip:
+    get:
+      operationId: testCompressedGzip
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Gzip-compressed JSON body
+          x-chasm-content-encoding: gzip
+          content:
+            application/json:
+              schema: { type: object }
+              example: { userId: 1, id: 1, title: "compressed fixture body" }
+  /test/compressed/br:
+    get:
+      operationId: testCompressedBrotli
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Brotli-compressed JSON body
+          x-chasm-content-encoding: br
+          content:
+            application/json:
+              schema: { type: object }
+              example: { userId: 1, id: 1, title: "compressed fixture body" }
+  /test/compressed/zstd:
+    get:
+      operationId: testCompressedZstd
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Zstd-compressed JSON body
+          x-chasm-content-encoding: zstd
+          content:
+            application/json:
+              schema: { type: object }
+              example: { userId: 1, id: 1, title: "compressed fixture body" }
+
+  /test/status/400: { get: { operationId: testStatus400, x-internal: true, tags: [test], security: [], responses: { '400': { description: Bad Request,           content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/401: { get: { operationId: testStatus401, x-internal: true, tags: [test], security: [], responses: { '401': { description: Unauthorized,          content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/403: { get: { operationId: testStatus403, x-internal: true, tags: [test], security: [], responses: { '403': { description: Forbidden,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/404: { get: { operationId: testStatus404, x-internal: true, tags: [test], security: [], responses: { '404': { description: Not Found,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/409: { get: { operationId: testStatus409, x-internal: true, tags: [test], security: [], responses: { '409': { description: Conflict,              content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/418: { get: { operationId: testStatus418, x-internal: true, tags: [test], security: [], responses: { '418': { description: I am a teapot,         content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/422: { get: { operationId: testStatus422, x-internal: true, tags: [test], security: [], responses: { '422': { description: Unprocessable Entity,  content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/500: { get: { operationId: testStatus500, x-internal: true, tags: [test], security: [], responses: { '500': { description: Internal Server Error, content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/502: { get: { operationId: testStatus502, x-internal: true, tags: [test], security: [], responses: { '502': { description: Bad Gateway,           content: { application/json: { schema: { type: object } } } } } } }
+  # SDK error-dispatch tests use baseUrl + getPetById, which appends /pet/{petId}.
+  # These suffix routes mirror the parent and return the same status code so the
+  # SDK can see the typed error response on its standard API method path.
+  /test/status/400/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus400Pet, x-internal: true, tags: [test], security: [], responses: { '400': { description: Bad Request,           content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/401/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus401Pet, x-internal: true, tags: [test], security: [], responses: { '401': { description: Unauthorized,          content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/403/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus403Pet, x-internal: true, tags: [test], security: [], responses: { '403': { description: Forbidden,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/404/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus404Pet, x-internal: true, tags: [test], security: [], responses: { '404': { description: Not Found,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/409/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus409Pet, x-internal: true, tags: [test], security: [], responses: { '409': { description: Conflict,              content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/418/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus418Pet, x-internal: true, tags: [test], security: [], responses: { '418': { description: I am a teapot,         content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/422/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus422Pet, x-internal: true, tags: [test], security: [], responses: { '422': { description: Unprocessable Entity,  content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/500/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus500Pet, x-internal: true, tags: [test], security: [], responses: { '500': { description: Internal Server Error, content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/502/pet/{petId}: { parameters: [{ name: petId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus502Pet, x-internal: true, tags: [test], security: [], responses: { '502': { description: Bad Gateway,           content: { application/json: { schema: { type: object } } } } } } }
+  # Store-order variants for the SDK error-dispatch tests that exercise getOrderById.
+  /test/status/400/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus400Order, x-internal: true, tags: [test], security: [], responses: { '400': { description: Bad Request,           content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/401/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus401Order, x-internal: true, tags: [test], security: [], responses: { '401': { description: Unauthorized,          content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/403/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus403Order, x-internal: true, tags: [test], security: [], responses: { '403': { description: Forbidden,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/404/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus404Order, x-internal: true, tags: [test], security: [], responses: { '404': { description: Not Found,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/409/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus409Order, x-internal: true, tags: [test], security: [], responses: { '409': { description: Conflict,              content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/418/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus418Order, x-internal: true, tags: [test], security: [], responses: { '418': { description: I am a teapot,         content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/422/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus422Order, x-internal: true, tags: [test], security: [], responses: { '422': { description: Unprocessable Entity,  content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/500/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus500Order, x-internal: true, tags: [test], security: [], responses: { '500': { description: Internal Server Error, content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/502/store/order/{orderId}: { parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }], get: { operationId: testStatus502Order, x-internal: true, tags: [test], security: [], responses: { '502': { description: Bad Gateway,           content: { application/json: { schema: { type: object } } } } } } }
+
+  /test/redirect/302:
+    get:
+      operationId: testRedirect302
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '302':
+          description: Found
+          headers:
+            Location: { schema: { type: string }, example: /test/echo }
+  /test/redirect/303:
+    get:    { operationId: testRedirect303Get,    x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    post:   { operationId: testRedirect303Post,   x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    put:    { operationId: testRedirect303Put,    x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    patch:  { operationId: testRedirect303Patch,  x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    delete: { operationId: testRedirect303Delete, x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+  /test/redirect/307:
+    get:    { operationId: testRedirect307Get,    x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    post:   { operationId: testRedirect307Post,   x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    put:    { operationId: testRedirect307Put,    x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    patch:  { operationId: testRedirect307Patch,  x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    delete: { operationId: testRedirect307Delete, x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+  /test/redirect/307-multipart:
+    post:
+      operationId: testRedirect307Multipart
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '307':
+          description: Temporary Redirect (multipart replay)
+          headers:
+            Location: { schema: { type: string }, example: /test/echo }
+
+  /test/response-headers:
+    get:
+      operationId: testResponseHeaders
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Multi-value response headers
+          headers:
+            X-Custom-Header: { schema: { type: string }, example: foo }
+            Link:
+              schema: { type: array, items: { type: string } }
+              example: ['<https://example.com/a>; rel="next"', '<https://example.com/b>; rel="prev"']
+            Set-Cookie:
+              schema: { type: array, items: { type: string } }
+              example: ['a=1', 'b=2']
+          content:
+            application/json:
+              schema: { type: object }
+
+  /test/set-cookie:
+    get:
+      operationId: testSetCookie
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Single Set-Cookie header
+          headers:
+            Set-Cookie: { schema: { type: string }, example: "session-id=test-session-value; Path=/" }
+          content:
+            application/json:
+              schema: { type: object }
+
+  /test/text-plain:
+    get:
+      operationId: testTextPlain
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Plain text response
+          content:
+            text/plain:
+              schema: { type: string }
+              example: "hello world"
+
+  /test/empty:
+    get:
+      operationId: testEmpty
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Empty body
+
+security:
+  - petStoreBasic: []
+  - petStoreBearer: []
+
+components:
+  securitySchemes:
+    petStoreBasic:
+      type: http
+      scheme: basic
+    adminBasic:
+      type: http
+      scheme: basic
+    petStoreBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    serviceToken:
+      type: http
+      scheme: bearer
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    internalApiKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Key
+    apiKeyQuery:
+      type: apiKey
+      in: query
+      name: api_key
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: SESSION_ID
+    machineAuth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            pets:read: Read pets
+            pets:write: Write pets
+    legacyAuth:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: https://auth.example.com/oauth/token
+          refreshUrl: https://auth.example.com/oauth/refresh
+          scopes:
+            read: Read access
+    userAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/oauth/token
+          refreshUrl: https://auth.example.com/oauth/refresh
+          scopes:
+            pets:read: Read pets
+            pets:write: Write pets
+    browserAuth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://auth.example.com/authorize
+          scopes:
+            read: Read access
+    ssoAuth:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration
+
+  schemas:
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        petId:
+          type: integer
+          format: int64
+          example: 198772
+        quantity:
+          type: integer
+          format: int32
+          example: 7
+        shipDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: Order Status
+          example: approved
+          default: placed
+          enum:
+            - placed
+            - approved
+            - delivered
+        complete:
+          type: boolean
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Dogs
+          x-examples:
+            small_breed:
+              summary: Small breed
+              description: Toy or small breed dogs
+              value: Chihuahua
+            large_breed:
+              summary: Large breed
+              description: Working or guard breed dogs
+              value: GreatDane
+
+    Tag:
+      type: object
+      deprecated: true
+      description: Tags are deprecated, use categories instead
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+
+    Pet:
+      required:
+        - name
+        - photoUrls
+      type: object
+      externalDocs:
+        description: Learn more about the Pet model
+        url: https://example.com/docs/pet
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        name:
+          type: string
+          example: doggie
+        category:
+          $ref: '#/components/schemas/Category'
+        photoUrls:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        status:
+          type: string
+          description: pet status in the store
+          deprecated: true
+          enum:
+            - available
+            - pending
+            - sold
+        location:
+          $ref: '#/components/schemas/GeoPoint'
+        # Type-surface exercise fields — each one drives a generator
+        # mapping that varies by language (branded URI in Node, HttpUrl in
+        # Python, System.Uri in C#, io.ktor.http.Url in Kotlin, etc.).
+        homepageUrl:
+          type: string
+          format: uri
+          description: Absolute URL to the pet's public profile page
+          example: https://example.com/pets/fido
+        # uri-reference may be relative; languages MUST keep this as a
+        # plain string surface even though `format: uri` is typed.
+        thumbnailRef:
+          type: string
+          format: uri-reference
+          description: Optionally-relative thumbnail location
+          example: /assets/thumb-fido.png
+        # uri-template (RFC 6570) contains {var} placeholders so no real
+        # URI parser will accept it — stays a plain string surface.
+        linkTemplate:
+          type: string
+          format: uri-template
+          description: RFC 6570 template for related-resource links
+          example: https://example.com/pets/{id}/photos{?size}
+        ownerEmail:
+          type: string
+          format: email
+          description: Contact email for the pet's owner
+          example: owner@example.com
+        # Plain `type: number` without a numeric format — decimal-precision
+        # surface. Becomes branded `Decimal` in Node, BigDecimal in
+        # Java/Kotlin, decimal.Decimal in Python, etc.
+        weightKg:
+          type: number
+          description: Pet weight in kilograms (decimal precision)
+          example: 12.345
+
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        type:
+          type: string
+        message:
+          type: string
+
+    DryFood:
+      type: object
+      required:
+        - foodType
+        - weightKg
+      properties:
+        foodType:
+          type: string
+        weightKg:
+          type: number
+          format: double
+
+    WetFood:
+      type: object
+      required:
+        - foodType
+        - volumeMl
+      properties:
+        foodType:
+          type: string
+        volumeMl:
+          type: integer
+          format: int32
+
+    PetFood:
+      description: Food for pets, discriminated by foodType
+      oneOf:
+        - $ref: '#/components/schemas/DryFood'
+        - $ref: '#/components/schemas/WetFood'
+      discriminator:
+        propertyName: foodType
+        mapping:
+          dry: '#/components/schemas/DryFood'
+          wet: '#/components/schemas/WetFood'
+
+    Medication:
+      type: object
+      required:
+        - drugName
+      properties:
+        drugName:
+          type: string
+        dosage:
+          type: string
+
+    Surgery:
+      type: object
+      required:
+        - procedureName
+      properties:
+        procedureName:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+
+    PetTreatment:
+      description: A treatment that can match a medication, a surgery, or both
+      anyOf:
+        - $ref: '#/components/schemas/Medication'
+        - $ref: '#/components/schemas/Surgery'
+
+    PetWithOwner:
+      description: A pet record extended with owner information
+      allOf:
+        - $ref: '#/components/schemas/Pet'
+        - type: object
+          required:
+            - ownerName
+          properties:
+            ownerName:
+              type: string
+            ownerEmail:
+              type: string
+              format: email
+
+    Photo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        caption:
+          type: string
+        isPrimary:
+          type: boolean
+        url:
+          type: string
+
+    PhotoMetadata:
+      type: object
+      properties:
+        caption:
+          type: string
+        isPrimary:
+          type: boolean
+        takenAt:
+          type: string
+          format: date-time
+        location:
+          $ref: '#/components/schemas/PhotoMetadataLocation'
+
+    PhotoMetadataLocation:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+
+    PetPassport:
+      type: object
+      properties:
+        pet:
+          $ref: '#/components/schemas/Pet'
+        # Case 14 — byte response, nested in JSON object
+        thumbnail:
+          type: string
+          format: byte
+          description: Base64-encoded primary thumbnail
+          example: "dGVzdC10aHVtYm5haWw="
+        # Case 15 — byte response, array items
+        scans:
+          type: array
+          items:
+            type: string
+            format: byte
+            example: "dGVzdC1zY2Fu"
+          description: Base64-encoded scans of each passport page
+        issuedAt:
+          type: string
+          format: date-time
+        # Gap BB — OAS 3.1 contentEncoding/contentMediaType.
+        # Normalized by the CONTENT_ENCODING rule into format: byte +
+        # contentMediaType appended to the docstring. Without the rule,
+        # generators that only understand OAS 3.0 would emit a plain
+        # String here with no base64 decoding.
+        biometricChip:
+          type: string
+          contentEncoding: base64
+          contentMediaType: application/octet-stream
+          description: Embedded chip data (OAS 3.1 contentEncoding form)
+
+    Metadata:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties:
+        type: string
+
+    # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 strict-mode. Deserializers must
+    # reject any JSON key not declared here (or inherited via allOf). Used by the
+    # generated-client extra-key-rejection test in each language.
+    StrictTag:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+      unevaluatedProperties: false
+
+    # Gap AZ — OAS 3.1 / JSON Schema 2020-12 `prefixItems` (positional tuple
+    # arrays). Normalized by NormalizePrefixItemsRule into a plain
+    # `type: array, items: {}` (Object / Any / interface{}) with the original
+    # per-index types preserved in the schema description. Heterogeneous
+    # fixed-arity tuples have no portable representation across the 12 target
+    # languages, so we degrade to a homogeneous array; callers must downcast
+    # per index following the docstring.
+    GeoPoint:
+      type: array
+      prefixItems:
+        - type: number
+          format: double
+        - type: number
+          format: double
+        - type: string
+
+    # Standalone string-enum component (NOT an inline property enum like
+    # Order.status). Exercises the top-level enum template path: in Java that
+    # path emits @JsonValue / @JsonCreator and must self-import the Jackson
+    # annotations, which only the inline-enum and object-model paths did before.
+    Color:
+      type: string
+      description: A standalone, reusable colour enumeration
+      enum:
+        - red
+        - green
+        - blue
+
+    # Collected real-world shapes that the petstore previously lacked, each of
+    # which broke at least one generator against the Zitadel spec.
+    EdgeCases:
+      type: object
+      description: >-
+        Edge-case property shapes mirrored from real protobuf-derived specs.
+      properties:
+        # Bug 1 — nullable free-form (any-typed) property. Optional + no type
+        # ⇒ "mixed" in PHP. The PHP template used to emit `public ?mixed`,
+        # a fatal parse error (mixed already includes null). Must come out as
+        # bare `mixed`. Legal-but-redundant nullable-any everywhere else.
+        freeFormAny:
+          description: Arbitrary JSON value; may be absent or null
+        # Bug 2 — reference to the standalone enum component above.
+        favoriteColor:
+          $ref: '#/components/schemas/Color'
+        # Bug 3 — description carrying HTML entities, exactly as buf emits
+        # quoted/angled proto comment text. Must be decoded to its readable
+        # form ("user.grant.write", <admin>, & , don't) in every language's
+        # generated comments, and must never appear as a raw entity or as the
+        # `\&quot;` that tripped Python's invalid-escape SyntaxWarning.
+        permissionsNote:
+          type: string
+          description: >-
+            Required permission is &quot;user.grant.write&quot; for
+            &lt;admin&gt; &amp; owner roles (don&#39;t skip it)
+        # Bug 4 — properties literally named after language keywords. Python
+        # (pydantic v2) rejects a leading-underscore field, so `and`→`_and`
+        # crashed at import; the fix mangles to a trailing underscore (`and_`)
+        # with the wire name preserved via the field alias.
+        and:
+          type: boolean
+        or:
+          type: boolean
+        not:
+          type: boolean
+        class:
+          type: string
+        return:
+          type: string
+        # Bug 5 — protobuf Duration ⇒ Python datetime.timedelta (module-
+        # qualified), which needs `import datetime`, not `from datetime import
+        # timedelta`. Paired with a date-time field.
+        retryAfter:
+          type: string
+          format: duration
+          description: Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
+        expiresAt:
+          type: string
+          format: date-time
+          description: Absolute expiry instant
+
+    # Self-referential schema. Exercises recursive-type code generation: a
+    # value type that contains itself has infinite size unless the recursive
+    # member is heap-indirected (e.g. Rust requires Box around the optional
+    # self-reference). Drives the recursion round-trip test in every SDK.
+    TreeNode:
+      type: object
+      required:
+        - value
+      properties:
+        value:
+          type: string
+        child:
+          $ref: '#/components/schemas/TreeNode'
+
+    # Mutual recursion (Department -> Employee -> Department): neither model is a
+    # DIRECT self-reference, so a generator that only boxes direct self-refs
+    # leaves these as fixed-size value types — infinite size (rust E0072, swift
+    # infinite-size struct). The reference cycle must be broken by indirecting an
+    # edge (rust Box, swift @Indirect). The back-references are optional so a
+    # finite value can still be constructed.
+    Department:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        lead:
+          $ref: '#/components/schemas/Employee'
+    Employee:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        department:
+          $ref: '#/components/schemas/Department'
+
+    # Exercises schema defaults on deserialize across SDKs.
+    Defaults:
+      type: object
+      properties:
+        # non-enum scalar default (must apply on absent, not only enums)
+        retries:
+          type: integer
+          format: int32
+          default: 3
+        # enum default that is NOT the first variant (must use the declared
+        # default, not the type's first/zero variant)
+        mode:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+          default: medium
+        # nullable field with a default: absent -> default, explicit null -> null.
+        # OAS 3.1 spells nullability as a "null" member of the type array (the
+        # 3.0 `nullable: true` keyword is ignored under 3.1); the normalizer
+        # folds this back to nullable:true so isNullable is set downstream.
+        label:
+          type:
+            - string
+            - "null"
+          default: untitled
+
+    # Named string enum used as the leaf of a nested container (array<map<enum>>)
+    # to exercise enum-leaf deep deserialization (must not be routed through the
+    # model fromJson / plainToInstance path).
+    Swatch:
+      type: string
+      enum:
+        - red
+        - green
+        - blue
+
+    # Integer-backed enum component. Exercises the int-enum template path that
+    # 7 SDKs hard-code as String-backed (latent finding 2.29): the backing field
+    # and wire (de)serialization must be int, not String. Dart is the reference.
+    Priority:
+      type: integer
+      format: int32
+      description: Task priority, integer-backed enum
+      enum:
+        - 1
+        - 2
+        - 3
+
+    # String enum whose values are NOT all lowercase. Exercises enum-name
+    # sanitization (2.17/2.18): the "on-hold" value requires variant-name
+    # sanitization (hyphen is not a legal identifier character) and the
+    # non-lowercase "Available"/"Sold" values must round-trip with their wire
+    # casing preserved. NOTE: a declared enum-property `default` is deliberately
+    # omitted -- honoring an enum-typed property default is a generator-wide gap
+    # (only dart/elixir emit the member reference today; kotlin/python/node
+    # silently fall back to null/None and go/ruby/swift mis-render it), so it is
+    # tracked as its own toDefaultValue harmonization pass rather than bundled
+    # into this change.
+    Availability:
+      type: string
+      description: Stock availability, non-lowercase string enum
+      enum:
+        - Available
+        - Sold
+        - on-hold
+
+    # Model carrying the latent shapes the petstore previously masked: an
+    # integer-backed enum field, a non-lowercase string enum field with a
+    # non-lowercase default, and a nested-container property (array of array of
+    # integer) whose leaf is a non-model primitive. The nested container as a
+    # MODEL PROPERTY (not an operation return) exercises the recursive
+    # per-element deserialization path that finding 2.22 found masked.
+    StockItem:
+      type: object
+      required:
+        - priority
+      properties:
+        priority:
+          $ref: '#/components/schemas/Priority'
+        availability:
+          $ref: '#/components/schemas/Availability'
+        matrix:
+          type: array
+          description: Quantity grid as an array of integer arrays
+          items:
+            type: array
+            items:
+              type: integer
+              format: int32

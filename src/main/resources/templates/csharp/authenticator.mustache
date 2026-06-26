@@ -1,0 +1,81 @@
+{{>api_info}}
+
+namespace {{packageName}}.Auth;
+
+/// <summary>
+/// Interface for providing authentication credentials to the API client.
+/// Implementations supply the API host URL, authorization headers,
+/// query parameters, and cookie parameters.
+/// </summary>
+public interface IAuthenticator
+{
+    /// <summary>
+    /// Returns the base URL of the API.
+    /// </summary>
+    string GetHost();
+
+    /// <summary>
+    /// Returns the authentication headers to include in every request.
+    /// </summary>
+    Dictionary<string, string> GetAuthHeaders();
+
+    /// <summary>
+    /// Returns the authentication headers to include in every request,
+    /// asynchronously. Authenticators that need to perform asynchronous
+    /// work (e.g. OAuth2 token exchange) should override this method.
+    ///
+    /// The default implementation wraps the synchronous
+    /// <see cref="GetAuthHeaders"/> for back-compat with non-OAuth schemes.
+    /// </summary>
+    Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    {
+        return Task.FromResult(GetAuthHeaders());
+    }
+
+    /// <summary>
+    /// Returns query parameters to include for authentication.
+    /// </summary>
+    Dictionary<string, string> GetQueryParams()
+    {
+        return [];
+    }
+
+    /// <summary>
+    /// Returns cookie parameters to include for authentication.
+    /// </summary>
+    Dictionary<string, string> GetCookieParams()
+    {
+        return [];
+    }
+}
+
+/// <summary>
+/// Sentinel authenticator marking an operation as explicitly unauthenticated
+/// (an operation declared <c>security: []</c> in the spec).
+///
+/// This is one of the three auth states resolved by <c>BaseApi</c>: passing
+/// <see cref="NoAuth.Instance"/> as the per-call authenticator suppresses the
+/// client-level authenticator entirely, so no credential is attached. A
+/// <see langword="null"/> authenticator, by contrast, means "no per-call
+/// override" and falls back to the client-level authenticator; a real
+/// authenticator is used as a per-call override.
+///
+/// It is identity-compared (reference equality against
+/// <see cref="Instance"/>) inside the generated client and never returns any
+/// header, query parameter, or cookie, so even if it were ever applied it
+/// would contribute no credential. It is internal to the generated client;
+/// callers never construct or see it.
+/// </summary>
+internal sealed class NoAuth : IAuthenticator
+{
+    /// <summary>The single shared no-auth sentinel instance.</summary>
+    public static readonly NoAuth Instance = new();
+
+    private NoAuth() { }
+
+    /// <inheritdoc />
+    public string GetHost() => "";
+
+    /// <inheritdoc />
+    public Dictionary<string, string> GetAuthHeaders() => [];
+}

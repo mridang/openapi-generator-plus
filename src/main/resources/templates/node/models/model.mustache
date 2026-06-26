@@ -1,0 +1,921 @@
+{{>api_info}}
+
+{{#models}}
+{{#model}}
+{{#hasTsImports}}
+{{#tsImports}}
+import { {{classname}} } from './{{filename}}{{importFileExtension}}';
+{{/tsImports}}
+{{/hasTsImports}}
+{{#isEnum}}
+
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ */
+{{/description}}
+export enum {{classname}} {
+{{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}} = {{{value}}},
+  {{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {@link {{url}}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+{{#discriminator}}
+export type {{classname}}Type = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
+
+export class {{classname}} {
+  static readonly ONE_OF_SCHEMAS: string[] = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
+  static readonly DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+  static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
+{{#mappedModels}}
+    {{mappingName}}: '{{modelName}}'{{^-last}},{{/-last}}
+{{/mappedModels}}
+  };
+
+  private actualInstance: {{classname}}Type;
+
+  constructor(instance: {{classname}}Type) {
+    this.actualInstance = instance;
+  }
+
+  getActualInstance(): {{classname}}Type {
+    return this.actualInstance;
+  }
+}
+{{/discriminator}}
+{{^discriminator}}
+export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
+{{/discriminator}}
+
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {@link {{url}}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+export type {{classname}}Type = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf}};
+
+/**
+ * Non-discriminated `anyOf` composite. Unlike `oneOf`, an `anyOf` payload may
+ * satisfy more than one variant at once (the documented "a medication, a
+ * surgery, OR BOTH" case). A first-match wrapper would silently drop the
+ * fields of every variant after the first and lose them on re-encode. This
+ * composite instead RETAINS EVERY variant that successfully validated, so the
+ * co-satisfied data round-trips losslessly: {@link getMatchedInstances}
+ * exposes all of them and {@link toJSON} emits the union of their fields.
+ * {@link getActualInstance} returns the first matched variant for backward
+ * compatibility with callers that expect a single instance.
+ */
+export class {{classname}} {
+  static readonly ANY_OF_SCHEMAS: string[] = [{{#anyOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/anyOf}}];
+
+  /**
+   * Marks this wrapper as a lossless `anyOf` composite. The serializer checks
+   * this flag: rather than unwrapping to a single inner instance (as it does
+   * for `oneOf`), it lets {@link toJSON} merge every retained variant.
+   */
+  readonly __isAnyOfComposite = true as const;
+
+  private matchedInstances: {{classname}}Type[];
+
+  /**
+   * Accepts either a single matched variant (back-compat with callers that
+   * construct the wrapper around one instance) or the full array of every
+   * variant that validated. At least one instance is always retained.
+   */
+  constructor(instance: {{classname}}Type | {{classname}}Type[]) {
+    this.matchedInstances = Array.isArray(instance) ? instance : [instance];
+  }
+
+  /**
+   * The first matched variant. Retained for backward compatibility with
+   * callers that assume a single instance; prefer {@link getMatchedInstances}
+   * when more than one variant may have matched.
+   */
+  getActualInstance(): {{classname}}Type {
+    return this.matchedInstances[0];
+  }
+
+  /**
+   * Every variant that successfully validated against the payload, in
+   * declaration order. For a payload satisfying only one variant this holds a
+   * single element; for a co-satisfied payload it holds all matches.
+   */
+  getMatchedInstances(): {{classname}}Type[] {
+    return this.matchedInstances;
+  }
+
+  /**
+   * Merge the own-enumerable fields of every retained variant into a single
+   * plain object. Used by {@link ObjectSerializer.serialize} so re-encoding a
+   * co-satisfied composite emits the UNION of all variants' fields (lossless
+   * round-trip), not just the first variant's.
+   */
+  toJSON(): Record<string, unknown> {
+    const merged: Record<string, unknown> = {};
+    for (const inst of this.matchedInstances) {
+      Object.assign(merged, inst as unknown as Record<string, unknown>);
+    }
+    return merged;
+  }
+}
+
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTemporalImport}}, Transform{{/hasTemporalImport}}{{^hasTemporalImport}}{{#hasBufferImport}}, Transform{{/hasBufferImport}}{{/hasTemporalImport}} } from 'class-transformer';
+{{#hasTemporalImport}}
+import { Temporal } from 'temporal-polyfill';
+{{/hasTemporalImport}}
+{{#hasDurationImport}}
+import { durationFromProtoJson, durationToProtoJson } from '../object-serializer{{importFileExtension}}';
+{{/hasDurationImport}}
+{{#hasUuidImport}}
+import { UUID } from '../brand{{importFileExtension}}';
+{{/hasUuidImport}}
+{{#hasUriImport}}
+import { URI } from '../brand{{importFileExtension}}';
+{{/hasUriImport}}
+{{#hasEmailImport}}
+import { Email } from '../brand{{importFileExtension}}';
+{{/hasEmailImport}}
+{{#hasDecimalImport}}
+import { Decimal } from '../brand{{importFileExtension}}';
+{{/hasDecimalImport}}
+
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {@link {{url}}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
+  /**
+   * 2.5 — Wire-serialization registry for `type: number` (no format)
+   * fields. Such fields are carried as branded {@link Decimal} values,
+   * which are plain strings at runtime to preserve arbitrary precision.
+   * On the request path ObjectSerializer.serialize walks the instance with
+   * JSON.stringify, which would quote a string and emit
+   * `"weightKg":"12.345"` (a JSON string) instead of the spec-required
+   * `"weightKg":12.345` (a JSON number). The serializer consults this set
+   * (by runtime property name) to emit those fields unquoted via JSON.rawJSON,
+   * preserving the full decimal text without a lossy Number() round-trip.
+   * Empty when the model has no `type: number` no-format fields.
+   */
+  static readonly __decimalFields: ReadonlySet<string> = new Set([
+{{#vars}}
+{{#vendorExtensions.isDecimalFormat}}
+    '{{name}}',
+{{/vendorExtensions.isDecimalFormat}}
+{{/vars}}
+  ]);
+
+{{#vars}}
+{{#description}}
+  /**
+   * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{#example}}
+   * @example {{{.}}}
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+   * @readonly
+{{/isReadOnly}}
+{{#isWriteOnly}}
+   * @writeOnly
+{{/isWriteOnly}}
+{{#deprecated}}
+   * @deprecated This property is deprecated.
+{{/deprecated}}
+   */
+{{/description}}
+{{^description}}
+{{#deprecated}}
+  /** @deprecated This property is deprecated. */
+{{/deprecated}}
+{{^deprecated}}
+{{#example}}
+  /** @example {{{.}}} */
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+  /** @example {{summary}} - {{value}} */
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+  /** @readonly */
+{{/isReadOnly}}
+{{#isWriteOnly}}
+  /** @writeOnly */
+{{/isWriteOnly}}
+{{/deprecated}}
+{{/description}}
+  @Expose({ name: '{{baseName}}' })
+{{#vendorExtensions.isTimeFormat}}
+  /* 4.8 — `format: time` round-trips via Temporal.PlainTime. */
+  @Transform(({ value }) => (typeof value === 'string' ? Temporal.PlainTime.from(value) : value), { toClassOnly: true })
+  @Transform(({ value }) => (value != null && typeof (value as { toString?: unknown }).toString === 'function' ? (value as Temporal.PlainTime).toString() : value), { toPlainOnly: true })
+{{/vendorExtensions.isTimeFormat}}
+{{#vendorExtensions.isDurationFormat}}
+  /*
+   * 4.8 — `format: duration` is a google.protobuf.Duration. The native
+   * type stays Temporal.Duration, but the wire form is protobuf-JSON
+   * ("3600s"), not ISO-8601 ("PT1H") — Zitadel rejects the ISO form.
+   */
+  @Transform(({ value }) => (typeof value === 'string' ? durationFromProtoJson(value) : value), { toClassOnly: true })
+  @Transform(({ value }) => (value instanceof Temporal.Duration ? durationToProtoJson(value) : value), { toPlainOnly: true })
+{{/vendorExtensions.isDurationFormat}}
+{{#isByteArray}}
+  /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
+  @Transform(({ value }) => (typeof value === 'string' ? Buffer.from(value, 'base64') : value), { toClassOnly: true })
+  @Transform(({ value }) => (Buffer.isBuffer(value) ? (value as Buffer).toString('base64') : value), { toPlainOnly: true })
+{{/isByteArray}}
+{{#isDateTime}}
+  @Type(() => Date)
+{{/isDateTime}}
+{{^isDateTime}}
+{{#isDate}}
+  @Type(() => Date)
+{{/isDate}}
+{{^isDate}}
+{{^isPrimitiveType}}
+{{^isArray}}
+{{#complexType}}
+{{^isEnum}}
+{{^vendorExtensions.prop.complexTypeIsEnum}}
+{{^isFreeFormObject}}
+  @Type(() => {{complexType}})
+{{/isFreeFormObject}}
+{{/vendorExtensions.prop.complexTypeIsEnum}}
+{{/isEnum}}
+{{/complexType}}
+{{/isArray}}
+{{/isPrimitiveType}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+  /*
+   * 2.1 — array of `format: byte`. Each element round-trips Buffer <->
+   * base64 string at the serde boundary, mirroring the scalar byte
+   * field. The @Transform sees the whole array, so map per element;
+   * non-array values pass through untouched.
+   */
+  @Transform(
+    ({ value }) =>
+      Array.isArray(value)
+        ? value.map((__e) => (typeof __e === 'string' ? Buffer.from(__e, 'base64') : __e))
+        : value,
+    { toClassOnly: true }
+  )
+  @Transform(
+    ({ value }) =>
+      Array.isArray(value)
+        ? value.map((__e) => (Buffer.isBuffer(__e) ? (__e as Buffer).toString('base64') : __e))
+        : value,
+    { toPlainOnly: true }
+  )
+{{/isByteArray}}
+{{#isDateTime}}
+  @Type(() => Date)
+{{/isDateTime}}
+{{^isDateTime}}
+{{#isDate}}
+  @Type(() => Date)
+{{/isDate}}
+{{^isDate}}
+{{^isPrimitiveType}}
+{{#complexType}}
+{{^isEnum}}
+{{^vendorExtensions.prop.itemsComplexTypeIsEnum}}
+{{^isFreeFormObject}}
+  @Type(() => {{complexType}})
+{{/isFreeFormObject}}
+{{/vendorExtensions.prop.itemsComplexTypeIsEnum}}
+{{/isEnum}}
+{{/complexType}}
+{{/isPrimitiveType}}
+{{/isDate}}
+{{/isDateTime}}
+{{/items}}
+{{/isArray}}
+{{/isDate}}
+{{/isDateTime}}
+  {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+{{^-last}}
+{{/-last}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+  /**
+   * The schema-declared wire-key names. Its PRESENCE marks this model as
+   * declaring `additionalProperties`: undeclared wire keys are free-form data
+   * that must SURVIVE a round-trip. ObjectSerializer reads this set and
+   * re-attaches any json key NOT listed here after plainToInstance (which, with
+   * excludeExtraneousValues, would otherwise silently drop them — data loss).
+   * Models without this static intentionally discard extras.
+   */
+  static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string> =
+    new Set([{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}]);
+
+  [key: string]: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}};
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+  /**
+   * Gap L11 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+   * The schema-declared wire-key names. Its PRESENCE marks this model as
+   * strict: ObjectSerializer.deserialize reads this set and REJECTS any wire
+   * key not listed here, instead of silently dropping it via plainToInstance's
+   * excludeExtraneousValues. Mirrors {@link fromJsonStrict}'s declared set so
+   * the deserialize path enforces the same strict contract the convenience
+   * constructor does. Models without this static accept unknown keys (and
+   * drop them).
+   */
+  static readonly __strictDeclaredKeys: ReadonlySet<string> =
+    new Set([{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}]);
+
+  /**
+   * Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+   * Constructs an instance from a JSON-like payload and throws on any key not
+   * declared above. Callers should prefer this over `new {{classname}}(data)`
+   * when validating untrusted input.
+   */
+  static fromJsonStrict(raw: Record<string, unknown>): {{classname}} {
+    const declared = {{classname}}.__strictDeclaredKeys;
+    for (const key of Object.keys(raw)) {
+      if (!declared.has(key)) {
+        throw new Error(
+          "Unknown property '" + key
+            + "' on {{classname}} (unevaluatedProperties:false)");
+      }
+    }
+    return new {{classname}}(raw as Partial<{{classname}}>);
+  }
+{{/isUnevaluatedPropertiesFalse}}
+
+  constructor(data?: Partial<{{classname}}>) {
+{{#parent}}
+    super(data);
+{{/parent}}
+    Object.assign(this, data);
+{{! default-on-deserialize: a field whose schema declares a default falls
+    back to that default ONLY when the wire payload OMITS the key. An
+    explicit JSON null is a provided value and is PRESERVED, not replaced
+    by the default (JSON-Schema-correct; matches go/rust/python). The field
+    initializer seeds the default, but ObjectSerializer.deserialize feeds
+    plainToInstance output back through this constructor, and Object.assign
+    copies an explicit undefined for an absent key over that seeded default.
+    plainToInstance assigns undefined for an absent key and null for an
+    explicit null, so a strict `=== undefined` check distinguishes the two:
+    re-apply the default for an absent (undefined) field, leave an explicit
+    null untouched. A present value is also untouched. }}
+{{#vars}}
+{{#defaultValue}}
+    if (this.{{name}} === undefined) {
+      this.{{name}} = {{{defaultValue}}};
+    }
+{{/defaultValue}}
+{{/vars}}
+{{! Divergence #10: a REQUIRED, non-nullable field that is missing
+    (undefined) or explicitly null in the wire payload must hard-fail.
+    ObjectSerializer.deserialize routes plainToInstance output back
+    through this constructor, so a loose-equality null check (which
+    matches both undefined and null) surfaces a missing-or-null required
+    field as a thrown error that deserialize wraps in a
+    SerializationError. Required-but-nullable fields are excluded so an
+    explicit null is accepted for them; optional fields are never checked. }}
+{{#hasRequired}}
+    if (data !== undefined) {
+{{#requiredVars}}
+{{^isNullable}}
+      if (this.{{name}} == null) {
+        throw new Error('{{name}} is required');
+      }
+{{/isNullable}}
+{{#isNullable}}
+      if (this.{{name}} === undefined) {
+        throw new Error('{{name}} is required');
+      }
+{{/isNullable}}
+{{/requiredVars}}
+    }
+{{/hasRequired}}
+{{! Gap S: strict primitive type checks. class-transformer is
+    lenient and silently passes string-for-int / number-for-bool
+    through. ObjectSerializer routes plainToInstance output back
+    through this constructor so wire-type bugs ({"id": "42"} on an
+    int field) raise TypeError instead of corrupting the instance. }}
+{{#vars}}
+{{^isEnum}}
+{{#isPrimitiveType}}
+{{^isArray}}
+{{#isInteger}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isInteger}}
+{{#isLong}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isLong}}
+{{^isInteger}}
+{{#isShort}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isShort}}
+{{/isInteger}}
+{{#isFloat}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isFloat}}
+{{#isDouble}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isDouble}}
+{{#isNumber}}
+{{^vendorExtensions.isDecimalFormat}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/vendorExtensions.isDecimalFormat}}
+{{#vendorExtensions.isDecimalFormat}}
+    /**
+     * 2.5 — `type: number` (no numeric format). Carried as a branded
+     * Decimal string to preserve arbitrary precision. The wire form can
+     * arrive as a JSON number (no explicit format means no precision
+     * guarantee from the server); coerce to its canonical string form
+     * here so downstream typed-string ops are safe.
+     */
+    if (this.{{name}} != null && typeof this.{{name}} === 'number') {
+      this.{{name}} = String(this.{{name}}) as unknown as {{{dataType}}};
+    } else if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
+      throw new TypeError(`{{name}} must be a Decimal string or number, got ${typeof this.{{name}}}`);
+    }
+{{/vendorExtensions.isDecimalFormat}}
+{{/isNumber}}
+{{#isBoolean}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'boolean') {
+      throw new TypeError(`{{name}} must be a boolean, got ${typeof this.{{name}}}`);
+    }
+{{/isBoolean}}
+{{#isString}}
+{{^isByteArray}}
+{{^isUuid}}
+{{^vendorExtensions.isTimeFormat}}
+{{^vendorExtensions.isDurationFormat}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
+      throw new TypeError(`{{name}} must be a string, got ${typeof this.{{name}}}`);
+    }
+{{/vendorExtensions.isDurationFormat}}
+{{/vendorExtensions.isTimeFormat}}
+{{/isUuid}}
+{{/isByteArray}}
+{{/isString}}
+{{#isByteArray}}
+    /**
+     * 2.1 — format: byte. The wire form is base64; the model field is a
+     * Buffer. Lives outside the isString block because typeMapping
+     * (ByteArray to Buffer) flips isString to false at codegen time.
+     */
+    if (this.{{name}} != null && typeof this.{{name}} === 'string') {
+      this.{{name}} = Buffer.from(this.{{name}} as unknown as string, 'base64') as unknown as {{{dataType}}};
+    } else if (this.{{name}} != null && !Buffer.isBuffer(this.{{name}})) {
+      throw new TypeError(`{{name}} must be a Buffer or base64 string, got ${typeof this.{{name}}}`);
+    }
+{{/isByteArray}}
+{{#isString}}
+{{#isUuid}}
+    /**
+     * 2.2 — `format: uuid`. Branded string; validate the canonical
+     * 8-4-4-4-12 hex shape at construction. Re-uses the regex bundled with
+     * the {@link UUID} type so callers and codegen agree.
+     */
+    if (this.{{name}} != null) {
+      if (typeof this.{{name}} !== 'string') {
+        throw new TypeError(`{{name}} must be a UUID string, got ${typeof this.{{name}}}`);
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(this.{{name}} as unknown as string)) {
+        throw new TypeError(`{{name}} is not a canonical UUID: ${JSON.stringify(this.{{name}})}`);
+      }
+    }
+{{/isUuid}}
+{{#vendorExtensions.isTimeFormat}}
+    /**
+     * 4.8 — `format: time`. Accept a string (parsed via
+     * Temporal.PlainTime.from, which throws RangeError on bad input) or
+     * an already-constructed PlainTime instance. The @Transform decorator
+     * normally handles the string case but bypasses ObjectSerializer when
+     * callers construct models by hand.
+     */
+    if (this.{{name}} != null) {
+      if (typeof this.{{name}} === 'string') {
+        this.{{name}} = Temporal.PlainTime.from(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
+      } else if (!(this.{{name}} instanceof Temporal.PlainTime)) {
+        throw new TypeError(`{{name}} must be a Temporal.PlainTime or ISO time string, got ${typeof this.{{name}}}`);
+      }
+    }
+{{/vendorExtensions.isTimeFormat}}
+{{#vendorExtensions.isDurationFormat}}
+    /**
+     * 4.8 — `format: duration` (google.protobuf.Duration). Accept a
+     * protobuf-JSON string ("3600s", parsed via durationFromProtoJson,
+     * which throws on bad input) or an already-constructed Duration
+     * instance.
+     */
+    if (this.{{name}} != null) {
+      if (typeof this.{{name}} === 'string') {
+        this.{{name}} = durationFromProtoJson(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
+      } else if (!(this.{{name}} instanceof Temporal.Duration)) {
+        throw new TypeError(`{{name}} must be a Temporal.Duration or protobuf-JSON duration string, got ${typeof this.{{name}}}`);
+      }
+    }
+{{/vendorExtensions.isDurationFormat}}
+{{/isString}}
+{{/isArray}}
+{{#isArray}}
+    if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !((this.{{name}} as unknown) instanceof Set)) {
+      throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
+    }
+{{#items}}
+{{#isByteArray}}
+    /**
+     * 2.1 — array of `format: byte`. The wire form is base64 per element;
+     * the model field is Array<Buffer>. The @Transform decorator handles
+     * the ObjectSerializer path, but a hand-constructed model bypasses it,
+     * so decode any base64 string element here and reject non-Buffer,
+     * non-string elements.
+     */
+    if (this.{{name}} != null && Array.isArray(this.{{name}})) {
+      this.{{name}} = (this.{{name}} as unknown as unknown[]).map((__e) => {
+        if (typeof __e === 'string') {
+          return Buffer.from(__e, 'base64');
+        }
+        if (__e != null && !Buffer.isBuffer(__e)) {
+          throw new TypeError(`{{name}} elements must be a Buffer or base64 string, got ${typeof __e}`);
+        }
+        return __e;
+      {{! The map produces an array of decoded Buffers; cast to the array type
+          (the surrounding field is byte[] -> Buffer[]), not the item's scalar
+          Buffer dataType which is what the items-context dataType resolves to. }}
+      }) as unknown as Buffer[];
+    }
+{{/isByteArray}}
+{{/items}}
+{{#uniqueItems}}
+    /**
+     * uniqueItems: the declared field type is Set<T>, but deserialization
+     * (plainToInstance) and hand-construction both deliver a plain Array —
+     * class-transformer cannot build a Set from a JSON array. Coerce the
+     * validated array into a Set here so the runtime shape matches the
+     * static Set<T> type and callers can use .has()/.add() without a
+     * TypeError. Duplicate elements collapse, honouring uniqueItems. An
+     * already-Set value (re-construction) is left untouched.
+     */
+    if (this.{{name}} != null && Array.isArray(this.{{name}})) {
+      this.{{name}} = new Set(this.{{name}} as unknown as unknown[]) as unknown as {{{dataType}}};
+    }
+{{/uniqueItems}}
+{{/isArray}}
+{{/isPrimitiveType}}
+{{#vendorExtensions.prop.isMapOfModel}}
+    /**
+     * 4.6 — Map-of-Model deep deserialise. When a field is typed
+     * `Record<string, {{vendorExtensions.prop.mapValueComplexType}}>`, the wire
+     * payload arrives as a plain JSON object whose values are bag-of-keys, not
+     * `{{vendorExtensions.prop.mapValueComplexType}}` instances. Walk each entry
+     * and route it back through the model's constructor so the resulting record
+     * actually contains typed model instances.
+     */
+    if (this.{{name}} != null && typeof this.{{name}} === 'object' && !Array.isArray(this.{{name}})) {
+      const __raw_{{name}} = this.{{name}} as unknown as Record<string, unknown>;
+      const __out_{{name}}: Record<string, {{vendorExtensions.prop.mapValueComplexType}}> = {};
+      for (const __k of Object.keys(__raw_{{name}})) {
+        const __v = __raw_{{name}}[__k];
+        if (__v instanceof {{vendorExtensions.prop.mapValueComplexType}}) {
+          __out_{{name}}[__k] = __v;
+        } else if (__v != null && typeof __v === 'object') {
+          __out_{{name}}[__k] = new {{vendorExtensions.prop.mapValueComplexType}}(__v as Partial<{{vendorExtensions.prop.mapValueComplexType}}>);
+        }
+      }
+      this.{{name}} = __out_{{name}} as unknown as {{{dataType}}};
+    }
+{{/vendorExtensions.prop.isMapOfModel}}
+{{/isEnum}}
+{{/vars}}
+{{#hasEnums}}
+{{#vars}}
+{{#isEnum}}
+    if (this.{{name}} != null) {
+      {{! A TypeScript numeric enum carries a reverse mapping, so
+          Object.values() yields BOTH the member-name strings and the
+          numeric wire values (e.g. ["NUMBER_1", 1]). Without filtering, a
+          string payload matching a member name ("NUMBER_1") would pass the
+          membership test and bypass validation. Drop the reverse-mapped
+          string keys by keeping only values v for which E[v] is not itself a
+          number. For a string enum (no reverse mapping) E[value] is
+          undefined, so every value is retained unchanged. }}
+      const {{name}}Values = Object.values({{classname}}{{enumName}}).filter(
+        (v) => typeof ({{classname}}{{enumName}} as Record<string, unknown>)[v as string] !== 'number'
+      );
+      if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
+        throw new Error(
+          `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
+            `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
+        );
+      }
+    }
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
+{{! Referenced (named) enum membership validation. An INLINE enum sets
+    isEnum on the var and is handled above; a property whose type is a
+    REFERENCED enum (e.g. priority typed as Priority) has isEnum == false
+    but carries vendorExtensions.prop.complexTypeIsEnum, with complexType
+    naming the imported enum object. Without this check an out-of-range
+    wire value (priority 99, favoriteColor magenta) would be silently
+    retained as a fake enum member. Mirrors Python's pydantic Enum
+    membership rejection. Array-of-referenced-enum is validated per
+    element via itemsComplexTypeIsEnum. }}
+{{#vars}}
+{{^isEnum}}
+{{#vendorExtensions.prop.complexTypeIsEnum}}
+    if (this.{{name}} != null) {
+      {{! Numeric enums add a reverse mapping to Object.values(); drop the
+          reverse-mapped string keys so a string payload matching a member
+          name cannot bypass validation. See the inline-enum branch above. }}
+      const {{name}}Values = Object.values({{complexType}}).filter(
+        (v) => typeof ({{complexType}} as Record<string, unknown>)[v as string] !== 'number'
+      );
+      if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
+        throw new Error(
+          `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
+            `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
+        );
+      }
+    }
+{{/vendorExtensions.prop.complexTypeIsEnum}}
+{{#vendorExtensions.prop.itemsComplexTypeIsEnum}}
+    if (this.{{name}} != null && Array.isArray(this.{{name}})) {
+      {{! Numeric enums add a reverse mapping to Object.values(); drop the
+          reverse-mapped string keys so a string element matching a member
+          name cannot bypass validation. See the inline-enum branch above. }}
+      const {{name}}Values = Object.values({{items.complexType}}).filter(
+        (v) => typeof ({{items.complexType}} as Record<string, unknown>)[v as string] !== 'number'
+      );
+      for (const __v of this.{{name}} as readonly unknown[]) {
+        if (!({{name}}Values as readonly unknown[]).includes(__v)) {
+          throw new Error(
+            `Unknown enum value for {{name}}: ${JSON.stringify(__v)}. ` +
+              `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
+          );
+        }
+      }
+    }
+{{/vendorExtensions.prop.itemsComplexTypeIsEnum}}
+{{/isEnum}}
+{{/vars}}
+  }
+
+  /**
+   * Value-equality across all declared fields{{#isAdditionalPropertiesTrue}} (including the
+   * additionalProperties index keys){{/isAdditionalPropertiesTrue}}. Two instances are equal when
+   * every field deep-equals the other's. Arrays, plain objects, Sets, Maps,
+   * Buffers and Date values are compared structurally; nested model fields
+   * fall through to their own {@link equals} when present, otherwise to a
+   * recursive structural compare. Mirrors the value-equality exposed by the
+   * other SDKs (node-model-equality).
+   */
+  equals(other: unknown): boolean {
+    if (this === other) {
+      return true;
+    }
+    if (!(other instanceof {{classname}})) {
+      return false;
+    }
+{{#parent}}
+    if (!super.equals(other)) {
+      return false;
+    }
+{{/parent}}
+{{#vars}}
+    if (!{{classname}}.__deepEquals(this.{{name}}, (other as {{classname}}).{{name}})) {
+      return false;
+    }
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    {
+      const declared = new Set<string>([{{#vars}}'{{name}}'{{^-last}}, {{/-last}}{{/vars}}]);
+      const selfRec = this as unknown as Record<string, unknown>;
+      const otherRec = other as unknown as Record<string, unknown>;
+      const selfKeys = Object.keys(selfRec).filter((k) => !declared.has(k));
+      const otherKeys = Object.keys(otherRec).filter((k) => !declared.has(k));
+      if (selfKeys.length !== otherKeys.length) {
+        return false;
+      }
+      for (const k of selfKeys) {
+        if (!Object.prototype.hasOwnProperty.call(otherRec, k)) {
+          return false;
+        }
+        if (!{{classname}}.__deepEquals(selfRec[k], otherRec[k])) {
+          return false;
+        }
+      }
+    }
+{{/isAdditionalPropertiesTrue}}
+    return true;
+  }
+
+  /**
+   * Recursive structural comparison used by {@link equals}. Defers to a
+   * nested value's own `equals` method when it exposes one (generated
+   * models do), so equality stays value-based all the way down.
+   */
+  private static __deepEquals(a: unknown, b: unknown): boolean {
+    if (a === b) {
+      return true;
+    }
+    if (a == null || b == null) {
+      return a === b;
+    }
+    if (
+      typeof (a as { equals?: unknown }).equals === 'function' &&
+      a.constructor === b.constructor
+    ) {
+      return (a as { equals(o: unknown): boolean }).equals(b);
+    }
+    if (Buffer.isBuffer(a) && Buffer.isBuffer(b)) {
+      return a.equals(b);
+    }
+    if (a instanceof Date && b instanceof Date) {
+      return a.getTime() === b.getTime();
+    }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) {
+        return false;
+      }
+      return a.every((v, i) => {{classname}}.__deepEquals(v, b[i]));
+    }
+    if (a instanceof Set && b instanceof Set) {
+      if (a.size !== b.size) {
+        return false;
+      }
+      const bvals = [...b];
+      return [...a].every((v) =>
+        bvals.some((w) => {{classname}}.__deepEquals(v, w))
+      );
+    }
+    if (a instanceof Map && b instanceof Map) {
+      if (a.size !== b.size) {
+        return false;
+      }
+      for (const [k, v] of a) {
+        if (!b.has(k) || !{{classname}}.__deepEquals(v, b.get(k))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (typeof a === 'object' && typeof b === 'object') {
+      const ar = a as Record<string, unknown>;
+      const br = b as Record<string, unknown>;
+      const ak = Object.keys(ar);
+      const bk = Object.keys(br);
+      if (ak.length !== bk.length) {
+        return false;
+      }
+      return ak.every(
+        (k) =>
+          Object.prototype.hasOwnProperty.call(br, k) &&
+          {{classname}}.__deepEquals(ar[k], br[k])
+      );
+    }
+    return false;
+  }
+}
+{{#hasEnums}}
+
+{{#vars}}
+{{#isEnum}}
+export enum {{classname}}{{enumName}} {
+{{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}} = {{{value}}},
+  {{/enumVars}}
+{{/allowableValues}}
+}
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}
