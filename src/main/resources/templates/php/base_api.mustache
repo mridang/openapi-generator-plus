@@ -377,6 +377,21 @@ class BaseApi
              * idiom, which reads the same \SplFileObject via file_get_contents.
              * A raw stream resource is likewise drained to its bytes; an
              * already-string body passes through untouched. */
+            if (is_array($body)) {
+                /* The operation declares this binary content-type
+                 * (application/octet-stream or image/*) ALONGSIDE
+                 * multipart/form-data, so the API layer always builds a
+                 * form-style map keyed by the declared parts. When the caller
+                 * selects the raw-binary content-type we must NOT wrap the
+                 * payload in a multipart envelope: unwrap the single binary
+                 * part and stream its raw bytes under the selected
+                 * Content-Type. Falling through to `return $body` would hand
+                 * the array to the transport, whose `is_array($body)` branch
+                 * emits multipart/form-data instead. Mirrors the
+                 * single-binary-body path (e.g. setPetAvatar) that already
+                 * sends raw bytes. */
+                $body = $this->extractBinaryPart($body);
+            }
             if ($body instanceof \SplFileObject) {
                 $path = $body->getRealPath();
                 $contents = @file_get_contents($path !== false ? $path : $body->getPathname());
@@ -401,5 +416,37 @@ class BaseApi
         }
 
         return ObjectSerializer::serialize($body);
+    }
+
+    /**
+     * Extract the single binary part from a form-style body map for a
+     * raw-binary content-type selection.
+     *
+     * When an operation declares a raw-binary request content-type
+     * (application/octet-stream or image/*) alongside multipart/form-data,
+     * the API layer builds the body as an associative map keyed by the
+     * declared parts. Selecting the raw-binary type means the wire body is
+     * just that one binary value, so we pull out the first \SplFileObject /
+     * resource / string part and discard the multipart framing. If no binary
+     * part is present the original map is returned unchanged so the caller's
+     * existing handling (and any error surfaced downstream) is preserved.
+     *
+     * @param array<mixed, mixed> $body Form-style body map
+     *
+     * @return mixed The single binary part, or the original map if none found
+     */
+    private function extractBinaryPart(array $body): mixed
+    {
+        foreach ($body as $value) {
+            if (
+                $value instanceof \SplFileObject
+                || is_resource($value)
+                || is_string($value)
+            ) {
+                return $value;
+            }
+        }
+
+        return $body;
     }
 }

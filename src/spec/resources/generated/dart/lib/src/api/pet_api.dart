@@ -1945,7 +1945,21 @@ class PetApi extends BaseApi {
     if (options.notes != null) {
       formBody['notes'] = options.notes;
     }
-    final Object? requestBody = formBody;
+    /* multi-content-type-binary-body: this operation declares more than one
+     * request Content-Type — `multipart/form-data` AND a raw binary type
+     * (e.g. `application/octet-stream`). When the caller selects a
+     * non-multipart type, the wire body must be the single binary part's RAW
+     * bytes (Content-Type: application/octet-stream), NOT a multipart/form-data
+     * envelope and NOT the formBody Map (which base_api would JSON-stringify
+     * for a non-multipart content type). Only build the multipart Map when the
+     * effective content type is `multipart/form-data`; otherwise stream the
+     * binary field's bytes directly, mirroring the single-binary-body path
+     * used by setPetAvatar. */
+    final Object? requestBody =
+        (requestContentType == null ||
+            requestContentType == 'multipart/form-data')
+        ? formBody
+        : options.file;
 
     return invokeApiForResult<ApiResponse>(
       method: 'POST',

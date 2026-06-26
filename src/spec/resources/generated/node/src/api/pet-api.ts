@@ -1813,13 +1813,26 @@ export class PetApi extends BaseApi {
     if (options?.notes != null) {
       formBody["notes"] = options.notes;
     }
+    /* This operation declares multiple request content types. The
+     * multipart/form-data envelope (formBody, a Record assembled above) is
+     * only correct when multipart/form-data is the selected Content-Type.
+     * For a binary single-part type (e.g. application/octet-stream) the wire
+     * body must be the RAW bytes of the binary part, NOT a multipart envelope
+     * and NOT a base64 string — mirror setPetAvatar's raw-Buffer path. The
+     * transport decides multipart-vs-raw by inspecting the body's runtime
+     * type (a plain object becomes multipart; a Buffer is sent verbatim), so
+     * we hand it the Buffer directly when the caller did not pick multipart. */
+    const requestBody: Record<string, unknown> | Buffer | null =
+      (contentType ?? "multipart/form-data") === "multipart/form-data"
+        ? formBody
+        : (options?.file ?? null);
 
     return await this.invokeApiForResult(
       "POST",
       path,
       queryParams,
       headerParams,
-      formBody,
+      requestBody,
       ["application/json"],
       contentType ?? "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,

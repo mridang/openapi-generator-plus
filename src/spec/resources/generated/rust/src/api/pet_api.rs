@@ -2763,8 +2763,24 @@ impl PetApi {
                 MultipartValue::Text(object_serializer::stringify(val)),
             );
         }
-        let request_body: Option<Vec<u8>> = None;
-        let multipart = Some(multipart);
+        // multi-content-type-multipart-or-raw: this operation also declares a
+        // non-multipart binary request content-type (e.g.
+        // application/octet-stream). When the caller selected that type the
+        // multipart envelope built above is wrong — the server expects the raw
+        // bytes of the single binary part with the chosen Content-Type, exactly
+        // as the dedicated set_*-style raw-binary path sends them. Only forward
+        // the multipart map when multipart/form-data is the resolved type;
+        // otherwise discard it and stream the file part's raw octets so the
+        // request body is NOT wrapped in a multipart boundary.
+        let mut request_body: Option<Vec<u8>> = None;
+        let mut multipart: Option<HashMap<String, MultipartValue>> = Some(multipart);
+        if request_content_type != "multipart/form-data" {
+            // A non-multipart binary content-type was selected: stream the single
+            // required file part as the raw body and drop the multipart map so the
+            // bytes are sent verbatim with the chosen Content-Type.
+            request_body = Some(opts.file.clone());
+            multipart = None;
+        }
 
         let params = InvokeApiParams {
             method: "POST",

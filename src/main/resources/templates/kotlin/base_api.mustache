@@ -198,6 +198,21 @@ abstract class BaseApi {
         val requestBody: Any? =
             if (body != null) {
                 when {
+                    (contentType.startsWith("image/") || "application/octet-stream" == contentType) &&
+                        body is Map<*, *> -> {
+                        // Raw-binary selection on an operation that ALSO declares a
+                        // multipart content type. The operation assembled the body as
+                        // a Map of form parts (the file plus optional metadata). A raw
+                        // octet-stream/image request has no multipart envelope, so we
+                        // must NOT forward that Map to the transport -- buildRequestBody
+                        // dispatches on `body is Map<*, *>` and would emit a
+                        // multipart/form-data body, contradicting the caller's explicit
+                        // content-type selection. Send the single binary part's raw
+                        // bytes instead; the text metadata parts have no place on the
+                        // wire for a raw stream and are dropped.
+                        val binaryPart = body.values.firstOrNull { it is ByteArray }
+                        binaryPart ?: body
+                    }
                     body is ByteArray ||
                         contentType.startsWith("image/") ||
                         "application/octet-stream" == contentType -> body

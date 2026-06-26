@@ -3165,6 +3165,22 @@ defmodule PetstoreClient.Api.PetApi do
           end
       end
 
+    # octet-stream-vs-multipart dispatch: this operation declares both
+    # multipart/form-data and a non-multipart binary content-type. The
+    # request_body above is always built as a multipart parts map, but that is
+    # only correct when the caller actually selected multipart/form-data — the
+    # transport turns any map body into a multipart envelope. When a non-multipart
+    # type (e.g. application/octet-stream) is selected the wire body must be the
+    # RAW bytes of the single binary part, NOT a multipart envelope. Collapse the
+    # parts map down to the binary file part's raw bytes in that case, mirroring
+    # the single-binary-body operations that pass their bytes straight through.
+    request_body =
+      if content_type == "multipart/form-data" do
+        request_body
+      else
+        options.file
+      end
+
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
       :POST,

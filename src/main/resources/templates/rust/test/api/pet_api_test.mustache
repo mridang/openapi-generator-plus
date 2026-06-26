@@ -737,3 +737,89 @@ async fn test_pet_api_upload_multipart_mock() {
 
     let _ = api.upload_pet_certificate(1, None).await;
 }
+
+/// octet-stream-raw-body (multi-content-type request bodies): the fixture
+/// operation `uploadPetDocument` (POST /pet/{petId}/documents) declares TWO
+/// request content-types — `multipart/form-data` AND `application/octet-stream`.
+/// Selecting `application/octet-stream` must stream the single binary `file`
+/// part as the RAW request body with `Content-Type: application/octet-stream`,
+/// exactly like the dedicated `setPetAvatar` raw-binary path. It must NOT wrap
+/// the bytes in a multipart/form-data envelope (no boundary, no
+/// `Content-Disposition` part headers), and the file bytes must not be
+/// base64-encoded or JSON-marshaled.
+///
+/// This asserts BOTH selections with the SAME bytes to guard against
+/// over-correction:
+///   (1) selector "application/octet-stream" -> raw bytes, octet-stream CT, NO multipart;
+///   (2) the default entry point (multipart/form-data) -> a multipart envelope
+///       (boundary present, the raw bytes embedded inside a part).
+#[tokio::test]
+async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
+    // A known, non-trivial payload that is NOT valid UTF-8, so any base64 or
+    // JSON re-encoding (or a multipart wrapper) would be detectable on the wire.
+    let doc_bytes: Vec<u8> = vec![0x00, 0x01, 0xFF, 0xFE, 0xD8, 0x0A];
+
+    // (1) Selecting application/octet-stream -> raw bytes, no multipart envelope.
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let opts = UploadPetDocumentOptions::new(doc_bytes.clone());
+    let _ = api
+        .upload_pet_document_with_content_type(1, Some(&opts), "application/octet-stream")
+        .await;
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+
+    // The body must be EXACTLY the raw document octets — not a multipart part,
+    // not base64, not a JSON byte array.
+    assert_eq!(
+        body, doc_bytes.as_slice(),
+        "octet-stream selection must stream the raw file bytes unchanged, got: {:?}",
+        body
+    );
+    assert!(
+        !body.starts_with(b"["),
+        "octet-stream body must not be a JSON byte array like [0,1,255,...], got: {:?}",
+        body
+    );
+
+    // The outgoing Content-Type must be application/octet-stream and must NOT be
+    // a multipart/form-data envelope. (hyper lowercases header names on the wire.)
+    assert!(
+        header_text.contains("content-type: application/octet-stream"),
+        "selecting octet-stream must send Content-Type: application/octet-stream, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+    assert!(
+        !header_text.contains("multipart/form-data"),
+        "octet-stream selection must NOT send a multipart/form-data Content-Type, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+    // No multipart boundary or Content-Disposition part header anywhere in the
+    // request (headers or body) — the raw bytes are the whole body.
+    let body_text = String::from_utf8_lossy(body).to_ascii_lowercase();
+    assert!(
+        !header_text.contains("boundary=") && !body_text.contains("content-disposition"),
+        "octet-stream selection must not produce a multipart boundary/part headers, got request: {}",
+        String::from_utf8_lossy(&raw)
+    );
+
+    // (2) The default entry point still sends a multipart envelope (the first
+    // declared content-type, multipart/form-data) — guards against over-correction.
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let opts = UploadPetDocumentOptions::new(doc_bytes.clone());
+    let _ = api.upload_pet_document(1, Some(&opts)).await;
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+    let body_text = String::from_utf8_lossy(body).to_ascii_lowercase();
+    assert!(
+        header_text.contains("multipart/form-data") && header_text.contains("boundary="),
+        "default selection must send a multipart/form-data body with a boundary, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+    assert!(
+        body_text.contains("content-disposition") && body_text.contains("name=\"file\""),
+        "default multipart body must carry the `file` part, got body: {}",
+        String::from_utf8_lossy(body)
+    );
+}

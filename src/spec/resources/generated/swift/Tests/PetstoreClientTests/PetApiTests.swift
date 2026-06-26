@@ -219,6 +219,83 @@ final class PetApiTests {
     )
   }
 
+  /* octet-stream-raw-body: uploadPetDocument (POST /pet/{petId}/documents)
+   * declares two request content-types — multipart/form-data and
+   * application/octet-stream. Selecting application/octet-stream must send
+   * the single binary part's EXACT raw bytes as the body, with
+   * Content-Type: application/octet-stream — never a multipart/form-data
+   * envelope (no boundary), never a JSON-serialised form map, never base64.
+   * The multipart case (no selector) is asserted alongside to guard against
+   * over-correction. */
+  @Test func testUploadPetDocumentOctetStreamSendsRawBytes() async throws {
+    // A non-trivial binary payload including bytes that are not valid UTF-8.
+    let docData = Data([0x25, 0x50, 0x44, 0x46, 0x00, 0xFF, 0xFE])
+
+    /* Case (1): select application/octet-stream — raw bytes, no multipart. */
+    let rawClient = MockApiClient()
+    rawClient.responseStatusCode = 200
+    rawClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}"
+    rawClient.responseHeaders = ["Content-Type": "application/json"]
+    let rawConfig = ConfigurationBuilder().baseURL("https://example.com").build()
+    let rawApi = PetApi(apiClient: rawClient, config: rawConfig)
+
+    _ = try await rawApi.uploadPetDocument(
+      petId: 1,
+      options: UploadPetDocumentOptions(file: docData),
+      requestContentType: "application/octet-stream"
+    )
+
+    #expect(
+      rawClient.lastBody == docData,
+      "octet-stream must send the exact raw file bytes, got: \(rawClient.lastBody.map { Array($0) } ?? [])"
+    )
+    #expect(
+      rawClient.lastHeaders["Content-Type"] == "application/octet-stream",
+      "octet-stream selection must set Content-Type: application/octet-stream, got: \(rawClient.lastHeaders["Content-Type"] ?? "nil")"
+    )
+    let rawBody = rawClient.lastBody ?? Data()
+    #expect(
+      rawBody.range(of: Data("Content-Disposition".utf8)) == nil,
+      "octet-stream body must not be a multipart envelope")
+    #expect(
+      rawClient.lastHeaders["Content-Type"]?.contains("boundary") != true,
+      "octet-stream Content-Type must not carry a multipart boundary")
+
+    /* Case (2): no selector — defaults to multipart/form-data. The body is
+     * a multipart envelope (boundary + Content-Disposition parts), proving
+     * the fix did not over-correct the default path into raw mode. */
+    let mpClient = MockApiClient()
+    mpClient.responseStatusCode = 200
+    mpClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}"
+    mpClient.responseHeaders = ["Content-Type": "application/json"]
+    let mpConfig = ConfigurationBuilder().baseURL("https://example.com").build()
+    let mpApi = PetApi(apiClient: mpClient, config: mpConfig)
+
+    _ = try await mpApi.uploadPetDocument(
+      petId: 1,
+      options: UploadPetDocumentOptions(file: docData)
+    )
+
+    #expect(
+      mpClient.lastHeaders["Content-Type"]?.hasPrefix("multipart/form-data") == true,
+      "default selection must send multipart/form-data, got: \(mpClient.lastHeaders["Content-Type"] ?? "nil")"
+    )
+    #expect(
+      mpClient.lastHeaders["Content-Type"]?.contains("boundary=") == true,
+      "multipart Content-Type must carry a boundary")
+    /* The multipart envelope embeds the raw (non-UTF-8) file bytes, so the
+     * whole body is not decodable as a UTF-8 String; search the raw bytes
+     * for the Content-Disposition marker instead. */
+    let mpBody = mpClient.lastBody ?? Data()
+    let dispositionMarker = Data("Content-Disposition: form-data".utf8)
+    #expect(
+      mpBody.range(of: dispositionMarker) != nil,
+      "multipart body must contain form-data parts")
+    #expect(
+      mpBody != docData,
+      "multipart body must be an envelope, not the raw file bytes")
+  }
+
   @Test func testGetPetAvatar() async throws {
     let api = petApiForIntegration()
 

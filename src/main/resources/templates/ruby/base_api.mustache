@@ -233,6 +233,15 @@ module {{moduleName}}
           body
         elsif content_type&.start_with?('image/') ||
               content_type == 'application/octet-stream'
+          # An operation that declares BOTH multipart/form-data and a raw binary
+          # content-type (e.g. application/octet-stream) builds its body as a
+          # form-parts Hash for the multipart case. When the caller selects the
+          # raw binary type instead, the multipart envelope must be bypassed:
+          # send the single binary part's raw bytes directly. Without this the
+          # Hash falls through to the transport, which dispatches multipart on
+          # `body.is_a?(Hash)`, and the octet-stream selection silently still
+          # ships a multipart/form-data body.
+          body = binary_part_from_form_body(body) if body.is_a?(Hash)
           body.respond_to?(:read) ? body.read : body
         elsif content_type == 'text/plain'
           body.to_s
@@ -241,6 +250,18 @@ module {{moduleName}}
         else
           ::{{moduleName}}::ObjectSerializer.serialize(body)
         end
+      end
+
+      # Extract the single binary part from a multipart form-parts Hash so it
+      # can be sent as a raw (non-multipart) request body. Operations that
+      # accept both multipart/form-data and a raw binary content-type assemble
+      # the body as a `{ field => value }` Hash; when the raw type is selected
+      # only the file part belongs on the wire. Prefer a part that is an IO
+      # (responds to +read+) — the uploaded file — and fall back to the first
+      # value when no IO-like part is present.
+      def binary_part_from_form_body(form_body)
+        io_part = form_body.values.find { |v| v.respond_to?(:read) }
+        io_part || form_body.values.first
       end
 
       # Whether the operation's target return type denotes raw binary data

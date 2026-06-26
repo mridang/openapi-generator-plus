@@ -406,15 +406,6 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{/formParams}}
-        let requestBody: Any? = formBody
-{{/hasFormParams}}
-{{^hasFormParams}}
-{{#bodyParam}}
-        let requestBody: Any? = {{paramName}}
-{{/bodyParam}}
-{{^bodyParam}}
-        let requestBody: Any? = nil
-{{/bodyParam}}
 {{/hasFormParams}}
 
 {{#consumes}}{{#-last}}{{^-first}}
@@ -427,6 +418,32 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             requestContentType.flatMap { declaredRequestContentTypes.contains($0) ? $0 : nil }
             ?? "{{vendorExtensions.op.effectiveConsumes}}"
 {{/-first}}{{/-last}}{{/consumes}}
+{{#hasFormParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+        /* This operation accepts multipart/form-data alongside a raw binary
+         * content-type (e.g. application/octet-stream). When the caller
+         * selects multipart, send the assembled form fields as a multipart
+         * envelope; otherwise the selected content-type carries the single
+         * binary part's bytes directly, with no multipart framing. */
+        let requestBody: Any?
+        if effectiveRequestContentType == "multipart/form-data" {
+            requestBody = formBody
+        } else {
+            requestBody = {{#formParams}}{{#isBinary}}{{#vendorExtensions.op.optionsParamRequired}}options.{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{/isBinary}}{{/formParams}}
+        }
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+        let requestBody: Any? = formBody
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        let requestBody: Any? = {{paramName}}
+{{/bodyParam}}
+{{^bodyParam}}
+        let requestBody: Any? = nil
+{{/bodyParam}}
+{{/hasFormParams}}
         let params = InvokeAPIParams(
             method: "{{httpMethod}}",
             path: path,

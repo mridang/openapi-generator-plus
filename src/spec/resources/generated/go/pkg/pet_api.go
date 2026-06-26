@@ -2083,6 +2083,16 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 			}
 		}
 	}
+	/* When a multipart/form-data operation ALSO declares a raw binary request
+	 * Content-Type (e.g. application/octet-stream), selecting that type must put
+	 * the single binary part's RAW BYTES on the wire — not the multipart form
+	 * map (which base_api would otherwise json.Marshal to "{}"). The multipart
+	 * formBody is only correct for multipart/form-data; for any other selected
+	 * type we stream the file part itself so serializeBody emits the raw bytes
+	 * under the chosen Content-Type. */
+	if requestContentTypeValue != "multipart/form-data" {
+		requestBody = options.File
+	}
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",

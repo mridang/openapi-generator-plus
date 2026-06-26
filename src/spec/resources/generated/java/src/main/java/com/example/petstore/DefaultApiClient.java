@@ -434,6 +434,19 @@ public final class DefaultApiClient implements ApiClient {
         throw new ApiException("Failed to read request body stream", e);
       }
       bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(streamBytes);
+    } else if (body instanceof File file) {
+      /* A raw File body (for example a binary octet-stream upload
+       * selected via the per-call content-type selector) is sent as its
+       * raw bytes. Buffering eagerly keeps the publisher repeatable for
+       * the redirect/retry re-subscription path, exactly like the
+       * InputStream branch above. */
+      byte[] fileBytes;
+      try {
+        fileBytes = Files.readAllBytes(file.toPath());
+      } catch (IOException e) {
+        throw new ApiException("Failed to read request body file", e);
+      }
+      bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(fileBytes);
     } else {
       bodyPublisher = HttpRequest.BodyPublishers.ofString(body.toString());
     }

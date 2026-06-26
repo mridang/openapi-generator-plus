@@ -288,6 +288,82 @@ class TestPetApi:
         assert result is not None
         assert isinstance(result, ApiResponse)
 
+    async def test_upload_pet_document_honours_selected_request_content_type(
+        self,
+    ) -> None:
+        # uploadPetDocument (POST /pet/{petId}/documents) declares TWO request
+        # content types: multipart/form-data AND application/octet-stream. The
+        # generated method exposes an OPTIONAL request_content_type selector.
+        # Assert two cases by capturing the outbound Content-Type and raw body:
+        #   (1) Selecting application/octet-stream sends the file's RAW bytes
+        #       with Content-Type: application/octet-stream — NO multipart
+        #       envelope, NO boundary, NOT base64. The text metadata parts
+        #       (documentType, notes) have no place on the wire for a raw
+        #       stream and are dropped.
+        #   (2) Called WITHOUT a selector it defaults to the FIRST declared
+        #       type (multipart/form-data) and still sends a multipart body —
+        #       guards against over-correcting the octet-stream fix.
+        file_bytes = b"\x00\x01\x02PDFraw\xff"
+        captured: List[Dict[str, Any]] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                length = int(self.headers.get("Content-Length", 0))
+                captured.append(
+                    {
+                        "body": self.rfile.read(length),
+                        "content_type": self.headers.get("Content-Type"),
+                    }
+                )
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b"{}")
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(
+            target=lambda: [server.handle_request(), server.handle_request()]
+        )
+        thread.daemon = True
+        thread.start()
+
+        config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
+        api = PetApi(config=config)
+
+        # (1) Select application/octet-stream — raw bytes, no multipart.
+        await api.upload_pet_document(
+            1,
+            UploadPetDocumentOptions(file=file_bytes, document_type="x", notes="y"),
+            request_content_type="application/octet-stream",
+        )
+        # (2) No selector — defaults to multipart/form-data.
+        await api.upload_pet_document(
+            1,
+            UploadPetDocumentOptions(file=file_bytes, document_type="x", notes="y"),
+        )
+
+        assert len(captured) == 2
+
+        octet = captured[0]
+        assert octet["content_type"] == "application/octet-stream"
+        # The body is the file's RAW bytes — byte-for-byte, no envelope.
+        assert octet["body"] == file_bytes
+        # Hard guard against over-correction: no multipart framing whatsoever.
+        assert b"multipart" not in (octet["content_type"] or "").encode()
+        assert b"boundary" not in (octet["content_type"] or "").encode()
+        assert b"Content-Disposition" not in octet["body"]
+
+        multipart = captured[1]
+        assert (multipart["content_type"] or "").startswith("multipart/form-data")
+        assert b"boundary=" in (multipart["content_type"] or "").encode()
+        # The multipart envelope carries the file part and is NOT the bare bytes.
+        assert b"Content-Disposition" in multipart["body"]
+        assert multipart["body"] != file_bytes
+
     async def test_add_pet_photos(self) -> None:
         metadata = PhotoMetadata(caption="Test photo", isPrimary=True)
 

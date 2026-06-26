@@ -717,6 +717,84 @@ public class PetApiTest
         }
     }
 
+    private sealed class HeaderAndBodyCapturingApiClient : IApiClient
+    {
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+
+        public object? CapturedBody { get; private set; }
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            CapturedBody = body;
+            return Task.FromResult(new PetstoreClient.ApiHttpResponse(200, "{\"code\":200,\"type\":\"\",\"message\":\"success\"}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    [Fact]
+    public async Task UploadPetDocumentOctetStreamSendsRawBytes()
+    {
+        // uploadPetDocument declares TWO request content-types —
+        // multipart/form-data AND application/octet-stream. When the caller
+        // selects application/octet-stream the SDK must send the file's RAW
+        // bytes under Content-Type: application/octet-stream, NOT wrap them in a
+        // multipart/form-data envelope. The API layer always builds a form-style
+        // Dictionary keyed by the declared parts; BaseApi must recognise the
+        // raw-binary selection and extract the single binary part rather than
+        // hand the Dictionary to the transport (which would emit multipart).
+        // Mirrors SetPetAvatar, the single-binary path that already streams raw
+        // bytes. Canonical cross-SDK regression (over-correction guarded by the
+        // multipart case below).
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+
+        // (1) Selector = application/octet-stream → RAW bytes, octet-stream
+        // Content-Type, and NOT a form-style Dictionary (which the transport
+        // would serialise as multipart/form-data with a boundary).
+        var rawBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D };
+        var octetClient = new HeaderAndBodyCapturingApiClient();
+        var octetApi = new PetApi(octetClient, config);
+        await octetApi.UploadPetDocumentWithHttpInfoAsync(
+            1L,
+            new UploadPetDocumentOptions { File = new MemoryStream(rawBytes) },
+            "application/octet-stream");
+
+        Assert.Equal("application/octet-stream", octetClient.CapturedHeaders["Content-Type"]);
+        Assert.NotNull(octetClient.CapturedBody);
+        // The body is the raw binary part (a Stream), never the form-style
+        // Dictionary that drives multipart serialisation.
+        Assert.False(
+            octetClient.CapturedBody is Dictionary<string, object>,
+            "octet-stream selection must NOT send a multipart form Dictionary");
+        Assert.IsAssignableFrom<Stream>(octetClient.CapturedBody);
+
+        // The exact bytes survive verbatim — no multipart boundary, no base64.
+        using var captured = new MemoryStream();
+        ((Stream)octetClient.CapturedBody!).CopyTo(captured);
+        Assert.Equal(rawBytes, captured.ToArray());
+
+        // (2) Over-correction guard: the default selection (multipart/form-data)
+        // still hands the transport the form-style Dictionary so a multipart
+        // body is produced. At this seam HeaderSelector intentionally omits the
+        // Content-Type header for multipart — the boundary-bearing
+        // multipart/form-data type is set later by the transport once it builds
+        // the envelope — so the multipart signal here is the form Dictionary
+        // body itself. The "file" part carries the same raw stream.
+        var multipartClient = new HeaderAndBodyCapturingApiClient();
+        var multipartApi = new PetApi(multipartClient, config);
+        await multipartApi.UploadPetDocumentWithHttpInfoAsync(
+            1L,
+            new UploadPetDocumentOptions { File = new MemoryStream(rawBytes), DocumentType = "vaccination_record", Notes = "Annual rabies" });
+
+        Assert.False(
+            multipartClient.CapturedHeaders.ContainsKey("Content-Type"),
+            "multipart selection defers Content-Type to the transport-built envelope");
+        var multipartBody = Assert.IsType<Dictionary<string, object>>(multipartClient.CapturedBody);
+        Assert.True(multipartBody.ContainsKey("file"));
+        Assert.IsAssignableFrom<Stream>(multipartBody["file"]);
+    }
+
     [Fact]
     public async Task SetPetPreferencesFormWireFormat()
     {

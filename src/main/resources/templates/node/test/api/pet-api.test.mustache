@@ -694,3 +694,120 @@ describe('PetApi multipart model-part serialization', () => {
     }
   });
 });
+
+// Cross-SDK content-type-selector parity — uploadPetDocument declares MULTIPLE
+// request content types (multipart/form-data AND application/octet-stream).
+// The per-call `contentType` argument MUST steer how the body is framed on the
+// wire:
+//   * multipart/form-data  -> a multipart/form-data envelope (boundary, parts)
+//   * application/octet-stream -> the RAW file bytes verbatim, with no
+//     multipart boundary, no Content-Disposition headers, and no base64
+//     re-encoding — mirroring setPetAvatar's single-binary raw-Buffer path.
+// A local capturing server records the exact outbound Content-Type and raw body
+// bytes so the assertions inspect the on-the-wire framing, not just a 2xx.
+describe('PetApi request content-type selector', () => {
+  function captureRawBody(): Promise<{
+    api: PetApi;
+    getCapture: () => { body: Buffer; contentType: string | undefined };
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let captured = {
+        body: Buffer.alloc(0),
+        contentType: undefined as string | undefined,
+      };
+      const server = http.createServer((req, res) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
+        req.on('end', () => {
+          captured = {
+            body: Buffer.concat(chunks),
+            contentType: req.headers['content-type'],
+          };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"code":200,"type":"ok","message":"stored"}');
+        });
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address() as { port: number };
+        const cfg = Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build();
+        resolve({
+          api: new PetApi(undefined, cfg),
+          getCapture: () => captured,
+          close: () => server.close(),
+        });
+      });
+    });
+  }
+
+  // OCTET-STREAM-RAW-BODY: selecting application/octet-stream must send the
+  // single binary part's RAW bytes as the request body — never a multipart
+  // envelope and never base64.
+  test('octet-stream selection sends raw bytes, not multipart', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      const fileBytes = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x00, 0x01, 0x02, 0xFF]);
+      const options: UploadPetDocumentOptions = { file: fileBytes };
+
+      try {
+        await api.uploadPetDocument(1, options, 'application/octet-stream');
+      } catch {
+        // The canned JSON response is irrelevant; the assertions below inspect
+        // the OUTGOING request framing only.
+      }
+
+      const { body, contentType } = getCapture();
+
+      // The outbound Content-Type is the selected raw binary type, with no
+      // multipart boundary parameter.
+      expect(contentType).toBe('application/octet-stream');
+      expect(contentType).not.toContain('multipart/form-data');
+      expect(contentType).not.toContain('boundary');
+
+      // The body is the exact bytes handed in — byte-for-byte, no envelope.
+      expect(Buffer.isBuffer(body)).toBe(true);
+      expect(body.equals(fileBytes)).toBe(true);
+
+      // Defensive: none of the multipart envelope markers leak into the body,
+      // and the bytes are not base64-re-encoded.
+      const bodyText = body.toString('latin1');
+      expect(bodyText).not.toContain('Content-Disposition');
+      expect(bodyText).not.toContain('name="file"');
+      expect(bodyText).not.toContain('--');
+      expect(bodyText).not.toBe(fileBytes.toString('base64'));
+    } finally {
+      close();
+    }
+  });
+
+  // Over-correction guard: selecting multipart/form-data (the default) still
+  // frames the body as a multipart/form-data envelope carrying the file part.
+  test('multipart selection still sends a multipart envelope', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      const fileBytes = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x00, 0x01, 0x02, 0xFF]);
+      const options: UploadPetDocumentOptions = {
+        file: fileBytes,
+        documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+      };
+
+      try {
+        await api.uploadPetDocument(1, options, 'multipart/form-data');
+      } catch {
+        // Canned response irrelevant; inspecting the OUTGOING framing only.
+      }
+
+      const { body, contentType } = getCapture();
+      expect(contentType).toContain('multipart/form-data');
+      expect(contentType).toContain('boundary=');
+
+      const bodyText = body.toString('latin1');
+      expect(bodyText).toContain('Content-Disposition: form-data');
+      expect(bodyText).toContain('name="file"');
+    } finally {
+      close();
+    }
+  });
+});

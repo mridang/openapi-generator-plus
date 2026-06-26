@@ -620,6 +620,83 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(png_name)
   end
 
+  # octet-stream-raw-body: uploadPetDocument declares TWO request content-types
+  # (multipart/form-data, application/octet-stream). When the caller selects
+  # application/octet-stream the wire body MUST be the RAW bytes of the single
+  # file part with Content-Type: application/octet-stream — NOT a multipart
+  # envelope, no boundary, not base64. The operation always builds request_body
+  # as a multipart parts map, and the transport renders any MAP body into a
+  # multipart envelope; the operation must therefore collapse that map to the
+  # part's raw bytes before dispatch when octet-stream is selected. The default
+  # (multipart) case is asserted alongside to guard against over-correction:
+  # without a selector the body stays a parts map destined for a multipart
+  # envelope. BodyCapturingApiClient records the body BaseApi hands to the
+  # transport, so a raw binary here proves the raw-bytes path and a map proves
+  # the multipart path.
+  test "upload_pet_document octet-stream selection sends raw bytes, not multipart" do
+    # A known, non-trivial binary payload (PDF magic bytes).
+    payload = <<0x25, 0x50, 0x44, 0x46, 0x2D>>
+
+    # (1) Selector = application/octet-stream -> raw bytes on the wire.
+    {:ok, raw_name} = BodyCapturingApiClient.start()
+    raw_config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    raw_api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, raw_config)
+
+    options = %{{moduleName}}.Api.Options.UploadPetDocumentOptions{
+      file: payload,
+      document_type: "vaccination_record",
+      notes: "Annual checkup"
+    }
+
+    # The capturing client records the outbound request at send_request time
+    # (before the response is processed), so the body assertion holds regardless
+    # of the operation's return — the empty mock body would otherwise trip
+    # upload_pet_document's "expected a response body" check, which is not what
+    # this test exercises.
+    _result =
+      {{moduleName}}.Api.PetApi.upload_pet_document(
+        raw_api, 5, options,
+        content_type: "application/octet-stream"
+      )
+
+    raw_captured = BodyCapturingApiClient.captured(raw_name)
+
+    # The body is the EXACT raw file bytes — not the parts map, not a multipart
+    # envelope, no boundary marker, not base64, not JSON.
+    assert raw_captured.body == payload
+    refute is_map(raw_captured.body)
+    assert is_binary(raw_captured.body)
+    refute raw_captured.body == Base.encode64(payload)
+    refute String.contains?(to_string(raw_captured.body), "Content-Disposition")
+    refute String.contains?(to_string(raw_captured.body), "boundary")
+    # The Content-Type is exactly the selected octet-stream type.
+    assert raw_captured.headers["Content-Type"] == "application/octet-stream"
+    refute raw_captured.headers["Content-Type"] == "multipart/form-data"
+    Agent.stop(raw_name)
+
+    # (2) No selector -> the first declared type (multipart/form-data). The body
+    # stays a parts MAP destined for a multipart envelope, NOT collapsed to raw
+    # bytes — guards against over-correcting the octet-stream fix.
+    {:ok, mp_name} = BodyCapturingApiClient.start()
+    mp_config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    mp_api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, mp_config)
+
+    _result =
+      {{moduleName}}.Api.PetApi.upload_pet_document(mp_api, 5, options)
+
+    mp_captured = BodyCapturingApiClient.captured(mp_name)
+
+    # A map body is what the transport renders into a multipart envelope; the
+    # raw payload alone is NOT what went to the transport here.
+    assert is_map(mp_captured.body)
+    refute mp_captured.body == payload
+    # The file part carries the raw bytes tagged for a file part, and the
+    # metadata fields ride alongside — proving multipart, not raw octet-stream.
+    assert mp_captured.body["file"] == {:raw, payload}
+    assert mp_captured.body["documentType"] == "vaccination_record"
+    Agent.stop(mp_name)
+  end
+
   # apiresult-rawbody-nullability: ApiResult.raw_body is typed String.t() (never
   # nil) because ApiHttpResponse.body is always populated. Even an empty 200 body
   # surfaces raw_body as a binary, not nil.

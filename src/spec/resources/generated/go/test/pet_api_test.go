@@ -506,6 +506,84 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 	}
 }
 
+// TestPetApi_UploadPetDocumentOctetStreamSendsRawBytes is the canonical
+// multi-content-type request-body regression. uploadPetDocument declares BOTH
+// multipart/form-data AND application/octet-stream as request content types. The
+// generated method takes an OPTIONAL trailing requestContentType selector:
+//
+//	(1) Selecting application/octet-stream must put the file's RAW BYTES on the
+//	    wire under Content-Type: application/octet-stream — NOT a multipart/form-data
+//	    envelope, NO multipart boundary, NOT base64, and NOT the JSON-marshalled
+//	    form map ("{\"file\":{}}").
+//	(2) The default (no selector) must still send a multipart/form-data body,
+//	    guarding against over-correcting the octet-stream fix.
+func TestPetApi_UploadPetDocumentOctetStreamSendsRawBytes(t *testing.T) {
+	t.Parallel()
+	// A non-trivial binary payload including a NUL and a non-ASCII byte so a
+	// stray JSON/base64/multipart re-encoding would be detected.
+	payload := []byte{0x25, 0x50, 0x44, 0x46, 0x00, 0xFF}
+
+	var capturedBody []byte
+	var capturedContentType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedContentType = r.Header.Get("Content-Type")
+		capturedBody, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"code":200,"type":"ok","message":"done"}`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	f := newTempFile(t, string(payload))
+
+	if _, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{File: f}, "application/octet-stream"); err != nil {
+		t.Fatalf("UploadPetDocument (octet-stream) failed: %v", err)
+	}
+
+	// (1) Content-Type must be exactly application/octet-stream — never multipart.
+	if capturedContentType != "application/octet-stream" {
+		t.Errorf("expected Content-Type application/octet-stream, got %q", capturedContentType)
+	}
+	if strings.Contains(capturedContentType, "multipart") {
+		t.Errorf("octet-stream selection must not send a multipart Content-Type, got %q", capturedContentType)
+	}
+	// (2) The body must be EXACTLY the raw bytes: no multipart envelope, no
+	//     boundary, no base64, and not the JSON form map.
+	if !bytes.Equal(capturedBody, payload) {
+		t.Errorf("expected raw body bytes %v, got %v (string %q)", payload, capturedBody, string(capturedBody))
+	}
+}
+
+// TestPetApi_UploadPetDocumentDefaultSendsMultipart confirms the multipart case
+// still works after the octet-stream fix: omitting the selector (or selecting
+// multipart/form-data) must send a multipart/form-data body.
+func TestPetApi_UploadPetDocumentDefaultSendsMultipart(t *testing.T) {
+	t.Parallel()
+
+	var capturedContentType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedContentType = r.Header.Get("Content-Type")
+		_, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"code":200,"type":"ok","message":"done"}`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	f := newTempFile(t, "document-content")
+
+	if _, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{File: f}); err != nil {
+		t.Fatalf("UploadPetDocument (default) failed: %v", err)
+	}
+
+	mediaType, _, _ := mime.ParseMediaType(capturedContentType)
+	if mediaType != "multipart/form-data" {
+		t.Errorf("expected default Content-Type multipart/form-data, got %q", capturedContentType)
+	}
+}
+
 func TestPetApi_AddPetPhotos(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)

@@ -434,6 +434,118 @@ test('setPetAvatar honours the selected request content type', function (): void
     unlink($tmpFile);
 });
 
+// -- Canonical: octet-stream selection sends RAW bytes, not multipart --
+//
+// uploadPetDocument (POST /pet/{petId}/documents) declares MULTIPLE request
+// content types — multipart/form-data AND application/octet-stream. The API
+// layer always builds the body as a form-style map keyed by the declared parts
+// (file/documentType/notes). Two cases must hold:
+//   (1) selecting application/octet-stream sends the single binary part's RAW
+//       bytes as the body under Content-Type: application/octet-stream — never
+//       a multipart envelope, never a boundary, never base64;
+//   (2) the default (multipart/form-data) still sends a multipart body — the
+//       form-style map reaches the transport unflattened so the boundary-bearing
+//       multipart envelope is built there. This guards against over-correcting
+//       the octet-stream path into stripping every multipart upload.
+//
+// serializeBody runs inside BaseApi BEFORE the body reaches the ApiClient, so a
+// body-capturing fake client observes the exact value and headers on the wire:
+// a raw byte STRING for the octet-stream case, the unflattened ARRAY map for the
+// multipart case.
+
+/**
+ * Builds a PetApi backed by a fake client that captures the raw outbound body
+ * (whatever its type) plus the request headers, so a test can distinguish a
+ * raw-byte string body from an unflattened multipart array map.
+ *
+ * @return array{0: PetApi, 1: \stdClass}
+ */
+function newRawBodyCapturingPetApi(): array
+{
+    $captured = new \stdClass();
+    $captured->body = null;
+    /** @var array<string, string> $hdrs */
+    $hdrs = [];
+    $captured->headers = $hdrs;
+
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->captured->body = $body;
+            $this->captured->headers = $headers;
+            return new \PetstoreClient\ApiHttpResponse(
+                200,
+                '{"code":200,"type":"ok","message":"uploaded"}',
+                ['Content-Type' => 'application/json']
+            );
+        }
+    };
+
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost:9999')
+        ->build();
+
+    return [new PetApi(apiClient: $client, config: $config), $captured];
+}
+
+test('uploadPetDocument with octet-stream selection sends raw bytes not multipart', function (): void {
+    $rawBytes = "\x00\x01\x02PDF-bytes\xFF\xFE";
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, $rawBytes);
+    $file = new \SplFileObject($tmpFile, 'r');
+
+    [$api, $captured] = newRawBodyCapturingPetApi();
+
+    $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
+    $api->uploadPetDocument(1, $options, 'application/octet-stream');
+    unlink($tmpFile);
+
+    // (1) The outbound body is the single binary part's RAW bytes, byte-for-byte
+    //     — a plain string, not the form-style array map, not base64.
+    expect($captured->body)->toBeString();
+    expect($captured->body)->toBe($rawBytes);
+    expect($captured->body)->not->toBe(base64_encode($rawBytes));
+    // (2) No multipart envelope leaked through: no boundary, no part headers,
+    //     no Content-Disposition framing around the bytes.
+    expect($captured->body)->not->toContain('Content-Disposition');
+    expect($captured->body)->not->toContain('form-data');
+    expect($captured->body)->not->toContain('boundary');
+    // (3) The outgoing Content-Type is exactly application/octet-stream — never
+    //     multipart/form-data.
+    expect($captured->headers['Content-Type'] ?? '')->toBe('application/octet-stream');
+});
+
+test('uploadPetDocument default selection still sends a multipart body', function (): void {
+    // Guard against over-correction: with no selector (default
+    // multipart/form-data) the form-style map must reach the transport
+    // UNFLATTENED — an array, not a raw-byte string — so the boundary-bearing
+    // multipart envelope is built downstream. BaseApi deliberately does NOT set
+    // a Content-Type header for multipart (the transport owns the
+    // boundary-bearing one), so its absence here confirms the multipart path.
+    $rawBytes = 'document-content';
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, $rawBytes);
+    $file = new \SplFileObject($tmpFile, 'r');
+
+    [$api, $captured] = newRawBodyCapturingPetApi();
+
+    $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
+    $api->uploadPetDocument(1, $options);
+    unlink($tmpFile);
+
+    // The body is the unflattened form map, NOT a flattened raw-byte string.
+    expect($captured->body)->toBeArray();
+    expect($captured->body)->toHaveKey('file');
+    expect($captured->body['file'])->toBeInstanceOf(\SplFileObject::class);
+    // BaseApi leaves Content-Type unset for multipart; the transport stamps the
+    // boundary-bearing header. So it is never application/octet-stream here.
+    expect($captured->headers['Content-Type'] ?? '')->not->toBe('application/octet-stream');
+});
+
 // -- Canonical #6: operation cookie param fails closed on CR/LF (RFC 6265) --
 //
 // deletePet carries an `api_key` cookie param (DeletePetOptions::$apiKey). A

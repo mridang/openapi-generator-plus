@@ -245,7 +245,26 @@ class BaseApi:
             elif content_type is not None and (
                 content_type.startswith('image/') or content_type == 'application/octet-stream'
             ):
-                serialized_body = body
+                # Raw-binary selection. When the operation also declares a
+                # multipart content type the body was assembled as a dict of
+                # form parts (file + optional metadata). A raw binary request
+                # has no envelope, so we must NOT hand that dict to the
+                # transport -- it would dispatch on `isinstance(body, dict)`
+                # and emit a multipart/form-data body, contradicting the
+                # caller's explicit octet-stream selection. Instead, send the
+                # single file part's raw bytes; the text metadata parts have
+                # no place on the wire for a raw stream and are dropped. A
+                # body that is already bytes / a file-like object is passed
+                # through unchanged.
+                if isinstance(body, dict):
+                    binary_part = None
+                    for _part_value in body.values():
+                        if isinstance(_part_value, (bytes, bytearray)) or hasattr(_part_value, 'read'):
+                            binary_part = _part_value
+                            break
+                    serialized_body = binary_part if binary_part is not None else body
+                else:
+                    serialized_body = body
             elif content_type == 'text/plain':
                 serialized_body = str(body)
             elif content_type == 'application/x-www-form-urlencoded':

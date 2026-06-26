@@ -42,7 +42,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "DELETE",
       path: path,
@@ -103,7 +102,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     }
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -144,7 +142,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -185,7 +182,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -226,7 +222,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -267,7 +262,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -308,7 +302,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -357,7 +350,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -408,7 +400,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -449,7 +440,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -490,7 +480,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -531,7 +520,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -572,7 +560,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -615,7 +602,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = order
-
     let params = InvokeAPIParams(
       method: "POST",
       path: path,

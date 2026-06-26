@@ -289,6 +289,23 @@ export class {{classname}} extends BaseApi {
       formBody['{{baseName}}'] = options.{{paramName}};
     }
 {{/formParams}}
+{{#vendorExtensions.op.hasContentTypeSelector}}
+    /* This operation declares multiple request content types. The
+     * multipart/form-data envelope (formBody, a Record assembled above) is
+     * only correct when multipart/form-data is the selected Content-Type.
+     * For a binary single-part type (e.g. application/octet-stream) the wire
+     * body must be the RAW bytes of the binary part, NOT a multipart envelope
+     * and NOT a base64 string — mirror setPetAvatar's raw-Buffer path. The
+     * transport decides multipart-vs-raw by inspecting the body's runtime
+     * type (a plain object becomes multipart; a Buffer is sent verbatim), so
+     * we hand it the Buffer directly when the caller did not pick multipart. */
+    const requestBody: Record<string, unknown> | Buffer | null =
+      (contentType ?? '{{vendorExtensions.op.effectiveConsumes}}') ===
+      'multipart/form-data'
+        ? formBody
+{{#formParams}}{{#isBinary}}        : (options?.{{paramName}} ?? null);
+{{/isBinary}}{{/formParams}}
+{{/vendorExtensions.op.hasContentTypeSelector}}
 
 {{/hasFormParams}}
     return await this.invokeApiForResult(
@@ -296,7 +313,7 @@ export class {{classname}} extends BaseApi {
       {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
       queryParams,
       headerParams,
-      {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+      {{#hasFormParams}}{{#vendorExtensions.op.hasContentTypeSelector}}requestBody{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}formBody{{/vendorExtensions.op.hasContentTypeSelector}}{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#vendorExtensions.op.hasContentTypeSelector}}contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}},
       {{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => Buffer.from(json as string, 'base64'){{/isBinary}}{{#isBinary}}(json: unknown) => json as {{{returnType}}}{{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},

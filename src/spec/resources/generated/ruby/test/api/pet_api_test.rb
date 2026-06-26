@@ -7,6 +7,7 @@ require 'test_helper'
 require 'set'
 require 'stringio'
 require 'socket'
+require 'base64'
 
 describe PetstoreClient::Api::PetApi do
   parallelize_me!
@@ -248,6 +249,108 @@ describe PetstoreClient::Api::PetApi do
       )
 
       _(result).wont_be_nil
+    end
+
+    # octet-stream-raw-body parity: uploadPetDocument declares TWO request
+    # content-types — multipart/form-data AND application/octet-stream. When the
+    # caller selects application/octet-stream the SDK must send the file's RAW
+    # bytes with Content-Type: application/octet-stream — NOT a multipart/form-data
+    # envelope, no multipart boundary, not base64. The request body is assembled
+    # as a form-parts Hash for the multipart case; the bug is that the transport
+    # dispatches multipart on `body.is_a?(Hash)`, so without unwrapping the single
+    # binary part an octet-stream selection silently still ships multipart. A
+    # one-shot TCP server captures the real outgoing Content-Type and body off the
+    # wire, exercising request_body construction plus BaseApi#serialize_body and
+    # the transport end-to-end.
+    def capture_document_request
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured_body = Queue.new
+      captured_content_type = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        content_length = 0
+        content_type = ''
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          elsif line.downcase.start_with?('content-type:')
+            content_type = line.split(':', 2).last.strip
+          end
+          break if line.strip.empty?
+        end
+        captured_content_type << content_type
+        captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = PetstoreClient::Api::PetApi.new(nil, config)
+      [api, server, thread, captured_body, captured_content_type]
+    end
+
+    it 'sends raw bytes when application/octet-stream is selected' do
+      api, server, thread, captured_body, captured_content_type = capture_document_request
+      begin
+        raw = "\x00\x01\x02PDFBYTES\xFF".b
+        api.upload_pet_document(
+          1,
+          PetstoreClient::Api::Options::UploadPetDocumentOptions.new(file: StringIO.new(raw)),
+          content_type: 'application/octet-stream'
+        )
+
+        content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        # (1) Content-Type is the selected raw binary type — NOT multipart.
+        _(content_type).must_equal 'application/octet-stream'
+        _(content_type).wont_match(/multipart/)
+        _(content_type).wont_match(/boundary/)
+
+        # (2) The body is the exact raw bytes — not a multipart envelope, no
+        # boundary delimiter, no Content-Disposition part header, not base64.
+        _(sent).must_equal raw
+        _(sent).wont_include 'Content-Disposition'
+        _(sent).wont_include 'form-data'
+        _(sent).wont_match(/\A--/) # multipart boundary delimiter
+        _(sent).wont_include Base64.strict_encode64(raw)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'still sends a multipart body when multipart/form-data is selected (default)' do
+      # Guards against over-correction: the default (and explicit multipart)
+      # selection must keep shipping a multipart/form-data envelope.
+      [nil, 'multipart/form-data'].each do |selected|
+        api, server, thread, captured_body, captured_content_type = capture_document_request
+        begin
+          api.upload_pet_document(
+            1,
+            PetstoreClient::Api::Options::UploadPetDocumentOptions.new(
+              file: StringIO.new('doc-data'),
+              document_type: 'vaccination_record'
+            ),
+            content_type: selected
+          )
+
+          content_type = captured_content_type.pop
+          sent = captured_body.pop.b
+
+          _(content_type).must_match(%r{\Amultipart/form-data})
+          _(content_type).must_match(/boundary=/)
+          _(sent).must_include 'Content-Disposition'
+          _(sent).must_include 'doc-data'
+        ensure
+          server.close
+          thread.join(2)
+        end
+      end
     end
   end
 

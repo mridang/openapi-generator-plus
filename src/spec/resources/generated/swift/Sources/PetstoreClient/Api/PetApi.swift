@@ -159,7 +159,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = pet
-
     let params = InvokeAPIParams(
       method: "POST",
       path: path,
@@ -217,8 +216,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     var formBody: [String: Any] = [:]
     formBody["files"] = options.files
     formBody["metadata"] = options.metadata
-    let requestBody: Any? = formBody
 
+    let requestBody: Any? = formBody
     let params = InvokeAPIParams(
       method: "POST",
       path: path,
@@ -271,7 +270,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = petTreatment
-
     let params = InvokeAPIParams(
       method: "POST",
       path: path,
@@ -337,7 +335,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "DELETE",
       path: path,
@@ -393,7 +390,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -466,7 +462,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -524,7 +519,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -582,7 +576,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -631,7 +624,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -680,7 +672,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -751,7 +742,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -817,7 +807,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -866,7 +855,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -921,7 +909,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -998,7 +985,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -1056,7 +1042,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = nil
-
     let params = InvokeAPIParams(
       method: "GET",
       path: path,
@@ -1102,8 +1087,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     let headerParams: [String: String] = [:]
 
-    let requestBody: Any? = body
-
     /* This operation declares more than one request content-type. The
      * optional `requestContentType` selector lets the caller pick one of
      * the declared types; an unrecognized or nil value falls back to the
@@ -1113,6 +1096,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       requestContentType.flatMap { declaredRequestContentTypes.contains($0) ? $0 : nil }
       ?? "image/jpeg"
 
+    let requestBody: Any? = body
     let params = InvokeAPIParams(
       method: "PUT",
       path: path,
@@ -1158,7 +1142,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = setPetAvatarThumbnailRequest
-
     let params = InvokeAPIParams(
       method: "PUT",
       path: path,
@@ -1229,8 +1212,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     if let val = options.note {
       formBody["note"] = val
     }
-    let requestBody: Any? = formBody
 
+    let requestBody: Any? = formBody
     let params = InvokeAPIParams(
       method: "POST",
       path: path,
@@ -1280,7 +1263,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     let headerParams: [String: String] = [:]
 
     let requestBody: Any? = pet
-
     let params = InvokeAPIParams(
       method: "PUT",
       path: path,
@@ -1339,8 +1321,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
      * `name=` pair. */
     var formBody: [String: Any] = [:]
     formBody["file"] = options.file
-    let requestBody: Any? = formBody
 
+    let requestBody: Any? = formBody
     let params = InvokeAPIParams(
       method: "POST",
       path: path,
@@ -1408,7 +1390,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     if let val = options.notes {
       formBody["notes"] = val
     }
-    let requestBody: Any? = formBody
 
     /* This operation declares more than one request content-type. The
      * optional `requestContentType` selector lets the caller pick one of
@@ -1419,6 +1400,17 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       requestContentType.flatMap { declaredRequestContentTypes.contains($0) ? $0 : nil }
       ?? "multipart/form-data"
 
+    /* This operation accepts multipart/form-data alongside a raw binary
+     * content-type (e.g. application/octet-stream). When the caller
+     * selects multipart, send the assembled form fields as a multipart
+     * envelope; otherwise the selected content-type carries the single
+     * binary part's bytes directly, with no multipart framing. */
+    let requestBody: Any?
+    if effectiveRequestContentType == "multipart/form-data" {
+      requestBody = formBody
+    } else {
+      requestBody = options.file
+    }
     let params = InvokeAPIParams(
       method: "POST",
       path: path,

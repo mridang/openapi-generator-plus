@@ -465,6 +465,133 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("uploadPetDocument with application/octet-stream sends raw bytes, not multipart")
+        fun testUploadPetDocumentOctetStreamSendsRawBody() {
+            // octet-stream-raw-body parity: uploadPetDocument declares TWO request
+            // content-types -- multipart/form-data AND application/octet-stream.
+            // When the caller selects requestContentType = application/octet-stream
+            // the SDK must stream the file part's RAW bytes with Content-Type:
+            // application/octet-stream. It must NOT wrap them in a multipart/form-data
+            // envelope: no `multipart/...; boundary=...` Content-Type, no
+            // `Content-Disposition: form-data` part headers in the body, and no
+            // base64 -- the bytes land byte-for-byte. The optional documentType /
+            // notes metadata parts have no place on a raw stream and are dropped.
+            var capturedMethod: String? = null
+            var capturedPath: String? = null
+            var capturedBodyBytes: ByteArray? = null
+            var capturedContentType: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedMethod = request.method.value
+                    capturedPath = request.url.encodedPath
+                    capturedBodyBytes = request.body.toByteArray()
+                    capturedContentType =
+                        request.body.contentType?.toString()
+                            ?: request.headers["Content-Type"]
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"uploaded"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val fileBytes = "fake-doc-data".toByteArray()
+            val options =
+                UploadPetDocumentOptions(
+                    fileBytes,
+                    documentType = "vaccination_record",
+                    notes = "Annual checkup",
+                )
+            runBlocking { api.uploadPetDocument(1L, options, "application/octet-stream") }
+
+            assertEquals("POST", capturedMethod)
+            assertTrue(capturedPath!!.contains("/pet/1/documents"))
+            // (1) Content-Type is exactly application/octet-stream -- NOT a
+            // multipart type and therefore carries no boundary parameter.
+            assertNotNull(capturedContentType)
+            assertEquals("application/octet-stream", capturedContentType)
+            assertFalse(
+                capturedContentType!!.contains("multipart"),
+                "octet-stream selection must not send a multipart Content-Type, got: $capturedContentType",
+            )
+            assertFalse(
+                capturedContentType!!.contains("boundary"),
+                "octet-stream selection must not carry a multipart boundary, got: $capturedContentType",
+            )
+            // (2) The body is the RAW file bytes, byte-for-byte -- not a multipart
+            // envelope and not base64.
+            assertNotNull(capturedBodyBytes)
+            assertArrayEquals(fileBytes, capturedBodyBytes)
+            val bodyText = String(capturedBodyBytes!!, Charsets.UTF_8)
+            assertFalse(
+                bodyText.contains("Content-Disposition"),
+                "raw octet-stream body must not contain multipart part headers, got: $bodyText",
+            )
+        }
+
+        @Test
+        @DisplayName("uploadPetDocument default selection still sends a multipart body")
+        fun testUploadPetDocumentDefaultSendsMultipart() {
+            // Guard against over-correction: with no requestContentType selector,
+            // uploadPetDocument defaults to its first declared type,
+            // multipart/form-data. The outgoing Content-Type must be a multipart
+            // type WITH a boundary, and the body must carry the file part's
+            // Content-Disposition envelope -- proving the octet-stream fix did not
+            // collapse the multipart path.
+            var capturedBodyBytes: ByteArray? = null
+            var capturedContentType: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBodyBytes = request.body.toByteArray()
+                    capturedContentType =
+                        request.body.contentType?.toString()
+                            ?: request.headers["Content-Type"]
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"uploaded"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val fileBytes = "fake-doc-data".toByteArray()
+            val options =
+                UploadPetDocumentOptions(
+                    fileBytes,
+                    documentType = "vaccination_record",
+                    notes = "Annual checkup",
+                )
+            runBlocking { api.uploadPetDocument(1L, options) }
+
+            assertNotNull(capturedContentType)
+            assertTrue(
+                capturedContentType!!.contains("multipart/form-data"),
+                "default selection must send a multipart/form-data body, got: $capturedContentType",
+            )
+            assertTrue(
+                capturedContentType!!.contains("boundary"),
+                "multipart body must carry a boundary, got: $capturedContentType",
+            )
+            assertNotNull(capturedBodyBytes)
+            val bodyText = String(capturedBodyBytes!!, Charsets.UTF_8)
+            assertTrue(
+                bodyText.contains("Content-Disposition"),
+                "multipart body must contain part headers",
+            )
+        }
+
+        @Test
         @DisplayName("addPetPhotos serializes the model part with wire names via the configured serializer")
         fun testAddPetPhotosModelPartWireNames() {
             // Cross-cutting multipart parity: addPetPhotos sends a

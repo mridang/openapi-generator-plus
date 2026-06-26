@@ -697,4 +697,144 @@ class PetApiTest {
         ((InputStream) java.util.Objects.requireNonNull(pngCapture.capturedBody)).readAllBytes();
     assertThat(wireBytes).isEqualTo(payload);
   }
+
+  @Test
+  void uploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart() throws Exception {
+    // uploadPetDocument declares TWO request content-types
+    // (multipart/form-data AND application/octet-stream). When the caller
+    // selects application/octet-stream the SDK must send the file's RAW
+    // bytes under Content-Type: application/octet-stream — never a
+    // multipart/form-data envelope. The API layer builds a form-style Map
+    // keyed by the declared parts; dispatching multipart on "body is a Map"
+    // would wrongly wrap the octet-stream selection in multipart. This
+    // captures the body handed to the transport and asserts it is the raw
+    // single binary part, not a Map.
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
+
+    petApi.uploadPetDocument(
+        1L,
+        new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+        "application/octet-stream");
+
+    // The transport receives the RAW binary part, not a multipart Map.
+    assertNotNull(capturing.capturedBody);
+    assertThat(capturing.capturedBody).isNotInstanceOf(java.util.Map.class);
+    assertThat(capturing.capturedBody).isInstanceOf(InputStream.class);
+
+    byte[] wireBytes = ((InputStream) capturing.capturedBody).readAllBytes();
+    assertThat(wireBytes).isEqualTo(payload);
+
+    // Not base64, not a multipart envelope, no boundary, no part headers.
+    String wireText = new String(wireBytes, StandardCharsets.ISO_8859_1);
+    assertThat(wireText).doesNotContain("Content-Disposition");
+    assertThat(wireText).doesNotContain("form-data");
+    assertThat(wireText).doesNotContain("--");
+
+    // The selected Content-Type rides the wire verbatim, never overridden to
+    // multipart/form-data.
+    assertNotNull(capturing.capturedHeaders);
+    assertThat(capturing.capturedHeaders).containsEntry("Content-Type", "application/octet-stream");
+  }
+
+  @Test
+  void uploadPetDocumentOctetStreamSelectionWireBodyIsRawBytes() throws Exception {
+    // End-to-end transport check against a real HttpServer: selecting
+    // application/octet-stream must put the RAW file bytes on the wire with
+    // Content-Type: application/octet-stream — proving the transport does
+    // not re-wrap the body as multipart. Guards the DefaultApiClient
+    // dispatch, which previously emitted multipart whenever the body was a
+    // Map regardless of the selected content-type.
+    final byte[][] capturedBody = new byte[1][];
+    final String[] capturedContentType = new String[1];
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+          capturedBody[0] = exchange.getRequestBody().readAllBytes();
+          byte[] responseBytes =
+              "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, responseBytes.length);
+          exchange.getResponseBody().write(responseBytes);
+          exchange.getResponseBody().close();
+        });
+    server.start();
+    try {
+      String baseUrl = "http://localhost:" + server.getAddress().getPort();
+      Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+      PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+      byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
+
+      petApi.uploadPetDocument(
+          1L,
+          new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+          "application/octet-stream");
+
+      // The wire body is exactly the raw payload — no boundary, no part
+      // headers, no base64.
+      assertNotNull(capturedBody[0]);
+      assertThat(capturedBody[0]).isEqualTo(payload);
+
+      // Content-Type is the selected octet-stream, never multipart.
+      assertNotNull(capturedContentType[0]);
+      assertThat(capturedContentType[0]).startsWith("application/octet-stream");
+      assertThat(capturedContentType[0]).doesNotContain("multipart");
+      assertThat(capturedContentType[0]).doesNotContain("boundary");
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void uploadPetDocumentMultipartSelectionStillSendsMultipart() throws Exception {
+    // Over-correction guard: the default selection (and an explicit
+    // multipart/form-data selection) must STILL send a multipart body. The
+    // transport receives the form-style Map and turns it into a
+    // multipart/form-data envelope with a boundary.
+    final byte[][] capturedBody = new byte[1][];
+    final String[] capturedContentType = new String[1];
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+          capturedBody[0] = exchange.getRequestBody().readAllBytes();
+          byte[] responseBytes =
+              "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, responseBytes.length);
+          exchange.getResponseBody().write(responseBytes);
+          exchange.getResponseBody().close();
+        });
+    server.start();
+    try {
+      String baseUrl = "http://localhost:" + server.getAddress().getPort();
+      Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+      PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+      byte[] payload = "raw-doc-bytes".getBytes(StandardCharsets.UTF_8);
+
+      // No selector -> defaults to the first declared type
+      // (multipart/form-data).
+      petApi.uploadPetDocument(1L, new UploadPetDocumentOptions(new ByteArrayInputStream(payload)));
+
+      assertNotNull(capturedContentType[0]);
+      assertThat(capturedContentType[0]).startsWith("multipart/form-data");
+      assertThat(capturedContentType[0]).contains("boundary=");
+
+      // The body is a multipart envelope: it carries the part headers.
+      assertNotNull(capturedBody[0]);
+      String wireText = new String(capturedBody[0], StandardCharsets.ISO_8859_1);
+      assertThat(wireText).contains("Content-Disposition: form-data");
+      assertThat(wireText).contains("name=\"file\"");
+    } finally {
+      server.stop(0);
+    }
+  }
 }

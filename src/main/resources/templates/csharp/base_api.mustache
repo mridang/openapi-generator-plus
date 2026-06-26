@@ -193,7 +193,23 @@ public abstract class BaseApi
                     StringComparison.OrdinalIgnoreCase
                 );
 
-            if (isBinary || isMultipart)
+            if (isBinary && body is Dictionary<string, object> binaryForm)
+            {
+                /* The operation declares a binary content-type
+                 * (application/octet-stream or image/*) alongside
+                 * multipart/form-data, and the API layer always hands us a
+                 * form-style Dictionary keyed by the declared parts. When the
+                 * caller selects the raw-binary content-type we must NOT wrap
+                 * the payload in a multipart envelope: extract the single
+                 * binary part (Stream / byte[]) and send its raw bytes so the
+                 * wire Content-Type stays the selected binary type. Falling
+                 * through to the plain pass-through below would hand a
+                 * Dictionary to DefaultApiClient, which emits multipart/form-data
+                 * instead. Mirrors the single-binary-body path (e.g. SetPetAvatar)
+                 * that already streams raw bytes. */
+                requestBody = ExtractBinaryPart(binaryForm);
+            }
+            else if (isBinary || isMultipart)
             {
                 requestBody = body;
             }
@@ -455,6 +471,36 @@ public abstract class BaseApi
     private static string FormUrlEncode(string value)
     {
         return Uri.EscapeDataString(value).Replace("%20", "+", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Extract the single binary payload from a form-style body Dictionary when
+    /// a raw-binary content-type (application/octet-stream or image/*) was
+    /// selected for an operation that also declares multipart/form-data.
+    /// </summary>
+    /// <remarks>
+    /// The API layer always builds a form Dictionary keyed by the operation's
+    /// declared parts. For a raw-binary upload only the binary part travels on
+    /// the wire — the auxiliary string parts (classification, notes, ...) belong
+    /// to the multipart variant and are dropped. This returns the first
+    /// binary-typed value (<see cref="System.IO.Stream"/> or <c>byte[]</c>) so
+    /// the transport sends its raw bytes under the selected Content-Type rather
+    /// than a multipart envelope.
+    /// </remarks>
+    /// <param name="formBody">The form-style body Dictionary.</param>
+    /// <returns>The binary part suitable for raw transmission.</returns>
+    /// <exception cref="ApiException">Thrown when no binary part is present.</exception>
+    private static object ExtractBinaryPart(Dictionary<string, object> formBody)
+    {
+        foreach (object value in formBody.Values)
+        {
+            if (value is System.IO.Stream || value is byte[])
+            {
+                return value;
+            }
+        }
+        throw new ApiException(
+            "No binary payload found in request body for raw octet-stream upload");
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

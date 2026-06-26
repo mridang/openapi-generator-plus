@@ -501,6 +501,90 @@ describe('BaseApi body serialization', () => {
     expect(pngClient.capturedHeaders['Content-Type']).toBe('image/png');
     expect(pngClient.capturedHeaders['Content-Type']).not.toBe('image/jpeg');
   });
+
+  // Octet-stream raw-body parity. uploadPetDocument declares TWO request
+  // content-types: multipart/form-data AND application/octet-stream. The
+  // multipart variant carries the binary file plus scalar companion fields
+  // (documentType, notes); the octet-stream variant is a single raw binary
+  // body. Selecting application/octet-stream MUST send the file's RAW bytes
+  // with Content-Type: application/octet-stream — never a multipart envelope,
+  // never a boundary, never base64. The bug this guards against: the operation
+  // always assembled a formBody Record, and the transport turns any plain
+  // object into multipart regardless of the chosen Content-Type, so an
+  // octet-stream selection silently degraded to multipart/form-data. The
+  // CapturingApiClient records exactly what BaseApi hands the transport, so we
+  // assert on the body's runtime type (Buffer vs Record) and the header.
+  test('uploadPetDocument sends raw bytes when application/octet-stream is selected', async () => {
+    const payload = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d]); // "%PDF-"
+
+    // (1) application/octet-stream -> RAW bytes, octet-stream Content-Type.
+    const rawClient = new CapturingApiClient();
+    const rawApi = new PetApi(
+      rawClient,
+      new Configuration({ baseUrl: 'http://localhost' }),
+    );
+    await rawApi.uploadPetDocument(
+      1,
+      { file: payload },
+      'application/octet-stream',
+    );
+    // The wire body is the raw Buffer, byte-for-byte — not a Record, not
+    // multipart, not base64.
+    expect(Buffer.isBuffer(rawClient.capturedBody)).toBe(true);
+    expect(Buffer.from(rawClient.capturedBody as Buffer)).toEqual(payload);
+    // The declared octet-stream Content-Type reaches the transport intact.
+    expect(rawClient.capturedHeaders['Content-Type']).toBe(
+      'application/octet-stream',
+    );
+    // Hard negative: no multipart envelope leaked through. A multipart body
+    // would arrive as a plain Record (object), and the per-part boundary
+    // markers / Content-Disposition lines would appear once encoded.
+    expect(
+      typeof rawClient.capturedBody === 'object' &&
+        !Buffer.isBuffer(rawClient.capturedBody),
+    ).toBe(false);
+    const rawAsText = Buffer.from(rawClient.capturedBody as Buffer).toString(
+      'latin1',
+    );
+    expect(rawAsText).not.toContain('Content-Disposition');
+    expect(rawAsText).not.toContain('boundary');
+    expect(rawAsText).not.toContain('form-data');
+
+    // (2) Over-correction guard: selecting multipart/form-data (and omitting
+    // the selector, which defaults to the first declared type) must still
+    // build a multipart body. At the BaseApi boundary that is a plain Record
+    // of the form fields; the transport encodes it into a multipart envelope
+    // with a generated boundary downstream.
+    const multipartClient = new CapturingApiClient();
+    const multipartApi = new PetApi(
+      multipartClient,
+      new Configuration({ baseUrl: 'http://localhost' }),
+    );
+    await multipartApi.uploadPetDocument(
+      1,
+      { file: payload, documentType: 'health_certificate', notes: 'annual' },
+      'multipart/form-data',
+    );
+    expect(Buffer.isBuffer(multipartClient.capturedBody)).toBe(false);
+    expect(typeof multipartClient.capturedBody).toBe('object');
+    const multipartBody = multipartClient.capturedBody as Record<
+      string,
+      unknown
+    >;
+    expect(multipartBody['file']).toBeDefined();
+    expect(multipartBody['documentType']).toBe('health_certificate');
+    expect(multipartBody['notes']).toBe('annual');
+
+    // (3) Default (selector omitted) -> first declared type, also multipart.
+    const defaultClient = new CapturingApiClient();
+    const defaultApi = new PetApi(
+      defaultClient,
+      new Configuration({ baseUrl: 'http://localhost' }),
+    );
+    await defaultApi.uploadPetDocument(1, { file: payload });
+    expect(Buffer.isBuffer(defaultClient.capturedBody)).toBe(false);
+    expect(typeof defaultClient.capturedBody).toBe('object');
+  });
 });
 
 describe('BaseApi content-type deserialization guard', () => {

@@ -236,7 +236,21 @@ public abstract class BaseApi {
 
         Object requestBody = null;
         if (body != null) {
-            if (body instanceof byte[]
+            if (("application/octet-stream".equals(contentType)
+                            || contentType.startsWith("image/"))
+                    && body instanceof Map<?, ?> binaryForm) {
+                /* The operation declares a binary content-type
+                 * (application/octet-stream or image/*) alongside
+                 * multipart/form-data, and the API layer always hands us a
+                 * form-style Map keyed by the declared parts. When the caller
+                 * selects the raw-binary content-type we must NOT wrap the
+                 * payload in a multipart envelope: we extract the single binary
+                 * part (InputStream / byte[] / File) and send its raw bytes so
+                 * the wire Content-Type stays the selected binary type. Falling
+                 * through to the generic Map branch below would let the
+                 * transport see a Map and emit multipart/form-data instead. */
+                requestBody = extractBinaryPart(binaryForm);
+            } else if (body instanceof byte[]
                     || contentType.startsWith("image/")
                     || "application/octet-stream".equals(contentType)) {
                 requestBody = body;
@@ -368,6 +382,35 @@ public abstract class BaseApi {
                 data,
                 response.body(),
                 response.headers() != null ? response.headers() : Map.of());
+    }
+
+    /**
+     * Extract the single binary payload from a form-style body Map when a
+     * raw-binary content-type (application/octet-stream or image/*) was
+     * selected for an operation that also declares multipart/form-data.
+     *
+     * <p>The API layer always builds a form Map keyed by the operation's
+     * declared parts. For a raw-binary upload only the binary part travels on
+     * the wire — the auxiliary string parts (classification, notes, ...) belong
+     * to the multipart variant and are dropped. This returns the first
+     * binary-typed value ({@link InputStream}, {@code byte[]}, or
+     * {@link java.io.File}) so the transport sends its raw bytes under the
+     * selected Content-Type rather than a multipart envelope.
+     *
+     * @param formBody the form-style body Map
+     * @return the binary part suitable for raw transmission
+     * @throws ApiException if no binary part is present
+     */
+    private static Object extractBinaryPart(Map<?, ?> formBody) {
+        for (Object value : formBody.values()) {
+            if (value instanceof InputStream
+                    || value instanceof byte[]
+                    || value instanceof java.io.File) {
+                return value;
+            }
+        }
+        throw new ApiException(
+                "No binary payload found in request body for raw octet-stream upload");
     }
 
     /**

@@ -322,6 +322,123 @@ void main() {
       expect(result, isNotNull);
     });
 
+    /* octet-stream-raw-body (multi-content-type binary selection): the
+     * uploadPetDocument operation declares TWO request Content-Types —
+     * `multipart/form-data` AND `application/octet-stream`. When the caller
+     * selects `application/octet-stream`, the wire body MUST be the file's
+     * RAW bytes with Content-Type: application/octet-stream — NOT a
+     * multipart/form-data envelope, NO multipart boundary, and NOT a
+     * JSON-stringified form map. We capture the outgoing request against a
+     * local mock (the same idiom as the setPetAvatar raw-bytes test) and
+     * assert both the exact body bytes and the Content-Type header. */
+    test(
+      'uploadPetDocument streams raw bytes when octet-stream is selected',
+      () async {
+        List<int>? capturedBody;
+        String? capturedContentType;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          capturedContentType = request.headers.contentType?.toString();
+          final builder = BytesBuilder();
+          await for (final chunk in request) {
+            builder.add(chunk);
+          }
+          capturedBody = builder.takeBytes();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType('application', 'json')
+            ..write('{}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final payload = Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]);
+          await api.uploadPetDocument(
+            1,
+            UploadPetDocumentOptions(file: payload),
+            'application/octet-stream',
+          );
+
+          // (1) The body is EXACTLY the raw file bytes — not a multipart
+          // envelope, not base64, not a JSON int-array.
+          expect(capturedBody, equals([0x66, 0x61, 0x6B, 0x65]));
+          // (2) The Content-Type is the selected octet-stream type, with no
+          // multipart boundary parameter.
+          expect(capturedContentType, equals('application/octet-stream'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    /* multipart-default-preserved (over-correction guard): selecting (or
+     * defaulting to) `multipart/form-data` must still send a multipart body —
+     * a `multipart/form-data; boundary=...` Content-Type and the raw file
+     * bytes embedded somewhere inside the multipart envelope (not as the whole
+     * body). This guards against the raw-body fix collapsing the multipart
+     * path. */
+    test(
+      'uploadPetDocument still sends multipart when that type is selected',
+      () async {
+        List<int>? capturedBody;
+        String? capturedContentType;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          capturedContentType = request.headers.contentType?.toString();
+          final builder = BytesBuilder();
+          await for (final chunk in request) {
+            builder.add(chunk);
+          }
+          capturedBody = builder.takeBytes();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType('application', 'json')
+            ..write('{}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final payload = Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]);
+          // No selector — defaults to the first declared type
+          // (multipart/form-data).
+          await api.uploadPetDocument(
+            1,
+            UploadPetDocumentOptions(
+              file: payload,
+              documentType: 'vaccination_record',
+            ),
+          );
+
+          // (1) The Content-Type is multipart with a boundary parameter.
+          expect(capturedContentType, isNotNull);
+          expect(
+            capturedContentType,
+            startsWith('multipart/form-data; boundary='),
+          );
+          // (2) The raw file bytes are embedded INSIDE the multipart envelope
+          // (a Content-Disposition part header precedes them), so the body is
+          // strictly larger than the bare payload.
+          expect(capturedBody, isNotNull);
+          expect(capturedBody!.length, greaterThan(payload.length));
+          final bodyText = String.fromCharCodes(capturedBody!);
+          expect(bodyText, contains('Content-Disposition: form-data'));
+          expect(bodyText, contains('name="file"'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('addPetPhotos', () async {
       final api = _newPetApiForIntegration();
       final options = AddPetPhotosOptions(
