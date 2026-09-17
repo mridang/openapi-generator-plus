@@ -15,7 +15,9 @@ use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\ValueSerializer;
+{{#hasAnySecurityNoneOp}}
 use {{invokerPackage}}\Auth\NoAuth;
+{{/hasAnySecurityNoneOp}}
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}

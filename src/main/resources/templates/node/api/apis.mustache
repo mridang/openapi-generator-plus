@@ -4,7 +4,9 @@ import type { ApiClient } from '../api-client{{importFileExtension}}';
 import { ApiError } from '../api-error{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
+{{#hasAnySecurityNoneOp}}
 import { NO_AUTH } from '../auth/authenticator{{importFileExtension}}';
+{{/hasAnySecurityNoneOp}}
 import { BaseApi } from './base-api{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';

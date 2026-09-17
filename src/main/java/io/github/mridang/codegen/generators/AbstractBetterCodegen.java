@@ -4067,6 +4067,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 ops.forEach(AbstractBetterCodegen::unescapeOperationDoc);
             }
             boolean anyOpHasAuth = false;
+            // Whether any operation in this API class emits the no-auth sentinel
+            // (an explicit `security: []` op — hasAuthMethods false AND
+            // securityNone true). Templates gate the sentinel import on this so a
+            // class whose operations are all secured or inherited-global never
+            // imports an unused sentinel (an error under strict linters such as
+            // eslint no-unused-vars). Mirrors the per-op gate in the api template.
+            boolean anySecurityNoneOp = false;
             if (ops != null) {
                 for (final CodegenOperation op : ops) {
                     if (globalAuthOperationIds.contains(op.operationId)) {
@@ -4076,9 +4083,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     if (op.hasAuthMethods) {
                         anyOpHasAuth = true;
                     }
+                    if (!op.hasAuthMethods
+                            && op.vendorExtensions != null
+                            && Boolean.TRUE.equals(
+                                    decoratorMap(op.vendorExtensions, OP_DECORATOR_NS)
+                                            .get("securityNone"))) {
+                        anySecurityNoneOp = true;
+                    }
                 }
             }
             objs.put("hasAnyAuthMethods", anyOpHasAuth);
+            objs.put("hasAnySecurityNoneOp", anySecurityNoneOp);
             if (ops != null) {
                 enrichOperationServers(ops, operations);
                 generateOptionsFilesForOps(ops, objs);

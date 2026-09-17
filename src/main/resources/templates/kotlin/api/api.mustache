@@ -10,7 +10,9 @@ import {{invokerPackage}}.Configuration
 import {{invokerPackage}}.ObjectSerializer
 import {{invokerPackage}}.ValueSerializer
 import {{invokerPackage}}.auth.Authenticator
+{{#hasAnySecurityNoneOp}}
 import {{invokerPackage}}.auth.NoAuth
+{{/hasAnySecurityNoneOp}}
 {{#imports}}import {{import}}
 {{/imports}}
 {{#optionsImports}}
