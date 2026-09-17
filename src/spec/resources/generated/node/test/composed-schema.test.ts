@@ -204,11 +204,9 @@ describe("Composed Schema", () => {
     // Both variants are retained and accessible, not just the first.
     const matched = result!.getMatchedInstances();
     const medication = matched.find((m) => m instanceof Medication) as
-      | Medication
-      | undefined;
+      Medication | undefined;
     const surgery = matched.find((m) => m instanceof Surgery) as
-      | Surgery
-      | undefined;
+      Surgery | undefined;
     expect(medication).toBeInstanceOf(Medication);
     expect(surgery).toBeInstanceOf(Surgery);
     expect(medication!.drugName).toBe("Amoxicillin");

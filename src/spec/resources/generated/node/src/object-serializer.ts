@@ -359,8 +359,7 @@ export class ObjectSerializer {
          */
         if (typeof value === "string") {
           const ctor = (this as { constructor?: unknown }).constructor as
-            | { __decimalFields?: ReadonlySet<string> }
-            | undefined;
+            { __decimalFields?: ReadonlySet<string> } | undefined;
           const ownDecimals =
             ctor && ctor.__decimalFields instanceof Set
               ? ctor.__decimalFields
@@ -398,11 +397,9 @@ export class ObjectSerializer {
       const anyOfSchemas = clsRecord["ANY_OF_SCHEMAS"] as string[] | undefined;
       const oneOfSchemas = clsRecord["ONE_OF_SCHEMAS"] as string[] | undefined;
       const discProp = clsRecord["DISCRIMINATOR_PROPERTY"] as
-        | string
-        | undefined;
+        string | undefined;
       const discMapping = clsRecord["DISCRIMINATOR_MAPPING"] as
-        | Record<string, string>
-        | undefined;
+        Record<string, string> | undefined;
       const schemas = anyOfSchemas ?? oneOfSchemas;
 
       if (schemas && json && typeof json === "object") {
@@ -472,8 +469,7 @@ export class ObjectSerializer {
         const matched: unknown[] = [];
         for (const schemaName of schemas) {
           const schemaCls = (models as Record<string, unknown>)[schemaName] as
-            | ClassConstructor<unknown>
-            | undefined;
+            ClassConstructor<unknown> | undefined;
           if (schemaCls) {
             try {
               const instance = plainToInstance(schemaCls, json, {

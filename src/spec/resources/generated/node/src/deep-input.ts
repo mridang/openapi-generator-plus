@@ -30,13 +30,7 @@
  * callers may pass either a plain literal or a constructed instance.
  */
 export type Primitive =
-  | string
-  | number
-  | boolean
-  | bigint
-  | symbol
-  | null
-  | undefined;
+  string | number | boolean | bigint | symbol | null | undefined;
 
 /**
  * Leaf value types that are objects at the type level but are accepted in
@@ -60,15 +54,16 @@ export type DeepInput<T> = T extends Primitive
     : [T] extends [Buffer]
       ? Buffer | string
       : T extends
-            | { readonly nanoseconds: number }
-            | { readonly nanosecond: number }
+            { readonly nanoseconds: number } | { readonly nanosecond: number }
         ? T | string
         : T extends Array<infer U>
           ? Array<DeepInput<U>>
           : T extends object
             ? {
-                [K in keyof T as T[K] extends (...args: never[]) => unknown
-                  ? never
-                  : K]?: DeepInput<T[K]>;
+                [
+                  K in keyof T as T[K] extends (...args: never[]) => unknown
+                    ? never
+                    : K
+                ]?: DeepInput<T[K]>;
               }
             : T;
