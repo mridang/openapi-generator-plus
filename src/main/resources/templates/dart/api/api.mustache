@@ -472,7 +472,7 @@ class {{classname}} extends BaseApi {
       {{! "fall back to the client authenticator") so base_api suppresses auth }}
       {{! entirely. A secured op passes its per-call override (`auth`, possibly }}
       {{! null for "use the client credential") unchanged. }}
-      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}noAuth{{/hasAuthMethods}},
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
 {{#returnType}}
 {{#returnTypeIsPrimitive}}
 {{#isMap}}

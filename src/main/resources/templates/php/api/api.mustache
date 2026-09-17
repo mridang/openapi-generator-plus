@@ -398,7 +398,7 @@ class {{classname}} extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
         );
         return $result;
@@ -633,7 +633,7 @@ class {{classname}} extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
         );
         return $result;

@@ -71,7 +71,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf(),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -301,7 +301,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -468,7 +468,7 @@ class StoreApi : BaseApi {
             order,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 }

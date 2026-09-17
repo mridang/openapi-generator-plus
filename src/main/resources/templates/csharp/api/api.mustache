@@ -455,7 +455,7 @@ public class {{classname}} : BaseApi
     (security: []) is explicitly unauthenticated: pass the NoAuth sentinel so
     BaseApi suppresses the client-level authenticator and attaches no credential
     (passing null here would WRONGLY re-acquire it and leak the credential). }}
-                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}NoAuth.Instance{{/hasAuthMethods}}
+                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}
             )
             .ConfigureAwait(false);
     }

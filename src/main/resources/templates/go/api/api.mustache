@@ -416,7 +416,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		    NO authentication instead of falling back to the client-level
 		    authenticator and leaking its credential. A secured op passes the
 		    per-call override (or nil for no-override), unchanged. }}
-		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}noAuth{{/hasAuthMethods}},
+		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
 	})
 	if err != nil {
 		return nil, err

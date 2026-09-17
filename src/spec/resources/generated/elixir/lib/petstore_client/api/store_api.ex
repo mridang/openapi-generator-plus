@@ -95,7 +95,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(order_id) do
       raise ArgumentError,
@@ -841,7 +841,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(order_id) do
       raise ArgumentError,
@@ -1444,7 +1444,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
     path = "/store/order"
     server = Keyword.get(opts, :server)
 

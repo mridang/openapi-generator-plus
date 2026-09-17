@@ -117,7 +117,7 @@ impl StoreApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_empty_result(params).await
@@ -756,7 +756,7 @@ impl StoreApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Order>(params).await
@@ -1261,7 +1261,7 @@ impl StoreApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Order>(params).await

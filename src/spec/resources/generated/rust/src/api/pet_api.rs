@@ -397,7 +397,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Vec<Photo>>(params).await
@@ -756,7 +756,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
@@ -882,7 +882,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Vec<Pet>>(params).await
@@ -989,7 +989,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -1096,7 +1096,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -1192,7 +1192,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
@@ -1289,7 +1289,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
@@ -1407,7 +1407,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -1545,7 +1545,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -1642,7 +1642,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<PetPassport>(params).await
@@ -1758,7 +1758,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
@@ -1963,7 +1963,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -2070,7 +2070,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -2184,7 +2184,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_empty_result(params).await
@@ -2278,7 +2278,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_empty_result(params).await
@@ -2397,7 +2397,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<ApiResponse>(params).await
@@ -2498,7 +2498,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -2623,7 +2623,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<ApiResponse>(params).await
@@ -2797,7 +2797,7 @@ impl PetApi {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: None,
         };
 
         self.base.invoke_api_for_result::<ApiResponse>(params).await

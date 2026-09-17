@@ -791,7 +791,7 @@ impl {{classname}} {
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: Some(crate::api::base_api::no_auth_sentinel()),
+            auth: {{#vendorExtensions.op.securityNone}}Some(crate::api::base_api::no_auth_sentinel()){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}None{{/vendorExtensions.op.securityNone}},
 {{/hasAuthMethods}}
         };
 

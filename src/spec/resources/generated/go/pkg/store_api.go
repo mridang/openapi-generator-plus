@@ -67,7 +67,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 		accepts:      []string{},
 		contentType:  "application/json",
 		returnType:   "",
-		auth:         noAuth,
+		auth:         nil,
 	})
 	if err != nil {
 		return nil, err
@@ -615,7 +615,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Order",
-		auth:         noAuth,
+		auth:         nil,
 	})
 	if err != nil {
 		return nil, err
@@ -1099,7 +1099,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Order",
-		auth:         noAuth,
+		auth:         nil,
 	})
 	if err != nil {
 		return nil, err

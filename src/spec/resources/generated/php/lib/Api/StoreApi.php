@@ -87,7 +87,7 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            null
         );
         return $result;
     }
@@ -554,7 +554,7 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            null
         );
         return $result;
     }
@@ -911,7 +911,7 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            null
         );
         return $result;
     }

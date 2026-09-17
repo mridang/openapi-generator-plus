@@ -152,7 +152,7 @@ public class StoreApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -452,7 +452,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -684,7 +684,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         placeOrderTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**

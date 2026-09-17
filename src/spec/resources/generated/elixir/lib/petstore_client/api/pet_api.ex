@@ -351,7 +351,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -770,7 +770,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -919,7 +919,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
     path = "/pet/findByStatus"
     server = Keyword.get(opts, :server)
 
@@ -1047,7 +1047,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1164,7 +1164,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1282,7 +1282,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1401,7 +1401,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1530,7 +1530,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1658,7 +1658,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(name) do
       raise ArgumentError,
@@ -1804,7 +1804,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1923,7 +1923,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2081,7 +2081,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2282,7 +2282,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2385,7 +2385,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2545,7 +2545,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2680,7 +2680,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2813,7 +2813,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2949,7 +2949,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -3085,7 +3085,7 @@ defmodule PetstoreClient.Api.PetApi do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = PetstoreClient.Api.BaseApi.no_auth()
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,

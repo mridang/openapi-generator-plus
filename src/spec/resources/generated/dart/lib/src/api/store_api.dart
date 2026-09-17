@@ -85,7 +85,7 @@ class StoreApi extends BaseApi {
       accepts: [],
       contentType: 'application/json',
       returnType: '',
-      auth: noAuth,
+      auth: null,
     );
   }
 
@@ -487,7 +487,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Order',
-      auth: noAuth,
+      auth: null,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
@@ -793,7 +793,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Order',
-      auth: noAuth,
+      auth: null,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );

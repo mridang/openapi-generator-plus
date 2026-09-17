@@ -445,7 +445,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "multipart/form-data",
         addPetPhotosTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -696,7 +696,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/octet-stream"},
         "application/json",
         downloadPetDocumentTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -778,7 +778,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         findPetsByStatusTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -853,7 +853,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getExternalPetInfoTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -928,7 +928,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getMultiServerPetInfoTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -972,7 +972,7 @@ public class PetApi extends BaseApi {
         new String[] {"image/jpeg", "image/png"},
         "application/json",
         getPetAvatarTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1018,7 +1018,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetAvatarThumbnailTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1108,7 +1108,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetByIdTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1166,7 +1166,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetByNameTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1214,7 +1214,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetPassportTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1271,7 +1271,7 @@ public class PetApi extends BaseApi {
         new String[] {"image/jpeg", "image/png", "application/json"},
         "application/json",
         getPetPhotoTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1383,7 +1383,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetTagTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1458,7 +1458,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getStagingPetInfoTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1565,7 +1565,7 @@ public class PetApi extends BaseApi {
         new String[] {},
         effectiveRequestContentType,
         null,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1619,7 +1619,7 @@ public class PetApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1685,7 +1685,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/x-www-form-urlencoded",
         setPetPreferencesTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1735,7 +1735,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         updatePetTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1793,7 +1793,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "multipart/form-data",
         uploadPetCertificateTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**
@@ -1918,7 +1918,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         effectiveRequestContentType,
         uploadPetDocumentTypeRef,
-        NO_AUTH);
+        null);
   }
 
   /**

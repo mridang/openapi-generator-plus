@@ -103,7 +103,7 @@ public class StoreApi : BaseApi
                 [],
                 "application/json",
                 null,
-                NoAuth.Instance
+                null
             )
             .ConfigureAwait(false);
     }
@@ -536,7 +536,7 @@ public class StoreApi : BaseApi
                 GetOrderByIdAccepts,
                 "application/json",
                 typeof(Order),
-                NoAuth.Instance
+                null
             )
             .ConfigureAwait(false);
     }
@@ -888,7 +888,7 @@ public class StoreApi : BaseApi
                 PlaceOrderAccepts,
                 "application/json",
                 typeof(Order),
-                NoAuth.Instance
+                null
             )
             .ConfigureAwait(false);
     }

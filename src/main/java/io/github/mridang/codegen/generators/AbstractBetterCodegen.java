@@ -4538,7 +4538,51 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
         }
+        // No-auth sentinel gate. The sentinel that suppresses the client
+        // authenticator must fire ONLY for an EXPLICIT empty security list: an
+        // op-level `security: []`, or an explicit-empty global requirement
+        // inherited by an op that declares none. An op whose security is merely
+        // ABSENT inherits the global requirement and keeps the client-level
+        // fallback, so it must never be treated as unauthenticated. Gating on
+        // hasAuthMethods conflated the two cases (inherited-global ops have their
+        // auth methods stripped in post-processing, see globalAuthOperationIds),
+        // which suppressed the client credential on every inherited-auth call.
+        if (op.vendorExtensions == null) {
+            op.vendorExtensions = new HashMap<>();
+        }
+        decoratorMap(op.vendorExtensions, OP_DECORATOR_NS)
+                .put("securityNone", isSecurityNone(operation, openAPI));
         return op;
+    }
+
+    /**
+     * Whether an operation is explicitly unauthenticated ({@code security: []})
+     * and must therefore suppress the client-level authenticator via the no-auth
+     * sentinel.
+     *
+     * <p>The distinction that matters — and the one the original A2 fix got wrong
+     * by gating on {@code hasAuthMethods} — is between an EXPLICIT empty security
+     * list and merely ABSENT security:
+     *
+     * <ul>
+     *   <li>Operation declares {@code security: []} → unauthenticated → suppress.
+     *   <li>Operation declares no security, but the global {@code security} is an
+     *       explicit empty list → the inherited requirement is "no auth" →
+     *       suppress.
+     *   <li>Operation declares no security and the global requirement is non-empty
+     *       (or absent) → the operation inherits real auth → do NOT suppress; the
+     *       client-level authenticator must still be applied by the base API's
+     *       fallback. This is the Zitadel shape: one global requirement, every
+     *       operation inheriting it.
+     * </ul>
+     */
+    static boolean isSecurityNone(Operation operation, OpenAPI openAPI) {
+        if (operation != null && operation.getSecurity() != null) {
+            return operation.getSecurity().isEmpty();
+        }
+        return openAPI != null
+                && openAPI.getSecurity() != null
+                && openAPI.getSecurity().isEmpty();
     }
 
     /**

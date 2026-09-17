@@ -95,7 +95,7 @@ class StoreApi(BaseApi):
             [],
             "application/json",
             None,
-            NO_AUTH,
+            None,
         )
 
     async def get_by_swatch(
@@ -493,7 +493,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
-            NO_AUTH,
+            None,
         )
 
     async def get_stock_item(
@@ -795,5 +795,5 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
-            NO_AUTH,
+            None,
         )

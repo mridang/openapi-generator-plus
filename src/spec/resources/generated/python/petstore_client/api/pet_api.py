@@ -323,7 +323,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "multipart/form-data",
             "List[Photo]",
-            NO_AUTH,
+            None,
         )
 
     async def add_pet_treatment(
@@ -577,7 +577,7 @@ class PetApi(BaseApi):
             ["application/octet-stream"],
             "application/json",
             "bytes",
-            NO_AUTH,
+            None,
         )
 
     async def find_pets_by_status(
@@ -645,7 +645,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[Pet]",
-            NO_AUTH,
+            None,
         )
 
     async def get_external_pet_info(
@@ -717,7 +717,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            NO_AUTH,
+            None,
         )
 
     async def get_multi_server_pet_info(
@@ -791,7 +791,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            NO_AUTH,
+            None,
         )
 
     async def get_pet_avatar(
@@ -859,7 +859,7 @@ class PetApi(BaseApi):
             ["image/jpeg", "image/png"],
             "application/json",
             "bytes",
-            NO_AUTH,
+            None,
         )
 
     async def get_pet_avatar_thumbnail(
@@ -927,7 +927,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "bytes",
-            NO_AUTH,
+            None,
         )
 
     async def get_pet_by_id(
@@ -1010,7 +1010,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            NO_AUTH,
+            None,
         )
 
     async def get_pet_by_name(
@@ -1092,7 +1092,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            NO_AUTH,
+            None,
         )
 
     async def get_pet_passport(
@@ -1160,7 +1160,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "PetPassport",
-            NO_AUTH,
+            None,
         )
 
     async def get_pet_photo(
@@ -1246,7 +1246,7 @@ class PetApi(BaseApi):
             ["image/jpeg", "image/png", "application/json"],
             "application/json",
             "bytes",
-            NO_AUTH,
+            None,
         )
 
     async def get_pet_tag(
@@ -1360,7 +1360,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            NO_AUTH,
+            None,
         )
 
     async def get_staging_pet_info(
@@ -1432,7 +1432,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            NO_AUTH,
+            None,
         )
 
     async def set_pet_avatar(
@@ -1511,7 +1511,7 @@ class PetApi(BaseApi):
             [],
             content_type,
             None,
-            NO_AUTH,
+            None,
         )
 
     async def set_pet_avatar_thumbnail(
@@ -1583,7 +1583,7 @@ class PetApi(BaseApi):
             [],
             "application/json",
             None,
-            NO_AUTH,
+            None,
         )
 
     async def set_pet_preferences(
@@ -1669,7 +1669,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/x-www-form-urlencoded",
             "ApiResponse",
-            NO_AUTH,
+            None,
         )
 
     async def update_pet(
@@ -1745,7 +1745,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            NO_AUTH,
+            None,
         )
 
     async def upload_pet_certificate(
@@ -1827,7 +1827,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "multipart/form-data",
             "ApiResponse",
-            NO_AUTH,
+            None,
         )
 
     async def upload_pet_document(
@@ -1928,5 +1928,5 @@ class PetApi(BaseApi):
             ["application/json"],
             content_type,
             "ApiResponse",
-            NO_AUTH,
+            None,
         )

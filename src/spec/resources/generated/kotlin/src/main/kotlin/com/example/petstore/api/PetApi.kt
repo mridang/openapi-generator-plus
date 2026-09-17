@@ -25,7 +25,6 @@ import com.example.petstore.api.options.SetPetPreferencesOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.auth.Authenticator
-import com.example.petstore.auth.NoAuth
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Pet
 import com.example.petstore.models.PetPassport
@@ -223,7 +222,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             "multipart/form-data",
-            NoAuth,
+            null,
         )
     }
 
@@ -386,7 +385,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/octet-stream"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -426,7 +425,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -478,7 +477,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -530,7 +529,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -567,7 +566,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("image/jpeg", "image/png"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -604,7 +603,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -660,7 +659,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -715,7 +714,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -752,7 +751,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -802,7 +801,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("image/jpeg", "image/png", "application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -871,7 +870,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -923,7 +922,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -973,7 +972,7 @@ class PetApi : BaseApi {
             body,
             arrayOf(),
             requestContentType ?: "image/jpeg",
-            NoAuth,
+            null,
         )
     }
 
@@ -1019,7 +1018,7 @@ class PetApi : BaseApi {
             setPetAvatarThumbnailRequest,
             arrayOf(),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -1078,7 +1077,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             "application/x-www-form-urlencoded",
-            NoAuth,
+            null,
         )
     }
 
@@ -1124,7 +1123,7 @@ class PetApi : BaseApi {
             pet,
             arrayOf("application/json"),
             "application/json",
-            NoAuth,
+            null,
         )
     }
 
@@ -1174,7 +1173,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             "multipart/form-data",
-            NoAuth,
+            null,
         )
     }
 
@@ -1234,7 +1233,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             requestContentType ?: "multipart/form-data",
-            NoAuth,
+            null,
         )
     }
 }

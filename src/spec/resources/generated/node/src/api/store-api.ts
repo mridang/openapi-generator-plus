@@ -83,7 +83,7 @@ export class StoreApi extends BaseApi {
       [],
       "application/json",
       null,
-      NO_AUTH,
+      undefined,
     );
   }
 
@@ -467,7 +467,7 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
-      NO_AUTH,
+      undefined,
     );
   }
 
@@ -764,7 +764,7 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
-      NO_AUTH,
+      undefined,
     );
   }
 }

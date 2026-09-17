@@ -202,7 +202,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     # credential instead of falling back to it; nil would re-acquire the
     # client-level authenticator and leak the credential on this unauthenticated
     # operation.
-    auth = {{moduleName}}.Api.BaseApi.no_auth()
+    auth = {{#vendorExtensions.op.securityNone}}{{moduleName}}.Api.BaseApi.no_auth(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}

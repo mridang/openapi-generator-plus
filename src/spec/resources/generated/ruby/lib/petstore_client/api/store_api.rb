@@ -53,7 +53,7 @@ module PetstoreClient
           [],
           'application/json',
           nil,
-          ::PetstoreClient::Api::BaseApi::NO_AUTH
+          nil
         )
       end
 
@@ -364,7 +364,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Order',
-          ::PetstoreClient::Api::BaseApi::NO_AUTH
+          nil
         )
       end
 
@@ -617,7 +617,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Order',
-          ::PetstoreClient::Api::BaseApi::NO_AUTH
+          nil
         )
       end
     end
