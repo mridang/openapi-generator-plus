@@ -878,6 +878,45 @@ class BaseApiTest {
           "api-key query param must be absent for getInventory, got: "
               + capturingClient.capturedUrl);
     }
+
+    @Test
+    @DisplayName(
+        "an inherited-security operation applies the configured client authenticator (end-to-end)")
+    void inheritedSecurityOperationAppliesClientAuthenticatorEndToEnd() {
+      // getPetById declares no security of its own, so it inherits the
+      // global requirement. This generator strips the inherited auth
+      // methods off such an operation, so the generated method passes null
+      // (not NO_AUTH) and BaseApi falls back to the client-level
+      // authenticator. The configured client credential MUST reach the
+      // wire — the regression that silently dropped auth on every
+      // inherited-security operation.
+      var captured = new HashMap<String, String>();
+      var capturingClient =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              captured.putAll(headers);
+              this.capturedUrl = url;
+              return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+            }
+          };
+      var clientAuth =
+          new TestAuthenticator(
+              Map.of("Authorization", "Bearer client-secret"), Map.of(), Map.of());
+      var config = new Configuration("http://localhost", Map.of());
+      var petApi = new PetApi(capturingClient, config, clientAuth);
+      try {
+        petApi.getPetById(1L);
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; we only assert outbound headers.
+      }
+      assertEquals(
+          "Bearer client-secret",
+          captured.get("Authorization"),
+          "the client authenticator must be applied to the inherited-security getPetById"
+              + " operation");
+    }
   }
 
   @Nested

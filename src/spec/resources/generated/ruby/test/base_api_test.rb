@@ -214,7 +214,7 @@ describe PetstoreClient::Api::BaseApi do
 
   # SECURITY-NONE (Wave A2) — an operation declared `security: []` is explicitly
   # unauthenticated, so a configured CLIENT-LEVEL authenticator must be SUPPRESSED
-  # for it: no credential may reach the wire. get_pet_by_id is a security:[]
+  # for it: no credential may reach the wire. get_inventory is a security:[]
   # operation (no auth methods), so the generated method passes the NO_AUTH
   # sentinel into invoke_api, which must NOT fall back to the client
   # authenticator. We configure the client with an authenticator that injects a
@@ -228,9 +228,9 @@ describe PetstoreClient::Api::BaseApi do
       query_params: { 'api_key' => 'client-key' },
       cookies: { 'session' => 'client-session' }
     )
-    api = PetstoreClient::Api::PetApi.new(client, config, client_auth)
+    api = PetstoreClient::Api::StoreApi.new(client, config, client_auth)
     begin
-      api.get_pet_by_id(1)
+      api.get_inventory
     rescue StandardError
       # Response handling is irrelevant; we only assert the captured request.
     end
@@ -242,6 +242,27 @@ describe PetstoreClient::Api::BaseApi do
            'security:[] op must not carry an auth cookie from the client authenticator'
     _(client.captured_url).wont_include 'api_key',
       "security:[] op must not carry an api-key query param, got: #{client.captured_url}"
+  end
+
+  # INHERITED GLOBAL SECURITY — get_pet_by_id declares no security of its own, so
+  # it inherits the global requirement. This generator strips the inherited auth
+  # methods off such an operation, so the generated method passes nil (not the
+  # NO_AUTH sentinel) into invoke_api, which must fall back to the client-level
+  # authenticator. A configured client credential MUST reach the wire — the
+  # regression that silently dropped auth on every inherited-security operation.
+  it 'applies the client authenticator on an inherited-security operation' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    client_auth = TestAuthenticator.new(
+      headers: { 'Authorization' => 'Bearer client-token' }
+    )
+    api = PetstoreClient::Api::PetApi.new(client, config, client_auth)
+    begin
+      api.get_pet_by_id(1)
+    rescue StandardError
+      # Response handling is irrelevant; we only assert the captured request.
+    end
+    _(client.captured_headers['Authorization']).must_equal 'Bearer client-token'
   end
 
   # SECURITY-NONE companion — the same suppression must hold via the generic

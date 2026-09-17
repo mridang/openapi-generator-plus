@@ -893,13 +893,13 @@ import Testing
    * unauthenticated. Even when the client is configured WITH an
    * authenticator, that credential must NOT be attached to such an
    * operation — otherwise the credential leaks (e.g. the testEcho* ops
-   * reflect the request back to the caller). `getPetById` is a security:[]
+   * reflect the request back to the caller). `getInventory` is a security:[]
    * operation: its generated method passes the no-auth sentinel, which
    * BaseApi resolves to "no auth applied" rather than falling back to the
    * client authenticator. */
   @Test func testClientAuthSuppressedForSecurityNoneOperation() async throws {
     let mockClient = MockApiClient()
-    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    mockClient.responseBody = "{}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     /* Configure the client WITH an authenticator that supplies every kind
      * of credential the transport understands: an Authorization header, an
@@ -909,9 +909,9 @@ import Testing
       query: ["api_key": "client-query-key"],
       cookies: ["session": "client-cookie"]
     )
-    let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+    let api = StoreApi(apiClient: mockClient, config: config, authenticator: auth)
 
-    _ = try? await api.getPetById(petId: 1)
+    _ = try? await api.getInventory()
 
     #expect(
       mockClient.lastHeaders["Authorization"] == nil,
@@ -928,6 +928,33 @@ import Testing
     #expect(
       !mockClient.lastURL.contains("api_key="),
       "security:[] op must NOT carry the client api-key query param, got: \(mockClient.lastURL)")
+  }
+
+  // MARK: - Auth applied on inherited-security operations
+
+  /* `getPetById` declares no security of its own, so it inherits the global
+   * requirement. This generator strips the inherited auth methods off such an
+   * operation, so its generated method passes nil (not the no-auth sentinel)
+   * and BaseApi falls back to the client-level authenticator. A configured
+   * client credential MUST reach the wire — the regression that silently
+   * dropped auth on every inherited-security operation. */
+  @Test func testClientAuthAppliedForInheritedSecurityOperation() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let auth = MockAuth(
+      headers: ["Authorization": "Bearer client-secret"],
+      query: [:],
+      cookies: [:]
+    )
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+
+    _ = try? await api.getPetById(petId: 1)
+
+    #expect(
+      mockClient.lastHeaders["Authorization"] == "Bearer client-secret",
+      "inherited-security op must carry the client Authorization header, got: \(mockClient.lastHeaders["Authorization"] ?? "nil")"
+    )
   }
 
   // MARK: - WithHTTPInfo result shape

@@ -1486,7 +1486,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # SECURITY-NONE (Wave A2): a `security: []` operation is UNAUTHENTICATED and
   # must suppress the client-level credential. The generated api method passes
   # the BaseApi no-auth SENTINEL (not nil) for these operations, so BaseApi does
-  # NOT fall back to the configured client authenticator. get_pet_by_id is
+  # NOT fall back to the configured client authenticator. get_inventory is
   # declared `security: []`; invoking it on an API instance that carries a
   # configured authenticator must emit NO Authorization header, NO api-key
   # header/query-param, and NO auth Cookie — proving the credential is dropped
@@ -1501,9 +1501,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
     authenticator =
       PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
 
-    api = PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+    api = PetstoreClient.Api.StoreApi.new(AuthAppliedCapturingApiClient, config, authenticator)
 
-    _result = PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
+    _result = PetstoreClient.Api.StoreApi.get_inventory(api)
 
     captured = AuthAppliedCapturingApiClient.captured(name)
 
@@ -1527,9 +1527,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
       )
 
     header_api =
-      PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, header_auth)
+      PetstoreClient.Api.StoreApi.new(AuthAppliedCapturingApiClient, config, header_auth)
 
-    _result = PetstoreClient.Api.PetApi.get_pet_by_id(header_api, 1)
+    _result = PetstoreClient.Api.StoreApi.get_inventory(header_api)
     header_captured = AuthAppliedCapturingApiClient.captured(header_name)
 
     refute Map.has_key?(header_captured.headers, "X-API-Key"),
@@ -1550,9 +1550,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
       )
 
     query_api =
-      PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, query_auth)
+      PetstoreClient.Api.StoreApi.new(AuthAppliedCapturingApiClient, config, query_auth)
 
-    _result = PetstoreClient.Api.PetApi.get_pet_by_id(query_api, 1)
+    _result = PetstoreClient.Api.StoreApi.get_inventory(query_api)
     query_captured = AuthAppliedCapturingApiClient.captured(query_name)
 
     refute String.contains?(query_captured.url, "api_key="),
@@ -1562,6 +1562,31 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "security:[] op must NOT leak the api-key value onto the URL, got: #{query_captured.url}"
 
     Agent.stop(query_name)
+  end
+
+  # INHERITED GLOBAL SECURITY: get_pet_by_id declares no security of its own, so
+  # it inherits the global requirement. This generator strips the inherited auth
+  # methods off such an operation, so the api method passes nil (not the no-auth
+  # sentinel) and BaseApi falls back to the client-level authenticator. A
+  # configured client credential MUST reach the wire — the regression that
+  # silently dropped auth on every inherited-security operation.
+  test "inherited-security operation applies the configured client authenticator" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
+
+    api = PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+
+    _result = PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+
+    assert captured.headers["Authorization"] == "Bearer secret-token-123",
+           "inherited-security op must apply the client Bearer authenticator, got: #{inspect(captured.headers)}"
+
+    Agent.stop(name)
   end
 
   # Per-op server override (item #5)

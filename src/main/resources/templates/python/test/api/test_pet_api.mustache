@@ -679,14 +679,15 @@ class TestPetApiErrorHandling:
                 '{{packageName}}.api.options.get_pet_by_id_options'
             )
 
-    async def test_security_none_op_suppresses_client_authenticator(self) -> None:
-        # WAVE A2 SECURITY-NONE: get_pet_by_id is declared `security: []`, so it
-        # is unauthenticated. Configure the client WITH a client-level
-        # authenticator and assert the outbound request carries NO Authorization
-        # header, NO api-key header, NO api-key query param, and NO auth cookie.
-        # The api method passes the no-auth sentinel, so base_api must NOT fall
-        # back to the client authenticator and leak the credential (the testEcho*
-        # / get_pet_by_id reflection-leak class of bug).
+    async def test_inherited_security_op_applies_client_authenticator(self) -> None:
+        # INHERITED GLOBAL SECURITY: get_pet_by_id declares no security of its
+        # own, so it inherits the global requirement. This generator strips the
+        # inherited auth methods off such an operation, so the api method passes
+        # None (not the no-auth sentinel) and base_api falls back to the
+        # client-level authenticator. The configured client credential MUST reach
+        # the wire — the regression that silently dropped auth on every
+        # inherited-security operation. (The security:[] suppression counterpart
+        # lives in the getInventory test in test_base_api.py.)
         captured: Dict[str, str] = {}
         captured_path: List[str] = []
 
@@ -711,9 +712,9 @@ class TestPetApiErrorHandling:
 
         base_url = f'http://127.0.0.1:{port}'
         config = Configuration.builder().base_url(base_url).build()
-        # A client-level api-key-in-query authenticator: the most dangerous leak
-        # vector, since a stray query param would reflect straight back from an
-        # echo endpoint.
+        # A client-level api-key-in-query authenticator: because get_pet_by_id
+        # inherits the global requirement, this credential MUST be applied and
+        # appear on the outbound request's query string.
         client_auth = ApiKeyAuthenticator(
             host=base_url,
             key_param_name='api_key',
@@ -724,14 +725,8 @@ class TestPetApiErrorHandling:
 
         await api.get_pet_by_id(1)
 
-        assert 'Authorization' not in captured, \
-            f'security:[] op must not send Authorization, got: {captured}'
-        assert 'Api_Key' not in captured and 'api_key' not in captured, \
-            'security:[] op must not send an api-key header'
-        assert 'Cookie' not in captured, \
-            'security:[] op must not send an auth cookie'
-        assert all('api_key=' not in p for p in captured_path), \
-            f'security:[] op must not send an api-key query param, got: {captured_path}'
+        assert any('api_key=secret-client-key' in p for p in captured_path), \
+            f'inherited-security op must apply the client api-key query param, got: {captured_path}'
 
     async def test_secured_op_still_applies_client_authenticator(self) -> None:
         # WAVE A1 GUARD (no over-suppression): add_pet IS secured. With a

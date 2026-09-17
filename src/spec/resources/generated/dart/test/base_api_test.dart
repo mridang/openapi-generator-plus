@@ -254,7 +254,7 @@ void main() {
         );
 
         // deletePet is a secured op, so the client-level authenticator's query
-        // params ARE applied. (getPetById is security:[] and now correctly
+        // params ARE applied. (getInventory is the security:[] op that
         // suppresses the client credential — it can't be used to test forwarding.)
         await api.deletePet(1, null);
         expect(receivedQuery, contains('api_key=test123'));
@@ -488,6 +488,53 @@ void main() {
         await server.close();
       }
     });
+
+    /* inherited global security: getPetById declares no security of its own, so
+     * it inherits the global requirement. This generator strips the inherited
+     * auth methods off such an operation, so the generated method passes null
+     * (not the no-auth sentinel) and BaseApi falls back to the client-level
+     * authenticator. A configured client credential MUST reach the wire — the
+     * regression that silently dropped auth on every inherited-security op. */
+    test(
+      'configured authenticator is applied to an inherited-security op',
+      () async {
+        String? receivedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          receivedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: BearerAuthenticator(
+              host: 'http://localhost:${server.port}',
+              token: 'secret-token',
+            ),
+          );
+
+          await api.getPetById(1, null);
+
+          expect(
+            receivedAuth,
+            equals('Bearer secret-token'),
+            reason:
+                'configured authenticator must reach the wire on an inherited-security op',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* security-none suppression (WAVE A2): an operation declared `security: []`
      * in the spec is explicitly unauthenticated. Even when the client is

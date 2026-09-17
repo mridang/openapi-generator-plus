@@ -19,6 +19,7 @@ import type { ApiClient } from '../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../src/api-response{{importFileExtension}}';
 import type { ApiResult } from '../src/api-result{{importFileExtension}}';
 import { PetApi } from '../src/api/pet-api{{importFileExtension}}';
+import { StoreApi } from '../src/api/store-api{{importFileExtension}}';
 import { BearerAuthenticator } from '../src/auth/bearer-authenticator{{importFileExtension}}';
 import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFileExtension}}';
 import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
@@ -882,19 +883,19 @@ describe('SecurityNoneSuppressesClientAuth', () => {
    * operations, and base_api resolves the sentinel to "apply no auth"
    * rather than falling back to the client authenticator.
    *
-   * `getPetById` is declared `security: []`, so it is the canonical
+   * `getInventory` is declared `security: []`, so it is the canonical
    * unauthenticated operation. The CapturingApiClient records exactly what
    * BaseApi hands to the transport, so we assert against the real outgoing
    * request of the real operation.
    */
   test('security:[] op suppresses a configured Bearer authenticator', async () => {
     const client = new CapturingApiClient();
-    client.responseBody = '{"id":1,"name":"Fido"}';
+    client.responseBody = '{}';
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const clientAuth = new BearerAuthenticator('http://localhost', 'secret-token-123');
-    const petApi = new PetApi(client, config, clientAuth);
+    const storeApi = new StoreApi(client, config, clientAuth);
     try {
-      await petApi.getPetById(1);
+      await storeApi.getInventory();
     } catch {
       // capture-only: we only care about the outbound request
     }
@@ -911,13 +912,13 @@ describe('SecurityNoneSuppressesClientAuth', () => {
   test('security:[] op suppresses a configured api-key (header, query, cookie)', async () => {
     // Header-located api key.
     const headerClient = new CapturingApiClient();
-    headerClient.responseBody = '{"id":1,"name":"Fido"}';
+    headerClient.responseBody = '{}';
     const headerAuth = new ApiKeyAuthenticator(
       'http://localhost', 'X-API-Key', 'key-secret-xyz', ApiKeyLocation.HEADER);
-    const headerApi = new PetApi(
+    const headerApi = new StoreApi(
       headerClient, new Configuration({ baseUrl: 'http://localhost' }), headerAuth);
     try {
-      await headerApi.getPetById(1);
+      await headerApi.getInventory();
     } catch {
       // capture-only
     }
@@ -929,13 +930,13 @@ describe('SecurityNoneSuppressesClientAuth', () => {
 
     // Query-located api key — must not appear in the URL.
     const queryClient = new CapturingApiClient();
-    queryClient.responseBody = '{"id":1,"name":"Fido"}';
+    queryClient.responseBody = '{}';
     const queryAuth = new ApiKeyAuthenticator(
       'http://localhost', 'api_key', 'key-secret-xyz', ApiKeyLocation.QUERY);
-    const queryApi = new PetApi(
+    const queryApi = new StoreApi(
       queryClient, new Configuration({ baseUrl: 'http://localhost' }), queryAuth);
     try {
-      await queryApi.getPetById(1);
+      await queryApi.getInventory();
     } catch {
       // capture-only
     }
@@ -944,13 +945,13 @@ describe('SecurityNoneSuppressesClientAuth', () => {
 
     // Cookie-located api key — must not appear in the Cookie header.
     const cookieClient = new CapturingApiClient();
-    cookieClient.responseBody = '{"id":1,"name":"Fido"}';
+    cookieClient.responseBody = '{}';
     const cookieAuth = new ApiKeyAuthenticator(
       'http://localhost', 'SESSION_ID', 'key-secret-xyz', ApiKeyLocation.COOKIE);
-    const cookieApi = new PetApi(
+    const cookieApi = new StoreApi(
       cookieClient, new Configuration({ baseUrl: 'http://localhost' }), cookieAuth);
     try {
-      await cookieApi.getPetById(1);
+      await cookieApi.getInventory();
     } catch {
       // capture-only
     }
@@ -975,6 +976,28 @@ describe('SecurityNoneSuppressesClientAuth', () => {
     const petApi = new PetApi(client, config, clientAuth);
     try {
       await petApi.addPet({ name: 'Fido' });
+    } catch {
+      // capture-only
+    }
+    expect(client.capturedHeaders['Authorization']).toBe('Bearer secret-token-123');
+  });
+
+  /*
+   * INHERITED GLOBAL SECURITY: `getPetById` declares no security of its own, so
+   * it inherits the global requirement. This generator strips the inherited auth
+   * methods off such an operation, so the api method passes null (not the
+   * NO_AUTH sentinel) and base_api falls back to the client-level authenticator.
+   * A configured client credential MUST reach the wire — the regression that
+   * silently dropped auth on every inherited-security operation.
+   */
+  test('inherited-security op applies the configured authenticator credential', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"id":1,"name":"Fido","photoUrls":[]}';
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const clientAuth = new BearerAuthenticator('http://localhost', 'secret-token-123');
+    const petApi = new PetApi(client, config, clientAuth);
+    try {
+      await petApi.getPetById(1);
     } catch {
       // capture-only
     }

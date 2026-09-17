@@ -321,7 +321,7 @@ func TestBaseApi_ConfiguredAuthenticatorIsAppliedToSecuredRequest(t *testing.T) 
 // the spec is explicitly unauthenticated. Even when the client is constructed
 // WITH an authenticator, the outbound request for such an operation must carry
 // NO auth material — no Authorization header, no api-key header or query param,
-// and no auth cookie. GetPetById is declared `security: []`, so invoking it must
+// and no auth cookie. GetInventory is declared `security: []`, so invoking it must
 // strip the configured credential. This is the core of Wave A2: base_api sees
 // the noAuth sentinel passed by the unauthenticated operation and does NOT fall
 // back to the client-level authenticator. A capturing client records the exact
@@ -342,11 +342,11 @@ func TestBaseApi_SecurityNoneSuppressesClientAuthenticator(t *testing.T) {
 		query:   map[string]string{"api_key": "secret-api-key"},
 		cookies: map[string]string{"session": "secret-session"},
 	}
-	api := petstore.NewPetApi(client, config, leaky)
+	api := petstore.NewStoreApi(client, config, leaky)
 
-	// GetPetById is declared security:[] — the configured authenticator must be
+	// GetInventory is declared security:[] — the configured authenticator must be
 	// suppressed entirely.
-	_, _ = api.GetPetById(int64(1), nil)
+	_, _ = api.GetInventory()
 
 	if got, ok := client.capturedHeaders["Authorization"]; ok {
 		t.Errorf("security:[] operation leaked Authorization header = %q; client credential must be suppressed", got)
@@ -359,6 +359,34 @@ func TestBaseApi_SecurityNoneSuppressesClientAuthenticator(t *testing.T) {
 	}
 	if strings.Contains(client.capturedURL, "api_key") || strings.Contains(client.capturedURL, "secret-api-key") {
 		t.Errorf("security:[] operation leaked api-key query param in URL = %q; client credential must be suppressed", client.capturedURL)
+	}
+}
+
+// ── inherited global security applies the client authenticator ──
+
+// inherited-global-applies-client-auth: GetPetById declares no security of its
+// own, so it inherits the global requirement. This generator strips the
+// inherited auth methods off such an operation, so the api method passes a nil
+// per-call override (not the noAuth sentinel); base_api must then fall back to
+// the client-level authenticator. A configured client credential MUST reach the
+// wire — the regression that silently dropped auth on every inherited-security
+// operation.
+func TestBaseApi_InheritedGlobalSecurityAppliesClientAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+
+	bearer := &baseApiAuth{
+		headers: map[string]string{"Authorization": "Bearer secret-jwt"},
+	}
+	api := petstore.NewPetApi(client, config, bearer)
+
+	// GetPetById inherits the global security requirement; with no per-call
+	// override the client authenticator must be applied.
+	_, _ = api.GetPetById(int64(1), nil)
+
+	if got, want := client.capturedHeaders["Authorization"], "Bearer secret-jwt"; got != want {
+		t.Errorf("inherited-security operation Authorization header = %q, want %q (client authenticator was dropped)", got, want)
 	}
 }
 

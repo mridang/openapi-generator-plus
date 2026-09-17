@@ -1833,12 +1833,12 @@ async fn test_base_api_security_none_op_suppresses_client_authenticator() {
         .build();
     // Client-level authenticator configured (no per-call override below).
     let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
-    let api = PetApi::new(client.clone(), config, Some(client_auth));
+    let api = StoreApi::new(client.clone(), config, Some(client_auth));
 
-    // get_pet_by_id is declared `security: []` -> the SDK passes the no-auth
+    // get_inventory is declared `security: []` -> the SDK passes the no-auth
     // sentinel, so NONE of the client credential's transport positions may
     // appear on the wire.
-    let _ = api.get_pet_by_id(1, None).await;
+    let _ = api.get_inventory().await;
 
     let headers = client.captured_headers.lock().unwrap();
     let url = client.captured_url.lock().unwrap();
@@ -1889,5 +1889,34 @@ async fn test_base_api_secured_op_applies_client_authenticator() {
         headers.get("Authorization").map(|s| s.as_str()),
         Some("Bearer leaked-token"),
         "a secured op with a configured client authenticator must still send the credential (no over-suppression)"
+    );
+}
+
+// INHERITED GLOBAL SECURITY (guard against over-suppression on inherited ops):
+// `get_pet_by_id` declares no security of its own, so it inherits the global
+// requirement. This generator strips the inherited auth methods off such an
+// operation, so the SDK passes `None` (not the no-auth sentinel) and BaseApi
+// falls back to the client-level authenticator. A configured client credential
+// MUST reach the wire -- the regression that silently dropped auth on every
+// inherited-security operation.
+#[tokio::test]
+async fn test_base_api_inherited_security_op_applies_client_authenticator() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+
+    // get_pet_by_id inherits the global security requirement and receives no
+    // per-call override (None) -> BaseApi must fall back to the client-level
+    // authenticator and apply its credential.
+    let _ = api.get_pet_by_id(1, None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer leaked-token"),
+        "an inherited-security op with a configured client authenticator must apply its credential"
     );
 }

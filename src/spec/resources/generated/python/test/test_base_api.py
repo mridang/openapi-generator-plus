@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 from petstore_client.api.base_api import BaseApi, NO_AUTH
 from petstore_client.api.pet_api import PetApi
+from petstore_client.api.store_api import StoreApi
 from petstore_client.api.options.find_pets_by_status_options import (
     FindPetsByStatusOptions,
 )
@@ -681,7 +682,7 @@ class TestSecurityNoneAuthSuppression:
     the same configured authenticator still must (guards over-suppression)."""
 
     async def test_security_none_op_sends_no_credential(self) -> None:
-        # get_pet_by_id is declared `security: []`; configure the client WITH
+        # get_inventory is declared `security: []`; configure the client WITH
         # an authenticator and assert the outbound request carries NO
         # Authorization header, NO api-key header/query param, and NO auth
         # cookie. The api method passes NO_AUTH, so base_api suppresses the
@@ -693,9 +694,9 @@ class TestSecurityNoneAuthSuppression:
             query_params={"api_key": "secret-key"},
             cookies={"session": "abc123"},
         )
-        api = PetApi(api_client=client, config=config, authenticator=client_auth)
+        api = StoreApi(api_client=client, config=config, authenticator=client_auth)
         try:
-            await api.get_pet_by_id(1)
+            await api.get_inventory()
         except Exception:
             pass  # Response deserialization may fail; we only inspect the request
         assert "Authorization" not in client.captured_headers, (
@@ -709,6 +710,27 @@ class TestSecurityNoneAuthSuppression:
         )
         assert "api_key=" not in client.captured_url, (
             f"security:[] op must not send an api-key query param, got: {client.captured_url}"
+        )
+
+    async def test_inherited_security_op_applies_client_credential(self) -> None:
+        # get_pet_by_id declares no security of its own, so it inherits the
+        # global requirement. This generator strips the inherited auth methods
+        # off such an operation, so the api method passes None (not NO_AUTH) and
+        # base_api falls back to the client-level authenticator. The configured
+        # client credential MUST reach the wire — the regression that silently
+        # dropped auth on every inherited-security operation.
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        client_auth = StubAuthenticator(
+            headers={"Authorization": "Bearer client-token"}
+        )
+        api = PetApi(api_client=client, config=config, authenticator=client_auth)
+        try:
+            await api.get_pet_by_id(1)
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+        assert client.captured_headers.get("Authorization") == "Bearer client-token", (
+            f"inherited-security op must apply the client credential, got: {client.captured_headers}"
         )
 
     async def test_secured_op_still_sends_credential(self) -> None:

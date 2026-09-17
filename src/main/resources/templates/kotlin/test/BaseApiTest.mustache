@@ -6,6 +6,7 @@ package {{invokerPackage}}
 import {{invokerPackage}}.auth.Authenticator
 import {{invokerPackage}}.errors.*
 import {{apiPackage}}.PetApi
+import {{apiPackage}}.StoreApi
 import {{apiPackage}}.options.FindPetsByStatusOptions
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -402,8 +403,8 @@ class BaseApiTest {
             // An operation declared `security: []` is explicitly unauthenticated.
             // Even when the client is constructed WITH an authenticator, invoking
             // such an operation through the generated API class (here
-            // PetApi.getPetById, declared security: []) must NOT attach the client
-            // credential — the operation passes the NoAuth sentinel, which
+            // StoreApi.getInventory, declared security: []) must NOT attach the
+            // client credential — the operation passes the NoAuth sentinel, which
             // BaseApi resolves to "no auth" rather than falling back to the
             // client-level authenticator. This guards against leaking the client
             // credential to unauthenticated endpoints (e.g. the testEcho* ops that
@@ -419,11 +420,11 @@ class BaseApiTest {
                     mapOf("api_key" to "query-key"),
                     mapOf("session" to "cookie-value"),
                 )
-            val api = PetApi(client, config, authenticator)
+            val api = StoreApi(client, config, authenticator)
             try {
-                runBlocking { api.getPetById(42L) }
+                runBlocking { api.getInventory() }
             } catch (_: Exception) {
-                // The capturing client returns {} which may fail Pet deserialization;
+                // The capturing client returns {} which may fail deserialization;
                 // we only assert on the (absence of) outbound credential.
             }
             assertFalse(
@@ -441,6 +442,38 @@ class BaseApiTest {
             assertFalse(
                 client.capturedHeaders.containsKey("Cookie"),
                 "unauthenticated operation must NOT carry the client auth cookie",
+            )
+        }
+
+        @Test
+        @DisplayName("INHERITED-SECURITY: client authenticator is applied to an operation that inherits the global requirement")
+        fun clientAuthenticatorAppliedForInheritedSecurityOperation() {
+            // getPetById declares no security of its own, so it inherits the
+            // global requirement. This generator strips the inherited auth
+            // methods off such an operation, so the generated method passes null
+            // (not the NoAuth sentinel) and BaseApi falls back to the client-level
+            // authenticator. A configured client credential MUST reach the wire —
+            // the regression that silently dropped auth on every inherited-security
+            // operation.
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val authenticator =
+                TestAuthenticator(
+                    mapOf("Authorization" to "Bearer client-secret"),
+                    emptyMap(),
+                    emptyMap(),
+                )
+            val api = PetApi(client, config, authenticator)
+            try {
+                runBlocking { api.getPetById(42L) }
+            } catch (_: Exception) {
+                // The capturing client returns {} which may fail Pet deserialization;
+                // we only assert on the outbound credential, captured before the response.
+            }
+            assertEquals(
+                "Bearer client-secret",
+                client.capturedHeaders["Authorization"],
+                "inherited-security operation must carry the client Authorization header",
             )
         }
     }

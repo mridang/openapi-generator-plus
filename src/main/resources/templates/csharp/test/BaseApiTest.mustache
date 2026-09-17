@@ -928,7 +928,7 @@ public class BaseApiTest
     // attach an Authorization header, an api-key header, an api-key query
     // parameter, and an auth cookie, none of those may appear on the outbound
     // request for such an operation — otherwise the client credential leaks
-    // (e.g. to a request-reflecting echo endpoint). getPetById is declared
+    // (e.g. to a request-reflecting echo endpoint). getInventory is declared
     // `security: []` in the spec, so the api method passes the NoAuth sentinel
     // and BaseApi suppresses the client-level authenticator entirely.
     [Fact]
@@ -944,17 +944,16 @@ public class BaseApiTest
             queryParams: new Dictionary<string, string> { { "api_key", "client-api-key" } },
             cookies: new Dictionary<string, string> { { "session", "client-cookie" } });
         var config = new Configuration("http://localhost");
-        var api = new PetApi(client, config, clientAuth);
+        var api = new StoreApi(client, config, clientAuth);
 
         try
         {
-            // getPetById is security:[]; the captured request is what matters.
-            await api.GetPetByIdAsync(42L);
+            // getInventory is security:[]; the captured request is what matters.
+            await api.GetInventoryAsync();
         }
         catch (Exception)
         {
-            // The {} response body does not deserialize to a Pet; the request
-            // is already captured by the time deserialization fails.
+            // The captured request is asserted regardless of the response shape.
         }
 
         Assert.False(client.CapturedHeaders.ContainsKey("Authorization"),
@@ -964,6 +963,39 @@ public class BaseApiTest
         Assert.False(client.CapturedHeaders.ContainsKey("Cookie"),
             "security:[] operation must NOT carry the client auth cookie");
         Assert.DoesNotContain("api_key=", client.CapturedUrl!.ToString());
+    }
+
+    // INHERITED GLOBAL SECURITY (guard against over-suppression on inherited
+    // ops): getPetById declares no security of its own, so it inherits the
+    // global requirement. This generator strips the inherited auth methods off
+    // such an operation, so the api method passes null (not the NoAuth
+    // sentinel); BaseApi must then fall back to the client-level authenticator.
+    // A configured client credential MUST reach the wire — the regression that
+    // silently dropped auth on every inherited-security operation.
+    [Fact]
+    public async Task InheritedGlobalSecurityOperationAppliesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "Authorization", "Bearer client-secret" } });
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config, clientAuth);
+
+        try
+        {
+            // getPetById inherits the global security requirement; with no
+            // per-call override the client authenticator must be applied.
+            await api.GetPetByIdAsync(42L);
+        }
+        catch (Exception)
+        {
+            // The {} response body does not deserialize to a Pet; the request
+            // is already captured by the time deserialization fails.
+        }
+
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization"),
+            "inherited-security operation must carry the client Authorization header");
+        Assert.Equal("Bearer client-secret", client.CapturedHeaders["Authorization"]);
     }
 
     // SECURED (Wave A1 guard against over-suppression): a secured operation
