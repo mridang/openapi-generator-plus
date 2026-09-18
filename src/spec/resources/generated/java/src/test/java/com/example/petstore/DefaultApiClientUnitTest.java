@@ -657,10 +657,19 @@ class DefaultApiClientUnitTest {
             + part);
   }
 
+  static class MultipartModelPart {
+    @com.fasterxml.jackson.annotation.JsonProperty("isPrimary")
+    @javax.annotation.Nullable
+    public Boolean isPrimary;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("takenAt")
+    @javax.annotation.Nullable
+    public java.time.OffsetDateTime takenAt;
+  }
+
   @Test
   void multipartModelPartUsesWirePropertyNamesAndDateTimeFormat() throws Exception {
-    com.example.petstore.models.PhotoMetadata metadata =
-        new com.example.petstore.models.PhotoMetadata();
+    MultipartModelPart metadata = new MultipartModelPart();
     metadata.isPrimary = true;
     metadata.takenAt = java.time.OffsetDateTime.parse("2020-01-02T03:04:05.123Z");
 

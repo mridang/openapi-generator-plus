@@ -16,30 +16,30 @@ namespace Test;
 public class ValueSerializerTest
 {
     // -- enum parameters: must serialize the OpenAPI wire value, not the C#
-    //    member name (Swatch.Red -> "red", not "Red") --
+    //    member name (TestSwatch.Red -> "red", not "Red") --
 
     [Fact]
     public void EnumPathParameterSerializesWireValue()
     {
-        Assert.Equal("red", ValueSerializer.Serialize(Swatch.Red, "path", "Swatch"));
+        Assert.Equal("red", ValueSerializer.Serialize(TestSwatch.Red, "path", "TestSwatch"));
     }
 
     [Fact]
     public void EnumQueryParameterSerializesWireValue()
     {
-        Assert.Equal("blue", ValueSerializer.Serialize(Swatch.Blue, "query", "Swatch"));
+        Assert.Equal("blue", ValueSerializer.Serialize(TestSwatch.Blue, "query", "TestSwatch"));
     }
 
     [Fact]
     public void EnumHeaderParameterSerializesWireValue()
     {
-        Assert.Equal("green", ValueSerializer.Serialize(Swatch.Green, "header", "Swatch"));
+        Assert.Equal("green", ValueSerializer.Serialize(TestSwatch.Green, "header", "TestSwatch"));
     }
 
     [Fact]
     public void EnumStringifySerializesWireValue()
     {
-        Assert.Equal("red", ObjectSerializer.Stringify(Swatch.Red));
+        Assert.Equal("red", ObjectSerializer.Stringify(TestSwatch.Red));
     }
 
     // -- path location --
@@ -620,5 +620,52 @@ public class ValueSerializerTest
         // stringifyDate UTC behaviour of Go/Node/Swift/Dart.
         var date = new DateOnly(2024, 12, 31);
         Assert.Equal("2024-12-31", ValueSerializer.Serialize(date, "path", "string"));
+    }
+}
+
+/// <summary>
+/// A stand-in enum for the wire-value tests above. It is declared here rather
+/// than taken from the generated models so the test holds for EVERY spec this
+/// SDK is generated from — no spec is guaranteed to contain a string enum. It
+/// mirrors how the generator emits enums: a [JsonConverter] maps each member to
+/// its OpenAPI wire string, which is what ObjectSerializer.Stringify round-trips
+/// through.
+/// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(TestSwatchConverter))]
+public enum TestSwatch
+{
+    Red,
+    Blue,
+    Green,
+}
+
+internal sealed class TestSwatchConverter : System.Text.Json.Serialization.JsonConverter<TestSwatch>
+{
+    public override TestSwatch Read(
+        ref System.Text.Json.Utf8JsonReader reader,
+        Type typeToConvert,
+        System.Text.Json.JsonSerializerOptions options)
+    {
+        return reader.GetString() switch
+        {
+            "red" => TestSwatch.Red,
+            "blue" => TestSwatch.Blue,
+            "green" => TestSwatch.Green,
+            _ => throw new System.Text.Json.JsonException(),
+        };
+    }
+
+    public override void Write(
+        System.Text.Json.Utf8JsonWriter writer,
+        TestSwatch value,
+        System.Text.Json.JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value switch
+        {
+            TestSwatch.Red => "red",
+            TestSwatch.Blue => "blue",
+            TestSwatch.Green => "green",
+            _ => throw new System.Text.Json.JsonException(),
+        });
     }
 }

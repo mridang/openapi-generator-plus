@@ -987,8 +987,8 @@ public class DefaultApiClientUnitTest
     public async Task MultipartModelPartUsesConfiguredSerializerWireKeysAndDateTimeFormat()
     {
         // Cross-language parity lock for the multipart MODEL-part path. A
-        // multipart/form-data body that carries a model object (here
-        // PhotoMetadata) must serialize that part through the SDK's CONFIGURED
+        // multipart/form-data body that carries a model object must
+        // serialize that part through the SDK's CONFIGURED
         // ObjectSerializer — NOT a bare JsonSerializer.Serialize(value) call.
         // The configured serializer applies the SDK JsonSerializerOptions:
         // millisecond-precision DateTimeOffset, protobuf-duration, null-omission
@@ -1006,7 +1006,7 @@ public class DefaultApiClientUnitTest
             wireText = await req.Content!.ReadAsStringAsync();
         });
         var client = new DefaultApiClient(new HttpClient(handler));
-        var metadata = new PhotoMetadata
+        var metadata = new MultipartModelPart
         {
             IsPrimary = true,
             TakenAt = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero),
@@ -1306,4 +1306,21 @@ public class DefaultApiClientUnitTest
             return Task.FromResult(response);
         }
     }
+}
+
+/// <summary>
+/// A stand-in model part for the multipart serialization test above. It is
+/// declared here rather than taken from the generated models so the test holds
+/// for EVERY spec this SDK is generated from — no spec is guaranteed to contain
+/// a model with these properties. It mirrors how the generator emits models:
+/// the wire name lives in a [JsonPropertyName] attribute while the C# property
+/// keeps PascalCase.
+/// </summary>
+public sealed class MultipartModelPart
+{
+    [System.Text.Json.Serialization.JsonPropertyName("isPrimary")]
+    public bool? IsPrimary { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("takenAt")]
+    public DateTimeOffset? TakenAt { get; set; }
 }
