@@ -526,9 +526,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
+                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-                    && {{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
+                    && global::{{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
     }
 
     public override bool Equals(object? obj)
@@ -540,10 +540,10 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         HashCode hash = default;
         {{#vars}}
-        {{#isContainer}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
+        {{#isContainer}}hash.Add(global::{{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add(global::{{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
-        hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
+        hash.Add(global::{{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
         {{/isAdditionalPropertiesTrue}}
         return hash.ToHashCode();
     }
@@ -677,9 +677,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
+                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-                    && {{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
+                    && global::{{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
     }
 
     public override bool Equals(object? obj)
@@ -691,10 +691,10 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         HashCode hash = default;
         {{#vars}}
-        {{#isContainer}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
+        {{#isContainer}}hash.Add(global::{{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isContainer}}{{^isContainer}}{{#isByteArray}}hash.Add(global::{{packageName}}.ObjectSerializer.StructuralHashCode(this.{{name}}));{{/isByteArray}}{{^isByteArray}}hash.Add(this.{{name}});{{/isByteArray}}{{/isContainer}}
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
-        hash.Add({{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
+        hash.Add(global::{{packageName}}.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
         {{/isAdditionalPropertiesTrue}}
         return hash.ToHashCode();
     }

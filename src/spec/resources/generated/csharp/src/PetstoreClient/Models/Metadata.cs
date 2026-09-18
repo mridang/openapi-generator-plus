@@ -26,7 +26,7 @@ public class Metadata : IEquatable<Metadata>
         return other is not null
             && (ReferenceEquals(this, other)
                 || EqualityComparer<DateTimeOffset?>.Default.Equals(this.CreatedAt, other.CreatedAt)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties));
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties));
     }
 
     public override bool Equals(object? obj)
@@ -38,7 +38,7 @@ public class Metadata : IEquatable<Metadata>
     {
         HashCode hash = default;
         hash.Add(this.CreatedAt);
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.AdditionalProperties));
         return hash.ToHashCode();
     }
 }

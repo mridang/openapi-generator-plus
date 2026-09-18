@@ -62,7 +62,7 @@ public class StockItem : IEquatable<StockItem>
             && (ReferenceEquals(this, other)
                 || EqualityComparer<Priority>.Default.Equals(this.Priority, other.Priority)
                     && EqualityComparer<Availability?>.Default.Equals(this.Availability, other.Availability)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Matrix, other.Matrix));
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.Matrix, other.Matrix));
     }
 
     public override bool Equals(object? obj)
@@ -75,7 +75,7 @@ public class StockItem : IEquatable<StockItem>
         HashCode hash = default;
         hash.Add(this.Priority);
         hash.Add(this.Availability);
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Matrix));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Matrix));
         return hash.ToHashCode();
     }
 }

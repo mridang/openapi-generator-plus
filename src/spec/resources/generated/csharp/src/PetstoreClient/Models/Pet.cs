@@ -177,10 +177,10 @@ public class Pet : IEquatable<Pet>
                 || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
                     && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.PhotoUrls, other.PhotoUrls)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Tags, other.Tags)
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.PhotoUrls, other.PhotoUrls)
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Location, other.Location)
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.Location, other.Location)
                     && EqualityComparer<Uri?>.Default.Equals(this.HomepageUrl, other.HomepageUrl)
                     && EqualityComparer<string?>.Default.Equals(this.ThumbnailRef, other.ThumbnailRef)
                     && EqualityComparer<string?>.Default.Equals(this.LinkTemplate, other.LinkTemplate)
@@ -199,10 +199,10 @@ public class Pet : IEquatable<Pet>
         hash.Add(this.Id);
         hash.Add(this.Name);
         hash.Add(this.Category);
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.PhotoUrls));
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Tags));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.PhotoUrls));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Tags));
         hash.Add(this.Status);
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Location));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Location));
         hash.Add(this.HomepageUrl);
         hash.Add(this.ThumbnailRef);
         hash.Add(this.LinkTemplate);

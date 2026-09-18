@@ -44,10 +44,10 @@ public class PetPassport : IEquatable<PetPassport>
         return other is not null
             && (ReferenceEquals(this, other)
                 || EqualityComparer<Pet?>.Default.Equals(this.Pet, other.Pet)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Thumbnail, other.Thumbnail)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.Scans, other.Scans)
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.Thumbnail, other.Thumbnail)
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.Scans, other.Scans)
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(this.IssuedAt, other.IssuedAt)
-                    && PetstoreClient.ObjectSerializer.StructuralEquals(this.BiometricChip, other.BiometricChip));
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(this.BiometricChip, other.BiometricChip));
     }
 
     public override bool Equals(object? obj)
@@ -59,10 +59,10 @@ public class PetPassport : IEquatable<PetPassport>
     {
         HashCode hash = default;
         hash.Add(this.Pet);
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Thumbnail));
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Scans));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Thumbnail));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Scans));
         hash.Add(this.IssuedAt);
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.BiometricChip));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.BiometricChip));
         return hash.ToHashCode();
     }
 }

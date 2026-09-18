@@ -74,7 +74,7 @@ public class SetPetAvatarRequest : IEquatable<SetPetAvatarRequest>
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || PetstoreClient.ObjectSerializer.StructuralEquals(this.Data, other.Data)
+                || global::PetstoreClient.ObjectSerializer.StructuralEquals(this.Data, other.Data)
                     && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType));
     }
 
@@ -86,7 +86,7 @@ public class SetPetAvatarRequest : IEquatable<SetPetAvatarRequest>
     public override int GetHashCode()
     {
         HashCode hash = default;
-        hash.Add(PetstoreClient.ObjectSerializer.StructuralHashCode(this.Data));
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Data));
         hash.Add(this.MimeType);
         return hash.ToHashCode();
     }
