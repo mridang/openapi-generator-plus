@@ -704,8 +704,8 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   end
 
   test "build_content_disposition omits filename* for ASCII-only names" do
-    cd = PetstoreClient.DefaultApiClient.build_content_disposition("file", "pet.png")
-    assert String.contains?(cd, "filename=\"pet.png\"")
+    cd = PetstoreClient.DefaultApiClient.build_content_disposition("file", "file.png")
+    assert String.contains?(cd, "filename=\"file.png\"")
     refute String.contains?(cd, "filename*=")
   end
 
@@ -722,7 +722,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
 
     # ASCII filename does not raise.
-    PetstoreClient.DefaultApiClient.build_content_disposition("file", "pet.png")
+    PetstoreClient.DefaultApiClient.build_content_disposition("file", "file.png")
   end
 
   test "build_content_disposition rejects filenames containing NUL" do

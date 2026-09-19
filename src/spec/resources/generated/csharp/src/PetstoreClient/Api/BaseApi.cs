@@ -209,8 +209,9 @@ public abstract class BaseApi
                  * wire Content-Type stays the selected binary type. Falling
                  * through to the plain pass-through below would hand a
                  * Dictionary to DefaultApiClient, which emits multipart/form-data
-                 * instead. Mirrors the single-binary-body path (e.g. SetPetAvatar)
-                 * that already streams raw bytes. */
+                 * instead. Mirrors the single-binary-body path (an operation
+                 * whose body is a bare type:string format:binary schema) that
+                 * already streams raw bytes. */
                 requestBody = ExtractBinaryPart(binaryForm);
             }
             else if (isBinary || isMultipart)

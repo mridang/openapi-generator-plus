@@ -40,7 +40,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterSwiftCodegen.class);
 
-    protected String packageName = "PetstoreClient";
+    protected String packageName = "OpenApiClient";
     protected String packageVersion = "1.0.0";
 
     /**

@@ -47,6 +47,7 @@ export 'src/iso8601_duration.dart';
 export 'src/object_serializer.dart' show SerializationError, UuidValue;
 export 'src/models/api_response.dart';
 export 'src/models/availability.dart';
+export 'src/models/binary_vault.dart';
 export 'src/models/category.dart';
 export 'src/models/color.dart';
 export 'src/models/defaults.dart';

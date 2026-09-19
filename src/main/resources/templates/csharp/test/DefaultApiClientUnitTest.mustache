@@ -477,9 +477,9 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task SetPetAvatarStreamsRawBytesWithDeclaredContentType()
+    public async Task RawBinaryBodyStreamsRawBytesWithDeclaredContentType()
     {
-        // Canonical cross-SDK regression (finding C1): the setPetAvatar request
+        // Canonical cross-SDK regression (finding C1): a raw-binary request
         // body is type:string format:binary with a declared Content-Type of
         // image/jpeg. It MUST go on the wire as the exact raw bytes, with the
         // declared Content-Type preserved — NOT JSON-marshaled, NOT base64, NOT
@@ -505,7 +505,7 @@ public class DefaultApiClientUnitTest
         byte[] payload = { 0xFF, 0xD8, 0xFF, 0xE0 };
         using var body = new MemoryStream(payload);
         await client.SendRequestAsync(
-            "PUT", new Uri("http://example.com/pet/1/avatar"),
+            "PUT", new Uri("http://example.com/resource/1/avatar"),
             new Dictionary<string, string> { { "Content-Type", "image/jpeg" } }, body);
 
         Assert.NotNull(wireBytes);
@@ -527,8 +527,8 @@ public class DefaultApiClientUnitTest
     [Fact]
     public void MultipartFilenameAsciiOnlyOmitsFilenameStar()
     {
-        string directive = DefaultApiClient.BuildFilenameDirective("pet.png");
-        Assert.Equal("filename=\"pet.png\"", directive);
+        string directive = DefaultApiClient.BuildFilenameDirective("file.png");
+        Assert.Equal("filename=\"file.png\"", directive);
         Assert.DoesNotContain("filename*=", directive);
     }
 
@@ -544,7 +544,7 @@ public class DefaultApiClientUnitTest
         Assert.Throws<ArgumentException>(() =>
             DefaultApiClient.ValidateMultipartFilename("a\0b.pdf"));
         // ASCII filenames are accepted
-        DefaultApiClient.ValidateMultipartFilename("pet.png");
+        DefaultApiClient.ValidateMultipartFilename("file.png");
     }
 
     // -- Gap H: response body charset handling --
@@ -606,7 +606,7 @@ public class DefaultApiClientUnitTest
         // big-endian, matching the other SDKs. .NET's Encoding.GetEncoding(
         // "utf-16") is little-endian, so this would have decoded to garbage
         // before the fix.
-        byte[] utf16BeBytes = { 0x00, 0x50, 0x00, 0x65, 0x00, 0x74 }; // "Pet" UTF-16BE
+        byte[] utf16BeBytes = { 0x00, 0x44, 0x00, 0x6F, 0x00, 0x63 }; // "Doc" UTF-16BE
         var handler = new RawByteHandler(
             HttpStatusCode.OK,
             utf16BeBytes,
@@ -615,12 +615,12 @@ public class DefaultApiClientUnitTest
         var response = await client.SendRequestAsync(
             "GET", new Uri("http://example.com/utf16-no-bom"),
             new Dictionary<string, string>(), null);
-        Assert.Equal("Pet", response.Body);
+        Assert.Equal("Doc", response.Body);
 
         // Sanity check that the choice is load-bearing: interpreting the very
-        // same bytes little-endian yields a different (non-"Pet") string, so a
+        // same bytes little-endian yields a different (non-"Doc") string, so a
         // passing assertion above can only mean big-endian decoding was used.
-        Assert.NotEqual("Pet", Encoding.Unicode.GetString(utf16BeBytes));
+        Assert.NotEqual("Doc", Encoding.Unicode.GetString(utf16BeBytes));
     }
 
     // ---- 3.1: SensitiveHeaderNames default contents ----
@@ -979,7 +979,7 @@ public class DefaultApiClientUnitTest
     // default text/plain Content-Type). A faithful regression test needs a
     // real multipart/form-data operation to exercise BuildMultipartContent —
     // a plain Dictionary body routes through the JSON path, not multipart.
-    // Deferred to the petstore-fixture wave (a multipart upload op).
+    // Deferred to the fixture-spec wave (a multipart upload op).
 
     // ---- H6 / cross-cutting: multipart MODEL part uses the configured serializer ----
 
@@ -1017,7 +1017,7 @@ public class DefaultApiClientUnitTest
         };
 
         await client.SendRequestAsync(
-            "POST", new Uri("http://example.com/pet/1/photos"),
+            "POST", new Uri("http://example.com/resource/1/photos"),
             new Dictionary<string, string>(), formData);
 
         Assert.NotNull(wireText);

@@ -678,7 +678,7 @@ class ValueSerializerTest {
         @DisplayName("empty string path param throws IllegalArgumentException")
         fun emptyStringPathParamThrows() {
             // Gap W — empty-string path values silently produce
-            // malformed URLs like `/pet//details`; reject at
+            // malformed URLs like `/resource//details`; reject at
             // serialization time so callers see the real error rather
             // than a downstream 404.
             assertThrows(IllegalArgumentException::class.java) {

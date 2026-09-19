@@ -764,7 +764,7 @@ void main() {
 
     test('empty string path param throws ArgumentError', () {
       // Gap W — empty-string path values silently produce malformed
-      // URLs like `/pet//details`; reject at serialization time so
+      // URLs like `/resource//details`; reject at serialization time so
       // callers see the real error rather than a downstream 404.
       expect(
         () => serializeStyled('id', '', 'path', 'string', '', 'simple', false),

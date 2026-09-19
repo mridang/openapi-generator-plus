@@ -189,8 +189,8 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("ASCII-only filename omits the filename* parameter")
         fun multipartFilenameAsciiOnlyOmitsFilenameStar() {
-            val directive = buildFilenameDirective("pet.png")
-            assertEquals("filename=\"pet.png\"", directive)
+            val directive = buildFilenameDirective("file.png")
+            assertEquals("filename=\"file.png\"", directive)
             assertFalse(directive.contains("filename*="),
                 "ASCII-only filename must not emit filename*=, got: $directive")
         }
@@ -204,7 +204,7 @@ class DefaultApiClientUnitTest {
                 }
             }
             // ASCII filename does not throw
-            validateMultipartFilename("pet.png")
+            validateMultipartFilename("file.png")
         }
     }
 
@@ -497,10 +497,10 @@ class DefaultApiClientUnitTest {
         @DisplayName("decodes BOM-less utf-16 response body as big-endian (RFC 2781)")
         fun decodesBomlessUtf16AsBigEndian() {
             // A response declaring charset=utf-16 with NO byte-order mark must
-            // decode as UTF-16 BIG-ENDIAN per RFC 2781. The bytes 00 50 00 65
-            // 00 74 are "Pet" in UTF-16BE; the same bytes read little-endian
+            // decode as UTF-16 BIG-ENDIAN per RFC 2781. The bytes 00 44 00 6F
+            // 00 63 are "Doc" in UTF-16BE; the same bytes read little-endian
             // would yield the wrong string, proving the byte-order choice.
-            val bigEndianNoBom = byteArrayOf(0x00, 0x50, 0x00, 0x65, 0x00, 0x74)
+            val bigEndianNoBom = byteArrayOf(0x00, 0x44, 0x00, 0x6F, 0x00, 0x63)
             val engine = MockEngine { _ ->
                 respond(
                     content = bigEndianNoBom,
@@ -513,15 +513,15 @@ class DefaultApiClientUnitTest {
                 apiClient.sendRequest("GET", "http://localhost/utf16-no-bom", emptyMap(), null)
             }
             assertEquals(
-                "Pet",
+                "Doc",
                 response.body,
                 "BOM-less utf-16 must decode as big-endian",
             )
-            // Same bytes interpreted little-endian must NOT equal "Pet",
+            // Same bytes interpreted little-endian must NOT equal "Doc",
             // confirming the big-endian default is what produced the match.
             val asLittleEndian = String(bigEndianNoBom, Charsets.UTF_16LE)
             assertNotEquals(
-                "Pet",
+                "Doc",
                 asLittleEndian,
                 "little-endian interpretation of the same bytes must differ",
             )

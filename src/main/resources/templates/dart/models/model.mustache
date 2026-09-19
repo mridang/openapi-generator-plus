@@ -386,14 +386,13 @@ class {{classname}} {
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
-{{#items}}
-{{#isPrimitiveType}}
-      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).cast<String, {{{dataType}}}>(),
-{{/isPrimitiveType}}
-{{^isPrimitiveType}}
-      {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{>deserialize_arg}}),
-{{/isPrimitiveType}}
-{{/items}}
+{{! See the nullable branch below: name/baseName must stay outside items. }}
+{{#items.isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
+{{/items.isPrimitiveType}}
+{{^items.isPrimitiveType}}
+      {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}),
+{{/items.isPrimitiveType}}
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}
@@ -497,14 +496,16 @@ class {{classname}} {
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
-{{#items}}
-{{#isPrimitiveType}}
-      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.cast<String, {{{dataType}}}>(),
-{{/isPrimitiveType}}
-{{^isPrimitiveType}}
-      {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{>deserialize_arg}}) : null,
-{{/isPrimitiveType}}
-{{/items}}
+{{! name/baseName belong to the PROPERTY and must be read outside the items }}
+{{! section: entering it shadows them with the inner schema's own name, which }}
+{{! openapi-generator calls "inner", producing a constructor argument that does }}
+{{! not exist. Only dip into items for the value type, as isArray does above. }}
+{{#items.isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
+{{/items.isPrimitiveType}}
+{{^items.isPrimitiveType}}
+      {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}) : null,
+{{/items.isPrimitiveType}}
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}

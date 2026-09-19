@@ -208,7 +208,7 @@ import {{invokerPackage}}.ApiException
 import {{invokerPackage}}.errors.*
 
 try {
-    val result = client.petApi.getPetById(petId)
+    val result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* parameters */)
 } catch (e: NotFoundException) {
     println("Not found: ${e.message}")
 } catch (e: ClientException) {
@@ -246,7 +246,7 @@ Models are generated as Kotlin data classes. They are located in the `{{invokerP
 ```kotlin
 import {{invokerPackage}}.models.*
 
-val pet = Pet(name = "Fido", status = "available")
+{{#models}}{{#model}}{{#-first}}val model = {{classname}}(/* properties */){{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

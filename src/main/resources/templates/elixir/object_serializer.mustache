@@ -589,8 +589,8 @@ defmodule {{moduleName}}.ObjectSerializer do
   # through arbitrarily many container levels until the innermost descriptor is
   # a model/primitive that the clauses below decode into a typed value. Without
   # these, a nested generic container fell through to the model-name fallback
-  # and was handed back as raw maps/lists. A plain "[Pet]" or
-  # "%{String.t() => Pet}" still resolves to one Enum.map/Map.new whose element
+  # and was handed back as raw maps/lists. A plain "[Item]" or
+  # "%{String.t() => Item}" still resolves to one Enum.map/Map.new whose element
   # descriptor is the bare model name, so simple single-level containers are
   # unchanged.
   def convert_to_type(data, "[" <> rest) when is_list(data) do

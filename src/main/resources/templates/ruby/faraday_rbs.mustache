@@ -1,10 +1,10 @@
-# Faraday signatures for the petstore test fixture, which has no
-# gem_rbs_collection. Real SDKs vendor these through `rbs collection`
-# (.gem_rbs_collection/faraday) and receive only the Connection#proxy= reopen
-# from sig/vendor.rbs, so this stub is emitted for the generator's own golden
-# only (generateTests). The class hierarchy mirrors the gem
-# (TimeoutError < ServerError) so the two never disagree should the gem ever be
-# added here. Connection#proxy= is intentionally omitted: the gem does not
+# Faraday signatures for the fixture spec used by the generator's own test
+# suite, which has no gem_rbs_collection. Real SDKs vendor these through
+# `rbs collection` (.gem_rbs_collection/faraday) and receive only the
+# Connection#proxy= reopen from sig/vendor.rbs, so this stub is emitted for
+# the generator's own golden only (generateTests). The class hierarchy mirrors
+# the gem (TimeoutError < ServerError) so the two never disagree should the gem
+# ever be added here. Connection#proxy= is intentionally omitted: the gem does not
 # declare it and sig/vendor.rbs reopens Connection to add it in both contexts.
 module Faraday
   def self.new: () ?{ (Connection) -> void } -> Connection

@@ -80,9 +80,7 @@ public class PetPassport {
     }
     return java.util.Objects.equals(this.pet, other.pet)
         && java.util.Arrays.equals(this.thumbnail, other.thumbnail)
-        && java.util.Arrays.deepEquals(
-            this.scans == null ? null : this.scans.toArray(),
-            other.scans == null ? null : other.scans.toArray())
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.scans, other.scans)
         && java.util.Objects.equals(this.issuedAt, other.issuedAt)
         && java.util.Arrays.equals(this.biometricChip, other.biometricChip);
   }
@@ -92,7 +90,7 @@ public class PetPassport {
     return java.util.Objects.hash(
         pet,
         java.util.Arrays.hashCode(thumbnail),
-        java.util.Arrays.deepHashCode(scans == null ? null : scans.toArray()),
+        com.example.petstore.ObjectSerializer.structuralHashCode(scans),
         issuedAt,
         java.util.Arrays.hashCode(biometricChip));
   }

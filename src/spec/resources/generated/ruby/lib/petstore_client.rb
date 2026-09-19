@@ -56,6 +56,7 @@ require 'petstore_client/client'
 # Models
 require 'petstore_client/models/api_response'
 require 'petstore_client/models/availability'
+require 'petstore_client/models/binary_vault'
 require 'petstore_client/models/category'
 require 'petstore_client/models/color'
 require 'petstore_client/models/defaults'

@@ -186,14 +186,14 @@ client = PetstoreClient::Client.new(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed attribute on the client (e.g., `client.pet_api`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 
 Models are generated as Ruby classes under the `PetstoreClient::Models` namespace.
 
 ```ruby
-pet = PetstoreClient::Models::Pet.new(name: 'Fido', status: 'available')
+model = PetstoreClient::Models::ApiResponse.new
 ```
 
 ## Binary / File Uploads

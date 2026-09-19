@@ -191,7 +191,7 @@ All API errors extend `ApiException`. The error hierarchy is:
 import com.example.petstore.errors.*;
 
 try {
-    var result = client.petApi.getPetById(petId);
+    var result = client.pet.addPet(request);
 } catch (NotFoundException e) {
     System.out.println("Not found: " + e.getMessage());
 } catch (ClientException e) {
@@ -220,18 +220,16 @@ var client = new Client(authenticator, transport);
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client. API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 
-Models are generated as Java classes with builder patterns. They are located in `com.example.petstore.api` and model packages.
+Models are generated as Java classes with builder patterns. They are located in the `com.example.petstore.models` package.
 
 ```java
-import com.example.petstore.models.*;
+import com.example.petstore.models.ApiResponse;
 
-var pet = new Pet();
-pet.setName("Fido");
-pet.setStatus("available");
+var model = new ApiResponse();
 ```
 
 ## Binary / File Uploads

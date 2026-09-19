@@ -162,9 +162,9 @@ All API errors are represented as exception structs. The error hierarchy is:
     - `InternalServerError` (500)
 
 ```elixir
-case PetstoreClient.Api.PetApi.get_pet_by_id(client.pet_api, pet_id) do
-  {:ok, pet} ->
-    IO.inspect(pet)
+case PetstoreClient.Api.PetApi.add_pet(client.pet) do
+  {:ok, result} ->
+    IO.inspect(result)
 
   {:error, %PetstoreClient.Errors.NotFoundError{} = e} ->
     IO.puts("Not found: #{e.message}")
@@ -192,14 +192,14 @@ client = PetstoreClient.Client.new(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client struct (e.g., `client.pet_api`). API modules have functions that correspond to OpenAPI operations, accepting the API struct and typed request parameters and returning `{:ok, result}` or `{:error, reason}` tuples.
+Each API group is exposed as a typed field on the client struct (e.g., `client.pet`). API modules have functions that correspond to OpenAPI operations, accepting the API struct and typed request parameters and returning `{:ok, result}` or `{:error, reason}` tuples.
 
 ## Models
 
 Models are generated as Elixir structs under the `PetstoreClient.Models` namespace.
 
 ```elixir
-pet = %PetstoreClient.Models.Pet{name: "Fido", status: "available"}
+model = %PetstoreClient.Models.ApiResponse{}
 ```
 
 ## Binary / File Uploads

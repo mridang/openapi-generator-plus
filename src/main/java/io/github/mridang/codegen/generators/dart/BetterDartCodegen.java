@@ -49,7 +49,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterDartCodegen.class);
 
-    protected String packageName = "petstore_client";
+    protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
 
     /**

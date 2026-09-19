@@ -181,7 +181,7 @@ from petstore_client.errors import (
 )
 
 try:
-    result = client.pet_api.get_pet_by_id(pet_id)
+    result = client.pet.add_pet(...)
 except NotFoundException as e:
     print(f"Not found: {e}")
 except ClientException as e:
@@ -211,16 +211,16 @@ client = Client(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed attribute on the client (e.g., `client.pet_api`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 
 Models are generated as Python dataclasses. They are located in `petstore_client.models`.
 
 ```python
-from petstore_client.models.pet import Pet
+from petstore_client.models.api_response import ApiResponse
 
-pet = Pet(name="Fido", status="available")
+model = ApiResponse()
 ```
 
 ## Binary / File Uploads

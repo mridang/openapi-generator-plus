@@ -202,7 +202,7 @@ import { ClientError } from './src/errors/client-error';
 import { ServerError } from './src/errors/server-error';
 
 try {
-  const result = await client.petApi.getPetById(petId);
+  const result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* ... */);
 } catch (error) {
   if (error instanceof NotFoundError) {
     console.log(`Not found: ${error.message}`);
@@ -240,11 +240,9 @@ All API methods return `Promise` values and should be used with `await`.
 Models are generated as TypeScript classes in the `src/models/` directory.
 
 ```typescript
-import { Pet } from './src/models/pet';
+{{#models}}{{#model}}{{#-first}}import { {{classname}} } from './src/models/{{classFilename}}{{importFileExtension}}';
 
-const pet = new Pet();
-pet.name = 'Fido';
-pet.status = 'available';
+const model = new {{classname}}();{{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

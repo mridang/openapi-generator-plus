@@ -181,9 +181,9 @@ All API errors are represented as exception structs. The error hierarchy is:
     - `InternalServerError` (500)
 
 ```elixir
-case {{moduleName}}.Api.PetApi.get_pet_by_id(client.pet_api, pet_id) do
-  {:ok, pet} ->
-    IO.inspect(pet)
+case {{moduleName}}.Api.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}(client.{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}) do
+  {:ok, result} ->
+    IO.inspect(result)
 
   {:error, %{{moduleName}}.Errors.NotFoundError{} = e} ->
     IO.puts("Not found: #{e.message}")
@@ -211,14 +211,14 @@ client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client struct (e.g., `client.pet_api`). API modules have functions that correspond to OpenAPI operations, accepting the API struct and typed request parameters and returning `{:ok, result}` or `{:error, reason}` tuples.
+Each API group is exposed as a typed field on the client struct (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API modules have functions that correspond to OpenAPI operations, accepting the API struct and typed request parameters and returning `{:ok, result}` or `{:error, reason}` tuples.
 
 ## Models
 
 Models are generated as Elixir structs under the `{{moduleName}}.Models` namespace.
 
 ```elixir
-pet = %{{moduleName}}.Models.Pet{name: "Fido", status: "available"}
+{{#models}}{{#model}}{{#-first}}model = %{{moduleName}}.Models.{{classname}}{}{{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

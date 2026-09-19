@@ -10,6 +10,7 @@
 # import models into model package
 from petstore_client.models.api_response import ApiResponse as ApiResponse
 from petstore_client.models.availability import Availability as Availability
+from petstore_client.models.binary_vault import BinaryVault as BinaryVault
 from petstore_client.models.category import Category as Category
 from petstore_client.models.color import Color as Color
 from petstore_client.models.defaults import Defaults as Defaults

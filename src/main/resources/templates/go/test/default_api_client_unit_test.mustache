@@ -436,9 +436,9 @@ func TestDefaultApiClient_DecodesIso88591ResponseBody(t *testing.T) {
 func TestDefaultApiClient_DecodesBomlessUtf16AsBigEndian(t *testing.T) {
 	t.Parallel()
 	/* A BOM-less utf-16 body must decode as big-endian per RFC 2781. The
-	 * bytes below are "Pet" in UTF-16BE with no byte-order mark; decoded
-	 * little-endian they would yield CJK code points, not "Pet". */
-	bigEndian := []byte{0x00, 0x50, 0x00, 0x65, 0x00, 0x74}
+	 * bytes below are "Tag" in UTF-16BE with no byte-order mark; decoded
+	 * little-endian they would yield CJK code points, not "Tag". */
+	bigEndian := []byte{0x00, 0x54, 0x00, 0x61, 0x00, 0x67}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-16")
 		w.WriteHeader(200)
@@ -451,13 +451,13 @@ func TestDefaultApiClient_DecodesBomlessUtf16AsBigEndian(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.Body != "Pet" {
-		t.Errorf("expected BOM-less utf-16 to decode big-endian to \"Pet\", got %q", resp.Body)
+	if resp.Body != "Tag" {
+		t.Errorf("expected BOM-less utf-16 to decode big-endian to \"Tag\", got %q", resp.Body)
 	}
 	/* Prove the byte order matters: the same bytes read little-endian must
-	 * not equal "Pet", so a default of utf-16le would fail this test. */
-	if le := decodeUtf16(bigEndian, false); le == "Pet" {
-		t.Errorf("expected little-endian decode of big-endian bytes to differ from \"Pet\", got %q", le)
+	 * not equal "Tag", so a default of utf-16le would fail this test. */
+	if le := decodeUtf16(bigEndian, false); le == "Tag" {
+		t.Errorf("expected little-endian decode of big-endian bytes to differ from \"Tag\", got %q", le)
 	}
 }
 
@@ -681,9 +681,9 @@ func TestDefaultApiClient_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.
 
 func TestDefaultApiClient_BuildFilenameDirectiveAsciiOnlyOmitsFilenameStar(t *testing.T) {
 	t.Parallel()
-	directive := buildFilenameDirective("pet.png")
-	if directive != `filename="pet.png"` {
-		t.Errorf("expected filename=\"pet.png\", got: %q", directive)
+	directive := buildFilenameDirective("file.png")
+	if directive != `filename="file.png"` {
+		t.Errorf("expected filename=\"file.png\", got: %q", directive)
 	}
 	if strings.Contains(directive, "filename*=") {
 		t.Errorf("ASCII-only filename must not emit filename*=, got: %q", directive)
@@ -705,7 +705,7 @@ func TestDefaultApiClient_ValidateMultipartFilenameRejectsCRLF(t *testing.T) {
 			t.Errorf("expected error for filename %q", bad)
 		}
 	}
-	if err := validateMultipartFilename("pet.png"); err != nil {
+	if err := validateMultipartFilename("file.png"); err != nil {
 		t.Errorf("ASCII filename must be accepted, got: %v", err)
 	}
 }

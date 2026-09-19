@@ -31,8 +31,9 @@ import kotlinx.serialization.UseSerializers
  * Instead this is a wrapper holding the resolved variant in [actualInstance],
  * with a hand-written serializer that dispatches on the
  * `foodType` discriminator property — mirroring the
- * other SDKs (e.g. Swift's PetFood, which switches on the discriminator and
- * decodes the matching concrete type). [ObjectSerializer.serialize] unwraps
+ * other SDKs (e.g. the Swift generator's discriminated-union enum, which
+ * switches on the discriminator and decodes the matching concrete type).
+ * [ObjectSerializer.serialize] unwraps
  * [actualInstance] via reflection, so serialization of the bare variant works
  * the same way it does for non-discriminated unions.
  */

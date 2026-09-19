@@ -821,9 +821,16 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 final boolean array = dataType.startsWith("Array<");
                 final boolean listByteArray =
                         dataType.startsWith("List<") && dataType.contains("ByteArray");
+                // A MAP whose values are byte arrays needs the same treatment as a
+                // list of them. Kotlin's Map.equals compares values with ==, which
+                // for ByteArray is identity, so two maps holding equal bytes under
+                // equal keys would compare unequal. Compare per key instead.
+                final boolean mapByteArray =
+                        dataType.startsWith("Map<") && dataType.contains("ByteArray");
                 prop.vendorExtensions.put("eqByteArray", byteArray || array);
                 prop.vendorExtensions.put("eqListByteArray", listByteArray);
-                if (byteArray || array || listByteArray) {
+                prop.vendorExtensions.put("eqMapByteArray", mapByteArray);
+                if (byteArray || array || listByteArray || mapByteArray) {
                     hasContentEqualsField = true;
                 }
             }

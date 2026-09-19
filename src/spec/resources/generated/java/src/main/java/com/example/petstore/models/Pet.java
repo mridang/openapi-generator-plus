@@ -217,10 +217,10 @@ public class Pet {
     return java.util.Objects.equals(this.id, other.id)
         && java.util.Objects.equals(this.name, other.name)
         && java.util.Objects.equals(this.category, other.category)
-        && java.util.Objects.equals(this.photoUrls, other.photoUrls)
-        && java.util.Objects.equals(this.tags, other.tags)
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.photoUrls, other.photoUrls)
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.tags, other.tags)
         && java.util.Objects.equals(this.status, other.status)
-        && java.util.Objects.equals(this.location, other.location)
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.location, other.location)
         && java.util.Objects.equals(this.homepageUrl, other.homepageUrl)
         && java.util.Objects.equals(this.thumbnailRef, other.thumbnailRef)
         && java.util.Objects.equals(this.linkTemplate, other.linkTemplate)
@@ -234,10 +234,10 @@ public class Pet {
         id,
         name,
         category,
-        photoUrls,
-        tags,
+        com.example.petstore.ObjectSerializer.structuralHashCode(photoUrls),
+        com.example.petstore.ObjectSerializer.structuralHashCode(tags),
         status,
-        location,
+        com.example.petstore.ObjectSerializer.structuralHashCode(location),
         homepageUrl,
         thumbnailRef,
         linkTemplate,

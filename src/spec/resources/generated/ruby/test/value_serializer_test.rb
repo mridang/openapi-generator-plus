@@ -436,7 +436,7 @@ describe PetstoreClient::ValueSerializer do
 
     it 'empty string path param raises ArgumentError' do
       # Gap W — empty-string path values silently produce malformed
-      # URLs like `/pet//details`; reject at serialization time so
+      # URLs like `/resource//details`; reject at serialization time so
       # callers see the real error rather than a downstream 404.
       _(-> {
         PetstoreClient::ValueSerializer.serialize_styled('id', '', :path, 'string', nil, 'simple', false)

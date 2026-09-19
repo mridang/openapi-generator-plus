@@ -18,6 +18,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.BinaryVault",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Category",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,

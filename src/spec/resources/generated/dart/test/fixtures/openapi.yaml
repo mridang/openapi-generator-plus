@@ -1741,6 +1741,34 @@ components:
       additionalProperties:
         type: string
 
+    # Gap BE — byte-array equality shapes. A model's generated equality must
+    # compare byte arrays by CONTENT, never by reference, and must distinguish a
+    # LIST of byte arrays from a MAP of them: deep-array comparison takes a
+    # collection, so applying it to a map is a compile error in some languages.
+    # petstore previously had a bare byte[] and an array-of-byte REQUEST body but
+    # no model carrying these as properties, and no map-of-bytes at all, so the
+    # map branch was never rendered. Exercised by the generated-client equality
+    # test in each language.
+    BinaryVault:
+      type: object
+      properties:
+        seal:
+          description: A bare byte array; equality compares its contents.
+          type: string
+          format: byte
+        shards:
+          description: A list of byte arrays; equality compares element contents.
+          type: array
+          items:
+            type: string
+            format: byte
+        labels:
+          description: A map of byte arrays; equality compares each value's contents.
+          type: object
+          additionalProperties:
+            type: string
+            format: byte
+
     # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 strict-mode. Deserializers must
     # reject any JSON key not declared here (or inherited via allOf). Used by the
     # generated-client extra-key-rejection test in each language.

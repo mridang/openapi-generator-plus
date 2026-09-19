@@ -7,6 +7,7 @@
 
 export * from "./api-response.js";
 export * from "./availability.js";
+export * from "./binary-vault.js";
 export * from "./category.js";
 export * from "./color.js";
 export * from "./defaults.js";

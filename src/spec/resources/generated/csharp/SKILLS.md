@@ -173,7 +173,7 @@ using PetstoreClient.Errors;
 
 try
 {
-    var result = await client.PetApi.GetPetByIdAsync(petId);
+    var result = await client.Pet.AddPetAsync(/* parameters */);
 }
 catch (NotFoundException e)
 {
@@ -210,7 +210,7 @@ The client implements `IDisposable`. Use `using` statements or call `Dispose()` 
 
 ## API Methods
 
-Each API group is exposed as a typed property on the client (e.g., `client.PetApi`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed property on the client (e.g., `client.Pet`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 All API methods are async and return `Task<T>`. Use `await` to invoke them.
 
@@ -221,11 +221,7 @@ Models are generated as C# classes under the `PetstoreClient.Models` namespace.
 ```csharp
 using PetstoreClient.Models;
 
-var pet = new Pet
-{
-    Name = "Fido",
-    Status = "available"
-};
+var model = new ApiResponse();
 ```
 
 ## Binary / File Uploads

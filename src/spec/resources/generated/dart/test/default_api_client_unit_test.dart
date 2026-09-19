@@ -864,16 +864,16 @@ void main() {
 
     /* utf16-no-bom-big-endian: a charset=utf-16 response body WITHOUT a
      * byte-order mark must default to big-endian (RFC 2781), uniformly
-     * with the other 11 SDKs. The bytes 00 50 00 65 00 74 are "Pet" when
-     * read big-endian; read little-endian they would decode to U+5000
-     * U+6500 U+7400 instead, so a correct decode proves the byte order. */
+     * with the other 11 SDKs. The bytes 00 54 00 61 00 67 are "Tag" when
+     * read big-endian; read little-endian they would decode to U+5400
+     * U+6100 U+6700 instead, so a correct decode proves the byte order. */
     test('decodes a BOM-less charset=utf-16 body as big-endian', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      // UTF-16BE for "Pet", no BOM.
+      // UTF-16BE for "Tag", no BOM.
       final payload = <int>[
-        0x00, 0x50, // P
-        0x00, 0x65, // e
-        0x00, 0x74, // t
+        0x00, 0x54, // T
+        0x00, 0x61, // a
+        0x00, 0x67, // g
       ];
       server.listen((request) {
         request.response
@@ -892,12 +892,12 @@ void main() {
           null,
         );
         expect(resp.statusCode, equals(200));
-        expect(resp.body, equals('Pet'));
+        expect(resp.body, equals('Tag'));
         // Prove the big-endian choice: the same bytes read little-endian
-        // would not yield "Pet".
+        // would not yield "Tag".
         expect(
           resp.body,
-          isNot(equals(String.fromCharCodes(<int>[0x5000, 0x6500, 0x7400]))),
+          isNot(equals(String.fromCharCodes(<int>[0x5400, 0x6100, 0x6700]))),
         );
       } finally {
         await server.close();
@@ -1068,8 +1068,8 @@ void main() {
     });
 
     test('ASCII-only multipart filename omits filename*', () {
-      final directive = buildFilenameDirective('pet.png');
-      expect(directive, equals('filename="pet.png"'));
+      final directive = buildFilenameDirective('file.png');
+      expect(directive, equals('filename="file.png"'));
       expect(directive, isNot(contains('filename*=')));
     });
 
@@ -1092,7 +1092,7 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
       // ASCII filename does not throw.
-      validateMultipartFilename('pet.png');
+      validateMultipartFilename('file.png');
     });
 
     test('rejects multipart filename containing NUL', () {

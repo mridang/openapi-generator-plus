@@ -186,8 +186,8 @@ All API errors are represented by the `ApiError` enum. The error hierarchy is:
 ```rust
 use petstore::errors::*;
 
-match client.pet_api.get_pet_by_id(pet_id).await {
-    Ok(pet) => println!("Found: {:?}", pet),
+match client.pet.add_pet(/* params */).await {
+    Ok(value) => println!("Found: {:?}", value),
     Err(ApiError::NotFound(e)) => println!("Not found: {}", e),
     Err(ApiError::Client(e)) => println!("Client error {}: {}", e.status_code(), e),
     Err(ApiError::Server(e)) => println!("Server error: {}", e),
@@ -213,7 +213,7 @@ let client = Client::new(Box::new(authenticator), Some(transport));
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client struct (e.g., `client.pet_api`). API structs have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning `Result<T, ApiError>`.
+Each API group is exposed as a typed field on the client struct (e.g., `client.pet`). API structs have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning `Result<T, ApiError>`.
 
 All API methods are async and should be called with `.await`.
 
@@ -222,11 +222,9 @@ All API methods are async and should be called with `.await`.
 Models are generated as Rust structs with `serde::Serialize` and `serde::Deserialize` derives in the `models` module.
 
 ```rust
-use petstore::models::Pet;
+use petstore::models::ApiResponse;
 
-let pet = Pet {
-    name: "Fido".to_string(),
-    status: Some("available".to_string()),
+let model = ApiResponse {
     ..Default::default()
 };
 ```

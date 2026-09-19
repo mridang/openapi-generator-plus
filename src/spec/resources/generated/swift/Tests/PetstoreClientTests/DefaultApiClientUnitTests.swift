@@ -345,19 +345,20 @@
 
     // MARK: - Cross-cutting parity: model part uses configured serializer
 
-    // A multipart/form-data body that includes a MODEL part (the addPetPhotos
-    // metadata) must serialise that part through the SDK's CONFIGURED
-    // ObjectSerializer, so the JSON uses WIRE property names (isPrimary,
-    // takenAt — NOT snake_case is_primary/taken_at) and the SDK's date-time
-    // format. This guards the model-part branch of appendMultipartField against
-    // a regression to JSONSerialization (which would crash on a struct) or any
-    // alternate encoder that disagrees on key names or date encoding.
+    // A multipart/form-data body that includes a MODEL part must serialise that
+    // part through the SDK's CONFIGURED ObjectSerializer, so the JSON uses WIRE
+    // property names (isPrimary, takenAt — NOT snake_case is_primary/taken_at)
+    // and the SDK's date-time format. This guards the model-part branch of
+    // appendMultipartField against a regression to JSONSerialization (which
+    // would crash on a struct) or any alternate encoder that disagrees on key
+    // names or date encoding. The part is a local Codable stand-in so the test
+    // exercises the branch without depending on any model in the spec.
     @Test func testMultipartModelPartUsesWireNamesAndDateFormat() throws {
       let parser = ISO8601DateFormatter()
       parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
       let instant = parser.date(from: "2020-01-02T03:04:05.123Z")!
 
-      let metadata = PhotoMetadata(isPrimary: true, takenAt: instant)
+      let metadata = MultipartModelPartFixture(isPrimary: true, takenAt: instant)
       let formParts: [String: Any] = ["metadata": metadata]
       let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
       let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -431,22 +432,22 @@
     }
 
     /// A BOM-less `utf-16` body must decode as big-endian per RFC 2781.
-    /// The bytes 00 50 00 65 00 74 are "Pet" in UTF-16BE; the same bytes
+    /// The bytes 00 4B 00 65 00 79 are "Key" in UTF-16BE; the same bytes
     /// read little-endian would be a different (CJK) string, so a correct
     /// decode proves the big-endian choice rather than the host default.
     @Test func testBareUtf16DecodesBigEndianWithoutBom() async throws {
-      let bigEndianPetBytes = Data([0x00, 0x50, 0x00, 0x65, 0x00, 0x74])
+      let bigEndianBytes = Data([0x00, 0x4B, 0x00, 0x65, 0x00, 0x79])
       let client = makeClient { _ in
-        (bigEndianPetBytes, 200, ["Content-Type": "text/plain; charset=utf-16"])
+        (bigEndianBytes, 200, ["Content-Type": "text/plain; charset=utf-16"])
       }
       let resp = try await client.sendRequest(
         method: "GET", url: "http://localhost/utf16", headers: [:], body: nil)
       #expect(
-        resp.body == "Pet", "BOM-less utf-16 must decode as big-endian to 'Pet', got: \(resp.body)")
-      /* Sanity: the same bytes read little-endian would NOT be "Pet". */
-      let littleEndian = String(data: bigEndianPetBytes, encoding: .utf16LittleEndian)
+        resp.body == "Key", "BOM-less utf-16 must decode as big-endian to 'Key', got: \(resp.body)")
+      /* Sanity: the same bytes read little-endian would NOT be "Key". */
+      let littleEndian = String(data: bigEndianBytes, encoding: .utf16LittleEndian)
       #expect(
-        littleEndian != "Pet",
+        littleEndian != "Key",
         "little-endian reading of the BE bytes must differ, proving the BE choice")
     }
 
@@ -638,6 +639,17 @@
         _ = try DefaultApiClient(transportOptions: transport)
       }
     }
+  }
+
+  // MARK: - Model-part stand-in for multipart unit tests
+
+  /// A Codable stand-in for a generated model used as a multipart part. Its
+  /// stored properties carry camelCase WIRE names, exactly as generated models
+  /// do, so the multipart model-part branch can be exercised without referring
+  /// to any model that happens to exist in the spec being generated.
+  private struct MultipartModelPartFixture: Codable {
+    let isPrimary: Bool
+    let takenAt: Date
   }
 
   // MARK: - URL Protocol stub for unit tests

@@ -161,8 +161,9 @@ enum class {{classname}}(val value: String) {
  * Instead this is a wrapper holding the resolved variant in [actualInstance],
  * with a hand-written serializer that dispatches on the
  * `{{discriminator.propertyBaseName}}` discriminator property — mirroring the
- * other SDKs (e.g. Swift's PetFood, which switches on the discriminator and
- * decodes the matching concrete type). [ObjectSerializer.serialize] unwraps
+ * other SDKs (e.g. the Swift generator's discriminated-union enum, which
+ * switches on the discriminator and decodes the matching concrete type).
+ * [ObjectSerializer.serialize] unwraps
  * [actualInstance] via reflection, so serialization of the bare variant works
  * the same way it does for non-discriminated unions.
  */
@@ -838,9 +839,26 @@ class {{classname}}(
     }
 {{/required}}
 {{/vendorExtensions.eqListByteArray}}
+{{#vendorExtensions.eqMapByteArray}}
+{{#required}}
+    if ({{name}}.keys != other.{{name}}.keys) return false
+    if (!{{name}}.all { (k, v) -> v.contentEquals(other.{{name}}[k]) }) return false
+{{/required}}
+{{^required}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if ({{name}}.keys != other.{{name}}!!.keys) return false
+      if (!{{name}}.all { (k, v) -> v.contentEquals(other.{{name}}!![k]) }) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/required}}
+{{/vendorExtensions.eqMapByteArray}}
 {{^vendorExtensions.eqByteArray}}
 {{^vendorExtensions.eqListByteArray}}
+{{^vendorExtensions.eqMapByteArray}}
     if ({{name}} != other.{{name}}) return false
+{{/vendorExtensions.eqMapByteArray}}
 {{/vendorExtensions.eqListByteArray}}
 {{/vendorExtensions.eqByteArray}}
 {{/vars}}
@@ -866,14 +884,25 @@ class {{classname}}(
     result = 31 * result + ({{name}}?.fold(0) { acc, e -> 31 * acc + e.contentHashCode() } ?: 0)
 {{/required}}
 {{/vendorExtensions.eqListByteArray}}
+{{#vendorExtensions.eqMapByteArray}}
+{{! XOR the per-entry hashes so the result does not depend on map order. }}
+{{#required}}
+    result = 31 * result + {{name}}.entries.fold(0) { acc, e -> acc xor (e.key.hashCode() * 31 + e.value.contentHashCode()) }
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.entries?.fold(0) { acc, e -> acc xor (e.key.hashCode() * 31 + e.value.contentHashCode()) } ?: 0)
+{{/required}}
+{{/vendorExtensions.eqMapByteArray}}
 {{^vendorExtensions.eqByteArray}}
 {{^vendorExtensions.eqListByteArray}}
+{{^vendorExtensions.eqMapByteArray}}
 {{#required}}
     result = 31 * result + {{name}}.hashCode()
 {{/required}}
 {{^required}}
     result = 31 * result + ({{name}}?.hashCode() ?: 0)
 {{/required}}
+{{/vendorExtensions.eqMapByteArray}}
 {{/vendorExtensions.eqListByteArray}}
 {{/vendorExtensions.eqByteArray}}
 {{/vars}}

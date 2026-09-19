@@ -44,7 +44,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterGoCodegen.class);
 
-    protected String packageName = "petstore";
+    protected String packageName = "openapiclient";
     protected String packageVersion = "1.0.0";
 
     /**

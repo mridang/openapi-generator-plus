@@ -343,7 +343,7 @@ class DefaultApiClient internal constructor(
                 )
             }
             body is ByteArray -> {
-                // A type:string format:binary request body (e.g. setPetAvatar
+                // A type:string format:binary request body (e.g. an upload
                 // with image/jpeg) must stream the raw bytes unchanged and keep
                 // the DECLARED Content-Type. Do NOT force application/octet-stream
                 // here -- that would discard the caller's declared media type

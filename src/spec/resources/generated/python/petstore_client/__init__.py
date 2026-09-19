@@ -25,6 +25,7 @@ __all__ = [
     "ApiException",
     "ApiResponse",
     "Availability",
+    "BinaryVault",
     "Category",
     "Color",
     "Defaults",
@@ -79,6 +80,9 @@ from petstore_client.models.api_response import (
 )
 from petstore_client.models.availability import (
     Availability as Availability,
+)
+from petstore_client.models.binary_vault import (
+    BinaryVault as BinaryVault,
 )
 from petstore_client.models.category import (
     Category as Category,

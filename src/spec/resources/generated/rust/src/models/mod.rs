@@ -10,6 +10,8 @@ mod availability;
 pub use availability::*;
 mod base64_serde;
 pub use base64_serde::*;
+mod binary_vault;
+pub use binary_vault::*;
 mod category;
 pub use category::*;
 mod color;

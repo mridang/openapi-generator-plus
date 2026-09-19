@@ -189,7 +189,7 @@ import com.example.petstore.ApiException
 import com.example.petstore.errors.*
 
 try {
-    val result = client.petApi.getPetById(petId)
+    val result = client.pet.addPet(/* parameters */)
 } catch (e: NotFoundException) {
     println("Not found: ${e.message}")
 } catch (e: ClientException) {
@@ -227,7 +227,7 @@ Models are generated as Kotlin data classes. They are located in the `com.exampl
 ```kotlin
 import com.example.petstore.models.*
 
-val pet = Pet(name = "Fido", status = "available")
+val model = ApiResponse(/* properties */)
 ```
 
 ## Binary / File Uploads

@@ -196,7 +196,7 @@ All API errors extend `ApiError`. The error hierarchy is:
 
 ```dart
 try {
-  final pet = await client.petApi.getPetById(petId: petId);
+  final result = await client.pet.addPet(/* parameters */);
 } on NotFoundError catch (e) {
   print('Not found: $e');
 } on ClientError catch (e) {
@@ -226,7 +226,7 @@ final client = Client(
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client (e.g., `client.petApi`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 All API methods return `Future<T>` and should be used with `await`.
 
@@ -235,7 +235,7 @@ All API methods return `Future<T>` and should be used with `await`.
 Models are generated as Dart classes in the `models` directory.
 
 ```dart
-final pet = Pet(name: 'Fido', status: 'available');
+final model = ApiResponse(/* properties */);
 ```
 
 ## Binary / File Uploads

@@ -82,11 +82,12 @@ public class StockItem {
     }
     return java.util.Objects.equals(this.priority, other.priority)
         && java.util.Objects.equals(this.availability, other.availability)
-        && java.util.Objects.equals(this.matrix, other.matrix);
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.matrix, other.matrix);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(priority, availability, matrix);
+    return java.util.Objects.hash(
+        priority, availability, com.example.petstore.ObjectSerializer.structuralHashCode(matrix));
   }
 }

@@ -223,6 +223,8 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 #[cfg(test)]
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
+    /* Model-typed cases below are fixture-spec specific and are emitted only
+     * for the generator's own golden suite, never for a real client SDK. */
     use crate::models::Category;
     use crate::models::Pet;
     use crate::models::{DryFood, PetFood, WetFood};
@@ -232,7 +234,7 @@ mod tests {
         let mut input = serde_json::Map::new();
         input.insert(
             "name".to_string(),
-            serde_json::Value::String("Fido".to_string()),
+            serde_json::Value::String("example".to_string()),
         );
         input.insert("age".to_string(), serde_json::json!(3));
 
@@ -242,17 +244,17 @@ mod tests {
 
         let parsed: serde_json::Value =
             serde_json::from_str(&data).expect("failed to parse serialized JSON");
-        assert_eq!(parsed["name"], "Fido");
+        assert_eq!(parsed["name"], "example");
     }
 
     #[test]
     fn test_deserialize_json_to_map() {
-        let input = br#"{"name":"Fido","age":3}"#;
+        let input = br#"{"name":"example","age":3}"#;
 
         let result: serde_json::Value = object_serializer::deserialize(input)
             .expect("unexpected deserialization error")
             .expect("expected Some value");
-        assert_eq!(result["name"], "Fido");
+        assert_eq!(result["name"], "example");
     }
 
     #[test]

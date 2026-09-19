@@ -41,9 +41,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterElixirCodegen.class);
 
-    protected String packageName = "petstore_client";
+    protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
-    protected String moduleName = "PetstoreClient";
+    protected String moduleName = "OpenApiClient";
 
     /**
      * Initializes type mappings, template paths, and reserved
@@ -681,9 +681,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
      * position (e.g. {@code Category}, {@code [Tag]}, {@code Order}). A bare
      * alias is not a valid type — Elixir's compiler and Dialyzer flag it as an
      * undefined/unknown type. This lambda rewrites any bare model alias into the
-     * fully-qualified struct type {@code PetstoreClient.Models.<Name>.t()},
+     * fully-qualified struct type {@code <ModuleName>.Models.<Name>.t()},
      * recursing through list wrappers ({@code [Tag]} becomes
-     * {@code [PetstoreClient.Models.Tag.t()]}). Stdlib/primitive descriptors
+     * {@code [<ModuleName>.Models.Tag.t()]}). Stdlib/primitive descriptors
      * (anything already carrying {@code (}, a {@code %{...}} map, {@code nil},
      * or {@code term()}) pass through unchanged so {@code integer()},
      * {@code String.t()}, {@code DateTime.t()}, {@code MapSet.t(...)},

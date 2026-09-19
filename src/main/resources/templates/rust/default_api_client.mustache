@@ -851,7 +851,11 @@ mod tests {
         validate_multipart_filename, SENSITIVE_HEADER_NAMES,
     };
     use crate::api_client::MultipartValue;
+{{#generateTests}}
+    /* Model-typed cases below are fixture-spec specific and are emitted only
+     * for the generator's own golden suite, never for a real client SDK. */
     use crate::models::PhotoMetadata;
+{{/generateTests}}
     use crate::object_serializer;
 
     // ── HTTPS->HTTP body-replay predicate (Gap 3.3) ──
@@ -1005,6 +1009,7 @@ mod tests {
         );
     }
 
+{{#generateTests}}
     // ── multipart-model-part-serialized-through-configured-serializer ──
     //
     // Cross-SDK parity: the addPetPhotos operation sends a multipart/form-data
@@ -1095,6 +1100,7 @@ mod tests {
             body_str
         );
     }
+{{/generateTests}}
 
     // ── multipart-non-ascii-field-name-preserved-utf8 (behavior 5) ──
     //
@@ -1167,8 +1173,8 @@ mod tests {
 
     #[test]
     fn test_build_filename_directive_ascii_only_omits_filename_star() {
-        let directive = build_filename_directive("pet.png");
-        assert_eq!(directive, "filename=\"pet.png\"");
+        let directive = build_filename_directive("file.png");
+        assert_eq!(directive, "filename=\"file.png\"");
         assert!(
             !directive.contains("filename*="),
             "ASCII-only filename must not emit filename*=, got: {}",
@@ -1202,8 +1208,8 @@ mod tests {
     /// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
     #[test]
     fn test_multipart_filename_ascii_only_omits_filename_star() {
-        let directive = build_filename_directive("pet.png");
-        assert_eq!(directive, "filename=\"pet.png\"");
+        let directive = build_filename_directive("file.png");
+        assert_eq!(directive, "filename=\"file.png\"");
         assert!(!directive.contains("filename*="),
             "ASCII-only filename must not emit filename*=, got: {}", directive);
     }
@@ -1216,7 +1222,7 @@ mod tests {
         assert!(validate_multipart_filename("a\nb.pdf").is_err());
         assert!(validate_multipart_filename("a\r\nb.pdf").is_err());
         // ASCII filename is accepted.
-        assert!(validate_multipart_filename("pet.png").is_ok());
+        assert!(validate_multipart_filename("file.png").is_ok());
     }
 
     #[test]
@@ -1232,7 +1238,7 @@ mod tests {
             assert!(validate_multipart_filename(bad).is_err(),
                 "expected error for {:?}", bad);
         }
-        assert!(validate_multipart_filename("pet.png").is_ok());
+        assert!(validate_multipart_filename("file.png").is_ok());
     }
 
     /// W-new-2: multipart field-name validation must run on every branch (text
@@ -1321,33 +1327,33 @@ mod tests {
     #[test]
     fn test_decode_text_body_bare_utf16_no_bom_is_big_endian() {
         // RFC 2781: a UTF-16 body with no BOM defaults to BIG-ENDIAN.
-        // "Pet" as UTF-16BE without a BOM is 00 50 00 65 00 74.
-        let big_endian_bytes = [0x00, 0x50, 0x00, 0x65, 0x00, 0x74];
+        // "Tag" as UTF-16BE without a BOM is 00 54 00 61 00 67.
+        let big_endian_bytes = [0x00, 0x54, 0x00, 0x61, 0x00, 0x67];
         let decoded = decode_text_body(&big_endian_bytes, "text/plain; charset=utf-16");
-        assert_eq!(decoded, "Pet");
+        assert_eq!(decoded, "Tag");
 
-        // The same bytes read little-endian would NOT be "Pet" (they decode to
-        // U+5000 U+6500 U+7400), proving the big-endian choice is load-bearing.
+        // The same bytes read little-endian would NOT be "Tag" (they decode to
+        // U+5400 U+6100 U+6700), proving the big-endian choice is load-bearing.
         let (le, _, _) = encoding_rs::UTF_16LE.decode(&big_endian_bytes);
-        assert_ne!(le, "Pet");
+        assert_ne!(le, "Tag");
     }
 
     #[test]
     fn test_decode_text_body_utf16_honours_le_bom() {
         // A UTF-16LE BOM (FF FE) must override the big-endian default and
-        // select little-endian. "Pet" as UTF-16LE: 50 00 65 00 74 00.
-        let le_with_bom = [0xFF, 0xFE, 0x50, 0x00, 0x65, 0x00, 0x74, 0x00];
+        // select little-endian. "Tag" as UTF-16LE: 54 00 61 00 67 00.
+        let le_with_bom = [0xFF, 0xFE, 0x54, 0x00, 0x61, 0x00, 0x67, 0x00];
         let decoded = decode_text_body(&le_with_bom, "text/plain; charset=utf-16");
-        assert_eq!(decoded, "Pet");
+        assert_eq!(decoded, "Tag");
     }
 
     #[test]
     fn test_decode_text_body_utf16_honours_be_bom() {
         // A UTF-16BE BOM (FE FF) selects big-endian explicitly.
-        // "Pet" as UTF-16BE: FE FF 00 50 00 65 00 74.
-        let be_with_bom = [0xFE, 0xFF, 0x00, 0x50, 0x00, 0x65, 0x00, 0x74];
+        // "Tag" as UTF-16BE: FE FF 00 54 00 61 00 67.
+        let be_with_bom = [0xFE, 0xFF, 0x00, 0x54, 0x00, 0x61, 0x00, 0x67];
         let decoded = decode_text_body(&be_with_bom, "text/plain; charset=utf-16");
-        assert_eq!(decoded, "Pet");
+        assert_eq!(decoded, "Tag");
     }
 
     // ── Sensitive-header allowlist (Gap 3.1) ──

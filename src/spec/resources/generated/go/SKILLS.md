@@ -157,7 +157,7 @@ All API errors implement the error interface. The error hierarchy is:
 ```go
 import "petstore/pkg/errors"
 
-result, err := client.Pet.GetPetById(petId)
+result, err := client.Pet.AddPet(/* params */)
 if err != nil {
     var notFound *errors.NotFoundError
     var clientErr *errors.ClientError
@@ -196,10 +196,7 @@ Models are generated as Go structs in the `models` package.
 ```go
 import "petstore/pkg/models"
 
-pet := models.Pet{
-    Name:   "Fido",
-    Status: "available",
-}
+m := models.ApiResponse{}
 ```
 
 ## Binary / File Uploads

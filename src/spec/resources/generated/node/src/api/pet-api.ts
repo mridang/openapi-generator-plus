@@ -1817,7 +1817,8 @@ export class PetApi extends BaseApi {
      * only correct when multipart/form-data is the selected Content-Type.
      * For a binary single-part type (e.g. application/octet-stream) the wire
      * body must be the RAW bytes of the binary part, NOT a multipart envelope
-     * and NOT a base64 string — mirror setPetAvatar's raw-Buffer path. The
+     * and NOT a base64 string — mirror the raw-Buffer path taken by an
+     * operation whose body is a single binary part. The
      * transport decides multipart-vs-raw by inspecting the body's runtime
      * type (a plain object becomes multipart; a Buffer is sent verbatim), so
      * we hand it the Buffer directly when the caller did not pick multipart. */

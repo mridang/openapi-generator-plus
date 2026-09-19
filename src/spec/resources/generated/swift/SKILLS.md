@@ -178,7 +178,7 @@ All API errors conform to the `Error` protocol. The error hierarchy is:
 
 ```swift
 do {
-    let pet = try await client.petApi.getPetById(petId: petId)
+    let result = try await client.pet.addPet(/* parameters */)
 } catch let error as NotFoundError {
     print("Not found: \(error)")
 } catch let error as ClientError {
@@ -205,7 +205,7 @@ let client = Client(authenticator: authenticator, transportOptions: transport)
 
 ## API Methods
 
-Each API group is exposed as a typed property on the client (e.g., `client.petApi`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 All API methods are async and should be called with `try await`.
 
@@ -214,7 +214,7 @@ All API methods are async and should be called with `try await`.
 Models are generated as Swift structs conforming to `Codable` in the `Models` directory.
 
 ```swift
-let pet = Pet(name: "Fido", status: "available")
+let model = ApiResponse(/* properties */)
 ```
 
 ## Binary / File Uploads

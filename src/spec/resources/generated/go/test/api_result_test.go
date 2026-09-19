@@ -72,7 +72,7 @@ func TestApiResult_HoldsStructData(t *testing.T) {
 	}
 	data := payload{ID: 7, Name: "rex"}
 
-	result := petstore.NewApiResult[payload](201, &data, "", map[string]string{"Location": "/pets/7"})
+	result := petstore.NewApiResult[payload](201, &data, "", map[string]string{"Location": "/resources/7"})
 
 	if result.StatusCode != 201 {
 		t.Errorf("StatusCode = %d, want 201", result.StatusCode)
@@ -83,7 +83,7 @@ func TestApiResult_HoldsStructData(t *testing.T) {
 	if result.Data.ID != 7 || result.Data.Name != "rex" {
 		t.Errorf("Data = %+v, want {ID:7 Name:rex}", *result.Data)
 	}
-	if result.Headers["Location"] != "/pets/7" {
-		t.Errorf("Headers[Location] = %q, want %q", result.Headers["Location"], "/pets/7")
+	if result.Headers["Location"] != "/resources/7" {
+		t.Errorf("Headers[Location] = %q, want %q", result.Headers["Location"], "/resources/7")
 	}
 }

@@ -134,7 +134,7 @@ ktlint {
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
     // Bumped from 512m: the integration suite spawns one ktor HttpClient
-    // per test (24+ in PetApiTest alone) and 512m caused GC pauses long
+    // per test (24+ in a single API test class) and 512m caused GC pauses long
     // enough that ktor request timeouts surfaced as ConnectException.
     maxHeapSize = "1024m"
     // Run test classes in parallel JVM forks. Each fork is its own JVM
