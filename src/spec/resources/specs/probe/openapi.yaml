@@ -21,7 +21,11 @@ openapi: 3.0.3
 #     explicit `security: []`, so inherited and unauthenticated operations are
 #     told apart
 info:
-  title: Probe Fixture
+  # Ends in "SDK" on purpose. Templates append a suffix of their own, which
+  # reads correctly only while the title does not already end that way, and
+  # the petstore title does not — so "Zitadel SDK" shipped documents headed
+  # "Zitadel SDK SDK". See AppNameBaseTest and generatedDocsDoNotDoubleTheSdkSuffix.
+  title: Probe Fixture SDK
   description: A synthetic fixture used to police generator output. Not a real API.
   version: 1.0.0
 

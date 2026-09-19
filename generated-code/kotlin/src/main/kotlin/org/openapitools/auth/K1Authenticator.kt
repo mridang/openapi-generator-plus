@@ -1,3 +1,5 @@
+@file:Suppress("detekt:all")
+
 package org.openapitools.auth
 
 class K1Authenticator : ApiKeyAuthenticator {

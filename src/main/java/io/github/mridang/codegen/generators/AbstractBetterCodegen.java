@@ -603,6 +603,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public void processOpenAPI(OpenAPI openAPI) {
         super.processOpenAPI(openAPI);
+        additionalProperties.put(
+                "appNameBase",
+                appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         // Gap AZ — degrade OAS 3.1 `prefixItems` tuple arrays to plain
         // array-of-Object before the rest of the pipeline inspects schemas.
         // See NormalizePrefixItemsRule for the chosen cross-language strategy.
@@ -4568,6 +4571,33 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         decoratorMap(op.vendorExtensions, OP_DECORATOR_NS)
                 .put("securityNone", isSecurityNone(operation, openAPI));
         return op;
+    }
+
+    /**
+     * The document title with a trailing "SDK" removed, for the templates
+     * that append a suffix of their own.
+     *
+     * <p>Those templates write {@code {{appName}} SDK}, which reads correctly
+     * only while the title does not already end that way. Zitadel's title is
+     * "Zitadel SDK", so every generated document opened with "Zitadel SDK
+     * SDK". The fixture spec's title is "Swagger Petstore", which is why the
+     * suite never showed it.
+     *
+     * <p>Only a trailing "SDK" preceded by whitespace is removed, so a title
+     * that merely ends in those letters, such as "MySDK", is left alone. If
+     * the title is nothing but "SDK" the original is kept, there being no
+     * better answer than the caller's own suffix.
+     *
+     * @param title the document title, which may be null or absent
+     * @return the title without its trailing "SDK", or "" when there is none
+     */
+    static String appNameBase(@Nullable String title) {
+        if (title == null) {
+            return "";
+        }
+        final String trimmed = title.trim();
+        final String stripped = trimmed.replaceFirst("(?i)\\s+sdk$", "").trim();
+        return stripped.isEmpty() ? trimmed : stripped;
     }
 
     /**
