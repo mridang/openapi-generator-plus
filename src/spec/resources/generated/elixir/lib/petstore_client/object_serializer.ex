@@ -620,7 +620,7 @@ defmodule PetstoreClient.ObjectSerializer do
   # mismatch and must raise, not fall through to the model-name fallback
   # below (which would hand the value back raw). This is load-bearing for a
   # `oneOf` whose variants are a scalar and an array of the SAME leaf type
-  # (e.g. SetPetAvatarThumbnailRequest: oneOf [ format:byte, array of
+  # (e.g. a binary-upload request: oneOf [ format:byte, array of
   # format:byte ]). The codegen lists the array variant "[binary()]" first,
   # so a scalar base64 string is attempted against it before the scalar
   # "binary()" variant. Without this raise the array attempt returned the

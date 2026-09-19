@@ -159,7 +159,7 @@ All API errors inherit from `ApiError`. The error hierarchy is:
 
 ```ruby
 begin
-  result = client.pet_api.get_pet_by_id(pet_id)
+  result = client.pet.add_pet(request)
 rescue PetstoreClient::Errors::NotFoundError => e
   puts "Not found: #{e.message}"
 rescue PetstoreClient::Errors::ClientError => e

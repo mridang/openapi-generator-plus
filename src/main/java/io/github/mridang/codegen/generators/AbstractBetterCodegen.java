@@ -5481,6 +5481,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * never be silently swallowed into unformatted, non-deterministic output.
      */
     protected void runFormatterInDocker(String dockerImage, String... commands) {
+        // Opt-out for callers that only inspect the generated text and do not
+        // care how it is laid out — the fixture-vocabulary leak check generates
+        // all twelve SDKs purely to grep them, and paying for a formatter
+        // container each time would dominate its runtime for no benefit.
+        if (Boolean.parseBoolean(String.valueOf(additionalProperties.get("skipFormatter")))) {
+            return;
+        }
         final String workDir = getOutputDir();
         final String script = String.join(" && ", commands);
         final List<String> dockerCmd =

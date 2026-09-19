@@ -16,30 +16,30 @@ namespace Test;
 public class ValueSerializerTest
 {
     // -- enum parameters: must serialize the OpenAPI wire value, not the C#
-    //    member name (TestSwatch.Red -> "red", not "Red") --
+    //    member name (TestHue.Red -> "red", not "Red") --
 
     [Fact]
     public void EnumPathParameterSerializesWireValue()
     {
-        Assert.Equal("red", ValueSerializer.Serialize(TestSwatch.Red, "path", "TestSwatch"));
+        Assert.Equal("red", ValueSerializer.Serialize(TestHue.Red, "path", "TestHue"));
     }
 
     [Fact]
     public void EnumQueryParameterSerializesWireValue()
     {
-        Assert.Equal("blue", ValueSerializer.Serialize(TestSwatch.Blue, "query", "TestSwatch"));
+        Assert.Equal("blue", ValueSerializer.Serialize(TestHue.Blue, "query", "TestHue"));
     }
 
     [Fact]
     public void EnumHeaderParameterSerializesWireValue()
     {
-        Assert.Equal("green", ValueSerializer.Serialize(TestSwatch.Green, "header", "TestSwatch"));
+        Assert.Equal("green", ValueSerializer.Serialize(TestHue.Green, "header", "TestHue"));
     }
 
     [Fact]
     public void EnumStringifySerializesWireValue()
     {
-        Assert.Equal("red", ObjectSerializer.Stringify(TestSwatch.Red));
+        Assert.Equal("red", ObjectSerializer.Stringify(TestHue.Red));
     }
 
     // -- path location --
@@ -631,40 +631,40 @@ public class ValueSerializerTest
 /// its OpenAPI wire string, which is what ObjectSerializer.Stringify round-trips
 /// through.
 /// </summary>
-[System.Text.Json.Serialization.JsonConverter(typeof(TestSwatchConverter))]
-public enum TestSwatch
+[System.Text.Json.Serialization.JsonConverter(typeof(TestHueConverter))]
+public enum TestHue
 {
     Red,
     Blue,
     Green,
 }
 
-internal sealed class TestSwatchConverter : System.Text.Json.Serialization.JsonConverter<TestSwatch>
+internal sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
 {
-    public override TestSwatch Read(
+    public override TestHue Read(
         ref System.Text.Json.Utf8JsonReader reader,
         Type typeToConvert,
         System.Text.Json.JsonSerializerOptions options)
     {
         return reader.GetString() switch
         {
-            "red" => TestSwatch.Red,
-            "blue" => TestSwatch.Blue,
-            "green" => TestSwatch.Green,
+            "red" => TestHue.Red,
+            "blue" => TestHue.Blue,
+            "green" => TestHue.Green,
             _ => throw new System.Text.Json.JsonException(),
         };
     }
 
     public override void Write(
         System.Text.Json.Utf8JsonWriter writer,
-        TestSwatch value,
+        TestHue value,
         System.Text.Json.JsonSerializerOptions options)
     {
         writer.WriteStringValue(value switch
         {
-            TestSwatch.Red => "red",
-            TestSwatch.Blue => "blue",
-            TestSwatch.Green => "green",
+            TestHue.Red => "red",
+            TestHue.Blue => "blue",
+            TestHue.Green => "green",
             _ => throw new System.Text.Json.JsonException(),
         });
     }
