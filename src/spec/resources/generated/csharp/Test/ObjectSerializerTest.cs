@@ -1368,4 +1368,93 @@ public class ObjectSerializerTest
             Assert.Equal(1.5m, parsed!.WeightKg);
         }
     }
+
+    public class ByteArrayEqualityTests
+    {
+        // Built fresh on every call, so each invocation hands back a vault
+        // whose arrays are distinct objects. That is the whole point:
+        // reference-identity comparison cannot pass the first test below.
+        private static BinaryVault VaultOf(
+            byte[]? seal = null,
+            List<byte[]>? shards = null,
+            Dictionary<string, byte[]>? labels = null)
+        {
+            return new BinaryVault
+            {
+                Seal = seal ?? new byte[] { 1, 2, 3 },
+                Shards = shards ?? new List<byte[]> { new byte[] { 4, 5 }, new byte[] { 6 } },
+                Labels = labels ?? new Dictionary<string, byte[]> { ["first"] = new byte[] { 7, 8 } },
+            };
+        }
+
+        // The generated properties are nullable (Dictionary<string, byte[]>?),
+        // so reading one back for an assertion needs a null check first.
+        // Assert rather than silently default: a null here would mean the
+        // fixture stopped populating the property and the test would be
+        // vacuous.
+        private static Dictionary<string, byte[]> LabelsOf(BinaryVault vault)
+        {
+            Assert.NotNull(vault.Labels);
+            return vault.Labels!;
+        }
+
+        [Fact]
+        public void EqualContentDistinctArraysCompareEqual()
+        {
+            var left = VaultOf();
+            var right = VaultOf();
+
+            // Every array in the two models is a separate object, so identity
+            // comparison would fail here on all three properties. This is the
+            // load-bearing case.
+            Assert.NotSame(left.Seal, right.Seal);
+            Assert.NotSame(LabelsOf(left)["first"], LabelsOf(right)["first"]);
+
+            Assert.Equal(left, right);
+            Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        }
+
+        [Fact]
+        public void DifferingBareArrayCompareUnequal()
+        {
+            var left = VaultOf();
+            var right = VaultOf(seal: new byte[] { 1, 2, 4 });
+
+            Assert.NotEqual(left, right);
+        }
+
+        [Fact]
+        public void DifferingListElementCompareUnequal()
+        {
+            var left = VaultOf();
+            var right = VaultOf(shards: new List<byte[]> { new byte[] { 4, 5 }, new byte[] { 9 } });
+
+            Assert.NotEqual(left, right);
+        }
+
+        [Fact]
+        public void DifferingMapValueCompareUnequal()
+        {
+            var left = VaultOf();
+            var right = VaultOf(labels: new Dictionary<string, byte[]> { ["first"] = new byte[] { 7, 9 } });
+
+            // Reference-identity comparison of the map values would call these
+            // EQUAL: the two dictionaries have the same key set, and a
+            // comparison that stopped at the byte[] reference never looks at
+            // the bytes. Only recursing into each value distinguishes them.
+            Assert.NotEqual(left, right);
+        }
+
+        [Fact]
+        public void DifferingMapKeyCompareUnequal()
+        {
+            var left = VaultOf();
+            var right = VaultOf(labels: new Dictionary<string, byte[]> { ["second"] = new byte[] { 7, 8 } });
+
+            // The complement of the case above: identical value bytes under a
+            // different key. A comparison that walked only the values (or that
+            // looked up by the WRONG dictionary's keys) would miss this.
+            Assert.NotEqual(left, right);
+        }
+    }
 }

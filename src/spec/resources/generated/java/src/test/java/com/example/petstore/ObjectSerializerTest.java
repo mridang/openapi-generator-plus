@@ -10,7 +10,9 @@ package com.example.petstore;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -1169,6 +1171,101 @@ class ObjectSerializerTest {
       assertNotNull(loc.lng);
       assertEquals(5.0, loc.lat);
       assertEquals(-3.0, loc.lng);
+    }
+  }
+
+  /*
+   * Byte-array equality across the three shapes a property can take. Java
+   * compares arrays by identity, so a model holding bytes would otherwise
+   * report two instances carrying the same content as unequal — and would
+   * misbehave as a map or set key. The MAP case is the one that regressed:
+   * the template once selected a deep-array comparison for it and emitted a
+   * Collection call on a Map, which did not compile; the fix that restored
+   * compilation then silently fell back to identity for the values.
+   *
+   * The fixture model carries all three deliberately: a bare byte[], a list
+   * of them, and a map of them.
+   */
+  @Nested
+  @DisplayName("generated equality compares array content, not identity")
+  class ByteArrayEquality {
+
+    private com.example.petstore.models.BinaryVault vaultWithFreshArrays() {
+      com.example.petstore.models.BinaryVault vault = new com.example.petstore.models.BinaryVault();
+      vault.seal = new byte[] {1, 2, 3};
+      vault.shards = List.of(new byte[] {4, 5}, new byte[] {6});
+      java.util.Map<String, byte[]> labels = new java.util.HashMap<>();
+      labels.put("first", new byte[] {7, 8});
+      vault.labels = labels;
+      return vault;
+    }
+
+    private java.util.Map<String, byte[]> labelsOf(com.example.petstore.models.BinaryVault vault) {
+      java.util.Map<String, byte[]> labels = vault.labels;
+      assertNotNull(labels, "fixture must populate labels");
+      return labels;
+    }
+
+    @Test
+    @DisplayName("instances holding equal content are equal though every array is distinct")
+    void equalContentDistinctArraysCompareEqual() {
+      com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
+      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
+
+      /* Every array in the two models is a separate object, so identity
+      comparison would fail here on all three properties. */
+      assertNotSame(left.seal, right.seal);
+      assertNotSame(labelsOf(left).get("first"), labelsOf(right).get("first"));
+
+      assertEquals(left, right, "models holding identical bytes must compare equal");
+      assertEquals(
+          left.hashCode(),
+          right.hashCode(),
+          "models that compare equal must hash equal, or they break as map keys");
+    }
+
+    @Test
+    @DisplayName("a differing byte in the bare array makes them unequal")
+    void differingBareArrayCompareUnequal() {
+      com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
+      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
+      right.seal = new byte[] {1, 2, 4};
+
+      assertNotEquals(left, right);
+    }
+
+    @Test
+    @DisplayName("a differing byte inside the list makes them unequal")
+    void differingListElementCompareUnequal() {
+      com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
+      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
+      right.shards = List.of(new byte[] {4, 5}, new byte[] {9});
+
+      assertNotEquals(left, right);
+    }
+
+    @Test
+    @DisplayName("a differing byte inside a map VALUE makes them unequal")
+    void differingMapValueCompareUnequal() {
+      com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
+      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
+      labelsOf(right).put("first", new byte[] {7, 9});
+
+      /* Identity comparison of map values would call these equal, since
+      the maps have the same keys and Objects.equals stops at the
+      array reference. */
+      assertNotEquals(left, right);
+    }
+
+    @Test
+    @DisplayName("a differing map KEY makes them unequal")
+    void differingMapKeyCompareUnequal() {
+      com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
+      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
+      labelsOf(right).remove("first");
+      labelsOf(right).put("second", new byte[] {7, 8});
+
+      assertNotEquals(left, right);
     }
   }
 }

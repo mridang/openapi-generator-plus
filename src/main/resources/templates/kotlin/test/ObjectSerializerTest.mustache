@@ -1202,4 +1202,114 @@ class ObjectSerializerTest {
             }
         }
     }
+
+    /*
+     * Byte-array equality across the three shapes a property can take. Kotlin's
+     * synthesized data-class equals/hashCode compare ByteArray by REFERENCE
+     * identity, and a List<ByteArray> bottoms out in reference-equal elements,
+     * so a model holding bytes would report two instances carrying the same
+     * content as unequal — and would misbehave as a map or set key. The
+     * generated overrides must route every byte-array shape through
+     * contentEquals/contentHashCode.
+     *
+     * The MAP case is the one that regressed: the template once selected the
+     * LIST branch for a map and emitted a Collection call (zip/size) on a Map,
+     * which did not compile; the fix that restored compilation then silently
+     * fell back to plain == on the values, i.e. reference identity again. A
+     * test that only covered the bare array and the list passed throughout
+     * both defects, which is why the map case is asserted explicitly below —
+     * both for a differing VALUE (content comparison) and a differing KEY (the
+     * map's own structural comparison).
+     *
+     * The fixture model carries all three deliberately: a bare ByteArray, a
+     * list of them, and a map of them.
+     */
+    @Nested
+    @DisplayName("generated equality compares array content, not identity")
+    inner class ByteArrayEquality {
+
+        // Default arguments are re-evaluated on every call, so each invocation
+        // hands back a vault whose arrays are FRESH objects. That is the whole
+        // point: identity comparison cannot pass the first test below.
+        private fun vaultOf(
+            seal: ByteArray = byteArrayOf(1, 2, 3),
+            shards: List<ByteArray> = listOf(byteArrayOf(4, 5), byteArrayOf(6)),
+            labels: Map<String, ByteArray> = mapOf("first" to byteArrayOf(7, 8)),
+        ): {{modelPackage}}.BinaryVault =
+            {{modelPackage}}.BinaryVault(seal = seal, shards = shards, labels = labels)
+
+        // The generated properties are nullable (`Map<String, ByteArray>?`),
+        // so reading one back for an assertion needs a null check first. Assert
+        // rather than silently default: a null here would mean the fixture
+        // stopped populating the property and the test below would be vacuous.
+        private fun labelsOf(vault: {{modelPackage}}.BinaryVault): Map<String, ByteArray> {
+            val labels = vault.labels
+            assertNotNull(labels, "fixture must populate labels")
+            return labels!!
+        }
+
+        @Test
+        @DisplayName("instances holding equal content are equal though every array is distinct")
+        fun equalContentDistinctArraysCompareEqual() {
+            val left = vaultOf()
+            val right = vaultOf()
+
+            // Every array in the two models is a separate object, so identity
+            // comparison would fail here on all three properties. This is the
+            // load-bearing case.
+            assertNotSame(left.seal, right.seal)
+            assertNotSame(labelsOf(left)["first"], labelsOf(right)["first"])
+
+            assertEquals(left, right, "models holding identical bytes must compare equal")
+            assertEquals(
+                left.hashCode(),
+                right.hashCode(),
+                "models that compare equal must hash equal, or they break as map keys",
+            )
+        }
+
+        @Test
+        @DisplayName("a differing byte in the bare array makes them unequal")
+        fun differingBareArrayCompareUnequal() {
+            val left = vaultOf()
+            val right = vaultOf(seal = byteArrayOf(1, 2, 4))
+
+            assertNotEquals(left, right)
+        }
+
+        @Test
+        @DisplayName("a differing byte inside the list makes them unequal")
+        fun differingListElementCompareUnequal() {
+            val left = vaultOf()
+            val right = vaultOf(shards = listOf(byteArrayOf(4, 5), byteArrayOf(9)))
+
+            assertNotEquals(left, right)
+        }
+
+        @Test
+        @DisplayName("a differing byte inside a map VALUE makes them unequal")
+        fun differingMapValueCompareUnequal() {
+            val left = vaultOf()
+            val right = vaultOf(labels = mapOf("first" to byteArrayOf(7, 9)))
+
+            // Reference-identity comparison of the map values would call these
+            // EQUAL: the two maps have the same key set, and Map's own equals
+            // compares values with ==, which for ByteArray stops at the array
+            // reference and never looks at the bytes. Only a per-value
+            // contentEquals distinguishes them.
+            assertNotEquals(left, right)
+        }
+
+        @Test
+        @DisplayName("a differing map KEY makes them unequal")
+        fun differingMapKeyCompareUnequal() {
+            val left = vaultOf()
+            val right = vaultOf(labels = mapOf("second" to byteArrayOf(7, 8)))
+
+            // The complement of the case above: identical value bytes under a
+            // different key. A comparison that walked only the values (or that
+            // looked up by the WRONG map's keys) would miss this.
+            assertNotEquals(left, right)
+        }
+    }
 }
