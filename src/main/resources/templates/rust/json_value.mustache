@@ -1,0 +1,93 @@
+{{>api_info}}
+
+use serde::{Deserialize, Serialize};
+
+/// `JsonValue` is the SDK-owned public wrapper for free-form ("any") JSON
+/// values that appear in the OpenAPI schema (schemas typed `object` with no
+/// declared properties, `additionalProperties`, or `AnyType`).
+///
+/// The crate's public API must never expose `serde_json` types directly (the
+/// same stance documented on [`crate::api_error::ApiError`], whose parsed
+/// `error_body` is kept crate-private precisely so a `serde_json::Value` AST
+/// does not leak into the public surface). `JsonValue` keeps the underlying
+/// `serde_json::Value` **private** so `serde_json` never appears in a public
+/// field or signature, while still round-tripping losslessly through serde and
+/// offering ergonomic accessors.
+///
+/// ```rust,no_run
+/// # use {{packageName}}::JsonValue;
+/// let v = JsonValue::from(serde_json::json!({ "key": "value" }));
+/// assert!(v.is_object());
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct JsonValue(serde_json::Value);
+
+impl JsonValue {
+    /// Creates a `JsonValue` wrapping the given `serde_json::Value`.
+    pub fn new(value: serde_json::Value) -> Self {
+        JsonValue(value)
+    }
+
+    /// Returns a `JsonValue` representing JSON `null`.
+    pub fn null() -> Self {
+        JsonValue(serde_json::Value::Null)
+    }
+
+    /// Parses a JSON string into a `JsonValue`.
+    pub fn from_json_str(s: &str) -> Result<Self, serde_json::Error> {
+        Ok(JsonValue(serde_json::from_str(s)?))
+    }
+
+    /// Serializes this value back to a JSON string.
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&self.0)
+    }
+
+    /// Returns `true` if the wrapped value is JSON `null`.
+    pub fn is_null(&self) -> bool {
+        self.0.is_null()
+    }
+
+    /// Returns `true` if the wrapped value is a JSON object.
+    pub fn is_object(&self) -> bool {
+        self.0.is_object()
+    }
+
+    /// Returns `true` if the wrapped value is a JSON array.
+    pub fn is_array(&self) -> bool {
+        self.0.is_array()
+    }
+
+    /// Returns the value as a string slice if it is a JSON string.
+    pub fn as_str(&self) -> Option<&str> {
+        self.0.as_str()
+    }
+
+    /// Returns the value as an `i64` if it is an integer JSON number.
+    pub fn as_i64(&self) -> Option<i64> {
+        self.0.as_i64()
+    }
+
+    /// Returns the value as an `f64` if it is a JSON number.
+    pub fn as_f64(&self) -> Option<f64> {
+        self.0.as_f64()
+    }
+
+    /// Returns the value as a `bool` if it is a JSON boolean.
+    pub fn as_bool(&self) -> Option<bool> {
+        self.0.as_bool()
+    }
+}
+
+impl From<serde_json::Value> for JsonValue {
+    fn from(value: serde_json::Value) -> Self {
+        JsonValue(value)
+    }
+}
+
+impl From<JsonValue> for serde_json::Value {
+    fn from(value: JsonValue) -> Self {
+        value.0
+    }
+}

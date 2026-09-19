@@ -1,0 +1,158 @@
+{{>api_info}}
+package errors
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+// ApiError represents an error returned by the API, including the HTTP status
+// code, response headers, and response body.
+//
+// Its state is immutable: fields are unexported and set once at construction
+// via NewApiError (or the typed-subclass factory NewTypedApiError). Callers
+// read the state through the getter methods, so an error value handed to one
+// caller can never be mutated out from under another.
+type ApiError struct {
+	statusCode      int
+	msg             string
+	responseBody    string
+	responseHeaders map[string]string
+	errorBody       any
+	cause           error
+}
+
+// NewApiError constructs an ApiError. The state is fixed at construction and
+// thereafter read-only via the getter methods.
+func NewApiError(statusCode int, msg, responseBody string, responseHeaders map[string]string, errorBody any, cause error) *ApiError {
+	return &ApiError{
+		statusCode:      statusCode,
+		msg:             msg,
+		responseBody:    responseBody,
+		responseHeaders: responseHeaders,
+		errorBody:       errorBody,
+		cause:           cause,
+	}
+}
+
+// StatusCode returns the HTTP status code, or 0 for a pre-response transport failure.
+func (e *ApiError) StatusCode() int {
+	return e.statusCode
+}
+
+// Msg returns the error message.
+func (e *ApiError) Msg() string {
+	return e.msg
+}
+
+// ResponseBody returns the raw response body.
+func (e *ApiError) ResponseBody() string {
+	return e.responseBody
+}
+
+// ResponseHeaders returns the response headers. nil indicates a pre-response
+// transport failure, distinct from an empty (but present) header set.
+func (e *ApiError) ResponseHeaders() map[string]string {
+	return e.responseHeaders
+}
+
+// ErrorBody returns the parsed response body, if JSON.
+func (e *ApiError) ErrorBody() any {
+	return e.errorBody
+}
+
+// Cause returns the underlying transport error, if any. Set when wrapping a
+// network failure so callers can drill down via errors.Unwrap or errors.Is.
+func (e *ApiError) Cause() error {
+	return e.cause
+}
+
+// Unwrap returns the underlying cause, enabling errors.Is / errors.As
+// to traverse the chain. Returns nil when ApiError was produced from a
+// non-wrapped failure (e.g. a non-2xx HTTP response).
+func (e *ApiError) Unwrap() error {
+	return e.cause
+}
+
+// Error implements the error interface.
+func (e *ApiError) Error() string {
+	msg := e.msg
+	if msg == "" {
+		msg = "Error message: the server returns an error"
+	}
+	if e.statusCode != 0 {
+		msg += fmt.Sprintf("\nHTTP status code: %d", e.statusCode)
+	}
+	if len(e.responseHeaders) > 0 {
+		msg += fmt.Sprintf("\nResponse headers: %v", e.responseHeaders)
+	}
+	if e.responseBody != "" {
+		msg += fmt.Sprintf("\nResponse body: %s", e.responseBody)
+	}
+	return msg
+}
+
+// TypedErrorBody deserializes the response body into the target value.
+func (e *ApiError) TypedErrorBody(target any) error {
+	if e.responseBody == "" {
+		return nil
+	}
+	return json.Unmarshal([]byte(e.responseBody), target)
+}
+
+// GetTypedErrorBody deserializes the response body into the given target value.
+// This is the canonical accessor for spec-declared error schemas — callers pass
+// a pointer to the typed struct they expect (e.g. `var e MyErrorBody;
+// apiErr.GetTypedErrorBody(&e)`).
+func (e *ApiError) GetTypedErrorBody(target any) error {
+	return e.TypedErrorBody(target)
+}
+
+// NewTypedApiError builds the most specific error type for the given HTTP
+// status code, sharing one immutable ApiError as the embedded base. 4xx codes
+// produce a *ClientError (or a recognised subclass); 5xx codes a *ServerError
+// (or a recognised subclass); anything else the bare *ApiError. The returned
+// value always satisfies the error interface and exposes the base state via the
+// promoted getters.
+func NewTypedApiError(statusCode int, msg, responseBody string, responseHeaders map[string]string, errorBody any, cause error) error {
+	base := ApiError{
+		statusCode:      statusCode,
+		msg:             msg,
+		responseBody:    responseBody,
+		responseHeaders: responseHeaders,
+		errorBody:       errorBody,
+		cause:           cause,
+	}
+
+	if statusCode >= 400 && statusCode < 500 {
+		clientErr := ClientError{ApiError: base}
+		switch statusCode {
+		case 400:
+			return &BadRequestError{ClientError: clientErr}
+		case 401:
+			return &UnauthorizedError{ClientError: clientErr}
+		case 403:
+			return &ForbiddenError{ClientError: clientErr}
+		case 404:
+			return &NotFoundError{ClientError: clientErr}
+		case 409:
+			return &ConflictError{ClientError: clientErr}
+		case 422:
+			return &UnprocessableEntityError{ClientError: clientErr}
+		default:
+			return &clientErr
+		}
+	}
+
+	if statusCode >= 500 {
+		serverErr := ServerError{ApiError: base}
+		switch statusCode {
+		case 500:
+			return &InternalServerError{ServerError: serverErr}
+		default:
+			return &serverErr
+		}
+	}
+
+	return &base
+}

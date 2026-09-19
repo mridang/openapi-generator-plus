@@ -1,0 +1,213 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Api;
+using {{packageName}}.Models;
+using Xunit;
+
+namespace Test.Api;
+
+[Collection("Chasm")]
+public class StoreApiTest
+{
+    private readonly StoreApi _api;
+
+    public StoreApiTest(Test.ChasmFixture chasm)
+    {
+        var baseUrl = chasm.BaseUrl;
+        var config = Configuration.Builder()
+            .BaseUrl(baseUrl)
+            .DefaultHeader("Authorization", "Bearer test-token")
+            .Build();
+        _api = new StoreApi(new DefaultApiClient(), config);
+    }
+
+    [Fact]
+    public async Task TestGetInventory()
+    {
+        var result = await _api.GetInventoryAsync();
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task TestPlaceOrder()
+    {
+        var order = new Order
+        {
+            Id = 1L,
+            PetId = 12345L,
+            Quantity = 1,
+            ShipDate = DateTime.UtcNow,
+            Status = Order.StatusEnum.Placed,
+            Complete = false,
+        };
+
+        var result = await _api.PlaceOrderAsync(order);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Id);
+    }
+
+    [Fact]
+    public async Task TestGetInventoryWithHttpInfo()
+    {
+        var result = await _api.GetInventoryWithHttpInfoAsync();
+
+        Assert.NotNull(result);
+        Assert.InRange(result.StatusCode, 200, 299);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task TestPlaceOrderWithHttpInfo()
+    {
+        var order = new Order
+        {
+            Id = 1L,
+            PetId = 12345L,
+            Quantity = 1,
+            ShipDate = DateTime.UtcNow,
+            Status = Order.StatusEnum.Placed,
+            Complete = false,
+        };
+
+        var result = await _api.PlaceOrderWithHttpInfoAsync(order);
+
+        Assert.NotNull(result);
+        Assert.InRange(result.StatusCode, 200, 299);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task TestGetOrderById()
+    {
+        var result = await _api.GetOrderByIdAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Id);
+    }
+
+    [Fact]
+    public async Task TestGetOrderByIdWithHttpInfo()
+    {
+        var result = await _api.GetOrderByIdWithHttpInfoAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.InRange(result.StatusCode, 200, 299);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task TestDeleteOrder()
+    {
+        await _api.DeleteOrderAsync(1L);
+        Assert.True(true);
+    }
+
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly int _statusCode;
+        private readonly string _contentType;
+        private readonly string _body;
+
+        public FakeApiClient(int statusCode, string contentType, string body)
+        {
+            _statusCode = statusCode;
+            _contentType = contentType;
+            _body = body;
+        }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(_statusCode, _body, new Dictionary<string, string>
+            {
+                { "Content-Type", _contentType }
+            }));
+        }
+    }
+
+    private static StoreApi NewStoreApiForMock(int status, string contentType, string body)
+    {
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .Build();
+        return new StoreApi(new FakeApiClient(status, contentType, body), config);
+    }
+
+    [Fact]
+    public async Task TestGetOrderNotFound()
+    {
+        var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(async () => await mockApi.GetOrderByIdAsync(99999L));
+    }
+
+    [Fact]
+    public async Task TestPlaceOrderServerError()
+    {
+        var mockApi = NewStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+
+        var order = new Order
+        {
+            Id = 1L,
+            PetId = 12345L,
+            Quantity = 1,
+            Status = Order.StatusEnum.Placed,
+            Complete = false,
+        };
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.InternalServerErrorException>(async () => await mockApi.PlaceOrderAsync(order));
+    }
+
+    [Fact]
+    public async Task TestDeleteOrderNotFound()
+    {
+        var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(async () => await mockApi.DeleteOrderAsync(99999L));
+    }
+
+    [Fact]
+    public async Task TestGetGroupedCategoriesDeserializesNestedContainerLeavesAsTypedModels()
+    {
+        // getGroupedCategories returns a nested container: an array of maps of
+        // Category (List<Dictionary<string, Category>>). The deserialized
+        // leaves must be typed Category instances with their fields populated,
+        // not raw maps/JsonElement. Canonical across all 12 SDKs.
+        var mockApi = NewStoreApiForMock(
+            200,
+            "application/json",
+            "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]");
+
+        var result = await mockApi.GetGroupedCategoriesAsync();
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+
+        var first = result[0]["a"];
+        Assert.IsType<Category>(first);
+        Assert.Equal(1L, first.Id);
+        Assert.Equal("Dogs", first.Name);
+
+        var second = result[1]["b"];
+        Assert.IsType<Category>(second);
+        Assert.Equal(2L, second.Id);
+        Assert.Equal("Cats", second.Name);
+    }
+
+    [Fact]
+    public async Task TestGetSwatchReturnsValueTypeEnum()
+    {
+        // getSwatch returns a bare enum (a value type). The convenience wrapper
+        // must compile and decode the wire value into the enum — the empty-body
+        // guard uses an `is { }` null check rather than `?? throw`, which cannot
+        // be applied to a non-nullable value type.
+        var mockApi = NewStoreApiForMock(200, "application/json", "\"red\"");
+
+        var result = await mockApi.GetSwatchAsync();
+
+        Assert.Equal(Swatch.Red, result);
+    }
+}

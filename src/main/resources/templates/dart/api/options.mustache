@@ -1,0 +1,51 @@
+// ignore_for_file: unused_import
+import 'dart:typed_data';
+
+{{#hasDartImports}}
+{{#dartImports}}
+import '../../models/{{filename}}.dart';
+{{/dartImports}}
+
+{{/hasDartImports}}
+{{#hasAuthField}}
+import '{{authImport}}';
+
+{{/hasAuthField}}
+/// Options for the {{operationId}} operation.
+class {{className}} {
+{{#params}}
+{{#description}}
+  /// {{{.}}}
+{{/description}}
+{{#deprecated}}
+  @Deprecated('This parameter is deprecated.')
+{{/deprecated}}
+{{#required}}
+  final {{{dataType}}} {{name}};
+{{/required}}
+{{^required}}
+  final {{{dataType}}}? {{name}};
+{{/required}}
+
+{{/params}}
+{{#hasAuthField}}
+  /// Per-operation authenticator. When non-null it overrides the client's
+  /// configured credentials for this call only; null falls back to the
+  /// configured authenticator.
+  final {{authFieldType}}? auth;
+
+{{/hasAuthField}}
+  const {{className}}({
+{{#params}}
+{{#required}}
+    required this.{{name}},
+{{/required}}
+{{^required}}
+    this.{{name}},
+{{/required}}
+{{/params}}
+{{#hasAuthField}}
+    this.auth,
+{{/hasAuthField}}
+  });
+}

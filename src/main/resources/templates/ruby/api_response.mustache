@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # Wraps an HTTP response with status code, body, and headers.
+  class ApiHttpResponse
+    attr_reader :status_code, :body, :headers
+
+    def initialize(status_code:, body:, headers:)
+      @status_code = status_code
+      @body = body
+      @headers = headers
+    end
+  end
+end

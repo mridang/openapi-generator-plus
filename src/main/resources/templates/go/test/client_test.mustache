@@ -1,0 +1,172 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"{{packageName}}/pkg"
+	"{{packageName}}/pkg/auth"
+)
+
+func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
+	t.Parallel()
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+
+	if client == nil {
+		t.Fatal("expected non-nil client")
+	}
+}
+
+func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
+	t.Parallel()
+	// A nil transport must fall back to the default builder output, so the
+	// constructor stays usable when callers do not customise transport.
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+
+	if client == nil {
+		t.Fatal("expected non-nil client")
+	}
+}
+
+func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
+	t.Parallel()
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+	transport := {{packageName}}.NewTransportOptionsBuilder().Build()
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
+
+	if client == nil {
+		t.Fatal("expected non-nil client")
+	}
+}
+
+func TestClient_BearerRejectsCrlfAndNonAscii(t *testing.T) {
+	t.Parallel()
+	// RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
+	// newlines from .env / file reads; CRLF would inject the
+	// Authorization header. The check panics on invalid input.
+	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño"} {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for invalid bearer token %q", val)
+				}
+			}()
+			_ = auth.NewBearerAuthenticator("{{{basePath}}}", val)
+		}(bad)
+	}
+}
+
+// bearer-no-empty-token-guard: an empty or whitespace-only Bearer token would
+// emit the literal `Authorization: Bearer ` header and send the request
+// unauthenticated. The constructor must reject it, like the api-key guard.
+func TestClient_BearerRejectsEmptyToken(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"", "   ", "\t"} {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for empty/whitespace bearer token %q", val)
+				}
+			}()
+			_ = auth.NewBearerAuthenticator("{{{basePath}}}", val)
+		}(bad)
+	}
+}
+
+// authenticator-secret-in-default-string-repr: the bearer token must not leak
+// through the default string/format representation.
+func TestClient_BearerStringRedactsToken(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBearerAuthenticator("{{{basePath}}}", "super-secret-token")
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+		if strings.Contains(s, "super-secret-token") {
+			t.Errorf("expected token to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+// authenticator-secret-in-default-string-repr: the API key must not leak
+// through the default string/format representation.
+func TestClient_ApiKeyStringRedactsKey(t *testing.T) {
+	t.Parallel()
+	a := auth.NewApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "super-secret-key", auth.ApiKeyLocationHeader)
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+		if strings.Contains(s, "super-secret-key") {
+			t.Errorf("expected api key to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
+	t.Parallel()
+	// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
+	// reject anything outside printable ASCII + TAB to prevent header
+	// injection (\r\n) and silent UTF-8 mangling that varies per
+	// HTTP lib. The check panics on invalid input.
+	cases := []string{"abc\r\nInjected: yes", "kéy"}
+	for _, bad := range cases {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for invalid header api key %q", val)
+				}
+			}()
+			_ = auth.NewApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", val, auth.ApiKeyLocationHeader)
+		}(bad)
+	}
+
+	// Non-header locations accept arbitrary chars.
+	queryAuth := auth.NewApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", auth.ApiKeyLocationQuery)
+	got := queryAuth.QueryParams()
+	if got["api_key"] != "kéy" {
+		t.Fatalf("expected query param 'kéy', got %v", got)
+	}
+}
+
+func TestClient_ApiGroupsAreAccessible(t *testing.T) {
+	t.Parallel()
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+	if client.{{baseName}} == nil {
+		t.Fatal("expected non-nil {{baseName}}")
+	}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+// client-subapi-accessor-short-name: sub-API accessors are exposed under the
+// short group name (client.Pet, client.Store) to match the other SDKs, not the
+// type-suffixed name (client.PetApi). Pin the canonical accessors explicitly so
+// a regression in the field naming is caught regardless of the generic loop above.
+func TestClient_SubApiAccessorsUseShortGroupNames(t *testing.T) {
+	t.Parallel()
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+
+	if client.Pet == nil {
+		t.Error("expected non-nil client.Pet accessor")
+	}
+	if client.Store == nil {
+		t.Error("expected non-nil client.Store accessor")
+	}
+}

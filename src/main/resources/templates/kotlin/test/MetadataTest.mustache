@@ -1,0 +1,140 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}.models
+
+import {{invokerPackage}}.ObjectSerializer
+import {{modelPackage}}.Metadata
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class MetadataTest {
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+        isLenient = true
+        coerceInputValues = true
+    }
+
+    @Test
+    @DisplayName("serialize Metadata without contextual fields")
+    fun testSerialize() {
+        val metadata = Metadata()
+
+        val jsonString = json.encodeToString(metadata)
+
+        assertNotNull(jsonString)
+    }
+
+    @Test
+    @DisplayName("deserialize empty object")
+    fun testDeserializeEmptyObject() {
+        val jsonString = "{}"
+
+        val metadata = json.decodeFromString<Metadata>(jsonString)
+
+        assertNotNull(metadata)
+    }
+
+    @Test
+    @DisplayName("additional properties are preserved")
+    fun testAdditionalProperties() {
+        val metadata = Metadata()
+        metadata.additionalProperties["customField"] = "hello"
+        metadata.additionalProperties["anotherField"] = "world"
+
+        assertEquals("hello", metadata.additionalProperties["customField"])
+        assertEquals("world", metadata.additionalProperties["anotherField"])
+        assertEquals(2, metadata.additionalProperties.size)
+    }
+
+    @Test
+    @DisplayName("default values are null")
+    fun testDefaultValues() {
+        val metadata = Metadata()
+
+        assertNull(metadata.createdAt)
+    }
+
+    @Test
+    @DisplayName("round-trip without contextual fields")
+    fun testRoundTrip() {
+        val original = Metadata()
+
+        val jsonString = json.encodeToString(original)
+        val deserialized = json.decodeFromString<Metadata>(jsonString)
+
+        assertNotNull(deserialized)
+        assertEquals(original.createdAt, deserialized.createdAt)
+    }
+
+    @Test
+    @DisplayName("additional properties survive a full ObjectSerializer round-trip")
+    fun testAdditionalPropertiesRoundTripThroughObjectSerializer() {
+        // The on-the-wire round-trip must preserve free-form extras: the SDK's
+        // ObjectSerializer (not a bare kotlinx Json) writes additionalProperties
+        // out on serialize and re-collects undeclared JSON keys on deserialize.
+        // The model's additionalProperties map is @Transient, so a plain Json
+        // would drop them in both directions; this asserts the SDK does not.
+        val serializer = ObjectSerializer()
+        val original = Metadata()
+        original.additionalProperties["customField"] = "hello"
+        original.additionalProperties["count"] = 42L
+
+        val encoded = serializer.serialize(original)
+        // Extras must appear as real top-level JSON members, not a toString().
+        assertTrue(encoded.contains("\"customField\""), "extra key must be on the wire: $encoded")
+        assertTrue(encoded.contains("\"hello\""), "extra value must be on the wire: $encoded")
+
+        val decoded = serializer.deserialize<Metadata>(encoded)
+        assertNotNull(decoded)
+        assertEquals("hello", decoded!!.additionalProperties["customField"])
+        assertEquals(42L, decoded.additionalProperties["count"])
+    }
+
+    @Test
+    @DisplayName("manifest-description-missing: build.gradle.kts publishes a non-empty POM description")
+    fun testBuildManifestHasDescription() {
+        // The Maven POM produced for the published artifact must carry a
+        // non-empty <description>, wired from the OpenAPI document's
+        // description (or a generated fallback). Gradle runs tests with the
+        // project root as the working directory.
+        val buildFile = java.io.File("build.gradle.kts")
+        assertTrue(buildFile.exists(), "build.gradle.kts must exist at the project root")
+        val contents = buildFile.readText()
+        val match = Regex("""description\.set\("([^"]*)"\)""").find(contents)
+        assertNotNull(match, "build.gradle.kts must set a POM description")
+        assertTrue(
+            match!!.groupValues[1].isNotBlank(),
+            "POM description must not be empty",
+        )
+    }
+
+    @Test
+    @DisplayName("example-doc-null-pollution: generated models never emit a literal `Example: null` doc line")
+    fun testNoNullExampleDocPollution() {
+        // L1 regression: OpenAPI Generator supplies the literal string "null" as
+        // a property's example when the spec declares none, and that string is
+        // truthy in Mustache — so a bare example section would stamp a false
+        // `Example: null` doc line onto nearly every property. The shared codegen
+        // now nulls such a placeholder example, so the template's example section
+        // is falsy and emits nothing for it. Scan every generated model source and
+        // assert none contains the false doc text. Gradle runs tests with the
+        // project root as the working directory.
+        val modelPackagePath = "{{modelPackage}}".replace('.', '/')
+        val modelDir = java.io.File("src/main/kotlin/$modelPackagePath")
+        assertTrue(modelDir.isDirectory, "generated model directory must exist: ${modelDir.path}")
+        val kotlinFiles = modelDir.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+        assertTrue(kotlinFiles.isNotEmpty(), "expected at least one generated model file")
+        val offenders = kotlinFiles.filter { it.readText().contains("Example: `null`") }
+        assertTrue(
+            offenders.isEmpty(),
+            "no generated model may carry a false `Example: null` doc line, found in: " +
+                offenders.joinToString(", ") { it.name },
+        )
+    }
+}

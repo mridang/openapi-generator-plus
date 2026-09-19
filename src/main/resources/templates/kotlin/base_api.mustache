@@ -1,0 +1,470 @@
+{{>api_info}}
+@file:Suppress("detekt:all")
+
+package {{apiPackage}}
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.ApiException
+import {{invokerPackage}}.ApiHttpResponse
+import {{invokerPackage}}.ApiResult
+import {{invokerPackage}}.Configuration
+import {{invokerPackage}}.DefaultApiClient
+import {{invokerPackage}}.HeaderSelector
+import {{invokerPackage}}.ObjectSerializer
+import {{invokerPackage}}.TraceContextUtil
+import {{invokerPackage}}.auth.Authenticator
+import {{invokerPackage}}.auth.NoAuth
+import {{invokerPackage}}.errors.BadRequestException
+import {{invokerPackage}}.errors.ClientException
+import {{invokerPackage}}.errors.ConflictException
+import {{invokerPackage}}.errors.ForbiddenException
+import {{invokerPackage}}.errors.InternalServerErrorException
+import {{invokerPackage}}.errors.NotFoundException
+import {{invokerPackage}}.errors.ServerException
+import {{invokerPackage}}.errors.UnauthorizedException
+import {{invokerPackage}}.errors.UnprocessableEntityException
+import io.ktor.http.encodeURLQueryComponent
+
+/**
+ * Base class for all API classes. Provides the [invokeApi] method that
+ * handles URL construction, header selection, body serialization, request
+ * dispatch, and response error handling.
+ */
+abstract class BaseApi {
+
+    /** The HTTP transport client used for sending requests. */
+    protected val apiClient: ApiClient
+
+    /** API-level configuration (base URL and default headers). */
+    protected val config: Configuration
+
+    /**
+     * Serializer for request/response body conversion.
+     *
+     * Marked `@PublishedApi internal` rather than `protected`: it must stay out
+     * of the public API ([ObjectSerializer] is internal transport machinery),
+     * but the public inline [invokeApiForResult] and generated subclasses still
+     * reference it, so it cannot be `private`.
+     */
+    @PublishedApi
+    internal val objectSerializer: ObjectSerializer
+
+    /**
+     * Content negotiation logic for Accept and Content-Type headers.
+     *
+     * Marked `@PublishedApi internal` for the same reasons as [objectSerializer].
+     */
+    @PublishedApi
+    internal val headerSelector: HeaderSelector
+
+    /** Optional authenticator for client-level auth (used as fallback when no per-call auth is provided). */
+    protected val authenticator: Authenticator?
+
+    /**
+     * Create an API instance with the default configuration and default transport.
+     */
+    constructor() : this(Configuration.getDefault())
+
+    /**
+     * Create an API instance with the given configuration and default transport.
+     *
+     * @param config API-level configuration (base URL and default headers)
+     */
+    constructor(config: Configuration) : this(DefaultApiClient(), config)
+
+    /**
+     * Create an API instance with a custom API client and configuration.
+     *
+     * @param apiClient the HTTP transport client
+     * @param config    API-level configuration (base URL and default headers)
+     */
+    constructor(apiClient: ApiClient, config: Configuration) : this(apiClient, config, null)
+
+    /**
+     * Create an API instance with a custom API client, configuration, and authenticator.
+     *
+     * @param apiClient     the HTTP transport client
+     * @param config        API-level configuration (base URL and default headers)
+     * @param authenticator optional authenticator for client-level auth
+     */
+    constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) {
+        this.apiClient = apiClient
+        this.config = config
+        this.objectSerializer = ObjectSerializer()
+        this.headerSelector = HeaderSelector()
+        this.authenticator = authenticator
+    }
+
+    /**
+     * Invoke an API operation and return the raw response after error checking.
+     *
+     * Builds the full URL from the configured base URL and path, merges
+     * authentication, configuration, and operation headers, serializes the
+     * request body, sends the request via the API client, and checks the
+     * response status code. Non-2xx responses throw the appropriate
+     * [ApiException] subclass.
+     *
+     * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path        URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body        request body (model object or null)
+     * @param accepts     acceptable response content types
+     * @param contentType request content type
+     * @param auth        optional authenticator for operation-specific auth
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the API call fails
+     */
+    protected suspend fun invokeApi(
+        method: String,
+        path: String,
+        queryParams: MutableMap<String, Any?>,
+        headerParams: MutableMap<String, String>,
+        body: Any?,
+        accepts: Array<String>,
+        contentType: String,
+        auth: Authenticator?,
+    ): ApiHttpResponse {
+        var url =
+            if (path.startsWith("http://") || path.startsWith("https://")) {
+                path
+            } else {
+                /* Strip trailing slash from baseUrl when path starts with `/`
+                 * so baseUrl='https://x/' + path='/y' produces 'https://x/y',
+                 * not 'https://x//y' which most servers route to 404. */
+                val base = if (path.startsWith("/")) config.baseUrl.trimEnd('/') else config.baseUrl
+                base + path
+            }
+
+        /* Three-state auth resolution:
+         *   - auth === NoAuth        -> the operation is declared `security: []`
+         *                               (unauthenticated). Apply NO authenticator
+         *                               and do NOT fall back to the client-level
+         *                               one, so the client credential is never
+         *                               leaked to an unauthenticated endpoint.
+         *   - auth == null           -> no per-call override; fall back to the
+         *                               client-level authenticator (a secured op).
+         *   - auth is a real value   -> a per-call override; use it as-is.
+         */
+        val effectiveAuth =
+            when {
+                auth === NoAuth -> null
+                auth != null -> auth
+                else -> this.authenticator
+            }
+        if (effectiveAuth != null) {
+            for ((key, value) in effectiveAuth.getQueryParams()) {
+                queryParams[key] = value
+            }
+        }
+
+        val query = buildQueryString(queryParams)
+        if (query.isNotEmpty()) {
+            url += "?$query"
+        }
+
+        val isMultipart = "multipart/form-data" == contentType
+        val headers = headerSelector.selectHeaders(accepts, contentType, isMultipart)
+        headers.putAll(config.defaultHeaders)
+        headers.putAll(headerParams)
+        if (effectiveAuth != null) {
+            headers.putAll(effectiveAuth.getAuthHeaders())
+            val cookies = effectiveAuth.getCookieParams()
+            if (cookies.isNotEmpty()) {
+                // RFC 6265 — don't URL-encode cookie name/value; most cookie
+                // parsers don't URL-decode, so `=` (base64 padding) would
+                // arrive as literal `%3D` and break JWT/session cookies.
+                // Validate and pass through raw instead.
+                val cookieStr =
+                    cookies.entries.joinToString("; ") { (name, value) ->
+                        require(isValidCookieName(name)) {
+                            "Cookie name '$name' contains characters forbidden by RFC 6265"
+                        }
+                        require(isValidCookieValue(value)) {
+                            "Cookie value for '$name' contains characters forbidden by RFC 6265"
+                        }
+                        "$name=$value"
+                    }
+                val existing = headers["Cookie"]
+                if (!existing.isNullOrEmpty()) {
+                    headers["Cookie"] = "$existing; $cookieStr"
+                } else {
+                    headers["Cookie"] = cookieStr
+                }
+            }
+        }
+        TraceContextUtil.injectTraceContext(headers)
+
+        val requestBody: Any? =
+            if (body != null) {
+                when {
+                    (contentType.startsWith("image/") || "application/octet-stream" == contentType) &&
+                        body is Map<*, *> -> {
+                        // Raw-binary selection on an operation that ALSO declares a
+                        // multipart content type. The operation assembled the body as
+                        // a Map of form parts (the file plus optional metadata). A raw
+                        // octet-stream/image request has no multipart envelope, so we
+                        // must NOT forward that Map to the transport -- buildRequestBody
+                        // dispatches on `body is Map<*, *>` and would emit a
+                        // multipart/form-data body, contradicting the caller's explicit
+                        // content-type selection. Send the single binary part's raw
+                        // bytes instead; the text metadata parts have no place on the
+                        // wire for a raw stream and are dropped.
+                        val binaryPart = body.values.firstOrNull { it is ByteArray }
+                        binaryPart ?: body
+                    }
+                    body is ByteArray ||
+                        contentType.startsWith("image/") ||
+                        "application/octet-stream" == contentType -> body
+                    "multipart/form-data" == contentType && body is Map<*, *> -> body
+                    "text/plain" == contentType -> body.toString()
+                    "application/x-www-form-urlencoded" == contentType && body is Map<*, *> -> {
+                        val formParams = body as Map<String, Any?>
+                        val parts = mutableListOf<String>()
+                        for ((key, value) in formParams) {
+                            // Optional/absent fields are passed as null and must be
+                            // OMITTED from the wire body (parity rule 2), not encoded
+                            // as the literal string "null".
+                            if (value == null) continue
+                            if (value is Collection<*>) {
+                                // Array fields explode into repeated keys —
+                                // `tags=a&tags=b` (parity rule 1) — rather than a
+                                // single bracket-mangled `tags=[a, b]` value.
+                                for (item in value) {
+                                    if (item == null) continue
+                                    parts.add("${encode(key)}=${encode(objectSerializer.stringify(item))}")
+                                }
+                            } else {
+                                parts.add("${encode(key)}=${encode(objectSerializer.stringify(value))}")
+                            }
+                        }
+                        parts.joinToString("&")
+                    }
+                    else -> objectSerializer.serialize(body)
+                }
+            } else {
+                null
+            }
+
+        if (requestBody == null) {
+            headers.remove("Content-Type")
+        }
+
+        val response = apiClient.sendRequest(method, url, headers, requestBody)
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+            throwApiException(response)
+        }
+
+        return response
+    }
+
+    /**
+     * Invoke an API operation and return the full result including status code,
+     * headers, and raw body alongside the deserialized data.
+     *
+     * Calls [invokeApi] to get the raw [ApiHttpResponse], then deserializes the
+     * response body using the [ObjectSerializer] when a return type is expected.
+     *
+     * @param T          the return type
+     * @param method     HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path       URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body       request body (model object or null)
+     * @param accepts    acceptable response content types
+     * @param contentType request content type
+     * @param auth       optional authenticator for operation-specific auth
+     * @return ApiResult containing deserialized data, status code, raw body, and headers
+     * @throws ApiException if the API call fails
+     */
+    protected suspend inline fun <reified T> invokeApiForResult(
+        method: String,
+        path: String,
+        queryParams: MutableMap<String, Any?>,
+        headerParams: MutableMap<String, String>,
+        body: Any?,
+        accepts: Array<String>,
+        contentType: String,
+        auth: Authenticator?,
+    ): ApiResult<T> {
+        val response = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+        val responseContentType =
+            response.headers.entries
+                .firstOrNull { it.key.equals("content-type", ignoreCase = true) }
+                ?.value ?: ""
+        val data: T? =
+            if (response.body.isNotEmpty()) {
+                if (T::class == ByteArray::class) {
+                    // Binary return types must never be JSON-deserialized, even
+                    // when the negotiated response Content-Type is JSON (an
+                    // operation whose Accept set includes application/json can
+                    // still receive raw image bytes). Recover the raw bytes the
+                    // way the transport encoded them:
+                    //   * application/json: a top-level `format: byte` value is a
+                    //     JSON string literal ("dGVzdC1pbWFnZQ==") — JSON-parse to
+                    //     strip the quotes/escapes, then base64-decode the inner
+                    //     string to the raw bytes. Returning the quoted literal's
+                    //     UTF-8 bytes (with the `"`) or the un-decoded base64 text
+                    //     would both be wrong.
+                    //   * other text content types: the transport keeps the body
+                    //     as a decoded string, so the raw bytes are its UTF-8.
+                    //   * binary content types: base64-encoded by the transport.
+                    if (headerSelector.isJsonMime(responseContentType)) {
+                        val inner = objectSerializer.deserialize<String>(response.body) ?: ""
+                        java.util.Base64.getDecoder().decode(inner) as T
+                    } else if (isTextResponseContentType(responseContentType)) {
+                        response.body.toByteArray(Charsets.UTF_8) as T
+                    } else {
+                        java.util.Base64.getDecoder().decode(response.body) as T
+                    }
+                } else if (responseContentType.isNotEmpty() &&
+                    !headerSelector.isJsonMime(responseContentType)
+                ) {
+                    response.body as T
+                } else {
+                    objectSerializer.deserialize<T>(response.body)
+                }
+            } else {
+                null
+            }
+        return ApiResult(response.statusCode, data, response.body, response.headers)
+    }
+
+    /**
+     * Throw the appropriate exception subclass for the given error response.
+     *
+     * Attempts to deserialize the response body as JSON so that structured
+     * error data is available via [ApiException.errorBody].
+     *
+     * @param response the API response with a non-2xx status code
+     * @throws ApiException always
+     */
+    private fun throwApiException(response: ApiHttpResponse): Nothing {
+        val code = response.statusCode
+        val message = "API returned status code $code"
+        val body = response.body
+        val headers = response.headers
+
+        val errorBody: Any? =
+            if (body.isNotEmpty()) {
+                try {
+                    objectSerializer.parseToJsonElement(body)
+                } catch (_: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
+
+        when {
+            code in 400..499 ->
+                throw when (code) {
+                    400 -> BadRequestException(message, headers, body, errorBody)
+                    401 -> UnauthorizedException(message, headers, body, errorBody)
+                    403 -> ForbiddenException(message, headers, body, errorBody)
+                    404 -> NotFoundException(message, headers, body, errorBody)
+                    409 -> ConflictException(message, headers, body, errorBody)
+                    422 -> UnprocessableEntityException(message, headers, body, errorBody)
+                    else -> ClientException(code, message, headers, body, errorBody)
+                }
+            code >= 500 ->
+                throw when (code) {
+                    500 -> InternalServerErrorException(message, headers, body, errorBody)
+                    else -> ServerException(code, message, headers, body, errorBody)
+                }
+            else -> throw ApiException(code, message, headers, body, errorBody)
+        }
+    }
+
+    /**
+     * Build a query string from query parameters.
+     *
+     * @param queryParams the query parameters
+     * @return encoded query string
+     */
+    private fun buildQueryString(queryParams: Map<String, Any?>): String {
+        if (queryParams.isEmpty()) return ""
+        val parts = mutableListOf<String>()
+        for ((key, value) in queryParams) {
+            if (value != null) {
+                if (value is List<*>) {
+                    for (item in value) {
+                        parts.add("${encode(key)}=${encode(item.toString())}")
+                    }
+                } else {
+                    parts.add("${encode(key)}=${encode(value.toString())}")
+                }
+            }
+        }
+        return parts.joinToString("&")
+    }
+
+    /**
+     * URL-encode a string using application/x-www-form-urlencoded encoding.
+     *
+     * @param value the string to encode
+     * @return URL-encoded string
+     */
+    internal fun encode(value: String): String = value.encodeURLQueryComponent(spaceToPlus = true)
+
+    /**
+     * Mirror of the transport's text/binary content-type classification. The
+     * transport base64-encodes the response body for binary content types and
+     * leaves text content types (including JSON) as a decoded string, so
+     * binary return-type handling must apply the same rule to recover the raw
+     * bytes. Returns true when the body was kept as decoded text.
+     *
+     * Marked `@PublishedApi internal` because the public inline
+     * [invokeApiForResult] calls it; a `private` helper is not visible from an
+     * inlined function body.
+     */
+    @PublishedApi
+    internal fun isTextResponseContentType(contentType: String): Boolean {
+        val mediaType =
+            contentType
+                .substringBefore(';')
+                .trim()
+                .lowercase()
+        if (mediaType.isEmpty()) return true
+        if (mediaType.startsWith("text/")) return true
+        return mediaType == "application/json" ||
+            mediaType == "application/xml" ||
+            mediaType == "application/javascript" ||
+            mediaType.endsWith("+json") ||
+            mediaType.endsWith("+xml")
+    }
+
+    /**
+     * RFC 6265 cookie-name validation (RFC 7230 token).
+     *
+     * Marked `protected` rather than `private` so generated subclasses can
+     * apply the same validation to operation-level cookie parameters before
+     * they are joined into the Cookie header, mirroring the auth-cookie path
+     * above. This prevents CR/LF and other control characters in a cookie
+     * name from being injected into the request headers.
+     */
+    protected fun isValidCookieName(name: String): Boolean {
+        if (name.isEmpty()) return false
+        return name.all { c ->
+            c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c in "!#$%&'*+-.^_`|~"
+        }
+    }
+
+    /**
+     * RFC 6265 cookie-value validation (cookie-octet*).
+     *
+     * Marked `protected` rather than `private` so generated subclasses can
+     * apply the same validation to operation-level cookie parameters before
+     * they are joined into the Cookie header, mirroring the auth-cookie path
+     * above. This prevents CR/LF and other control characters in a cookie
+     * value from being injected into the request headers.
+     */
+    protected fun isValidCookieValue(value: String): Boolean {
+        return value.all { c ->
+            val code = c.code
+            code == 0x21 || code in 0x23..0x2B || code in 0x2D..0x3A
+                    || code in 0x3C..0x5B || code in 0x5D..0x7E
+        }
+    }
+}

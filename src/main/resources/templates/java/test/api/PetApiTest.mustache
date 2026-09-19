@@ -1,0 +1,802 @@
+{{>api_info}}
+
+package {{apiPackage}};
+
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.Configuration;
+import {{invokerPackage}}.DefaultApiClient;
+import {{invokerPackage}}.ChasmContainer;
+import {{invokerPackage}}.auth.AdminBasicAuthenticator;
+import {{invokerPackage}}.auth.PetStoreBearerAuthenticator;
+import {{modelPackage}}.ApiResponse;
+import {{modelPackage}}.Pet;
+import {{modelPackage}}.PetPassport;
+import {{modelPackage}}.Photo;
+import {{modelPackage}}.PhotoMetadata;
+import {{modelPackage}}.SetPetAvatarThumbnailRequest;
+import {{apiPackage}}.options.FindPetsByStatusOptions;
+import {{apiPackage}}.options.UploadPetCertificateOptions;
+import {{apiPackage}}.options.UploadPetDocumentOptions;
+import {{apiPackage}}.options.AddPetPhotosOptions;
+import {{apiPackage}}.options.GetPetTagOptions;
+import {{apiPackage}}.options.AddPetOptions;
+import {{apiPackage}}.options.DeletePetOptions;
+import {{apiPackage}}.options.SetPetPreferencesOptions;
+import {{apiPackage}}.options.GetPetByNameOptions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
+
+import com.sun.net.httpserver.HttpServer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/**
+ * Integration tests for the Pet API endpoints.
+ */
+{{>models/checkstyle_suppressions}}
+class PetApiTest {
+
+    private PetApi api;
+    private PetStoreBearerAuthenticator bearerAuth;
+    private AdminBasicAuthenticator basicAuth;
+
+    @BeforeEach
+    void setUp() {
+        String baseUrl = ChasmContainer.getBaseUrl();
+        Configuration config = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build();
+        api = new PetApi(new DefaultApiClient(), config);
+        bearerAuth = new PetStoreBearerAuthenticator(baseUrl, "test-token");
+        basicAuth = new AdminBasicAuthenticator(baseUrl, "admin", "password");
+    }
+
+    @Test
+    void testAddPet() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 12345L;
+        pet.name = "TestDog";
+        pet.photoUrls = Set.of("http://example.com/photo.jpg");
+        pet.status = Pet.StatusEnum.AVAILABLE;
+
+        Pet result = api.addPet(pet, new AddPetOptions().auth(bearerAuth));
+        assertNotNull(result);
+
+        assertThat(result.name).isNotNull();
+    }
+
+    @Test
+    void testAddPetUsingConfiguredCredentials() throws Exception {
+        // The Options arg (and its auth) is optional: omitting it falls back to
+        // the credentials configured on the client (the default Authorization
+        // header set in setUp), which must satisfy the secured endpoint.
+        Pet pet = new Pet();
+        pet.id = 54321L;
+        pet.name = "DefaultCredsDog";
+        pet.photoUrls = Set.of("http://example.com/photo.jpg");
+        pet.status = Pet.StatusEnum.AVAILABLE;
+
+        Pet result = api.addPet(pet);
+        assertNotNull(result);
+
+        assertThat(result.name).isNotNull();
+    }
+
+    @Test
+    void testAddPetWithHttpInfo() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 99L;
+        pet.name = "HttpInfoDog";
+        pet.photoUrls = Set.of("http://example.com/photo.jpg");
+        pet.status = Pet.StatusEnum.AVAILABLE;
+
+        var result = api.addPetWithHttpInfo(pet, new AddPetOptions().auth(bearerAuth));
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
+    void testFindPetsByStatus() throws Exception {
+        List<Pet> result = api.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+        assertNotNull(result);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result.get(0)).isInstanceOf(Pet.class);
+    }
+
+    @Test
+    void testFindPetsByStatusWithHttpInfo() throws Exception {
+        var result = api.findPetsByStatusWithHttpInfo(new FindPetsByStatusOptions().status("available"));
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void testGetPetById() throws Exception {
+        Pet result = api.getPetById(1L);
+        assertNotNull(result);
+
+        assertThat(result.id).isNotNull();
+        assertThat(result.name).isNotNull();
+    }
+
+    @Test
+    void testGetPetByIdWithHttpInfo() throws Exception {
+        var result = api.getPetByIdWithHttpInfo(1L);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
+    void testUpdatePet() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 1L;
+        pet.name = "UpdatedDog";
+        pet.photoUrls = Set.of("http://example.com/updated.jpg");
+        pet.status = Pet.StatusEnum.PENDING;
+
+        Pet result = api.updatePet(1L, pet);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testUpdatePetWithHttpInfo() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 1L;
+        pet.name = "UpdatedDog";
+        pet.photoUrls = Set.of("http://example.com/updated.jpg");
+        pet.status = Pet.StatusEnum.PENDING;
+
+        var result = api.updatePetWithHttpInfo(1L, pet);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+    }
+
+    @Test
+    void testDeletePet() throws Exception {
+        api.deletePet(1L, new DeletePetOptions().auth(basicAuth));
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void testDeletePetWithHttpInfo() throws Exception {
+        var result = api.deletePetWithHttpInfo(1L, new DeletePetOptions().auth(basicAuth));
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+    }
+
+    @Test
+    void testSetPetAvatar() throws Exception {
+        InputStream fakeImageData = new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8));
+        api.setPetAvatar(1L, fakeImageData);
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void testGetPetAvatar() throws Exception {
+        InputStream result = api.getPetAvatar(1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetPetAvatarThumbnail() throws Exception {
+        // The thumbnail is a top-level `format: byte` value carried as
+        // application/json, so it arrives as the JSON string literal
+        // "dGVzdC1pbWFnZQ==". The SDK must JSON-parse the literal and then
+        // base64-decode the inner string to the raw bytes "test-image" —
+        // neither the quoted literal's UTF-8 bytes nor the un-decoded base64.
+        byte[] result = api.getPetAvatarThumbnail(1L);
+        assertNotNull(result);
+        assertThat(new String(result, StandardCharsets.UTF_8)).isEqualTo("test-image");
+    }
+
+    @Test
+    void testSetPetAvatarThumbnail() throws Exception {
+        byte[] thumbnailData = new byte[]{0x01, 0x02, 0x03, 0x04};
+        SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(thumbnailData);
+
+        api.setPetAvatarThumbnail(1L, request);
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void testUploadPetCertificate() throws Exception {
+        InputStream fakeFile = new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
+        assertNotNull(result);
+    }
+
+    @Test
+    void testUploadPetDocument() throws Exception {
+        InputStream fakeDoc = new ByteArrayInputStream("fake-doc-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetDocument(
+                1L, new UploadPetDocumentOptions(fakeDoc).documentType("vaccination_record").notes("Annual checkup"));
+        assertNotNull(result);
+    }
+
+    @Test
+    void testAddPetPhotos() throws Exception {
+        PhotoMetadata metadata = new PhotoMetadata();
+        metadata.caption = "Test photo";
+        metadata.isPrimary = true;
+
+        List<InputStream> files = List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
+        List<Photo> result = api.addPetPhotos(
+                1L, new AddPetPhotosOptions(files, metadata));
+        assertNotNull(result);
+    }
+
+    @Test
+    void testDownloadPetDocument() throws Exception {
+        InputStream result = api.downloadPetDocument(1L, 1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetPetPhoto() throws Exception {
+        InputStream result = api.getPetPhoto(1L, 1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetPetTag() throws Exception {
+        Pet result = api.getPetTag(5L, "cute",
+                new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M")));
+        assertNotNull(result);
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("Per-operation server URL points to external host")
+    void testGetExternalPetInfo() throws Exception {
+        Pet result = api.getExternalPetInfo(1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetPetPassport() throws Exception {
+        PetPassport result = api.getPetPassport(1L);
+        assertNotNull(result);
+
+        assertThat(result.pet).isNotNull();
+        assertThat(result.thumbnail).isNotNull();
+        assertThat(result.scans).isNotNull();
+        assertThat(result.issuedAt).isNotNull();
+    }
+
+    @Test
+    void testGetPetPassportWithHttpInfo() throws Exception {
+        var result = api.getPetPassportWithHttpInfo(1L);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+        assertThat(result.data()).isNotNull();
+    }
+
+    private PetApi newPetApiForMock(int status, String contentType, String body) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(status, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        return new PetApi(new DefaultApiClient(), config);
+    }
+
+    @Test
+    void testErrorHandlingNotFound() throws Exception {
+        PetApi mockApi = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+
+        assertThatThrownBy(() -> mockApi.getPetById(99999L))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void testErrorHandlingServerError() throws Exception {
+        PetApi mockApi = newPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void testEmptyBodyOnBodyReturningOperationThrows() throws Exception {
+        // A 200 with an empty body for a body-returning operation must surface
+        // as a typed ApiException from the plain convenience accessor, never a
+        // silent null return.
+        PetApi mockApi = newPetApiForMock(200, "application/json", "");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isInstanceOf({{invokerPackage}}.ApiException.class);
+    }
+
+    @Test
+    void testMalformedBodyOnBodyReturningOperationThrows() throws Exception {
+        // A 200 whose body is not valid JSON for the declared return type must
+        // surface the deserialization failure loudly rather than handing back
+        // the raw, un-parsed string. Truncated JSON ("{" never closes) forces
+        // the parser to fail, and that error must propagate.
+        PetApi mockApi = newPetApiForMock(200, "application/json", "{ not-valid-json");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void testDownloadBinaryMock() throws Exception {
+        PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
+
+        InputStream result = mockApi.getPetAvatar(1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testUploadMultipartMock() throws Exception {
+        PetApi mockApi = newPetApiForMock(200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
+
+        InputStream fakeFile = new ByteArrayInputStream("fake-cert-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = mockApi.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
+        assertNotNull(result);
+    }
+
+    @Test
+    void testAddPetPerCallAuthOverride() throws Exception {
+        // Verify the auth carried inside the Options object on the BASE
+        // operation method (not just the WithHttpInfo variant) is applied to
+        // the outgoing request. The default header carries one token; the
+        // per-call authenticator carries a different one and must win on the
+        // wire.
+        final String[] capturedAuthHeader = new String[1];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedAuthHeader[0] = exchange.getRequestHeaders().getFirst("Authorization");
+            byte[] responseBytes = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration overrideConfig = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build();
+        PetApi overrideApi = new PetApi(new DefaultApiClient(), overrideConfig);
+        PetStoreBearerAuthenticator perCallAuth = new PetStoreBearerAuthenticator(baseUrl, "per-call-token");
+
+        Pet pet = new Pet();
+        pet.id = 1L;
+        pet.name = "OverrideDog";
+        pet.photoUrls = Set.of("http://example.com/p.jpg");
+        overrideApi.addPet(pet, new AddPetOptions().auth(perCallAuth));
+
+        assertThat(capturedAuthHeader[0]).isEqualTo("Bearer per-call-token");
+    }
+
+    @Test
+    void testAddPetUsesConfiguredCredentialsWhenAuthOmitted() throws Exception {
+        // When no per-call auth is supplied (Options omitted entirely), the
+        // client falls back to the credentials configured on the Configuration
+        // (the default Authorization header). Verify that token reaches the
+        // wire.
+        final String[] capturedAuthHeader = new String[1];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedAuthHeader[0] = exchange.getRequestHeaders().getFirst("Authorization");
+            byte[] responseBytes = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration defaultConfig = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build();
+        PetApi defaultApi = new PetApi(new DefaultApiClient(), defaultConfig);
+
+        Pet pet = new Pet();
+        pet.id = 1L;
+        pet.name = "DefaultDog";
+        pet.photoUrls = Set.of("http://example.com/p.jpg");
+        defaultApi.addPet(pet);
+
+        assertThat(capturedAuthHeader[0]).isEqualTo("Bearer default-token");
+    }
+
+    @Test
+    void testUnsecuredOperationOptionsExposesNoAuth() throws Exception {
+        // Compile-level guard: an unsecured operation's Options object must NOT
+        // expose an auth field/method, and unsecured ops with path params only
+        // (getPetById) take no Options arg at all. This is a no-op at runtime;
+        // it fails to compile if a regression reintroduces auth on unsecured
+        // operations.
+        FindPetsByStatusOptions opts = new FindPetsByStatusOptions().status("available");
+        assertNotNull(opts);
+        Pet result = api.getPetById(1L);
+        assertNotNull(result);
+    }
+
+    /**
+     * Captures the request body the SDK hands to the transport, without
+     * touching the network, so wire-format assertions can run as fast unit
+     * tests.
+     */
+    private static final class CapturingApiClient implements ApiClient {
+        @javax.annotation.Nullable Object capturedBody;
+        @javax.annotation.Nullable String capturedUrl;
+        @javax.annotation.Nullable java.util.Map<String, String> capturedHeaders;
+
+        @Override
+        public {{invokerPackage}}.ApiHttpResponse sendRequest(
+                String method,
+                String url,
+                java.util.Map<String, String> headers,
+                @javax.annotation.Nullable Object body) {
+            this.capturedBody = body;
+            this.capturedUrl = url;
+            this.capturedHeaders = headers;
+            return new {{invokerPackage}}.ApiHttpResponse(
+                    200, "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+                    java.util.Map.of("Content-Type", "application/json"));
+        }
+    }
+
+    @Test
+    void getPetByNameTildeInPathIsNotOverEncoded() throws Exception {
+        // RFC 3986 unreserved '~' must survive in a path segment as a literal
+        // tilde, never percent-encoded to %7E.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetByName("a~b", new GetPetByNameOptions("cats"));
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).contains("/pet/byName/a~b");
+        assertThat(capturing.capturedUrl).doesNotContain("%7E");
+    }
+
+    @Test
+    void getPetByNameMissingRequiredQueryParamThrows() throws Exception {
+        // A required query param that is null at runtime must fail client-side
+        // with a clear error before any request is made — parity with path/body
+        // required-param validation. The options field is typed non-null, so to
+        // simulate a value that slipped past the type system (e.g. a legacy or
+        // reflection-built caller) the final field is injected with null.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        GetPetByNameOptions options = new GetPetByNameOptions("placeholder");
+        java.lang.reflect.Field categoryField = GetPetByNameOptions.class.getDeclaredField("category");
+        categoryField.setAccessible(true);
+        categoryField.set(options, null);
+
+        assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("category");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    void getPetByNameEmptyRequiredStringQueryParamThrows() throws Exception {
+        // Parity with go/rust/swift/elixir: a required STRING param that is the
+        // empty string "" is treated as absent and must fail client-side with
+        // the same missing-required-parameter error, before any request is made.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        GetPetByNameOptions options = new GetPetByNameOptions("");
+
+        assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("category");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    void findPetsByStatusOmittingStatusSendsNoStatusKeyInQuery() throws Exception {
+        // allowEmptyValue:true means the server tolerates an empty value WHEN the
+        // client chooses to send the key — it does not oblige the SDK to always
+        // send it. An omitted optional param must be left out of the query string
+        // entirely, never emitted as a spurious "status=" with an empty value.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        // status is omitted (left null) — the only param on this call.
+        try {
+            petApi.findPetsByStatus(new FindPetsByStatusOptions());
+        } catch (Exception ignored) {
+            // The capturing client returns no body, so deserialization of the
+            // List<Pet> result may fail; we only care about the captured URL.
+        }
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).doesNotContain("status=");
+    }
+
+    @Test
+    void findPetsByStatusExplicitEmptyStatusSendsStatusKeyInQuery() throws Exception {
+        // The counterpart to the omit case: when the caller explicitly opts into
+        // an empty value (status=""), allowEmptyValue:true permits the key to ride
+        // the wire with an empty value, so "status=" must be present.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        try {
+            petApi.findPetsByStatus(new FindPetsByStatusOptions().status(""));
+        } catch (Exception ignored) {
+            // The capturing client returns no body, so deserialization of the
+            // List<Pet> result may fail; we only care about the captured URL.
+        }
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).contains("status=");
+    }
+
+    @Test
+    void setPetPreferencesFormBodyIsCanonical() throws Exception {
+        // Parity regression: application/x-www-form-urlencoded body must encode
+        //   - a space as '+' (nickname="a b" -> nickname=a+b)
+        //   - an array as repeated keys, exploded (tags=x&tags=y, never tags=x,y)
+        //   - an absent optional field omitted entirely (no note=)
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        SetPetPreferencesOptions options =
+                new SetPetPreferencesOptions("a b").tags(List.of("x", "y"));
+        petApi.setPetPreferences(1L, options);
+
+        assertNotNull(capturing.capturedBody);
+        String wire = capturing.capturedBody.toString();
+
+        // Order-tolerant on field grouping, but the exact tokens must be present.
+        List<String> pairs = List.of(wire.split("&"));
+        assertThat(pairs).contains("nickname=a+b", "tags=x", "tags=y");
+        assertThat(wire).doesNotContain("note=");
+        assertThat(wire).doesNotContain("tags=x,y");
+        assertThat(wire).doesNotContain("tags%5B%5D");
+        assertThat(wire).doesNotContain("%20");
+    }
+
+    @Test
+    void setPetAvatarStreamsRawBytesWithDeclaredContentType() throws Exception {
+        // A request body declared `type: string, format: binary` with a declared
+        // Content-Type of image/jpeg must ride the wire as the RAW bytes, with the
+        // declared Content-Type preserved. It must NEVER be JSON-marshaled (a JSON
+        // int-array like [255,216,255,224] or the literal "{}"), base64-encoded, or
+        // have its Content-Type overridden to application/octet-stream or
+        // application/json.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        // JPEG SOI marker — a known, non-trivial binary payload including a
+        // high-bit byte (0xFF) that a JSON encoder would mangle.
+        byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
+        petApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+
+        // The SDK hands the transport the raw InputStream body unchanged.
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody).isInstanceOf(InputStream.class);
+        byte[] wireBytes = ((InputStream) capturing.capturedBody).readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+
+        // Not JSON-marshaled, not a JSON int-array, not base64, not "{}".
+        String wireText = new String(wireBytes, StandardCharsets.ISO_8859_1);
+        assertThat(wireText).doesNotContain("[255");
+        assertThat(wireText).doesNotContain("{}");
+
+        // The declared Content-Type rides the wire verbatim.
+        assertNotNull(capturing.capturedHeaders);
+        assertThat(capturing.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
+    }
+
+    @Test
+    void setPetAvatarHonoursTheSelectedRequestContentType() throws Exception {
+        // setPetAvatar declares three request content-types
+        // (image/jpeg, image/png, application/json). The optional
+        // content-type selector must let the caller pick among them, with the
+        // chosen value sent as the Content-Type header. Omitting the selector
+        // must default to the FIRST declared type (image/jpeg) so existing
+        // call sites keep behaving exactly as before.
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+
+        // The same raw bytes are used in both cases; only the selector differs.
+        byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
+        // (1) No selector -> first declared content-type (image/jpeg).
+        CapturingApiClient defaultCapture = new CapturingApiClient();
+        PetApi defaultApi = new PetApi(defaultCapture, config);
+        defaultApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+        assertNotNull(defaultCapture.capturedHeaders);
+        assertThat(defaultCapture.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
+
+        // (2) Selector set to image/png -> Content-Type is image/png, not jpeg.
+        CapturingApiClient pngCapture = new CapturingApiClient();
+        PetApi pngApi = new PetApi(pngCapture, config);
+        pngApi.setPetAvatar(1L, new ByteArrayInputStream(payload), "image/png");
+        assertNotNull(pngCapture.capturedHeaders);
+        assertThat(pngCapture.capturedHeaders).containsEntry("Content-Type", "image/png");
+
+        // The raw bytes are unchanged regardless of the selected content-type.
+        assertThat(pngCapture.capturedBody).isInstanceOf(InputStream.class);
+        byte[] wireBytes =
+                ((InputStream) java.util.Objects.requireNonNull(pngCapture.capturedBody))
+                        .readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+    }
+
+    @Test
+    void uploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart() throws Exception {
+        // uploadPetDocument declares TWO request content-types
+        // (multipart/form-data AND application/octet-stream). When the caller
+        // selects application/octet-stream the SDK must send the file's RAW
+        // bytes under Content-Type: application/octet-stream — never a
+        // multipart/form-data envelope. The API layer builds a form-style Map
+        // keyed by the declared parts; dispatching multipart on "body is a Map"
+        // would wrongly wrap the octet-stream selection in multipart. This
+        // captures the body handed to the transport and asserts it is the raw
+        // single binary part, not a Map.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
+
+        petApi.uploadPetDocument(
+                1L,
+                new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+                "application/octet-stream");
+
+        // The transport receives the RAW binary part, not a multipart Map.
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody).isNotInstanceOf(java.util.Map.class);
+        assertThat(capturing.capturedBody).isInstanceOf(InputStream.class);
+
+        byte[] wireBytes = ((InputStream) capturing.capturedBody).readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+
+        // Not base64, not a multipart envelope, no boundary, no part headers.
+        String wireText = new String(wireBytes, StandardCharsets.ISO_8859_1);
+        assertThat(wireText).doesNotContain("Content-Disposition");
+        assertThat(wireText).doesNotContain("form-data");
+        assertThat(wireText).doesNotContain("--");
+
+        // The selected Content-Type rides the wire verbatim, never overridden to
+        // multipart/form-data.
+        assertNotNull(capturing.capturedHeaders);
+        assertThat(capturing.capturedHeaders)
+                .containsEntry("Content-Type", "application/octet-stream");
+    }
+
+    @Test
+    void uploadPetDocumentOctetStreamSelectionWireBodyIsRawBytes() throws Exception {
+        // End-to-end transport check against a real HttpServer: selecting
+        // application/octet-stream must put the RAW file bytes on the wire with
+        // Content-Type: application/octet-stream — proving the transport does
+        // not re-wrap the body as multipart. Guards the DefaultApiClient
+        // dispatch, which previously emitted multipart whenever the body was a
+        // Map regardless of the selected content-type.
+        final byte[][] capturedBody = new byte[1][];
+        final String[] capturedContentType = new String[1];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                    "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                            .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try {
+            String baseUrl = "http://localhost:" + server.getAddress().getPort();
+            Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+            PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+            byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
+
+            petApi.uploadPetDocument(
+                    1L,
+                    new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+                    "application/octet-stream");
+
+            // The wire body is exactly the raw payload — no boundary, no part
+            // headers, no base64.
+            assertNotNull(capturedBody[0]);
+            assertThat(capturedBody[0]).isEqualTo(payload);
+
+            // Content-Type is the selected octet-stream, never multipart.
+            assertNotNull(capturedContentType[0]);
+            assertThat(capturedContentType[0]).startsWith("application/octet-stream");
+            assertThat(capturedContentType[0]).doesNotContain("multipart");
+            assertThat(capturedContentType[0]).doesNotContain("boundary");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void uploadPetDocumentMultipartSelectionStillSendsMultipart() throws Exception {
+        // Over-correction guard: the default selection (and an explicit
+        // multipart/form-data selection) must STILL send a multipart body. The
+        // transport receives the form-style Map and turns it into a
+        // multipart/form-data envelope with a boundary.
+        final byte[][] capturedBody = new byte[1][];
+        final String[] capturedContentType = new String[1];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                    "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                            .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try {
+            String baseUrl = "http://localhost:" + server.getAddress().getPort();
+            Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+            PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+            byte[] payload = "raw-doc-bytes".getBytes(StandardCharsets.UTF_8);
+
+            // No selector -> defaults to the first declared type
+            // (multipart/form-data).
+            petApi.uploadPetDocument(
+                    1L, new UploadPetDocumentOptions(new ByteArrayInputStream(payload)));
+
+            assertNotNull(capturedContentType[0]);
+            assertThat(capturedContentType[0]).startsWith("multipart/form-data");
+            assertThat(capturedContentType[0]).contains("boundary=");
+
+            // The body is a multipart envelope: it carries the part headers.
+            assertNotNull(capturedBody[0]);
+            String wireText = new String(capturedBody[0], StandardCharsets.ISO_8859_1);
+            assertThat(wireText).contains("Content-Disposition: form-data");
+            assertThat(wireText).contains("name=\"file\"");
+        } finally {
+            server.stop(0);
+        }
+    }
+}

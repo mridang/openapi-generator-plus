@@ -1,0 +1,67 @@
+{
+  "name": "petstore-client",
+  "version": "1.0.0",
+  "description": "A simplified Pet Store API for integration testing.",
+  "license": "MIT",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#transport": {
+      "node": "./dist/src/default-api-client.js",
+      "default": "./dist/src/default-api-client.web.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "jest --verbose",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "class-transformer": "^0.5",
+    "reflect-metadata": "^0.2",
+    "temporal-polyfill": "^0.3"
+  },
+  "optionalDependencies": {
+    "undici": "^6"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "^1.0.0",
+    "typescript": "^5.7",
+    "jest": "^30.0",
+    "jest-junit": "^16.0",
+    "ts-jest": "^29.4",
+    "@types/jest": "^30.0",
+    "@types/node": "^24.0",
+    "eslint": "^9.0",
+    "@eslint/js": "^9.0",
+    "@typescript-eslint/eslint-plugin": "^8.0",
+    "@typescript-eslint/parser": "^8.0",
+    "typescript-eslint": "^8.0",
+    "prettier": "^3.0",
+    "typedoc": "^0.28.0",
+    "testcontainers": "^12.0"
+  }
+}

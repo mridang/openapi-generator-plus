@@ -1,0 +1,48 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.MountableFile;
+
+import java.nio.file.Path;
+import java.time.Duration;
+
+/**
+ * Singleton Squid proxy container shared across all test classes.
+ */
+public final class SquidContainer {
+
+    private static final GenericContainer<?> INSTANCE;
+
+    static {
+        // Force ChasmContainer class initialization so the shared network is created first.
+        String ignored = ChasmContainer.getBaseUrl();
+
+        INSTANCE = new GenericContainer<>("ubuntu/squid:5.2-22.04_beta")
+            .withExposedPorts(3128)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
+                "/etc/squid/squid.conf")
+            .withNetwork(ChasmContainer.PROXY_NETWORK)
+            .withStartupTimeout(Duration.ofMinutes(2))
+            .withLabel("com.mridang.openapi.testcontainer", "true");
+        INSTANCE.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (INSTANCE != null && INSTANCE.isRunning()) {
+                INSTANCE.stop();
+            }
+        }));
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private SquidContainer() {}
+
+    public static String getProxyUrl() {
+        return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(3128);
+    }
+}

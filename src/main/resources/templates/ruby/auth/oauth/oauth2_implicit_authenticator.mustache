@@ -1,0 +1,111 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  module Auth
+    module OAuth
+      # Authenticator for OAuth2 implicit flow.
+      #
+      # Includes {HttpAwareAuthenticator} so that the interface is
+      # consistent with other OAuth2 authenticators. The implicit flow
+      # does not make token exchange requests, but the module is
+      # included for consistency.
+      #
+      # Usage:
+      # 1. Call {#build_authorization_url} to get the authorization URL
+      # 2. Redirect the user to that URL
+      # 3. Extract the access token from the fragment and call {#access_token=}
+      # 4. Use the authenticator normally
+      class OAuth2ImplicitAuthenticator < BaseAuthenticator
+        include HttpAwareAuthenticator
+
+        # @return [String]
+        attr_reader :host
+
+        # Set the access token obtained from the authorization redirect fragment.
+        #
+        # F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+        # §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+        # only fail at the next API call via the Authorization-header concat,
+        # allowing HTTP header injection from a redirect-fragment-derived value.
+        #
+        # @param token [String] the access token
+        # @return [String]
+        # @raise [ArgumentError] if the token has non-printable-ASCII characters
+        def access_token=(token)
+          token.each_char do |c|
+            o = c.ord
+            if c != "\t" && (o < 0x20 || o >= 0x7F)
+              raise ArgumentError,
+                    'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+            end
+          end
+          @access_token = token
+        end
+
+        # Create a new implicit flow authenticator.
+        #
+        # @param host [String] API base URL
+        # @param client_id [String] OAuth2 client ID
+        # @param authorization_url [String] authorization endpoint URL
+        # @param scopes [Array<String>] requested scopes
+        def initialize(host, client_id, authorization_url, scopes)
+          super()
+          @host = host
+          @client_id = client_id
+          @authorization_url = authorization_url
+          @scopes = scopes.freeze
+          @access_token = nil
+        end
+
+        # Inject the shared API client.
+        #
+        # The implicit flow does not make token exchange requests, but
+        # implements the interface for consistency.
+        #
+        # @param _client [ApiClient] the shared API client instance (unused)
+        # @return [void]
+        def api_client=(_client)
+          # Implicit flow does not make token exchange requests,
+          # but implements the interface for consistency.
+        end
+
+        # Build the authorization URL to redirect the user to.
+        #
+        # @param state [String, nil] optional CSRF state parameter
+        # @return [String] the authorization URL
+        def build_authorization_url(state = nil)
+          params = { 'response_type' => 'token' }
+          params['client_id'] = @client_id
+          params['scope'] = @scopes.join(' ') unless @scopes.empty?
+          params['state'] = state if state
+          # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+          # a query component. Use '&' as the separator when one is already
+          # present so existing params are preserved, '?' otherwise.
+          separator = @authorization_url.include?('?') ? '&' : '?'
+          "#{@authorization_url}#{separator}#{URI.encode_www_form(params)}"
+        end
+
+        # Redact the access token from the default object representation so
+        # logging or inspecting an authenticator never leaks the credential.
+        # The token reads as "***" once set and nil before the redirect.
+        def inspect
+          token = @access_token.nil? ? 'nil' : '"***"'
+          "#<#{self.class.name} host=#{@host.inspect} " \
+            "client_id=#{@client_id.inspect} " \
+            "authorization_url=#{@authorization_url.inspect} " \
+            "scopes=#{@scopes.inspect} access_token=#{token}>"
+        end
+        alias to_s inspect
+
+        # @return [Hash{String => String}]
+        def auth_headers
+          raise ::{{moduleName}}::ApiError, 'Must set access_token before making API requests' if @access_token.nil?
+
+          { 'Authorization' => "Bearer #{@access_token}" }
+        end
+      end
+    end
+  end
+end

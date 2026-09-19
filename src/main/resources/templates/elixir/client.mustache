@@ -1,0 +1,132 @@
+{{>api_info}}
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+
+defmodule {{moduleName}}.{{clientClassName}} do
+  @moduledoc """
+  Unified entry point for all API services.
+
+  Takes an `#{inspect({{moduleName}}.Auth.Authenticator)}` and optionally
+  `#{inspect({{moduleName}}.TransportOptions)}`, then exposes each API group
+  as a typed field. If the authenticator implements
+  `#{inspect({{moduleName}}.Auth.HttpAwareAuthenticator)}`, the shared
+  `ApiClient` is injected so that authentication HTTP calls (token exchange,
+  discovery) use the same transport configuration as regular API calls.
+
+  ## Examples
+
+      # Default transport
+      client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+
+      # Custom transport (proxy, timeouts, etc.)
+      transport = {{moduleName}}.TransportOptions.new(
+        proxy: "http://proxy:3128",
+        timeout: 5000
+      )
+      client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+  """
+
+  @type t :: %__MODULE__{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+          {{clientPropertyName}}: {{moduleName}}.Api.{{classname}}.t(){{^-last}},{{/-last}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        }
+
+  defstruct [
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    :{{clientPropertyName}}{{^-last}},{{/-last}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  ]
+
+  @doc """
+  Creates a new client with the given authenticator and optional transport options.
+
+  If the authenticator implements `HttpAwareAuthenticator`, the shared
+  `ApiClient` is injected so that token exchange and discovery requests
+  use the same proxy, TLS, and timeout settings.
+
+  ## Parameters
+
+    * `authenticator` - Provides host URL and auth headers.
+    * `transport_options` - HTTP transport configuration (optional).
+
+  """
+  @spec new(term(), {{moduleName}}.TransportOptions.t() | nil) :: t()
+  def new(authenticator, transport_options \\ nil) do
+    transport_options = transport_options || {{moduleName}}.TransportOptions.new()
+    api_client = {{moduleName}}.DefaultApiClient.new(transport_options)
+
+    authenticator =
+      if is_map(authenticator) and Map.has_key?(authenticator, :__struct__) and
+           function_exported?(authenticator.__struct__, :set_api_client, 2) do
+        authenticator.__struct__.set_api_client(authenticator, api_client)
+      else
+        authenticator
+      end
+
+    config =
+      {{moduleName}}.Configuration.new(
+        base_url: authenticator.__struct__.host(authenticator)
+      )
+
+    %__MODULE__{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      {{clientPropertyName}}: {{moduleName}}.Api.{{classname}}.new(api_client, config, authenticator){{^-last}},{{/-last}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+  end
+
+  @doc """
+  Creates a client from a ready-made authenticator.
+
+  This is the generic entry point for bespoke authenticators such as client
+  credentials, JWT private key, or personal access token (PAT). Pass any
+  authenticator that implements `#{inspect({{moduleName}}.Auth.Authenticator)}`
+  and, optionally, transport options.
+
+  ## Parameters
+
+    * `authenticator` - Provides host URL and auth headers.
+    * `transport_options` - HTTP transport configuration (optional).
+
+  ## Returns
+
+    A configured `#{inspect(__MODULE__)}` instance.
+  """
+  @spec with_authenticator(term(), {{moduleName}}.TransportOptions.t() | nil) :: t()
+  def with_authenticator(authenticator, transport_options \\ nil) do
+    new(authenticator, transport_options)
+  end
+
+  @doc """
+  Creates a client authenticated with a static Bearer token.
+
+  ## Parameters
+
+    * `host` - API base URL.
+    * `access_token` - Bearer token.
+
+  ## Returns
+
+    A configured `#{inspect(__MODULE__)}` instance.
+  """
+  @spec with_token(String.t(), String.t(), {{moduleName}}.TransportOptions.t() | nil) :: t()
+  def with_token(host, access_token, transport_options \\ nil) do
+    new({{moduleName}}.Auth.BearerAuthenticator.new(host, access_token), transport_options)
+  end
+end

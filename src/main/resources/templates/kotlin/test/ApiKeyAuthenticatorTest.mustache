@@ -1,0 +1,154 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}.auth
+
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class ApiKeyAuthenticatorTest {
+
+    @Test
+    @DisplayName("valid header key is exposed via getAuthHeaders")
+    fun validHeaderKeyPasses() = runBlocking {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER
+        )
+        val headers = auth.getAuthHeaders()
+        assertEquals("abc123", headers["X-API-Key"])
+    }
+
+    @Test
+    @DisplayName("valid query key is exposed via getQueryParams")
+    fun validQueryKeyPasses() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "abc123", ApiKeyLocation.QUERY
+        )
+        val params = auth.getQueryParams()
+        assertEquals("abc123", params["api_key"])
+    }
+
+    @Test
+    @DisplayName("valid cookie key is exposed via getCookieParams")
+    fun validCookieKeyPasses() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "session", "abc123", ApiKeyLocation.COOKIE
+        )
+        val params = auth.getCookieParams()
+        assertEquals("abc123", params["session"])
+    }
+
+    @Test
+    @DisplayName("empty header key throws at construction")
+    fun emptyKeyHeaderThrowsAtConstruction() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "", ApiKeyLocation.HEADER
+            )
+        }
+        assertTrue(ex.message!!.contains("must not be empty"))
+    }
+
+    @Test
+    @DisplayName("empty query key throws at construction")
+    fun emptyKeyQueryThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "", ApiKeyLocation.QUERY
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("empty cookie key throws at construction")
+    fun emptyKeyCookieThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "session", "", ApiKeyLocation.COOKIE
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("whitespace-only key throws at construction")
+    fun whitespaceOnlyKeyThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "   ", ApiKeyLocation.HEADER
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("CR/LF in query key throws at construction")
+    fun crlfInQueryKeyThrowsAtConstruction() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "abc\r\n", ApiKeyLocation.QUERY
+            )
+        }
+        assertTrue(ex.message!!.contains("forbidden control"))
+    }
+
+    @Test
+    @DisplayName("CR/LF in cookie key throws at construction")
+    fun crlfInCookieKeyThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "session", "abc\n", ApiKeyLocation.COOKIE
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("CR/LF in header key throws at construction")
+    fun crlfInHeaderKeyThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.HEADER
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("ApiKey header rejects non-ASCII (RFC 7230 §3.2.6)")
+    fun apiKeyHeaderRejectsNonAscii() {
+        // The HEADER location must reject any value outside printable ASCII +
+        // TAB to prevent silent UTF-8 mangling that varies per HTTP lib.
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-Api-Key", "kéy", ApiKeyLocation.HEADER
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("ApiKey query location accepts non-ASCII characters")
+    fun apiKeyQueryAcceptsNonAscii() {
+        // The QUERY location is URL-encoded downstream, so it must accept a
+        // non-ASCII key value verbatim and surface it through getQueryParams.
+        assertEquals(
+            mapOf("api_key" to "kéy"),
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "kéy", ApiKeyLocation.QUERY
+            ).getQueryParams()
+        )
+    }
+
+    /**
+     * The default toString() must mask the stored API key: the secret value
+     * must be absent and a *** redaction marker present.
+     */
+    @Test
+    @DisplayName("toString() redacts the API key and shows ***")
+    fun redactsSecret() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER
+        )
+        val repr = auth.toString()
+        assertFalse(repr.contains("abc123"))
+        assertTrue(repr.contains("***"))
+    }
+}

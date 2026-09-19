@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// ServerError represents an HTTP 5xx server error.
+type ServerError struct {
+	ApiError
+}

@@ -1,0 +1,87 @@
+{{>api_info}}
+
+// phpcs:ignoreFile
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\OAuth\OAuth2ImplicitAuthenticator;
+
+function makeOAuth2ImplicitAuthenticator(): OAuth2ImplicitAuthenticator
+{
+    return new OAuth2ImplicitAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'https://auth.example.com/authorize',
+        ['read', 'write']
+    );
+}
+
+test('builds authorization url with response type token', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('https://auth.example.com/authorize?');
+    expect($url)->toContain('response_type=token');
+});
+
+test('builds authorization url with client id', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('client_id=my-client-id');
+});
+
+test('builds authorization url with scopes', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('scope=read+write');
+});
+
+test('builds authorization url with state', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl('my-state');
+
+    expect($url)->toContain('state=my-state');
+});
+
+test('get auth headers returns bearer after set access token', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $authenticator->setAccessToken('my-access-token');
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer my-access-token');
+});
+
+test('throws when access token not set', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\RuntimeException::class);
+});
+
+test('get host returns configured host', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+/**
+ * Asserts that the access token never leaks through print_r()'s use of
+ * __debugInfo(): once set, the literal token is absent and the masked
+ * '***' placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+    $authenticator->setAccessToken('my-access-token');
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-access-token');
+    expect($printR)->toContain('***');
+}

@@ -1,0 +1,142 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+
+use std::sync::{Arc, Mutex};
+
+use crate::api_client::ApiClient;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::auth::Authenticator;
+
+/// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
+///
+/// Implements HttpAwareAuthenticator for interface consistency with other
+/// OAuth2 authenticators. The implicit flow does not make token exchange
+/// requests.
+///
+/// Usage:
+///  1. Call `build_authorization_url` to get the authorization URL
+///  2. Redirect the user to that URL
+///  3. Extract the access token from the fragment and call `set_access_token`
+///  4. Use the authenticator normally
+pub struct OAuth2ImplicitAuthenticator {
+    host: String,
+    client_id: String,
+    authorization_url: String,
+    scopes: Vec<String>,
+    /* Interior mutability so `set_access_token` takes `&self`, matching the
+     * `&self` + Mutex pattern used by OpenIdConnectAuthenticator. This lets a
+     * shared `&` reference set the token without requiring a `&mut` binding. */
+    access_token: Mutex<String>,
+}
+
+impl OAuth2ImplicitAuthenticator {
+    /// Creates a new implicit flow authenticator.
+    pub fn new(
+        host: &str,
+        client_id: &str,
+        authorization_url: &str,
+        scopes: Vec<String>,
+    ) -> Self {
+        Self {
+            host: host.to_string(),
+            client_id: client_id.to_string(),
+            authorization_url: authorization_url.to_string(),
+            scopes,
+            access_token: Mutex::new(String::new()),
+        }
+    }
+
+    /// Sets the access token obtained from the authorization redirect fragment.
+    ///
+    /// F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+    /// §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+    /// only fail at the next API call via the Authorization-header concat,
+    /// allowing HTTP header injection from a redirect-fragment-derived value.
+    /// Panics on invalid input — consistent with BearerAuthenticator.
+    pub fn set_access_token(&self, token: &str) {
+        for b in token.bytes() {
+            if b != b'\t' && (b < 0x20 || b >= 0x7F) {
+                panic!(
+                    "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                );
+            }
+        }
+        *self.access_token.lock().unwrap() = token.to_string();
+    }
+
+    /// Builds the authorization URL to redirect the user to.
+    ///
+    /// The `state` parameter is optional and used for CSRF protection.
+    pub fn build_authorization_url(&self, state: &str) -> String {
+        let mut params = vec![
+            format!("response_type=token"),
+            format!("client_id={}", &self.client_id),
+        ];
+        if !self.scopes.is_empty() {
+            params.push(format!("scope={}", self.scopes.join(" ")));
+        }
+        if !state.is_empty() {
+            params.push(format!("state={}", state));
+        }
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Use '&' as the separator when one is already
+         * present so existing params are preserved, '?' otherwise. */
+        let separator = if self.authorization_url.contains('?') { '&' } else { '?' };
+        format!("{}{}{}", self.authorization_url, separator, params.join("&"))
+    }
+}
+
+/// Redacts the access token so it never leaks through `{:?}` (Debug)
+/// formatting, stack traces, or error logs. The host, client id,
+/// authorization URL, and scopes are shown normally; the access token is
+/// masked as `***` when set and `None` before the redirect.
+impl std::fmt::Debug for OAuth2ImplicitAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token = self.access_token.lock().unwrap();
+        let access_token: Option<&str> = if token.is_empty() { None } else { Some("***") };
+        f.debug_struct("OAuth2ImplicitAuthenticator")
+            .field("host", &self.host)
+            .field("client_id", &self.client_id)
+            .field("authorization_url", &self.authorization_url)
+            .field("scopes", &self.scopes)
+            .field("access_token", &access_token)
+            .finish()
+    }
+}
+
+impl Authenticator for OAuth2ImplicitAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            let token = self.access_token.lock().unwrap().clone();
+            if token.is_empty() {
+                panic!("must set access token before making API requests");
+            }
+
+            let mut headers = HashMap::new();
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", token),
+            );
+            headers
+        })
+    }
+
+    fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
+        Some(self)
+    }
+}
+
+impl HttpAwareAuthenticator for OAuth2ImplicitAuthenticator {
+    fn set_api_client(&mut self, _client: Arc<dyn ApiClient>) {
+        /* Implicit flow does not make token exchange requests. */
+    }
+}

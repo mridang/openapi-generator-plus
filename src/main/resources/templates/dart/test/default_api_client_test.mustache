@@ -1,0 +1,714 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+import 'testcontainers_helper.dart';
+
+void main() {
+  setUpAll(() async {
+    await setUpContainers();
+  });
+
+  tearDownAll(() async {
+    await tearDownContainers();
+  });
+
+  group('DefaultApiClient', () {
+    test('makes HTTPS request with verifySsl=false', () async {
+      final transport = TransportOptionsBuilder()
+          .verifySsl(false)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpsUrl/test/echo',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
+    });
+
+    test('makes HTTPS request with custom CA cert', () async {
+      final transport = TransportOptionsBuilder()
+          .verifySsl(true)
+          .caCertPath(caCertPath)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpsUrl/test/echo',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
+    });
+
+    test('makes HTTP request through proxy', () async {
+      final transport = TransportOptionsBuilder()
+          .proxy(proxyUrl)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmInternalHttpUrl/test/echo',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
+    });
+
+    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    // and surfaced as Proxy-Authorization so the proxy can authenticate
+    // the tunnel — otherwise the proxy 407s.
+    test('proxy_with_credentials_injects_basic_authorization', () async {
+      final transport = TransportOptionsBuilder()
+          .proxy('http://alice:s3cret@127.0.0.1:3128')
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      expect(client.proxyAuthHeader, equals('Basic YWxpY2U6czNjcmV0'));
+    });
+
+    // Gap AK (canonical): a proxy URL of the form
+    // http://user:pass@127.0.0.1:3128 must carry the proxy credentials
+    // (userinfo honoured, surfaced as a Basic Proxy-Authorization value),
+    // not drop them. Dart already extracts userinfo at construction, so
+    // this is GREEN; the assertion locks the behaviour fleet-wide.
+    test('proxy URL with user:pass userinfo carries proxy credentials', () async {
+      final transport = TransportOptionsBuilder()
+          .proxy('http://user:pass@127.0.0.1:3128')
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      expect(client.proxyAuthHeader, equals('Basic dXNlcjpwYXNz'));
+    });
+
+    test('makes HTTPS request through proxy with verifySsl=false', () async {
+      final transport = TransportOptionsBuilder()
+          .proxy(proxyUrl)
+          .verifySsl(false)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmInternalHttpsUrl/test/echo',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
+    });
+
+    test('times out on slow endpoint', () async {
+      final transport = TransportOptionsBuilder()
+          .timeout(1000)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      expect(
+        () => client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/slow',
+          {},
+          null,
+        ),
+        throwsA(isA<ApiError>()),
+      );
+    });
+
+    test('injects custom User-Agent header', () async {
+      final transport = TransportOptionsBuilder()
+          .userAgent('MyApp/1.0')
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['user-agent'], equals('MyApp/1.0'));
+    });
+
+    test('injects X-Request-ID header with UUID format', () async {
+      final transport = TransportOptionsBuilder()
+          .injectRequestId(true)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      final requestId = headers['x-request-id'] as String?;
+      expect(requestId, isNotNull);
+      expect(requestId, isNotEmpty);
+      final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+      expect(uuidPattern.hasMatch(requestId!), isTrue);
+    });
+
+    test('generates unique X-Request-ID per request', () async {
+      final transport = TransportOptionsBuilder()
+          .injectRequestId(true)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+
+      final resp1 = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      final parsed1 = jsonDecode(resp1.body) as Map<String, dynamic>;
+      final headers1 = parsed1['headers'] as Map<String, dynamic>;
+
+      final resp2 = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      final parsed2 = jsonDecode(resp2.body) as Map<String, dynamic>;
+      final headers2 = parsed2['headers'] as Map<String, dynamic>;
+
+      expect(headers1['x-request-id'], isNot(equals(headers2['x-request-id'])));
+    });
+
+    test('includes transport-level default headers', () async {
+      final transport = TransportOptionsBuilder()
+          .defaultHeader('X-Custom', 'custom-value')
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['x-custom'], equals('custom-value'));
+    });
+
+    test('caller headers override transport default headers', () async {
+      final transport = TransportOptionsBuilder()
+          .defaultHeader('Accept', 'text/plain')
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final callerHeaders = {'Accept': 'application/json'};
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        callerHeaders,
+        null,
+      );
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['accept'], equals('application/json'));
+    });
+
+    test('follows redirects when enabled', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/redirect/302',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+    });
+
+    test('returns redirect response when disabled', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(false)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/redirect/302',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(302));
+    });
+
+    test('303 switches to GET and drops body (Gap T3)', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(5)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'POST',
+        '$chasmHttpUrl/test/redirect/303',
+        {'Content-Type': 'application/json'},
+        Uint8List.fromList(utf8.encode('hello-body')),
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
+      expect(parsed['body'], equals(''));
+    });
+
+    // -- Gap N1: HTTPS->HTTP redirect with a body --
+    //
+    // Canonical: a 302 HTTPS->HTTP redirect carrying a body MUST proceed
+    // (per RFC the request coerces to GET and the body is dropped, so no
+    // plaintext leak occurs); a 307/308 HTTPS->HTTP redirect with a body
+    // MUST throw (the body would otherwise be replayed over the
+    // unencrypted hop). Node guards every status and throws on the 302
+    // too — Dart guards only 307/308, so the 302 case is GREEN here and
+    // the 307 case is GREEN (already guarded). Local TLS source + plain
+    // HTTP target give precise control over scheme/status/body that the
+    // chasm same-scheme redirect endpoints cannot express.
+    test('302 https->http with a body proceeds (body dropped, becomes GET)',
+        () async {
+      final certDir = 'test/fixtures/certs';
+      final tlsContext = SecurityContext()
+        ..useCertificateChain('$certDir/server.pem')
+        ..usePrivateKey('$certDir/server-key.pem');
+
+      var targetHits = 0;
+      var targetMethod = '';
+      var targetBody = '';
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) async {
+        targetHits++;
+        targetMethod = request.method;
+        targetBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..write('ok')
+          ..close();
+      });
+
+      final source = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      source.listen((request) async {
+        // Drain the request body before redirecting.
+        await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'POST',
+          'https://127.0.0.1:${source.port}/secret',
+          {'Content-Type': 'application/x-www-form-urlencoded'},
+          Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+        );
+        // The 302 downgrade proceeds: the plain-HTTP target IS contacted,
+        // the method becomes GET, and the body is dropped (no plaintext
+        // secret on the unencrypted hop).
+        expect(resp.statusCode, equals(200));
+        expect(targetHits, equals(1),
+            reason: '302 downgrade must proceed, not throw');
+        expect(targetMethod, equals('GET'),
+            reason: '302 to a non-GET request coerces to GET');
+        expect(targetBody, isEmpty,
+            reason: 'body must be dropped across the 302 downgrade');
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    test('307 https->http with a body throws (no body replay)', () async {
+      final certDir = 'test/fixtures/certs';
+      final tlsContext = SecurityContext()
+        ..useCertificateChain('$certDir/server.pem')
+        ..usePrivateKey('$certDir/server-key.pem');
+
+      var targetHits = 0;
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        targetHits++;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      final source = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      source.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 307
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await expectLater(
+          client.sendRequest(
+            'POST',
+            'https://127.0.0.1:${source.port}/secret',
+            {'Content-Type': 'application/x-www-form-urlencoded'},
+            Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.message, 'message', contains('downgrade')),
+          ),
+        );
+        expect(targetHits, equals(0),
+            reason: '307 downgrade with a body must not contact the '
+                'plain-HTTP target');
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    test('308 https->http with a body throws (no body replay)', () async {
+      final certDir = 'test/fixtures/certs';
+      final tlsContext = SecurityContext()
+        ..useCertificateChain('$certDir/server.pem')
+        ..usePrivateKey('$certDir/server-key.pem');
+
+      var targetHits = 0;
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        targetHits++;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      final source = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      source.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 308
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await expectLater(
+          client.sendRequest(
+            'POST',
+            'https://127.0.0.1:${source.port}/secret',
+            {'Content-Type': 'application/x-www-form-urlencoded'},
+            Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.message, 'message', contains('downgrade')),
+          ),
+        );
+        expect(targetHits, equals(0),
+            reason: '308 downgrade with a body must not contact the '
+                'plain-HTTP target');
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    // T-new-3: multipart bodies must be replayed across 307 redirects per
+    // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+    // request after a 307 still carries the multipart form parts.
+    test('replays multipart body across 307 redirects (T-new-3)', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(5)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      const boundary = 'test-boundary';
+      final body =
+          '--$boundary\r\n'
+          'Content-Disposition: form-data; name="description"\r\n\r\n'
+          'hello\r\n'
+          '--$boundary\r\n'
+          'Content-Disposition: form-data; name="file"; filename="file"\r\n'
+          'Content-Type: application/octet-stream\r\n\r\n'
+          'file-content-bytes\r\n'
+          '--$boundary--\r\n';
+      /* chasm replays the 307 redirect to its echo endpoint; the echo
+       envelope's method+body confirm the multipart body arrived intact
+       at the redirect target. */
+      final resp = await client.sendRequest(
+        'POST',
+        '$chasmHttpUrl/test/redirect/307-multipart',
+        {'Content-Type': 'multipart/form-data; boundary=$boundary'},
+        body,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('POST'));
+      expect(parsed['body'], isNotEmpty,
+          reason: 'multipart body must be replayed intact across the 307 redirect');
+    });
+
+    test('respects maxRedirects limit', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(2)
+          .build();
+      expect(transport.maxRedirects, equals(2));
+      final client = DefaultApiClient(transportOptions: transport);
+      expect(client, isNotNull);
+    });
+
+    // Wave E: redirect counting must be scoped to a SINGLE request, not
+    // shared on the client/transport. The Dart transport keeps its hop
+    // counter as a local variable inside `sendRequest`, so each call is
+    // independent. This test would catch a regression that hoisted the
+    // counter (or the too-many-redirects refusal) onto the client: fire
+    // many requests CONCURRENTLY through ONE shared client with
+    // maxRedirects(1) — each `/test/redirect/302` is exactly one hop and
+    // must succeed. If the hop counter were shared, the overlapping
+    // in-flight redirects would inflate it past 1 and trip the limit on
+    // some requests; with per-request scoping every request gets 200,
+    // and a non-redirecting request mixed in is unaffected.
+    test('concurrent redirects do not share a hop counter (Wave E)',
+        () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(1)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      try {
+        final futures = <Future<int>>[
+          // A non-redirecting request sharing the same client. Its outcome
+          // must not be disturbed by the concurrent redirect traffic.
+          client
+              .sendRequest('GET', '$chasmHttpUrl/test/echo', {}, null)
+              .then((r) => r.statusCode),
+          // Several single-hop redirects fired together. Each consumes one
+          // hop; none should see another request's hop charged against it.
+          for (var i = 0; i < 8; i++)
+            client
+                .sendRequest('GET', '$chasmHttpUrl/test/redirect/302', {}, null)
+                .then((r) => r.statusCode),
+        ];
+        final codes = await Future.wait(futures);
+        expect(codes, everyElement(equals(200)),
+            reason: 'each concurrent request must follow its own redirect '
+                'chain within the per-request hop budget; a shared counter '
+                'would trip the maxRedirects(1) limit on some of them');
+      } finally {
+        client.close();
+      }
+    });
+
+    // Wave E: a too-many-redirects refusal raised by ONE request must not
+    // surface on an unrelated CONCURRENT request through the same client.
+    // With maxRedirects(0) any single-hop redirect legitimately fails with
+    // the typed limit error, while a non-redirecting request must still
+    // succeed — proving the refusal is scoped to the offending request and
+    // not stored on a shared error slot.
+    test('a too-many-redirects refusal stays on its own request (Wave E)',
+        () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(0)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      try {
+        final okFuture =
+            client.sendRequest('GET', '$chasmHttpUrl/test/echo', {}, null);
+        final refusedFuture = client.sendRequest(
+            'GET', '$chasmHttpUrl/test/redirect/302', {}, null);
+
+        // The redirecting request hits the zero-hop limit and refuses.
+        await expectLater(
+          refusedFuture,
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.message, 'message', contains('redirect')),
+          ),
+        );
+        // The concurrent non-redirecting request is unaffected by the
+        // other request's refusal and completes normally.
+        final ok = await okFuture;
+        expect(ok.statusCode, equals(200),
+            reason: 'a refusal on one request must not surface on another '
+                'sharing the same client');
+      } finally {
+        client.close();
+      }
+    });
+
+    test('sends multipart form data', () async {
+      final client = DefaultApiClient();
+      final headers = {
+        'Content-Type': 'multipart/form-data; boundary=test-boundary',
+      };
+      final body =
+          '--test-boundary\r\nContent-Disposition: form-data; name="description"\r\n\r\nA test file\r\n--test-boundary--\r\n';
+      final resp = await client.sendRequest(
+        'POST',
+        '$chasmHttpUrl/test/echo',
+        headers,
+        body,
+      );
+      expect(resp, isNotNull);
+    });
+
+    // W-new-2: multipart field name validation must run on every branch, not
+    // just the Uint8List path. Previously the String/num/bool and JSON
+    // branches injected the raw field name into Content-Disposition, opening
+    // a header-smuggling hole. This test uses a String value so it exercises
+    // the non-binary branch.
+    test('multipart_field_name_with_crlf_rejected_on_string_value', () async {
+      final client = DefaultApiClient();
+      final badField = <String, Object?>{
+        'name\r\nInjected: yes': 'value',
+      };
+      expect(
+        () => client.sendRequest(
+          'POST',
+          '$chasmHttpUrl/test/echo',
+          {},
+          badField,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('decompresses gzip response', () async {
+      final client = DefaultApiClient();
+      final resp = await client.sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        {'Accept-Encoding': 'gzip'},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      expect(resp.body, contains('userId'));
+    });
+
+    test(
+      'decompresses brotli response',
+      () async {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'https://jsonplaceholder.typicode.com/posts/1',
+          {'Accept-Encoding': 'br'},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('userId'));
+      },
+      skip: 'brotli decompression not supported by dart:io',
+    );
+
+    test(
+      'decompresses zstd response',
+      () async {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'https://jsonplaceholder.typicode.com/posts/1',
+          {'Accept-Encoding': 'zstd'},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('userId'));
+      },
+      skip: 'zstd decompression not supported by dart:io',
+    );
+
+    // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
+
+    test('non-ASCII multipart filename emits RFC 5987 filename* parameter', () {
+      final directive = buildFilenameDirective('日本.pdf');
+      expect(directive, contains("filename*=UTF-8''"));
+      expect(directive, contains('%E6%97%A5%E6%9C%AC'));
+      expect(directive, startsWith('filename="'));
+    });
+
+    test('ASCII-only multipart filename omits the filename* parameter', () {
+      final directive = buildFilenameDirective('pet.png');
+      expect(directive, equals('filename="pet.png"'));
+      expect(directive.contains('filename*='), isFalse);
+    });
+
+    test('CRLF/NUL in multipart filename throws ArgumentError', () {
+      for (final bad in ['a\rb.pdf', 'a\nb.pdf', 'a\r\nb.pdf', 'a\u0000b.pdf']) {
+        expect(() => validateMultipartFilename(bad),
+            throwsA(isA<ArgumentError>()),
+            reason: 'expected ArgumentError for $bad');
+      }
+      validateMultipartFilename('pet.png');
+    });
+
+    // Regression: POST/PUT/PATCH with body == null must emit an
+    // explicit Content-Length: 0. Some servers / WAFs reject body-
+    // bearing verbs with no Content-Length (411 Length Required). The
+    // client attaches an empty Uint8List on body-bearing verbs so
+    // dart:http emits the header.
+    test('post_with_null_body_sends_content_length_zero', () async {
+      final client = DefaultApiClient();
+      final resp = await client.sendRequest(
+        'POST',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['contentLength'], equals(0),
+          reason: 'POST with null body must emit Content-Length: 0');
+    });
+
+    // Gap T6: close() releases the underlying HTTP client and is
+    // idempotent. A request issued on a closed client must surface a
+    // uniform SDK error (ApiError) rather than the dart:http package's
+    // "Client is already closed" exception.
+    test('close releases underlying client', () async {
+      final client = DefaultApiClient();
+      client.close();
+      // close() is idempotent.
+      client.close();
+      expect(
+        () => client.sendRequest('GET', 'https://example.com', {}, null),
+        throwsA(isA<ApiError>()),
+      );
+    });
+  });
+}
+{{/generateTests}}

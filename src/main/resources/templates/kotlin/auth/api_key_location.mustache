@@ -1,0 +1,13 @@
+{{>api_info}}
+@file:Suppress("detekt:all")
+
+package {{invokerPackage}}.auth
+
+/**
+ * Location where the API key is sent.
+ */
+enum class ApiKeyLocation {
+    HEADER,
+    QUERY,
+    COOKIE
+}

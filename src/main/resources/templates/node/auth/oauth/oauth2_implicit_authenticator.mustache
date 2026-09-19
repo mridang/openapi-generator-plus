@@ -1,0 +1,168 @@
+{{>api_info}}
+
+import type { ApiClient } from '../../api-client{{importFileExtension}}';
+import type { HttpAwareAuthenticator } from '../http-aware-authenticator{{importFileExtension}}';
+
+/**
+ * Authenticator for the OAuth2 Implicit flow.
+ *
+ * Implements {@link HttpAwareAuthenticator} so that the interface is
+ * consistent across all OAuth2 authenticators. The implicit flow does
+ * not make token exchange requests, so the injected {@link ApiClient}
+ * is not used.
+ *
+ * Usage:
+ * 1. Call {@link buildAuthorizationUrl} to get the authorization URL
+ * 2. Redirect the user to that URL
+ * 3. Extract the access token from the fragment and call {@link setAccessToken}
+ * 4. Use the authenticator normally
+ */
+export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
+  private readonly host: string;
+  private readonly clientId: string;
+  private readonly authorizationUrl: string;
+  private readonly scopes: readonly string[];
+  private accessToken: string | null = null;
+
+  /**
+   * Create a new implicit flow authenticator.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param authorizationUrl authorization endpoint URL
+   * @param scopes requested scopes
+   */
+  constructor(host: string, clientId: string, authorizationUrl: string, scopes: string[]) {
+    this.host = host;
+    this.clientId = clientId;
+    this.authorizationUrl = authorizationUrl;
+    this.scopes = Object.freeze([...scopes]);
+  }
+
+  /**
+   * Inject the shared API client for making HTTP requests.
+   *
+   * The implicit flow does not make token exchange requests,
+   * so this is a no-op provided for interface consistency.
+   */
+  setApiClient(_apiClient: ApiClient): void {
+    void _apiClient;
+  }
+
+  /**
+   * Build the authorization URL to redirect the user to.
+   *
+   * @param state optional CSRF state parameter
+   * @returns the authorization URL
+   */
+  buildAuthorizationUrl(state?: string): string {
+    const params = new URLSearchParams({ response_type: 'token' });
+    params.set('client_id', this.clientId);
+    if (this.scopes.length > 0) {
+      params.set('scope', this.scopes.join(' '));
+    }
+    if (state) {
+      params.set('state', state);
+    }
+    /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+     * a query component. Use '&' as the separator when one is already
+     * present so existing params are preserved, '?' otherwise. */
+    const separator = this.authorizationUrl.includes('?') ? '&' : '?';
+    return `${this.authorizationUrl}${separator}${params.toString()}`;
+  }
+
+  /**
+   * Set the access token obtained from the authorization redirect fragment.
+   *
+   * F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+   * §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+   * only fail at the next API call via the Authorization-header concat,
+   * allowing HTTP header injection from a redirect-fragment-derived value.
+   *
+   * @param token the access token
+   * @throws Error if the token contains non-printable-ASCII characters
+   */
+  setAccessToken(token: string): void {
+    for (let i = 0; i < token.length; i++) {
+      const c = token.charCodeAt(i);
+      if (c !== 0x09 && (c < 0x20 || c >= 0x7F)) {
+        throw new Error(
+          'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+        );
+      }
+    }
+    this.accessToken = token;
+  }
+
+  /**
+   * Returns the base URL of the API.
+   *
+   * @returns the host URL
+   */
+  getHost(): string {
+    return this.host;
+  }
+
+  /**
+   * Returns the authentication headers with the Bearer token.
+   *
+   * @returns the authorization headers
+   * @throws Error if setAccessToken() has not been called
+   */
+  getAuthHeaders(): Record<string, string> {
+    if (!this.accessToken) {
+      throw new Error('Must call setAccessToken() before making API requests');
+    }
+    return { Authorization: `Bearer ${this.accessToken}` };
+  }
+
+  /**
+   * Returns the authentication headers with the Bearer token.
+   *
+   * The implicit grant has no token endpoint: the access token is supplied
+   * out-of-band via {@link setAccessToken}, so this simply resolves with
+   * the result of {@link getAuthHeaders}.
+   *
+   * @returns the authorization headers
+   * @throws Error if setAccessToken() has not been called
+   */
+  getAuthHeadersAsync(): Promise<Record<string, string>> {
+    return Promise.resolve(this.getAuthHeaders());
+  }
+
+  /**
+   * Returns query parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getQueryParams(): Record<string, string> {
+    return {};
+  }
+
+  /**
+   * Returns cookie parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getCookieParams(): Record<string, string> {
+    return {};
+  }
+
+  /* Redact the access token from the default string/inspect representation so
+   * `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
+   * exfiltrate the live access token into application logs. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    const accessToken = this.accessToken === null ? 'null' : '***';
+    return `OAuth2ImplicitAuthenticator(host=${this.host}, clientId=${this.clientId}, authorizationUrl=${this.authorizationUrl}, scopes=[${this.scopes.join(', ')}], accessToken=${accessToken})`;
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      host: this.host,
+      clientId: this.clientId,
+      authorizationUrl: this.authorizationUrl,
+      scopes: [...this.scopes],
+      accessToken: this.accessToken === null ? null : '***',
+    };
+  }
+}

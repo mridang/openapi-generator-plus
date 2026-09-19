@@ -1,0 +1,149 @@
+{{>api_info}}
+@file:Suppress("detekt:all")
+
+package {{invokerPackage}}.auth.oauth
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.ZitadelException
+import {{invokerPackage}}.auth.HttpAwareAuthenticator
+import java.time.Instant
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
+/**
+ * Authenticator for OpenID Connect.
+ *
+ * Fetches the OIDC discovery document to discover the authorization and
+ * token endpoints, then delegates to an [OAuth2AuthorizationCodeAuthenticator].
+ *
+ * Implements [HttpAwareAuthenticator] so that both the discovery
+ * request and subsequent token exchange requests use the shared
+ * [ApiClient] with the same transport configuration (proxy, TLS,
+ * timeouts) as regular API calls.
+ */
+open class OpenIdConnectAuthenticator(
+    private val host: String,
+    private val discoveryUrl: String,
+    private val clientId: String,
+    private val clientSecret: String,
+    private val redirectUri: String,
+    private val scopes: List<String>
+) : HttpAwareAuthenticator {
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @Volatile
+    private var apiClient: ApiClient? = null
+
+    @Volatile
+    private var delegate: OAuth2AuthorizationCodeAuthenticator? = null
+
+    @Volatile
+    private var discoveryExpiry: Instant = Instant.EPOCH
+
+    override fun setApiClient(apiClient: ApiClient) {
+        this.apiClient = apiClient
+    }
+
+    /**
+     * Lazily resolve the delegate by fetching the OIDC discovery document.
+     *
+     * Honors the `Cache-Control: max-age=<seconds>` header from the discovery
+     * response and re-fetches when the cached document is stale. Defaults to
+     * the RFC 8414 recommended max-age of 86400 seconds (1 day) when the
+     * header is absent or unparseable.
+     *
+     * @return the resolved authorization code authenticator
+     */
+    private suspend fun resolveDelegate(): OAuth2AuthorizationCodeAuthenticator {
+        val cached = delegate
+        if (cached != null && Instant.now().isBefore(discoveryExpiry)) {
+            return cached
+        }
+
+        val client = apiClient ?: throw IllegalStateException(
+            "ApiClient has not been injected. " +
+                "Ensure the {{clientClassName}} constructor calls setApiClient() " +
+                "on HttpAwareAuthenticator before making API requests."
+        )
+
+        val headers = mapOf("Accept" to "application/json")
+        val response = client.sendRequest("GET", discoveryUrl, headers, null)
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+            throw ZitadelException(
+                "OIDC discovery request failed with status ${response.statusCode}: ${response.body}"
+            )
+        }
+
+        val discovery = json.parseToJsonElement(response.body).jsonObject
+        val authorizationEndpoint = discovery["authorization_endpoint"]?.jsonPrimitive?.content
+            ?: throw ZitadelException("OIDC discovery document missing authorization_endpoint")
+        val tokenEndpoint = discovery["token_endpoint"]?.jsonPrimitive?.content
+            ?: throw ZitadelException("OIDC discovery document missing token_endpoint")
+
+        val resolved = OAuth2AuthorizationCodeAuthenticator(
+            host = host,
+            clientId = clientId,
+            clientSecret = clientSecret,
+            authorizationUrl = authorizationEndpoint,
+            tokenUrl = tokenEndpoint,
+            redirectUri = redirectUri,
+            scopes = scopes
+        )
+        resolved.setApiClient(client)
+        this.delegate = resolved
+        this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
+        return resolved
+    }
+
+    /**
+     * Parse `Cache-Control: max-age=<seconds>` from response headers.
+     *
+     * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if
+     *   the header is absent or does not contain a `max-age` directive
+     */
+    private fun parseMaxAge(headers: Map<String, String>): Long {
+        val cacheControl = headers.entries
+            .firstOrNull { it.key.equals("Cache-Control", ignoreCase = true) }
+            ?.value
+            ?: return 86400L
+        val match = Regex("max-age=(\\d+)", RegexOption.IGNORE_CASE).find(cacheControl)
+            ?: return 86400L
+        return match.groupValues[1].toLongOrNull() ?: 86400L
+    }
+
+    /**
+     * Build the authorization URL using the discovered authorization endpoint.
+     *
+     * @param state CSRF state parameter
+     * @return the authorization URL
+     */
+    suspend fun buildAuthorizationUrl(state: String? = null): String {
+        return resolveDelegate().buildAuthorizationUrl(state)
+    }
+
+    /**
+     * Exchange an authorization code for tokens using the discovered token endpoint.
+     *
+     * @param code the authorization code from the callback
+     */
+    suspend fun exchangeCode(code: String) {
+        resolveDelegate().exchangeCode(code)
+    }
+
+    override fun getHost(): String = host
+
+    override suspend fun getAuthHeaders(): Map<String, String> {
+        return resolveDelegate().getAuthHeaders()
+    }
+
+    /**
+     * Redacts the client secret so it never leaks through the default
+     * string representation (logs, stack traces, debuggers).
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, discoveryUrl=$discoveryUrl, clientId=$clientId, " +
+            "clientSecret=***, redirectUri=$redirectUri, scopes=$scopes)"
+}

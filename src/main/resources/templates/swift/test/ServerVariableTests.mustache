@@ -1,0 +1,54 @@
+{{>api_info}}
+import Foundation
+import Testing
+@testable import {{packageName}}
+
+@Suite final class ServerVariableTests {
+
+    @Test func storesDefaultValue() {
+        let variable = ServerVariable(defaultValue: "prod")
+        #expect(variable.defaultValue == "prod")
+    }
+
+    @Test func defaultsToEmptyDescriptionAndEnumValues() {
+        let variable = ServerVariable(defaultValue: "prod")
+        #expect(variable.description == "")
+        #expect(variable.enumValues.isEmpty)
+    }
+
+    @Test func storesDescriptionAndEnumValues() {
+        let variable = ServerVariable(
+            defaultValue: "prod",
+            description: "The deployment environment",
+            enumValues: ["prod", "staging"]
+        )
+        #expect(variable.description == "The deployment environment")
+        #expect(variable.enumValues == ["prod", "staging"])
+    }
+
+    /* A variable with an enum constraint that includes its default resolves
+     * cleanly through ServerConfiguration; a default outside the constraint
+     * is rejected. These lock the enum-validation contract at the variable
+     * level. */
+    @Test func enumConstrainedDefaultResolves() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com",
+            variables: [
+                "env": ServerVariable(defaultValue: "prod", enumValues: ["prod", "staging"]),
+            ]
+        )
+        #expect(try server.url() == "https://prod.api.example.com")
+    }
+
+    @Test func enumConstrainedDefaultOutsideAllowedIsRejected() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com",
+            variables: [
+                "env": ServerVariable(defaultValue: "dev", enumValues: ["prod", "staging"]),
+            ]
+        )
+        #expect(throws: ServerConfigurationError.self) {
+            _ = try server.url()
+        }
+    }
+}

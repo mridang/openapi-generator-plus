@@ -1,0 +1,111 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+
+use crate::auth::api_key_location::ApiKeyLocation;
+use super::Authenticator;
+
+/// ApiKeyAuthenticator provides API key authentication.
+///
+/// The API key can be sent as a header, query parameter, or cookie,
+/// depending on the location specified at construction.
+pub struct ApiKeyAuthenticator {
+    host: String,
+    key_param_name: String,
+    api_key: String,
+    location: ApiKeyLocation,
+}
+
+impl ApiKeyAuthenticator {
+    /// Creates a new API key authenticator.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - API base URL
+    /// * `key_param_name` - name of the key parameter
+    /// * `api_key` - the API key value
+    /// * `location` - where to send the key (header, query, or cookie)
+    pub fn new(host: &str, key_param_name: &str, api_key: &str, location: ApiKeyLocation) -> Self {
+        // Validation applies to ALL locations: empty/whitespace API keys
+        // and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+        // printable-ASCII rule still applies to HEADER values. panic is
+        // appropriate because this is a programmer error, not a recoverable
+        // runtime condition.
+        if api_key.is_empty() || api_key.trim().is_empty() {
+            panic!(
+                "API key value for '{}' must not be empty",
+                key_param_name
+            );
+        }
+        if api_key.chars().any(|c| c == '\r' || c == '\n' || c == '\0') {
+            panic!(
+                "API key value for '{}' contains forbidden control characters (CR/LF/NUL)",
+                key_param_name
+            );
+        }
+        if location == ApiKeyLocation::Header
+            && api_key.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
+        {
+            panic!(
+                "API key for header '{}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                key_param_name
+            );
+        }
+        Self {
+            host: host.to_string(),
+            key_param_name: key_param_name.to_string(),
+            api_key: api_key.to_string(),
+            location,
+        }
+    }
+}
+
+/// Redacts the API key so it never leaks through `{:?}` (Debug) formatting,
+/// stack traces, or error logs. The host, parameter name, and location are
+/// shown normally; the API key is masked as `***`.
+impl std::fmt::Debug for ApiKeyAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ApiKeyAuthenticator")
+            .field("host", &self.host)
+            .field("key_param_name", &self.key_param_name)
+            .field("api_key", &"***")
+            .field("location", &self.location)
+            .finish()
+    }
+}
+
+impl Authenticator for ApiKeyAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut result = HashMap::new();
+            if self.location == ApiKeyLocation::Header {
+                result.insert(self.key_param_name.clone(), self.api_key.clone());
+            }
+            result
+        })
+    }
+
+    fn query_params(&self) -> HashMap<String, String> {
+        let mut result = HashMap::new();
+        if self.location == ApiKeyLocation::Query {
+            result.insert(self.key_param_name.clone(), self.api_key.clone());
+        }
+        result
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        let mut result = HashMap::new();
+        if self.location == ApiKeyLocation::Cookie {
+            result.insert(self.key_param_name.clone(), self.api_key.clone());
+        }
+        result
+    }
+}

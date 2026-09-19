@@ -1,0 +1,354 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
+
+use crate::object_serializer::SerializationError;
+
+/// Parses a raw response body into a JSON AST for the crate-internal
+/// `error_body` cache. Returns `None` when the body is absent or not valid
+/// JSON. Kept private so the `serde_json` dependency never reaches the public
+/// `ApiError` surface.
+fn parse_error_body(body: Option<&str>) -> Option<serde_json::Value> {
+    match body {
+        Some(b) if !b.is_empty() => serde_json::from_str(b).ok(),
+        _ => None,
+    }
+}
+
+/// Deserializes a raw response body into `T`, surfacing the SDK's
+/// `SerializationError` (never `serde_json::Error`) on failure. Returns
+/// `Ok(None)` when there is no body to parse.
+fn deserialize_error_body<T: serde::de::DeserializeOwned>(
+    body: Option<&str>,
+) -> Result<Option<T>, SerializationError> {
+    match body {
+        Some(b) if !b.is_empty() => serde_json::from_str(b).map(Some).map_err(|e| {
+            SerializationError::new(
+                format!("failed to deserialize error response body: {}", e),
+                Some(Box::new(e)),
+            )
+        }),
+        _ => Ok(None),
+    }
+}
+
+/// ApiError represents an error returned by the API, including the HTTP status
+/// code, response headers, and response body.
+#[derive(Debug, Clone)]
+pub struct ApiError {
+    /// The HTTP status code.
+    status_code: u16,
+
+    /// The error message.
+    message: String,
+
+    /// The raw response body (None if the transport failed before producing one).
+    response_body: Option<String>,
+
+    /// The response headers (None if the transport failed before producing them).
+    response_headers: Option<HashMap<String, String>>,
+
+    /// The parsed response body, if JSON. Crate-internal: exposing the
+    /// `serde_json::Value` AST would leak `serde_json` into the public API.
+    /// Callers should use [`ApiError::typed_body`] for a typed view of the
+    /// body instead.
+    pub(crate) error_body: Option<serde_json::Value>,
+
+    /// The underlying transport-level error that caused this ApiError, if any.
+    ///
+    /// apierror-drops-transport-cause: rather than stringifying and discarding
+    /// the originating error (DNS/connect/TLS/IO/body-read failure), it is
+    /// preserved here and exposed via [`std::error::Error::source`], so callers
+    /// can downcast the cause and inspect it — matching the 10 other SDKs that
+    /// retain `cause` / `Unwrap` / `__cause__` / `InnerException`. Stored as an
+    /// `Arc` so `ApiError` stays `Clone`.
+    source: Option<Arc<dyn std::error::Error + Send + Sync>>,
+}
+
+impl ApiError {
+    /// Creates a new ApiError with no preserved transport cause.
+    ///
+    /// The parsed-JSON view (`error_body`) is derived internally from
+    /// `response_body`; callers do not supply a `serde_json::Value`.
+    pub fn new(
+        status_code: u16,
+        message: String,
+        response_body: Option<String>,
+        response_headers: Option<HashMap<String, String>>,
+    ) -> Self {
+        let error_body = parse_error_body(response_body.as_deref());
+        Self {
+            status_code,
+            message,
+            response_body,
+            response_headers,
+            error_body,
+            source: None,
+        }
+    }
+
+    /// Creates a new ApiError that preserves the underlying transport `source`
+    /// error so callers can inspect the original cause via
+    /// [`std::error::Error::source`].
+    ///
+    /// The parsed-JSON view (`error_body`) is derived internally from
+    /// `response_body`; callers do not supply a `serde_json::Value`.
+    pub fn with_source(
+        status_code: u16,
+        message: String,
+        response_body: Option<String>,
+        response_headers: Option<HashMap<String, String>>,
+        source: Arc<dyn std::error::Error + Send + Sync>,
+    ) -> Self {
+        let error_body = parse_error_body(response_body.as_deref());
+        Self {
+            status_code,
+            message,
+            response_body,
+            response_headers,
+            error_body,
+            source: Some(source),
+        }
+    }
+
+    /// Returns the HTTP status code.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the error message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Returns the raw response body, if the transport produced one.
+    pub fn response_body(&self) -> Option<&str> {
+        self.response_body.as_deref()
+    }
+
+    /// Returns the response headers, if the transport produced them.
+    pub fn response_headers(&self) -> Option<&HashMap<String, String>> {
+        self.response_headers.as_ref()
+    }
+
+    /// Deserializes the response body into the target type. Returns
+    /// `Ok(None)` if there is no response body to parse.
+    pub fn typed_error_body<T: serde::de::DeserializeOwned>(
+        &self,
+    ) -> Result<Option<T>, SerializationError> {
+        self.typed_body()
+    }
+
+    /// Deserializes the response body into the target type `T`.
+    ///
+    /// Returns `Ok(None)` when the error did not carry a response body
+    /// (e.g. transport-level failures, or the server emitted no payload).
+    /// Returns `Err` when the body is present but cannot be parsed into `T`.
+    ///
+    /// This is the canonical accessor mirroring the `getTypedErrorBody(Class)`
+    /// helper exposed by the Java/Kotlin/C# SDKs for spec-declared error
+    /// schemas. The `typed_error_body` name is retained as a deprecated alias.
+    pub fn typed_body<T: serde::de::DeserializeOwned>(
+        &self,
+    ) -> Result<Option<T>, SerializationError> {
+        deserialize_error_body(self.response_body.as_deref())
+    }
+}
+
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut msg = if self.message.is_empty() {
+            "Error message: the server returns an error".to_string()
+        } else {
+            self.message.clone()
+        };
+
+        if self.status_code != 0 {
+            msg.push_str(&format!("\nHTTP status code: {}", self.status_code));
+        }
+        if let Some(headers) = &self.response_headers {
+            if !headers.is_empty() {
+                msg.push_str(&format!("\nResponse headers: {:?}", headers));
+            }
+        }
+        if let Some(body) = &self.response_body {
+            if !body.is_empty() {
+                msg.push_str(&format!("\nResponse body: {}", body));
+            }
+        }
+        write!(f, "{}", msg)
+    }
+}
+
+impl std::error::Error for ApiError {
+    /// Returns the underlying transport error that caused this ApiError, if it
+    /// was preserved via [`ApiError::with_source`]. Lets callers walk the error
+    /// chain and downcast to the originating reqwest / IO error.
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source
+            .as_ref()
+            .map(|s| s.as_ref() as &(dyn std::error::Error + 'static))
+    }
+}
+
+/// ApiErrorFields carries the per-variant payload for ApiErrorKind.
+///
+/// Each per-status enum variant wraps an instance of this struct so callers
+/// can `match` on the HTTP status while still accessing the body, headers,
+/// and parsed-JSON view.
+#[derive(Debug, Clone)]
+pub struct ApiErrorFields {
+    /// The HTTP status code surfaced by the transport.
+    status_code: u16,
+    /// Human-readable summary suitable for log messages.
+    message: String,
+    /// Raw response body, if the transport produced one.
+    response_body: Option<String>,
+    /// Response headers, if the transport produced them.
+    response_headers: Option<HashMap<String, String>>,
+    /// Parsed JSON view of the response body, if it was valid JSON.
+    /// Crate-internal: see [`ApiError::error_body`]. Use
+    /// [`ApiErrorFields::typed_body`] for a typed view.
+    pub(crate) error_body: Option<serde_json::Value>,
+}
+
+impl ApiErrorFields {
+    /// Returns the HTTP status code surfaced by the transport.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the human-readable summary suitable for log messages.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Returns the raw response body, if the transport produced one.
+    pub fn response_body(&self) -> Option<&str> {
+        self.response_body.as_deref()
+    }
+
+    /// Returns the response headers, if the transport produced them.
+    pub fn response_headers(&self) -> Option<&HashMap<String, String>> {
+        self.response_headers.as_ref()
+    }
+
+    /// Convenience: deserialize the response body into `T`.
+    pub fn typed_body<T: serde::de::DeserializeOwned>(
+        &self,
+    ) -> Result<Option<T>, SerializationError> {
+        deserialize_error_body(self.response_body.as_deref())
+    }
+}
+
+impl From<ApiError> for ApiErrorFields {
+    fn from(e: ApiError) -> Self {
+        Self {
+            status_code: e.status_code,
+            message: e.message,
+            response_body: e.response_body,
+            response_headers: e.response_headers,
+            error_body: e.error_body,
+        }
+    }
+}
+
+/// ApiErrorKind is a per-status enum view of an error returned by the API.
+///
+/// Provides idiomatic Rust pattern matching for callers that want to react
+/// to specific HTTP statuses without downcasting to per-status struct types.
+/// Cross-language parity: mirrors the per-status subclass hierarchies emitted
+/// by the Java, Kotlin, C#, PHP, Python, Node, and Ruby SDKs.
+///
+/// Convert from a plain [`ApiError`] via [`ApiErrorKind::from`].
+#[derive(Debug)]
+pub enum ApiErrorKind {
+    /// HTTP 400 Bad Request.
+    BadRequest(ApiErrorFields),
+    /// HTTP 401 Unauthorized.
+    Unauthorized(ApiErrorFields),
+    /// HTTP 403 Forbidden.
+    Forbidden(ApiErrorFields),
+    /// HTTP 404 Not Found.
+    NotFound(ApiErrorFields),
+    /// HTTP 409 Conflict.
+    Conflict(ApiErrorFields),
+    /// HTTP 422 Unprocessable Entity.
+    UnprocessableEntity(ApiErrorFields),
+    /// HTTP 500 Internal Server Error.
+    InternalServerError(ApiErrorFields),
+    /// Any other client-side (4xx) status with no dedicated variant.
+    ClientError(ApiErrorFields),
+    /// Any other server-side (5xx) status with no dedicated variant.
+    ServerError(ApiErrorFields),
+    /// Transport-level network failure (DNS, connect, TLS, IO).
+    ///
+    /// Mirrors the "status_code = 0" sentinel used by the non-Rust SDKs.
+    Network(std::io::Error),
+    /// Catch-all for any unrecognized status or unrouted condition.
+    Other(u16, String),
+}
+
+impl ApiErrorKind {
+    /// Returns the per-variant fields, or `None` for non-HTTP variants
+    /// (`Network`, `Other`).
+    pub fn fields(&self) -> Option<&ApiErrorFields> {
+        match self {
+            Self::BadRequest(f)
+            | Self::Unauthorized(f)
+            | Self::Forbidden(f)
+            | Self::NotFound(f)
+            | Self::Conflict(f)
+            | Self::UnprocessableEntity(f)
+            | Self::InternalServerError(f)
+            | Self::ClientError(f)
+            | Self::ServerError(f) => Some(f),
+            Self::Network(_) | Self::Other(_, _) => None,
+        }
+    }
+
+    /// Returns the HTTP status code for the variant, or 0 for `Network`.
+    pub fn status_code(&self) -> u16 {
+        match self {
+            Self::Network(_) => 0,
+            Self::Other(code, _) => *code,
+            other => other.fields().map(|f| f.status_code).unwrap_or(0),
+        }
+    }
+}
+
+impl From<ApiError> for ApiErrorKind {
+    fn from(e: ApiError) -> Self {
+        let code = e.status_code;
+        let f = ApiErrorFields::from(e);
+        match code {
+            400 => Self::BadRequest(f),
+            401 => Self::Unauthorized(f),
+            403 => Self::Forbidden(f),
+            404 => Self::NotFound(f),
+            409 => Self::Conflict(f),
+            422 => Self::UnprocessableEntity(f),
+            500 => Self::InternalServerError(f),
+            c if (400..500).contains(&c) => Self::ClientError(f),
+            c if (500..600).contains(&c) => Self::ServerError(f),
+            _ => Self::Other(f.status_code, f.message),
+        }
+    }
+}
+
+impl fmt::Display for ApiErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Network(e) => write!(f, "Network error: {}", e),
+            Self::Other(code, msg) => write!(f, "API error (status {}): {}", code, msg),
+            other => {
+                let fields = other.fields().expect("HTTP variants have fields");
+                write!(f, "API error (status {}): {}", fields.status_code, fields.message)
+            }
+        }
+    }
+}
+
+impl std::error::Error for ApiErrorKind {}

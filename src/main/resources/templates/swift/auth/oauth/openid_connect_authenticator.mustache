@@ -1,0 +1,185 @@
+{{>api_info}}
+import Foundation
+
+/// OpenIdConnectAuthenticator provides OpenID Connect authentication.
+///
+/// Fetches the OIDC discovery document to discover the authorization and
+/// token endpoints, then delegates to an ``OAuth2AuthorizationCodeAuthenticator``.
+///
+/// Conforms to ``HttpAwareAuthenticator`` so that both the discovery request and
+/// subsequent token exchange requests use the shared ``ApiClient`` with the same
+/// transport configuration (proxy, TLS, timeouts) as regular API calls.
+public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+    private let _host: String
+    private let openIDConnectURL: String
+    private let clientID: String
+    private let clientSecret: String
+    private let redirectURI: String
+    private let scopes: [String]
+    private var apiClient: ApiClient?
+    private var delegate: OAuth2AuthorizationCodeAuthenticator?
+    private var discoveryExpiry: Date = Date(timeIntervalSince1970: 0)
+    private let lock = NSLock()
+
+    /// Creates a new OpenID Connect authenticator.
+    public init(
+        host: String,
+        openIDConnectURL: String,
+        clientID: String,
+        clientSecret: String,
+        redirectURI: String,
+        scopes: [String] = []
+    ) {
+        self._host = host
+        self.openIDConnectURL = openIDConnectURL
+        self.clientID = clientID
+        self.clientSecret = clientSecret
+        self.redirectURI = redirectURI
+        self.scopes = scopes
+        super.init()
+    }
+
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
+    }
+
+    /// Injects the shared ``ApiClient`` for making discovery and token requests.
+    public func setApiClient(_ client: ApiClient) {
+        lock.withLock {
+            self.apiClient = client
+        }
+    }
+
+    /// Builds the authorization URL using the discovered authorization endpoint.
+    public func buildAuthorizationURL(state: String = "") async throws -> String {
+        let delegate = try await resolveDelegate()
+        return delegate.buildAuthorizationURL(state: state)
+    }
+
+    /// Exchanges an authorization code for tokens using the discovered token endpoint.
+    public func exchangeCode(_ code: String) async throws {
+        let delegate = try await resolveDelegate()
+        try await delegate.exchangeCode(code)
+    }
+
+    /// Returns the Bearer authentication header.
+    ///
+    /// Surfaces any discovery or token-exchange failure to the caller rather
+    /// than collapsing it into an empty header map that would send the
+    /// request unauthenticated.
+    override public func authHeaders() async throws -> [String: String] {
+        let delegate = try await resolveDelegate()
+        return await delegate.authHeaders()
+    }
+
+    /// Lazily resolves the delegate by fetching the OIDC discovery document
+    /// using the injected ``ApiClient``. Honors the `Cache-Control: max-age=<seconds>`
+    /// header from the discovery response; falls back to the RFC 8414
+    /// recommended default of 86400 seconds when absent.
+    private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
+        let existing: OAuth2AuthorizationCodeAuthenticator? = lock.withLock {
+            if let d = delegate, Date() < discoveryExpiry {
+                return d
+            }
+            return nil
+        }
+        if let existing = existing {
+            return existing
+        }
+
+        let client: ApiClient = try lock.withLock {
+            guard let client = apiClient else {
+                throw NSError(domain: "OpenIdConnectAuthenticator", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "ApiClient has not been injected. " +
+                        "Ensure the {{clientClassName}} constructor calls setApiClient " +
+                        "on HttpAwareAuthenticator before making API requests"
+                ])
+            }
+            return client
+        }
+
+        let headers = ["Accept": "application/json"]
+        let response = try await client.sendRequest(method: "GET", url: openIDConnectURL, headers: headers, body: nil)
+
+        /* Guard on the HTTP status before attempting to JSON-decode the
+         * discovery document. A 5xx HTML error page or a 404 would
+         * otherwise surface as a misleading "invalid JSON" decode failure
+         * instead of the real transport error the caller needs to see. */
+        guard response.statusCode >= 200 && response.statusCode < 300 else {
+            throw ApiError(
+                statusCode: response.statusCode,
+                message: "OIDC discovery request to \(openIDConnectURL) failed with status \(response.statusCode)",
+                responseBody: response.body,
+                responseHeaders: response.headers
+            )
+        }
+
+        guard let data = response.body.data(using: .utf8) else {
+            throw URLError(.badServerResponse)
+        }
+
+        struct DiscoveryDocument: Decodable {
+            let authorization_endpoint: String
+            let token_endpoint: String
+        }
+
+        let discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
+
+        let newDelegate = OAuth2AuthorizationCodeAuthenticator(
+            host: _host,
+            clientID: clientID,
+            clientSecret: clientSecret,
+            authorizationURL: discovery.authorization_endpoint,
+            tokenURL: discovery.token_endpoint,
+            redirectURI: redirectURI,
+            scopes: scopes
+        )
+        newDelegate.setApiClient(client)
+
+        let maxAge = Self.parseMaxAge(response.headers)
+        lock.withLock {
+            self.delegate = newDelegate
+            self.discoveryExpiry = Date().addingTimeInterval(TimeInterval(maxAge))
+        }
+        return newDelegate
+    }
+
+    /// Parse `Cache-Control: max-age=<seconds>` from response headers.
+    ///
+    /// Returns 86400 (RFC 8414 default) if the header is absent or does not
+    /// contain a `max-age` directive.
+    private static func parseMaxAge(_ headers: [String: String]) -> Int {
+        let defaultMaxAge = 86400
+        for (key, value) in headers where key.lowercased() == "cache-control" {
+            guard let regex = try? NSRegularExpression(
+                pattern: "max-age=(\\d+)", options: [.caseInsensitive]
+            ) else {
+                return defaultMaxAge
+            }
+            let range = NSRange(value.startIndex..., in: value)
+            guard let match = regex.firstMatch(in: value, options: [], range: range),
+                  match.numberOfRanges >= 2,
+                  let group = Range(match.range(at: 1), in: value),
+                  let seconds = Int(value[group]) else {
+                return defaultMaxAge
+            }
+            return seconds
+        }
+        return defaultMaxAge
+    }
+}
+
+extension OpenIdConnectAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+    /// A description that redacts the client secret so it never leaks through
+    /// string interpolation, logging, or debugging output.
+    public var description: String {
+        "\(type(of: self))(host: \(_host), openIDConnectURL: \(openIDConnectURL), clientID: \(clientID), clientSecret: ***, redirectURI: \(redirectURI), scopes: \(scopes))"
+    }
+
+    /// A debug description that redacts the client secret so it never leaks
+    /// through string interpolation, logging, or debugging output.
+    public var debugDescription: String {
+        description
+    }
+}

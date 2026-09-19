@@ -1,0 +1,17 @@
+{{>api_info}}
+package oauth
+
+// ClientAuthMethod specifies how OAuth2 client credentials
+// (client_id / client_secret) are transmitted to the token endpoint per
+// RFC 6749 §2.3.1.
+type ClientAuthMethod int
+
+const (
+	// ClientAuthMethodBody sends credentials as form parameters in the
+	// request body (default).
+	ClientAuthMethodBody ClientAuthMethod = iota
+
+	// ClientAuthMethodBasic sends credentials via HTTP Basic Authorization
+	// header.
+	ClientAuthMethodBasic
+)

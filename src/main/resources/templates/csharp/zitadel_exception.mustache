@@ -1,0 +1,41 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// Root of the SDK exception hierarchy.
+///
+/// Every error the SDK raises ultimately derives from this single base, so a
+/// caller can write one <c>catch ({{packageName}}.ZitadelException)</c> and be
+/// certain it covers all SDK-originated failures: API/HTTP errors
+/// (<see cref="ApiException"/> and its typed subclasses) and serialization
+/// failures (<see cref="SerializationException"/>). This gives C# the same
+/// one-root design the other language clients expose. The chain for a typed
+/// HTTP error is, for example:
+/// UnauthorizedException → ClientException → ApiException → ZitadelException
+/// → Exception.
+/// </summary>
+public class ZitadelException : Exception
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ZitadelException"/> class.
+    /// </summary>
+    public ZitadelException() { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ZitadelException"/> class
+    /// with a detail message.
+    /// </summary>
+    /// <param name="message">The detail message.</param>
+    public ZitadelException(string message)
+        : base(message) { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ZitadelException"/> class
+    /// with a detail message and the underlying cause.
+    /// </summary>
+    /// <param name="message">The detail message.</param>
+    /// <param name="innerException">The underlying cause.</param>
+    public ZitadelException(string message, Exception innerException)
+        : base(message, innerException) { }
+}

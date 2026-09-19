@@ -1,0 +1,104 @@
+openapi: 3.0.3
+
+# A deliberately adversarial second spec, generated alongside the petstore one.
+#
+# Its first job is to prove that NOTHING from the petstore spec leaks into a
+# generated SDK. Because this spec shares no vocabulary with petstore, any
+# occurrence of "pet", "petstore", "Swatch", "PhotoMetadata" and friends in the
+# output is, by construction, a literal hardcoded in a template rather than
+# something derived from the spec being generated.
+#
+# Its second job is to carry the shapes petstore happens not to have, each of
+# which hid a real bug behind a green test suite:
+#
+#   - a tag whose name STARTS WITH AN ACRONYM, so camelCase conversion is forced
+#     to fold the whole run (RELAYService -> relayService, never rELAYService)
+#   - a property typed as a MAP OF BYTE ARRAYS, which must not be mistaken for a
+#     collection of them when generating equality
+#   - a schema whose name EQUALS the root package/namespace, which makes a
+#     language bind an unqualified reference to the type instead of the namespace
+#   - a global security requirement alongside an operation that opts out with an
+#     explicit `security: []`, so inherited and unauthenticated operations are
+#     told apart
+info:
+  title: Probe Fixture
+  description: A synthetic fixture used to police generator output. Not a real API.
+  version: 1.0.0
+
+servers:
+  - url: https://probe.example.invalid
+
+security:
+  - probeBearer: []
+
+paths:
+  /probe.v1.RELAYService/StoreVault:
+    post:
+      tags: [RELAYService]
+      operationId: storeVault
+      summary: Stores a vault and echoes it back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vault'
+      responses:
+        '200':
+          description: The stored vault.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vault'
+
+  /probe.v1.RELAYService/DescribeProbe:
+    post:
+      tags: [RELAYService]
+      operationId: describeProbe
+      summary: Returns fixture metadata. Explicitly unauthenticated.
+      security: []
+      responses:
+        '200':
+          description: Fixture metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Probe'
+
+components:
+  securitySchemes:
+    probeBearer:
+      type: http
+      scheme: bearer
+
+  schemas:
+    # Deliberately named after the root package so an unqualified reference to
+    # a namespace member has to compete with this type during name resolution.
+    Probe:
+      type: object
+      properties:
+        label:
+          type: string
+        revision:
+          type: integer
+          format: int64
+
+    Vault:
+      type: object
+      properties:
+        seal:
+          description: A bare byte array; equality compares its contents.
+          type: string
+          format: byte
+        shards:
+          description: A list of byte arrays; equality compares element contents.
+          type: array
+          items:
+            type: string
+            format: byte
+        labels:
+          description: A map of byte arrays; equality compares each value's contents.
+          type: object
+          additionalProperties:
+            type: string
+            format: byte

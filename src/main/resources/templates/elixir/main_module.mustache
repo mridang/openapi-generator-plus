@@ -1,0 +1,18 @@
+{{>api_info}}
+
+defmodule {{moduleName}} do
+  @moduledoc """
+  {{moduleName}} API client library.
+
+  ## Configuration
+
+      config = {{moduleName}}.Configuration.new(
+        base_url: "https://api.example.com",
+        default_headers: %{"Authorization" => "Bearer token"}
+      )
+
+  ## Usage
+
+      client = {{moduleName}}.{{clientClassName}}.with_token("https://api.example.com", "my-token")
+  """
+end

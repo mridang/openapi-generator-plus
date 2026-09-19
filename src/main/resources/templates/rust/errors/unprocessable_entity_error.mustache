@@ -1,0 +1,36 @@
+{{>api_info}}
+
+use std::fmt;
+
+use crate::errors::client_error::ClientError;
+
+/// UnprocessableEntityError represents an HTTP 422 Unprocessable Entity error.
+#[derive(Debug, Clone)]
+pub struct UnprocessableEntityError {
+    client_error: ClientError,
+}
+
+impl UnprocessableEntityError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
+}
+
+impl fmt::Display for UnprocessableEntityError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Unprocessable entity (422): {}", self.client_error.api_error().message())
+    }
+}
+
+impl std::error::Error for UnprocessableEntityError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.client_error)
+    }
+}
+
+impl From<ClientError> for UnprocessableEntityError {
+    fn from(client_error: ClientError) -> Self {
+        Self { client_error }
+    }
+}

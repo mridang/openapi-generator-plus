@@ -1,0 +1,734 @@
+{{>api_info}}
+
+using System.Net;
+using System.Text.Json;
+using {{packageName}};
+using Xunit;
+
+namespace Test;
+
+[Collection("Chasm")]
+public class DefaultApiClientTest
+{
+    private readonly ChasmFixture _fixture;
+
+    public DefaultApiClientTest(ChasmFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public async Task MakesHttpsRequestWithVerifySslFalse()
+    {
+        var transport = TransportOptions.Builder()
+            .VerifySsl(false)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        // Chasm echo envelope: presence of "method" field confirms a JSON response body.
+        Assert.Contains("\"method\"", response.Body);
+    }
+
+    [Fact]
+    public async Task MakesHttpsRequestWithCustomCaCert()
+    {
+        // Test runs inside the dotnet container where /work is the project mount;
+        // read the cert from the container's local FS, not from HOST_APP_PATH
+        // (which is the host-side bind-mount source used by ChasmFixture).
+        var caCertPath = Path.Combine(Directory.GetCurrentDirectory(), "Test", "Resources", "certs", "ca.pem");
+
+        var transport = TransportOptions.Builder()
+            .VerifySsl(true)
+            .CaCertPath(caCertPath)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("\"method\"", response.Body);
+    }
+
+    [Fact]
+    public async Task MakesHttpRequestThroughProxy()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.ProxyUrl)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("\"method\"", response.Body);
+    }
+
+    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    // and surfaced as Proxy-Authorization so the proxy can authenticate
+    // the tunnel — otherwise the proxy 407s. This test is fixture-independent.
+    [Fact]
+    public void ProxyWithCredentialsInjectsBasicAuthorization()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy("http://alice:s3cret@127.0.0.1:3128")
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+
+        Assert.Equal("Basic YWxpY2U6czNjcmV0", client.ProxyAuthorizationHeader);
+    }
+
+    // Canonical scenario AK: a proxy URL of the exact form
+    // http://user:pass@127.0.0.1:3128 must carry its embedded credentials
+    // (java drops the userinfo; the canonical is to honour it). The client
+    // surfaces them as a Basic Proxy-Authorization value rather than dropping
+    // them. Fixture-independent — exercises only credential propagation.
+    [Fact]
+    public void ProxyUrlWithUserPassCarriesProxyCredentials()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy("http://user:pass@127.0.0.1:3128")
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+
+        // "user:pass" base64-encoded is "dXNlcjpwYXNz".
+        Assert.Equal("Basic dXNlcjpwYXNz", client.ProxyAuthorizationHeader);
+    }
+
+    [Fact]
+    public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.ProxyUrl)
+            .VerifySsl(false)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpsUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("\"method\"", response.Body);
+    }
+
+    // -- Request timeout --
+
+    [Fact]
+    public async Task TimesOutOnSlowEndpoint()
+    {
+        var transport = TransportOptions.Builder()
+            .Timeout(1)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+    }
+
+    // -- User-Agent header --
+
+    [Fact]
+    public async Task InjectsCustomUserAgentHeader()
+    {
+        var transport = TransportOptions.Builder()
+            .UserAgent("MyApp/1.0")
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        var json = JsonDocument.Parse(response.Body);
+        // Chasm echoes headers under .headers with lowercased keys.
+        Assert.Equal("MyApp/1.0", json.RootElement.GetProperty("headers").GetProperty("user-agent").GetString());
+    }
+
+    // -- X-Request-ID injection --
+
+    [Fact]
+    public async Task InjectsRequestIdHeader()
+    {
+        var transport = TransportOptions.Builder()
+            .InjectRequestId(true)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        var json = JsonDocument.Parse(response.Body);
+        var requestId = json.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
+        Assert.NotNull(requestId);
+        Assert.Matches(
+            @"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            requestId
+        );
+    }
+
+    [Fact]
+    public async Task GeneratesUniqueRequestIds()
+    {
+        var transport = TransportOptions.Builder()
+            .InjectRequestId(true)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+
+        var response1 = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        var json1 = JsonDocument.Parse(response1.Body);
+        var requestId1 = json1.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
+
+        var response2 = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        var json2 = JsonDocument.Parse(response2.Body);
+        var requestId2 = json2.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
+
+        Assert.NotEqual(requestId1, requestId2);
+    }
+
+    // -- Default headers --
+
+    [Fact]
+    public async Task IncludesTransportDefaultHeaders()
+    {
+        var transport = TransportOptions.Builder()
+            .DefaultHeader("X-Custom", "custom-value")
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        var json = JsonDocument.Parse(response.Body);
+        Assert.Equal("custom-value", json.RootElement.GetProperty("headers").GetProperty("x-custom").GetString());
+    }
+
+    [Fact]
+    public async Task CallerHeadersOverrideTransportDefaults()
+    {
+        var transport = TransportOptions.Builder()
+            .DefaultHeader("Accept", "text/plain")
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string> { { "Accept", "application/json" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        var json = JsonDocument.Parse(response.Body);
+        Assert.Equal("application/json", json.RootElement.GetProperty("headers").GetProperty("accept").GetString());
+    }
+
+    // -- Redirect handling --
+
+    [Fact]
+    public async Task FollowsRedirectsWhenEnabled()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/redirect/302"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        // Chasm follows the redirect to /test/echo, whose envelope contains "method".
+        Assert.Contains("\"method\"", response.Body);
+    }
+
+    [Fact]
+    public async Task ReturnsRedirectWhenDisabled()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(false)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/redirect/302"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(302, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
+    /// </summary>
+    [Fact]
+    public async Task Redirect303SwitchesToGetAndDropsBody()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(_fixture.BaseUrl + "/test/redirect/303"),
+            headers,
+            "hello-body"
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        var json = JsonDocument.Parse(response.Body);
+        Assert.Equal("GET", json.RootElement.GetProperty("method").GetString());
+        Assert.Equal("", json.RootElement.GetProperty("body").GetString());
+    }
+
+    // Canonical scenario N1: an HTTPS->HTTP downgrade redirect carrying a body.
+    // A 302 forces the follow-up to GET and drops the body (per RFC the request
+    // becomes GET), so the hop PROCEEDS — nothing sensitive is replayed in
+    // cleartext. A 307/308 would preserve method+body, so replaying it over the
+    // downgraded cleartext leg is refused with a typed ApiException. These two
+    // mock-handler cases are fixture-independent; node guards every status
+    // (throws where others proceed), the canonical guards 307/308 only.
+
+    [Fact]
+    public async Task Downgrade302WithBodyProceedsAsGet()
+    {
+        var handler = new DowngradeRedirectHandler(
+            firstStatus: HttpStatusCode.Redirect, // 302
+            location: new Uri("http://downgraded.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            "secret-payload"
+        );
+
+        // The 302 downgrade proceeds: the body is dropped and the follow-up is
+        // a GET, so the downgrade body-replay guard does not fire.
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
+    }
+
+    [Fact]
+    public async Task Downgrade307WithBodyThrows()
+    {
+        var handler = new DowngradeRedirectHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb, // 307
+            location: new Uri("http://downgraded.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        // 307 preserves method+body; replaying it across the HTTPS->HTTP
+        // downgrade in cleartext is refused as a typed SDK error.
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            "secret-payload"
+        ));
+
+        Assert.Single(handler.Requests);
+        Assert.Contains("downgrade", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /* T-new-3: multipart body replay on 307/308 is NOT exercisable from
+     * C# because .NET's HttpClient drops the request body when transparently
+     * following a 307 redirect, and `[Fact(Skip = "...")]` is stripped to
+     * `[Fact]` by the dotnet format auto-fixer in our post-process pipeline
+     * (so a skip-with-reason can't survive regeneration). The test method
+     * is omitted entirely here; see AGENT.md "307/308 multipart body replay"
+     * for the scope of the future fix and the Rust SDK for the canonical
+     * implementation. */
+
+    // -- Max redirects --
+
+    [Fact]
+    public void RespectsMaxRedirectsLimit()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        Assert.NotNull(client);
+        Assert.Equal(5, transport.MaxRedirects);
+    }
+
+    /// <summary>
+    /// Wave E parity: redirect counting and the "too many redirects" refusal
+    /// must be scoped to a single request, NOT shared across requests that run
+    /// concurrently through one client. DefaultApiClient.SendRequestAsync drives
+    /// the redirect loop with a local hop counter and a local response variable,
+    /// so concurrent calls cannot corrupt each other's count. This test fires
+    /// several requests at once through a single shared client backed by one
+    /// HttpClient: a request following a long chain that overruns MaxRedirects
+    /// must fail on its own, while a request following one hop and a request
+    /// following none each complete with their own correct outcome — and the
+    /// limit refusal must not surface on the requests that stayed under the cap.
+    /// If counting were shared per-client this would flake or cross-fail.
+    /// </summary>
+    [Fact]
+    public async Task ConcurrentRedirectsAreCountedPerRequestNotPerClient()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
+
+        // One handler / one HttpClient / one client shared by every task below.
+        // The handler builds a redirect chain whose remaining length is encoded
+        // in the request path: /chain/{n} -> /chain/{n-1}, and /chain/0 -> 200.
+        var handler = new ChainRedirectHandler();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        async Task<int> StatusForChainAsync(int length)
+        {
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri($"https://chain.example.com/chain/{length}"),
+                new Dictionary<string, string>(),
+                null
+            );
+            return response.StatusCode;
+        }
+
+        async Task<ApiException> ExceptionForChainAsync(int length)
+        {
+            return await Assert.ThrowsAsync<ApiException>(() => StatusForChainAsync(length));
+        }
+
+        // Run them all at once. The over-limit chain (20 hops) is interleaved
+        // with a one-hop chain, a zero-hop request, and another one-hop chain so
+        // its many redirects have every opportunity to inflate a shared counter.
+        var noHop = StatusForChainAsync(0);
+        var oneHopA = StatusForChainAsync(1);
+        var oneHopB = StatusForChainAsync(1);
+        var overLimit = ExceptionForChainAsync(20);
+
+        await Task.WhenAll(noHop, oneHopA, oneHopB, overLimit);
+
+        // Each under-cap request completed with its own correct 200 — none was
+        // failed by the concurrent 20-hop chain's redirects.
+        Assert.Equal(200, await noHop);
+        Assert.Equal(200, await oneHopA);
+        Assert.Equal(200, await oneHopB);
+
+        // The over-cap request, and only it, was refused with "too many
+        // redirects": the refusal did not leak onto the other tasks.
+        Assert.Contains("redirect", (await overLimit).Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // -- Multipart body --
+
+    [Fact]
+    public async Task SendsMultipartFormData()
+    {
+        var client = new DefaultApiClient();
+        var formData = new Dictionary<string, object>
+        {
+            { "description", "A test file" },
+            { "file", System.Text.Encoding.UTF8.GetBytes("file content") }
+        };
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(response);
+    }
+
+    /// <summary>
+    /// W-new-2: multipart field-name validation must run on every branch
+    /// (not just binary). Confirm that even for a plain string value, a
+    /// CR/LF in the field name is rejected, preventing Content-Disposition
+    /// smuggling.
+    /// </summary>
+    [Fact]
+    public async Task MultipartFieldNameWithCrlfRejectedOnStringValue()
+    {
+        var client = new DefaultApiClient();
+        var badFields = new Dictionary<string, object>
+        {
+            { "name\r\nInjected: yes", "string-value" }
+        };
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+            await client.SendRequestAsync(
+                "POST",
+                new Uri(_fixture.BaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                badFields));
+    }
+
+    // -- HTTP compression --
+
+    [Fact]
+    public async Task DecompressesGzipResponse()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Dictionary<string, string> { { "Accept-Encoding", "gzip" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body);
+    }
+
+    [Fact]
+    public async Task DecompressesBrotliResponse()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Dictionary<string, string> { { "Accept-Encoding", "br" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body);
+    }
+
+    [Fact(Skip = "zstd decompression is not natively supported by the .NET HttpClient")]
+    public async Task DecompressesZstdResponse()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Dictionary<string, string> { { "Accept-Encoding", "zstd" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body);
+    }
+
+    /*
+     * Regression: POST/PUT/PATCH with body == null must emit an explicit
+     * Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+     * with no Content-Length (411 Length Required). We attach an empty
+     * ByteArrayContent so HttpClient emits the header.
+     */
+    [Fact]
+    public async Task post_with_null_body_sends_content_length_zero()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        using JsonDocument doc = JsonDocument.Parse(response.Body);
+        // Chasm envelope: contentLength is camelCase integer, not string.
+        Assert.Equal(0, doc.RootElement.GetProperty("contentLength").GetInt32());
+    }
+
+    /*
+     * Regression: HttpClientHandler's default per-handler cookie jar
+     * would silently replay a Set-Cookie from the previous response on
+     * the next request. The other 11 SDKs are stateless. We disable
+     * the cookie jar (UseCookies = false); this test asserts the
+     * Cookie header is not present on a follow-up request after a
+     * Set-Cookie response.
+     */
+    [Fact]
+    public async Task set_cookie_response_not_replayed_on_next_request()
+    {
+        var client = new DefaultApiClient();
+
+        var first = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/set-cookie"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(200, first.StatusCode);
+
+        var second = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(200, second.StatusCode);
+        using JsonDocument doc = JsonDocument.Parse(second.Body);
+        // Chasm envelope: .cookies is a parsed name->value map. If the cookie jar
+        // leaked, "session-id" would appear here.
+        var cookies = doc.RootElement.GetProperty("cookies");
+        Assert.False(cookies.TryGetProperty("session-id", out _),
+            "session-id cookie must not be replayed on a subsequent request");
+    }
+
+    {{! Gap T6: Dispose() releases the underlying HttpClient and is idempotent. }}
+    {{! A request issued on a disposed client must surface the SDK's own }}
+    {{! ApiException (closed-flag guard) rather than a leaked ObjectDisposedException. }}
+    [Fact]
+    public async Task CloseReleasesUnderlyingClient()
+    {
+        var client = new DefaultApiClient();
+        client.Dispose();
+        client.Dispose();
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("https://example.com"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.Contains("closed", ex.Message);
+    }
+
+    /// <summary>
+    /// First request returns <paramref name="firstStatus"/> with a Location
+    /// header pointing at <paramref name="location"/> (used here to model an
+    /// HTTPS->HTTP downgrade); subsequent requests return 200 OK. Records each
+    /// request so N1 can assert the hop count and the follow-up method.
+    /// </summary>
+    private sealed class DowngradeRedirectHandler : HttpMessageHandler
+    {
+        private readonly HttpStatusCode _firstStatus;
+        private readonly Uri _location;
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        public DowngradeRedirectHandler(HttpStatusCode firstStatus, Uri location)
+        {
+            _firstStatus = firstStatus;
+            _location = location;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            // Snapshot the request — DefaultApiClient disposes it after the
+            // redirect hop, which would otherwise clear Method/Headers.
+            var snapshot = new HttpRequestMessage(request.Method, request.RequestUri);
+            foreach (var h in request.Headers)
+            {
+                snapshot.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            }
+            Requests.Add(snapshot);
+
+            if (Requests.Count == 1)
+            {
+                var redirect = new HttpResponseMessage(_firstStatus)
+                {
+                    Content = new StringContent(""),
+                };
+                redirect.Headers.Location = _location;
+                return Task.FromResult(redirect);
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(""),
+            });
+        }
+    }
+
+    /// <summary>
+    /// Stateless redirect-chain handler: a request to /chain/{n} with n above 0
+    /// returns a 302 pointing at /chain/{n-1}; /chain/0 returns 200 OK. The
+    /// chain length lives entirely in the URL, so the handler holds no
+    /// per-request state and can serve many concurrent chains of different
+    /// lengths through one HttpClient without interfering between them.
+    /// </summary>
+    private sealed class ChainRedirectHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            var remaining = int.Parse(path.Substring(path.LastIndexOf('/') + 1));
+            if (remaining <= 0)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(""),
+                });
+            }
+
+            var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+            {
+                Content = new StringContent(""),
+            };
+            redirect.Headers.Location =
+                new Uri(request.RequestUri, $"/chain/{remaining - 1}");
+            return Task.FromResult(redirect);
+        }
+    }
+}

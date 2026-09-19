@@ -1,0 +1,18 @@
+module PetstoreClient::Models
+  class EdgeCases < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    attr_reader free_form_any: untyped?
+    attr_reader favorite_color: Color?
+    attr_reader permissions_note: String?
+    attr_reader _and: bool?
+    attr_reader _or: bool?
+    attr_reader _not: bool?
+    attr_reader _class: String?
+    attr_reader _return: String?
+    attr_reader retry_after: ISO8601::Duration?
+    attr_reader expires_at: Time?
+  end
+end

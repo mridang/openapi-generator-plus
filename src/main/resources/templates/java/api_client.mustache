@@ -1,0 +1,77 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Interface for API HTTP transport.
+ *
+ * <p>Implementations handle the actual HTTP request/response cycle.
+ * The default implementation uses {@link java.net.http.HttpClient}.</p>
+ */
+public interface ApiClient extends AutoCloseable {
+
+    /**
+     * Send an HTTP request and return the response.
+     *
+     * @param method  HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param url     Fully qualified URL
+     * @param headers HTTP headers
+     * @param body    Request body (serialized JSON string, byte[] for binary, or
+     *                {@code Map<String, Object>} for multipart form data; may be null)
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    ApiHttpResponse sendRequest(String method, String url, Map<String, String> headers, @Nullable Object body);
+
+    /**
+     * Send an HTTP request, optionally refusing to follow redirects.
+     *
+     * <p>When {@code noRedirect} is true, any 3xx response (including
+     * 307/308) is returned to the caller as-is rather than being replayed
+     * to the {@code Location} target. OAuth2 token/revoke/authorize
+     * endpoint POSTs use this guard so a malicious or misconfigured
+     * server cannot replay the credentialed body to an attacker-controlled
+     * URL (Bucket 3.2).
+     *
+     * <p>The default implementation delegates to
+     * {@link #sendRequest(String, String, Map, Object)} for backwards
+     * compatibility; transport implementations that own the redirect
+     * loop should override this method and honour the flag.
+     *
+     * @param method     HTTP method
+     * @param url        Fully qualified URL
+     * @param headers    HTTP headers
+     * @param body       Request body (may be null)
+     * @param noRedirect when {@code true}, do not follow 3xx responses
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    default ApiHttpResponse sendRequest(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            boolean noRedirect) {
+        return sendRequest(method, url, headers, body);
+    }
+
+    /**
+     * Releases any resources held by this client (connection pool, executor
+     * threads, sockets). Default implementation is a no-op; implementations
+     * that own a pooled HTTP client should override and dispose of it.
+     *
+     * <p>Use with try-with-resources:
+     * <pre>{@code
+     * try (ApiClient client = new DefaultApiClient()) {
+     *     // ... make requests ...
+     * }
+     * }</pre>
+     */
+    @Override
+    default void close() {
+        /* No-op by default. Implementations override to release resources. */
+    }
+}

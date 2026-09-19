@@ -1,0 +1,62 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * API-level configuration for generated client classes.
+ *
+ * Holds the base URL and default headers that are applied to every API
+ * request. Transport-level settings (TLS, proxy, timeouts) belong in
+ * {@see TransportOptions} and are configured on the {@see DefaultApiClient}.
+ *
+ * This class is immutable. Use {@see Configuration::builder()} to create instances:
+ *
+ *     $config = Configuration::builder()
+ *         ->baseUrl('https://api.example.com')
+ *         ->defaultHeader('Authorization', 'Bearer token')
+ *         ->build();
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final class Configuration
+{
+    private static ?Configuration $defaultInstance = null;
+
+    /**
+     * @param string               $baseUrl        Base URL for all API requests
+     * @param array<string, string> $defaultHeaders Headers to include in every API request
+     */
+    public function __construct(
+        public readonly string $baseUrl = '{{{basePath}}}',
+        public readonly array $defaultHeaders = [],
+    ) {
+    }
+
+    /**
+     * Create a new builder for constructing Configuration instances.
+     */
+    public static function builder(): ConfigurationBuilder
+    {
+        return new ConfigurationBuilder();
+    }
+
+    /**
+     * Return the default configuration instance, creating it lazily if needed.
+     */
+    public static function getDefault(): Configuration
+    {
+        if (!self::$defaultInstance instanceof Configuration) {
+            self::$defaultInstance = new Configuration();
+        }
+
+        return self::$defaultInstance;
+    }
+
+    /**
+     * Set the default configuration instance.
+     */
+    public static function setDefault(Configuration $configuration): void
+    {
+        self::$defaultInstance = $configuration;
+    }
+}

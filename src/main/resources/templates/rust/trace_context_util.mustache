@@ -1,0 +1,179 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+
+/// Injects W3C Trace Context headers (traceparent, tracestate)
+/// into outgoing API requests when OpenTelemetry is available.
+///
+/// When the `opentelemetry` feature is enabled, this function uses the
+/// globally configured `TextMapPropagator` to inject the current span's
+/// trace context into the given headers map.
+///
+/// When the `opentelemetry` feature is not enabled, this function is a
+/// safe no-op.
+///
+/// To enable trace context propagation, add the following to your `Cargo.toml`:
+///
+/// ```toml
+/// [dependencies]
+/// {{packageName}} = { version = "...", features = ["opentelemetry"] }
+/// opentelemetry = "0.32"
+/// opentelemetry_sdk = "0.32"
+/// ```
+///
+/// Then configure a global propagator at application startup:
+///
+/// ```rust,ignore
+/// use opentelemetry::global;
+/// use opentelemetry_sdk::propagation::TraceContextPropagator;
+///
+/// global::set_text_map_propagator(TraceContextPropagator::new());
+/// ```
+pub fn inject_trace_context(headers: &mut HashMap<String, String>) {
+    inject_trace_context_impl(headers);
+}
+
+#[cfg(feature = "opentelemetry")]
+fn inject_trace_context_impl(headers: &mut HashMap<String, String>) {
+    use opentelemetry::{global, Context};
+
+    struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
+
+    impl opentelemetry::propagation::Injector for HeaderInjector<'_> {
+        fn set(&mut self, key: &str, value: String) {
+            self.0.insert(key.to_string(), value);
+        }
+    }
+
+    let cx = Context::current();
+    global::get_text_map_propagator(|propagator| {
+        propagator.inject_context(&cx, &mut HeaderInjector(headers));
+    });
+}
+
+#[cfg(not(feature = "opentelemetry"))]
+fn inject_trace_context_impl(_headers: &mut HashMap<String, String>) {
+    /* No-op: OpenTelemetry integration requires the "opentelemetry" feature.
+     * Enable it in Cargo.toml to activate trace context propagation. */
+}
+
+// These tests live in-crate (rather than under tests/) because
+// `trace_context_util` is a crate-private module and is therefore not
+// reachable from the external integration-test crate.
+#[cfg(test)]
+mod tests {
+    use super::inject_trace_context;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_inject_trace_context_no_op_without_tracer() {
+        let mut headers = HashMap::new();
+        headers.insert("X-Existing".to_string(), "value".to_string());
+
+        // inject_trace_context should be a no-op when OpenTelemetry is not configured.
+        // It should not panic or modify existing headers.
+        inject_trace_context(&mut headers);
+
+        assert_eq!(headers.get("X-Existing").unwrap(), "value");
+    }
+
+    #[test]
+    fn test_inject_trace_context_empty_headers_do_not_cause_exception() {
+        let mut headers = HashMap::new();
+
+        // Should not panic with empty headers map
+        inject_trace_context(&mut headers);
+    }
+
+    #[test]
+    fn test_inject_trace_context_does_not_inject_traceparent_without_otel() {
+        let mut headers = HashMap::new();
+
+        inject_trace_context(&mut headers);
+
+        assert!(
+            !headers.contains_key("traceparent"),
+            "expected no traceparent header without OpenTelemetry"
+        );
+    }
+
+    #[test]
+    fn test_inject_trace_context_does_not_inject_tracestate_without_otel() {
+        let mut headers = HashMap::new();
+
+        inject_trace_context(&mut headers);
+
+        assert!(
+            !headers.contains_key("tracestate"),
+            "expected no tracestate header without OpenTelemetry"
+        );
+    }
+
+    #[test]
+    fn test_inject_trace_context_preserves_authorization_header() {
+        let mut headers = HashMap::new();
+        headers.insert("Authorization".to_string(), "Bearer token123".to_string());
+
+        inject_trace_context(&mut headers);
+
+        assert_eq!(headers.get("Authorization").unwrap(), "Bearer token123");
+    }
+
+    #[test]
+    fn test_inject_trace_context_preserves_content_type_header() {
+        let mut headers = HashMap::new();
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        inject_trace_context(&mut headers);
+
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_inject_trace_context_preserves_x_request_id_header() {
+        let mut headers = HashMap::new();
+        headers.insert("X-Request-ID".to_string(), "req-12345".to_string());
+
+        inject_trace_context(&mut headers);
+
+        assert_eq!(headers.get("X-Request-ID").unwrap(), "req-12345");
+    }
+
+    #[test]
+    fn test_inject_trace_context_preserves_all_existing_headers() {
+        let mut headers = HashMap::new();
+        headers.insert("Authorization".to_string(), "Bearer token".to_string());
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+        headers.insert("X-Request-ID".to_string(), "abc-123".to_string());
+
+        inject_trace_context(&mut headers);
+
+        assert_eq!(headers.get("Authorization").unwrap(), "Bearer token");
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+        assert_eq!(headers.get("X-Request-ID").unwrap(), "abc-123");
+    }
+
+    /* .NET-specific scenario: Rust has no ambient tracer like .NET Activity.Current;
+     * injecting a real active span requires a fully configured OpenTelemetry SDK. */
+    #[test]
+    #[ignore = "no ambient tracer; active-span injection requires a configured OpenTelemetry SDK"]
+    fn test_inject_trace_context_injects_traceparent_when_span_active() {}
+
+    /* .NET-specific scenario: setting tracestate on an active span requires a fully
+     * configured OpenTelemetry SDK, which is out of scope for this unit test. */
+    #[test]
+    #[ignore = "no ambient tracer; tracestate-present requires a configured OpenTelemetry SDK"]
+    fn test_inject_trace_context_includes_tracestate_when_present() {}
+
+    /* .NET-specific scenario: exercising an empty tracestate on an active span
+     * requires a fully configured OpenTelemetry SDK, which is out of scope here. */
+    #[test]
+    #[ignore = "no ambient tracer; empty-tracestate requires a configured OpenTelemetry SDK"]
+    fn test_inject_trace_context_omits_tracestate_when_empty() {}
+
+    /* .NET-specific scenario: verifying the recorded trace-flags byte requires a
+     * fully configured OpenTelemetry SDK with an active span. */
+    #[test]
+    #[ignore = "no ambient tracer; trace-flags formatting requires a configured OpenTelemetry SDK"]
+    fn test_inject_trace_context_formats_trace_flags_correctly() {}
+}

@@ -1,0 +1,119 @@
+use crate::models::*;
+{{#hasAuthField}}
+use crate::auth::Authenticator;
+use std::sync::Arc;
+{{/hasAuthField}}
+
+/// Options for the {{operationId}} operation.
+{{! Structs with at least one required (non-Option) field must NOT derive
+    Default: a derived Default would let the struct default() (and the no-arg
+    new() that delegates to it) silently produce empty/zero required fields
+    (e.g. an empty category string), so a required parameter could be omitted
+    without any error. Instead such structs get a new(required fields)
+    constructor that forces the caller to supply every required field, matching
+    the required-param enforcement the other SDKs provide. Structs with only
+    optional fields keep the cheap Default derive and a no-arg new(). }}
+{{#hasRequiredParams}}
+{{#hasAuthField}}
+#[derive(Clone)]
+{{/hasAuthField}}
+{{^hasAuthField}}
+#[derive(Debug, Clone)]
+{{/hasAuthField}}
+{{/hasRequiredParams}}
+{{^hasRequiredParams}}
+{{#hasAuthField}}
+#[derive(Clone, Default)]
+{{/hasAuthField}}
+{{^hasAuthField}}
+#[derive(Debug, Clone, Default)]
+{{/hasAuthField}}
+{{/hasRequiredParams}}
+pub struct {{className}} {
+{{#params}}
+{{#description}}
+    /// {{{.}}}
+{{/description}}
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
+{{#required}}
+    pub {{name}}: {{{dataType}}},
+{{/required}}
+{{^required}}
+    pub {{name}}: Option<{{{dataType}}}>,
+{{/required}}
+{{/params}}
+{{#hasAuthField}}
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only.
+    pub auth: Option<{{{authFieldType}}}>,
+{{/hasAuthField}}
+}
+
+impl {{className}} {
+{{#hasRequiredParams}}
+    /// Creates a new {{className}}, requiring every required parameter up front.
+    ///
+{{#hasOptionalParams}}
+    /// Required fields are taken as constructor arguments so they cannot be
+    /// silently omitted; optional fields start as `None` and are populated via
+    /// the chained setters below.
+{{/hasOptionalParams}}
+{{^hasOptionalParams}}
+{{#hasAuthField}}
+    /// Required fields are taken as constructor arguments so they cannot be
+    /// silently omitted; the optional per-operation authenticator starts as
+    /// `None` and is populated via the chained setter below.
+{{/hasAuthField}}
+{{^hasAuthField}}
+    /// Every field of this struct is required and is taken as a constructor
+    /// argument so it cannot be silently omitted. This struct has no optional
+    /// fields and therefore no chained setters.
+{{/hasAuthField}}
+{{/hasOptionalParams}}
+    pub fn new({{#params}}{{#required}}{{name}}: {{{dataType}}}, {{/required}}{{/params}}) -> Self {
+        Self {
+{{#params}}
+{{#required}}
+            {{name}},
+{{/required}}
+{{^required}}
+            {{name}}: None,
+{{/required}}
+{{/params}}
+{{#hasAuthField}}
+            auth: None,
+{{/hasAuthField}}
+        }
+    }
+{{/hasRequiredParams}}
+{{^hasRequiredParams}}
+    /// Creates a new {{className}} with default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+{{/hasRequiredParams}}
+{{#params}}
+{{^required}}
+
+    /// Sets the {{name}} field.
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
+    pub fn {{name}}(mut self, {{name}}: {{{dataType}}}) -> Self {
+        self.{{name}} = Some({{name}});
+        self
+    }
+{{/required}}
+{{/params}}
+{{#hasAuthField}}
+
+    /// Sets the per-operation authenticator. When set, it overrides the
+    /// client's configured credentials for this call only.
+    pub fn auth(mut self, auth: {{{authFieldType}}}) -> Self {
+        self.auth = Some(auth);
+        self
+    }
+{{/hasAuthField}}
+}

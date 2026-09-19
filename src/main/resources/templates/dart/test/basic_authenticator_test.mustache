@@ -1,0 +1,73 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('BasicAuthenticator', () {
+    test('valid credentials produce basic header', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: 's3cret',
+      );
+      final headers = auth.authHeaders();
+      expect(headers['Authorization'], equals('Basic YWxpY2U6czNjcmV0'));
+    });
+
+    test('rejects username with crlf at construction', () {
+      expect(
+        () => BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'alice\r\n',
+          password: 's3cret',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects password with nul at construction', () {
+      expect(
+        () => BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'alice',
+          password: 's3c\x00ret',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects username with colon at construction', () {
+      expect(
+        () => BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'ali:ce',
+          password: 's3cret',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('password is not leaked in default toString', () {
+      // authenticator-secret-in-default-string-repr: the default toString()
+      // must never expose the stored password.
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: 's3cret',
+      );
+      expect(auth.toString(), isNot(contains('s3cret')));
+    });
+
+    test('redacts the secret in toString', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: 's3cret',
+      );
+      expect(auth.toString(), isNot(contains('s3cret')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+}
+{{/generateTests}}

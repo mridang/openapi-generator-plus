@@ -1,0 +1,216 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+import java.util.LinkedList
+
+class OpenIdConnectAuthenticatorTest {
+
+    private class FakeApiClient : ApiClient {
+        private val responses = LinkedList<ApiHttpResponse>()
+        var lastBody: String? = null
+            private set
+        var lastUrl: String? = null
+            private set
+        var lastMethod: String? = null
+            private set
+        var getCount: Int = 0
+            private set
+
+        fun enqueue(body: String, statusCode: Int = 200) {
+            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
+        }
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse {
+            lastMethod = method
+            lastUrl = url
+            lastBody = body?.toString()
+            if (method == "GET") {
+                getCount++
+            }
+            return responses.poll() ?: throw IllegalStateException("No responses queued")
+        }
+    }
+
+    private fun createAuthenticator(): OpenIdConnectAuthenticator {
+        return OpenIdConnectAuthenticator(
+            host = "https://api.example.com",
+            discoveryUrl = "https://auth.example.com/.well-known/openid-configuration",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("openid", "profile")
+        )
+    }
+
+    @Test
+    fun buildsAuthorizationUrlFromDiscovery() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
+        )
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val url = runBlocking { auth.buildAuthorizationUrl("my-state") }
+
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"))
+        assertTrue(url.contains("response_type=code"))
+        assertTrue(url.contains("client_id=my-client-id"))
+        assertTrue(url.contains("state=my-state"))
+    }
+
+    @Test
+    fun fetchesDiscoveryDocument() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
+        )
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.buildAuthorizationUrl() }
+
+        assertEquals("GET", client.lastMethod)
+        assertEquals("https://auth.example.com/.well-known/openid-configuration", client.lastUrl)
+    }
+
+    @Test
+    fun obtainsTokenAfterCodeExchange() {
+        val client = FakeApiClient()
+        // Discovery document
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
+        )
+        // Token response
+        client.enqueue("""{"access_token":"oidc-tok","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("oidc-code") }
+
+        assertTrue(client.lastBody!!.contains("grant_type=authorization_code"))
+        assertTrue(client.lastBody!!.contains("code=oidc-code"))
+    }
+
+    @Test
+    fun getAuthHeadersReturnsBearerAfterExchange() {
+        val client = FakeApiClient()
+        // Discovery document
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
+        )
+        // Token response
+        client.enqueue("""{"access_token":"oidc-tok","expires_in":3600}""")
+        // Refresh response (for getAuthHeaders)
+        client.enqueue("""{"access_token":"oidc-tok","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("oidc-code") }
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer oidc-tok", headers["Authorization"])
+    }
+
+    @Test
+    fun throwsWhenDiscoveryReturnsNon2xxStatus() {
+        val client = FakeApiClient()
+        // A non-2xx discovery response (e.g. a 500 HTML error page) must
+        // surface as a clear error, not as an "invalid JSON" parse failure.
+        client.enqueue("<html>internal server error</html>", statusCode = 500)
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(ZitadelException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
+    fun throwsWhenDiscoveryMissingAuthorizationEndpoint() {
+        val client = FakeApiClient()
+        client.enqueue("""{"token_endpoint":"https://auth.example.com/token"}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        // Missing authorization_endpoint must throw rather than build a
+        // delegate with a null/empty endpoint URL.
+        assertThrows(ZitadelException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
+    fun throwsWhenDiscoveryMissingTokenEndpoint() {
+        val client = FakeApiClient()
+        client.enqueue("""{"authorization_endpoint":"https://auth.example.com/authorize"}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(ZitadelException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
+    fun throwsWhenNoApiClientInjected() {
+        val auth = createAuthenticator()
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
+    fun getHostReturnsConfiguredHost() {
+        val auth = createAuthenticator()
+
+        assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun fetchesDiscoveryDocumentOnlyOnce() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
+        )
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking {
+            auth.buildAuthorizationUrl()
+            auth.buildAuthorizationUrl()
+        }
+
+        // The cached discovery document must be reused on the second call.
+        assertEquals(1, client.getCount)
+    }
+
+    @Test
+    fun redactsSecret() {
+        val auth = createAuthenticator()
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("my-client-secret"))
+        assertTrue(rendered.contains("***"))
+    }
+}

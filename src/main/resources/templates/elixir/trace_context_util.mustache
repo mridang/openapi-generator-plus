@@ -1,0 +1,44 @@
+{{>api_info}}
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
+
+defmodule {{moduleName}}.TraceContextUtil do
+  @moduledoc false
+  # Internal: injects W3C Trace Context headers (traceparent, tracestate) into
+  # outgoing API requests when OpenTelemetry is available. If the
+  # `:opentelemetry_api` application is not installed, returns the headers
+  # unchanged. Not part of the public API.
+
+  @doc """
+  Inject the current OpenTelemetry trace context into the given headers map.
+
+  ## Parameters
+
+    * `headers` - Map of request headers.
+
+  ## Returns
+
+    The headers map, potentially with `traceparent` and `tracestate` added.
+  """
+  @spec inject_trace_context(%{optional(String.t()) => String.t()}) ::
+          %{optional(String.t()) => String.t()}
+  def inject_trace_context(headers) do
+    if Code.ensure_loaded?(:otel_propagator_text_map) do
+      try do
+        apply(:otel_propagator_text_map, :inject, [
+          headers,
+          fn headers, key, value ->
+            Map.put(headers, key, value)
+          end
+        ])
+      rescue
+        _ -> headers
+      end
+    else
+      headers
+    end
+  end
+end

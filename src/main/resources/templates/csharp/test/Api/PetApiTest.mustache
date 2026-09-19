@@ -1,0 +1,863 @@
+{{>api_info}}
+
+#pragma warning disable CS0618 // tests deliberately exercise [Obsolete] spec members
+using {{packageName}};
+using {{packageName}}.Api;
+using {{packageName}}.Api.Options;
+using {{packageName}}.Auth;
+using {{packageName}}.Models;
+using Xunit;
+
+namespace Test.Api;
+
+[Collection("Chasm")]
+public class PetApiTest
+{
+    private readonly PetApi _api;
+    private readonly IAuthenticator _auth;
+
+    public PetApiTest(Test.ChasmFixture chasm)
+    {
+        var baseUrl = chasm.BaseUrl;
+        _auth = new BearerAuthenticator(baseUrl, "test-token");
+        var config = Configuration.Builder()
+            .BaseUrl(baseUrl)
+            .DefaultHeader("Authorization", "Bearer test-token")
+            .Build();
+        _api = new PetApi(new DefaultApiClient(), config);
+    }
+
+    [Fact]
+    public async Task TestAddPet()
+    {
+        var pet = new Pet("TestDog", new HashSet<string> { "http://example.com/photo.jpg" })
+        {
+            Id = 12345L,
+            Status = Pet.StatusEnum.Available,
+        };
+
+        var result = await _api.AddPetAsync(pet, new AddPetOptions { Auth = _auth });
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Name);
+    }
+
+    [Fact]
+    public async Task TestAddPetUsingConfiguredCredentials()
+    {
+        // The Options arg (and its Auth) is optional: omitting it falls back to
+        // the credentials configured on the client (the default Authorization
+        // header set in the constructor), which must satisfy the secured
+        // endpoint.
+        var pet = new Pet("DefaultCredsDog", new HashSet<string> { "http://example.com/photo.jpg" })
+        {
+            Id = 54321L,
+            Status = Pet.StatusEnum.Available,
+        };
+
+        var result = await _api.AddPetAsync(pet);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Name);
+    }
+
+    [Fact]
+    public async Task TestFindPetsByStatus()
+    {
+        var result = await _api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "available" });
+
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+        Assert.IsType<Pet>(result[0]);
+    }
+
+    [Fact]
+    public async Task TestFindPetsByStatusOmittingStatusSendsNoStatusKey()
+    {
+        // allowEmptyValue-omitted-key regression: findPetsByStatus's optional
+        // 'status' query param is declared allowEmptyValue:true. That means the
+        // server tolerates an EMPTY value IF the client chooses to send the key
+        // — it does NOT mean the SDK must always send the key. When the caller
+        // OMITS status (null), the key must be absent from the wire entirely;
+        // the old template emitted a spurious "status=" via an else-branch that
+        // assigned the empty string. Canonical across all 12 SDKs.
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = null });
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        Assert.DoesNotContain("status=", url);
+    }
+
+    [Fact]
+    public async Task TestFindPetsByStatusExplicitEmptyStatusSendsStatusKey()
+    {
+        // The flip side of allowEmptyValue: when the caller EXPLICITLY supplies
+        // an empty string for status, the key MUST be present with an empty
+        // value ("status=") — the empty value is exactly what allowEmptyValue
+        // permits. Status is a nullable string, so the empty value is
+        // expressible.
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        Assert.Contains("status=", url);
+    }
+
+    [Fact]
+    public async Task TestFindPetsByStatusNoArgsDoesNotThrow()
+    {
+        // L10 regression: findPetsByStatus has ONLY optional params, so the
+        // Options arg is generated as `FindPetsByStatusOptions? options = null`.
+        // The natural no-arg call must therefore work — the generated
+        // WithHttpInfoAsync must NOT call ArgumentNullException.ThrowIfNull on a
+        // deliberately-null Options. The old template emitted an unconditional
+        // throw whenever the op had any query/header/form param, so the no-arg
+        // call threw ArgumentNullException before reaching the transport.
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        var result = await api.FindPetsByStatusAsync();
+
+        Assert.NotNull(result);
+        // The omitted optional 'status' key must be absent from the wire.
+        Assert.DoesNotContain("status=", client.CapturedUrl!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task TestGetPetById()
+    {
+        var result = await _api.GetPetByIdAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Id);
+        Assert.NotNull(result.Name);
+    }
+
+    [Fact]
+    public async Task TestGetPetByName()
+    {
+        var result = await _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = "dogs" });
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Name);
+    }
+
+    [Fact]
+    public async Task TestGetPetByNameMissingRequiredQueryParamThrows()
+    {
+        // The 'category' query parameter is required by the spec. Passing a null
+        // value for the required nested option must fail fast with an
+        // ArgumentNullException naming the offending parameter — before any
+        // HTTP request is made — rather than silently dropping it.
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = null! }));
+        Assert.Equal("options.Category", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task TestGetPetByNameEmptyRequiredStringQueryParamThrows()
+    {
+        // The required 'category' query parameter is a string. An empty string is
+        // treated as a missing value (parity with go/rust/swift/elixir) and must
+        // fail fast with an ArgumentException naming the offending parameter —
+        // before any HTTP request is made — rather than sending an empty value.
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = "" }));
+        Assert.Equal("options.Category", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task TestUpdatePet()
+    {
+        var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })
+        {
+            Id = 1L,
+            Status = Pet.StatusEnum.Pending,
+        };
+
+        var result = await _api.UpdatePetAsync(1L, pet);
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task TestDeletePet()
+    {
+        await _api.DeletePetAsync(1L, new DeletePetOptions { Auth = _auth });
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task TestDeletePetRejectsCrlfInCookieParam()
+    {
+        // RFC 6265 header-injection guard for an OPERATION-LEVEL cookie param.
+        // deletePet's api_key (in: cookie) is interpolated straight into the
+        // Cookie request header, so a value carrying CR/LF must FAIL CLOSED
+        // with the same ArgumentException the auth-cookie validation path
+        // raises — before any HTTP request is made — rather than splitting the
+        // header. Mirrors the ApiKeyAuthenticator cookie-CRLF assertions.
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => _api.DeletePetAsync(
+                1L,
+                new DeletePetOptions { Auth = _auth, ApiKey = "abc\r\nInjected: yes" }));
+        Assert.Contains("RFC 6265", ex.Message);
+    }
+
+    [Fact]
+    public async Task TestDeletePetRejectsControlCharInCookieParam()
+    {
+        // A bare control character (not only CR/LF) in the operation cookie
+        // value is equally forbidden by RFC 6265 and must fail closed.
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _api.DeletePetAsync(
+                1L,
+                new DeletePetOptions { Auth = _auth, ApiKey = "abc\x07def" }));
+    }
+
+    [Fact]
+    public async Task TestSetPetAvatar()
+    {
+        var imageData = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 });
+        await _api.SetPetAvatarAsync(1L, imageData);
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task TestSetPetAvatarHonoursSelectedRequestContentType()
+    {
+        // setPetAvatar declares THREE request content-types — image/jpeg,
+        // image/png and application/json. The operation previously collapsed
+        // to the first declared type (image/jpeg) with no way to reach the
+        // others. The optional requestContentType selector lets the caller
+        // pick among the declared types; the chosen value becomes the request
+        // Content-Type header (set by HeaderSelector before SendRequestAsync,
+        // so the captured headers carry it). image/jpeg and image/png share
+        // the same raw-binary body, so the same bytes are sent for both — only
+        // the header changes. Canonical cross-SDK regression.
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+
+        // (1) No selector → backward-compatible: the FIRST declared type.
+        var defaultClient = new HeaderCapturingApiClient();
+        var defaultApi = new PetApi(defaultClient, config);
+        await defaultApi.SetPetAvatarAsync(
+            1L, new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }));
+        Assert.Equal("image/jpeg", defaultClient.CapturedHeaders["Content-Type"]);
+
+        // (2) Selector = image/png with the same raw bytes → Content-Type
+        // image/png, NOT image/jpeg.
+        var pngClient = new HeaderCapturingApiClient();
+        var pngApi = new PetApi(pngClient, config);
+        await pngApi.SetPetAvatarAsync(
+            1L, new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }), "image/png");
+        Assert.Equal("image/png", pngClient.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task TestGetPetAvatar()
+    {
+        var result = await _api.GetPetAvatarAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.IsType<Stream>(result, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task TestGetPetAvatarThumbnail()
+    {
+        var result = await _api.GetPetAvatarThumbnailAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.IsType<byte[]>(result);
+    }
+
+    [Fact]
+    public async Task TestSetPetAvatarThumbnail()
+    {
+        var thumbnailData = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A };
+        var request = new SetPetAvatarThumbnailRequest(thumbnailData);
+
+        await _api.SetPetAvatarThumbnailAsync(1L, request);
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task TestUploadPetCertificate()
+    {
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
+        var result = await _api.UploadPetCertificateAsync(1L, new UploadPetCertificateOptions { File = fileData });
+
+        Assert.NotNull(result);
+        Assert.IsType<{{packageName}}.Models.ApiResponse>(result);
+    }
+
+    [Fact]
+    public async Task TestUploadPetDocument()
+    {
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+        var result = await _api.UploadPetDocumentAsync(1L, new UploadPetDocumentOptions { File = fileData, DocumentType = "vaccination", Notes = "Annual rabies vaccination" });
+
+        Assert.NotNull(result);
+        Assert.IsType<{{packageName}}.Models.ApiResponse>(result);
+    }
+
+    [Fact]
+    public async Task TestAddPetPhotos()
+    {
+        var files = new List<Stream>
+        {
+            new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }),
+            new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE1 }),
+        };
+        var metadata = new PhotoMetadata
+        {
+            Caption = "Pet photo",
+            IsPrimary = true,
+        };
+
+        var result = await _api.AddPetPhotosAsync(1L, new AddPetPhotosOptions { Files = files, Metadata = metadata });
+
+        Assert.NotNull(result);
+        Assert.IsType<List<Photo>>(result);
+    }
+
+    [Fact]
+    public async Task TestDownloadPetDocument()
+    {
+        var result = await _api.DownloadPetDocumentAsync(1L, 100L);
+
+        Assert.NotNull(result);
+        Assert.IsType<Stream>(result, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task TestGetPetPhoto()
+    {
+        var result = await _api.GetPetPhotoAsync(1L, 100L);
+
+        Assert.NotNull(result);
+        Assert.IsType<Stream>(result, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task TestGetPetPassport()
+    {
+        var result = await _api.GetPetPassportAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.IsType<PetPassport>(result);
+    }
+
+    [Fact]
+    public async Task TestGetPetByIdWithHttpInfo()
+    {
+        var result = await _api.GetPetByIdWithHttpInfoAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.RawBody);
+    }
+
+    [Fact]
+    public async Task TestAddPetWithHttpInfo()
+    {
+        var pet = new Pet("HttpInfoDog", new HashSet<string> { "http://example.com/photo.jpg" })
+        {
+            Id = 99L,
+            Status = Pet.StatusEnum.Available,
+        };
+
+        var result = await _api.AddPetWithHttpInfoAsync(pet, new AddPetOptions { Auth = _auth });
+
+        Assert.NotNull(result);
+        Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task TestUpdatePetWithHttpInfo()
+    {
+        var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })
+        {
+            Id = 1L,
+            Status = Pet.StatusEnum.Pending,
+        };
+
+        var result = await _api.UpdatePetWithHttpInfoAsync(1L, pet);
+
+        Assert.NotNull(result);
+        Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
+    }
+
+    [Fact]
+    public async Task TestDeletePetWithHttpInfo()
+    {
+        var result = await _api.DeletePetWithHttpInfoAsync(1L, new DeletePetOptions { Auth = _auth });
+
+        Assert.NotNull(result);
+        Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
+    }
+
+    [Fact]
+    public async Task TestFindPetsByStatusWithHttpInfo()
+    {
+        var result = await _api.FindPetsByStatusWithHttpInfoAsync(new FindPetsByStatusOptions { Status = "available" });
+
+        Assert.NotNull(result);
+        Assert.Equal(200, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task TestGetPetPassportWithHttpInfo()
+    {
+        var result = await _api.GetPetPassportWithHttpInfoAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task TestGetPetTagStyledParams()
+    {
+        var result = await _api.GetPetTagAsync(
+            5L,
+            "cute",
+            new GetPetTagOptions
+            {
+                Colors = new List<string> { "blue", "black" },
+                Sizes = new List<string> { "S", "M" },
+            }
+        );
+
+        Assert.NotNull(result);
+    }
+
+    [Fact(Skip = "Per-operation server URL is external and not reachable in test")]
+    public async Task TestGetExternalPetInfoUsesPerOperationServer()
+    {
+        var result = await _api.GetExternalPetInfoAsync(1L);
+
+        Assert.NotNull(result);
+    }
+
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly int _statusCode;
+        private readonly string _contentType;
+        private readonly string _body;
+
+        public FakeApiClient(int statusCode, string contentType, string body)
+        {
+            _statusCode = statusCode;
+            _contentType = contentType;
+            _body = body;
+        }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(_statusCode, _body, new Dictionary<string, string>
+            {
+                { "Content-Type", _contentType }
+            }));
+        }
+    }
+
+    private sealed class UrlCapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedUrl = url;
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    private sealed class QueryCapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedUrl = url;
+            // An empty JSON array satisfies the List<Pet> return type so the
+            // convenience wrapper's deserialization and non-empty-body guard
+            // both pass; the URL is captured before any response handling.
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "[]",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    private sealed class HeaderCapturingApiClient : IApiClient
+    {
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    [Fact]
+    public async Task TestAddPetPerCallAuthOverride()
+    {
+        // Verify the auth carried inside the Options object on the BASE
+        // operation method (not just the WithHttpInfo variant) is applied to
+        // the outgoing request. The default header carries one token; the
+        // per-call authenticator carries a different one and must win on the
+        // wire.
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Authorization", "Bearer default-token")
+            .Build();
+        var api = new PetApi(client, config);
+        var perCallAuth = new BearerAuthenticator("http://localhost", "per-call-token");
+
+        var pet = new Pet("OverrideDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet, new AddPetOptions { Auth = perCallAuth });
+
+        Assert.Equal("Bearer per-call-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task TestConfiguredAuthenticatorIsAppliedToSecuredOperation()
+    {
+        // AUTH-APPLIED regression guard (Wave A1): a configured BearerAuthenticator
+        // must actually be applied to a SECURED operation's outbound request. This
+        // mirrors the Elixir bug where a configured authenticator was silently
+        // dropped and the request went out unauthenticated. Construct a client with
+        // a real BearerAuthenticator (not a raw default header), issue a request
+        // through the secured AddPet operation, and assert the wire request carried
+        // the Authorization credential.
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .Build();
+        var api = new PetApi(client, config);
+        var authenticator = new BearerAuthenticator("http://localhost", "applied-token");
+
+        var pet = new Pet("AppliedDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet, new AddPetOptions { Auth = authenticator });
+
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization"));
+        Assert.Equal("Bearer applied-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
+    {
+        // When no per-call auth is supplied (Options omitted entirely), the
+        // client falls back to the credentials configured on the Configuration
+        // (the default Authorization header). Verify that token reaches the
+        // wire.
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Authorization", "Bearer default-token")
+            .Build();
+        var api = new PetApi(client, config);
+
+        var pet = new Pet("DefaultDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer default-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public void TestUnsecuredOperationOptionsExposesNoAuth()
+    {
+        // Compile-level guard: an unsecured operation (getPetById) takes no
+        // Options arg and its absence of an Auth field is enforced by the fact
+        // that GetPetById has no Options class at all. The authed operations'
+        // Options classes DO expose an Auth field. This is a no-op at runtime;
+        // it fails to compile if a regression reintroduces or removes the
+        // Auth field on the wrong operation.
+        var authedOptions = new AddPetOptions { Auth = _auth };
+        Assert.NotNull(authedOptions.Auth);
+
+        var unsecuredOptions = new FindPetsByStatusOptions { Status = "available" };
+        Assert.NotNull(unsecuredOptions);
+    }
+
+    [Fact]
+    public async Task TestPathParamEncodedExactlyOnce()
+    {
+        // path-double-encoding regression: a string path param carrying an
+        // encodable char (space, '/') must be percent-encoded exactly once.
+        // The old api template wrapped the already-encoded SerializeStyled
+        // output in a second EncodePathSegment, turning '%' into '%25' so a
+        // space became '%2520' and '/' became '%252F'. tagName uses label
+        // style, petId uses matrix style.
+        var client = new UrlCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.GetPetTagAsync(7L, "a b/c", new GetPetTagOptions());
+
+        // Use AbsoluteUri / PathAndQuery, which preserve percent-encoding in
+        // the path (unlike ToString() which may unescape %20). A '%' is always
+        // kept escaped, so the double-encoded "%25xx" artifacts survive
+        // canonicalisation and are the reliable regression signal.
+        string url = client.CapturedUrl!.AbsoluteUri;
+        // '/' inside the value is always kept as %2F by .NET Uri.
+        Assert.Contains("b%2Fc", url);
+        // matrix style on petId -> ";petId=7".
+        Assert.Contains(";petId=7", url);
+        // The double-encoded artifacts (the old api-template bug) must NOT appear.
+        Assert.DoesNotContain("%2520", url);
+        Assert.DoesNotContain("%252F", url);
+        Assert.DoesNotContain("%253D", url);
+    }
+
+    [Fact]
+    public async Task TestOptionalArrayQueryParamsSerializeStyledNotDebugBlob()
+    {
+        // optional-array-param parity (Wave D): getPetTag declares two OPTIONAL
+        // array query params — `colors` (pipeDelimited, non-exploded) and
+        // `sizes` (spaceDelimited, non-exploded). When the caller supplies
+        // multiple values, each list must serialize through the per-element
+        // stringify into its declared OAS style, NOT a language debug blob.
+        // The cross-language bug (seen in the Go SDK) emitted the collection's
+        // default debug representation instead of styled values; the .NET
+        // analogue would be List<T>.ToString() leaking the type name
+        // "System.Collections.Generic.List" into the query string. Assert the
+        // real element values appear under the styled join and the debug blob
+        // does not.
+        var client = new UrlCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.GetPetTagAsync(
+            7L,
+            "tag",
+            new GetPetTagOptions
+            {
+                Colors = ["blue", "black"],
+                Sizes = ["S", "M"],
+            });
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        // pipeDelimited colors -> "blue|black"; the '|' is percent-encoded as
+        // %7C by .NET Uri building. Both element values survive verbatim.
+        Assert.Contains("colors=blue%7Cblack", url);
+        // spaceDelimited sizes -> "S M"; the space is percent-encoded as %20.
+        Assert.Contains("sizes=S%20M", url);
+        // The individual element values must each be present in the query.
+        Assert.Contains("blue", url);
+        Assert.Contains("black", url);
+        // The .NET collection debug blob (the cross-language Wave D bug) must
+        // NOT appear: no leaked List type name, and no key with no value joined.
+        Assert.DoesNotContain("System.Collections", url);
+        Assert.DoesNotContain("List%601", url);
+    }
+
+    private static PetApi NewPetApiForMock(int status, string contentType, string body)
+    {
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .Build();
+        return new PetApi(new FakeApiClient(status, contentType, body), config);
+    }
+
+    [Fact]
+    public async Task TestErrorHandlingNotFound()
+    {
+        var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(async () => await mockApi.GetPetByIdAsync(99999L));
+    }
+
+    [Fact]
+    public async Task TestEmptyBodyForBodyReturningOpThrowsApiException()
+    {
+        // convenience-empty-body-handling: a body-returning operation that
+        // gets a 200 with an empty body must surface a typed, catchable
+        // ApiException (not a silent null nor a non-SDK exception type).
+        var mockApi = NewPetApiForMock(200, "application/json", "");
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.ApiException>(
+            () => mockApi.GetPetByIdAsync(1L));
+        Assert.Equal(200, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task TestMalformedSuccessBodyFailsLoud()
+    {
+        // A 2xx response carrying a body that is NOT valid JSON for the
+        // declared type must FAIL LOUD: the deserialization error propagates
+        // out of the convenience method rather than the raw string being
+        // returned (or swallowed into a null/partial Pet). The serializer
+        // raises the SDK-owned SerializationException, which surfaces to the
+        // caller. Canonical across all 12 SDKs.
+        var mockApi = NewPetApiForMock(200, "application/json", "{not valid json");
+
+        await Assert.ThrowsAsync<{{packageName}}.SerializationException>(
+            () => mockApi.GetPetByIdAsync(1L));
+    }
+
+    [Fact]
+    public async Task TestErrorHandlingServerError()
+    {
+        var mockApi = NewPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.InternalServerErrorException>(async () => await mockApi.GetPetByIdAsync(1L));
+    }
+
+    [Fact]
+    public async Task TestDownloadBinaryMock()
+    {
+        var mockApi = NewPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
+
+        var result = await mockApi.GetPetAvatarAsync(1L);
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task TestUploadMultipartMock()
+    {
+        var mockApi = NewPetApiForMock(200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
+
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
+        var result = await mockApi.UploadPetCertificateAsync(1L, new UploadPetCertificateOptions { File = fileData });
+
+        Assert.NotNull(result);
+    }
+
+    private sealed class BodyCapturingApiClient : IApiClient
+    {
+        public object? CapturedBody { get; private set; }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedBody = body;
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    private sealed class HeaderAndBodyCapturingApiClient : IApiClient
+    {
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+
+        public object? CapturedBody { get; private set; }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            CapturedBody = body;
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"code\":200,\"type\":\"\",\"message\":\"success\"}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    [Fact]
+    public async Task UploadPetDocumentOctetStreamSendsRawBytes()
+    {
+        // uploadPetDocument declares TWO request content-types —
+        // multipart/form-data AND application/octet-stream. When the caller
+        // selects application/octet-stream the SDK must send the file's RAW
+        // bytes under Content-Type: application/octet-stream, NOT wrap them in a
+        // multipart/form-data envelope. The API layer always builds a form-style
+        // Dictionary keyed by the declared parts; BaseApi must recognise the
+        // raw-binary selection and extract the single binary part rather than
+        // hand the Dictionary to the transport (which would emit multipart).
+        // Mirrors SetPetAvatar, the single-binary path that already streams raw
+        // bytes. Canonical cross-SDK regression (over-correction guarded by the
+        // multipart case below).
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+
+        // (1) Selector = application/octet-stream → RAW bytes, octet-stream
+        // Content-Type, and NOT a form-style Dictionary (which the transport
+        // would serialise as multipart/form-data with a boundary).
+        var rawBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D };
+        var octetClient = new HeaderAndBodyCapturingApiClient();
+        var octetApi = new PetApi(octetClient, config);
+        await octetApi.UploadPetDocumentWithHttpInfoAsync(
+            1L,
+            new UploadPetDocumentOptions { File = new MemoryStream(rawBytes) },
+            "application/octet-stream");
+
+        Assert.Equal("application/octet-stream", octetClient.CapturedHeaders["Content-Type"]);
+        Assert.NotNull(octetClient.CapturedBody);
+        // The body is the raw binary part (a Stream), never the form-style
+        // Dictionary that drives multipart serialisation.
+        Assert.False(
+            octetClient.CapturedBody is Dictionary<string, object>,
+            "octet-stream selection must NOT send a multipart form Dictionary");
+        Assert.IsAssignableFrom<Stream>(octetClient.CapturedBody);
+
+        // The exact bytes survive verbatim — no multipart boundary, no base64.
+        using var captured = new MemoryStream();
+        ((Stream)octetClient.CapturedBody!).CopyTo(captured);
+        Assert.Equal(rawBytes, captured.ToArray());
+
+        // (2) Over-correction guard: the default selection (multipart/form-data)
+        // still hands the transport the form-style Dictionary so a multipart
+        // body is produced. At this seam HeaderSelector intentionally omits the
+        // Content-Type header for multipart — the boundary-bearing
+        // multipart/form-data type is set later by the transport once it builds
+        // the envelope — so the multipart signal here is the form Dictionary
+        // body itself. The "file" part carries the same raw stream.
+        var multipartClient = new HeaderAndBodyCapturingApiClient();
+        var multipartApi = new PetApi(multipartClient, config);
+        await multipartApi.UploadPetDocumentWithHttpInfoAsync(
+            1L,
+            new UploadPetDocumentOptions { File = new MemoryStream(rawBytes), DocumentType = "vaccination_record", Notes = "Annual rabies" });
+
+        Assert.False(
+            multipartClient.CapturedHeaders.ContainsKey("Content-Type"),
+            "multipart selection defers Content-Type to the transport-built envelope");
+        var multipartBody = Assert.IsType<Dictionary<string, object>>(multipartClient.CapturedBody);
+        Assert.True(multipartBody.ContainsKey("file"));
+        Assert.IsAssignableFrom<Stream>(multipartBody["file"]);
+    }
+
+    [Fact]
+    public async Task SetPetPreferencesFormWireFormat()
+    {
+        // Wire-format parity lock for the application/x-www-form-urlencoded
+        // body of setPetPreferences. The canonical (identical across all 12
+        // SDKs) requires:
+        //   - array fields exploded into repeated keys: tags=x&tags=y;
+        //   - a space encoded as '+' (form-urlencoded, not '%20');
+        //   - an absent optional field (note) omitted entirely.
+        var client = new BodyCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        // The WithHttpInfo variant is used so an empty mock response body
+        // does not trip the convenience wrapper's non-empty-body guard; the
+        // request body is captured before any response handling.
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions
+            {
+                Nickname = "a b",
+                Tags = new List<string> { "x", "y" },
+            });
+
+        Assert.NotNull(client.CapturedBody);
+        string wire = client.CapturedBody!.ToString()!;
+        Assert.Equal("nickname=a+b&tags=x&tags=y", wire);
+        Assert.DoesNotContain("note", wire);
+        Assert.DoesNotContain("%20", wire);
+    }
+}

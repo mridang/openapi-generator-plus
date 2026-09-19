@@ -1,0 +1,129 @@
+# ruff: noqa
+# mypy: ignore-errors
+import pytest
+
+from petstore_client.errors import (
+    ApiException,
+    BadRequestException,
+    ClientException,
+    OpenApiException,
+    ZitadelException,
+)
+from petstore_client.models import Category
+from petstore_client.object_serializer import SerializationError
+
+
+class TestApiErrorShape:
+    def test_exposes_status_message_body_headers_error_body(self) -> None:
+        err = ApiException(
+            status_code=404,
+            message="not found",
+            response_headers={"content-type": "application/json"},
+            response_body='{"id":7,"name":"missing"}',
+            error_body=None,
+        )
+
+        assert err.status_code == 404
+        assert err.message == "not found"
+        assert err.response_body == '{"id":7,"name":"missing"}'
+        assert err.response_headers is not None
+        assert err.response_headers["content-type"] == "application/json"
+        assert err.error_body is None
+
+    def test_none_headers_and_body_mark_transport_no_response(self) -> None:
+        # apierror-responsebody-headers-nullable-split: None is distinct from an
+        # empty header map / empty body so a pre-response transport failure can
+        # be encoded.
+        err = ApiException(
+            status_code=0,
+            message="connection reset",
+            response_headers=None,
+            response_body=None,
+        )
+
+        assert err.response_headers is None
+        assert err.response_body is None
+
+    def test_is_an_exception_subclass(self) -> None:
+        err = ApiException(status_code=500, message="boom")
+
+        assert isinstance(err, Exception)
+        assert str(err) != ""
+
+
+class TestExceptionHierarchy:
+    def test_typed_error_inherits_through_to_branded_root(self) -> None:
+        # BadRequest -> ClientException -> ApiException -> ZitadelException
+        err = BadRequestException(message="bad request")
+
+        assert isinstance(err, ClientException)
+        assert isinstance(err, ApiException)
+        assert isinstance(err, ZitadelException)
+        assert issubclass(BadRequestException, ClientException)
+        assert issubclass(ClientException, ApiException)
+        assert issubclass(ApiException, ZitadelException)
+
+    def test_serialization_error_inherits_from_branded_root(self) -> None:
+        err = SerializationError("boom")
+
+        assert isinstance(err, ZitadelException)
+        assert issubclass(SerializationError, ZitadelException)
+
+    def test_open_api_exception_is_branded_root_alias(self) -> None:
+        # Back-compat alias: the historical root name resolves to the
+        # branded root so existing `import OpenApiException` keeps working.
+        assert OpenApiException is ZitadelException
+
+
+class TestApiErrorImmutability:
+    def test_fields_are_read_only(self) -> None:
+        err = ApiException(
+            status_code=404,
+            message="not found",
+            response_headers={"content-type": "application/json"},
+            response_body='{"id":7}',
+            error_body=None,
+        )
+
+        # A caught exception's fields must not be reassignable -- the @property
+        # getters have no setters, so assignment raises AttributeError.
+        with pytest.raises(AttributeError):
+            err.status_code = 500  # type: ignore[misc]
+        with pytest.raises(AttributeError):
+            err.message = "tampered"  # type: ignore[misc]
+        with pytest.raises(AttributeError):
+            err.response_body = "tampered"  # type: ignore[misc]
+
+        assert err.status_code == 404
+        assert err.message == "not found"
+
+
+class TestApiErrorTypedBody:
+    def test_get_typed_error_body_deserializes_body(self) -> None:
+        err = ApiException(
+            status_code=400,
+            message="bad request",
+            response_body='{"id":42,"name":"Dogs"}',
+        )
+
+        typed = err.get_typed_error_body(Category)
+        assert isinstance(typed, Category)
+        assert typed.id == 42
+        assert typed.name == "Dogs"
+
+    def test_get_typed_error_body_returns_none_when_no_body(self) -> None:
+        err = ApiException(status_code=500, message="oops", response_body=None)
+
+        assert err.get_typed_error_body(Category) is None
+
+    def test_get_typed_error_body_ignores_extraneous_fields(self) -> None:
+        err = ApiException(
+            status_code=422,
+            message="unprocessable",
+            response_body='{"id":1,"name":"Cat","extra":"drop-me"}',
+        )
+
+        typed = err.get_typed_error_body(Category)
+        assert isinstance(typed, Category)
+        assert typed.id == 1
+        assert typed.name == "Cat"

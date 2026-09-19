@@ -1,0 +1,7 @@
+module PetstoreClient
+  module Auth
+    class PetStoreBasicAuthenticator < BasicAuthenticator
+      def initialize: (host: String, username: String, password: String) -> void
+    end
+  end
+end

@@ -1,0 +1,43 @@
+{{>api_info}}
+
+using System.Diagnostics;
+using System.Globalization;
+
+namespace {{packageName}};
+
+/// <summary>
+/// Utility for injecting W3C Trace Context headers (<c>traceparent</c>, <c>tracestate</c>)
+/// into outgoing API requests when an active <see cref="Activity"/> exists.
+///
+/// If no <see cref="Activity.Current"/> is present, this class silently no-ops.
+/// </summary>
+internal static class TraceContextUtil
+{
+    /// <summary>
+    /// Inject <c>traceparent</c> and optionally <c>tracestate</c> headers into
+    /// the given dictionary, derived from <see cref="Activity.Current"/>.
+    ///
+    /// If there is no current activity, the dictionary is not modified.
+    /// </summary>
+    /// <param name="headers">The mutable header dictionary to inject trace context into.</param>
+    public static void InjectTraceContext(Dictionary<string, string> headers)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+
+        Activity? activity = Activity.Current;
+        if (activity is null)
+        {
+            return;
+        }
+
+        string traceId = activity.TraceId.ToString();
+        string spanId = activity.SpanId.ToString();
+        string traceFlags = ((int)activity.ActivityTraceFlags).ToString("x2", CultureInfo.InvariantCulture);
+        headers["traceparent"] = $"00-{traceId}-{spanId}-{traceFlags}";
+
+        if (!string.IsNullOrEmpty(activity.TraceStateString))
+        {
+            headers["tracestate"] = activity.TraceStateString;
+        }
+    }
+}

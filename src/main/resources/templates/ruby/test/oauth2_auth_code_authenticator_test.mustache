@@ -1,0 +1,177 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require 'json'
+require 'uri'
+require '{{gemName}}'
+
+class FakeAuthCodeClient
+  attr_reader :last_url, :last_body
+
+  def initialize(responses)
+    @responses = responses
+    @call_index = 0
+  end
+
+  def send_request(_method, url, _headers, body, no_redirect: false)
+    @last_url = url
+    @last_body = body
+    response = @responses[@call_index] || @responses.last
+    @call_index += 1
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: response[:status],
+      body: response[:body].to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
+describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
+  parallelize_me!
+
+  let(:auth) do
+    {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'my_client_secret',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://app.example.com/callback',
+      %w[read write]
+    )
+  end
+
+  it 'builds authorization URL with required params' do
+    url = auth.build_authorization_url
+    _(url).must_include 'https://auth.example.com/authorize?'
+    _(url).must_include 'response_type=code'
+    _(url).must_include 'client_id=my_client_id'
+    _(url).must_include 'redirect_uri='
+    _(url).must_include 'scope=read+write'
+  end
+
+  it 'builds authorization URL with state' do
+    url = auth.build_authorization_url('csrf_state_123')
+    _(url).must_include 'state=csrf_state_123'
+  end
+
+  it 'exchanges code with correct grant type' do
+    client = FakeAuthCodeClient.new([
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+    ])
+    auth.api_client = client
+
+    auth.exchange_code('auth_code_123')
+    _(client.last_body).must_include 'grant_type=authorization_code'
+    _(client.last_body).must_include 'code=auth_code_123'
+    _(client.last_body).must_include 'client_id=my_client_id'
+    _(client.last_body).must_include 'client_secret=my_client_secret'
+  end
+
+  it 'includes refresh token on refresh' do
+    client = FakeAuthCodeClient.new([
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+    ])
+    auth.api_client = client
+
+    auth.exchange_code('auth_code_123')
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer tok_refreshed'
+    _(client.last_body).must_include 'refresh_token=ref_xyz'
+  end
+
+  it 'throws before exchange code called' do
+    assert_raises({{moduleName}}::ApiError) do
+      auth.auth_headers
+    end
+  end
+
+  it 'getHost returns configured host' do
+    _(auth.host).must_equal 'https://api.example.com'
+  end
+
+  # oauth-exchangecode-no-empty-code-guard: an empty/blank authorization
+  # code must be rejected before issuing the token POST.
+  it 'rejects an empty authorization code' do
+    auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
+    _(-> { auth.exchange_code('') }).must_raise ArgumentError
+  end
+
+  it 'rejects a whitespace-only authorization code' do
+    auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
+    _(-> { auth.exchange_code('   ') }).must_raise ArgumentError
+  end
+
+  it 'auth_headers_before_exchange_returns_recoverable_error' do
+    # Calling auth_headers before exchange_code is a precondition violation.
+    # It must surface as a catchable exception so callers can recover --
+    # not as a process crash.
+    caught = nil
+    begin
+      auth.auth_headers
+    rescue {{moduleName}}::ApiError => e
+      caught = e
+    end
+    _(caught).wont_be_nil
+
+    # Caller continues normally after rescuing -- no process crash.
+    _(auth.host).must_equal 'https://api.example.com'
+  end
+
+  it 'authorize URL with existing query string uses ampersand separator' do
+    auth_with_query = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'my_client_secret',
+      'https://x.auth0.com/authorize?audience=api',
+      'https://x.auth0.com/oauth/token',
+      'https://app.example.com/callback',
+      %w[read]
+    )
+
+    url = auth_with_query.build_authorization_url
+    _(url).must_include 'audience=api'
+    _(url).must_include 'response_type=code'
+    _(url.count('?')).must_equal 1
+  end
+
+  it 'masks the client secret in inspect' do
+    # client-secret-leak-in-default-repr: the default Object#inspect dumps
+    # every instance variable, leaking @client_secret. The overridden
+    # inspect must mask it.
+    secret_auth = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'super_secret_value',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://app.example.com/callback',
+      %w[read write]
+    )
+
+    _(secret_auth.inspect).wont_include 'super_secret_value'
+    _(secret_auth.inspect).must_include '***'
+    _(secret_auth.to_s).wont_include 'super_secret_value'
+    _(secret_auth.to_s).wont_include 'super_secret_value'
+  end
+
+  def test_redacts_secret
+    auth = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'leaky_client_secret',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://app.example.com/callback',
+      %w[read write]
+    )
+    _(auth.inspect).wont_include 'leaky_client_secret'
+    _(auth.inspect).must_include '***'
+    _(auth.to_s).wont_include 'leaky_client_secret'
+    _(auth.to_s).must_include '***'
+  end
+end

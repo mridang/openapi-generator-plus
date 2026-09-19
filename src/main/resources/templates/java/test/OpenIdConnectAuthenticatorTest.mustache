@@ -1,0 +1,207 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth.oauth;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.ApiHttpResponse;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+{{>models/checkstyle_suppressions}}
+class OpenIdConnectAuthenticatorTest {
+
+    private static final String DISCOVERY_RESPONSE =
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+            + "\"token_endpoint\":\"https://auth.example.com/token\"}";
+
+    private static OpenIdConnectAuthenticator createAuthenticator() {
+        return new OpenIdConnectAuthenticator(
+                "https://api.example.com",
+                "https://auth.example.com/.well-known/openid-configuration",
+                "my-client-id",
+                "my-client-secret",
+                "https://app.example.com/callback",
+                List.of("openid", "profile"));
+    }
+
+    @Test
+    void buildsAuthorizationUrlFromDiscovery() {
+        AtomicReference<String> capturedUrl = new AtomicReference<>();
+        ApiClient client = (method, url, headers, body) -> {
+            capturedUrl.set(url);
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        String url = auth.buildAuthorizationUrl("csrf-state");
+
+        assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"));
+        assertTrue(url.contains("response_type=code"));
+        assertTrue(url.contains("client_id=my-client-id"));
+        assertTrue(url.contains("state=csrf-state"));
+    }
+
+    @Test
+    void fetchesDiscoveryDocument() {
+        AtomicReference<String> capturedMethod = new AtomicReference<>();
+        AtomicReference<String> capturedUrl = new AtomicReference<>();
+        ApiClient client = (method, url, headers, body) -> {
+            capturedMethod.set(method);
+            capturedUrl.set(url);
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.buildAuthorizationUrl(null);
+
+        assertEquals("GET", capturedMethod.get());
+        assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
+    }
+
+    @Test
+    void obtainsTokenAfterCodeExchange() {
+        AtomicReference<String> capturedBody = new AtomicReference<>();
+        var calls = new Object() { int count = 0; };
+        ApiClient client = (method, url, headers, body) -> {
+            calls.count++;
+            capturedBody.set(body != null ? body.toString() : "");
+            if (calls.count == 1) {
+                return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+            }
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.exchangeCode("oidc-code");
+
+        String body = capturedBody.get();
+        assertNotNull(body);
+        assertTrue(body.contains("grant_type=authorization_code"));
+        assertTrue(body.contains("code=oidc-code"));
+    }
+
+    @Test
+    void getAuthHeadersReturnsBearerAfterExchange() {
+        var calls = new Object() { int count = 0; };
+        ApiClient client = (method, url, headers, body) -> {
+            calls.count++;
+            if (calls.count == 1) {
+                return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+            }
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.exchangeCode("oidc-code");
+        Map<String, String> headers = auth.getAuthHeaders();
+
+        assertEquals("Bearer oidc-tok", headers.get("Authorization"));
+    }
+
+    @Test
+    void throwsWhenNoApiClientInjected() {
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+
+        assertThrows(IllegalStateException.class, () -> auth.buildAuthorizationUrl(null));
+    }
+
+    @Test
+    void getHostReturnsConfiguredHost() {
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+
+        assertEquals("https://api.example.com", auth.getHost());
+    }
+
+    @Test
+    void throwsWhenDiscoveryReturnsNon2xxStatus() {
+        ApiClient client = (method, url, headers, body) ->
+                new ApiHttpResponse(500, "<html>internal server error</html>", Map.of());
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        // A non-2xx discovery response must surface as a clear error, not as
+        // an "invalid JSON" parse failure of the HTML error page.
+        assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+    }
+
+    @Test
+    void throwsWhenDiscoveryMissingAuthorizationEndpoint() {
+        ApiClient client = (method, url, headers, body) ->
+                new ApiHttpResponse(200,
+                        "{\"token_endpoint\":\"https://auth.example.com/token\"}", Map.of());
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        // Missing authorization_endpoint must throw rather than build a
+        // delegate with a null/empty endpoint URL.
+        assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+    }
+
+    @Test
+    void throwsWhenDiscoveryMissingTokenEndpoint() {
+        ApiClient client = (method, url, headers, body) ->
+                new ApiHttpResponse(200,
+                        "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}",
+                        Map.of());
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+    }
+
+    @Test
+    void fetchesDiscoveryDocumentOnlyOnce() {
+        var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                getCalls.incrementAndGet();
+            }
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.buildAuthorizationUrl(null);
+        auth.buildAuthorizationUrl(null);
+
+        // The cached discovery document must be reused on the second call.
+        assertEquals(1, getCalls.get());
+    }
+
+    /**
+     * The default {@code toString()} must mask the stored client secret: the
+     * secret value must be absent and a {@code ***} redaction marker present.
+     */
+    @Test
+    @DisplayName("toString() redacts the client secret and shows ***")
+    void redactsSecret() {
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        String repr = auth.toString();
+        assertFalse(repr.contains("my-client-secret"));
+        assertTrue(repr.contains("***"));
+    }
+}

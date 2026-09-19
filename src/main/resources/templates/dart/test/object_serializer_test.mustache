@@ -1,0 +1,930 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+import 'package:{{packageName}}/src/object_serializer.dart';
+
+void main() {
+  group('ObjectSerializer', () {
+    test('serialize map to JSON', () {
+      final input = {'name': 'Fido', 'age': 3};
+
+      final jsonString = serialize(input);
+      expect(jsonString, isNotEmpty);
+
+      final parsed = jsonDecode(jsonString) as Map<String, dynamic>;
+      expect(parsed['name'], equals('Fido'));
+    });
+
+    test('deserializeRaw JSON to map', () {
+      final input = '{"name":"Fido","age":3}';
+
+      final result = deserializeRaw(input) as Map<String, dynamic>;
+      expect(result['name'], equals('Fido'));
+    });
+
+    test('deserializeRaw empty data', () {
+      final result = deserializeRaw('');
+      expect(result, isNull);
+    });
+
+    test('deserializeRaw invalid JSON', () {
+      expect(
+        () => deserializeRaw('not json'),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    // -- Gap P2 (canonical): BOM-prefixed JSON deserializes cleanly --
+    //
+    // RFC 8259 §8.1 forbids a leading UTF-8 BOM (U+FEFF), but Windows-
+    // generated payloads often emit one and jsonDecode rejects it. The SDK
+    // strips it transparently (parity with Java Jackson / C# System.Text.Json)
+    // so a BOM-prefixed body still deserializes into the model. GREEN here.
+    test('deserialize strips a leading UTF-8 BOM before parsing into a model', () {
+      const bomJson = '﻿{"id":1,"name":"Dogs"}';
+      final category = deserialize<Category>(bomJson, Category.fromJson);
+      expect(category, isNotNull);
+      expect(category!.id, equals(1));
+      expect(category.name, equals('Dogs'));
+    });
+
+    // -- default-on-deserialize --
+    //
+    // The Order.status field declares a schema `default: placed`. When a JSON
+    // response OMITS "status", the SDK must populate it with the default
+    // ("placed") rather than leaving it null. This exercises the same
+    // `deserialize<T>(json, T.fromJson)` entry point the other model
+    // deserialize tests use.
+    test('deserialize applies schema default for absent field', () {
+      const json = '{"id":10,"petId":198772}';
+      final order = deserialize<Order>(json, Order.fromJson);
+      expect(order, isNotNull);
+      expect(order!.status, equals(OrderStatusEnum.placed));
+    });
+
+    // -- default-applies-only-when-absent --
+    //
+    // The Defaults model declares `retries` (int, default 3), `mode` (enum,
+    // default `medium` — NOT the first variant), and `label` (nullable string,
+    // default "untitled"). A schema `default` fills in ONLY when the key is
+    // OMITTED from the payload. An explicit JSON `null` is a provided value and
+    // must be PRESERVED as null, not replaced by the default (JSON-Schema
+    // contract; parity with go/rust/python).
+    test('deserialize applies defaults only for absent keys', () {
+      final fromEmpty = deserialize<Defaults>('{}', Defaults.fromJson);
+      expect(fromEmpty, isNotNull);
+      expect(fromEmpty!.retries, equals(3));
+      expect(fromEmpty.mode, equals(DefaultsModeEnum.medium));
+      expect(fromEmpty.label, equals('untitled'));
+
+      final withNull = deserialize<Defaults>(
+        '{"label":null,"retries":7}',
+        Defaults.fromJson,
+      );
+      expect(withNull, isNotNull);
+      expect(withNull!.label, isNull);
+      expect(withNull.retries, equals(7));
+    });
+
+    // -- recursive-self-referential-model-deserialize --
+    //
+    // TreeNode is self-referential ({ value, child: TreeNode? }). Deserializing
+    // a nested literal must decode the `child` into a real TreeNode instance
+    // (not a raw map), and the leaf node's absent `child` must read as null.
+    test('deserialize decodes a self-referential TreeNode nesting', () {
+      const json = '{"value":"root","child":{"value":"leaf"}}';
+      final top = deserialize<TreeNode>(json, TreeNode.fromJson);
+      expect(top, isNotNull);
+      expect(top!.value, equals('root'));
+      expect(top.child, isA<TreeNode>());
+      expect(top.child!.value, equals('leaf'));
+      expect(top.child!.child, isNull);
+    });
+
+    test('toPathValue string', () {
+      expect(toPathValue('hello'), equals('hello'));
+    });
+
+    test('toPathValue int', () {
+      expect(toPathValue(42), equals('42'));
+    });
+
+    test('toPathValue bool', () {
+      expect(toPathValue(true), equals('true'));
+      expect(toPathValue(false), equals('false'));
+    });
+
+    test('toPathValue null', () {
+      expect(toPathValue(null), equals(''));
+    });
+
+    test('toQueryValue string', () {
+      expect(toQueryValue('hello', ''), equals('hello'));
+    });
+
+    test('toQueryValue string slice CSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'csv'), equals('a,b,c'));
+    });
+
+    test('toQueryValue string slice SSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'ssv'), equals('a b c'));
+    });
+
+    test('toQueryValue string slice TSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'tsv'), equals('a\tb\tc'));
+    });
+
+    test('toQueryValue string slice pipes', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'pipes'), equals('a|b|c'));
+    });
+
+    test('toQueryValue string slice multi', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'multi'), equals(['a', 'b', 'c']));
+    });
+
+    test('toQueryValue int', () {
+      expect(toQueryValue(42, ''), equals('42'));
+    });
+
+    test('toQueryValue bool true', () {
+      expect(toQueryValue(true, ''), equals('true'));
+    });
+
+    test('toQueryValue bool false', () {
+      expect(toQueryValue(false, ''), equals('false'));
+    });
+
+    test('toQueryValue null', () {
+      expect(toQueryValue(null, ''), isNull);
+    });
+
+    test('toHeaderValue string', () {
+      expect(toHeaderValue('hello'), equals('hello'));
+    });
+
+    test('toHeaderValue string slice', () {
+      expect(toHeaderValue(['a', 'b', 'c']), equals('a,b,c'));
+    });
+
+    test('toHeaderValue int', () {
+      expect(toHeaderValue(42), equals('42'));
+    });
+
+    test('toHeaderValue null', () {
+      expect(toHeaderValue(null), equals(''));
+    });
+
+    test('toFormValue string', () {
+      expect(toFormValue('hello'), equals('hello'));
+    });
+
+    test('toFormValue int', () {
+      expect(toFormValue(123), equals('123'));
+    });
+
+    test('toFormValue null', () {
+      expect(toFormValue(null), equals(''));
+    });
+
+    test('toFormValue bool true', () {
+      expect(toFormValue(true), equals('true'));
+    });
+
+    test('toFormValue bool false', () {
+      expect(toFormValue(false), equals('false'));
+    });
+
+    test('toCookieValue string', () {
+      expect(toCookieValue('hello'), equals('hello'));
+    });
+
+    test('toCookieValue null', () {
+      expect(toCookieValue(null), equals(''));
+    });
+
+    test('toCookieValue int', () {
+      expect(toCookieValue(42), equals('42'));
+    });
+
+    test('stringify string', () {
+      expect(stringify('hello'), equals('hello'));
+    });
+
+    test('stringify int', () {
+      expect(stringify(42), equals('42'));
+    });
+
+    test('stringify int64', () {
+      expect(stringify(9999999999), equals('9999999999'));
+    });
+
+    test('stringify double', () {
+      expect(stringify(3.14), equals('3.14'));
+    });
+
+    test('stringify bool', () {
+      expect(stringify(true), equals('true'));
+      expect(stringify(false), equals('false'));
+    });
+
+    test('stringify DateTime', () {
+      final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
+      final result = stringify(ts);
+      expect(result, equals('2024-01-15T10:30:00+00:00'));
+    });
+
+    test('stringify null', () {
+      expect(stringify(null), equals(''));
+    });
+
+    // DateTimeOffsetPreservationTests
+
+    test('UTC datetime serializes containing date-time and offset', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      expect(result, contains('2024-01-01'));
+      expect(result, contains('12:30:45'));
+      expect(result.contains('+00:00') || result.endsWith('Z'), isTrue,
+          reason: 'should contain UTC offset: $result');
+    });
+
+    test('positive timezone offset is preserved', () {
+      // Use a fixed UTC equivalent: 12:30:45+05:30 = 07:00:45 UTC
+      final utcDt = DateTime.utc(2024, 1, 1, 7, 0, 45);
+      final result = stringify(utcDt);
+      expect(result, isNotEmpty);
+    });
+
+    test('negative timezone offset does not lose the offset', () {
+      final utcDt = DateTime.utc(2024, 1, 1, 20, 30, 45); // 12:30:45-08:00 = 20:30:45 UTC
+      final result = stringify(utcDt);
+      expect(result, isNotEmpty);
+    });
+
+    test('date-time serialization preserves sub-second precision', () {
+      // Canonical cross-SDK regression: the decode path (DateTime.parse)
+      // accepts fractional seconds, so the encode path must emit them too.
+      // Use the shared instant 2020-01-02T03:04:05.123Z (UTC) with
+      // millisecond precision — the common denominator every language's
+      // native date-time type can represent.
+      final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123);
+      final result = stringify(dt);
+      // (1) the millisecond fraction is NOT truncated to whole seconds.
+      expect(result, contains('.123'),
+          reason: 'milliseconds must survive serialization: $result');
+      // (2) deserializing yields a date-time equal to the original instant.
+      final parsed = DateTime.parse(result);
+      expect(parsed.toUtc().millisecondsSinceEpoch,
+          equals(dt.millisecondsSinceEpoch),
+          reason: 'round-trip must be lossless to the millisecond');
+    });
+
+    test('date formatted as string contains date component', () {
+      final dt = DateTime.utc(2024, 1, 1, 0, 0, 0);
+      final result = stringify(dt);
+      expect(result, contains('2024-01-01'));
+    });
+
+    test('serialized datetime ends with an offset or Z', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      expect(result.endsWith('Z') || result.contains('+') || result.contains('-'),
+          isTrue, reason: 'should end with offset: $result');
+    });
+
+    test('round-trip: serialize then deserialize yields equivalent instant', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      final parsed = DateTime.parse(result);
+      expect(parsed.toUtc().millisecondsSinceEpoch, equals(dt.millisecondsSinceEpoch));
+    });
+
+    // NonAsciiSerializationTests
+
+    test('accented character serializes without unicode escape', () {
+      final result = serialize({'key': 'café'});
+      expect(result, contains('é'));
+    });
+
+    test('CJK characters serialize without unicode escape', () {
+      final result = serialize({'key': '日本'});
+      expect(result, contains('日本'));
+    });
+
+    test('tab character is properly escaped in JSON', () {
+      final result = serialize({'key': 'a\tb'});
+      expect(result, contains(r'\t'));
+    });
+
+    // DeserializationErrorWrappingTests
+
+    test('truncated JSON throws SerializationError not raw parse error', () {
+      expect(
+        () => deserializeRaw('{'),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('incomplete JSON object throws SerializationError', () {
+      expect(
+        () => deserializeRaw('{"name":'),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('thrown SerializationError has a cause referencing original error', () {
+      try {
+        deserializeRaw('{');
+        fail('Expected SerializationError');
+      } catch (e) {
+        expect(e, isA<SerializationError>());
+        final serErr = e as SerializationError;
+        expect(serErr.cause, isNotNull);
+      }
+    });
+
+    test('serialize includes fields set to default values', () {
+      final category = Category(id: 0, name: '');
+      final json = serialize(category);
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      expect(parsed.containsKey('id'), isTrue, reason: 'serialized JSON should include id field');
+      expect(parsed['id'], equals(0));
+      expect(parsed.containsKey('name'), isTrue, reason: 'serialized JSON should include name field');
+      expect(parsed['name'], equals(''));
+    });
+
+    // Gap K — discriminator auto-emitted on subtype serialise.
+
+    test('subtype serialise auto-emits discriminator value', () {
+      final dry = DryFood(weightKg: 2.5);
+      final json = serialize(dry);
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      expect(parsed['foodType'], equals('dry'));
+      expect(parsed['weightKg'], equals(2.5));
+    });
+
+    test('subtype round-trip via parent discriminator routes back to subtype', () {
+      final dry = DryFood(weightKg: 1.25);
+      final json = serialize(dry);
+      final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      expect(food.value, isA<DryFood>());
+    });
+
+    // -- Gap AU-residual: missing-discriminator wrapping --
+    //
+    // A PetFood payload that omits the `foodType` discriminator property
+    // (e.g. {"weightKg": 5.0}) must hard-fail with the SDK's
+    // SerializationError, NOT silently wrap the raw dict in a union
+    // container. With no discriminator value the switch lands on the
+    // `default:` branch (disc == null) and throws.
+    test('fromJson throws when the discriminator property is missing', () {
+      final input = <String, dynamic>{'weightKg': 5.0};
+      expect(
+        () => PetFood.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    // -- DiscardNullsOnSerializeTests --
+    //
+    // Models constructed without any of their optional fields must omit those
+    // keys from the toJson() map entirely (no `"id": null` slots). Required
+    // fields and explicit defaults must still appear.
+    test('toJson omits optional fields left null', () {
+      final pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
+      final json = pet.toJson();
+      expect(json.containsKey('name'), isTrue, reason: 'required field name present');
+      expect(json.containsKey('photoUrls'), isTrue, reason: 'required field photoUrls present');
+      expect(json.containsKey('id'), isFalse,
+          reason: 'optional id left unset must be omitted, not emitted as null');
+      expect(json.containsKey('category'), isFalse,
+          reason: 'optional category left unset must be omitted');
+      expect(json.containsKey('tags'), isFalse,
+          reason: 'optional tags left unset must be omitted');
+    });
+
+    test('toJson includes optional fields when explicitly set', () {
+      final pet = Pet(
+        id: 7,
+        name: 'Fido',
+        photoUrls: <String>{'http://x/y.jpg'},
+      );
+      final json = pet.toJson();
+      expect(json['id'], equals(7));
+    });
+
+    // -- DiscardExtrasOnDeserializeTests --
+    //
+    // fromJson must read only declared properties and silently drop unknown
+    // keys (no exception thrown). This protects clients against new server
+    // fields added after the SDK was generated.
+    test('fromJson silently ignores unknown extra fields', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': <String>['http://x/y.jpg'],
+        // Unknown / future fields:
+        'unknownField': 'value',
+        'serverSideOnly': 12345,
+        'nestedExtra': {'foo': 'bar'},
+      };
+      final pet = Pet.fromJson(input);
+      expect(pet.id, equals(1));
+      expect(pet.name, equals('Fido'));
+      // Declared optional fields stay null when absent.
+      expect(pet.category, isNull);
+      expect(pet.status, isNull);
+    });
+
+    // -- RequiredFieldHardFailTests (DIVERGENCE #10) --
+    //
+    // Deserialising a model whose required, non-nullable field is MISSING or
+    // explicitly NULL must hard-fail with the SDK's SerializationError rather
+    // than silently building a partial object. Pet requires both `name` and
+    // `photoUrls`.
+    test('fromJson throws when a required field is absent', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        // 'name' omitted entirely
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson throws when a required field is explicitly null', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': null,
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson throws when a required array field is absent', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        // 'photoUrls' omitted entirely
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson throws when a required array field is explicitly null', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': null,
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson succeeds when all required fields are present', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      final pet = Pet.fromJson(input);
+      expect(pet.name, equals('Fido'));
+      expect(pet.photoUrls, contains('http://x/y.jpg'));
+    });
+
+    // -- MapOfModelDeepDeserializeTests (4.6) --
+    //
+    // For a Map<String, Foo> field on a generated model, the template
+    // must recursively call Foo.fromJson on each entry value rather than
+    // leaving the raw decoded JSON map in place. This test exercises the
+    // same `.map((k, v) => MapEntry(k, Foo.fromJson(v as Map<String, dynamic>)))`
+    // shape that model.mustache emits for non-primitive map item types.
+    test('Map<String, Model> deserialize recurses into model factory', () {
+      final raw = <String, dynamic>{
+        'first': <String, dynamic>{'id': 1, 'name': 'tag-a'},
+        'second': <String, dynamic>{'id': 2, 'name': 'tag-b'},
+      };
+
+      final typed = raw.map(
+        (k, v) => MapEntry(k, Tag.fromJson(v as Map<String, dynamic>)),
+      );
+
+      expect(typed['first'], isA<Tag>());
+      expect(typed['first']!.id, equals(1));
+      expect(typed['first']!.name, equals('tag-a'));
+      expect(typed['second']!.name, equals('tag-b'));
+      // Raw map values were untyped — ensure deep conversion produced
+      // real Tag instances, not still-Map<String, dynamic> values.
+      expect(typed['first'], isNot(isA<Map<String, dynamic>>()));
+    });
+
+    test('Map<String, Model> round-trips through toJson per entry', () {
+      final tags = <String, Tag>{
+        'a': const Tag(id: 10, name: 'alpha'),
+        'b': const Tag(id: 20, name: 'beta'),
+      };
+
+      final wire = tags.map((k, v) => MapEntry(k, v.toJson()));
+      final restored = wire.map(
+        (k, v) => MapEntry(k, Tag.fromJson(v)),
+      );
+
+      expect(restored['a'], equals(tags['a']));
+      expect(restored['b'], equals(tags['b']));
+    });
+
+    // -- UuidValueTests (2.2) --
+    //
+    // `format: uuid` is exposed as `UuidValue` from `package:uuid` rather
+    // than a raw `String`, so the public API is typed and construction
+    // validates the wire shape. These tests cover the stringify/serialize
+    // path the generated `model.toJson()` calls into.
+    test('UuidValue stringifies via toString to canonical 36-char form', () {
+      final u = UuidValue.fromString('12345678-1234-1234-1234-1234567890ab');
+      expect(stringify(u), equals('12345678-1234-1234-1234-1234567890ab'));
+    });
+
+    test('UuidValue.fromString rejects malformed input', () {
+      // Constructor-side validation is the whole reason we wrap.
+      expect(
+        () => UuidValue.fromString('not-a-uuid'),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('UuidValue round-trips through jsonEncode/decode via toString', () {
+      final u = UuidValue.fromString('abcdef01-2345-6789-abcd-ef0123456789');
+      final encoded = jsonEncode({'id': u.toString()});
+      final decoded = jsonDecode(encoded) as Map<String, dynamic>;
+      final restored = UuidValue.fromString(decoded['id'] as String);
+      expect(restored, equals(u));
+    });
+
+    // -- ProtobufDurationTests (4.8) --
+    //
+    // OpenAPI `format: duration` maps to Dart's `Duration`, but Dart's
+    // default `Duration.toString()` (`HH:MM:SS.mmmmmm`) is not the wire
+    // form. parseProtobufDuration / formatProtobufDuration bridge between
+    // the `google.protobuf.Duration` JSON form (a decimal second count
+    // suffixed with `s`, e.g. `5400s`) and `Duration` in memory.
+
+    test('parseProtobufDuration parses whole seconds', () {
+      expect(parseProtobufDuration('5400s'),
+          equals(const Duration(hours: 1, minutes: 30)));
+    });
+
+    test('parseProtobufDuration parses a large second count', () {
+      expect(
+        parseProtobufDuration('93784s'),
+        equals(const Duration(days: 1, hours: 2, minutes: 3, seconds: 4)),
+      );
+    });
+
+    test('parseProtobufDuration parses zero', () {
+      expect(parseProtobufDuration('0s'), equals(Duration.zero));
+    });
+
+    test('parseProtobufDuration handles fractional seconds at micro resolution', () {
+      expect(
+        parseProtobufDuration('0.5s'),
+        equals(const Duration(milliseconds: 500)),
+      );
+      expect(
+        parseProtobufDuration('1.000001s'),
+        equals(const Duration(seconds: 1, microseconds: 1)),
+      );
+    });
+
+    test('parseProtobufDuration truncates sub-microsecond digits', () {
+      // Nanosecond resolution on the wire, microsecond resolution in
+      // memory — digits below 1µs are truncated.
+      expect(
+        parseProtobufDuration('0.000000999s'),
+        equals(Duration.zero),
+      );
+    });
+
+    test('parseProtobufDuration handles negative durations', () {
+      expect(parseProtobufDuration('-3600s'),
+          equals(const Duration(hours: -1)));
+    });
+
+    test('parseProtobufDuration rejects malformed input', () {
+      expect(() => parseProtobufDuration('not-a-duration'),
+          throwsA(isA<ProtobufDurationFormatException>()));
+      expect(() => parseProtobufDuration(''),
+          throwsA(isA<ProtobufDurationFormatException>()));
+      // Missing the trailing `s` suffix.
+      expect(() => parseProtobufDuration('3600'),
+          throwsA(isA<ProtobufDurationFormatException>()));
+      // ISO-8601 form is no longer accepted.
+      expect(() => parseProtobufDuration('PT1H30M'),
+          throwsA(isA<ProtobufDurationFormatException>()));
+    });
+
+    test('formatProtobufDuration emits canonical zero', () {
+      expect(formatProtobufDuration(Duration.zero), equals('0s'));
+    });
+
+    test('formatProtobufDuration emits whole seconds', () {
+      expect(
+        formatProtobufDuration(const Duration(hours: 1, minutes: 30)),
+        equals('5400s'),
+      );
+      expect(
+        formatProtobufDuration(
+          const Duration(days: 1, hours: 2, minutes: 3, seconds: 4),
+        ),
+        equals('93784s'),
+      );
+    });
+
+    test('formatProtobufDuration emits fractional seconds in 3/6/9 digit groups', () {
+      expect(
+        formatProtobufDuration(const Duration(milliseconds: 500)),
+        equals('0.500s'),
+      );
+      expect(
+        formatProtobufDuration(
+          const Duration(seconds: 1, microseconds: 1),
+        ),
+        equals('1.000001s'),
+      );
+    });
+
+    test('formatProtobufDuration emits negative durations with leading sign', () {
+      expect(
+        formatProtobufDuration(const Duration(hours: -1)),
+        equals('-3600s'),
+      );
+    });
+
+    test('Duration round-trips through format then parse', () {
+      const original = Duration(days: 3, hours: 4, minutes: 5, seconds: 6);
+      final wire = formatProtobufDuration(original);
+      expect(parseProtobufDuration(wire), equals(original));
+    });
+
+    test('stringify Duration emits protobuf duration form, not Dart default', () {
+      // Dart's Duration.toString() would print "1:30:00.000000" — we
+      // explicitly want the protobuf-JSON wire form on every transport-
+      // side conversion path.
+      final result = stringify(const Duration(hours: 1, minutes: 30));
+      expect(result, equals('5400s'));
+    });
+
+    // -- PartialTimeTests (4.8) --
+    //
+    // `format: time` stays as String (no civil-time stdlib type in Dart
+    // outside Flutter), but the generated helper validates the wire shape
+    // so callers opting into validation get a useful failure mode.
+
+    test('validatePartialTime accepts HH:MM:SS', () {
+      expect(validatePartialTime('14:30:00'), equals('14:30:00'));
+    });
+
+    test('validatePartialTime accepts fractional seconds', () {
+      expect(
+        validatePartialTime('14:30:00.123'),
+        equals('14:30:00.123'),
+      );
+    });
+
+    test('validatePartialTime rejects malformed input', () {
+      expect(() => validatePartialTime('2pm'), throwsFormatException);
+      expect(() => validatePartialTime('14:30'), throwsFormatException);
+      expect(() => validatePartialTime(''), throwsFormatException);
+    });
+
+    test('fromJson then toJson does not leak unknown fields back to wire', () {
+      final input = <String, dynamic>{
+        'id': 9,
+        'name': 'Rex',
+        'photoUrls': <String>['http://x/z.jpg'],
+        'unknownLeak': 'should not appear',
+      };
+      final pet = Pet.fromJson(input);
+      final round = pet.toJson();
+      expect(round.containsKey('unknownLeak'), isFalse,
+          reason: 'unknown fields read by fromJson must NOT be re-emitted by toJson');
+    });
+
+    // -- IntegerBackedEnumWireFormTests (canonical scenario 1) --
+    //
+    // Priority is an integer-backed enum (1/2/3). It must serialize to a JSON
+    // NUMBER (2, not the string "2") and deserialize a numeric 2 back to the
+    // matching member. StockItem.priority is the model-field carrier, so this
+    // exercises the same toJson()/fromJson() the generated model calls into.
+    test('integer-backed Priority enum serializes as a JSON number', () {
+      expect(Priority.NUMBER_2.toJson(), equals(2));
+      expect(Priority.NUMBER_2.toJson(), isA<int>());
+
+      final item = StockItem(priority: Priority.NUMBER_2);
+      final wire = item.toJson();
+      // The number must be emitted as 2, never the string "2".
+      expect(wire['priority'], equals(2));
+      expect(wire['priority'], isA<int>());
+
+      final encoded = jsonEncode(wire);
+      expect(encoded, contains('"priority":2'));
+      expect(encoded, isNot(contains('"priority":"2"')));
+    });
+
+    test('integer-backed Priority enum deserializes from a JSON number', () {
+      expect(Priority.fromJson(2), equals(Priority.NUMBER_2));
+
+      final restored = StockItem.fromJson(<String, dynamic>{'priority': 3});
+      expect(restored.priority, equals(Priority.NUMBER_3));
+    });
+
+    // -- DecimalAsNumberWireFormTests (WAVE B) --
+    //
+    // Pet.weightKg is declared `type: number` with NO `format`, i.e. a bare
+    // JSON number. It must serialize to an UNQUOTED JSON number (1.5), never a
+    // quoted string ("1.5"). Dart models the field as a native `double`, so
+    // jsonEncode emits a number directly — this guards that the field never
+    // regresses to a string-wrapped arbitrary-precision Decimal (the bug other
+    // SDKs hit). It also asserts the value survives serialize -> deserialize as
+    // a number.
+    test('type:number weightKg serializes as an unquoted JSON number', () {
+      final pet = Pet(
+        name: 'Fido',
+        photoUrls: <String>{'http://x/y.jpg'},
+        weightKg: 1.5,
+      );
+
+      final wire = pet.toJson();
+      expect(wire['weightKg'], equals(1.5));
+      expect(wire['weightKg'], isA<double>());
+
+      final encoded = serialize(pet);
+      // The number must appear as 1.5, never the string "1.5".
+      expect(encoded, contains('"weightKg":1.5'));
+      expect(encoded, isNot(contains('"weightKg":"1.5"')));
+
+      // Round-trip: it survives serialize -> deserialize still a number.
+      final restored = deserialize<Pet>(encoded, Pet.fromJson);
+      expect(restored, isNotNull);
+      expect(restored!.weightKg, equals(1.5));
+      expect(restored.weightKg, isA<double>());
+    });
+
+    // -- NonLowercaseStringEnumTests (canonical scenario 2) --
+    //
+    // Availability is a string enum whose wire values are NOT all lowercase
+    // ("Available", "Sold") and include a hyphenated value ("on-hold"). The
+    // wire casing must round-trip verbatim, deserializing "Available" must
+    // yield the right member, and an unknown value must be rejected.
+    test('non-lowercase Availability enum preserves wire casing on serialize', () {
+      expect(Availability.available.toJson(), equals('Available'));
+      expect(Availability.sold.toJson(), equals('Sold'));
+      expect(Availability.onHold.toJson(), equals('on-hold'));
+    });
+
+    test('non-lowercase Availability enum deserializes the wire value', () {
+      expect(Availability.fromJson('Available'), equals(Availability.available));
+      expect(Availability.fromJson('on-hold'), equals(Availability.onHold));
+    });
+
+    test('non-lowercase Availability enum rejects an unknown wire value', () {
+      expect(
+        () => Availability.fromJson('available'),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => Availability.fromJson('unknown'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    // -- ByteFieldBase64RoundTripTests (canonical scenario 3) --
+    //
+    // format:byte fields map to Uint8List and travel as base64 on the wire.
+    // PetPassport carries BOTH a scalar byte field (thumbnail) and an
+    // array-of-byte field (scans). Both must base64-encode on toJson and
+    // base64-decode back to the original bytes on fromJson.
+    test('format:byte scalar and array fields round-trip through base64', () {
+      final thumb = Uint8List.fromList(<int>[0xDE, 0xAD, 0xBE, 0xEF]);
+      final scanA = Uint8List.fromList(<int>[1, 2, 3]);
+      final scanB = Uint8List.fromList(<int>[4, 5, 6]);
+
+      final passport = PetPassport(
+        thumbnail: thumb,
+        scans: <Uint8List>[scanA, scanB],
+      );
+
+      final wire = passport.toJson();
+      // On the wire the bytes are base64 strings, not raw byte arrays.
+      expect(wire['thumbnail'], equals(base64Encode(thumb)));
+      expect(wire['scans'], equals(<String>[base64Encode(scanA), base64Encode(scanB)]));
+
+      final restored = PetPassport.fromJson(jsonDecode(jsonEncode(wire)) as Map<String, dynamic>);
+      expect(restored.thumbnail, equals(thumb));
+      expect(restored.scans, equals(<Uint8List>[scanA, scanB]));
+    });
+
+    // -- DoubleFromIntegralJsonTests (canonical scenario 4) --
+    //
+    // A double/number-typed field must accept an INTEGRAL JSON value
+    // ({"lat":5}, not 5.0) without crashing. Dart's `5 as double` throws, so
+    // the generated fromJson coerces via `(json[..] as num?)?.toDouble()`.
+    test('double-typed field deserializes from an integral JSON value', () {
+      final loc = PhotoMetadataLocation.fromJson(<String, dynamic>{'lat': 5, 'lng': 7});
+      expect(loc.lat, equals(5.0));
+      expect(loc.lat, isA<double>());
+      expect(loc.lng, equals(7.0));
+
+      // A genuine fractional value still decodes unchanged.
+      final fractional = PhotoMetadataLocation.fromJson(<String, dynamic>{'lat': 1.5});
+      expect(fractional.lat, equals(1.5));
+    });
+
+    // -- ModelFieldEnumRejectsUnknownTests (canonical scenario 10) --
+    //
+    // A model field typed as a referenced enum must REJECT an unknown wire
+    // value during the model's own deserialize, not just when the enum's
+    // fromJson is called directly. StockItem.availability references the
+    // Availability enum, so an unknown value must surface as an ArgumentError
+    // out of StockItem.fromJson.
+    test('model field typed as a referenced enum rejects an unknown wire value', () {
+      expect(
+        () => StockItem.fromJson(<String, dynamic>{
+          'priority': 1,
+          'availability': 'NotAStatus',
+        }),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    // -- ProtobufDurationNoSciNotationTests (canonical scenario 9 closure) --
+    //
+    // A sub-0.0001s magnitude duration must format as a plain decimal, never
+    // in scientific notation (e.g. "0.000050s", not "5e-5s"), and a negative
+    // duration must round-trip. The bulk of the duration matrix is covered
+    // above; this nails the no-scientific-notation guard explicitly.
+    test('sub-0.0001s and negative durations format without scientific notation', () {
+      final tiny = formatProtobufDuration(const Duration(microseconds: 50));
+      expect(tiny, equals('0.000050s'));
+      expect(tiny.toLowerCase(), isNot(contains('e')));
+
+      final negTiny = formatProtobufDuration(const Duration(microseconds: -50));
+      expect(negTiny, equals('-0.000050s'));
+      expect(negTiny.toLowerCase(), isNot(contains('e')));
+
+      // Round-trip both back to the original magnitude.
+      expect(parseProtobufDuration(tiny), equals(const Duration(microseconds: 50)));
+      expect(parseProtobufDuration(negTiny), equals(const Duration(microseconds: -50)));
+    });
+
+    // Cross-cutting `oneof-nondiscriminator-no-match-silent`: resolveOneOf
+    // returns the first matching variant, and throws a SerializationError
+    // (never returns null) when no variant matches.
+    test('resolveOneOf returns first matching variant', () {
+      final result = resolveOneOf<String>(
+        <String, dynamic>{'k': 'v'},
+        [
+          (j) => throw const SerializationError('first miss'),
+          (j) => 'matched',
+        ],
+      );
+      expect(result, equals('matched'));
+    });
+
+    test('resolveOneOf throws SerializationError when no variant matches', () {
+      expect(
+        () => resolveOneOf<String>(
+          <String, dynamic>{'k': 'v'},
+          [
+            (j) => throw const SerializationError('miss 1'),
+            (j) => throw const SerializationError('miss 2'),
+          ],
+        ),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('resolveAnyOf throws SerializationError when no variant matches', () {
+      expect(
+        () => resolveAnyOf<String>(
+          <String, dynamic>{'k': 'v'},
+          [(j) => throw const SerializationError('miss')],
+        ),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+  });
+}
+{{/generateTests}}

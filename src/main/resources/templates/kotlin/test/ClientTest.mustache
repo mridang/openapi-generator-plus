@@ -1,0 +1,148 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.ApiKeyAuthenticator
+import {{invokerPackage}}.auth.ApiKeyLocation
+import {{invokerPackage}}.auth.BearerAuthenticator
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
+import java.nio.file.Path
+
+class ClientTest {
+
+    private val authenticator = BearerAuthenticator("{{{basePath}}}", "test-token")
+
+    @Test
+    @DisplayName("construct with authenticator only")
+    fun constructWithAuthenticatorOnly() {
+        val client = {{clientClassName}}(authenticator)
+
+        assertNotNull(client)
+    }
+
+    @Test
+    @DisplayName("construct with authenticator and transport options")
+    fun constructWithAuthenticatorAndTransportOptions() {
+        val transport = TransportOptions.builder().build()
+
+        val client = {{clientClassName}}(authenticator, transport)
+
+        assertNotNull(client)
+    }
+
+    @Test
+    @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun bearerRejectsCrlfAndNonAscii() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "tok\r\nInjected: yes")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "ñoño")
+        }
+    }
+
+    @Test
+    @DisplayName("bearer-no-empty-token-guard: Bearer rejects empty/blank token")
+    fun bearerRejectsEmptyOrBlankToken() {
+        // An empty or whitespace-only token would emit a credential-less
+        // "Authorization: Bearer " header (fail-open); reject it up front.
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "   ")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "\t")
+        }
+    }
+
+    @Test
+    @DisplayName("ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun apiKeyHeaderRejectsCrlfAndNonAscii() {
+        // ApiKeyAuthenticator's HEADER location must reject any value
+        // outside printable ASCII + TAB to prevent both header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
+        }
+        // Non-header locations accept arbitrary chars.
+        assertNotNull(
+            ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams()
+        )
+    }
+
+    @Test
+    @DisplayName("ApiKey query location accepts non-ASCII characters")
+    fun apiKeyQueryAcceptsNonAscii() {
+        // The QUERY location is URL-encoded downstream, so it must accept a
+        // non-ASCII key value verbatim and surface it through getQueryParams.
+        assertEquals(
+            mapOf("api_key" to "kéy"),
+            ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams()
+        )
+    }
+
+    @Test
+    @DisplayName("T-CA-ERRTYPE: missing CA cert surfaces ApiException, not raw JDK exception")
+    fun missingCaCertThrowsApiException() {
+        // A custom CA cert path that does not exist is a TLS-pinning
+        // misconfiguration. Construction must fail fast with the SDK's own
+        // typed ApiException so a caller wrapping construction in
+        // `catch (ApiException)` does not miss it (a raw FileNotFoundException
+        // would slip through).
+        val transport =
+            TransportOptions.builder()
+                .caCertPath("/nonexistent/path/to/ca-cert.pem")
+                .build()
+
+        val ex =
+            assertThrows(ApiException::class.java) {
+                {{clientClassName}}(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
+    @DisplayName("T-CA-ERRTYPE: garbage CA cert surfaces ApiException, not raw JDK exception")
+    fun invalidCaCertThrowsApiException(@TempDir tempDir: Path) {
+        // A readable file whose contents are not a valid PEM certificate must
+        // also surface as the SDK's typed ApiException (wrapping the underlying
+        // CertificateException), never a raw java.security.cert.CertificateException.
+        val badCert = File(tempDir.toFile(), "bad-ca.pem")
+        badCert.writeText("not a valid certificate")
+
+        val transport =
+            TransportOptions.builder()
+                .caCertPath(badCert.absolutePath)
+                .build()
+
+        val ex =
+            assertThrows(ApiException::class.java) {
+                {{clientClassName}}(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
+    @DisplayName("API groups are accessible")
+    fun apiGroupsAreAccessible() {
+        val client = {{clientClassName}}(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(client.{{clientPropertyName}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}

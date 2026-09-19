@@ -1,0 +1,164 @@
+{{>api_info}}
+import Foundation
+
+/// Error raised by ``OAuth2AuthorizationCodeAuthenticator`` when the caller
+/// violates the documented usage contract (e.g. requesting headers before
+/// exchanging an authorization code). Callers can catch this to recover
+/// gracefully instead of being terminated by a `fatalError`.
+public enum OAuth2AuthorizationCodeError: ZitadelError, Equatable {
+    /// `authHeadersOrThrow()` was called before `exchangeCode(_:)`.
+    case codeNotExchanged
+    /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
+    case emptyCode
+}
+
+/// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
+///
+/// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
+/// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
+/// as regular API calls.
+///
+/// Usage:
+///  1. Call ``buildAuthorizationURL(state:)`` to get the authorization URL
+///  2. Redirect the user to that URL
+///  3. After the callback, call ``exchangeCode(_:)`` with the auth code
+///  4. Use the authenticator normally -- tokens are managed automatically
+public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+    private let _host: String
+    private let clientID: String
+    private let clientSecret: String
+    private let authorizationURL: String
+    let tokenURL: String
+    private let refreshURL: String
+    private let redirectURI: String
+    private let scopes: [String]
+    let tokenManager: OAuth2TokenManager
+    private var tokenExchanged: Bool = false
+
+    /// Creates a new authorization code authenticator.
+    ///
+    /// If refreshURL is empty, the tokenURL is used for refresh requests.
+    public init(
+        host: String,
+        clientID: String,
+        clientSecret: String,
+        authorizationURL: String,
+        tokenURL: String,
+        redirectURI: String,
+        scopes: [String] = [],
+        refreshURL: String = ""
+    ) {
+        self._host = host
+        self.clientID = clientID
+        self.clientSecret = clientSecret
+        self.authorizationURL = authorizationURL
+        self.tokenURL = tokenURL
+        self.refreshURL = refreshURL.isEmpty ? tokenURL : refreshURL
+        self.redirectURI = redirectURI
+        self.scopes = scopes
+        self.tokenManager = OAuth2TokenManager()
+        super.init()
+    }
+
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
+    }
+
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
+        tokenManager.setApiClient(client)
+    }
+
+    /// Builds the authorization URL to redirect the user to.
+    ///
+    /// - Parameter state: Optional state parameter for CSRF protection.
+    /// - Returns: The authorization URL string.
+    public func buildAuthorizationURL(state: String = "") -> String {
+        var components = URLComponents(string: authorizationURL)!
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component (e.g. tenant-scoped Auth0 URLs like
+         * https://x.auth0.com/authorize?audience=api). Preserve existing
+         * query items instead of overwriting them. */
+        var items: [URLQueryItem] = components.queryItems ?? []
+        items.append(URLQueryItem(name: "response_type", value: "code"))
+        items.append(URLQueryItem(name: "client_id", value: clientID))
+        items.append(URLQueryItem(name: "redirect_uri", value: redirectURI))
+        if !scopes.isEmpty {
+            items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
+        }
+        if !state.isEmpty {
+            items.append(URLQueryItem(name: "state", value: state))
+        }
+        components.queryItems = items
+        return components.url!.absoluteString
+    }
+
+    /// Exchanges an authorization code for an access token.
+    public func exchangeCode(_ code: String) async throws {
+        /* Reject an empty or whitespace-only authorization code before
+         * posting to the token endpoint: an empty `code` is a caller
+         * mistake that would otherwise surface as a confusing server-side
+         * `invalid_grant` error. */
+        guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw OAuth2AuthorizationCodeError.emptyCode
+        }
+        let params: [String: String] = [
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": clientID,
+            "client_secret": clientSecret,
+            "redirect_uri": redirectURI
+        ]
+        _ = try await tokenManager.getAccessToken(tokenURL: tokenURL, params: params)
+        tokenExchanged = true
+    }
+
+    /// Returns the Bearer authentication header with a valid access token,
+    /// or throws if the caller violated the usage contract (e.g.
+    /// ``exchangeCode(_:)`` was never called) or if token refresh failed.
+    ///
+    /// Use this method when you need to distinguish "no auth available
+    /// because the caller forgot to exchange the code" from "no auth
+    /// available because the token endpoint is unreachable". The protocol
+    /// method ``authHeaders()`` collapses both cases to an empty dictionary
+    /// so that ``Authenticator`` conformance can stay non-throwing.
+    public func authHeadersOrThrow() async throws -> [String: String] {
+        guard tokenExchanged else {
+            throw OAuth2AuthorizationCodeError.codeNotExchanged
+        }
+
+        let params: [String: String] = [
+            "grant_type": "refresh_token",
+            "refresh_token": tokenManager.refreshToken,
+        ]
+
+        let accessToken = try await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)
+        return ["Authorization": "Bearer \(accessToken)"]
+    }
+
+    /// Returns the Bearer authentication header with a valid access token.
+    ///
+    /// Returns an empty dictionary if ``exchangeCode(_:)`` has not been
+    /// called yet or if token refresh fails -- the resulting unauthenticated
+    /// request will then surface as a 401 from the server, which callers
+    /// already handle. Use ``authHeadersOrThrow()`` instead when you need
+    /// to recover from the precondition failure programmatically.
+    override public func authHeaders() async -> [String: String] {
+        return (try? await authHeadersOrThrow()) ?? [:]
+    }
+}
+
+extension OAuth2AuthorizationCodeAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+    /// A description that redacts the client secret so it never leaks through
+    /// string interpolation, logging, or debugging output.
+    public var description: String {
+        "\(type(of: self))(host: \(_host), clientID: \(clientID), clientSecret: ***, authorizationURL: \(authorizationURL), tokenURL: \(tokenURL), refreshURL: \(refreshURL), redirectURI: \(redirectURI), scopes: \(scopes), tokenExchanged: \(tokenExchanged))"
+    }
+
+    /// A debug description that redacts the client secret so it never leaks
+    /// through string interpolation, logging, or debugging output.
+    public var debugDescription: String {
+        description
+    }
+}

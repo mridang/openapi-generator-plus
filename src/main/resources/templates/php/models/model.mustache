@@ -1,0 +1,837 @@
+{{#models}}
+{{#model}}
+{{>api_info}}
+{{! Generated co-located inline enums (PSR1.MultipleClasses) and oneOf/anyOf
+    deserializer factories with fully-qualified call expressions (line length)
+    are inherent to the generated model; suppress at the file level. }}
+{{#hasEnums}}
+/* phpcs:ignoreFile */
+
+{{/hasEnums}}
+{{#oneOf}}
+{{#-first}}
+/* phpcs:ignoreFile */
+
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+/* phpcs:ignoreFile */
+
+{{/-first}}
+{{/anyOf}}
+namespace {{modelPackage}};
+
+{{#isEnum}}
+{{#isInteger}}
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * {{classname}} is an enumeration of allowed values.
+ */
+{{/description}}
+enum {{classname}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * {{classname}} is an enumeration of allowed values.
+ */
+{{/description}}
+enum {{classname}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+{{/isLong}}
+{{^isLong}}
+{{#description}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * {{classname}} is an enumeration of allowed values.
+ */
+{{/description}}
+enum {{classname}}: string
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {{url}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+class {{classname}}
+{
+{{#discriminator}}
+    private const string DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+
+    /** @var array<string, class-string> */
+    private const array DISCRIMINATOR_MAPPING = [
+{{#mappedModels}}
+        '{{mappingName}}' => {{modelName}}::class{{^-last}},{{/-last}}
+{{/mappedModels}}
+    ];
+{{/discriminator}}
+{{^discriminator}}
+    /** @return array<callable> */
+    private static function oneOfCandidates(): array
+    {
+        return [
+{{! Drive the candidate list from composedSchemas.oneOf rather than the
+    bare oneOf set: composedSchemas.oneOf preserves the OAS declaration
+    order (so a scalar variant is tried before a container variant, never
+    mis-parsing a base64 string as a list) and carries per-branch format
+    info (isByteArray / items.isByteArray) that the flattened oneOf string
+    set loses. A scalar format:byte branch routes through the base64
+    wire-form helper so a base64 string round-trips as raw bytes instead of
+    passing through as a plain string; an array-of-byte branch validates a
+    list of base64 strings the same way. }}
+{{#composedSchemas.oneOf}}
+{{#isByteArray}}
+            fn(mixed $d): string => \{{invokerPackage}}\ObjectSerializer::decodeByteOneOfScalar($d),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items.isByteArray}}
+            fn(mixed $d): \Ds\Vector => \{{invokerPackage}}\ObjectSerializer::decodeByteOneOfArray($d),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+{{/items.isByteArray}}
+{{/isArray}}
+{{^isArray}}
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+{{/isArray}}
+{{/isByteArray}}
+{{/composedSchemas.oneOf}}
+        ];
+    }
+{{/discriminator}}
+
+    private mixed $actualInstance;
+
+    public function __construct(mixed $actualInstance = null)
+    {
+        $this->actualInstance = $actualInstance;
+    }
+
+    public function getActualInstance(): mixed
+    {
+        return $this->actualInstance;
+    }
+{{^discriminator}}
+{{#composedSchemas.oneOf}}
+{{#isByteArray}}
+
+    /**
+     * Wraps raw bytes as the scalar `format: byte` variant of this oneOf.
+     * The wire form for `format: byte` is a base64 STRING, so the bytes are
+     * base64-encoded before being stored as the actual instance; serializing
+     * the wrapper then emits the base64 string the server expects. This
+     * mirrors the scalar byte field accessor on the sibling request models.
+     */
+    public static function fromBytes(string $raw): self
+    {
+        $encoded = \{{invokerPackage}}\ObjectSerializer::encodeBytes($raw);
+        return new self($encoded ?? '');
+    }
+
+    /**
+     * Returns the raw decoded bytes when the actual instance is the scalar
+     * `format: byte` variant (a base64 wire string), or null otherwise. The
+     * stored instance holds the base64-encoded wire form; this applies
+     * base64_decode so callers recover the underlying binary string.
+     */
+    public function getActualInstanceAsBytes(): ?string
+    {
+        if (!is_string($this->actualInstance)) {
+            return null;
+        }
+        return \{{invokerPackage}}\ObjectSerializer::decodeBytes($this->actualInstance);
+    }
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items.isByteArray}}
+
+    /**
+     * Wraps a list of raw byte payloads as the array `format: byte` variant
+     * of this oneOf. Each element is base64-encoded (the `format: byte` wire
+     * form is a base64 STRING) and stored in a {{{dataType}}}; serializing the
+     * wrapper then emits an array of base64 strings.
+     *
+     * @param list<string> $raw
+     */
+    public static function fromByteList(array $raw): self
+    {
+        $encoded = [];
+        foreach ($raw as $element) {
+            $value = \{{invokerPackage}}\ObjectSerializer::encodeBytes($element);
+            if ($value !== null) {
+                $encoded[] = $value;
+            }
+        }
+        return new self(new {{{dataType}}}($encoded));
+    }
+
+    /**
+     * Returns the raw decoded bytes of each element when the actual instance
+     * is the array `format: byte` variant (a list of base64 wire strings), or
+     * null otherwise.
+     *
+     * @return list<string>|null
+     */
+    public function getActualInstanceAsByteList(): ?array
+    {
+        if (!($this->actualInstance instanceof {{{dataType}}})) {
+            return null;
+        }
+        $decoded = [];
+        foreach ($this->actualInstance as $element) {
+            if (!is_string($element)) {
+                continue;
+            }
+            $bytes = \{{invokerPackage}}\ObjectSerializer::decodeBytes($element);
+            if ($bytes !== null) {
+                $decoded[] = $bytes;
+            }
+        }
+        return $decoded;
+    }
+{{/items.isByteArray}}
+{{/isArray}}
+{{/isByteArray}}
+{{/composedSchemas.oneOf}}
+{{/discriminator}}
+
+    public static function build(mixed $data): self
+    {
+{{#discriminator}}
+        /* Gap AU: throw on missing / unknown / non-string discriminator
+         * value. Previously this fell through to `return new self($data)`
+         * which wrapped the raw array in a oneOf container — the result
+         * couldn't be `instanceof DryFood`-checked. The other 10 SDKs
+         * throw — PHP now matches. */
+        if (!is_array($data) || !isset($data[self::DISCRIMINATOR_PROPERTY])) {
+            throw new \InvalidArgumentException(
+                "Missing discriminator field '" . self::DISCRIMINATOR_PROPERTY
+                . "' in " . self::class . " payload"
+            );
+        }
+        if (!is_string($data[self::DISCRIMINATOR_PROPERTY])) {
+            throw new \InvalidArgumentException(
+                "Discriminator field '" . self::DISCRIMINATOR_PROPERTY
+                . "' for " . self::class . " must be a string"
+            );
+        }
+        $discValue = $data[self::DISCRIMINATOR_PROPERTY];
+        $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
+        if ($class === null) {
+            throw new \InvalidArgumentException(
+                "Unknown discriminator value '$discValue' for " . self::class
+            );
+        }
+        return new self(\{{invokerPackage}}\ObjectSerializer::deserialize($data, $class));
+{{/discriminator}}
+{{^discriminator}}
+        return new self(\{{invokerPackage}}\ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
+{{/discriminator}}
+    }
+}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {{url}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+class {{classname}}
+{
+    /** @return array<callable> */
+    private static function anyOfCandidates(): array
+    {
+        return [
+{{#anyOf}}
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{.}}}')),
+{{/anyOf}}
+        ];
+    }
+
+    /**
+     * Every anyOf variant that matched at deserialize, in declaration order.
+     *
+     * Non-discriminated anyOf matches when the data satisfies one OR MORE of
+     * the listed schemas, so a payload that co-satisfies several variants
+     * retains all of them here — keeping only the first would silently drop the
+     * other variants' fields and break a lossless round-trip.
+     *
+     * @var array<int, mixed>
+     */
+    private array $actualInstances;
+
+    /**
+     * @param array<int, mixed> $actualInstances the matched anyOf variants
+     */
+    public function __construct(array $actualInstances = [])
+    {
+        $this->actualInstances = $actualInstances;
+    }
+
+    /**
+     * The first matched anyOf variant.
+     *
+     * Retained for the common single-variant case and for callers that only
+     * need one instance; use {@see getActualInstances} to access every variant
+     * a co-satisfying payload matched.
+     */
+    public function getActualInstance(): mixed
+    {
+        return $this->actualInstances[0] ?? null;
+    }
+
+    /**
+     * Every matched anyOf variant, in declaration order.
+     *
+     * A payload that co-satisfied multiple variants returns one element per
+     * matched schema; serializing this wrapper re-emits the union of all their
+     * fields (see ObjectSerializer::sanitizeForSerialization).
+     *
+     * @return array<int, mixed>
+     */
+    public function getActualInstances(): array
+    {
+        return $this->actualInstances;
+    }
+
+    public static function build(mixed $data): self
+    {
+        return new self(\{{invokerPackage}}\ObjectSerializer::resolveAnyOfAll($data, self::anyOfCandidates()));
+    }
+}
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+use Symfony\Component\Serializer\Attribute\SerializedName;
+
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {{url}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/**
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+{{#hasEnums}}
+{{#vars}}
+{{#isEnum}}
+{{#isInteger}}
+enum {{classname}}{{enumName}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+enum {{classname}}{{enumName}}: int
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isLong}}
+{{^isLong}}
+enum {{classname}}{{enumName}}: string
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
+class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
+{
+{{#vars}}
+{{#description}}
+    /**
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{#isContainer}}
+{{#isArray}}
+{{#required}}
+     * @var {{>phpdoc_type}}
+{{/required}}
+{{^required}}
+     * @var {{>phpdoc_type}}|null
+{{/required}}
+{{/isArray}}
+{{#isMap}}
+{{#required}}
+     * @var {{>phpdoc_type}}
+{{/required}}
+{{^required}}
+     * @var {{>phpdoc_type}}|null
+{{/required}}
+{{/isMap}}
+{{/isContainer}}
+{{#example}}
+     * @example {{{.}}}
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+     * @example {{value}} {{summary}}
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+     * @readonly
+{{/isReadOnly}}
+{{#isWriteOnly}}
+     * @writeOnly
+{{/isWriteOnly}}
+{{#deprecated}}
+     * @deprecated This property is deprecated.
+{{/deprecated}}
+     */
+{{/description}}
+{{^description}}
+{{#isContainer}}
+{{#deprecated}}
+    /**
+{{#isArray}}
+{{#required}}
+     * @var {{>phpdoc_type}}
+{{/required}}
+{{^required}}
+     * @var {{>phpdoc_type}}|null
+{{/required}}
+{{/isArray}}
+{{#isMap}}
+{{#required}}
+     * @var {{>phpdoc_type}}
+{{/required}}
+{{^required}}
+     * @var {{>phpdoc_type}}|null
+{{/required}}
+{{/isMap}}
+     * @deprecated This property is deprecated.
+     */
+{{/deprecated}}
+{{^deprecated}}
+{{#isArray}}
+{{#required}}
+    /** @var {{>phpdoc_type}} */
+{{/required}}
+{{^required}}
+    /** @var {{>phpdoc_type}}|null */
+{{/required}}
+{{/isArray}}
+{{#isMap}}
+{{#required}}
+    /** @var {{>phpdoc_type}} */
+{{/required}}
+{{^required}}
+    /** @var {{>phpdoc_type}}|null */
+{{/required}}
+{{/isMap}}
+{{/deprecated}}
+{{/isContainer}}
+{{^isContainer}}
+{{#deprecated}}
+    /** @deprecated This property is deprecated. */
+{{/deprecated}}
+{{^deprecated}}
+{{#example}}
+    /** @example {{{.}}} */
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+    /** @example {{value}} {{summary}} */
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+    /** @readonly */
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /** @writeOnly */
+{{/isWriteOnly}}
+{{/deprecated}}
+{{/isContainer}}
+{{/description}}
+    #[SerializedName('{{{baseName}}}')]
+{{#required}}
+{{#isContainer}}
+    public {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+{{/isContainer}}
+{{^isContainer}}
+{{#isEnum}}
+    public {{classname}}{{enumName}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+{{/isEnum}}
+{{^isEnum}}
+    public {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+{{/isEnum}}
+{{/isContainer}}
+{{/required}}
+{{^required}}
+{{#isContainer}}
+{{#defaultValue}}
+    public {{{dataType}}} ${{name}} = {{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+    public {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null;
+{{/defaultValue}}
+{{/isContainer}}
+{{^isContainer}}
+{{#isEnum}}
+{{#defaultValue}}
+    public {{classname}}{{enumName}} ${{name}} = {{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+    public ?{{classname}}{{enumName}} ${{name}} = null;
+{{/defaultValue}}
+{{/isEnum}}
+{{^isEnum}}
+{{#defaultValue}}
+    public {{#isNullable}}?{{/isNullable}}{{{dataType}}} ${{name}} = {{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+    public {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null;
+{{/defaultValue}}
+{{/isEnum}}
+{{/isContainer}}
+{{/required}}
+{{^-last}}
+
+{{/-last}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    /** @var \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}>|null */
+    public ?\Ds\Map $additionalProperties = null;
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    /**
+     * Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+     * Validates a decoded JSON payload and throws if it contains a key not
+     * declared on this schema. Callers should pipe payloads through this
+     * helper before invoking the constructor.
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function assertNoUnknownProperties(array $data): void
+    {
+        $declared = [{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}];
+        foreach (array_keys($data) as $key) {
+            if (!in_array($key, $declared, true)) {
+                throw new \InvalidArgumentException(
+                    "Unknown property '" . (string) $key
+                        . "' on {{classname}} (unevaluatedProperties:false)"
+                );
+            }
+        }
+    }
+{{/isUnevaluatedPropertiesFalse}}
+
+    /**
+{{#requiredVars}}
+{{#isArray}}
+     * @param {{>phpdoc_type}} ${{name}}
+{{/isArray}}
+{{#isMap}}
+     * @param {{>phpdoc_type}} ${{name}}
+{{/isMap}}
+{{/requiredVars}}
+{{#optionalVars}}
+{{#isArray}}
+{{#defaultValue}}
+     * @param {{>phpdoc_type}} ${{name}}
+{{/defaultValue}}
+{{^defaultValue}}
+     * @param {{>phpdoc_type}}|null ${{name}}
+{{/defaultValue}}
+{{/isArray}}
+{{#isMap}}
+{{#defaultValue}}
+     * @param {{>phpdoc_type}} ${{name}}
+{{/defaultValue}}
+{{^defaultValue}}
+     * @param {{>phpdoc_type}}|null ${{name}}
+{{/defaultValue}}
+{{/isMap}}
+{{/optionalVars}}
+     */
+    public function __construct(
+{{#requiredVars}}
+{{#isContainer}}
+        {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
+{{/isContainer}}
+{{^isContainer}}
+{{#isEnum}}
+        {{classname}}{{enumName}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
+{{/isEnum}}
+{{^isEnum}}
+        {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
+{{/isEnum}}
+{{/isContainer}}
+{{/requiredVars}}
+{{#optionalVars}}
+{{#isContainer}}
+{{#defaultValue}}
+        {{{dataType}}} ${{name}} = {{{.}}},
+{{/defaultValue}}
+{{^defaultValue}}
+        {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null,
+{{/defaultValue}}
+{{/isContainer}}
+{{^isContainer}}
+{{#isEnum}}
+{{#defaultValue}}
+        {{classname}}{{enumName}} ${{name}} = {{{.}}},
+{{/defaultValue}}
+{{^defaultValue}}
+        ?{{classname}}{{enumName}} ${{name}} = null,
+{{/defaultValue}}
+{{/isEnum}}
+{{^isEnum}}
+{{#defaultValue}}
+        {{#isNullable}}?{{/isNullable}}{{{dataType}}} ${{name}} = {{{.}}},
+{{/defaultValue}}
+{{^defaultValue}}
+        {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null,
+{{/defaultValue}}
+{{/isEnum}}
+{{/isContainer}}
+{{/optionalVars}}
+    ) {
+{{#vars}}
+        $this->{{name}} = ${{name}};
+{{/vars}}
+    }
+{{#vars}}
+{{#isByteArray}}
+
+    /**
+     * 2.1 — Returns the raw decoded bytes for the `{{baseName}}`
+     * field (OAS `format: byte`). The stored property holds the
+     * base64-encoded wire form; this getter applies base64_decode
+     * so callers receive the underlying binary string. Returns
+     * null when the field is unset or empty.
+     */
+    public function {{getter}}AsBytes(): ?string
+    {
+        return \{{invokerPackage}}\ObjectSerializer::decodeBytes($this->{{name}});
+    }
+
+    /**
+     * 2.1 — Stores raw bytes in the `{{baseName}}` field (OAS
+     * `format: byte`) by base64-encoding before assignment. The
+     * property keeps the wire form so serialization stays a
+     * straight string pass-through.
+     */
+    public function {{setter}}FromBytes(?string $raw): void
+    {
+        $encoded = \{{invokerPackage}}\ObjectSerializer::encodeBytes($raw);
+        if ($encoded !== null) {
+            $this->{{name}} = $encoded;
+        }
+    }
+{{/isByteArray}}
+{{#isArray}}
+{{! Dotted access keeps the parent property's context current so the
+    getter / setter / name / dataType below resolve to the array field
+    itself, not to the inner item property. The block only renders when
+    the array's items carry OAS format: byte. }}
+{{#items.isByteArray}}
+
+    /**
+     * 2.1 — Returns the raw decoded bytes for every element of the
+     * `{{baseName}}` array field (OAS items `format: byte`). The stored
+     * container holds the base64-encoded wire form of each element;
+     * this getter applies base64_decode element-by-element so callers
+     * receive a plain array of underlying binary strings. Returns null
+     * when the field itself is unset, mirroring the scalar byte
+     * accessor pair so array-of-byte fields expose the same first-class
+     * raw-bytes API.
+     *
+     * @return list<string>|null
+     */
+    public function {{getter}}AsBytes(): ?array
+    {
+        if ($this->{{name}} === null) {
+            return null;
+        }
+        $decoded = [];
+        foreach ($this->{{name}} as $element) {
+            $bytes = \{{invokerPackage}}\ObjectSerializer::decodeBytes($element);
+            if ($bytes !== null) {
+                $decoded[] = $bytes;
+            }
+        }
+        return $decoded;
+    }
+
+    /**
+     * 2.1 — Stores raw bytes for every element of the `{{baseName}}`
+     * array field (OAS items `format: byte`) by base64-encoding each
+     * element before assignment. The container keeps the wire form so
+     * serialization stays a straight string pass-through, matching the
+     * scalar byte setter.
+     *
+     * @param list<string>|null $raw
+     */
+    public function {{setter}}FromBytes(?array $raw): void
+    {
+        if ($raw === null) {
+            $this->{{name}} = null;
+            return;
+        }
+        $encoded = [];
+        foreach ($raw as $element) {
+            $value = \{{invokerPackage}}\ObjectSerializer::encodeBytes($element);
+            if ($value !== null) {
+                $encoded[] = $value;
+            }
+        }
+        $this->{{name}} = new {{{dataType}}}($encoded);
+    }
+{{/items.isByteArray}}
+{{/isArray}}
+{{/vars}}
+}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

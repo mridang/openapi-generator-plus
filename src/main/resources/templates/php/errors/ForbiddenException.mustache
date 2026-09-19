@@ -1,0 +1,17 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+/**
+ * Exception for HTTP 403 Forbidden.
+ */
+class ForbiddenException extends ClientException
+{
+    public function __construct(
+        string $message = "",
+        ?array $responseHeaders = [],
+        ?string $responseBody = null,
+        mixed $errorBody = null
+    ) {
+        parent::__construct(403, $message, $responseHeaders, $responseBody, $errorBody);
+    }
+}

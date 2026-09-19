@@ -1,0 +1,61 @@
+{{>api_info}}
+
+use crate::api_error::{ApiError, ApiErrorKind};
+use crate::errors::bad_request_error::BadRequestError;
+use crate::errors::client_error::ClientError;
+use crate::errors::conflict_error::ConflictError;
+use crate::errors::forbidden_error::ForbiddenError;
+use crate::errors::internal_server_error::InternalServerError;
+use crate::errors::not_found_error::NotFoundError;
+use crate::errors::server_error::ServerError;
+use crate::errors::unauthorized_error::UnauthorizedError;
+use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
+use crate::object_serializer::SerializationError;
+
+/// Branded root of the SDK error hierarchy.
+///
+/// Rust has no class inheritance, so the "every SDK-thrown error is a
+/// `ZitadelError`" relationship that the OO SDKs express via a base class is
+/// modelled here as a marker trait. Every error type this client produces —
+/// the transport/API root [`ApiError`] and its per-status wrappers
+/// ([`ClientError`]/[`ServerError`] and the concrete 4xx/5xx types), the
+/// pattern-matching [`ApiErrorKind`] view, and the (de)serialization
+/// [`SerializationError`] — has an explicit `impl ZitadelError`, so a single
+/// `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold any of them.
+///
+/// The trait is implemented *explicitly* (not via a blanket
+/// `impl<T: std::error::Error> ZitadelError for T`) precisely so it stays
+/// branded: only the SDK's own error types qualify, mirroring the
+/// `instanceof ZitadelError` / `except ZitadelException` check the Node and
+/// Python SDKs use to tell SDK-originated errors apart from unrelated ones.
+///
+/// `ZitadelError` is a supertrait of [`std::error::Error`] (plus `Send + Sync`
+/// for use across threads), so any `&dyn ZitadelError` already gives you
+/// [`std::fmt::Display`], [`std::fmt::Debug`], and
+/// [`std::error::Error::source`] chaining for free.
+///
+/// ```ignore
+/// fn classify(err: &dyn ZitadelError) {
+///     // Display + Debug + source() are all available through the supertrait.
+///     eprintln!("SDK error: {err}");
+///     let mut cause = std::error::Error::source(err);
+///     while let Some(c) = cause {
+///         eprintln!("  caused by: {c}");
+///         cause = c.source();
+///     }
+/// }
+/// ```
+pub trait ZitadelError: std::error::Error + Send + Sync {}
+
+impl ZitadelError for ApiError {}
+impl ZitadelError for ApiErrorKind {}
+impl ZitadelError for ClientError {}
+impl ZitadelError for ServerError {}
+impl ZitadelError for BadRequestError {}
+impl ZitadelError for UnauthorizedError {}
+impl ZitadelError for ForbiddenError {}
+impl ZitadelError for NotFoundError {}
+impl ZitadelError for ConflictError {}
+impl ZitadelError for UnprocessableEntityError {}
+impl ZitadelError for InternalServerError {}
+impl ZitadelError for SerializationError {}

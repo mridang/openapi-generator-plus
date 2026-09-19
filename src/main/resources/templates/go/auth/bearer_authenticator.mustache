@@ -1,0 +1,69 @@
+{{>api_info}}
+package auth
+
+import (
+	"fmt"
+	"strings"
+)
+
+// BearerAuthenticator provides HTTP Bearer token authentication.
+type BearerAuthenticator struct {
+	BaseAuthenticator
+	host  string
+	token string
+}
+
+// NewBearerAuthenticator creates a new Bearer authenticator.
+//
+// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. Panics on
+// any value outside printable ASCII + TAB so callers see a clear error
+// rather than HTTP header injection from CR/LF or silently-mangled
+// non-ASCII bytes. panic is appropriate because this is a programmer
+// error, not a recoverable runtime condition.
+func NewBearerAuthenticator(host, token string) *BearerAuthenticator {
+	// bearer-no-empty-token-guard: an empty or whitespace-only token would
+	// produce the literal `Authorization: Bearer ` header and silently send
+	// the request unauthenticated. Reject it as a programmer error, matching
+	// the api-key authenticator's own empty guard.
+	if token == "" || strings.TrimSpace(token) == "" {
+		panic("Bearer token must not be empty")
+	}
+	for _, c := range token {
+		if c != '\t' && (c < 0x20 || c >= 0x7F) {
+			panic(fmt.Sprintf(
+				"Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+			))
+		}
+	}
+	return &BearerAuthenticator{
+		host:  host,
+		token: token,
+	}
+}
+
+// Host returns the API base URL.
+func (a *BearerAuthenticator) Host() string {
+	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the token. authenticator-secret-in-default-string-repr: without
+// this, fmt.Printf("%+v", auth) would reflect and print the unexported token
+// field into application logs.
+func (a *BearerAuthenticator) String() string {
+	return fmt.Sprintf("BearerAuthenticator{host: %q, token: ***}", a.host)
+}
+
+// AuthHeaders returns the Bearer authentication header.
+func (a *BearerAuthenticator) AuthHeaders() map[string]string {
+	// Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read from
+	// env files are commonly stored already-prefixed; emitting
+	// "Bearer Bearer xyz" would otherwise silently break auth.
+	value := a.token
+	if len(value) >= 7 && strings.EqualFold(value[:7], "Bearer ") {
+		value = value[7:]
+	}
+	return map[string]string{
+		"Authorization": "Bearer " + value,
+	}
+}

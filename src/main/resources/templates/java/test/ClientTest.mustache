@@ -1,0 +1,122 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import {{invokerPackage}}.auth.ApiKeyAuthenticator;
+import {{invokerPackage}}.auth.ApiKeyLocation;
+import {{invokerPackage}}.auth.BearerAuthenticator;
+import org.junit.jupiter.api.Test;
+
+{{>models/checkstyle_suppressions}}
+class ClientTest {
+
+    private final BearerAuthenticator authenticator =
+            new BearerAuthenticator("{{{basePath}}}", "test-token");
+
+    @Test
+    void constructWithAuthenticatorOnly() throws ApiException {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+
+        assertNotNull(client);
+    }
+
+    @Test
+    void constructWithAuthenticatorAndTransportOptions() throws ApiException {
+        TransportOptions transport = TransportOptions.builder().build();
+
+        {{clientClassName}} client = new {{clientClassName}}(authenticator, transport);
+
+        assertNotNull(client);
+    }
+
+    @Test
+    void bearerRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
+        // newlines from .env / file reads, which would CRLF-inject the
+        // Authorization header. Also reject non-ASCII to avoid silent
+        // UTF-8 mangling that varies per HTTP lib.
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "tok\r\nInjected: yes").getAuthHeaders());
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "ñoño").getAuthHeaders());
+    }
+
+    @Test
+    void bearerRejectsEmptyToken() {
+        // bearer-no-empty-token-guard: an empty or whitespace-only token would
+        // emit a bare "Authorization: Bearer " header and send the request
+        // unauthenticated. It must be rejected, like the api-key empty guard.
+        // Validation is lazy (at getAuthHeaders) on this non-final class to
+        // avoid SpotBugs CT_CONSTRUCTOR_THROW, matching the CR/LF check above.
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "").getAuthHeaders());
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "   ").getAuthHeaders());
+    }
+
+    @Test
+    void apiKeyHeaderRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's HEADER location must reject any value
+        // outside printable ASCII + TAB to prevent both header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        // Query / Cookie locations are URL-encoded by the transport so
+        // they are not subject to the same restriction.
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
+                "{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
+                .getAuthHeaders());
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
+                "{{{basePath}}}", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
+                .getAuthHeaders());
+        // Non-header locations accept arbitrary chars (they go through
+        // their own URL-encoding pipeline downstream).
+        assertNotNull(new ApiKeyAuthenticator(
+                "{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY)
+                .getQueryParams());
+    }
+
+    @Test
+    void apiKeyQueryAcceptsNonAscii() {
+        // The QUERY location is URL-encoded downstream, so it must accept a
+        // non-ASCII key value verbatim and surface it through getQueryParams.
+        assertEquals(
+                java.util.Collections.singletonMap("api_key", "kéy"),
+                new ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY)
+                        .getQueryParams());
+    }
+
+    @Test
+    void pomDeclaresADescription() throws Exception {
+        // Publish metadata parity: the generated pom.xml must carry a
+        // non-empty <description> so the artifact has a description on
+        // Maven Central, matching the python/ruby/dart manifests.
+        java.nio.file.Path pom = java.nio.file.Paths.get("pom.xml");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                java.nio.file.Files.exists(pom), "pom.xml not present in working dir");
+        String contents = java.nio.file.Files.readString(pom);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("<description>(.*?)</description>", java.util.regex.Pattern.DOTALL)
+                .matcher(contents);
+        assertTrue(matcher.find(), "pom.xml must contain a <description> element");
+        assertFalse(matcher.group(1).isBlank(), "<description> must not be empty");
+    }
+
+    @Test
+    void apiGroupsAreAccessible() throws ApiException {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(client.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}

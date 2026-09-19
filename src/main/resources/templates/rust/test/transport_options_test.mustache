@@ -1,0 +1,250 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+
+use {{packageName}}::*;
+
+#[test]
+fn test_transport_options_verify_ssl_defaults_to_true() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(opts.verify_ssl(), "expected verify_ssl to be true by default");
+}
+
+#[test]
+fn test_transport_options_ca_cert_path_defaults_to_none() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(opts.ca_cert_path().is_none(), "expected no CA cert path by default");
+}
+
+#[test]
+fn test_transport_options_proxy_defaults_to_none() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(opts.proxy().is_none(), "expected no proxy by default");
+}
+
+#[test]
+fn test_transport_options_timeout_defaults_to_10_seconds() {
+    /* Cross-language parity: a 10s end-to-end timeout (10_000 ms) is the
+     * default for every SDK. Callers can override or disable per request. */
+    let opts = TransportOptionsBuilder::new().build();
+    assert_eq!(opts.timeout(), Some(10_000), "expected 10s default timeout");
+}
+
+#[test]
+fn test_transport_options_follow_redirects_defaults_to_true() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(opts.follow_redirects(), "expected follow_redirects to be true by default");
+}
+
+#[test]
+fn test_transport_options_max_redirects_defaults_to_none() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(opts.max_redirects().is_none(), "expected no max_redirects by default");
+}
+
+#[test]
+fn test_transport_options_user_agent_defaults_to_branded_value() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert_eq!(opts.user_agent(), Some("{{userAgentDefault}}"));
+}
+
+#[test]
+fn test_transport_options_user_agent_set_value_is_applied() {
+    let opts = TransportOptionsBuilder::new().user_agent("CustomAgent/2.0").build();
+    assert_eq!(opts.user_agent(), Some("CustomAgent/2.0"));
+}
+
+#[test]
+fn test_transport_options_user_agent_opt_some_and_none() {
+    let some = TransportOptionsBuilder::new().user_agent_opt(Some("UA/1.0")).build();
+    assert_eq!(some.user_agent(), Some("UA/1.0"));
+
+    /* Passing None explicitly omits the header. */
+    let none = TransportOptionsBuilder::new()
+        .user_agent("UA/1.0")
+        .user_agent_opt(None)
+        .build();
+    assert!(none.user_agent().is_none(), "expected user_agent_opt(None) to clear the User-Agent");
+}
+
+#[test]
+fn test_transport_options_default_headers_defaults_to_empty() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(opts.default_headers().is_empty(), "expected empty default headers");
+}
+
+#[test]
+fn test_transport_options_inject_request_id_defaults_to_false() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(!opts.inject_request_id(), "expected inject_request_id to be false by default");
+}
+
+#[test]
+fn test_transport_options_builder_sets_all_fields() {
+    let opts = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .ca_cert_path("/path/to/ca.pem")
+        .proxy("http://proxy.example.com:8080")
+        .timeout(30000)
+        .follow_redirects(false)
+        .max_redirects(Some(5))
+        .user_agent("CustomAgent/2.0")
+        .default_header("X-Custom", "value")
+        .inject_request_id(true)
+        .build();
+
+    assert!(!opts.verify_ssl());
+    assert_eq!(opts.ca_cert_path(), Some("/path/to/ca.pem"));
+    assert_eq!(opts.proxy(), Some("http://proxy.example.com:8080"));
+    assert_eq!(opts.timeout(), Some(30000));
+    assert!(!opts.follow_redirects());
+    assert_eq!(opts.max_redirects(), Some(5));
+    assert_eq!(opts.user_agent(), Some("CustomAgent/2.0"));
+    assert_eq!(opts.default_headers().get("X-Custom").unwrap(), "value");
+    assert!(opts.inject_request_id());
+}
+
+#[test]
+fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redirects() {
+    let opts = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build();
+
+    assert!(opts.follow_redirects(), "expected follow_redirects to be true");
+    assert!(opts.max_redirects().is_none(), "expected no max_redirects");
+}
+
+#[test]
+#[should_panic(expected = "invalid proxy URL")]
+fn test_transport_options_invalid_proxy_url_throws_exception() {
+    TransportOptionsBuilder::new()
+        .proxy("not-a-valid-url")
+        .build();
+}
+
+#[test]
+fn test_transport_options_null_proxy_url_is_accepted() {
+    let opts = TransportOptionsBuilder::new()
+        .proxy("")
+        .build();
+
+    assert!(opts.proxy().is_none(), "expected no proxy for empty string");
+}
+
+#[test]
+fn test_transport_options_builder_methods_return_same_instance() {
+    let opts = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .user_agent("Test/1.0")
+        .timeout(10000)
+        .build();
+
+    assert_eq!(opts.user_agent(), Some("Test/1.0"));
+    assert_eq!(opts.timeout(), Some(10000));
+}
+
+#[test]
+fn test_transport_options_accumulates_headers_from_default_header_calls() {
+    let opts = TransportOptionsBuilder::new()
+        .default_header("X-First", "one")
+        .default_header("X-Second", "two")
+        .build();
+
+    let headers = opts.default_headers();
+    assert_eq!(headers.len(), 2);
+    assert_eq!(headers.get("X-First").unwrap(), "one");
+    assert_eq!(headers.get("X-Second").unwrap(), "two");
+}
+
+#[test]
+fn test_transport_options_merges_headers_from_default_headers_call() {
+    let mut extra = HashMap::new();
+    extra.insert("X-Second".to_string(), "two".to_string());
+    extra.insert("X-Third".to_string(), "three".to_string());
+
+    let opts = TransportOptionsBuilder::new()
+        .default_header("X-First", "one")
+        .default_headers(extra)
+        .build();
+
+    let headers = opts.default_headers();
+    assert_eq!(headers.len(), 3);
+    assert_eq!(headers.get("X-First").unwrap(), "one");
+    assert_eq!(headers.get("X-Second").unwrap(), "two");
+    assert_eq!(headers.get("X-Third").unwrap(), "three");
+}
+
+#[test]
+fn test_transport_options_modifying_source_map_does_not_affect_built_options() {
+    let opts = TransportOptionsBuilder::new()
+        .default_header("X-Test", "value")
+        .build();
+
+    let mut headers = opts.default_headers();
+    headers.insert("X-Mutated".to_string(), "should-not-affect-options".to_string());
+
+    let original = opts.default_headers();
+    assert!(
+        !original.contains_key("X-Mutated"),
+        "modifying returned headers should not affect the transport options"
+    );
+}
+
+#[test]
+fn test_transport_options_builder_produces_independent_instances() {
+    let first = TransportOptionsBuilder::new().verify_ssl(false).build();
+    let second = TransportOptionsBuilder::new().verify_ssl(false).build();
+
+    assert_eq!(first.verify_ssl(), second.verify_ssl());
+    assert_ne!(&first as *const _, &second as *const _);
+}
+
+// TimeoutConfigTests
+
+#[test]
+fn test_transport_options_timeout_defaults_to_10_seconds_timeout_group() {
+    let opts = TransportOptionsBuilder::new().build();
+    assert_eq!(opts.timeout(), Some(10_000), "expected default 10s timeout");
+}
+
+#[test]
+fn test_transport_options_setting_timeout_is_accessible() {
+    let opts = TransportOptionsBuilder::new().timeout(5000).build();
+    assert_eq!(opts.timeout(), Some(5000), "expected timeout to be 5000");
+}
+
+/* Feature gap: the Rust builder's `timeout(i64)` takes a non-Option i64, so it
+ * cannot reset the timeout to None/disabled the way Java/Kotlin/C# do via
+ * timeout(null). The closest behaviour is `timeout(0)` (a 0ms timeout), which is
+ * semantically different. Ignored to keep cross-language scenario parity. */
+#[test]
+#[ignore = "Rust builder cannot disable timeout to None; timeout(i64) is non-Option"]
+fn test_transport_options_timeout_can_be_explicitly_disabled() {}
+
+#[test]
+fn test_transport_options_timeout_field_is_named_timeout() {
+    // Verify via the timeout() accessor that the field is named 'timeout'
+    // (not e.g. 'connection_timeout' or 'open_timeout').
+    let opts = TransportOptionsBuilder::new().timeout(1000).build();
+    assert!(opts.timeout().is_some(), "expected non-None timeout");
+    assert_eq!(opts.timeout(), Some(1000));
+}
+
+// ProxyConfigTests
+
+#[test]
+fn test_transport_options_proxy_url_is_preserved_on_read_back() {
+    let opts = TransportOptionsBuilder::new()
+        .proxy("http://proxy.example.com:8080")
+        .build();
+    assert_eq!(opts.proxy(), Some("http://proxy.example.com:8080"));
+}
+
+#[test]
+fn test_transport_options_setting_proxy_is_supported_on_all_platforms() {
+    // Proxy configuration must not panic on any platform.
+    let opts = TransportOptionsBuilder::new()
+        .proxy("http://proxy.example.com:8080")
+        .build();
+    assert!(opts.proxy().is_some(), "expected proxy to be set");
+}

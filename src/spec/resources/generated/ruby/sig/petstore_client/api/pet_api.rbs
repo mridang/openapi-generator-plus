@@ -1,0 +1,100 @@
+module PetstoreClient
+  module Api
+    class GetExternalPetInfoServer
+      def url: () -> String
+    end
+
+    class GetExternalPetInfoServerServer0 < GetExternalPetInfoServer
+      def url: () -> String
+    end
+    class GetMultiServerPetInfoServer
+      def url: () -> String
+    end
+
+    module GetMultiServerPetInfoServerRegion
+      US: String
+      EU: String
+      AP: String
+    end
+
+    class GetMultiServerPetInfoServerPrimary < GetMultiServerPetInfoServer
+      def url: () -> String
+    end
+    class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
+      def initialize: (region: String) -> void
+      def url: () -> String
+    end
+    class GetPetByIdServer
+      def url: () -> String
+    end
+
+    class GetPetByIdServerCDNBackedReadEndpointForPetDetails < GetPetByIdServer
+      def url: () -> String
+    end
+    class GetStagingPetInfoServer
+      def url: () -> String
+    end
+
+    module GetStagingPetInfoServerEnvironment
+      STAGING: String
+      SANDBOX: String
+    end
+
+    module GetStagingPetInfoServerVersion
+      V2: String
+      V3: String
+    end
+
+    class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
+      def initialize: (environment: String, version: String) -> void
+      def url: () -> String
+    end
+    class PetApi < BaseApi
+      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config, ?::PetstoreClient::Auth::Authenticator? authenticator) -> void
+      def add_pet: (Models::Pet pet, ?Options::AddPetOptions? options) -> Models::Pet
+      def add_pet_with_http_info: (Models::Pet pet, ?Options::AddPetOptions? options) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def add_pet_photos: (Integer pet_id, Options::AddPetPhotosOptions options) -> Array[Models::Photo]
+      def add_pet_photos_with_http_info: (Integer pet_id, Options::AddPetPhotosOptions options) -> ::PetstoreClient::ApiResult[Array[Models::Photo]]
+      def add_pet_treatment: (Integer pet_id, Models::PetTreatment pet_treatment, ?Options::AddPetTreatmentOptions? options) -> Models::PetTreatment
+      def add_pet_treatment_with_http_info: (Integer pet_id, Models::PetTreatment pet_treatment, ?Options::AddPetTreatmentOptions? options) -> ::PetstoreClient::ApiResult[Models::PetTreatment]
+      def delete_pet: (Integer pet_id, ?Options::DeletePetOptions? options) -> void
+      def delete_pet_with_http_info: (Integer pet_id, ?Options::DeletePetOptions? options) -> ::PetstoreClient::ApiResult[nil]
+      def download_pet_document: (Integer pet_id, Integer document_id) -> File
+      def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::PetstoreClient::ApiResult[File]
+      def find_pets_by_status: (?Options::FindPetsByStatusOptions? options) -> Array[Models::Pet]
+      def find_pets_by_status_with_http_info: (?Options::FindPetsByStatusOptions? options) -> ::PetstoreClient::ApiResult[Array[Models::Pet]]
+      def get_external_pet_info: (Integer pet_id, ?server: GetExternalPetInfoServer?) -> Models::Pet
+      def get_external_pet_info_with_http_info: (Integer pet_id, ?server: GetExternalPetInfoServer?) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def get_multi_server_pet_info: (Integer pet_id, ?server: GetMultiServerPetInfoServer?) -> Models::Pet
+      def get_multi_server_pet_info_with_http_info: (Integer pet_id, ?server: GetMultiServerPetInfoServer?) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def get_pet_avatar: (Integer pet_id) -> File
+      def get_pet_avatar_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult[File]
+      def get_pet_avatar_thumbnail: (Integer pet_id) -> String
+      def get_pet_avatar_thumbnail_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult[String]
+      def get_pet_by_id: (Integer pet_id, ?server: GetPetByIdServer?) -> Models::Pet
+      def get_pet_by_id_with_http_info: (Integer pet_id, ?server: GetPetByIdServer?) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def get_pet_by_name: (String name, Options::GetPetByNameOptions options) -> Models::Pet
+      def get_pet_by_name_with_http_info: (String name, Options::GetPetByNameOptions options) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def get_pet_passport: (Integer pet_id) -> Models::PetPassport
+      def get_pet_passport_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult[Models::PetPassport]
+      def get_pet_photo: (Integer pet_id, Integer photo_id) -> File
+      def get_pet_photo_with_http_info: (Integer pet_id, Integer photo_id) -> ::PetstoreClient::ApiResult[File]
+      def get_pet_tag: (Integer pet_id, String tag_name, ?Options::GetPetTagOptions? options) -> Models::Pet
+      def get_pet_tag_with_http_info: (Integer pet_id, String tag_name, ?Options::GetPetTagOptions? options) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def get_staging_pet_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> Models::Pet
+      def get_staging_pet_info_with_http_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def set_pet_avatar: (Integer pet_id, File body, ?content_type: String?) -> void
+      def set_pet_avatar_with_http_info: (Integer pet_id, File body, ?content_type: String?) -> ::PetstoreClient::ApiResult[nil]
+      def set_pet_avatar_thumbnail: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> void
+      def set_pet_avatar_thumbnail_with_http_info: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> ::PetstoreClient::ApiResult[nil]
+      def set_pet_preferences: (Integer pet_id, Options::SetPetPreferencesOptions options) -> Models::ApiResponse
+      def set_pet_preferences_with_http_info: (Integer pet_id, Options::SetPetPreferencesOptions options) -> ::PetstoreClient::ApiResult[Models::ApiResponse]
+      def update_pet: (Integer pet_id, Models::Pet pet) -> Models::Pet
+      def update_pet_with_http_info: (Integer pet_id, Models::Pet pet) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def upload_pet_certificate: (Integer pet_id, Options::UploadPetCertificateOptions options) -> Models::ApiResponse
+      def upload_pet_certificate_with_http_info: (Integer pet_id, Options::UploadPetCertificateOptions options) -> ::PetstoreClient::ApiResult[Models::ApiResponse]
+      def upload_pet_document: (Integer pet_id, Options::UploadPetDocumentOptions options, ?content_type: String?) -> Models::ApiResponse
+      def upload_pet_document_with_http_info: (Integer pet_id, Options::UploadPetDocumentOptions options, ?content_type: String?) -> ::PetstoreClient::ApiResult[Models::ApiResponse]
+    end
+  end
+end

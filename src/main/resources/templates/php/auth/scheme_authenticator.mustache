@@ -1,0 +1,26 @@
+{{>api_info}}
+namespace {{package}};
+{{#imports}}
+
+use {{.}};
+{{/imports}}
+
+/**
+ * Scheme-specific authenticator for the {{className}} security scheme.
+ */
+final class {{className}} extends {{baseClass}}
+{
+{{#hasCustomConstructor}}
+    public function __construct(
+        {{#constructorParams}}
+        {{type}} ${{name}}{{^-last}},{{/-last}}
+        {{/constructorParams}}
+    ) {
+        parent::__construct(
+            {{#superArgs}}
+            {{.}}{{^-last}},{{/-last}}
+            {{/superArgs}}
+        );
+    }
+{{/hasCustomConstructor}}
+}

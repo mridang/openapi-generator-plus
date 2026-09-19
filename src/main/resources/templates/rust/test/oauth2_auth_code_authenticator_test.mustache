@@ -1,0 +1,248 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+
+use {{packageName}}::api_client::{ApiClient, RequestBody};
+use {{packageName}}::api_response::ApiHttpResponse;
+use {{packageName}}::auth::oauth::AuthCodeNotExchangedError;
+use {{packageName}}::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::HttpAwareAuthenticator;
+
+struct FakeApiClient {
+    responses: Mutex<Vec<ApiHttpResponse>>,
+    last_url: Mutex<Option<String>>,
+    last_body: Mutex<Option<String>>,
+}
+
+impl FakeApiClient {
+    fn new() -> Self {
+        Self {
+            responses: Mutex::new(Vec::new()),
+            last_url: Mutex::new(None),
+            last_body: Mutex::new(None),
+        }
+    }
+
+    fn enqueue(&self, body: &str, status_code: u16) {
+        let mut responses = self.responses.lock().unwrap();
+        responses.push(ApiHttpResponse::new(status_code, body.to_string(), HashMap::new()));
+    }
+
+    fn last_body(&self) -> Option<String> {
+        self.last_body.lock().unwrap().clone()
+    }
+}
+
+impl ApiClient for FakeApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        url: &str,
+        _headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        {
+            let mut last_url = self.last_url.lock().unwrap();
+            *last_url = Some(url.to_string());
+        }
+        if let Some(RequestBody::Bytes(b)) = body {
+            let mut last_body = self.last_body.lock().unwrap();
+            *last_body = Some(String::from_utf8_lossy(b).to_string());
+        }
+        let response = {
+            let mut responses = self.responses.lock().unwrap();
+            responses.remove(0)
+        };
+        Box::pin(async move { Ok(response) })
+    }
+}
+
+fn create_authenticator() -> OAuth2AuthorizationCodeAuthenticator {
+    OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/authorize",
+        "https://auth.example.com/token",
+        "https://app.example.com/callback",
+        vec!["read".to_string(), "write".to_string()],
+        "",
+    )
+}
+
+#[tokio::test]
+async fn test_builds_authorization_url_with_required_params() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.starts_with("https://auth.example.com/authorize?"));
+    assert!(url.contains("response_type=code"));
+    assert!(url.contains("client_id=my-client-id"));
+    assert!(url.contains("redirect_uri="));
+    assert!(url.contains("scope=read"));
+}
+
+#[tokio::test]
+async fn test_builds_authorization_url_with_state() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("csrf-state-123");
+
+    assert!(url.contains("state=csrf-state-123"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_exchanges_code_with_correct_grant_type() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
+
+    let body = client.last_body().expect("should have body");
+    assert!(body.contains("grant_type=authorization_code"));
+    assert!(body.contains("code=auth-code-xyz"));
+    assert!(body.contains("client_id=my-client-id"));
+    assert!(body.contains("client_secret=my-client-secret"));
+}
+
+/// oauth-exchangecode-no-empty-code-guard: an empty authorization code must
+/// be rejected up front with an error, NOT POSTed to the token endpoint.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_exchange_code_rejects_empty_code() {
+    let client = Arc::new(FakeApiClient::new());
+    // No response enqueued: if the guard fails and a POST is attempted, the
+    // FakeApiClient would panic on the empty queue — so this also proves no
+    // request was issued.
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.exchange_code("").await;
+    assert!(result.is_err(), "empty code must be rejected before the token POST");
+
+    let result_ws = auth.exchange_code("   ").await;
+    assert!(result_ws.is_err(), "whitespace-only code must be rejected");
+
+    assert!(
+        client.last_body().is_none(),
+        "no token request must be issued for an empty code"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_exchange_code_rejects_whitespace_only_code() {
+    // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+    // distinct from the empty-string case and must also be rejected before the
+    // token POST (code.trim().is_empty() guard).
+    let client = Arc::new(FakeApiClient::new());
+    // No response enqueued: if the guard fails and a POST is attempted, the
+    // FakeApiClient would panic on the empty queue — proving no request issued.
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.exchange_code("   ").await;
+    assert!(result.is_err(), "whitespace-only code must be rejected before the token POST");
+
+    assert!(
+        client.last_body().is_none(),
+        "no token request must be issued for a whitespace-only code"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_includes_refresh_token_on_refresh() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
+
+    // GetAuthHeaders triggers a refresh since token is expired
+    let headers = auth.auth_headers().await;
+
+    let body = client.last_body().expect("should have body");
+    assert!(body.contains("refresh_token=ref1"));
+    assert!(body.contains("grant_type=refresh_token"));
+    assert_eq!("Bearer tok2", headers.get("Authorization").unwrap());
+}
+
+#[tokio::test]
+async fn test_throws_before_exchange_code_called() {
+    let auth = create_authenticator();
+
+    // auth_headers (trait method) must NOT panic if exchange_code was never
+    // called -- it now soft-fails to an empty map so the resulting request
+    // surfaces as a 401 instead of crashing the process. Callers that want
+    // a precise error use try_auth_headers.
+    let headers = auth.auth_headers().await;
+    assert!(headers.is_empty(), "expected empty headers before exchange_code, got {:?}", headers);
+}
+
+#[tokio::test]
+async fn test_auth_headers_before_exchange_returns_recoverable_error() {
+    let auth = create_authenticator();
+
+    // Construct without exchange_code, then prove the precondition
+    // violation is catchable: try_auth_headers returns a typed error the
+    // caller can downcast and recover from.
+    let result = auth.try_auth_headers().await;
+    let err = result.expect_err("expected try_auth_headers to return Err before exchange_code");
+    assert!(
+        err.downcast_ref::<AuthCodeNotExchangedError>().is_some(),
+        "expected AuthCodeNotExchangedError, got {:?}",
+        err
+    );
+
+    // Caller continues normally after catching -- no process crash.
+    assert_eq!("https://api.example.com", auth.host());
+}
+
+#[test]
+fn test_get_host_returns_configured_host() {
+    let auth = create_authenticator();
+    assert_eq!("https://api.example.com", auth.host());
+}
+
+#[tokio::test]
+async fn test_authorize_url_with_existing_query_string_uses_amp_separator() {
+    let auth = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://x.auth0.com/authorize?audience=api",
+        "https://x.auth0.com/oauth/token",
+        "https://app.example.com/callback",
+        vec!["read".to_string()],
+        "",
+    );
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.contains("audience=api"), "existing query param must be preserved: {}", url);
+    assert!(url.contains("response_type=code"), "response_type param must be appended: {}", url);
+    assert_eq!(1, url.matches('?').count(), "result must contain exactly one '?': {}", url);
+}
+
+#[test]
+fn redacts_secret() {
+    let auth = create_authenticator();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("my-client-secret"));
+    assert!(debug.contains("***"));
+}

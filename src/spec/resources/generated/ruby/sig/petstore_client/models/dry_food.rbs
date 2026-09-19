@@ -1,0 +1,10 @@
+module PetstoreClient::Models
+  class DryFood < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    attr_reader food_type: String
+    attr_reader weight_kg: Float
+  end
+end

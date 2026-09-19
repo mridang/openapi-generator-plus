@@ -1,0 +1,16 @@
+module {{moduleName}}
+  module Auth
+{{#isOAuth}}
+    module OAuth
+      class {{className}} < {{baseClass}}
+        def initialize: ({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) -> void
+      end
+    end
+{{/isOAuth}}
+{{^isOAuth}}
+    class {{className}} < {{baseClass}}
+      def initialize: ({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) -> void
+    end
+{{/isOAuth}}
+  end
+end

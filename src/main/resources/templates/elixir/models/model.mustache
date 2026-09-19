@@ -1,0 +1,479 @@
+{{>api_info}}
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  @moduledoc """
+  {{#description}}{{{description}}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
+
+  Values are exposed as atoms (e.g. `:{{#allowableValues}}{{#enumVars}}{{#-first}}{{nameLowercase}}{{/-first}}{{/enumVars}}{{/allowableValues}}`) and as the canonical
+  {{#isInteger}}integer{{/isInteger}}{{#isLong}}integer{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}} form via `value/1` when wire interop is needed.
+  """
+
+  @typedoc "One of the allowed enum atoms for {{classname}}."
+  @type t :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}
+{{#allowableValues}}
+{{#enumVars}}
+  @doc "Enum value `{{nameLowercase}}`"
+  def {{nameLowercase}}, do: :"{{nameLowercase}}"
+
+{{/enumVars}}
+{{/allowableValues}}
+  @doc "All allowed values as atoms."
+  @spec all_values() :: [atom()]
+  def all_values do
+    [{{#allowableValues}}{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
+  end
+
+  @doc "Map an atom to its wire string value."
+  @spec value(atom()) :: term()
+{{#allowableValues}}
+{{#enumVars}}
+  def value(:"{{nameLowercase}}"), do: {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+
+  @doc """
+  Map a wire value back to its atom — the inverse of `value/1`.
+
+  Deserialization must round-trip the declared wire value (which may be
+  non-lowercase like `"Available"`, hyphenated like `"on-hold"`, or an
+  integer for an integer-backed enum) rather than naively atomizing the
+  raw string. Returns `{:error, value}` for an unrecognised wire value so
+  the caller can raise instead of minting an arbitrary atom.
+  """
+  @spec from_value(term()) :: atom() | {:error, term()}
+{{#allowableValues}}
+{{#enumVars}}
+  def from_value({{{value}}}), do: :"{{nameLowercase}}"
+{{/enumVars}}
+{{/allowableValues}}
+  def from_value(value), do: {:error, value}
+end
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#description}}
+  @moduledoc "{{{.}}}"
+  {{/description}}
+  {{^description}}
+  @moduledoc "Union type for {{classname}} (oneOf)."
+  {{/description}}
+
+  {{#oneOf}}
+  {{#-first}}
+  @doc "List of types defined in oneOf (OpenAPI v3)."
+  @spec openapi_one_of() :: [atom()]
+  def openapi_one_of do
+    [
+  {{/-first}}
+      :"{{.}}"{{^-last}},{{/-last}}
+  {{#-last}}
+    ]
+  end
+
+  {{/-last}}
+  {{/oneOf}}
+  {{#discriminator}}
+  @doc "Discriminator property name."
+  def openapi_discriminator_name, do: :{{propertyBaseName}}
+
+  {{#mappedModels}}
+  {{#-first}}
+  @doc "Discriminator mapping."
+  def openapi_discriminator_mapping do
+    %{
+  {{/-first}}
+      "{{{mappingName}}}" => :{{modelName}}{{^-last}},{{/-last}}
+  {{#-last}}
+    }
+  end
+
+  {{/-last}}
+  {{/mappedModels}}
+  {{/discriminator}}
+  @doc "Build the appropriate type from data."
+  @spec build(term()) :: term()
+  def build(data) do
+  {{#discriminator}}
+    discriminator_value = data[to_string(openapi_discriminator_name())]
+    # Raise on missing/unknown discriminator instead of silently
+    # returning nil. Aligns with Python, Swift, Dart, Go, Rust
+    # which throw on union no-match (5 of 12 SDKs already strict;
+    # we promote Elixir to the same behaviour here).
+    if is_nil(discriminator_value) do
+      raise ArgumentError,
+            "Missing discriminator '#{openapi_discriminator_name()}' for {{classname}}"
+    end
+
+    do_build_discriminated(data, discriminator_value)
+  {{/discriminator}}
+  {{^discriminator}}
+    result =
+      Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
+        if type_name == :AnyType do
+          {:cont, nil}
+        else
+          try do
+            r = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
+            {:halt, r}
+          rescue
+            _ -> {:cont, nil}
+          end
+        end
+      end)
+
+    cond do
+      not is_nil(result) -> result
+      :AnyType in openapi_one_of() -> data
+      true ->
+        # Raise on union no-match (see comment above).
+        raise ArgumentError,
+              "JSON did not match any schema in the {{classname}} oneOf union"
+    end
+  {{/discriminator}}
+  end
+
+  {{^discriminator}}
+  @doc """
+  Serialize a built union value to its JSON-ready (sanitized) form.
+
+  For a `oneOf` whose variants carry `format: byte` (descriptor `binary()`,
+  or `[binary()]` for an array of bytes), the native Elixir representation is
+  a bare `binary()` (raw bytes) or a list of them — which is indistinguishable
+  from a plain string at the generic serializer, so those raw bytes would
+  otherwise be written to the wire UNENCODED. `format: byte` mandates a base64
+  STRING on the wire, so re-encode each byte leaf here, mirroring the base64
+  decode the matching `build/1` variant performs (and the bare scalar
+  `format: byte` field path in `ObjectSerializer`). Non-byte unions fall
+  through to the generic serializer unchanged.
+  """
+  @spec serialize(term()) :: term()
+  def serialize(value) do
+    if byte_union?() do
+      encode_byte_variant(value)
+    else
+      {{moduleName}}.ObjectSerializer.sanitize_for_serialization(value)
+    end
+  end
+
+  # True when at least one declared variant is a `format: byte` leaf
+  # (descriptor "binary()"/"ByteArray") or an array thereof ("[binary()]"
+  # etc.). Inspected at runtime from `openapi_one_of/0` so no per-variant
+  # codegen flag is required.
+  defp byte_union? do
+    Enum.any?(openapi_one_of(), fn type_name ->
+      String.contains?(Atom.to_string(type_name), "binary()") or
+        String.contains?(Atom.to_string(type_name), "ByteArray")
+    end)
+  end
+
+  # base64-encode a scalar byte value, or recurse over a list of them so each
+  # innermost `binary()` leaf becomes a base64 string. A non-binary value (or
+  # an already-typed model) falls back to the generic serializer.
+  defp encode_byte_variant(value) when is_binary(value), do: Base.encode64(value)
+
+  defp encode_byte_variant(value) when is_list(value),
+    do: Enum.map(value, &encode_byte_variant/1)
+
+  defp encode_byte_variant(value),
+    do: {{moduleName}}.ObjectSerializer.sanitize_for_serialization(value)
+
+  {{/discriminator}}
+  {{#discriminator}}
+  defp do_build_discriminated(data, discriminator_value) do
+    {{#mappedModels}}
+    {{#-first}}
+    klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
+
+    if is_nil(klass_name) do
+      raise ArgumentError,
+            "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+    end
+
+    # Gap 4.7: the discriminator mapping must point at one of the
+    # `oneOf` `$ref` entries. A spec where the mapping references a
+    # schema outside the union is malformed; refuse to deserialize
+    # instead of silently building an off-union type.
+    unless klass_name in openapi_one_of() do
+      raise {{moduleName}}.DeserializationError,
+            message:
+              "Discriminator '#{discriminator_value}' for {{classname}} resolves to " <>
+                "'#{klass_name}', which is not listed in oneOf"
+    end
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+    {{/-first}}
+    {{/mappedModels}}
+    {{^mappedModels}}
+    # Gap 4.7: with no explicit mapping the discriminator value is
+    # used as the type name directly. Refuse the build if that name
+    # is not one of the `oneOf` `$ref` entries.
+    candidate = to_string(discriminator_value)
+
+    listed? =
+      Enum.any?(openapi_one_of(), fn ref -> Atom.to_string(ref) == candidate end)
+
+    unless listed? do
+      raise {{moduleName}}.DeserializationError,
+            message:
+              "Discriminator value '#{discriminator_value}' for {{classname}} is not " <>
+                "listed in oneOf"
+    end
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, candidate)
+    {{/mappedModels}}
+  end
+  {{/discriminator}}
+end
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#description}}
+  @moduledoc "{{{.}}}"
+  {{/description}}
+  {{^description}}
+  @moduledoc "Union type for {{classname}} (anyOf)."
+  {{/description}}
+
+  {{#anyOf}}
+  {{#-first}}
+  @doc "List of types defined in anyOf (OpenAPI v3)."
+  @spec openapi_any_of() :: [String.t()]
+  def openapi_any_of do
+    [
+  {{/-first}}
+      "{{.}}"{{^-last}},{{/-last}}
+  {{#-last}}
+    ]
+  end
+
+  {{/-last}}
+  {{/anyOf}}
+  @doc "Build the appropriate type from data."
+  @spec build(term()) :: term()
+  def build(data) do
+    candidates =
+      openapi_any_of()
+      |> Enum.reject(& &1 == "AnyType")
+      |> Enum.map(fn type_name ->
+        fn d -> {{moduleName}}.ObjectSerializer.convert_to_type(d, type_name) end
+      end)
+
+    if "AnyType" in openapi_any_of() do
+      try do
+        {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
+      rescue
+        {{moduleName}}.SchemaMismatchError -> data
+      end
+    else
+      # resolve_any_of raises on union no-match instead of returning nil,
+      # so an out-of-spec payload surfaces a loud error like the other SDKs.
+      {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
+    end
+  end
+end
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+{{#hasVars}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#description}}
+  @moduledoc """
+  {{{.}}}
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+  """
+  {{/description}}
+  {{^description}}
+  @moduledoc """
+  Model for {{classname}}.
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+  """
+  {{/description}}
+  {{#isDeprecated}}
+  @deprecated "This schema is deprecated."
+  {{/isDeprecated}}
+
+  @type t :: %__MODULE__{
+  {{#vars}}
+          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+  {{/vars}}
+  {{#isAdditionalPropertiesTrue}}
+          additional_properties: %{String.t() => any()}
+  {{/isAdditionalPropertiesTrue}}
+        }
+
+  {{#hasRequired}}
+  @enforce_keys [
+  {{#requiredVars}}
+  {{^defaultValue}}
+    :{{name}}{{^-last}},{{/-last}}
+  {{/defaultValue}}
+  {{/requiredVars}}
+  ]
+  {{/hasRequired}}
+  defstruct [
+  {{#vars}}
+{{#defaultValue}}
+    {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+{{/defaultValue}}
+{{^defaultValue}}
+    :{{name}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+{{/defaultValue}}
+  {{/vars}}
+  {{#isAdditionalPropertiesTrue}}
+    additional_properties: %{}
+  {{/isAdditionalPropertiesTrue}}
+  ]
+
+  @doc "Attribute mapping from Elixir field name to JSON key."
+  @spec attribute_map() :: %{atom() => String.t()}
+  def attribute_map do
+    %{
+  {{#vars}}
+      {{name}}: "{{{baseName}}}"{{^-last}},{{/-last}}
+  {{/vars}}
+    }
+  end
+
+  @doc "Inverse mapping from JSON key to Elixir field name."
+  @spec json_key_map() :: %{String.t() => atom()}
+  def json_key_map do
+    attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc """
+  JSON keys of the required, non-nullable properties.
+
+  Divergence #10: deserialization hard-fails when one of these keys is
+  absent or explicitly null in the wire payload, rather than silently
+  building a partial struct. Required-but-nullable properties and
+  required properties carrying a default value are intentionally excluded
+  (a default satisfies the requirement, and a nullable field admits null),
+  matching the Go / PHP / Kotlin reference behaviour.
+  """
+  @spec required_fields() :: [String.t()]
+  def required_fields do
+    []
+  {{#requiredVars}}
+  {{^defaultValue}}
+  {{^isNullable}}
+    |> List.insert_at(-1, "{{{baseName}}}")
+  {{/isNullable}}
+  {{/defaultValue}}
+  {{/requiredVars}}
+  end
+
+  @doc "Attribute type mapping."
+  @spec openapi_types() :: %{atom() => String.t()}
+  def openapi_types do
+    %{
+  {{#vars}}
+      {{name}}: "{{#isEnum}}Enum<{{#allowableValues}}{{#enumVars}}{{nameLowercase}}{{^-last}},{{/-last}}{{/enumVars}}{{/allowableValues}}>{{/isEnum}}{{^isEnum}}{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{{dataType}}}{{/isUuid}}{{/isByteArray}}{{/isEnum}}"{{^-last}},{{/-last}}
+  {{/vars}}
+    }
+  end
+
+{{#isAdditionalPropertiesTrue}}
+  @doc "Whether this model accepts additional properties."
+  def additional_properties, do: true
+{{#additionalPropertiesType}}
+
+  @doc "The type of additional property values."
+  def additional_properties_type, do: "{{{additionalPropertiesType}}}"
+{{/additionalPropertiesType}}
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+  @doc """
+  Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+  Decodes a JSON-decoded map into this struct, raising `ArgumentError` if any
+  key is not declared in `attribute_map/0`.
+  """
+  @spec from_map_strict(map()) :: t()
+  def from_map_strict(data) when is_map(data) do
+    declared = attribute_map() |> Map.values() |> MapSet.new()
+
+    Enum.each(Map.keys(data), fn key ->
+      key_str = to_string(key)
+
+      unless MapSet.member?(declared, key_str) do
+        raise ArgumentError,
+              "Unknown property '#{key_str}' on {{classname}} (unevaluatedProperties:false)"
+      end
+    end)
+
+    struct(__MODULE__, for({k, v} <- data, do: {String.to_existing_atom(to_string(k)), v}))
+  end
+{{/isUnevaluatedPropertiesFalse}}
+end
+{{/hasVars}}
+{{^hasVars}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#description}}
+  @moduledoc """
+  {{{.}}}
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+  """
+  {{/description}}
+  {{^description}}
+  @moduledoc """
+  Model for {{classname}}.
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+  """
+  {{/description}}
+  {{#isDeprecated}}
+  @deprecated "This schema is deprecated."
+  {{/isDeprecated}}
+
+  @type t :: %__MODULE__{}
+
+  defstruct []
+
+  @doc "Attribute mapping from Elixir field name to JSON key."
+  @spec attribute_map() :: %{atom() => String.t()}
+  def attribute_map, do: %{}
+
+  @doc "Inverse mapping from JSON key to Elixir field name."
+  @spec json_key_map() :: %{String.t() => atom()}
+  def json_key_map, do: %{}
+
+  @doc "JSON keys of required, non-nullable properties (none for this schema)."
+  @spec required_fields() :: [String.t()]
+  def required_fields, do: []
+
+  @doc "Attribute type mapping."
+  @spec openapi_types() :: %{atom() => String.t()}
+  def openapi_types, do: %{}
+end
+{{/hasVars}}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

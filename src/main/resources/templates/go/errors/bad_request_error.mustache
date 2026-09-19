@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// BadRequestError represents an HTTP 400 Bad Request error.
+type BadRequestError struct {
+	ClientError
+}

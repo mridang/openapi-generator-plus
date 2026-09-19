@@ -1,0 +1,45 @@
+{{>api_info}}
+
+import * as util from 'node:util';
+import { BearerAuthenticator } from '../src/auth/bearer-authenticator{{importFileExtension}}';
+
+describe('BearerAuthenticator', () => {
+  it('raw token is prefixed with Bearer', () => {
+    const auth = new BearerAuthenticator('https://api.example.com', 'xyz');
+    const headers = auth.getAuthHeaders();
+    expect(headers['Authorization']).toBe('Bearer xyz');
+  });
+
+  it('already-prefixed token is not doubled', () => {
+    const auth = new BearerAuthenticator('https://api.example.com', 'Bearer xyz');
+    const headers = auth.getAuthHeaders();
+    expect(headers['Authorization']).toBe('Bearer xyz');
+  });
+
+  it('lowercase bearer prefix is stripped', () => {
+    const auth = new BearerAuthenticator('https://api.example.com', 'bearer xyz');
+    const headers = auth.getAuthHeaders();
+    expect(headers['Authorization']).toBe('Bearer xyz');
+  });
+
+  it('rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
+    expect(() => new BearerAuthenticator('https://api.example.com', 'tok\r\nInjected: yes')).toThrow();
+    expect(() => new BearerAuthenticator('https://api.example.com', 'ñoño')).toThrow();
+  });
+
+  it('rejects an empty or whitespace token', () => {
+    // bearer-no-empty-token-guard: an empty/whitespace token would emit a
+    // bare "Authorization: Bearer " header that silently fails auth.
+    expect(() => new BearerAuthenticator('https://api.example.com', '')).toThrow();
+    expect(() => new BearerAuthenticator('https://api.example.com', '   ')).toThrow();
+  });
+
+  it('redacts the secret from default string/inspect/JSON', () => {
+    // authenticator-secret-in-default-string-repr: console.log / util.inspect
+    // / JSON.stringify must never leak the live credential.
+    const auth = new BearerAuthenticator('https://api.example.com', 'super-secret-token');
+    expect(util.inspect(auth)).not.toContain('super-secret-token');
+    expect(JSON.stringify(auth)).not.toContain('super-secret-token');
+    expect(util.inspect(auth)).toContain('***');
+  });
+});

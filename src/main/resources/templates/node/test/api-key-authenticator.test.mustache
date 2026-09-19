@@ -1,0 +1,41 @@
+{{>api_info}}
+
+import * as util from 'node:util';
+import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFileExtension}}';
+import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
+
+describe('ApiKeyAuthenticator', () => {
+  it('valid HEADER key produces the header', () => {
+    const auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc123', ApiKeyLocation.HEADER);
+    expect(auth.getAuthHeaders()).toEqual({ 'X-Api-Key': 'abc123' });
+  });
+
+  it('valid QUERY key produces the query param', () => {
+    const auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation.QUERY);
+    expect(auth.getQueryParams()).toEqual({ api_key: 'abc123' });
+  });
+
+  it('rejects an empty key at construction', () => {
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '', ApiKeyLocation.HEADER)).toThrow();
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '   ', ApiKeyLocation.HEADER)).toThrow();
+  });
+
+  it('HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
+    // HEADER location must reject anything outside printable ASCII +
+    // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)).toThrow();
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'kéy', ApiKeyLocation.HEADER)).toThrow();
+    // Non-header locations accept arbitrary chars.
+    const queryAuth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'kéy', ApiKeyLocation.QUERY);
+    expect(queryAuth.getQueryParams()).toEqual({ api_key: 'kéy' });
+  });
+
+  it('redacts the secret from default string/inspect/JSON', () => {
+    // authenticator-secret-in-default-string-repr: console.log / util.inspect
+    // / JSON.stringify must never leak the live credential.
+    const auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'key-secret-xyz', ApiKeyLocation.HEADER);
+    expect(util.inspect(auth)).not.toContain('key-secret-xyz');
+    expect(JSON.stringify(auth)).not.toContain('key-secret-xyz');
+    expect(util.inspect(auth)).toContain('***');
+  });
+});

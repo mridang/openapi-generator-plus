@@ -1,0 +1,16 @@
+{{>api_info}}
+
+namespace {{packageName}}.Auth.OAuth;
+
+/// <summary>
+/// How OAuth2 client credentials (client_id / client_secret) are transmitted
+/// to the token endpoint per RFC 6749 §2.3.1.
+/// </summary>
+public enum ClientAuthMethod
+{
+    /// <summary>Send credentials as form parameters in the request body (default).</summary>
+    Body,
+
+    /// <summary>Send credentials via HTTP Basic Authorization header.</summary>
+    Basic,
+}

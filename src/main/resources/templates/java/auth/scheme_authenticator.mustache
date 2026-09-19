@@ -1,0 +1,73 @@
+{{>api_info}}
+package {{package}};
+
+{{#isOAuth}}
+{{#imports}}
+import {{.}};
+{{/imports}}
+
+/**
+ * Authenticator for the {@code {{schemeName}}} security scheme.
+ */
+public final class {{className}} extends {{baseClass}} {
+    /**
+     * Creates an authenticator for the {@code {{schemeName}}} security scheme.
+     *
+{{#constructorParams}}
+     * @param {{name}} the {{name}} credential
+{{/constructorParams}}
+     */
+    public {{className}}({{#constructorParams}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
+        super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
+    }
+}
+{{/isOAuth}}
+{{^isOAuth}}
+import java.util.Map;
+
+{{! Composition over inheritance: the three base authenticators }}
+{{! (Basic/Bearer/ApiKey) are final and validate credentials eagerly in }}
+{{! their constructors. A subclass cannot extend a final class, and a }}
+{{! non-final class with a throwing constructor trips SpotBugs }}
+{{! CT_CONSTRUCTOR_THROW. So this wrapper is itself final, extends }}
+{{! BaseAuthenticator to remain a valid Authenticator for the client, and }}
+{{! delegates to a held final instance of the concrete base. The base is }}
+{{! constructed here, so eager validation still happens at construction. }}
+/**
+ * Authenticator for the {@code {{schemeName}}} security scheme.
+ */
+public final class {{className}} extends BaseAuthenticator {
+    private final {{baseClass}} delegate;
+
+    /**
+     * Creates an authenticator for the {@code {{schemeName}}} security scheme.
+     *
+{{#constructorParams}}
+     * @param {{name}} the {{name}} credential
+{{/constructorParams}}
+     */
+    public {{className}}({{#constructorParams}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
+        this.delegate = new {{baseClass}}({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
+    }
+
+    @Override
+    public String getHost() {
+        return delegate.getHost();
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        return delegate.getAuthHeaders();
+    }
+
+    @Override
+    public Map<String, String> getQueryParams() {
+        return delegate.getQueryParams();
+    }
+
+    @Override
+    public Map<String, String> getCookieParams() {
+        return delegate.getCookieParams();
+    }
+}
+{{/isOAuth}}

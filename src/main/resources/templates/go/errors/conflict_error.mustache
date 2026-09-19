@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// ConflictError represents an HTTP 409 Conflict error.
+type ConflictError struct {
+	ClientError
+}

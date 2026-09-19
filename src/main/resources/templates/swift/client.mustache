@@ -1,0 +1,77 @@
+{{>api_info}}
+import Foundation
+
+/// {{clientClassName}} is the unified entry point for all API services.
+///
+/// Takes an ``Authenticator`` and optionally ``TransportOptions``, then exposes
+/// each API group as a typed property. If the authenticator conforms to
+/// ``HttpAwareAuthenticator``, the shared ``ApiClient`` is injected so that
+/// authentication HTTP calls (token exchange, discovery) use the same
+/// transport configuration as regular API calls.
+///
+/// Example with default transport:
+///
+/// ```swift
+/// let client = {{clientClassName}}(authenticator: authenticator)
+/// ```
+///
+/// Example with custom transport (proxy, timeouts, etc.):
+///
+/// ```swift
+/// let transport = TransportOptionsBuilder()
+///     .proxy("http://proxy:3128")
+///     .timeout(5)
+///     .build()
+/// let client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+/// ```
+public final class {{clientClassName}}: Sendable {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /// Provides methods for the {{baseName}} API group.
+    public let {{clientPropertyName}}: {{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /// Creates a new client with the given authenticator and optional transport options.
+    ///
+    /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
+    /// ``ApiClient`` is injected so that token exchange and discovery requests use
+    /// the same proxy, TLS, and timeout settings.
+    public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws {
+        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        let apiClient = try DefaultApiClient(transportOptions: opts)
+
+        if let httpAware = authenticator as? HttpAwareAuthenticator {
+            httpAware.setApiClient(apiClient)
+        }
+
+        let config = ConfigurationBuilder()
+            .baseURL(authenticator.host())
+            .build()
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        self.{{clientPropertyName}} = {{classname}}(apiClient: apiClient, config: config, authenticator: authenticator)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    /// Creates a client authenticated with a static Bearer token.
+    public convenience init(host: String, accessToken: String, transportOptions: TransportOptions? = nil) throws {
+        try self.init(authenticator: BearerAuthenticator(host: host, token: accessToken), transportOptions: transportOptions)
+    }
+
+    /// Creates a client from any ``Authenticator``, with optional transport options.
+    ///
+    /// This is the generic entry point for bespoke authentication strategies such as
+    /// client credentials, JWT private key, or personal access tokens (PAT). Pass any
+    /// type conforming to ``Authenticator`` and, optionally, ``TransportOptions`` to
+    /// customize the underlying transport (proxy, TLS, timeouts).
+    public static func withAuthenticator(_ authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws -> {{clientClassName}} {
+        try {{clientClassName}}(authenticator: authenticator, transportOptions: transportOptions)
+    }
+}

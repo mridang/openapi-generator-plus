@@ -1,0 +1,38 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require '{{gemName}}'
+
+describe {{moduleName}}::ServerVariable do
+  parallelize_me!
+
+  it 'exposes the default value' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod')
+    _(var.default_value).must_equal 'prod'
+  end
+
+  it 'defaults description to nil and enum_values to an empty array' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod')
+    _(var.description).must_be_nil
+    _(var.enum_values).must_equal []
+  end
+
+  it 'exposes the description when provided' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', description: 'deployment environment')
+    _(var.description).must_equal 'deployment environment'
+  end
+
+  it 'exposes the enum values when provided' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging dev])
+    _(var.enum_values).must_equal %w[prod staging dev]
+  end
+
+  it 'is immutable and freezes its enum values' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+    _(var).must_be :frozen?
+    _(var.enum_values).must_be :frozen?
+  end
+end

@@ -1,0 +1,41 @@
+{{>api_info}}
+
+// phpcs:ignoreFile
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiHttpResponse;
+
+class MockTokenApiClient implements ApiClient
+{
+    /** @var ApiHttpResponse[] */
+    private array $responses = [];
+    private int $callIndex = 0;
+
+    /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: string|null, noRedirect: bool}> */
+    public array $capturedRequests = [];
+
+    public function enqueueResponse(ApiHttpResponse $response): void
+    {
+        $this->responses[] = $response;
+    }
+
+    /** @param array<string, string> $headers */
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiHttpResponse {
+        $this->capturedRequests[] = [
+            'method' => $method,
+            'url' => $url,
+            'headers' => $headers,
+            'body' => is_string($body) ? $body : null,
+            'noRedirect' => $noRedirect,
+        ];
+        return $this->responses[$this->callIndex++] ?? new ApiHttpResponse(500, '{}', []);
+    }
+}

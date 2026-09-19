@@ -1,0 +1,124 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// 4.8: helpers for OAS `format: time` and `format: duration`. Go's stdlib
+// has no civil-time type and `time.Duration` does not JSON-encode as a
+// protobuf-JSON duration by default (it serialises as int64 nanoseconds).
+// Rather than pulling in the heavyweight cloud.google.com/go/civil dep,
+// we ship stdlib-only conversion helpers and a partial-time HH:MM:SS[.fff]
+// formatter for `format: time`.
+//
+// Wire-format note: both formats are surfaced as `string` in generated
+// models so they round-trip through encoding/json unchanged. Callers can
+// convert to/from `time.Duration` via MarshalDurationProtoJSON /
+// UnmarshalDurationProtoJSON, and to/from `time.Time` (using only the
+// time-of-day component) via FormatTimeOfDay / ParseTimeOfDay.
+
+// protoDurationPattern is the google.protobuf.Duration JSON grammar: an
+// optional sign, an integer second count, an optional fractional part of
+// up to nine digits, and a trailing "s".
+var protoDurationPattern = regexp.MustCompile(`^-?\d+(\.\d{1,9})?s$`)
+
+// MarshalDurationProtoJSON formats a time.Duration as a protobuf-JSON
+// google.protobuf.Duration string: a decimal number of seconds suffixed
+// with "s", e.g. "3600s", "1.5s", or "3600.000000001s". Zitadel's API
+// (and any google.protobuf.Duration field) rejects ISO-8601 durations
+// like "PT1H"; this is the only accepted shape.
+//
+// The fractional part is trimmed to 3, 6, or 9 digits (the smallest width
+// that preserves every non-zero nanosecond), matching the protobuf JSON
+// encoder. Negative durations carry a leading "-".
+func MarshalDurationProtoJSON(d time.Duration) string {
+	totalNanos := int64(d)
+	sign := ""
+	if totalNanos < 0 {
+		sign = "-"
+		totalNanos = -totalNanos
+	}
+	secs := totalNanos / int64(time.Second)
+	nanos := totalNanos % int64(time.Second)
+	if nanos == 0 {
+		return fmt.Sprintf("%s%ds", sign, secs)
+	}
+	frac := fmt.Sprintf("%09d", nanos)
+	if strings.HasSuffix(frac, "000000") {
+		frac = frac[:3]
+	} else if strings.HasSuffix(frac, "000") {
+		frac = frac[:6]
+	}
+	return fmt.Sprintf("%s%d.%ss", sign, secs, frac)
+}
+
+// UnmarshalDurationProtoJSON parses a protobuf-JSON google.protobuf.Duration
+// string (see MarshalDurationProtoJSON) and returns the corresponding
+// time.Duration. The accepted grammar is -?\d+(\.\d{1,9})?s; anything else
+// (an ISO-8601 "PT1H", a bare number, or a fractional part wider than nine
+// digits) is rejected. time.Duration resolution is nanoseconds, so the
+// full nine fractional digits are preserved.
+func UnmarshalDurationProtoJSON(s string) (time.Duration, error) {
+	if !protoDurationPattern.MatchString(s) {
+		return 0, fmt.Errorf(
+			"protobuf-JSON duration: %q is not a decimal number of seconds suffixed with \"s\" (e.g. \"3600s\")",
+			s,
+		)
+	}
+	neg := false
+	body := s[:len(s)-1]
+	if body[0] == '-' {
+		neg = true
+		body = body[1:]
+	}
+	secsStr := body
+	fracStr := ""
+	if dot := strings.IndexByte(body, '.'); dot >= 0 {
+		secsStr = body[:dot]
+		fracStr = body[dot+1:]
+	}
+	secs, err := strconv.ParseInt(secsStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("protobuf-JSON duration: bad seconds %q: %w", secsStr, err)
+	}
+	var nanos int64
+	if fracStr != "" {
+		padded := fracStr + strings.Repeat("0", 9-len(fracStr))
+		nanos, err = strconv.ParseInt(padded, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("protobuf-JSON duration: bad fraction %q: %w", fracStr, err)
+		}
+	}
+	total := secs*int64(time.Second) + nanos
+	if neg {
+		total = -total
+	}
+	return time.Duration(total), nil
+}
+
+// FormatTimeOfDay returns the HH:MM:SS portion of a time.Time, matching
+// the wire format for OAS `format: time` (RFC 3339 partial-time). Sub-
+// second precision is dropped to keep parity with the other generators
+// (Java LocalTime#toString, C# TimeOnly, Python datetime.time isoformat
+// at second granularity for spec values).
+func FormatTimeOfDay(t time.Time) string {
+	return t.Format("15:04:05")
+}
+
+// ParseTimeOfDay parses an ISO-8601 partial-time string (HH:MM:SS or
+// HH:MM:SS.fff) and returns a time.Time on the zero date in UTC. The
+// time portion is the only meaningful field; callers should treat the
+// date portion as undefined.
+func ParseTimeOfDay(s string) (time.Time, error) {
+	for _, layout := range []string{"15:04:05.000", "15:04:05.00", "15:04:05.0", "15:04:05"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("ISO-8601 time: cannot parse %q (expected HH:MM:SS[.fff])", s)
+}

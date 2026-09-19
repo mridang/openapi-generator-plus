@@ -1,0 +1,459 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
+
+use tokio::sync::Mutex;
+
+use crate::api_client::{ApiClient, RequestBody, RequestOptions};
+use crate::utils::form_url_encode;
+
+/// OAuth2TokenManager manages the OAuth2 token lifecycle: fetching, caching,
+/// and refreshing.
+///
+/// Uses the shared ApiClient instance so that token exchange requests honour
+/// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
+/// Safety margin applied to token expiry checks so that we refresh slightly
+/// before the token actually expires, avoiding a race against the server clock.
+const EXPIRY_SAFETY_MARGIN: Duration = Duration::from_secs(60);
+
+pub struct OAuth2TokenManager {
+    /* api_client lives outside the tokio mutex so injection from the
+     * synchronous Authenticator::set_api_client hook does not need to be
+     * async. */
+    api_client: RwLock<Option<Arc<dyn ApiClient>>>,
+    /* Token state is protected by a tokio Mutex held across the network
+     * call to provide single-flight refresh semantics. */
+    inner: Mutex<TokenManagerInner>,
+}
+
+struct TokenManagerInner {
+    access_token: String,
+    refresh_token: String,
+    token_expiry: Option<Instant>,
+}
+
+impl OAuth2TokenManager {
+    /// Creates a new token manager.
+    ///
+    /// The ApiClient must be injected via `set_api_client` before any token
+    /// requests are made.
+    pub fn new() -> Self {
+        Self {
+            api_client: RwLock::new(None),
+            inner: Mutex::new(TokenManagerInner {
+                access_token: String::new(),
+                refresh_token: String::new(),
+                token_expiry: None,
+            }),
+        }
+    }
+
+    /// Injects the shared API client for making token requests.
+    pub fn set_api_client(&self, client: Arc<dyn ApiClient>) {
+        let mut slot = self.api_client.write().unwrap();
+        *slot = Some(client);
+    }
+
+    /// Returns the current refresh token, if any.
+    pub async fn refresh_token(&self) -> String {
+        let inner = self.inner.lock().await;
+        inner.refresh_token.clone()
+    }
+
+    /// Returns a valid access token, fetching or refreshing as necessary.
+    ///
+    /// Performs the token exchange asynchronously using the injected
+    /// `ApiClient`. The internal mutex is never held across an `.await`.
+    pub async fn get_access_token(
+        &self,
+        token_url: &str,
+        params: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.get_access_token_with_headers(token_url, params, &HashMap::new()).await
+    }
+
+    /// Returns a valid access token, fetching or refreshing as necessary, with
+    /// additional HTTP headers (e.g. `Authorization` for HTTP Basic client
+    /// authentication per RFC 6749 §2.3.1) included on the token request.
+    pub async fn get_access_token_with_headers(
+        &self,
+        token_url: &str,
+        params: &HashMap<String, String>,
+        extra_headers: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        /* Hold the mutex across the network call so concurrent callers
+         * collapse onto a single refresh (single-flight). The first caller
+         * performs the exchange; subsequent callers re-check the cache and
+         * return the token populated by the winner. */
+        let mut inner = self.inner.lock().await;
+
+        if !inner.access_token.is_empty() {
+            match inner.token_expiry {
+                None => return Ok(inner.access_token.clone()),
+                Some(expiry) => {
+                    /* checked_sub guards against Instant arithmetic underflow
+                     * when expiry is already in the (recent) past — this
+                     * happens on the synthetic "immediately stale" marker we
+                     * write for unparseable/non-positive expires_in values. */
+                    if let Some(deadline) = expiry.checked_sub(EXPIRY_SAFETY_MARGIN) {
+                        if Instant::now() < deadline {
+                            return Ok(inner.access_token.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        let client = self
+            .api_client
+            .read()
+            .unwrap()
+            .as_ref()
+            .ok_or(
+                "ApiClient has not been injected. \
+                 Ensure the {{clientClassName}} constructor calls set_api_client \
+                 on HttpAwareAuthenticator before making API requests",
+            )?
+            .clone();
+        let current_refresh_token = inner.refresh_token.clone();
+
+        /* If we have a refresh token, try the refresh_token grant first.
+         * On failure (4xx/5xx or transport error) fall back to re-running
+         * the original grant. */
+        if !current_refresh_token.is_empty() {
+            let mut refresh_params: HashMap<String, String> = HashMap::new();
+            refresh_params.insert("grant_type".to_string(), "refresh_token".to_string());
+            refresh_params.insert("refresh_token".to_string(), current_refresh_token);
+            if let Some(client_id) = params.get("client_id") {
+                refresh_params.insert("client_id".to_string(), client_id.clone());
+            }
+            if let Some(client_secret) = params.get("client_secret") {
+                refresh_params.insert("client_secret".to_string(), client_secret.clone());
+            }
+            if let Ok(token) = Self::fetch_token_locked(
+                &mut inner,
+                client.clone(),
+                token_url,
+                &refresh_params,
+                extra_headers,
+            )
+            .await
+            {
+                return Ok(token);
+            }
+        }
+
+        Self::fetch_token_locked(&mut inner, client, token_url, params, extra_headers).await
+    }
+
+    /// Performs the token exchange while the caller already holds the
+    /// `inner` mutex. The lock guarantees single-flight refresh.
+    async fn fetch_token_locked(
+        inner: &mut TokenManagerInner,
+        client: Arc<dyn ApiClient>,
+        token_url: &str,
+        params: &HashMap<String, String>,
+        extra_headers: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Content-Type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
+        headers.insert("Accept".to_string(), "application/json".to_string());
+        for (k, v) in extra_headers {
+            headers.insert(k.clone(), v.clone());
+        }
+
+        let body: String = params
+            .iter()
+            .map(|(k, v)| format!("{}={}", form_url_encode(k), form_url_encode(v)))
+            .collect::<Vec<_>>()
+            .join("&");
+
+        /* Gap 3.2: refuse 307/308 redirects on the token POST. The body
+         * carries the client_secret / refresh_token / authorization code;
+         * a 307/308 from a compromised or misconfigured IdP would replay
+         * those credentials verbatim to an attacker-chosen URL. 301/302/303
+         * still drop the body so they remain permitted by the redirect
+         * loop. */
+        let request_options = RequestOptions::new().no_redirect(true);
+        let response = client
+            .send_request_with_options(
+                "POST",
+                token_url,
+                &headers,
+                Some(&RequestBody::Bytes(body.into_bytes())),
+                &request_options,
+            )
+            .await?;
+
+        if response.status_code() >= 300 && response.status_code() < 400 {
+            /* RFC 6749 §3.2 forbids redirects at the token endpoint. With
+             * NoRedirect set the transport surfaces the 3xx verbatim rather
+             * than replaying the credential-bearing POST; we refuse all 3xx
+             * explicitly so the caller fails closed instead of leaking the
+             * client_secret / refresh_token to the redirect target. */
+            return Err(Box::new(OAuth2TokenError {
+                message: format!(
+                    "refusing to follow {} redirect on OAuth2 token endpoint {}; \
+                     token POSTs carry credentials and must not be replayed",
+                    response.status_code(), token_url
+                ),
+            }) as Box<dyn std::error::Error + Send + Sync>);
+        }
+
+        if response.status_code() < 200 || response.status_code() >= 300 {
+            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+             * `error` (required), `error_description`, `error_uri`. Parse
+             * them into a typed OAuth2ServerError so callers can recover
+             * via downcast_ref. Fall back to the raw body when the response
+             * is not a valid error object. */
+            return Err(Box::new(parse_oauth2_server_error(
+                response.status_code(),
+                response.body(),
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(response.body())?;
+
+        let token = parsed
+            .get("access_token")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                Box::new(OAuth2TokenError {
+                    message: "token response missing or empty access_token field".to_string(),
+                }) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+        inner.access_token = token.to_string();
+        if let Some(refresh) = parsed.get("refresh_token").and_then(|v| v.as_str()) {
+            if !refresh.is_empty() {
+                inner.refresh_token = refresh.to_string();
+            }
+        }
+        if let Some(expires_in_value) = parsed.get("expires_in") {
+            if !expires_in_value.is_null() {
+                /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+                 * providers (Salesforce, some Apigee deployments) send a quoted
+                 * string and others send a JSON float. Accept ints, floor floats,
+                 * parse digit strings; on anything unparseable or non-positive,
+                 * mark the token as immediately stale so the next call refetches
+                 * (preferable to caching a token of unknown lifetime forever). */
+                let expires_in = parse_expires_in(Some(expires_in_value));
+                if expires_in > 0 {
+                    let buffer_secs = expires_in.min(30);
+                    inner.token_expiry =
+                        Some(Instant::now() + Duration::from_secs(expires_in - buffer_secs));
+                } else {
+                    /* Setting expiry to "now" makes the safe cache check
+                     * (`now < expiry - margin` with checked_sub) yield
+                     * "expired" so the next call refetches. */
+                    inner.token_expiry = Some(Instant::now());
+                }
+            }
+        }
+
+        Ok(inner.access_token.clone())
+    }
+
+    /// Manually sets an access token, bypassing the token endpoint.
+    pub async fn set_access_token(&self, token: &str) {
+        let mut inner = self.inner.lock().await;
+        inner.access_token = token.to_string();
+        inner.token_expiry = None;
+    }
+
+    /// Invalidates the cached access token so that the next call to
+    /// `get_access_token` fetches a fresh token from the token endpoint.
+    /// Intended for tests and recovery flows.
+    pub async fn invalidate_access_token(&self) {
+        let mut inner = self.inner.lock().await;
+        inner.access_token = String::new();
+        inner.token_expiry = None;
+    }
+}
+
+/* Soundness: `Arc<dyn ApiClient>` may not auto-impl Send/Sync because the
+ * trait object can be constructed without those bounds. The wrapping
+ * `RwLock` / `Mutex` ensures interior access is synchronised; callers must
+ * supply a Send + Sync `ApiClient`, which our `DefaultApiClient` is. */
+
+/// Returned when the OAuth2 token endpoint returns a 2xx response whose body
+/// is missing or contains an empty `access_token` field. Distinct from
+/// [`OAuth2ServerError`] (which represents RFC 6749 §5.2 error responses on
+/// 4xx/5xx) so callers can recover differently via `downcast_ref`.
+#[derive(Debug)]
+pub struct OAuth2TokenError {
+    message: String,
+}
+
+impl OAuth2TokenError {
+    /// Returns the human-readable error message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
+
+impl std::fmt::Display for OAuth2TokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for OAuth2TokenError {}
+
+// Brands this SDK-thrown error as part of the `ZitadelError` hierarchy so a
+// single `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold it alongside
+// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
+// satisfied by the `impl Error` above and the `String` field.
+impl crate::errors::ZitadelError for OAuth2TokenError {}
+
+/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
+/// `invalid_client`); `description` and `uri` are the optional
+/// human-readable description and a URL to a page describing the error.
+/// `raw_body` preserves the original response payload for diagnostics when
+/// the body is not a well-formed OAuth2 error object.
+#[derive(Debug)]
+pub struct OAuth2ServerError {
+    status_code: u16,
+    code: Option<String>,
+    description: Option<String>,
+    uri: Option<String>,
+    raw_body: String,
+}
+
+impl OAuth2ServerError {
+    /// Returns the HTTP status code of the failed token request.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the RFC 6749 §5.2 OAuth2 error code, if present.
+    pub fn code(&self) -> Option<&str> {
+        self.code.as_deref()
+    }
+
+    /// Returns the human-readable error description, if present.
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    /// Returns the URL to a page describing the error, if present.
+    pub fn uri(&self) -> Option<&str> {
+        self.uri.as_deref()
+    }
+
+    /// Returns the original response payload preserved for diagnostics.
+    pub fn raw_body(&self) -> &str {
+        &self.raw_body
+    }
+}
+
+impl std::fmt::Display for OAuth2ServerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (&self.code, &self.description) {
+            (None, _) => write!(
+                f,
+                "token request failed with status {}: {}",
+                self.status_code, self.raw_body
+            ),
+            (Some(code), Some(desc)) => write!(
+                f,
+                "token request failed with status {}: {} — {}",
+                self.status_code, code, desc
+            ),
+            (Some(code), None) => write!(
+                f,
+                "token request failed with status {}: {}",
+                self.status_code, code
+            ),
+        }
+    }
+}
+
+impl std::error::Error for OAuth2ServerError {}
+
+// Brands this SDK-thrown error as part of the `ZitadelError` hierarchy so a
+// single `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold it alongside
+// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
+// satisfied by the `impl Error` above and the owned scalar/`String` fields.
+impl crate::errors::ZitadelError for OAuth2ServerError {}
+
+/// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+/// [`OAuth2ServerError`]. Falls back to a generic error using the raw body
+/// when the body is not a valid OAuth2 error object.
+fn parse_oauth2_server_error(status_code: u16, body: &str) -> OAuth2ServerError {
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) {
+        if let Some(code) = parsed.get("error").and_then(|v| v.as_str()) {
+            if !code.is_empty() {
+                return OAuth2ServerError {
+                    status_code,
+                    code: Some(code.to_string()),
+                    description: parsed
+                        .get("error_description")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    uri: parsed
+                        .get("error_uri")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    raw_body: body.to_string(),
+                };
+            }
+        }
+    }
+    OAuth2ServerError {
+        status_code,
+        code: None,
+        description: None,
+        uri: None,
+        raw_body: body.to_string(),
+    }
+}
+
+/// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
+///
+/// Returns `0` (caller skips caching) when the value is missing, unparseable,
+/// or non-positive. Accepts integers, floors floats, and parses digit strings
+/// (e.g. `"3600"` from Salesforce).
+fn parse_expires_in(value: Option<&serde_json::Value>) -> u64 {
+    let value = match value {
+        Some(v) => v,
+        None => return 0,
+    };
+    if let Some(n) = value.as_u64() {
+        return n;
+    }
+    if let Some(n) = value.as_i64() {
+        if n <= 0 {
+            return 0;
+        }
+        return n as u64;
+    }
+    if let Some(f) = value.as_f64() {
+        if !f.is_finite() || f <= 0.0 {
+            return 0;
+        }
+        return f.floor() as u64;
+    }
+    if let Some(s) = value.as_str() {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return 0;
+        }
+        if let Ok(f) = trimmed.parse::<f64>() {
+            if !f.is_finite() || f <= 0.0 {
+                return 0;
+            }
+            return f.floor() as u64;
+        }
+    }
+    0
+}
+
+unsafe impl Send for OAuth2TokenManager {}
+unsafe impl Sync for OAuth2TokenManager {}

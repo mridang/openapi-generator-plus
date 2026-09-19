@@ -1,0 +1,110 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # API-level configuration for generated client classes.
+  #
+  # Holds the base URL and default headers that are applied to every API
+  # request. Transport-level settings (TLS, proxy, timeouts) belong in
+  # {TransportOptions} and are configured on the {DefaultApiClient}.
+  #
+  # This class is immutable. Use {Configuration.builder} to create instances:
+  #
+  #     config = ::{{moduleName}}::Configuration.builder
+  #       .base_url('https://api.example.com')
+  #       .default_header('Authorization', 'Bearer token')
+  #       .build
+  class Configuration
+    # The base URL for all API requests. Defaults to the first server URL
+    # from the OpenAPI specification.
+    # @return [String]
+    attr_reader :base_url
+
+    # Default headers included in every API request. These headers are
+    # merged after transport-level headers from {TransportOptions} but
+    # before operation-specific headers and authentication headers.
+    # @return [Hash{String => String}]
+    attr_reader :default_headers
+
+    # @api private
+    def initialize(base_url:, default_headers:)
+      @base_url = base_url
+      @default_headers = default_headers.freeze
+      freeze
+    end
+
+    # Create a new builder for constructing {Configuration} instances.
+    # @return [Builder]
+    def self.builder
+      Builder.new
+    end
+
+    class << self
+      attr_writer :default
+
+      # Return the default configuration instance, creating it lazily if needed.
+      # @return [Configuration]
+      def default
+        @default ||= builder.build
+      end
+    end
+
+    # Builder for creating immutable {Configuration} instances.
+    class Builder
+      def initialize
+        @base_url = '{{{basePath}}}'
+        @default_headers = {} #: Hash[String, String]
+      end
+
+      # Set the base URL for all API requests.
+      # @param val [String] the base URL
+      # @return [self]
+      def base_url(val)
+        @base_url = val
+        self
+      end
+
+      # Add a single default header to include in every API request.
+      # @param name [String] header name
+      # @param value [String] header value
+      # @return [self]
+      def default_header(name, value)
+        @default_headers[name] = value
+        self
+      end
+
+      # Add multiple default headers to include in every API request.
+      # @param headers [Hash{String => String}] map of header names to values
+      # @return [self]
+      def default_headers(headers)
+        @default_headers.merge!(headers)
+        self
+      end
+
+      # Set the base URL from a server configuration with optional variable overrides.
+      #
+      # Resolves the server URL template with the given variable values (or
+      # defaults) and uses the result as the base URL for all API requests.
+      # Enum validation is performed by {ServerConfiguration#url}.
+      #
+      # @param server_config [ServerConfiguration] the server configuration to use
+      # @param variables [Hash{String => String}] variable name to value overrides
+      # @return [self]
+      # @raise [ArgumentError] if an override value is not in the variable's enum
+      def server(server_config, variables = {})
+        @base_url = server_config.url(variables)
+        self
+      end
+
+      # Build and return an immutable {Configuration} instance.
+      # @return [Configuration]
+      def build
+        Configuration.new(
+          base_url: @base_url,
+          default_headers: @default_headers.dup
+        )
+      end
+    end
+  end
+end

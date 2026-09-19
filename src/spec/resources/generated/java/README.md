@@ -1,0 +1,125 @@
+# Swagger Petstore - OpenAPI 3.0 SDK
+
+Auto-generated Java SDK client for the Swagger Petstore - OpenAPI 3.0 API.
+
+## Requirements
+
+- **Java 21** (LTS) or newer — minimum required JDK to build and run
+- **Maven 3.9+** — build tool
+
+### Tooling
+
+The generated project comes pre-wired with the following Maven plugins:
+
+| Tool | Plugin | Invoke |
+| --- | --- | --- |
+| Formatter | `spotless-maven-plugin` (google-java-format) | `mvn spotless:apply` (write) / `mvn spotless:check` (verify) |
+| Linter | `maven-checkstyle-plugin` (`checkstyle.xml` at project root) | `mvn checkstyle:check` |
+| Static analyser | `spotbugs-maven-plugin` | `mvn spotbugs:check` |
+| Static analyser (compile-time) | Error Prone + NullAway (via `maven-compiler-plugin`) | `mvn compile` |
+| Auto-upgrader | `rewrite-maven-plugin` (`org.openrewrite.java.migrate.UpgradeToJava25` recipe) | `mvn rewrite:run` |
+
+## Build
+
+```bash
+mvn compile
+```
+
+## Test
+
+```bash
+mvn test
+```
+
+## Package
+
+- Group: `com.example.petstore`
+- Version: ``
+
+## GraalVM native image
+
+This SDK ships GraalVM reflection metadata
+(`META-INF/native-image/.../reflect-config.json`) registering every generated
+model and inline enum, so it works inside a GraalVM `native-image` build without
+manual configuration — Jackson can (de)serialize the models reflectively in the
+native binary. Drop the dependency into a native-image project and build as
+usual; no agent run or hand-written `reflect-config` is required for the model
+types. (TLS for the HTTP client still needs `--enable-url-protocols=https`, and
+the optional brotli/zstd decoders, loaded reflectively, are unavailable in a
+native image unless you register them yourself.)
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+Fields typed `format: number` (and `format: decimal`) are deserialized
+into Java `double`, which is an IEEE-754 64-bit binary floating-point
+value. Monetary and other exact-decimal values therefore lose their
+exact decimal representation: `0.1 + 0.2` in Java evaluates to
+`0.30000000000000004`, not `0.3`.
+
+Do not do arithmetic on prices, balances, or other money-typed fields.
+If you need exact decimal arithmetic, parse the raw response body
+yourself and use `java.math.BigDecimal` (constructed from the `String`
+form, never from a `double`).
+
+`format: int64` is unaffected — Java's `long` natively represents the
+full 64-bit range without precision loss.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### Numeric / string constraint validation
+
+OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
+`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
+**not enforced** by this SDK. The server is the authoritative
+validator; client-side enforcement is a DX nicety, not a correctness
+requirement. If you want fast-fail validation before the network
+round trip, plug in a JSON Schema validator library for your language.
+
+### SOCKS proxies
+
+`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme throws (or
+panics) at construction time with a clear error. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### Per-call cancellation
+
+No generated operation method accepts a per-call cancellation handle.
+In-flight requests can only be terminated by waiting for the configured
+`TransportOptions` request timeout to fire — there is no way to abort
+mid-flight from the caller side. If you need fine-grained per-call
+cancellation, wrap the SDK call in your language's standard concurrency
+primitives (a `Future` you cancel externally, a `Task` you orphan, an
+`asyncio` task you cancel, etc.) and rely on the timeout to break the
+underlying socket.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.

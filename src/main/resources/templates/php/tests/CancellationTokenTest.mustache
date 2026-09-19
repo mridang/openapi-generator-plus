@@ -1,0 +1,108 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\CancellationException;
+use {{invokerPackage}}\CancellationToken;
+
+test('initially not cancelled', function (): void {
+    $token = new CancellationToken();
+    expect($token->isCancelled())->toBeFalse();
+});
+
+test('cancel marks as cancelled', function (): void {
+    $token = new CancellationToken();
+    $token->cancel();
+    expect($token->isCancelled())->toBeTrue();
+});
+
+test('cancel invokes registered callbacks', function (): void {
+    $token = new CancellationToken();
+    $called = 0;
+    $token->onCancel(function () use (&$called): void {
+        $called++;
+    });
+
+    $token->cancel();
+
+    expect($called)->toBe(1);
+});
+
+test('cancel invokes all registered callbacks', function (): void {
+    $token = new CancellationToken();
+    $calls = [];
+    $token->onCancel(function () use (&$calls): void {
+        $calls[] = 'a';
+    });
+    $token->onCancel(function () use (&$calls): void {
+        $calls[] = 'b';
+    });
+
+    $token->cancel();
+
+    expect($calls)->toBe(['a', 'b']);
+});
+
+test('cancel is idempotent', function (): void {
+    $token = new CancellationToken();
+    $called = 0;
+    $token->onCancel(function () use (&$called): void {
+        $called++;
+    });
+
+    $token->cancel();
+    $token->cancel();
+    $token->cancel();
+
+    expect($called)->toBe(1);
+});
+
+test('on cancel invoked immediately if already cancelled', function (): void {
+    $token = new CancellationToken();
+    $token->cancel();
+
+    $called = false;
+    $token->onCancel(function () use (&$called): void {
+        $called = true;
+    });
+
+    expect($called)->toBeTrue();
+});
+
+test('throw if cancelled noop when not cancelled', function (): void {
+    $token = new CancellationToken();
+    $token->throwIfCancelled();
+    expect(true)->toBeTrue();
+});
+
+test('throw if cancelled throws after cancel', function (): void {
+    $token = new CancellationToken();
+    $token->cancel();
+
+    expect(fn () => $token->throwIfCancelled())->toThrow(CancellationException::class);
+});
+
+test('callback exceptions do not propagate', function (): void {
+    $token = new CancellationToken();
+    $token->onCancel(function (): void {
+        throw new \RuntimeException('boom');
+    });
+
+    // Must not throw.
+    $token->cancel();
+    expect($token->isCancelled())->toBeTrue();
+});
+
+test('callback registered after cancel is invoked then forgotten', function (): void {
+    $token = new CancellationToken();
+    $token->cancel();
+
+    $called = 0;
+    $token->onCancel(function () use (&$called): void {
+        $called++;
+    });
+
+    // A second cancel must not re-invoke.
+    $token->cancel();
+    expect($called)->toBe(1);
+});

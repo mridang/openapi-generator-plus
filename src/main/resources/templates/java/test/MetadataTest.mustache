@@ -1,0 +1,108 @@
+{{>api_info}}
+
+package {{modelPackage}};
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import {{invokerPackage}}.ObjectSerializer;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.junit.jupiter.api.Test;
+
+{{>models/checkstyle_suppressions}}
+class MetadataTest {
+
+    private static final java.lang.reflect.Type METADATA_TYPE =
+            new TypeReference<Metadata>() {}.getType();
+    private final ObjectSerializer serializer = new ObjectSerializer();
+
+    @Test
+    void testSerializeEmptyMetadata() {
+        Metadata metadata = new Metadata();
+
+        String json = serializer.serialize(metadata);
+
+        assertThat(json).isNotNull();
+    }
+
+    @Test
+    void testDeserializeEmptyObject() {
+        String json = "{}";
+
+        Metadata metadata = serializer.deserialize(json, METADATA_TYPE);
+
+        assertThat(metadata).isNotNull();
+    }
+
+    @Test
+    void testDeserializesAdditionalStringProperties() {
+        String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
+        Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+
+        assertThat(metadata.getAdditionalProperties().get("customField")).isEqualTo("hello");
+    }
+
+    @Test
+    void testRoundTripPreservesAdditionalProperties() {
+        Metadata metadata = new Metadata();
+        metadata.setAdditionalProperty("customField", "hello");
+        metadata.setAdditionalProperty("anotherField", "world");
+
+        String json = serializer.serialize(metadata);
+        Metadata deserialized = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+
+        assertThat(deserialized.getAdditionalProperties().get("customField")).isEqualTo("hello");
+        assertThat(deserialized.getAdditionalProperties().get("anotherField")).isEqualTo("world");
+    }
+
+    @Test
+    void testAdditionalPropertiesAreTypedAsString() {
+        Metadata metadata = new Metadata();
+        metadata.setAdditionalProperty("key", "value");
+
+        java.util.Map<String, Object> additionalProps = metadata.getAdditionalProperties();
+        assertThat(additionalProps).containsEntry("key", "value");
+    }
+
+    @Test
+    void testPomManifestDeclaresNonEmptyDescription() throws IOException {
+        {{! manifest-description-missing: the published Maven POM must carry a }}
+        {{! non-empty <description> (wired from the spec's appDescription, with }}
+        {{! a generated fallback). Surefire runs tests with the project root as }}
+        {{! the working directory. }}
+        Path pom = Path.of("pom.xml");
+        assertThat(Files.exists(pom)).as("pom.xml must exist at the project root").isTrue();
+        String contents = Files.readString(pom);
+        Matcher matcher = Pattern.compile("<description>(.*?)</description>").matcher(contents);
+        assertThat(matcher.find()).as("pom.xml must declare a <description>").isTrue();
+        assertThat(matcher.group(1).trim()).as("description must not be empty").isNotEmpty();
+    }
+
+    @Test
+    void testModelDoesNotDocumentNullExample() throws IOException {
+        {{! example-null-doc-pollution: when a property declares no example, the }}
+        {{! codegen leaves CodegenProperty.example as the literal string "null", }}
+        {{! which is truthy in Mustache. The model template guards the example }}
+        {{! Javadoc with a section, so a real example still renders, but the bogus }}
+        {{! "null" must never reach the generated source as a doc comment. Tag's }}
+        {{! id and name properties carry no example, so Tag.java is the canary. }}
+        {{! Surefire runs tests with the project root as the working directory. }}
+        Path model =
+                Path.of("src", "main", "java")
+                        .resolve(Path.of("{{modelPackage}}".replace('.', '/')))
+                        .resolve("Tag.java");
+        assertThat(Files.exists(model))
+                .as("the Tag model must be generated at %s", model)
+                .isTrue();
+        String source = Files.readString(model);
+        assertThat(source)
+                .as("a no-example property must not document a literal null example")
+                .doesNotContain("Example: {@code null}")
+                .doesNotContain("Example: null");
+    }
+}

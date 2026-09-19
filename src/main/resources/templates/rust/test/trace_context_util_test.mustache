@@ -1,0 +1,8 @@
+{{>api_info}}
+
+// The `trace_context_util` module is crate-private (it is an internal transport
+// detail and not part of the public API), so its unit tests cannot live in this
+// external integration-test crate. They have been moved into an in-crate
+// `#[cfg(test)] mod tests` block inside `src/trace_context_util.rs`, where they
+// retain access to the private module. `cargo test` runs both the in-crate unit
+// tests and these external tests, so coverage is preserved.

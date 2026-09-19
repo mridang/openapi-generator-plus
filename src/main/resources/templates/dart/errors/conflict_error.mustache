@@ -1,0 +1,13 @@
+{{>api_info}}
+import 'client_error.dart';
+
+/// ConflictError represents an HTTP 409 Conflict error.
+class ConflictError extends ClientError {
+  const ConflictError({
+    required super.statusCode,
+    required super.message,
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+  });
+}

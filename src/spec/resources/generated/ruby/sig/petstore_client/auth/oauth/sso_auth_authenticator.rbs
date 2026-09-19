@@ -1,0 +1,9 @@
+module PetstoreClient
+  module Auth
+    module OAuth
+      class SsoAuthAuthenticator < OpenIdConnectAuthenticator
+        def initialize: (host: String, client_id: String, client_secret: String, redirect_uri: String) -> void
+      end
+    end
+  end
+end

@@ -1,0 +1,22 @@
+# ruff: noqa
+# mypy: ignore-errors
+from .add_pet_options import AddPetOptions as AddPetOptions
+from .add_pet_photos_options import AddPetPhotosOptions as AddPetPhotosOptions
+from .add_pet_treatment_options import AddPetTreatmentOptions as AddPetTreatmentOptions
+from .delete_pet_options import DeletePetOptions as DeletePetOptions
+from .find_pets_by_status_options import (
+    FindPetsByStatusOptions as FindPetsByStatusOptions,
+)
+from .get_pet_by_name_options import GetPetByNameOptions as GetPetByNameOptions
+from .get_pet_tag_options import GetPetTagOptions as GetPetTagOptions
+from .set_pet_preferences_options import (
+    SetPetPreferencesOptions as SetPetPreferencesOptions,
+)
+from .upload_pet_certificate_options import (
+    UploadPetCertificateOptions as UploadPetCertificateOptions,
+)
+from .upload_pet_document_options import (
+    UploadPetDocumentOptions as UploadPetDocumentOptions,
+)
+from .get_by_swatch_options import GetBySwatchOptions as GetBySwatchOptions
+from .get_stock_item_options import GetStockItemOptions as GetStockItemOptions

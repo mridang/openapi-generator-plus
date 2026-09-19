@@ -1,77 +1,1118 @@
 package io.github.mridang.codegen.generators.java;
 
-import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.servers.Server;
-import org.openapitools.codegen.CodegenOperation;
-import org.openapitools.codegen.languages.JavaClientCodegen;
-
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A custom Java code generator that provides sane defaults for generating a
- * minimal, modern Java client.
- * <p>
- * This generator is configured to:
- * <ul>
- * <li>Use the Apache HttpClient library for HTTP requests.</li>
- * <li>Use Jackson for JSON serialization.</li>
- * <li>Use the Java 8 Date/Time library (java.time.*).</li>
- * <li>Generate only model and API files, excluding tests, docs, and
- * other supporting project files.</li>
- * </ul>
+ * Generates a Java API client that uses Apache HttpClient 5 for
+ * transport and Jackson for JSON serialization. Targets Java 17+
+ * and follows camelCase naming for variables and methods. Output
+ * is formatted with Google Java Format to ensure consistent style
+ * across all generated source files.
  */
 @SuppressWarnings("unused")
-public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedFeaturesValidator {
+public class BetterJavaCodegen extends AbstractBetterCodegen {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterJavaCodegen.class);
+
+    private static final Set<String> NUMERIC_DATA_TYPES =
+            Set.of("Integer", "Long", "Double", "Float", "Short", "BigDecimal");
+
+    protected String sourceFolder = Path.of("src", "main", "java").toString();
+    protected String invokerPackage = "org.openapitools";
 
     /**
-     * Initializes a new instance of the {@code BetterJavaCodegen} class,
-     * setting up the hardcoded default configurations for a minimal client.
+     * Initializes all Java-specific type mappings, import mappings,
+     * language primitives, and template file registrations. Uses
+     * standard Java types from java.time and java.math for date,
+     * time, and numeric schemas.
      */
     public BetterJavaCodegen() {
-        super();
+        outputFolder = "generated-code/java";
+        embeddedTemplateDir = templateDir = "templates/java";
 
-        this.setLibrary(APACHE);
-        this.setSerializationLibrary(SERIALIZATION_LIBRARY_JACKSON);
-        this.setDateLibrary("java8");
+        modelTemplateFiles.put("models/model.mustache", ".java");
+        apiTemplateFiles.put("api/api.mustache", ".java");
 
-        setTemplateDir("templates/java");
+        typeMapping.put("array", "List");
+        typeMapping.put("map", "Map");
+        typeMapping.put("set", "Set");
+        typeMapping.put("boolean", "Boolean");
+        typeMapping.put("string", "String");
+        typeMapping.put("int", "Integer");
+        typeMapping.put("integer", "Integer");
+        typeMapping.put("long", "Long");
+        typeMapping.put("short", "Short");
+        typeMapping.put("float", "Float");
+        typeMapping.put("double", "Double");
+        typeMapping.put("number", "BigDecimal");
+        typeMapping.put("decimal", "BigDecimal");
+        typeMapping.put("char", "String");
+        typeMapping.put("object", "Object");
+        typeMapping.put("AnyType", "Object");
+        typeMapping.put("binary", "InputStream");
+        typeMapping.put("ByteArray", "byte[]");
+        typeMapping.put("byte", "byte[]");
+        typeMapping.put("file", "InputStream");
+        typeMapping.put("File", "InputStream");
+        typeMapping.put("date", "LocalDate");
+        typeMapping.put("DateTime", "OffsetDateTime");
+        typeMapping.put("date-time", "OffsetDateTime");
+        typeMapping.put("time", "LocalTime");
+        typeMapping.put("duration", "Duration");
+        typeMapping.put("UUID", "UUID");
+        typeMapping.put("URI", "URI");
+        typeMapping.put("BigDecimal", "BigDecimal");
 
-        apiDocTemplateFiles.clear();
-        modelDocTemplateFiles.clear();
-        apiTestTemplateFiles.clear();
-        modelTestTemplateFiles.clear();
+        importMapping.put("List", "java.util.List");
+        importMapping.put("Set", "java.util.Set");
+        importMapping.put("Map", "java.util.Map");
+        importMapping.put("ArrayList", "java.util.ArrayList");
+        importMapping.put("Arrays", "java.util.Arrays");
+        importMapping.put("LinkedHashSet", "java.util.LinkedHashSet");
+        importMapping.put("HashMap", "java.util.HashMap");
+        importMapping.put("LocalDate", "java.time.LocalDate");
+        importMapping.put("OffsetDateTime", "java.time.OffsetDateTime");
+        importMapping.put("LocalTime", "java.time.LocalTime");
+        importMapping.put("Duration", "java.time.Duration");
+        importMapping.put("BigDecimal", "java.math.BigDecimal");
+        importMapping.put("UUID", "java.util.UUID");
+        importMapping.put("URI", "java.net.URI");
+        importMapping.put("File", "java.io.File");
+        importMapping.put("InputStream", "java.io.InputStream");
+        importMapping.put("JsonProperty", "com.fasterxml.jackson.annotation.JsonProperty");
+        importMapping.put("JsonValue", "com.fasterxml.jackson.annotation.JsonValue");
+        importMapping.put("JsonCreator", "com.fasterxml.jackson.annotation.JsonCreator");
+        importMapping.put("JsonInclude", "com.fasterxml.jackson.annotation.JsonInclude");
+        importMapping.put("JsonTypeName", "com.fasterxml.jackson.annotation.JsonTypeName");
+        importMapping.put("JsonTypeInfo", "com.fasterxml.jackson.annotation.JsonTypeInfo");
+        importMapping.put("JsonSubTypes", "com.fasterxml.jackson.annotation.JsonSubTypes");
+
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "int", "long", "float", "double", "boolean", "byte", "short",
+                                "char", "Integer", "Long", "Float", "Double", "Boolean", "String",
+                                "Object", "byte[]", "void"));
+
+        instantiationTypes.put("array", "ArrayList");
+        instantiationTypes.put("set", "LinkedHashSet");
+        instantiationTypes.put("map", "HashMap");
+
+        reservedWords = loadReservedWords("/reserved-words/java.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.SOURCE_FOLDER,
+                CodegenConstants.SOURCE_FOLDER_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.INVOKER_PACKAGE,
+                CodegenConstants.INVOKER_PACKAGE_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.GROUP_ID,
+                CodegenConstants.GROUP_ID_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.ARTIFACT_ID,
+                CodegenConstants.ARTIFACT_ID_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.ARTIFACT_VERSION,
+                CodegenConstants.ARTIFACT_VERSION_DESC));
     }
 
-    @Override
-    public String getLibrary() {
-        return APACHE;
-    }
-
-    /**
-     * Gets the unique name of this generator. This name is used to select the
-     * generator from the command line or other tools.
-     *
-     * @return The unique generator name, "java-plus".
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "java-plus";
     }
 
+    /** Returns a short description shown in the help output. */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal Java client with Jackson and Apache HttpClient.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.JAVA;
+    }
+
     /**
-     * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
+     * Derives the per-operation {@code hasMultipleConsumes} signal that the api
+     * template uses to decide whether to emit the optional request-content-type
+     * selector overloads.
+     *
+     * <p>An operation may declare more than one request {@code Content-Type}
+     * (e.g. {@code setPetAvatar} declares {@code image/jpeg}, {@code image/png}
+     * and {@code application/json}). The generated method historically pinned the
+     * request header to {@code effectiveConsumes} — the first declared type — so
+     * the remaining declared types were unreachable. When more than one type is
+     * declared, the template emits an additional overload carrying an OPTIONAL
+     * {@code requestContentType} argument that overrides the header; when it is
+     * omitted (or {@code null}) the method keeps sending the first declared type
+     * unchanged, so existing call sites compile and behave exactly as before.
+     *
+     * <p>Mustache cannot test "{@code consumes} has more than one element", so we
+     * derive that boolean here, mirroring the language-scoped pattern used by the
+     * Go and Python generators. This is a plain vendor-extension flag (not an
+     * {@code x-*} extension and not a shared cross-language decorator), scoped to
+     * the Java generator only.
+     *
+     * @param objs the operations map for the current api file
+     * @param allModels every model referenced by the operations
+     * @return the (possibly mutated) operations map, after delegating to the
+     *     superclass post-processing
      */
     @Override
-    public void processOpts() {
-        super.processOpts();
-        this.supportingFiles.clear();
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    if (op.vendorExtensions == null) {
+                        op.vendorExtensions = new HashMap<>();
+                    }
+                    final boolean hasMultipleConsumes =
+                            op.consumes != null && op.consumes.size() > 1;
+                    op.vendorExtensions.put("hasMultipleConsumes", hasMultipleConsumes);
+                }
+            }
+        }
+        return super.postProcessOperationsWithModels(objs, allModels);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTestFixturesDir() {
+        return "src/test/resources";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSpecDir() {
+        return "src/spec/java";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.UPPER_SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "eclipse-temurin:17-jdk@sha256:b04a8c5d46e210873ffd1af6ad5f4d62c69ed3a6736993556eae60bba1373a23";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            /* -f fails on an HTTP error rather than saving the error page as
+             * /tmp/gjf.jar (which would later fail as a corrupt jar); --retry
+             * rides out transient GitHub-release hiccups; -S shows the error. */
+            "curl -fSL --retry 5 --retry-delay 2 --retry-all-errors -o /tmp/gjf.jar"
+                + " https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
+            "find . -name '*.java' -print0 | xargs -0 java"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                    + " -jar /tmp/gjf.jar --replace"
+        };
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "LinkedHashSet<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
+    }
+
+    /**
+     * Processes user-supplied codegen options after they are
+     * resolved. Reads the invoker package, Maven coordinates,
+     * and source folder, then registers all supporting files
+     * for the client skeleton, exceptions, auth, serialization,
+     * and optional test scaffolding.
+     */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String sf = Optional.ofNullable((String) additionalProperties.get(CodegenConstants.SOURCE_FOLDER))
+                .orElse(sourceFolder);
+        final String pkg = Optional.ofNullable((String) additionalProperties.get(CodegenConstants.INVOKER_PACKAGE))
+                .orElse(invokerPackage);
+        final String invokerFolder = Path.of(sf, pkg.replace(".", "/")).toString();
+        final String errorsFolder = Path.of(invokerFolder, "errors").toString();
+        /* GraalVM native-image reflection metadata. The generator knows every
+         * model class it emits, so it lists them in a reflect-config.json under
+         * META-INF/native-image (auto-detected by native-image) — without it,
+         * Jackson cannot reflectively (de)serialize the model POJOs in a native
+         * image and fails at runtime. */
+        final String nativeImageFolder = Path.of(
+            "src/main/resources", "META-INF", "native-image", pkg.replace(".", "/")).toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("reflect_config.mustache", nativeImageFolder, "reflect-config.json"),
+            new SupportingFileSpec("zitadel_exception.mustache", invokerFolder, "ZitadelException.java"),
+            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.java"),
+            new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.java"),
+            new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.java"),
+            new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.java"),
+            new SupportingFileSpec("errors/UnauthorizedException.mustache", errorsFolder, "UnauthorizedException.java"),
+            new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.java"),
+            new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.java"),
+            new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.java"),
+            new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.java"),
+            new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.java"),
+            new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.java"),
+            new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.java"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.java"),
+            new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.java"),
+            new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.java"),
+            new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.java"),
+            new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.java"),
+            new SupportingFileSpec("server_configuration.mustache", invokerFolder, "ServerConfiguration.java"),
+            new SupportingFileSpec("server_variable.mustache", invokerFolder, "ServerVariable.java"),
+            new SupportingFileSpec("servers.mustache", invokerFolder, "Servers.java"),
+            new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.java"),
+            new SupportingFileSpec("value_serializer.mustache", Path.of(invokerFolder, "api").toString(), "ValueSerializer.java"),
+            new SupportingFileSpec("header_selector.mustache", Path.of(invokerFolder, "api").toString(), "HeaderSelector.java"),
+            new SupportingFileSpec("trace_context_util.mustache", Path.of(invokerFolder, "api").toString(), "TraceContextUtil.java"),
+            new SupportingFileSpec("pom.mustache", "", "pom.xml"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "auth").toString(), "Authenticator.java"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec(
+                "junit_platform_properties.mustache",
+                "src/test/resources",
+                "junit-platform.properties")
+        );
+    }
+
+    /**
+     * Harvests API-key header names from the spec's {@code securitySchemes}
+     * (type=apiKey, in=header) and exposes them as
+     * {@code apiKeyHeaderNames} for {@code DefaultApiClient.java} so they
+     * are added to the sensitive-header allowlist stripped on cross-origin
+     * redirects (Bucket 3.1).
+     */
+    @Override
+    public void processOpenAPI(OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final List<Map<String, String>> apiKeyHeaderNames = new ArrayList<>();
+        final Set<String> seen = new HashSet<>();
+        if (openAPI.getComponents() != null
+                && openAPI.getComponents().getSecuritySchemes() != null) {
+            for (Map.Entry<String, SecurityScheme> entry :
+                    openAPI.getComponents().getSecuritySchemes().entrySet()) {
+                final SecurityScheme scheme = entry.getValue();
+                if (scheme.getType() == SecurityScheme.Type.APIKEY
+                        && scheme.getIn() == SecurityScheme.In.HEADER
+                        && scheme.getName() != null
+                        && !scheme.getName().isEmpty()) {
+                    final String lower = scheme.getName().toLowerCase(java.util.Locale.ROOT);
+                    if (seen.add(lower)) {
+                        final Map<String, String> e = new HashMap<>();
+                        e.put("name", scheme.getName());
+                        e.put("lowerName", lower);
+                        apiKeyHeaderNames.add(e);
+                    }
+                }
+            }
+        }
+        additionalProperties.put("apiKeyHeaderNames", apiKeyHeaderNames);
+        additionalProperties.put("hasApiKeyHeaderNames", !apiKeyHeaderNames.isEmpty());
     }
 
     @Override
-    public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
+    public void processOpts() {
+        super.processOpts();
+
+        sourceFolder = getPropertyOrDefault(CodegenConstants.SOURCE_FOLDER, sourceFolder);
+        invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
+        additionalProperties.put("invokerPackage", invokerPackage);
+
+        final String groupId = getPropertyOrDefault(CodegenConstants.GROUP_ID, invokerPackage);
+        additionalProperties.put("groupId", groupId);
+        final String artifactId =
+                getPropertyOrDefault(CodegenConstants.ARTIFACT_ID, "openapi-java-client");
+        additionalProperties.put("artifactId", artifactId);
+        final String artifactVersion =
+                getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");
+        additionalProperties.put("artifactVersion", artifactVersion);
+        additionalProperties.put(
+                "userAgentDefault", invokerPackage + "/" + artifactVersion + " (java)");
+
+        final String invokerFolder =
+                Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
+        final String clientClassName = (String) additionalProperties.get("clientClassName");
+        supportingFiles.add(
+                new SupportingFile(
+                        "client.mustache", invokerFolder, clientClassName + ".java"));
+
+        if (emitUnitTests()) {
+            final String testFolder =
+                    Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
+            final String testApiFolder = Path.of(testFolder, "api").toString();
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientUnitTest.mustache",
+                            testFolder,
+                            "DefaultApiClientUnitTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TransportOptionsTest.mustache",
+                            testFolder,
+                            "TransportOptionsTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/HeaderSelectorTest.mustache",
+                            testApiFolder,
+                            "HeaderSelectorTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ValueSerializerTest.mustache",
+                            testApiFolder,
+                            "ValueSerializerTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TraceContextUtilTest.mustache",
+                            testApiFolder,
+                            "TraceContextUtilTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTest.mustache",
+                            testFolder,
+                            "ConfigurationTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerConfigurationTest.mustache",
+                            testFolder,
+                            "ServerConfigurationTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ServerVariableTest.mustache",
+                            testFolder,
+                            "ServerVariableTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiResultTest.mustache",
+                            testFolder,
+                            "ApiResultTest.java"));
+        }
+
+        if (generateTests) {
+            final String testFolder =
+                    Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
+            final String testApiFolder = Path.of(testFolder, "api").toString();
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/PetApiTest.mustache", testApiFolder, "PetApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/StoreApiTest.mustache", testApiFolder, "StoreApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientTest.mustache",
+                            testFolder,
+                            "DefaultApiClientTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ObjectSerializerTest.mustache",
+                            testFolder,
+                            "ObjectSerializerTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ChasmContainer.mustache", testFolder, "ChasmContainer.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/SquidContainer.mustache", testFolder, "SquidContainer.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/BaseApiTest.mustache",
+                            testFolder,
+                            "BaseApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ClientTest.mustache",
+                            testFolder,
+                            "ClientTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiExceptionTest.mustache",
+                            testFolder,
+                            "ApiExceptionTest.java"));
+            final String testModelsFolder = Path.of(testFolder, "models").toString();
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/MetadataTest.mustache",
+                            testModelsFolder,
+                            "MetadataTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ComposedSchemaTest.mustache",
+                            testModelsFolder,
+                            "ComposedSchemaTest.java"));
+
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return sourceFolder;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean setsDiscriminatorParent() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
+
+    /**
+     * Returns the default value expression for a schema type.
+     * Arrays default to empty ArrayList or LinkedHashSet for
+     * unique items; maps default to empty HashMap. String enum
+     * schemas with a default return the raw value so that
+     * {@code updateCodegenPropertyEnum} can match it to an enum
+     * var and produce {@code StatusEnum.PLACED}. Non-enum scalar
+     * schemas carrying a {@code default} render it as a Java
+     * literal (quoted string, numeric, {@code L}/{@code F}-suffixed
+     * long/float, or boolean) so the model field is initialized to
+     * the schema default. This makes an absent JSON key fall back
+     * to the default while an explicit JSON null is still preserved
+     * (Jackson overwrites the initializer only when the key is
+     * present). All other types return null.
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String toDefaultValue(Schema schema) {
+        final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
+        if (ModelUtils.isArraySchema(unaliased)) {
+            if (Boolean.TRUE.equals(unaliased.getUniqueItems())) {
+                return "new LinkedHashSet<>()";
+            }
+            return "new ArrayList<>()";
+        } else if (ModelUtils.isMapSchema(unaliased)) {
+            return "new HashMap<>()";
+        }
+        if (ModelUtils.isStringSchema(unaliased)
+                && unaliased.getDefault() != null
+                && unaliased.getEnum() != null
+                && !unaliased.getEnum().isEmpty()) {
+            return unaliased.getDefault().toString();
+        }
+        if (unaliased.getDefault() != null) {
+            if (ModelUtils.isStringSchema(unaliased)) {
+                return "\"" + escapeText(String.valueOf(unaliased.getDefault())) + "\"";
+            }
+            if (ModelUtils.isLongSchema(unaliased)) {
+                return unaliased.getDefault() + "L";
+            }
+            if (ModelUtils.isFloatSchema(unaliased)) {
+                return unaliased.getDefault() + "F";
+            }
+            // A {@code number} with {@code format: double} maps to
+            // {@code Double}, for which a bare decimal literal is a
+            // valid initializer.
+            if (ModelUtils.isDoubleSchema(unaliased)) {
+                return unaliased.getDefault().toString();
+            }
+            // A format-less {@code number} (and the explicit
+            // {@code decimal} type) maps to {@code BigDecimal}, which
+            // has no numeric-literal conversion. A bare literal like
+            // {@code 12.5} would not compile, so wrap the default in a
+            // {@code BigDecimal(String)} constructor. Using a string
+            // also preserves the exact decimal value.
+            if (ModelUtils.isNumberSchema(unaliased)
+                    || ModelUtils.isDecimalSchema(unaliased)) {
+                return "new java.math.BigDecimal(\""
+                        + escapeText(String.valueOf(unaliased.getDefault()))
+                        + "\")";
+            }
+            if (ModelUtils.isIntegerSchema(unaliased)
+                    || ModelUtils.isBooleanSchema(unaliased)) {
+                return unaliased.getDefault().toString();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Keeps the enum-reference default value (e.g.
+     * {@code StatusEnum.PLACED}) as produced by
+     * {@code updateCodegenPropertyEnum}, rather than converting it
+     * to a string literal as the base-class implementation would.
+     */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        // no-op: StatusEnum.PLACED is the correct Java form
+    }
+
+    /**
+     * Preserves all-uppercase identifiers (e.g. {@code MAX_RETRIES},
+     * {@code HTTP_METHOD}) as-is instead of camelCasing them.
+     * Java treats these as intentional constant names that should
+     * not be transformed. Cannot be standardized because other
+     * languages either always apply casing or lowercase first.
+     */
+    @Override
+    protected UppercaseIdentifierStrategy getUppercaseIdentifierStrategy() {
+        return UppercaseIdentifierStrategy.PRESERVE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getNumericDataTypes() {
+        return NUMERIC_DATA_TYPES;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getUniversalModelPropertyImports() {
+        return List.of("JsonProperty", "JsonInclude", "JsonTypeName");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getEnumPropertyImports() {
+        return List.of("JsonValue", "JsonCreator");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getArrayPropertyImports() {
+        return List.of("ArrayList", "Arrays");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getUniqueArrayPropertyImports() {
+        return List.of("LinkedHashSet");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getMapPropertyImports() {
+        return List.of("HashMap");
+    }
+
+    /**
+     * Replaces the {@code ArrayList} default value with a
+     * {@code LinkedHashSet} for unique-item array properties.
+     * All import additions are handled by the base-class
+     * declaration methods.
+     */
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if (!model.isEnum && property.isArray && property.getUniqueItems()
+                && property.defaultValue != null) {
+            property.defaultValue =
+                    property.defaultValue.replace("new ArrayList<>(", "new LinkedHashSet<>(");
+        }
+    }
+
+    /**
+     * Adds Jackson enum serialization imports (JsonValue,
+     * JsonCreator) to enum models and properties. Cannot be
+     * standardized because Jackson is Java-specific.
+     */
+    @Override
+    public ModelsMap postProcessModelsEnum(ModelsMap objs) {
+        objs = super.postProcessModelsEnum(objs);
+        for (final ModelMap modelMap : objs.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model.isEnum) {
+                model.imports.add("JsonValue");
+                model.imports.add("JsonCreator");
+            }
+            for (final CodegenProperty property : model.vars) {
+                if (property.isEnum) {
+                    model.imports.add("JsonValue");
+                    model.imports.add("JsonCreator");
+                }
+            }
+        }
+        return objs;
+    }
+
+    /**
+     * Adds Jackson discriminator and polymorphism imports
+     * (JsonTypeInfo, JsonSubTypes) for models with discriminators,
+     * and JsonValue/JsonCreator for oneOf/anyOf models. Cannot
+     * be standardized because Jackson is Java-specific.
+     */
+    @SuppressWarnings("rawtypes")
+    @Override
+    public CodegenModel fromModel(String name, Schema schema) {
+        final CodegenModel model = super.fromModel(name, schema);
+        if (model.discriminator != null) {
+            model.imports.add("JsonTypeInfo");
+            model.imports.add("JsonSubTypes");
+        }
+        if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
+            model.imports.add("JsonValue");
+            model.imports.add("JsonCreator");
+            /* oneOf/anyOf variant types (e.g. List<byte[]>) are referenced
+             * only in the ONE_OF_SCHEMAS TypeReference tokens, not as model
+             * fields, so the property-driven import collection misses them.
+             * A pure-union wrapper has no vars, so without this its
+             * collection variants compile with an unresolved `List`/`Map`/
+             * `Set`. Add the simple import name (resolved to its FQN by the
+             * import mapping, exactly like a normal field type). */
+            final java.util.Set<String> variants = new java.util.HashSet<>();
+            variants.addAll(model.oneOf);
+            variants.addAll(model.anyOf);
+            for (final String variant : variants) {
+                if (variant.contains("List<") || variant.equals("List")) {
+                    model.imports.add("List");
+                }
+                if (variant.contains("Map<") || variant.equals("Map")) {
+                    model.imports.add("Map");
+                }
+                if (variant.contains("Set<") || variant.equals("Set")) {
+                    model.imports.add("Set");
+                }
+            }
+        }
+        // The model description is rendered as the type's header Javadoc, whose
+        // summary sentence must end with a period under google_checks
+        // (SummaryJavadoc). That Javadoc sits above the class-level
+        // @SuppressWarnings, so the suppression cannot cover it; normalize the
+        // spec-supplied text to be compliant instead.
+        model.description = endWithPeriod(model.description);
+        return model;
+    }
+
+    /**
+     * Appends a trailing period to a Javadoc summary string when it does not
+     * already end with sentence-ending punctuation, so generated header Javadoc
+     * satisfies google_checks {@code SummaryJavadoc}. Returns the input
+     * unchanged when it is {@code null} or blank.
+     */
+    @Nullable
+    private static String endWithPeriod(@Nullable String text) {
+        if (text == null) {
+            return null;
+        }
+        final String trimmed = text.stripTrailing();
+        if (trimmed.isEmpty()) {
+            return text;
+        }
+        final char last = trimmed.charAt(trimmed.length() - 1);
+        if (last == '.' || last == '!' || last == '?') {
+            return text;
+        }
+        return trimmed + ".";
+    }
+
+    /**
+     * Registers base auth supporting files and, when test generation
+     * is enabled, the OAuth test class files.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+
+        if (generateTests) {
+            final String testFolder =
+                    Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
+            final String testAuthFolder =
+                    Path.of(testFolder, "auth").toString();
+            final String testAuthOauthFolder =
+                    Path.of(testFolder, "auth", "oauth").toString();
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/BasicAuthenticatorTest.mustache",
+                                testAuthFolder,
+                                "BasicAuthenticatorTest.java"));
+            }
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/BearerAuthenticatorTest.mustache",
+                                testAuthFolder,
+                                "BearerAuthenticatorTest.java"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/ApiKeyAuthenticatorTest.mustache",
+                                testAuthFolder,
+                                "ApiKeyAuthenticatorTest.java"));
+            }
+            if (hasAnyOAuth2 || hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2TokenManagerTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2TokenManagerTest.java"));
+            }
+            if (hasOAuth2AuthorizationCode) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2AuthCodeAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2AuthCodeAuthenticatorTest.java"));
+            }
+            if (hasOAuth2Implicit) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2ImplicitAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2ImplicitAuthenticatorTest.java"));
+            }
+            if (hasOAuth2ClientCredentials) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2ClientCredentialsAuthenticatorTest.java"));
+            }
+            if (hasOAuth2Password) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2PasswordAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2PasswordAuthenticatorTest.java"));
+            }
+            if (hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OpenIdConnectAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OpenIdConnectAuthenticatorTest.java"));
+            }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        return Path.of(sourceFolder, invokerPackage.replace(".", "/"), "auth").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return pascalAuthFilename(stem, ".java");
+    }
+
+    /**
+     * Renders a per-scheme authenticator Java source file using
+     * the scheme_authenticator.mustache template.
+     */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("package", invokerPackage + (spec.isOAuth() ? ".auth.oauth" : ".auth"));
+        final List<String> imports;
+        if (spec.isOAuth()) {
+            imports = List.of(invokerPackage + ".auth.Authenticator", "java.util.List");
+        } else {
+            imports = List.of();
+        }
+        ctx.put("imports", imports);
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("type", "String");
+            param.put("name", name);
+            constructorParams.add(param);
+        }
+        ctx.put("constructorParams", constructorParams);
+        ctx.put("superArgs", buildJavaSuperArgs(spec));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    private static String formatJavaScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "List.of()";
+        }
+        return "List.of(\"" + String.join("\", \"", scopes.keySet()) + "\")";
+    }
+
+    private List<String> buildJavaSuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "token");
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.keyParamName() + "\"", "apiKey",
+                    "ApiKeyLocation." + spec.keyIn());
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"", formatJavaScopes(spec.scopes()));
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"", refreshArg,
+                    "username", "password", formatJavaScopes(spec.scopes()));
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    refreshArg, "redirectUri", formatJavaScopes(spec.scopes()));
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", formatJavaScopes(spec.scopes()));
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
+                    "clientId", "clientSecret", "redirectUri", "List.of()");
+        }
+        return List.of();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        final List<Map<String, Object>> requiredParams = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("baseName", p.baseName);
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            // Thread the spec parameter's deprecated flag into the Options field so
+            // the generated field and accessor carry @Deprecated (and a @deprecated
+            // Javadoc tag), mirroring the model-property deprecation idiom. A param
+            // declared deprecated:true in the spec otherwise shows callers no
+            // deprecation warning on the Options object.
+            param.put("deprecated", p.isDeprecated);
+            // Thread the spec parameter description into the Options field so the
+            // generated accessor Javadoc documents what the parameter means,
+            // matching the per-parameter documentation the other SDKs carry.
+            if (p.description != null && !p.description.isBlank()) {
+                param.put("description", endWithPeriod(p.description.strip()));
+            }
+            // Array/map params are stored and returned by reference, so SpotBugs
+            // flags EI_EXPOSE_REP/EI_EXPOSE_REP2 on the generated accessor and
+            // constructor. Rather than suppress (a class-level @SuppressFBWarnings
+            // for a member-level bug is itself reported as US_USELESS_SUPPRESSION
+            // under default SpotBugs), the template defensively copies the
+            // collection into an immutable view, which SpotBugs recognizes as
+            // exposure-safe — no suppression and no config relaxation needed.
+            final String copyFactory = collectionCopyFactory(p);
+            param.put("isMutableCollection", copyFactory != null);
+            if (copyFactory != null) {
+                param.put("copyFactory", copyFactory);
+            }
+            params.add(param);
+            if (p.required) {
+                requiredParams.add(param);
+            }
+        }
+
+        final Set<String> modelTypes = new LinkedHashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.isPrimitiveType
+                    && !p.isArray
+                    && !p.isMap
+                    && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)
+                    && !typeMapping.containsValue(p.baseType)) {
+                modelTypes.add(p.baseType);
+            }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null); the generated enum lives in the models package
+            // and must be imported by the Options class.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !typeMapping.containsValue(p.dataType)) {
+                modelTypes.add(p.dataType);
+            }
+            if ((p.isArray || p.isMap)
+                    && p.items != null
+                    && p.items.baseType != null
+                    && !p.items.isPrimitiveType
+                    && !languageSpecificPrimitives.contains(p.items.baseType)
+                    && !typeMapping.containsValue(p.items.baseType)) {
+                modelTypes.add(p.items.baseType);
+            }
+        }
+
+        // Parameters typed as java.time / java.math / java.util.UUID / java.net.URI
+        // surfaces (e.g. an OffsetDateTime date-time query param) need their
+        // fully-qualified import in the Options class. The List/Map/Set/File/
+        // InputStream types are already imported by the template header, so they
+        // are skipped to avoid duplicate-import errors.
+        final Set<String> headerImported =
+                Set.of("List", "Map", "Set", "File", "InputStream");
+        final Set<String> extraImports = new LinkedHashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            for (final Map.Entry<String, String> mapping : importMapping.entrySet()) {
+                if (headerImported.contains(mapping.getKey())
+                        || !mapping.getValue().startsWith("java.")) {
+                    continue;
+                }
+                if (typeReferencesName(p.dataType, mapping.getKey())
+                        || (p.items != null
+                                && typeReferencesName(p.items.dataType, mapping.getKey()))) {
+                    extraImports.add(mapping.getValue());
+                }
+            }
+        }
+
+        final String apiPkg = apiPackage();
+        final Map<String, Object> context = new HashMap<>();
+        context.put("package", apiPkg + ".options");
+        context.put("modelPackage", modelPackage());
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("requiredParams", requiredParams);
+        context.put("modelImports", new ArrayList<>(modelTypes));
+        context.put("hasModelImports", !modelTypes.isEmpty());
+        context.put("extraImports", new ArrayList<>(extraImports));
+        context.put("hasExtraImports", !extraImports.isEmpty());
+        injectAuthFieldContext(op, context);
+        context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Returns {@code true} when {@code type} references the simple type name
+     * {@code name} as a whole word — matching a bare {@code OffsetDateTime} as
+     * well as the element type inside a generic such as
+     * {@code List<OffsetDateTime>}, while never matching a substring of a longer
+     * identifier. Used to decide which {@code java.*} imports an Options class
+     * needs for its parameter types.
+     */
+    private static boolean typeReferencesName(@Nullable String type, String name) {
+        if (type == null) {
+            return false;
+        }
+        int from = 0;
+        while ((from = type.indexOf(name, from)) >= 0) {
+            final int end = from + name.length();
+            final boolean leftBoundary = from == 0 || !isJavaIdentifierPart(type.charAt(from - 1));
+            final boolean rightBoundary =
+                    end == type.length() || !isJavaIdentifierPart(type.charAt(end));
+            if (leftBoundary && rightBoundary) {
+                return true;
+            }
+            from = end;
+        }
+        return false;
+    }
+
+    private static boolean isJavaIdentifierPart(char c) {
+        return Character.isJavaIdentifierPart(c);
+    }
+
+    /**
+     * Returns the immutable-copy factory ({@code List.copyOf}, {@code Set.copyOf},
+     * or {@code Map.copyOf}) for a collection-typed options parameter, or
+     * {@code null} when the parameter is not a stored-by-reference collection.
+     *
+     * <p>Used by {@code api/options.mustache} to emit defensive copies so the
+     * generated Options classes do not trip SpotBugs EI_EXPOSE_REP/EI_EXPOSE_REP2
+     * under the default (no custom exclude filter) analysis.
+     */
+    @Nullable
+    private static String collectionCopyFactory(CodegenParameter p) {
+        if (p.isMap) {
+            return "java.util.Map";
+        }
+        if (p.isArray) {
+            return (p.dataType != null && p.dataType.startsWith("Set"))
+                    ? "java.util.Set"
+                    : "java.util.List";
+        }
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        return Path.of(
+                        outputFolder,
+                        sourceFolder,
+                        apiPackage().replace('.', '/'),
+                        "options",
+                        optionsClassName + ".java")
+                .toString();
     }
 }

@@ -1,0 +1,10 @@
+{{>api_info}}
+
+{{#imports}}
+from {{module}} import {{classNames}}
+{{/imports}}
+
+
+class {{className}}({{baseClass}}):
+    def __init__(self, {{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}):
+        super().__init__({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})

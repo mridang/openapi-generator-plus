@@ -1,0 +1,10 @@
+module PetstoreClient::Models
+  class Priority
+    NUMBER_1: Integer
+    NUMBER_2: Integer
+    NUMBER_3: Integer
+    VALUES: Array[Integer]
+    def self.all_vars: () -> Array[Integer]
+    def self.validate!: (Integer?) -> Integer?
+  end
+end

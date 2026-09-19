@@ -1,0 +1,264 @@
+{{>api_info}}
+
+// phpcs:ignoreFile
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\ApiHttpResponse;
+use {{invokerPackage}}\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
+
+function makeOAuth2AuthCodeMockClient(
+    string $accessToken = 'test-token',
+    ?string $refreshToken = null
+): MockTokenApiClient {
+    $client = new MockTokenApiClient();
+    $body = ['access_token' => $accessToken, 'expires_in' => 3600];
+    if ($refreshToken !== null) {
+        $body['refresh_token'] = $refreshToken;
+    }
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode($body),
+        ['Content-Type' => 'application/json']
+    ));
+    return $client;
+}
+
+test('builds authorization url with required params', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('csrf-state');
+
+    expect($url)->toContain('https://auth.example.com/authorize?');
+    expect($url)->toContain('response_type=code');
+    expect($url)->toContain('client_id=my-client-id');
+    expect($url)->toContain('redirect_uri=' . urlencode('https://app.example.com/callback'));
+    expect($url)->toContain('scope=read+write');
+    expect($url)->toContain('state=csrf-state');
+});
+
+test('exchanges code with correct grant type', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('auth-code-123');
+
+    expect($client->capturedRequests)->toHaveCount(1);
+    $request = $client->capturedRequests[0];
+    expect($request['method'])->toBe('POST');
+    expect($request['url'])->toBe('https://auth.example.com/token');
+    expect($request['body'] ?? '')->toContain('grant_type=authorization_code');
+    expect($request['body'] ?? '')->toContain('code=auth-code-123');
+    expect($request['body'] ?? '')->toContain('client_id=my-client-id');
+    expect($request['body'] ?? '')->toContain('client_secret=my-client-secret');
+});
+
+test('exchange code rejects empty code', function (): void {
+    /* exchangeCode must reject an empty / whitespace-only authorization
+     * code before issuing the token POST, surfacing the caller bug as a
+     * catchable InvalidArgumentException rather than a server-side
+     * invalid_grant. */
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn (): mixed => $authenticator->exchangeCode(''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn (): mixed => $authenticator->exchangeCode('   '))
+        ->toThrow(\InvalidArgumentException::class);
+    expect($client->capturedRequests)->toHaveCount(0);
+});
+
+test('exchange code rejects whitespace only code', function (): void {
+    /* oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+     * distinct from the empty-string case and must also be rejected before
+     * issuing the token POST (trim($code) === '' guard). */
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn (): mixed => $authenticator->exchangeCode('   '))
+        ->toThrow(\InvalidArgumentException::class);
+    expect($client->capturedRequests)->toHaveCount(0);
+});
+
+test('includes refresh token on refresh', function (): void {
+    $client = new MockTokenApiClient();
+    // First call (exchangeCode) returns a refresh token with an expired access token
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    // Second call (getAuthHeaders refresh) returns new token
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('auth-code-123');
+
+    // GetAuthHeaders triggers a refresh since token is expired (expires_in=0)
+    $headers = $authenticator->getAuthHeaders();
+
+    $refreshRequest = $client->capturedRequests[1];
+    expect($refreshRequest['body'] ?? '')->toContain('refresh_token=refresh1');
+    expect($refreshRequest['body'] ?? '')->toContain('grant_type=refresh_token');
+    expect($headers['Authorization'])->toBe('Bearer access2');
+});
+
+test('throws before exchange code called', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\RuntimeException::class);
+});
+
+test('auth code get host returns configured host', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+test('builds authorization url with state', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('csrf-state-123');
+
+    expect($url)->toContain('state=csrf-state-123');
+});
+
+test('auth headers before exchange returns recoverable error', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+
+    // Calling getAuthHeaders before exchangeCode is a precondition
+    // violation. It must surface as a catchable exception so callers
+    // can recover -- not as a fatal process crash.
+    $caught = null;
+    try {
+        $authenticator->getAuthHeaders();
+    } catch (\RuntimeException $e) {
+        $caught = $e;
+    }
+    expect($caught)->not->toBeNull();
+
+    // Caller continues normally after catching -- no process crash.
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+test('authorize url with existing query string uses ampersand separator', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://x.auth0.com/authorize?audience=api',
+        'https://x.auth0.com/oauth/token',
+        'https://app.example.com/callback',
+        ['read']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('audience=api');
+    expect($url)->toContain('response_type=code');
+    expect(substr_count($url, '?'))->toBe(1);
+});
+
+/**
+ * Asserts that the client secret never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+function testRedactsSecret(): void
+{
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-client-secret');
+    expect($printR)->toContain('***');
+}

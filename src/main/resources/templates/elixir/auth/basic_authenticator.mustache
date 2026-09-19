@@ -1,0 +1,69 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Auth.BasicAuthenticator do
+  @moduledoc """
+  Authenticator for HTTP Basic authentication.
+  """
+
+  use {{moduleName}}.Auth.BaseAuthenticator
+
+  @type t :: %__MODULE__{
+          host: String.t(),
+          username: String.t(),
+          password: String.t()
+        }
+
+  # Redact the password from the default Inspect representation so it is
+  # never leaked into logs via `inspect/1` / `IO.inspect` / Logger.
+  @derive {Inspect, except: [:password]}
+  defstruct [:host, :username, :password]
+
+  @doc """
+  Create a new Basic authenticator.
+
+  ## Parameters
+
+    * `host` - API base URL.
+    * `username` - The username.
+    * `password` - The password.
+
+  """
+  @spec new(String.t(), String.t(), String.t()) :: t()
+  def new(host, username, password) do
+    # Validate eagerly at construction so a malformed credential surfaces
+    # where it is supplied rather than lazily at first request.
+    # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
+    # separator) and neither user-id nor password may carry CR/LF/NUL
+    # (header-injection / smuggling vectors common when credentials are
+    # read from .env files or interactive prompts).
+    if username =~ ~r/[\r\n\x00]/ do
+      raise ArgumentError,
+            "Basic auth username must not contain CR, LF, or NUL characters"
+    end
+
+    if String.contains?(username, ":") do
+      raise ArgumentError,
+            "Basic auth username must not contain ':' (RFC 7617 §2)"
+    end
+
+    if password =~ ~r/[\r\n\x00]/ do
+      raise ArgumentError,
+            "Basic auth password must not contain CR, LF, or NUL characters"
+    end
+
+    %__MODULE__{
+      host: host,
+      username: username,
+      password: password
+    }
+  end
+
+  @impl true
+  def host(%__MODULE__{} = self), do: self.host
+
+  @impl true
+  def auth_headers(%__MODULE__{} = self) do
+    encoded = Base.encode64("#{self.username}:#{self.password}")
+    %{"Authorization" => "Basic #{encoded}"}
+  end
+end

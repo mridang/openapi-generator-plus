@@ -1,0 +1,493 @@
+# frozen_string_literal: true
+
+{{> api_info}}
+require 'date'
+require 'iso8601'
+require 'time'
+require 'tod'
+require 'dry-struct'
+
+# :nodoc:
+module Types
+  # The dry-types module built dynamically by +Dry.Types()+. Bound to a
+  # constant first so YARD resolves the mixin statically (it cannot resolve
+  # the bare +include Dry.Types()+ method-call form and would otherwise emit
+  # an "Undocumentable mixin" warning).
+  Builder = Dry.Types()
+  include Builder
+
+  Required = Types::Any.constructor do |v|
+    raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?
+
+    v
+  end
+end
+
+# :nodoc:
+module {{moduleName}}
+  # Model classes generated from OpenAPI schemas.
+  module Models
+{{#models}}
+{{#model}}
+{{#isEnum}}
+    # {{#description}}{{{description}}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
+    class {{classname}}{{#allowableValues}}{{#enumVars}}
+      {{{name}}} = {{{value}}}{{/enumVars}}
+
+      # Frozen set of all allowed values, used for validation.
+      VALUES = [{{#enumVars}}{{{name}}}{{^-last}}, {{/-last}}{{/enumVars}}].freeze
+{{/allowableValues}}
+
+      def self.all_vars
+        VALUES
+      end
+
+      # Validate that +value+ is a recognized enum value.
+      #
+      # @param value [Object] the value to validate
+      # @return [Object] the value, if valid
+      # @raise [ArgumentError] if +value+ is not in {VALUES}
+      def self.validate!(value)
+        return value if value.nil? || VALUES.include?(value)
+
+        raise ArgumentError, "Unknown enum value for {{classname}}: #{value.inspect} (allowed: #{VALUES.inspect})"
+      end
+    end
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+    # {{{.}}}
+{{/description}}
+{{^description}}
+    # Union type for {{classname}}.
+{{/description}}
+{{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+    # @see {{url}} {{description}}
+{{/externalDocumentation}}
+    module {{classname}}
+      class << self
+        {{#oneOf}}
+        {{#-first}}
+        # List of class defined in oneOf (OpenAPI v3)
+        #
+        # Rendered from +composedSchemas.oneOf+ rather than the +oneOf+ type
+        # name set: that set is hash-ordered and collapses every
+        # +format: byte+ variant to a bare +String+ / +Array<String>+, losing
+        # the base64 wire form. The +composedSchemas+ list preserves the
+        # declared variant order (so a scalar candidate is trialled before an
+        # array candidate and a base64 string is never mis-parsed element by
+        # element into a list) and exposes the per-variant +byte+ format, which
+        # we map to the +ByteArray+ / +Array<ByteArray>+ sentinels so
+        # ObjectSerializer.convert_to_type base64-decodes each byte variant
+        # exactly like the bare scalar +format: byte+ field path.
+        def openapi_one_of
+          %i[
+        {{#composedSchemas.oneOf}}
+        {{#isByteArray}}
+            ByteArray
+        {{/isByteArray}}
+        {{^isByteArray}}
+        {{#items.isByteArray}}
+            Array<ByteArray>
+        {{/items.isByteArray}}
+        {{^items.isByteArray}}
+            {{{dataType}}}
+        {{/items.isByteArray}}
+        {{/isByteArray}}
+        {{/composedSchemas.oneOf}}
+        {{^composedSchemas.oneOf}}
+        {{#oneOf}}
+            {{{.}}}
+        {{/oneOf}}
+        {{/composedSchemas.oneOf}}
+          ]
+        end
+
+        # Base64-encode each +format: byte+ variant before JSON serialization.
+        #
+        # The union resolves to a bare Ruby String (scalar) or Array of byte
+        # Strings (array variant); ObjectSerializer#sanitize_for_serialization
+        # cannot tell such a String apart from a plain text String, so the
+        # base64 encode that the bare scalar +format: byte+ field gets via
+        # OPENAPI_FORMATS would otherwise be skipped on this path. The API
+        # layer routes oneOf request bodies through here so a byte variant
+        # travels as the canonical base64 STRING (scalar) / array of base64
+        # strings (array) on both encode and decode.
+        #
+        # Unions with no +format: byte+ variant pass the value straight
+        # through to the normal serialization path, so this hook is a no-op for
+        # discriminated / model-ref unions whose resolved value is a model
+        # object rather than a bare byte String.
+        def serialize_oneof(value)
+          return value if value.nil?
+{{#composedSchemas.oneOf}}
+{{#isByteArray}}
+
+          # +format: byte+ scalar variant — base64-encode a bare byte String.
+          if value.is_a?(String)
+            return ::{{moduleName}}::ObjectSerializer.apply_format_on_serialize(value, 'byte')
+          end
+{{/isByteArray}}
+{{#items.isByteArray}}
+
+          # +format: byte+ array variant — base64-encode every byte String.
+          if value.is_a?(Array)
+            return value.map { |item| ::{{moduleName}}::ObjectSerializer.apply_format_on_serialize(item, 'byte') }
+          end
+{{/items.isByteArray}}
+{{/composedSchemas.oneOf}}
+
+          value
+        end
+        {{/-first}}
+        {{/oneOf}}
+        {{#discriminator}}
+        # Discriminator's property name (OpenAPI v3)
+        def openapi_discriminator_name
+          :{{propertyBaseName}}
+        end
+
+
+        {{#mappedModels}}
+        {{#-first}}
+        # Discriminator's mapping (OpenAPI v3)
+        def openapi_discriminator_mapping
+          {
+        {{/-first}}
+            '{{{mappingName}}}' => :{{{modelName}}}{{^-last}},{{/-last}}
+        {{#-last}}
+          }
+        end
+
+        {{/-last}}
+        {{/mappedModels}}
+        {{/discriminator}}
+        # Builds the object
+        # @param data [Object] data to be matched against the list of oneOf items
+        # @return [Object] Returns the model or the data itself
+        def build(data)
+        {{#discriminator}}
+          discriminator_value = data[openapi_discriminator_name]
+          # Raise on missing/unknown discriminator instead of silently
+          # falling through to the base type. Aligns with Swift / Dart /
+          # Go / Rust / Python which throw on union no-match (5 of 12
+          # SDKs already strict; we promote the other 7 here).
+          if discriminator_value.nil?
+            raise ::{{moduleName}}::SerializationError,
+                  "Missing discriminator '#{openapi_discriminator_name}' for {{classname}}"
+          end
+        {{#mappedModels}}
+        {{#-first}}
+
+          klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
+          unless klass_name
+            raise ::{{moduleName}}::SerializationError,
+                  "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+          end
+
+          ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+        {{/-first}}
+        {{/mappedModels}}
+        {{^mappedModels}}
+          ::{{moduleName}}::ObjectSerializer.convert_to_type(data, discriminator_value.to_s)
+        {{/mappedModels}}
+        {{/discriminator}}
+        {{^discriminator}}
+          openapi_one_of.each do |klass_name|
+            next if klass_name == :AnyType
+
+            result = ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+            return result unless result.nil?
+          rescue StandardError
+            next
+          end
+
+          return data if openapi_one_of.include?(:AnyType)
+
+          # Raise on union no-match (see comment above for cross-lang
+          # rationale). Avoids silent nil that masks data-shape bugs.
+          raise ArgumentError, 'JSON did not match any schema in the {{classname}} oneOf union'
+        {{/discriminator}}
+        end
+      end
+    end
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+    # {{{.}}}
+{{/description}}
+{{^description}}
+    # Union type for {{classname}}.
+{{/description}}
+{{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+    # @see {{url}} {{description}}
+{{/externalDocumentation}}
+    module {{classname}}
+      # Composite returned by {{classname}}.build when an anyOf payload
+      # satisfies MORE THAN ONE variant at once.
+      #
+      # A non-discriminated anyOf is documented as "match variant A, variant
+      # B, OR BOTH". The old build returned the FIRST non-throwing variant and
+      # silently dropped every other variant's fields, so a co-satisfying
+      # payload lost data on re-encode. This composite instead RETAINS every
+      # variant that decoded, exposes the union of their attributes (so a
+      # caller reads any matched variant's fields off the one returned value),
+      # and re-emits the union of all their fields on serialize — making the
+      # round-trip lossless. A payload that matches a single variant is
+      # returned as that bare variant instance (not wrapped), so existing
+      # single-variant callers are unaffected.
+      class Composite
+        # The matched variant instances, in declared anyOf order. Read by
+        # ::{{moduleName}}::ObjectSerializer#sanitize_for_serialization, which
+        # merges each instance's own (format-correct) serialized hash so the
+        # encoded JSON carries the union of every retained variant's fields.
+        attr_reader :anyof_matched_instances
+
+        # @param instances [Array<Object>] the successfully-decoded variant
+        #   instances to retain (at least two; a single match is never wrapped)
+        def initialize(instances)
+          @anyof_matched_instances = instances
+        end
+
+        # Read an attribute off whichever retained variant declares it.
+        #
+        # Each retained variant is a Dry::Struct exposing reader methods for
+        # its own attributes, so a co-satisfied payload's fields are all
+        # reachable off the single composite (e.g. both +drug_name+ from one
+        # variant and +procedure_name+ from another). The first retained
+        # variant that responds wins; nil is returned for an unknown name
+        # rather than raising, matching an omittable attribute reader.
+        def method_missing(name, *args, &block)
+          instance = @anyof_matched_instances.find { |inst| inst.respond_to?(name) }
+          return instance.public_send(name, *args, &block) if instance
+
+          super
+        end
+
+        # Mirror {method_missing}: report responding to any attribute that a
+        # retained variant declares, so +respond_to?+ stays truthful.
+        def respond_to_missing?(name, include_private = false)
+          @anyof_matched_instances.any? { |inst| inst.respond_to?(name, include_private) } || super
+        end
+      end
+
+      class << self
+        {{#anyOf}}
+        {{#-first}}
+        # List of class defined in anyOf (OpenAPI v3)
+        def openapi_any_of
+          %i[
+        {{/-first}}
+            {{{.}}}
+        {{#-last}}
+          ]
+        end
+
+        {{/-last}}
+        {{/anyOf}}
+        # Builds the object
+        # @param data [Object] data to be matched against the list of anyOf items
+        # @return [Object] Returns a single variant when exactly one matches, a
+        #   {Composite} retaining every variant when more than one matches, or
+        #   the raw data for an +AnyType+ union
+        def build(data)
+          # Retain-all lossless anyOf: collect EVERY variant that decodes,
+          # not just the first. A non-discriminated anyOf documents "A, B, OR
+          # BOTH"; returning only the first match silently dropped the other
+          # variants' fields and lost them on re-encode. We keep each match so
+          # a co-satisfied payload round-trips losslessly.
+          matched = [] #: Array[untyped]
+          openapi_any_of.each do |klass_name|
+            next if klass_name == :AnyType
+
+            result = ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+            matched << result unless result.nil?
+          rescue StandardError
+            next
+          end
+
+          # Exactly one variant matched — return it bare so single-variant
+          # callers see the same plain instance as before (no wrapper).
+          return matched.first if matched.length == 1
+
+          # More than one variant matched — wrap them in a Composite that
+          # exposes the union of their fields and re-emits all of them on
+          # encode, so the co-satisfied data is never silently dropped.
+          return Composite.new(matched) if matched.length > 1
+
+          return data if openapi_any_of.include?(:AnyType)
+
+          # Raise on union no-match instead of returning nil. See the
+          # oneOf branch for the cross-lang rationale (5 of 12 SDKs
+          # already throw; we promote the rest to the same strict
+          # behaviour).
+          raise ArgumentError, 'JSON did not match any schema in the {{classname}} anyOf union'
+        end
+      end
+    end
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+{{#hasVars}}
+    {{#description}}
+    # {{{.}}}
+    {{/description}}
+    {{^description}}
+    # Model class for {{classname}}.
+    {{/description}}
+    {{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+    {{/isDeprecated}}
+    {{#externalDocumentation}}
+    # @see {{url}} {{description}}
+    {{/externalDocumentation}}
+    class {{classname}} < {{#parent}}{{#lambda.stripGenerics}}{{{.}}}{{/lambda.stripGenerics}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+      # Attribute mapping from ruby-style variable name to JSON key.
+      ATTRIBUTE_MAP = {
+        {{#vars}}
+        {{name}}: '{{{baseName}}}'{{^-last}},{{/-last}}
+        {{/vars}}
+      }.freeze
+
+      # Inverse mapping from JSON key to ruby attribute name.
+      JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+
+      # Attribute type mapping.
+      OPENAPI_TYPES = {
+        {{#vars}}
+        {{{name}}}: '{{{dataType}}}'{{^-last}},{{/-last}}
+        {{/vars}}
+      }.freeze
+
+      # Per-attribute OpenAPI `format` for properties whose wire form
+      # differs from their Ruby surface (`byte` → base64-decoded binary
+      # String, `uuid` → RFC 4122 validated String). The `byte[]` /
+      # `uuid[]` variants apply the same transform to every item of an
+      # array-typed property. Consumed by ::{{moduleName}}::ObjectSerializer
+      # on the (de)serialize path.
+      # @type var openapi_formats: Hash[Symbol, String]
+      openapi_formats = {
+        {{#vars}}
+        {{#isByteArray}}
+        {{{name}}}: 'byte',
+        {{/isByteArray}}
+        {{#isUuid}}
+        {{{name}}}: 'uuid',
+        {{/isUuid}}
+        {{^isByteArray}}{{^isUuid}}{{#items}}{{#isByteArray}}
+        {{{name}}}: 'byte[]',
+        {{/isByteArray}}{{#isUuid}}
+        {{{name}}}: 'uuid[]',
+        {{/isUuid}}{{/items}}{{/isUuid}}{{/isByteArray}}
+        {{/vars}}
+      }
+      OPENAPI_FORMATS = openapi_formats.freeze
+
+      # Transform incoming hash keys from JSON format to Ruby attribute names.
+      transform_keys do |key|
+        JSON_KEY_MAP[key.to_s] || key.to_sym
+      end
+
+{{#isAdditionalPropertiesTrue}}
+      # Whether this model accepts additional properties not defined in the schema.
+      ADDITIONAL_PROPERTIES = true
+{{#additionalPropertiesType}}
+
+      # The type of additional property values.
+      ADDITIONAL_PROPERTIES_TYPE = '{{{additionalPropertiesType}}}'
+{{/additionalPropertiesType}}
+
+      # Undeclared JSON keys captured on deserialization and re-emitted
+      # verbatim on serialization, so a round-trip preserves additional
+      # properties (matching the 10 SDKs that round-trip them). Keyed by the
+      # original JSON key; values are typed via ADDITIONAL_PROPERTIES_TYPE
+      # when one is declared.
+      attribute :additional_properties, Types::Hash.optional.meta(omittable: true)
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+      # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+      # Marker constant read by ObjectSerializer#deserialize_model, which
+      # rejects any undeclared JSON key against the full raw payload before
+      # key-filtering. Enforcement lives in the deserialize path (not a
+      # model-level transform_keys) because deserialize_model passes a clean
+      # attribute-keyed hash to .new, so a model-level guard would never see
+      # the extras (it would silently drop them — the original bug).
+      UNEVALUATED_PROPERTIES_FALSE = true
+{{/isUnevaluatedPropertiesFalse}}
+      {{#vars}}
+      {{#description}}
+      # {{{.}}}
+      {{/description}}
+      {{#example}}
+      # @example {{{.}}}
+      {{/example}}
+      {{#vendorExtensions.pluralExamples}}
+      # {{summary}}
+      # {{description}}
+      # Example: {{value}}
+      {{/vendorExtensions.pluralExamples}}
+      {{#deprecated}}
+      # @deprecated This property is deprecated.
+      {{/deprecated}}
+      {{#isReadOnly}}
+      # @return [Object] Read-only property.
+      {{/isReadOnly}}
+      {{#isWriteOnly}}
+      # @return [Object] Write-only property.
+      {{/isWriteOnly}}
+      {{#required}}
+      {{#isEnum}}
+      attribute :{{name}}, Types::String.enum({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
+      {{^isEnum}}
+      attribute :{{name}}, Types::Required{{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
+      {{/required}}
+      {{^required}}
+      {{#isEnum}}
+      attribute :{{name}}, Types::String.enum({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}).optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
+      {{^isEnum}}
+      attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
+      {{/required}}
+      {{/vars}}
+    end
+{{/hasVars}}
+{{^hasVars}}
+    {{#description}}
+    # {{{.}}}
+    {{/description}}
+    {{^description}}
+    # Model class for {{classname}}.
+    {{/description}}
+    {{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+    {{/isDeprecated}}
+    {{#externalDocumentation}}
+    # @see {{url}} {{description}}
+    {{/externalDocumentation}}
+    class {{classname}} < {{#parent}}{{#lambda.stripGenerics}}{{{.}}}{{/lambda.stripGenerics}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+      ATTRIBUTE_MAP = {}.freeze
+      JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+      OPENAPI_TYPES = {}.freeze
+    end
+{{/hasVars}}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}
+  end
+end

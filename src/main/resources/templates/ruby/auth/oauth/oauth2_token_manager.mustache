@@ -1,0 +1,272 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'json'
+require 'uri'
+
+module {{moduleName}}
+  module Auth
+    module OAuth
+      # Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+      #
+      # Uses the shared {ApiClient} instance so that token exchange requests
+      # honour the same transport configuration (proxy, TLS, timeouts) as
+      # regular API calls.
+      class OAuth2TokenManager
+        # Safety margin (in seconds) applied to token expiry checks so that
+        # we refresh slightly before the token actually expires, avoiding a
+        # race against the server clock.
+        EXPIRY_SAFETY_MARGIN_S = 60
+
+        # The refresh token last issued by the authorization server.
+        #
+        # @return [String, nil] the current refresh token, if any
+        attr_reader :refresh_token
+
+        # Inject the shared API client used for making token requests.
+        #
+        # @param value [ApiClient] the shared API client instance
+        # @return [void]
+        attr_writer :api_client
+
+        # Create a new token manager.
+        #
+        # The {ApiClient} must be injected via {#api_client=} before any
+        # token requests are made.
+        def initialize
+          @mutex = Mutex.new
+          @api_client = nil
+          @access_token = nil
+          @refresh_token = nil
+          @token_expiry = nil
+        end
+
+        # Get a valid access token, fetching or refreshing as necessary.
+        #
+        # This method is synchronized to prevent concurrent token requests.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @return [String] a valid access token
+        # @raise [::{{moduleName}}::ApiError] if no API client has been injected or token fetch fails
+        def get_access_token(token_url, params, extra_headers = {})
+          @mutex.synchronize do
+            return @access_token if token_still_valid?
+            return @access_token if try_refresh_token(token_url, params, extra_headers)
+
+            fetch_token(token_url, params, extra_headers)
+            @access_token
+          end
+        end
+
+        # Manually set an access token, bypassing the token endpoint.
+        #
+        # @param token [String] the access token to use
+        # @return [void]
+        def access_token=(token)
+          @mutex.synchronize do
+            @access_token = token
+            @token_expiry = nil
+          end
+        end
+
+        # Invalidate the cached access token so that the next call to
+        # {#get_access_token} fetches a fresh token from the token endpoint.
+        # Intended for tests and recovery flows.
+        #
+        # @return [void]
+        def invalidate_access_token
+          @mutex.synchronize do
+            @access_token = nil
+            @token_expiry = nil
+          end
+        end
+
+        private
+
+        # @return [Boolean] true when the cached access token is still valid
+        def token_still_valid?
+          @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - EXPIRY_SAFETY_MARGIN_S))
+        end
+
+        # Try to refresh using the existing refresh token.
+        #
+        # @return [Boolean] true when refresh succeeded and @access_token is set
+        def try_refresh_token(token_url, params, extra_headers)
+          refresh = @refresh_token
+          return false if refresh.nil? || refresh.empty?
+
+          fetch_token(token_url, build_refresh_params(refresh, params), extra_headers)
+          !@access_token.nil?
+        rescue StandardError
+          false # refresh failed; caller will retry the original grant
+        end
+
+        def build_refresh_params(refresh, original_params)
+          refresh_params = { 'grant_type' => 'refresh_token', 'refresh_token' => refresh }
+          %w[client_id client_secret].each do |key|
+            refresh_params[key] = original_params[key] if original_params.key?(key)
+          end
+          refresh_params
+        end
+
+        # Fetch a token from the token endpoint using the injected API client.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @return [void]
+        # @raise [::{{moduleName}}::ApiError] if no API client has been injected or the request fails
+        def fetch_token(token_url, params, extra_headers = {})
+          client = require_api_client
+          headers = {
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Accept' => 'application/json'
+          }.merge(extra_headers)
+          # Bucket 3.2: refuse 3xx redirects on the token POST. The form
+          # body carries the client credentials (client_id /
+          # client_secret) plus, on the refresh path, the refresh_token.
+          # Silently replaying that body to a redirect target would leak
+          # credentials to an attacker-controlled host.
+          response = client.send_request(
+            :post, token_url, headers, URI.encode_www_form(params),
+            no_redirect: true
+          )
+          status = response.status_code
+          # RFC 6749 §3.2 forbids redirects at the token endpoint. With
+          # no_redirect: true the transport surfaces the 3xx verbatim rather
+          # than replaying the credential-bearing POST; refuse all 3xx
+          # explicitly so the caller fails closed instead of leaking the
+          # client credentials / refresh_token to the redirect target.
+          if (300..399).cover?(status)
+            raise OAuth2TokenError, "Refusing to follow #{status} redirect on " \
+              "OAuth2 token endpoint; token POSTs carry credentials and must not be replayed."
+          end
+          # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+          # `error` (required), `error_description`, `error_uri`. Parse them
+          # into a typed OAuth2ServerError so callers can recover via rescue.
+          # Fall back to the raw body when the response is not a valid error
+          # object.
+          raise parse_oauth2_server_error(status, response.body) unless (200..299).cover?(status)
+
+          apply_token_response(JSON.parse(response.body))
+        end
+
+        def parse_oauth2_server_error(status_code, body)
+          parsed = begin
+            JSON.parse(body)
+          rescue JSON::ParserError
+            nil
+          end
+          if parsed.is_a?(Hash) && parsed['error'].is_a?(String) && !parsed['error'].empty?
+            description = parsed['error_description'].is_a?(String) ? parsed['error_description'] : nil
+            uri = parsed['error_uri'].is_a?(String) ? parsed['error_uri'] : nil
+            OAuth2ServerError.new(status_code, parsed['error'], description, uri, body)
+          else
+            OAuth2ServerError.new(status_code, nil, nil, nil, body)
+          end
+        end
+
+        def require_api_client
+          @api_client || raise(
+            ::{{moduleName}}::ApiError,
+            'ApiClient has not been injected. ' \
+            'Ensure the {{clientClassName}} constructor calls api_client= ' \
+            'on HttpAwareAuthenticator before making API requests.'
+          )
+        end
+
+        def apply_token_response(parsed)
+          access_token = parsed['access_token']
+          unless access_token.is_a?(String) && !access_token.empty?
+            raise OAuth2TokenError, 'Token response missing or empty access_token field'
+          end
+
+          @access_token = access_token
+          new_refresh_token = parsed['refresh_token']
+          @refresh_token = new_refresh_token if new_refresh_token.is_a?(String) && !new_refresh_token.empty?
+          return unless parsed.key?('expires_in')
+
+          raw = parsed['expires_in']
+          return if raw.nil?
+
+          # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+          # providers (Salesforce, some Apigee deployments) send a quoted
+          # string and others send a JSON float. Accept ints, floor floats,
+          # parse digit strings; on anything unparseable or non-positive,
+          # mark the token as immediately stale so the next call refetches
+          # (preferable to caching a token of unknown lifetime forever).
+          expires_in = parse_expires_in(raw)
+
+          @token_expiry =
+            if expires_in.positive?
+              buffer_secs = [expires_in, 30].min
+              Time.now.to_f + expires_in - buffer_secs
+            else
+              Time.now.to_f
+            end
+        end
+
+        def parse_expires_in(raw)
+          case raw
+          when Integer
+            raw
+          when Float
+            return 0 if raw.nan? || raw.infinite?
+
+            raw.floor
+          when String
+            trimmed = raw.strip
+            return 0 if trimmed.empty?
+
+            begin
+              Float(trimmed).floor
+            rescue ArgumentError, TypeError
+              0
+            end
+          else
+            0
+          end
+        end
+      end
+
+      # Raised when the OAuth2 token endpoint returns a 2xx response whose
+      # body is missing or contains an empty +access_token+ field. Distinct
+      # from {OAuth2ServerError} (which represents RFC 6749 §5.2 error
+      # responses on 4xx/5xx) so callers can rescue them separately.
+      class OAuth2TokenError < ::{{moduleName}}::ApiError
+      end
+
+      # Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+      # +code+ attribute carries the OAuth2 error code (e.g. +invalid_grant+,
+      # +invalid_client+); +description+ and +uri+ are the optional
+      # human-readable description and a URL to a page describing the error.
+      # +raw_body+ preserves the original response payload for diagnostics
+      # when the body is not a well-formed OAuth2 error object.
+      class OAuth2ServerError < ::{{moduleName}}::ApiError
+        attr_reader :status_code, :code, :description, :uri, :raw_body
+
+        def initialize(status_code, code, description, uri, raw_body)
+          @status_code = status_code
+          @code = code
+          @description = description
+          @uri = uri
+          @raw_body = raw_body
+          super(build_message)
+        end
+
+        private
+
+        def build_message
+          if @code.nil?
+            "Token request failed with status #{@status_code}: #{@raw_body}"
+          elsif @description
+            "Token request failed with status #{@status_code}: #{@code} -- #{@description}"
+          else
+            "Token request failed with status #{@status_code}: #{@code}"
+          end
+        end
+      end
+    end
+  end
+end

@@ -1,0 +1,61 @@
+{{>api_info}}
+@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
+
+package {{invokerPackage}}
+
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class ApiResultTest {
+
+    @Test
+    @DisplayName("exposes statusCode, data, rawBody and headers")
+    fun exposesAllFields() {
+        val result = ApiResult(
+            statusCode = 200,
+            data = "payload",
+            rawBody = "{\"value\":\"payload\"}",
+            headers = mapOf("Content-Type" to "application/json")
+        )
+        assertEquals(200, result.statusCode)
+        assertEquals("payload", result.data)
+        assertEquals("{\"value\":\"payload\"}", result.rawBody)
+        assertEquals("application/json", result.headers["Content-Type"])
+    }
+
+    @Test
+    @DisplayName("allows null data for an empty-body response")
+    fun allowsNullData() {
+        val result = ApiResult<String>(
+            statusCode = 204,
+            data = null,
+            rawBody = "",
+            headers = emptyMap()
+        )
+        assertEquals(204, result.statusCode)
+        assertNull(result.data)
+        assertTrue(result.rawBody.isEmpty())
+        assertTrue(result.headers.isEmpty())
+    }
+
+    @Test
+    @DisplayName("value equality holds for identical results")
+    fun valueEquality() {
+        val a = ApiResult(200, "x", "raw", mapOf("h" to "v"))
+        val b = ApiResult(200, "x", "raw", mapOf("h" to "v"))
+        assertEquals(a, b)
+        assertEquals(a.hashCode(), b.hashCode())
+    }
+
+    @Test
+    @DisplayName("copy overrides a single field and leaves the rest intact")
+    fun copyOverridesSingleField() {
+        val original = ApiResult(200, "x", "raw", mapOf("h" to "v"))
+        val copied = original.copy(statusCode = 201)
+        assertEquals(201, copied.statusCode)
+        assertEquals("x", copied.data)
+        assertEquals("raw", copied.rawBody)
+        assertEquals(mapOf("h" to "v"), copied.headers)
+    }
+}

@@ -1,0 +1,181 @@
+defmodule PetstoreClient.HeaderSelectorTest do
+  use ExUnit.Case, async: true
+
+  describe "json_mime?/1" do
+    test "returns true for application/json" do
+      assert PetstoreClient.HeaderSelector.json_mime?("application/json") == true
+    end
+
+    test "returns true for application/json with charset" do
+      assert PetstoreClient.HeaderSelector.json_mime?("application/json; charset=UTF-8") == true
+    end
+
+    test "returns true for uppercase APPLICATION/JSON (case insensitive)" do
+      assert PetstoreClient.HeaderSelector.json_mime?("APPLICATION/JSON") == true
+    end
+
+    test "returns true for vendor JSON types" do
+      assert PetstoreClient.HeaderSelector.json_mime?("application/vnd.api+json") == true
+      assert PetstoreClient.HeaderSelector.json_mime?("application/vnd.company+json") == true
+      assert PetstoreClient.HeaderSelector.json_mime?("application/hal+json") == true
+    end
+
+    test "returns false for text/html" do
+      assert PetstoreClient.HeaderSelector.json_mime?("text/html") == false
+    end
+
+    test "returns false for application/xml" do
+      assert PetstoreClient.HeaderSelector.json_mime?("application/xml") == false
+    end
+
+    test "returns false for nil" do
+      assert PetstoreClient.HeaderSelector.json_mime?(nil) == false
+    end
+
+    test "returns false for empty string" do
+      assert PetstoreClient.HeaderSelector.json_mime?("") == false
+    end
+
+    test "returns false for text/plain" do
+      assert PetstoreClient.HeaderSelector.json_mime?("text/plain") == false
+    end
+
+    test "returns false for application/octet-stream" do
+      assert PetstoreClient.HeaderSelector.json_mime?("application/octet-stream") == false
+    end
+  end
+
+  describe "select_headers/3" do
+    test "sets Accept header when accepts provided" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "application/json"
+    end
+
+    test "does not set Accept header when accepts empty" do
+      headers = PetstoreClient.HeaderSelector.select_headers([], "application/json", false)
+      assert headers["Accept"] == nil
+      refute Map.has_key?(headers, "Accept")
+    end
+
+    test "does not set Accept header when accepts is nil" do
+      headers = PetstoreClient.HeaderSelector.select_headers(nil, "application/json", false)
+      refute Map.has_key?(headers, "Accept")
+    end
+
+    test "does not set Accept header when all entries are filtered out" do
+      headers = PetstoreClient.HeaderSelector.select_headers(["", nil], "application/json", false)
+      refute Map.has_key?(headers, "Accept")
+    end
+
+    test "sets Content-Type header when not multipart" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Content-Type"] == "application/json"
+    end
+
+    test "does not set Content-Type header when multipart" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          true
+        )
+
+      assert headers["Content-Type"] == nil
+    end
+
+    test "defaults Content-Type to application/json when empty" do
+      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], "", false)
+      assert headers["Content-Type"] == "application/json"
+    end
+
+    test "defaults Content-Type to application/json when nil" do
+      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], nil, false)
+      assert headers["Content-Type"] == "application/json"
+    end
+
+    test "returns single accept as-is" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "application/json"
+    end
+
+    test "returns single non-JSON accept as-is" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(["text/html"], "application/json", false)
+
+      assert headers["Accept"] == "text/html"
+    end
+
+    test "joins media types in declaration order with comma and space" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["image/jpeg", "image/png", "application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "image/jpeg, image/png, application/json"
+    end
+
+    test "does not reorder or weight JSON types" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["text/html", "application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "text/html, application/json"
+    end
+
+    test "joins media types when no JSON types present" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["text/html", "text/plain"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "text/html, text/plain"
+    end
+
+    test "filters out empty entries before joining" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["", "image/png", nil, "application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "image/png, application/json"
+    end
+
+    test "returns single entry without separator" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "application/json"
+    end
+  end
+end

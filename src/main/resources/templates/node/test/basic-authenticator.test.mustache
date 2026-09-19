@@ -1,0 +1,47 @@
+{{>api_info}}
+
+import * as util from 'node:util';
+import { BasicAuthenticator } from '../src/auth/basic-authenticator{{importFileExtension}}';
+
+describe('BasicAuthenticator', () => {
+  it('valid credentials produce basic header', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    const headers = auth.getAuthHeaders();
+    expect(headers['Authorization']).toBe('Basic YWxpY2U6czNjcmV0');
+  });
+
+  it('rejects username with crlf at construction', () => {
+    expect(
+      () => new BasicAuthenticator('https://api.example.com', 'alice\r\n', 's3cret')
+    ).toThrow();
+  });
+
+  it('rejects password with nul at construction', () => {
+    expect(
+      () => new BasicAuthenticator('https://api.example.com', 'alice', 's3c\0ret')
+    ).toThrow();
+  });
+
+  it('rejects username with colon at construction', () => {
+    expect(
+      () => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret')
+    ).toThrow();
+  });
+
+  it('password is not leaked in default string representation', () => {
+    // authenticator-secret-in-default-string-repr: the default inspect/JSON
+    // representation must never expose the stored password.
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(util.inspect(auth)).not.toContain('s3cret');
+    expect(JSON.stringify(auth)).not.toContain('s3cret');
+    expect(util.inspect(auth)).toContain('***');
+  });
+
+  it("redacts the secret in inspect and JSON output", () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(util.inspect(auth)).not.toContain('s3cret');
+    expect(JSON.stringify(auth)).not.toContain('s3cret');
+    expect(util.inspect(auth)).toContain('***');
+    expect(JSON.stringify(auth)).toContain('***');
+  });
+});

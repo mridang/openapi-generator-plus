@@ -1,0 +1,204 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+# Integration tests for the Store API endpoints.
+
+require 'test_helper'
+require 'socket'
+
+describe PetstoreClient::Api::StoreApi do
+  parallelize_me!
+
+  before do
+    @api = PetstoreClient::Api::StoreApi.new
+  end
+
+  describe '#get_inventory' do
+    it 'returns inventory' do
+      result = @api.get_inventory
+
+      _(result).must_be_kind_of(Hash)
+    end
+  end
+
+  describe '#place_order' do
+    it 'places an order' do
+      order = PetstoreClient::Models::Order.new(
+        id: 1,
+        pet_id: 12_345,
+        quantity: 1,
+        ship_date: Time.now.utc.iso8601,
+        status: 'placed',
+        complete: false
+      )
+
+      result = @api.place_order(order)
+
+      _(result).wont_be_nil
+      _(result.id).wont_be_nil
+    end
+  end
+
+  describe '#get_inventory_with_http_info' do
+    it 'returns inventory with status and data' do
+      result = @api.get_inventory_with_http_info
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
+  describe '#place_order_with_http_info' do
+    it 'places an order with status and data' do
+      order = PetstoreClient::Models::Order.new(
+        id: 1,
+        pet_id: 12_345,
+        quantity: 1,
+        ship_date: Time.now.utc.iso8601,
+        status: 'placed',
+        complete: false
+      )
+
+      result = @api.place_order_with_http_info(order)
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
+  describe '#get_order_by_id' do
+    it 'returns an order by id' do
+      result = @api.get_order_by_id(1)
+
+      _(result).wont_be_nil
+      _(result.id).wont_be_nil
+    end
+  end
+
+  describe '#get_order_by_id_with_http_info' do
+    it 'returns an order by id with status and data' do
+      result = @api.get_order_by_id_with_http_info(1)
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
+  describe '#delete_order' do
+    it 'deletes an order' do
+      @api.delete_order(1)
+    end
+  end
+
+  describe '#get_grouped_categories' do
+    def new_store_api_for_mock(status, content_type, body)
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = server.accept rescue break
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = PetstoreClient::Api::StoreApi.new(nil, config)
+      [api, server, thread]
+    end
+
+    # Nested generic container: Array<Hash<String, Category>>. Every leaf must
+    # deserialize into a typed Category instance, not be left as a raw Hash.
+    it 'decodes nested container leaves into typed Category instances' do
+      body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]'
+      api, server, thread = new_store_api_for_mock(200, 'application/json', body)
+      begin
+        result = api.get_grouped_categories
+
+        _(result).must_be_kind_of(Array)
+        _(result[0]['a']).must_be_kind_of(PetstoreClient::Models::Category)
+        _(result[0]['a'].id).must_equal(1)
+        _(result[0]['a'].name).must_equal('Dogs')
+        _(result[1]['b']).must_be_kind_of(PetstoreClient::Models::Category)
+        _(result[1]['b'].id).must_equal(2)
+        _(result[1]['b'].name).must_equal('Cats')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'error handling' do
+    def new_store_api_for_mock(status, content_type, body)
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = server.accept rescue break
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = PetstoreClient::Api::StoreApi.new(nil, config)
+      [api, server, thread]
+    end
+
+    it 'raises error on get_order_by_id 404' do
+      api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
+      begin
+        _(-> { api.get_order_by_id(99_999) }).must_raise StandardError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'raises error on place_order 500' do
+      api, server, thread = new_store_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
+      begin
+        order = PetstoreClient::Models::Order.new(
+          id: 1,
+          pet_id: 12_345,
+          quantity: 1,
+          status: 'placed',
+          complete: false
+        )
+        _(-> { api.place_order(order) }).must_raise StandardError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'raises error on delete_order 404' do
+      api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
+      begin
+        _(-> { api.delete_order(99_999) }).must_raise StandardError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+end

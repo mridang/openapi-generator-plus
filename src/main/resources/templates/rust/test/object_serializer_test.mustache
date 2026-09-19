@@ -1,0 +1,217 @@
+{{>api_info}}
+
+// The `object_serializer` module is crate-private (an internal (de)serialization
+// detail, not part of the public API). Its unit tests have been moved into an
+// in-crate `#[cfg(test)] mod tests` block inside `src/object_serializer.rs`,
+// where they retain access to the private module. The `resolve_one_of` /
+// `resolve_any_of` helpers were dead code (no generated caller — Rust models use
+// `#[serde(untagged)]` enums) and were removed along with their tests.
+//
+// The tests below exercise only the *public* `proto_duration` module and the
+// `chrono`/`serde_json` wire formats the codegen relies on, so they remain in
+// this external integration-test crate.
+
+// Gap 4.8: protobuf-JSON duration helper. These tests cover the
+// hand-rolled `format`/`parse` round-trip and the serde shim used by
+// generated models with `format: duration`. The wire shape is
+// google.protobuf.Duration ("<seconds>s", e.g. "3600s"), not ISO-8601.
+// Time-of-day (`format: time`) is covered by chrono's own `NaiveTime`
+// serde impl and exercised here as a smoke test to lock the wire format
+// the codegen relies on.
+#[test]
+fn test_proto_duration_format_basic() {
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+
+    assert_eq!(proto_duration::format(&Duration::zero()), "0s");
+    assert_eq!(proto_duration::format(&Duration::seconds(45)), "45s");
+    assert_eq!(
+        proto_duration::format(&(Duration::hours(1) + Duration::minutes(30))),
+        "5400s"
+    );
+    assert_eq!(
+        proto_duration::format(&Duration::milliseconds(1500)),
+        "1.500s"
+    );
+    assert_eq!(
+        proto_duration::format(&(Duration::seconds(3600) + Duration::nanoseconds(1))),
+        "3600.000000001s"
+    );
+    assert_eq!(proto_duration::format(&-Duration::minutes(5)), "-300s");
+}
+
+#[test]
+fn test_proto_duration_parse_basic() {
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+
+    assert_eq!(proto_duration::parse("0s").unwrap(), Duration::zero());
+    assert_eq!(
+        proto_duration::parse("5400s").unwrap(),
+        Duration::hours(1) + Duration::minutes(30)
+    );
+    assert_eq!(
+        proto_duration::parse("1.5s").unwrap(),
+        Duration::milliseconds(1500)
+    );
+    assert_eq!(
+        proto_duration::parse("3600.000000001s").unwrap(),
+        Duration::seconds(3600) + Duration::nanoseconds(1)
+    );
+    assert_eq!(
+        proto_duration::parse("-300s").unwrap(),
+        -Duration::minutes(5)
+    );
+}
+
+#[test]
+fn test_proto_duration_round_trip() {
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+
+    for d in [
+        Duration::zero(),
+        Duration::seconds(1),
+        Duration::milliseconds(1500),
+        Duration::hours(1) + Duration::minutes(30) + Duration::seconds(15),
+        Duration::days(2) + Duration::hours(3),
+        Duration::seconds(3600) + Duration::nanoseconds(1),
+        -(Duration::hours(1) + Duration::minutes(30)),
+    ] {
+        let s = proto_duration::format(&d);
+        let parsed = proto_duration::parse(&s)
+            .unwrap_or_else(|e| panic!("parse({:?}) failed: {}", s, e));
+        assert_eq!(parsed, d, "round trip mismatch for {:?} -> {:?}", d, s);
+    }
+}
+
+#[test]
+fn test_proto_duration_rejects_malformed() {
+    use {{packageName}}::proto_duration;
+
+    assert!(proto_duration::parse("PT1H").is_err());
+    assert!(proto_duration::parse("3600").is_err());
+    assert!(proto_duration::parse("").is_err());
+    assert!(proto_duration::parse("s").is_err());
+    assert!(proto_duration::parse("1.2345678901s").is_err());
+}
+
+#[test]
+fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
+    // Regression: a sub-0.0001s magnitude must render as a plain decimal
+    // fraction (fixed-point, padded to a 3/6/9-digit grouping), NEVER in
+    // scientific notation ("5e-5s"). 50 microseconds is 50_000 nanoseconds,
+    // which trims to the six-digit grouping "0.000050s".
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+
+    let tiny = Duration::microseconds(50);
+    let formatted = proto_duration::format(&tiny);
+    assert_eq!(
+        formatted, "0.000050s",
+        "sub-0.0001s magnitude must be fixed-point, got: {}",
+        formatted
+    );
+    assert!(
+        !formatted.contains('e') && !formatted.contains('E'),
+        "duration must never use scientific notation, got: {}",
+        formatted
+    );
+    // And it must round-trip back to the same magnitude.
+    assert_eq!(proto_duration::parse(&formatted).unwrap(), tiny);
+
+    // A single nanosecond keeps the full nine-digit grouping.
+    let one_nano = Duration::nanoseconds(1);
+    let nano_fmt = proto_duration::format(&one_nano);
+    assert_eq!(nano_fmt, "0.000000001s", "single-nanosecond magnitude");
+    assert!(!nano_fmt.contains('e') && !nano_fmt.contains('E'));
+}
+
+#[test]
+fn test_proto_duration_serde_round_trip() {
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct Wrap {
+        #[serde(with = "proto_duration")]
+        d: Duration,
+        #[serde(with = "proto_duration::option")]
+        e: Option<Duration>,
+    }
+
+    let value = Wrap {
+        d: Duration::hours(1) + Duration::minutes(30),
+        e: Some(Duration::seconds(45)),
+    };
+    let json = serde_json::to_string(&value).expect("serialize");
+    assert!(json.contains("\"d\":\"5400s\""), "got: {}", json);
+    assert!(json.contains("\"e\":\"45s\""), "got: {}", json);
+
+    let back: Wrap = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back, value);
+
+    let none = Wrap {
+        d: Duration::zero(),
+        e: None,
+    };
+    let json2 = serde_json::to_string(&none).expect("serialize none");
+    assert!(json2.contains("\"e\":null"), "got: {}", json2);
+}
+
+#[test]
+fn test_decimal_type_number_serializes_as_unquoted_number() {
+    // Wave B parity: a `type: number` property with NO `format` (a bare JSON
+    // number, e.g. Pet.weightKg) must serialize as an UNQUOTED JSON number
+    // (1.5), never as a quoted string ("1.5"). Some SDKs model such fields as
+    // an arbitrary-precision Decimal and then emit them as JSON strings, which
+    // violates the spec's `type: number`. Rust maps this to a plain `f64`, so
+    // serde_json emits a bare number; this test locks that wire format and
+    // proves the field survives a serialize -> deserialize round trip as a
+    // number rather than a string.
+    use {{packageName}}::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(1.5);
+
+    let json = serde_json::to_string(&pet).expect("serialize Pet");
+    assert!(
+        json.contains("\"weightKg\":1.5"),
+        "weightKg must be an unquoted JSON number, got: {}",
+        json
+    );
+    assert!(
+        !json.contains("\"weightKg\":\"1.5\""),
+        "weightKg must NOT be a quoted string, got: {}",
+        json
+    );
+
+    // Round-trips back to the same numeric value (not a string).
+    let back: Pet = serde_json::from_str(&json).expect("deserialize Pet");
+    assert_eq!(back.weight_kg, Some(1.5));
+}
+
+#[test]
+fn test_naive_time_serde_round_trip() {
+    use chrono::NaiveTime;
+    use serde::{Deserialize, Serialize};
+
+    // Locks the wire format chrono produces for the type mapping that
+    // BetterRustCodegen installs for `format: time` (NaiveTime). If
+    // chrono's default representation ever drifts the codegen would
+    // silently produce non-RFC-3339-partial-time output.
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct Wrap {
+        t: NaiveTime,
+    }
+
+    let value = Wrap {
+        t: NaiveTime::from_hms_opt(12, 34, 56).expect("valid time"),
+    };
+    let json = serde_json::to_string(&value).expect("serialize");
+    assert!(json.contains("\"t\":\"12:34:56\""), "got: {}", json);
+
+    let back: Wrap = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back, value);
+}

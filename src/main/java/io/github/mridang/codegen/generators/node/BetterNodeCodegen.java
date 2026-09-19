@@ -1,86 +1,1233 @@
 package io.github.mridang.codegen.generators.node;
 
-import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.servers.Server;
-import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.languages.TypeScriptFetchClientCodegen;
-
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.github.mridang.codegen.generators.BarrelFileEmitter;
+import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.media.Schema;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A custom TypeScript code generator that provides sane defaults for generating
- * a minimal, modern TypeScript client using the Fetch API.
- * <p>
- * This generator is configured to:
- * <ul>
- * <li>Target the 'fetch' platform with ES6 support.</li>
- * <li>Preserve original model property naming.</li>
- * <li>Allow additional properties in models for forward compatibility.</li>
- * <li>Generate a single parameter object for API methods.</li>
- * <li>Use a '.js' extension for imports to support modern ESM workflows.</li>
- * <li>Generate only model and API files, excluding tests, docs, and
- * other supporting project files.</li>
- * </ul>
+ * Generates a TypeScript API client that uses the Fetch API for
+ * HTTP transport. All identifiers follow camelCase conventions
+ * for variables and parameters, PascalCase for model names, and
+ * kebab-case for filenames. Output is formatted with Prettier
+ * inside Docker to ensure consistent style across all generated
+ * source files.
  */
 @SuppressWarnings("unused")
-public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements UnsupportedFeaturesValidator {
+public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
 
     /**
-     * Initializes a new instance of the {@code BetterNodeCodegen} class,
-     * setting up the hardcoded default configurations for a minimal client.
+     * Initializes all TypeScript-specific type mappings, language
+     * primitives, template paths, and reserved words. Maps OpenAPI
+     * types to their TypeScript equivalents (e.g. integer to
+     * number, DateTime to string) and configures the model
+     * property naming to preserve original casing.
      */
     public BetterNodeCodegen() {
-        super();
+        outputFolder = "generated-code/typescript";
+        embeddedTemplateDir = templateDir = "templates/node";
 
-        this.setSupportsES6(true);
-        this.setEnsureUniqueParams(true);
-        this.setDisallowAdditionalPropertiesIfNotPresent(false);
-        this.setEnumUnknownDefaultCase(true);
-        this.setImportFileExtension(".js");
+        modelTemplateFiles.put("models/model.mustache", ".ts");
+        apiTemplateFiles.put("api/apis.mustache", ".ts");
+
+        typeMapping.put("integer", "number");
+        typeMapping.put("long", "number");
+        typeMapping.put("float", "number");
+        typeMapping.put("double", "number");
+        // `number` (no format) and `decimal` map to a branded `Decimal`
+        // string at the property level (set in postProcessModelProperty).
+        // We intentionally leave the typeMapping for `number` as `number`
+        // here because the double-lookup in getSchemaType would otherwise
+        // turn `long`/`integer` (which map to `number`) into `Decimal`.
+        typeMapping.put("number", "number");
+        typeMapping.put("short", "number");
+        typeMapping.put("boolean", "boolean");
+        typeMapping.put("string", "string");
+        typeMapping.put("decimal", "Decimal");
+        typeMapping.put("Decimal", "Decimal");
+        // Map OpenAPI date-time formats to the JS Date type so
+        // class-transformer's @Type(() => Date) decorator can
+        // hydrate ISO-8601 strings into actual Date instances
+        // round-trip (the previous `string` mapping forced callers
+        // to parse manually and produced wire/runtime drift).
+        typeMapping.put("date", "Date");
+        typeMapping.put("DateTime", "Date");
+        typeMapping.put("binary", "Buffer");
+        typeMapping.put("File", "Buffer");
+        typeMapping.put("file", "Buffer");
+        // 2.1: `format: byte` (ByteArray) is base64-encoded binary on the
+        // wire. Exposing it as `string` shifts the encode/decode burden to
+        // the caller and discards type information. Map to `Buffer`; the
+        // ObjectSerializer round-trips Buffer <-> base64 string at the
+        // serde boundary so the model field stays typed as binary.
+        typeMapping.put("ByteArray", "Buffer");
+        // 2.2: `format: uuid` is a constrained string. Using a branded
+        // alias gives compile-time differentiation from a free-form
+        // string without runtime overhead; the model constructor
+        // validates the canonical 8-4-4-4-12 hex shape.
+        typeMapping.put("UUID", "UUID");
+        // 2.3 — `format: uri` (absolute URI per RFC 3986). Use a branded
+        // alias for compile-time discrimination from a free-form string,
+        // mirroring UUID. The `uri-reference` and `uri-template` subformats
+        // are demoted back to plain `string` in `postProcessModelProperty`
+        // because neither is guaranteed absolute.
+        typeMapping.put("URI", "URI");
+        // 2.4 — `format: email` produces a branded `Email = string & {...}`
+        // so a callsite can declare intent and prevent free-form strings.
+        typeMapping.put("Email", "Email");
+        // 4.8: `format: time` (RFC 3339 partial-time) and `format: duration`
+        // (ISO 8601 duration). Node has no native time-of-day or duration
+        // type, so we adopt `temporal-polyfill` which ships the TC39 Temporal
+        // proposal. PlainTime/Duration round-trip via their `.from(string)`
+        // factory and `.toString()` — wired up at the ObjectSerializer
+        // boundary and via @Transform decorators on the model fields.
+        typeMapping.put("time", "Temporal.PlainTime");
+        typeMapping.put("duration", "Temporal.Duration");
+        typeMapping.put("object", "object");
+        typeMapping.put("AnyType", "unknown");
+        typeMapping.put("array", "Array");
+        typeMapping.put("set", "Set");
+        typeMapping.put("map", "{ [key: string]: unknown }");
+        typeMapping.put("Map", "{ [key: string]: unknown }");
+
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "number", "boolean", "string", "object", "any", "unknown",
+                                "void", "undefined", "null", "Array", "Set", "Buffer", "UUID",
+                                "URI", "Email", "Decimal",
+                                // 4.8 — Temporal.* types come from `temporal-polyfill`,
+                                // not from generated models, so the model-import filter
+                                // must not treat them as model classes.
+                                "Temporal.PlainTime", "Temporal.Duration"));
+
+        reservedWords = loadReservedWords("/reserved-words/node.txt");
+
         additionalProperties.put(CodegenConstants.MODEL_PROPERTY_NAMING, "original");
-        additionalProperties.put(WITH_INTERFACES, false);
-        additionalProperties.put(USE_SINGLE_REQUEST_PARAMETER, false);
-        additionalProperties.put(FILE_NAMING, "kebab-case");
-        additionalProperties.put(USE_SQUARE_BRACKETS_IN_ARRAY_NAMES, true);
+        additionalProperties.put("importFileExtension", ".js");
 
-        setTemplateDir("templates/node");
+        setEnumUnknownDefaultCase(true);
 
-        apiDocTemplateFiles.clear();
-        modelDocTemplateFiles.clear();
-        apiTestTemplateFiles.clear();
-        modelTestTemplateFiles.clear();
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated npm package (default: 1.0.0).").defaultValue("1.0.0"));
     }
 
-    @Override
-    public String getLibrary() {
-        return "typescript-fetch";
-    }
-
-    /**
-     * Gets the unique name of this generator. This name is used to select the
-     * generator from the command line or other tools.
-     *
-     * @return The unique generator name, "node-plus".
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "node-plus";
     }
 
+    /** Returns a short description shown in the help output. */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal TypeScript client using the Fetch API.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.TYPESCRIPT;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSpecDir() {
+        return "spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.IDENTITY;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "node:24-slim@sha256:242549cd46785b480c832479a730f4f2a20865d61ea2e404fdb2a5c3d3b73ecf";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            "npm install --ignore-scripts", "npx prettier --write .", "rm -rf node_modules"
+        };
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getFilenameCasing() {
+        return NamingConvention.KEBAB_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getParamCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
     /**
-     * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
+     * Derives the per-API-group accessor property name on the client
+     * facade. Node uses {@link NamingConvention#IDENTITY} for general
+     * variables to preserve spec-defined property names, but instance
+     * properties on the client must follow the TypeScript camelCase
+     * convention (e.g. {@code PetApi} → {@code pet}), so this overrides
+     * the default {@link #getVarCasing()}-based derivation.
      */
     @Override
-    public void processOpts() {
-        super.processOpts();
-        this.supportingFiles.clear();
+    protected String deriveClientPropertyName(String apiClassName) {
+        final String name = apiClassName.replaceAll("Api$", "");
+        return name.isEmpty()
+                ? NamingConvention.CAMEL_CASE.apply("api")
+                : NamingConvention.CAMEL_CASE.apply(name);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "Set<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^Array<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getEmptyEnumVarName() {
+        return "Empty";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "src";
+    }
+
+    /**
+     * Resolves user-supplied codegen options and registers all
+     * supporting files for the TypeScript package structure.
+     * Sets up the output layout including models, API classes,
+     * exceptions, auth, serialization, and configuration modules.
+     * Also registers test scaffolding files when test generation
+     * is enabled.
+     */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("api_client.mustache", "src", "api-client.ts"),
+            new SupportingFileSpec("abstract_api_client.mustache", "src", "abstract-api-client.ts"),
+            new SupportingFileSpec("default_api_client.mustache", "src", "default-api-client.ts"),
+            new SupportingFileSpec("web_api_client.mustache", "src", "default-api-client.web.ts"),
+            new SupportingFileSpec("api_response.mustache", "src", "api-response.ts"),
+            new SupportingFileSpec("api_result.mustache", "src", "api-result.ts"),
+            new SupportingFileSpec("configuration.mustache", "src", "configuration.ts"),
+            new SupportingFileSpec("transport_options.mustache", "src", "transport-options.ts"),
+            new SupportingFileSpec("server_configuration.mustache", "src", "server-configuration.ts"),
+            new SupportingFileSpec("servers.mustache", "src", "servers.ts"),
+            new SupportingFileSpec("api_error.mustache", "src", "api-error.ts"),
+            new SupportingFileSpec("base_api.mustache", "src/api", "base-api.ts"),
+            new SupportingFileSpec("errors/index.mustache", "src/errors", "index.ts"),
+            new SupportingFileSpec("errors/zitadel-error.mustache", "src/errors", "zitadel-error.ts"),
+            new SupportingFileSpec("errors/client-error.mustache", "src/errors", "client-error.ts"),
+            new SupportingFileSpec("errors/server-error.mustache", "src/errors", "server-error.ts"),
+            new SupportingFileSpec("errors/bad-request-error.mustache", "src/errors", "bad-request-error.ts"),
+            new SupportingFileSpec("errors/unauthorized-error.mustache", "src/errors", "unauthorized-error.ts"),
+            new SupportingFileSpec("errors/forbidden-error.mustache", "src/errors", "forbidden-error.ts"),
+            new SupportingFileSpec("errors/not-found-error.mustache", "src/errors", "not-found-error.ts"),
+            new SupportingFileSpec("errors/conflict-error.mustache", "src/errors", "conflict-error.ts"),
+            new SupportingFileSpec("errors/unprocessable-entity-error.mustache", "src/errors", "unprocessable-entity-error.ts"),
+            new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),
+            new SupportingFileSpec("brand.mustache", "src", "brand.ts"),
+            new SupportingFileSpec("deep_input.mustache", "src", "deep-input.ts"),
+            new SupportingFileSpec("object_serializer.mustache", "src", "object-serializer.ts"),
+            new SupportingFileSpec("value_serializer.mustache", "src", "value-serializer.ts"),
+            new SupportingFileSpec("header_selector.mustache", "src", "header-selector.ts"),
+            new SupportingFileSpec("trace_context_util.mustache", "src", "trace-context-util.ts"),
+            new SupportingFileSpec("tsconfig.mustache", "", "tsconfig.json"),
+            new SupportingFileSpec("typedoc.mustache", "", "typedoc.json"),
+            new SupportingFileSpec("models/index.mustache", "src/models", "index.ts"),
+            new SupportingFileSpec("api/index.mustache", "src/api", "index.ts"),
+            new SupportingFileSpec("index.mustache", "src", "index.ts"),
+            new SupportingFileSpec("package.mustache", "", "package.json"),
+            new SupportingFileSpec("prettierrc.mustache", "", ".prettierrc.json"),
+            new SupportingFileSpec("prettierignore.mustache", "", ".prettierignore"),
+            new SupportingFileSpec("eslint_config.mustache", "", "eslint.config.js"),
+            new SupportingFileSpec("authenticator.mustache", "src/auth", "authenticator.ts"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
     }
 
     @Override
-    public ExtendedCodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
+    public void processOpts() {
+        super.processOpts();
+        final String packageVersion = getPropertyOrDefault("packageVersion", "1.0.0");
+        additionalProperties.put("packageVersion", packageVersion);
+        final String npmName = getPropertyOrDefault("npmName", "openapi-typescript-client");
+        additionalProperties.put(
+                "userAgentDefault", npmName + "/" + packageVersion + " (node)");
+
+        // Only set apiPackage default when the caller did not override it.
+        if (this.apiPackage == null || this.apiPackage.isEmpty() || "openapitools".equals(this.apiPackage)) {
+            this.apiPackage = "api";
+        }
+
+        final String clientClassName =
+                Objects.requireNonNull(
+                        (String) additionalProperties.get("clientClassName"));
+        final String clientClassFile = getFilenameCasing().apply(clientClassName);
+        additionalProperties.put("clientClassFile", clientClassFile);
+        supportingFiles.add(
+                new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
+
+        if (emitUnitTests()) {
+            // Spec-independent pure-unit tests. These import only supporting
+            // modules (ValueSerializer, HeaderSelector, Configuration,
+            // TransportOptions, trace-context util, DefaultApiClient) and no
+            // spec-derived models, Api classes, or scheme-gated authenticators,
+            // so they are safe to emit into any real client. They run under the
+            // client's own jest config and need no container harness — the
+            // generator's jest.config / global-setup / global-teardown / setup
+            // (which spin up the chasm/squid containers) stay golden-only.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value-serializer.test.mustache",
+                            "test",
+                            "value-serializer.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header-selector.test.mustache",
+                            "test",
+                            "header-selector.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration.test.mustache",
+                            "test",
+                            "configuration.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport-options.test.mustache",
+                            "test",
+                            "transport-options.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace-context-util.test.mustache",
+                            "test",
+                            "trace-context-util.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default-api-client-unit.test.mustache",
+                            "test",
+                            "default-api-client-unit.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/web-api-client.test.mustache",
+                            "test",
+                            "web-api-client.test.ts"));
+            // U1: ServerConfiguration / ServerVariable are spec-independent
+            // supporting modules emitted into every client, so their tests ship
+            // alongside the other pure-unit tests above.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server-configuration.test.mustache",
+                            "test",
+                            "server-configuration.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server-variable.test.mustache",
+                            "test",
+                            "server-variable.test.ts"));
+            // U2: ApiResult is a spec-independent supporting type emitted into
+            // every client.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api-result.test.mustache",
+                            "test",
+                            "api-result.test.ts"));
+        }
+
+        // Spec-coupled tests: they import spec-derived models/APIs, the
+        // container transport harness, or scheme-gated authenticators that
+        // exist only in the petstore golden, so they are emitted only for the
+        // generator's own golden validation, never shipped into real clients.
+        if (generateTests) {
+            // Jest harness + chasm/squid container bootstrap — only the golden's
+            // container transport tests use these; real clients ship their own
+            // keep-listed jest config, so keep them golden-only.
+            supportingFiles.add(new SupportingFile("test/jest.config.mjs", "", "jest.config.mjs"));
+            supportingFiles.add(
+                    new SupportingFile("test/global-setup.ts", "test", "global-setup.ts"));
+            supportingFiles.add(
+                    new SupportingFile("test/global-teardown.ts", "test", "global-teardown.ts"));
+            supportingFiles.add(new SupportingFile("test/setup.ts", "test", "setup.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/pet-api.test.mustache",
+                            Path.of("test", "api").toString(),
+                            "pet-api.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/store-api.test.mustache",
+                            Path.of("test", "api").toString(),
+                            "store-api.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default-api-client.test.mustache",
+                            "test",
+                            "default-api-client.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object-serializer.test.mustache",
+                            "test",
+                            "object-serializer.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base-api.test.mustache",
+                            "test",
+                            "base-api.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/metadata.test.mustache",
+                            "test",
+                            "metadata.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/composed-schema.test.mustache",
+                            "test",
+                            "composed-schema.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client.test.mustache",
+                            "test",
+                            "client.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api-error.test.mustache",
+                            "test",
+                            "api-error.test.ts"));
+            // D1: standalone authenticator tests for the bearer/api-key schemes
+            // present in the petstore golden. Like client.test above, they import
+            // scheme-gated authenticators that exist only in the golden, so they
+            // are emitted under generateTests, next to the basic-authenticator
+            // golden coverage rather than into every real client.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer-authenticator.test.mustache",
+                            "test",
+                            "bearer-authenticator.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api-key-authenticator.test.mustache",
+                            "test",
+                            "api-key-authenticator.test.ts"));
+        }
     }
+
+    /**
+     * Returns the output directory for model source files by
+     * combining the output folder with the src/models path.
+     */
+    @Override
+    public String modelFileFolder() {
+        return Path.of(outputFolder, "src", "models").toString();
+    }
+
+    /**
+     * Returns the output directory for API source files by
+     * combining the output folder with the src/api path.
+     */
+    @Override
+    public String apiFileFolder() {
+        return Path.of(outputFolder, "src", "api").toString();
+    }
+
+    /**
+     * Overrides the base class because TypeScript uses
+     * index-signature syntax ({@code \{ [key: string]: T \}})
+     * for maps. Cannot use the base class's {@code formatMapType}
+     * hook because Node's typeMapping stores the full syntax,
+     * not a simple container name.
+     */
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String getTypeDeclaration(Schema p) {
+        if (ModelUtils.isArraySchema(p)) {
+            final Schema inner = ModelUtils.getSchemaItems(p);
+            return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
+        } else if (ModelUtils.isMapSchema(p)) {
+            final String valueType =
+                    Optional.ofNullable(ModelUtils.getAdditionalProperties(p))
+                            .map(this::getTypeDeclaration)
+                            .orElse("unknown");
+            return "{ [key: string]: " + valueType + " }";
+        }
+        return super.getTypeDeclaration(p);
+    }
+
+    /*
+     * Returns null for all schema types because TypeScript
+     * variables do not need explicit default value expressions
+     * in the generated model constructors.
+     */
+    /**
+     * Returns a quoted string literal for string enum schemas that
+     * have a declared OAS {@code default} (e.g. {@code 'placed'}).
+     * The quote character is the Node/TypeScript single-quote so
+     * the value is used as-is in the model template without further
+     * transformation. All other types return null.
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (resolved.getDefault() == null) {
+            return null;
+        }
+        // String enum: emit the wire value; fixEnumDefaultValue rewrites it to
+        // the typed member (e.g. DefaultsModeEnum.Medium) afterwards.
+        if (ModelUtils.isStringSchema(resolved)
+                && resolved.getEnum() != null
+                && !resolved.getEnum().isEmpty()) {
+            return getQuoteChar() + resolved.getDefault().toString() + getQuoteChar();
+        }
+        // Plain (non-enum) string default → a TypeScript string literal.
+        if (ModelUtils.isStringSchema(resolved)) {
+            return getQuoteChar() + escapeText(resolved.getDefault().toString()) + getQuoteChar();
+        }
+        // Numeric/boolean defaults render verbatim as TypeScript literals.
+        if (ModelUtils.isBooleanSchema(resolved)
+                || ModelUtils.isIntegerSchema(resolved)
+                || ModelUtils.isNumberSchema(resolved)) {
+            return resolved.getDefault().toString();
+        }
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getModelNameCollisionPrefix() {
+        return "Model";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("number", "boolean");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected char getQuoteChar() {
+        return '\'';
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String mapped = enumNameMapping.get(value);
+        if (mapped != null) {
+            return mapped;
+        }
+        return super.toEnumVarName(value, datatype);
+    }
+
+    /**
+     * For TypeScript, an enum-typed property's default value must be the
+     * enum member reference (e.g. {@code OrderStatusEnum.Placed}), not the
+     * raw string literal, because a string literal is not assignable to a
+     * string enum without an explicit cast.
+     *
+     * <p>This overrides the base class behaviour, which emits a quoted
+     * string literal suitable for most languages but invalid in TypeScript
+     * strict mode when the property has been retyped to a generated
+     * {@code enum}.
+     */
+    @Override
+    protected void fixEnumDefaultValue(
+            org.openapitools.codegen.CodegenProperty prop,
+            org.openapitools.codegen.CodegenModel model) {
+        if (prop.defaultValue != null && prop.isEnum) {
+            String raw = prop.defaultValue;
+            // Base class may have already lowered the value to a quoted
+            // literal ('placed'); strip the quotes back off.
+            if (raw.length() >= 2
+                    && raw.charAt(0) == getQuoteChar()
+                    && raw.charAt(raw.length() - 1) == getQuoteChar()) {
+                raw = raw.substring(1, raw.length() - 1);
+            } else if (raw.contains(".")) {
+                raw = raw.substring(raw.lastIndexOf('.') + 1);
+            }
+            final String enumTypeName = model.classname + prop.enumName;
+            final String memberName = toEnumVarName(raw, prop.dataType);
+            prop.defaultValue = enumTypeName + "." + memberName;
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getModelImportContextKey() {
+        return "tsImports";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean filtersOptionsOnlyModelImports() {
+        return true;
+    }
+
+    /**
+     * Overrides the base class to add kebab-case filenames,
+     * resolve inline enum parameter types, and clean up
+     * TypeScript imports. Cannot be standardized because
+     * TypeScript's import resolution and enum naming are unique.
+     */
+    @Override
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final String classname = (String) operations.get("classname");
+            if (classname != null) {
+                operations.put("classFilename", getFilenameCasing().apply(classname));
+            }
+
+            @SuppressWarnings("unchecked")
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                boolean hasEnums = false;
+                for (final CodegenOperation op : ops) {
+                    for (final CodegenParameter param : op.allParams) {
+                        if (param.isEnum) {
+                            hasEnums = true;
+                            final String opIdCamelCase =
+                                    NamingConvention.PASCAL_CASE.apply(
+                                            op.operationId);
+                            param.datatypeWithEnum =
+                                    opIdCamelCase + param.enumName;
+                        }
+                    }
+                    populateRequestWrapper(op);
+                }
+                boolean hasDeepInputBody = false;
+                for (final CodegenOperation op : ops) {
+                    if (op.bodyParam != null
+                            && !op.bodyParam.dataType.equals(deepInputType(op.bodyParam))) {
+                        hasDeepInputBody = true;
+                        break;
+                    }
+                }
+                objs.put("hasDeepInputBody", hasDeepInputBody);
+                objs.put("hasEnums", hasEnums);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        final List<Map<String, String>> imports =
+                (List<Map<String, String>>) objs.get("imports");
+        if (imports != null) {
+            imports.removeIf(
+                    imp -> {
+                        final String importName =
+                                Optional.ofNullable(imp.get("classname"))
+                                        .orElseGet(() -> imp.get("import"));
+                        return importName == null
+                                || languageSpecificPrimitives.contains(importName)
+                                || typeMapping.containsValue(importName)
+                                || importName.contains("_");
+                    });
+            for (final Map<String, String> imp : imports) {
+                if (!imp.containsKey("className") && imp.containsKey("classname")) {
+                    imp.put("className", imp.get("classname"));
+                }
+                if (!imp.containsKey("className") && imp.containsKey("import")) {
+                    String className = imp.get("import");
+                    if (className.contains(".")) {
+                        className = className.substring(className.lastIndexOf('.') + 1);
+                    }
+                    imp.put("className", className);
+                }
+            }
+        }
+        return objs;
+    }
+
+    /**
+     * Computes the ordered list of an operation's parameters and stamps it onto
+     * {@code op.vendorExtensions["op"]} for the api template.
+     *
+     * <p>Each operation method takes flat positional parameters in the structural
+     * order of {@code signatureArgs} (path params, then body, then the synthetic
+     * {@code options} object, then {@code server}), e.g.
+     * {@code getExternalPetInfo(petId, server?)}. The api template renders that
+     * parameter list — and the delegating call — from the field list below.
+     *
+     * <p>Populated key (under the {@code op} decorator namespace):
+     * <ul>
+     *   <li>{@code requestWrapperFields} — ordered list of maps, each with
+     *       {@code name}, {@code type}, {@code optional} (boolean), and the
+     *       Mustache-handled {@code -last}, used to render both the parameter
+     *       list and the delegating call</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    private void populateRequestWrapper(CodegenOperation op) {
+        if (op == null) {
+            return;
+        }
+        if (op.vendorExtensions == null) {
+            op.vendorExtensions = new HashMap<>();
+        }
+        final Object opDecoObj = op.vendorExtensions.get("op");
+        if (!(opDecoObj instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) opDecoObj;
+
+        final String pascal = NamingConvention.PASCAL_CASE.apply(
+                op.operationId == null ? "" : op.operationId);
+        final String optionsClassName = pascal + "Options";
+        final String serverClassName = pascal + "Server";
+
+        final List<Map<String, Object>> fields = new ArrayList<>();
+
+        if (op.pathParams != null) {
+            for (final CodegenParameter p : op.pathParams) {
+                fields.add(wrapperField(p.paramName, nullableType(p.dataType, p.isNullable), false));
+            }
+        }
+        if (op.bodyParam != null) {
+            // Request bodies are routinely supplied as plain object literals; a
+            // bare class type would force callers to instantiate every nested
+            // model just to satisfy structural typing. DeepInput<T> accepts both
+            // a plain (deeply-partial, method-free) literal and a real instance.
+            fields.add(
+                    wrapperField(
+                            op.bodyParam.paramName,
+                            nullableType(
+                                    deepInputType(op.bodyParam), op.bodyParam.isNullable),
+                            !op.bodyParam.required));
+        }
+        final boolean hasQuery = op.queryParams != null && !op.queryParams.isEmpty();
+        final boolean hasHeader = op.headerParams != null && !op.headerParams.isEmpty();
+        final boolean hasForm = op.formParams != null && !op.formParams.isEmpty();
+        final boolean hasCookie = op.cookieParams != null && !op.cookieParams.isEmpty();
+        if (hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods) {
+            final boolean optionsRequired = Boolean.TRUE.equals(d.get("optionsParamRequired"));
+            fields.add(wrapperField("options", optionsClassName, !optionsRequired));
+        }
+        if (op.servers != null && !op.servers.isEmpty()) {
+            fields.add(wrapperField("server", serverClassName, true));
+        }
+
+        // Optional request content-type selector. An operation that declares
+        // MULTIPLE request content-types (e.g. setPetAvatar: image/jpeg,
+        // image/png, application/json) otherwise collapses to the first
+        // declared type (effectiveConsumes) with no way to reach the others.
+        // Expose an OPTIONAL trailing `contentType` parameter, typed as a
+        // union literal of the declared content-types, so the caller can pick
+        // among them. When omitted it defaults to the first declared type, so
+        // every existing positional call site keeps compiling unchanged.
+        // The parameter only changes the outgoing Content-Type header; for
+        // content-types whose body type differs from the operation's body
+        // param (e.g. setPetAvatar's application/json envelope) the caller is
+        // responsible for supplying a body the server accepts.
+        final List<String> declaredConsumes = declaredConsumes(op);
+        if (declaredConsumes.size() > 1) {
+            final StringBuilder union = new StringBuilder();
+            final List<Map<String, Object>> consumeOptions = new ArrayList<>();
+            for (int i = 0; i < declaredConsumes.size(); i++) {
+                final String mediaType = declaredConsumes.get(i);
+                if (i > 0) {
+                    union.append(" | ");
+                }
+                union.append('\'').append(mediaType).append('\'');
+                final Map<String, Object> co = new HashMap<>();
+                co.put("mediaType", mediaType);
+                consumeOptions.add(co);
+            }
+            fields.add(wrapperField("contentType", union.toString(), true));
+            d.put("hasContentTypeSelector", true);
+            d.put("contentTypeOptions", consumeOptions);
+        } else {
+            d.put("hasContentTypeSelector", false);
+        }
+
+        d.put("requestWrapperFields", fields);
+    }
+
+    /**
+     * Returns the operation's declared request content-types in declaration
+     * order, de-duplicated. Reads {@code op.consumes} (a list of maps keyed by
+     * {@code mediaType}), which mirrors the spec's {@code requestBody.content}
+     * media-type keys. Returns an empty list when the operation declares no
+     * request body content-types.
+     */
+    private static List<String> declaredConsumes(CodegenOperation op) {
+        final List<String> out = new ArrayList<>();
+        if (op.consumes == null) {
+            return out;
+        }
+        for (final Map<String, String> consume : op.consumes) {
+            if (consume == null) {
+                continue;
+            }
+            final String mediaType = consume.get("mediaType");
+            if (mediaType != null && !mediaType.isEmpty() && !out.contains(mediaType)) {
+                out.add(mediaType);
+            }
+        }
+        return out;
+    }
+
+    private static String nullableType(String dataType, boolean isNullable) {
+        return isNullable ? dataType + " | null" : dataType;
+    }
+
+    /**
+     * Returns the request-input type for a body parameter: the declared type
+     * wrapped in {@code DeepInput<...>} when it (or its array element) references
+     * a generated model, so plain object literals are accepted. Primitive and
+     * primitive-array bodies are returned unchanged — there is no class to relax.
+     */
+    private String deepInputType(CodegenParameter body) {
+        final boolean elementIsModel =
+                body.items != null
+                        && !body.items.isPrimitiveType
+                        && body.items.complexType != null
+                        && !body.items.isEnum
+                        && !isEnumModel(body.items.complexType);
+        final boolean isModel =
+                !body.isPrimitiveType
+                        && !body.isArray
+                        && body.baseType != null
+                        && !languageSpecificPrimitives.contains(body.baseType)
+                        && !body.isEnum
+                        && !isEnumModel(body.baseType);
+        if (isModel || elementIsModel) {
+            return "DeepInput<" + body.dataType + ">";
+        }
+        return body.dataType;
+    }
+
+    private static Map<String, Object> wrapperField(
+            String name, String type, boolean optional) {
+        final Map<String, Object> m = new HashMap<>();
+        m.put("name", name);
+        m.put("type", type);
+        m.put("optional", optional);
+        return m;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of(
+                new OAuthTestFileSpec("test/basic-authenticator.test.mustache", "test", "basic-authenticator.test.ts", OAuthTestCondition.BASIC),
+                new OAuthTestFileSpec("test/oauth2-token-manager.test.mustache", "test", "oauth2-token-manager.test.ts", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec("test/oauth2-auth-code-authenticator.test.mustache", "test", "oauth2-auth-code-authenticator.test.ts", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("test/oauth2-implicit-authenticator.test.mustache", "test", "oauth2-implicit-authenticator.test.ts", OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec("test/oauth2-client-credentials-authenticator.test.mustache", "test", "oauth2-client-credentials-authenticator.test.ts", OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec("test/oauth2-password-authenticator.test.mustache", "test", "oauth2-password-authenticator.test.ts", OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec("test/openid-connect-authenticator.test.mustache", "test", "openid-connect-authenticator.test.ts", OAuthTestCondition.OIDC));
+    }
+
+    private static Map<String, String> imp(String className, String path) {
+        final Map<String, String> importMap = new HashMap<>();
+        importMap.put("className", className);
+        importMap.put("path", path);
+        return importMap;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        return "src/auth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return "src/auth/oauth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem.replace('_', '-') + ".ts";
+    }
+
+    /**
+     * Renders a per-scheme authenticator TypeScript source file using
+     * the scheme_authenticator.mustache template.
+     */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("imports", buildNodeImports(spec));
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("name", name);
+            param.put("type", "string");
+            constructorParams.add(param);
+        }
+        ctx.put("constructorParams", constructorParams);
+        ctx.put("superArgs", buildNodeSuperArgs(spec));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    private List<Map<String, String>> buildNodeImports(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("BasicAuthenticator", "./basic-authenticator"));
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("BearerAuthenticator", "./bearer-authenticator"));
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of(
+                    imp("ApiKeyAuthenticator", "./api-key-authenticator"),
+                    imp("ApiKeyLocation", "./api-key-location"));
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("OAuth2ClientCredentialsAuthenticator",
+                    "./oauth2-client-credentials-authenticator"));
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("OAuth2PasswordAuthenticator",
+                    "./oauth2-password-authenticator"));
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("OAuth2AuthorizationCodeAuthenticator",
+                    "./oauth2-auth-code-authenticator"));
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("OAuth2ImplicitAuthenticator",
+                    "./oauth2-implicit-authenticator"));
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("OpenIdConnectAuthenticator",
+                    "./openid-connect-authenticator"));
+        }
+        return List.of();
+    }
+
+    private static String formatNodeScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        return "['" + String.join("', '", scopes.keySet()) + "']";
+    }
+
+    private List<String> buildNodeSuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "token");
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "'" + spec.keyParamName() + "'", "apiKey",
+                    "ApiKeyLocation." + spec.keyIn());
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId", "clientSecret",
+                    "'" + spec.tokenUrl() + "'", formatNodeScopes(spec.scopes()));
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "null";
+            return List.of("host", "clientId", "clientSecret",
+                    "'" + spec.tokenUrl() + "'", "username", "password",
+                    formatNodeScopes(spec.scopes()), refreshArg);
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "null";
+            return List.of("host", "clientId", "clientSecret",
+                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    "redirectUri", formatNodeScopes(spec.scopes()), refreshArg);
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId",
+                    "'" + spec.authorizationUrl() + "'", formatNodeScopes(spec.scopes()));
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "'" + spec.openIdConnectUrl() + "'",
+                    "clientId", "clientSecret", "redirectUri", "[]");
+        }
+        return List.of();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            param.put("isNullable", Boolean.TRUE.equals(p.isNullable));
+            // Thread the spec parameter's deprecated flag into the Options field so
+            // the generated property carries an `@deprecated` JSDoc tag, mirroring
+            // the model-property deprecation idiom in models/model.mustache.
+            param.put("deprecated", p.isDeprecated);
+            // Thread the spec parameter description into the Options field so the
+            // generated property carries a JSDoc comment, matching the per-param
+            // documentation the other SDKs expose.
+            if (p.description != null && !p.description.isBlank()) {
+                param.put("description", p.description.strip());
+            }
+            params.add(param);
+        }
+
+        // Collect model type imports — only PascalCase identifiers are real model
+        // types; inline TypeScript types like "{ [key: string]: unknown }" must be
+        // excluded.
+        final Set<String> modelTypes = new LinkedHashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.isPrimitiveType
+                    && !p.isArray
+                    && !p.isMap
+                    && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)
+                    && p.baseType.matches("^[A-Z]\\w*$")) {
+                modelTypes.add(p.baseType);
+            }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null); its generated type must be imported.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && p.dataType.matches("^[A-Z]\\w*$")) {
+                modelTypes.add(p.dataType);
+            }
+            if ((p.isArray || p.isMap)
+                    && p.items != null
+                    && p.items.baseType != null
+                    && !languageSpecificPrimitives.contains(p.items.baseType)
+                    && p.items.baseType.matches("^[A-Z]\\w*$")) {
+                modelTypes.add(p.items.baseType);
+            }
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("modelImports", new ArrayList<>(modelTypes));
+        context.put("hasModelImports", !modelTypes.isEmpty());
+        // Phase: per-operation auth folded into Options. Authed operations get
+        // an optional `auth?: Authenticator` field on their Options interface;
+        // the relative import path mirrors the other Options-file imports
+        // (Options files live under src/api/options, so Authenticator is two
+        // directories up under src/auth).
+        injectAuthFieldContext(op, context);
+        context.put("authImport", "../../auth/authenticator" + ".js");
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String fileName = NamingConvention.KEBAB_CASE.apply(optionsClassName);
+        return Path.of(outputFolder, "src", "api", "options", fileName + ".ts").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
+        final List<Map<String, String>> exports = new ArrayList<>();
+        for (final Map<String, String> meta : optionsFiles) {
+            final String className =
+                    Objects.requireNonNull(meta.get("optionsClassName"));
+            final Map<String, String> export = new HashMap<>();
+            export.put("fileName", NamingConvention.KEBAB_CASE.apply(className));
+            exports.add(export);
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("exports", exports);
+        final String content = renderOptionsTemplate("api/options_index.mustache", context);
+        final String barrelPath =
+                Path.of(outputFolder, "src", "api", "options", "index.ts").toString();
+        writeFile(barrelPath, content);
+        postProcessFile(Path.of(barrelPath).toFile(), "source");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldApplyTypeDecorators() {
+        return true;
+    }
+
+    /**
+     * 4.8 — Flag any model that has at least one {@code Temporal.PlainTime}
+     * or {@code Temporal.Duration} property so the model template emits the
+     * {@code import { Temporal } from 'temporal-polyfill'} line. The Gap 14
+     * {@code type:} substring matcher matches "Temporal." against the
+     * property's {@code dataType}, so a single flag covers both PlainTime
+     * and Duration.
+     */
+    @Override
+    protected Map<String, String> getModelContextFlags() {
+        return Map.of(
+                "type:Temporal.", "hasTemporalImport",
+                "type:Temporal.Duration", "hasDurationImport",
+                "type:UUID", "hasUuidImport",
+                "type:URI", "hasUriImport",
+                "type:Email", "hasEmailImport",
+                "type:Decimal", "hasDecimalImport",
+                "type:Buffer", "hasBufferImport");
+    }
+
+    /**
+     * 4.8 — Set per-property {@code isTimeFormat} / {@code isDurationFormat}
+     * boolean flags on {@code CodegenProperty.vendorExtensions} so the model
+     * template can branch on the OAS format without doing string equality on
+     * {@code dataType}. Upstream populates {@code CodegenProperty.dataFormat}
+     * directly from the schema's {@code format:}, so this is the simplest way
+     * to surface it to Mustache (which lacks string equality).
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if ("time".equals(property.dataFormat)) {
+            property.vendorExtensions.put("isTimeFormat", true);
+        }
+        if ("duration".equals(property.dataFormat)) {
+            property.vendorExtensions.put("isDurationFormat", true);
+        }
+        // 2.3 — revert `uri-reference` / `uri-template` back to plain `string`;
+        // only `format: uri` retains the branded URI alias.
+        keepStringForUriSubformats(property, "string");
+        // 2.4 — `format: email` becomes a branded Email alias.
+        if ("email".equals(property.dataFormat)) {
+            property.dataType = "Email";
+            property.datatypeWithEnum = "Email";
+        }
+        // 2.5 — `type: number` (no numeric format) and `type: string,
+        // format: decimal` become a branded `Decimal` string. The
+        // `number` schema type defaults to the `number` JS primitive at
+        // the typeMapping layer to avoid collateral damage with `long`
+        // and `integer`; we override at the property level here.
+        final boolean isPlainNumber =
+                property.isNumber && (property.dataFormat == null);
+        final boolean isStringDecimal = "decimal".equals(property.dataFormat);
+        if (isPlainNumber || isStringDecimal) {
+            property.dataType = "Decimal";
+            property.datatypeWithEnum = "Decimal";
+            property.vendorExtensions.put("isDecimalFormat", true);
+        }
+    }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The TS model template
+     * honours {@code defaultValue} on properties so the discriminator
+     * renders as e.g. {@code foodType!: string = 'dry';}.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * The TS constructor block iterates {@code requiredVars} to
+     * throw on missing required fields. With the discriminator
+     * defaulted in the field initialiser, the runtime check is
+     * redundant, so demote it out of {@code requiredVars}.
+     */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
+
+    /**
+     * Returns a single-quoted TypeScript string literal for the
+     * discriminator default value, matching the rest of the model
+     * template's string conventions.
+     */
+    @Override
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "'" + mappingName + "'";
+    }
+
 }

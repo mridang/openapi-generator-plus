@@ -1,0 +1,400 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>{{groupId}}</groupId>
+    <artifactId>{{artifactId}}</artifactId>
+    <packaging>jar</packaging>
+    <name>{{artifactId}}</name>
+    <description>{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}{{artifactId}}{{/appDescription}}</description>
+    <version>{{artifactVersion}}</version>
+
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.0</version>
+                <configuration>
+                    <release>21</release>
+                    <fork>true</fork>
+                    <failOnWarning>true</failOnWarning>
+                    <compilerArgs>
+                        <arg>-XDcompilePolicy=simple</arg>
+                        <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-Xlint:all</arg>
+                        <!-- Java 25-new check, triggered by ctor-time
+                             field initialization patterns in generated
+                             SDKs (e.g. modifyFeatureSet escapes 'this'). -->
+                        <arg>-Xlint:-this-escape</arg>
+                        <!-- Java 23+ markdown doc-comments (///) flagged
+                             as dangling on shared param documentation. -->
+                        <arg>-Xlint:-dangling-doc-comments</arg>
+                        <!-- The generic transport (BaseApi.invokeApiForResult)
+                             casts a runtime-guarded concrete value (InputStream,
+                             byte[], String) to the method's type variable T for
+                             binary/raw response handling. The cast is provably
+                             safe at runtime (each is guarded by a
+                             returnType.getType() == ... check) but unprovable to
+                             javac. All unchecked casts in generated code are
+                             generator-controlled and confined to these
+                             guarded sites; there is no hand-written code to
+                             protect, so the lint is disabled here rather than
+                             reintroduced as inline @SuppressWarnings. -->
+                        <arg>-Xlint:-unchecked</arg>
+                        <!-- Generated models and APIs mirror @Deprecated
+                             elements declared in the OpenAPI spec: a deprecated
+                             operation must still reference its (also deprecated)
+                             model types, and deprecated models are used in API
+                             method signatures and tests. These cross-class uses
+                             of generator-emitted @Deprecated members are
+                             intentional, not migration debt, and cannot be
+                             expressed without an inline @SuppressWarnings —
+                             which the house rule forbids — so the lint is
+                             disabled here. Use of deprecated JDK/library APIs is
+                             instead caught by the OpenRewrite UpgradeToJava25
+                             recipe configured below. -->
+                        <arg>-Xlint:-deprecation</arg>
+                        <!-- InlineMeSuggester fires on the generated deprecated
+                             operation overloads, which delegate to the
+                             current-signature method. They are not safe @InlineMe
+                             targets (they are part of the published, deprecated
+                             API surface mirroring the spec), and the suggestion
+                             cannot be silenced without an inline
+                             @SuppressWarnings, which the house rule forbids. It
+                             is a pure refactoring hint, not a correctness check,
+                             so it is disabled project-wide here. -->
+                        <!-- TypeParameterUnusedInFormals fires on the generic
+                             transport entry points whose return type T is
+                             resolved from a java.lang.reflect.Type token rather
+                             than a T-bearing formal parameter — e.g.
+                             BaseApi.invokeApi(..., Type returnType) and the
+                             BaseApi test harness's call(...) wrapper. The Type
+                             token is deliberately erased so the transport never
+                             exposes Jackson's TypeReference/ObjectSerializer on
+                             the public API surface (the leak-hiding design);
+                             ObjectSerializer.deserialize(String, Type) is the
+                             same <T> T shape. T legitimately appears only in the
+                             return position here and is target-typed at the call
+                             site, exactly like Jackson's own readValue. This is
+                             a design advisory, not a correctness check, and it
+                             cannot be silenced without an inline
+                             @SuppressWarnings (which the house rule forbids), so
+                             it is disabled project-wide here. -->
+                        <arg>-Xplugin:ErrorProne -Xep:InlineMeSuggester:OFF -Xep:TypeParameterUnusedInFormals:OFF -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages={{invokerPackage}}</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                        <arg>-J-Xss4m</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${error-prone-version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.uber.nullaway</groupId>
+                            <artifactId>nullaway</artifactId>
+                            <version>${nullaway-version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <reportsDirectory>${project.basedir}/.out/reports</reportsDirectory>
+                    <forkCount>1C</forkCount>
+                    <reuseForks>true</reuseForks>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>add-spec-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/spec/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.3</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <testSourceDirectory>src/spec/java</testSourceDirectory>
+                    <includes>
+                        <include>**/*Spec.java</include>
+                    </includes>
+                    <reportsDirectory>${project.basedir}/.out/reports</reportsDirectory>
+                    <forkCount>1C</forkCount>
+                    <reuseForks>true</reuseForks>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-version}</version>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <googleJavaFormat/>
+                    </java>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${checkstyle-plugin-version}</version>
+                <configuration>
+                    <!-- Industry-default ruleset bundled with checkstyle; no
+                         custom/relaxed config. Findings inherent to generated
+                         code are silenced per-file via class-level
+                         @SuppressWarnings("checkstyle:...") honoured by
+                         google_checks' SuppressWarningsFilter. -->
+                    <configLocation>/google_checks.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <failsOnError>true</failsOnError>
+                    <violationSeverity>warning</violationSeverity>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle-version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>${spotbugs-plugin-version}</version>
+                <configuration>
+                    <!-- Default SpotBugs: no custom exclude filter; the whole
+                         SDK is analyzed. Findings inherent to generated code
+                         are silenced per-file via class-level
+                         @SuppressFBWarnings(... justification = "generated
+                         code"). -->
+                    <effort>Default</effort>
+                    <threshold>Low</threshold>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openrewrite.maven</groupId>
+                <artifactId>rewrite-maven-plugin</artifactId>
+                <version>${openrewrite-plugin-version}</version>
+                <configuration>
+                    <activeRecipes>
+                        <recipe>org.openrewrite.java.migrate.UpgradeToJava25</recipe>
+                    </activeRecipes>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-migrate-java</artifactId>
+                        <version>${openrewrite-recipes-version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.13</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.basedir}/.out</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <!-- 3.6.3 is the last line that exposes reportOutputDirectory
+                     and destDir on the javadoc:javadoc goal, letting docs land
+                     at exactly .out/docs. Newer releases (3.11+/3.12) dropped
+                     those params and 3.12.0 has a reproducible-build timestamp
+                     bug that breaks the goal outright. -->
+                <version>3.6.3</version>
+                <configuration>
+                    <failOnWarnings>true</failOnWarnings>
+                    <doclint>all</doclint>
+                    <reportOutputDirectory>${project.basedir}/.out</reportOutputDirectory>
+                    <destDir>docs</destDir>
+                    <quiet>true</quiet>
+                    <notimestamp>true</notimestamp>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <version>${spotbugs-annotations-version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson-databind-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.jaxrs</groupId>
+            <artifactId>jackson-jaxrs-json-provider</artifactId>
+            <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openapitools</groupId>
+            <artifactId>jackson-databind-nullable</artifactId>
+            <version>${jackson-databind-nullable-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>${opentelemetry-version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.brotli</groupId>
+            <artifactId>dec</artifactId>
+            <version>0.1.2</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>1.5.6-4</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>${jakarta-annotation-version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit-version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit-version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.7</version>
+            <scope>test</scope>
+        </dependency>
+{{#generateTests}}
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.21.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>1.21.4</version>
+            <scope>test</scope>
+        </dependency>
+{{/generateTests}}
+    </dependencies>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jackson-version>2.19.4</jackson-version>
+        <jackson-databind-version>2.19.4</jackson-databind-version>
+        <jackson-databind-nullable-version>0.2.6</jackson-databind-nullable-version>
+        <opentelemetry-version>1.62.0</opentelemetry-version>
+        <jakarta-annotation-version>3.0.0</jakarta-annotation-version>
+        <junit-version>6.1.0</junit-version>
+        <error-prone-version>2.41.0</error-prone-version>
+        <nullaway-version>0.12.10</nullaway-version>
+        <spotbugs-plugin-version>4.9.3.2</spotbugs-plugin-version>
+        <spotbugs-annotations-version>4.9.6</spotbugs-annotations-version>
+        <spotless-version>2.46.1</spotless-version>
+        <checkstyle-plugin-version>3.6.0</checkstyle-plugin-version>
+        <checkstyle-version>10.20.2</checkstyle-version>
+        <openrewrite-plugin-version>6.13.0</openrewrite-plugin-version>
+        <openrewrite-recipes-version>3.18.0</openrewrite-recipes-version>
+    </properties>
+</project>

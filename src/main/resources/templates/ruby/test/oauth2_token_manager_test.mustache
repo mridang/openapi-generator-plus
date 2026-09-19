@@ -1,0 +1,432 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require 'json'
+require '{{gemName}}'
+
+class FakeTokenClient
+  attr_reader :last_url, :last_headers, :last_body, :call_count, :last_no_redirect
+
+  def initialize(responses)
+    @responses = responses
+    @call_count = 0
+  end
+
+  def send_request(_method, url, headers, body, no_redirect: false)
+    @last_url = url
+    @last_headers = headers
+    @last_body = body
+    @last_no_redirect = no_redirect
+    @call_count += 1
+    response = @responses[@call_count - 1] || @responses.last
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: response[:status],
+      body: response[:body].to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
+# Thread-safe client that counts calls and stalls briefly so concurrent
+# callers genuinely race against a single in-flight refresh.
+class SlowCountingTokenClient
+  attr_reader :call_count
+
+  def initialize(body)
+    @body = body
+    @call_count = 0
+    @mutex = Mutex.new
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    @mutex.synchronize { @call_count += 1 }
+    sleep 0.05
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: 200,
+      body: @body.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
+# Thread-safe client that hands out tok1, tok2, ... on successive calls and
+# stalls briefly so concurrent callers race against a single in-flight refresh.
+class NumberingSlowTokenClient
+  attr_reader :call_count
+
+  def initialize
+    @call_count = 0
+    @mutex = Mutex.new
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    n = @mutex.synchronize { @call_count += 1 }
+    sleep 0.05
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: 200,
+      body: { 'access_token' => "tok#{n}", 'expires_in' => 3600 }.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
+describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
+  parallelize_me!
+
+  it 'extracts access token from response' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    token = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token).must_equal 'tok_abc'
+  end
+
+  it 'stores refresh token' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(manager.refresh_token).must_equal 'ref_xyz'
+  end
+
+  it 'returns cached token when not expired' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    token1 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    token2 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token1).must_equal token2
+    _(client.call_count).must_equal 1
+  end
+
+  it 'refetches token when expired' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    token1 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token1).must_equal 'tok_first'
+
+    token2 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token2).must_equal 'tok_second'
+    _(client.call_count).must_equal 2
+  end
+
+  it 'setAccessToken bypasses endpoint' do
+    client = FakeTokenClient.new([])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    manager.access_token = 'manual-token'
+
+    token = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token).must_equal 'manual-token'
+    _(client.call_count).must_equal 0
+  end
+
+  it 'invalidate_access_token forces refetch' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok1', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok2', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    token1 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    manager.invalidate_access_token
+    token2 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+
+    _(token1).must_equal 'tok1'
+    _(token2).must_equal 'tok2'
+    _(client.call_count).must_equal 2
+  end
+
+  it 'throws when no ApiClient injected' do
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    assert_raises({{moduleName}}::ApiError) do
+      manager.get_access_token('https://auth.example.com/token', {})
+    end
+  end
+
+  it 'single-flight refresh coalesces concurrent callers' do
+    # 10 threads all see no cached token and race into get_access_token.
+    # The mutex + cache check must coalesce them into exactly ONE network
+    # round-trip to the token endpoint.
+    client = SlowCountingTokenClient.new({ 'access_token' => 'shared-tok', 'expires_in' => 3600 })
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    tokens = Array.new(10)
+    threads = (0...10).map do |i|
+      Thread.new do
+        tokens[i] = manager.get_access_token('https://auth.example.com/token', params)
+      end
+    end
+    threads.each(&:join)
+
+    _(client.call_count).must_equal 1
+    _(tokens.all? { |t| t == 'shared-tok' }).must_equal true
+  end
+
+  it 'missing access_token in 2xx response raises typed OAuth2TokenError' do
+    # A 2xx response whose body omits access_token must surface as the typed
+    # OAuth2TokenError, not silently cache an empty token.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'refresh_token' => 'x' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    assert_raises({{moduleName}}::Auth::OAuth::OAuth2TokenError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+  end
+
+  it 'token endpoint error response parsed to typed OAuth2ServerError' do
+    # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+    # typed OAuth2ServerError carrying code/description/uri.
+    client = FakeTokenClient.new([
+      {
+        status: 400,
+        body: {
+          'error' => 'invalid_grant',
+          'error_description' => 'refresh token expired',
+          'error_uri' => 'https://docs.example.com/errors/invalid_grant'
+        }
+      }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises({{moduleName}}::Auth::OAuth::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(error.status_code).must_equal 400
+    _(error.code).must_equal 'invalid_grant'
+    _(error.description).must_equal 'refresh token expired'
+    _(error.uri).must_equal 'https://docs.example.com/errors/invalid_grant'
+  end
+
+  it 'expires_in short-lived token does not storm' do
+    # Gap CM: short-lived token must produce exactly ONE network call.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'short', 'expires_in' => 10 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    token = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token).must_equal 'short'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in long-lived token applies full buffer' do
+    # Gap CM: long-lived token gets full 30s buffer; second call serves cache.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'long'
+    _(second).must_equal 'long'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in exactly buffer returns zero buffer' do
+    # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'edge1', 'expires_in' => 30 } },
+      { status: 200, body: { 'access_token' => 'edge2', 'expires_in' => 30 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'edge1'
+    _(second).must_equal 'edge2'
+    _(client.call_count).must_equal 2
+  end
+
+  it 'refresh_token empty string preserves existing' do
+    # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+    # MUST NOT clobber the cached refresh_token.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'old_access', 'refresh_token' => 'old_refresh', 'expires_in' => 1 } },
+      { status: 200, body: { 'access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'authorization_code' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(manager.refresh_token).must_equal 'old_refresh'
+
+    # Second call: access token near-expiry triggers refresh; server replies
+    # with empty refresh_token which must not overwrite the cached value.
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(manager.refresh_token).must_equal 'old_refresh'
+  end
+
+  it 'expires_in as JSON string is accepted' do
+    # D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+    # quoted string. The manager must accept it and cache the token; a
+    # second call within the buffer window must serve from cache.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'str-tok', 'expires_in' => '3600' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'str-tok'
+    _(second).must_equal 'str-tok'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in as float is floored' do
+    # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+    # The manager must floor it and cache the token.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'flt-tok', 'expires_in' => 3600.5 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'flt-tok'
+    _(second).must_equal 'flt-tok'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in negative skips caching' do
+    # D1: a negative expires_in (e.g. -1) must mark the token as
+    # immediately stale so the very next call refetches.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'neg1', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'neg2', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'neg1'
+    _(second).must_equal 'neg2'
+    _(client.call_count).must_equal 2
+  end
+
+  it 'throws when token request fails' do
+    client = FakeTokenClient.new([
+      { status: 401, body: { 'error' => 'invalid_client' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    # A failed token request surfaces as the typed OAuth2ServerError, which
+    # subclasses the SDK's common ApiError base so a rescue on ApiError
+    # catches it alongside every other API error.
+    error = assert_raises({{moduleName}}::ApiError) do
+      manager.get_access_token('https://auth.example.com/token', {})
+    end
+    _(error).must_be_kind_of {{moduleName}}::Auth::OAuth::OAuth2ServerError
+  end
+
+  it 'token POST requests no_redirect from transport (Bucket 3.2)' do
+    # The token POST carries client_id / client_secret / refresh_token in
+    # the form body; the manager MUST flag the request as
+    # `no_redirect: true` so the transport refuses any 3xx instead of
+    # silently replaying the credentials body to a redirect target.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_nr', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(client.last_no_redirect).must_equal true
+  end
+
+  # Bucket 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+  # manager must refuse the whole 300-399 range (302 and 307 both exercised
+  # here, plus 301/303/308) with OAuth2TokenError rather than replaying the
+  # credential-bearing POST to the redirect target.
+  [301, 302, 303, 307, 308].each do |status|
+    it "refuses #{status} redirect on token endpoint" do
+      client = FakeTokenClient.new([{ status: status, body: '' }])
+      manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+      manager.api_client = client
+
+      assert_raises({{moduleName}}::Auth::OAuth::OAuth2TokenError) do
+        manager.get_access_token(
+          'https://auth.example.com/token',
+          { 'grant_type' => 'client_credentials', 'client_secret' => 'topsecret' }
+        )
+      end
+    end
+  end
+
+  it 'invalidate_access_token triggers a single refetch under concurrency' do
+    # After invalidation, 10 threads must coalesce into exactly ONE additional
+    # network round-trip (single-flight), all observing the refreshed token.
+    client = NumberingSlowTokenClient.new
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    _(first).must_equal 'tok1'
+    _(client.call_count).must_equal 1
+
+    manager.invalidate_access_token
+
+    tokens = Array.new(10)
+    threads = (0...10).map do |i|
+      Thread.new do
+        tokens[i] = manager.get_access_token('https://auth.example.com/token', params)
+      end
+    end
+    threads.each(&:join)
+
+    _(client.call_count).must_equal 2
+    _(tokens.all? { |t| t == 'tok2' }).must_equal true
+  end
+
+  it 'redirect-refusal error includes the Location header for diagnostics' do
+    # Gap 3.2: the redirect-refusal error should name the offending Location
+    # for diagnostics. The Ruby SDK's OAuth2TokenError message embeds only the
+    # status code, not the Location target, so this cannot be asserted without
+    # fabricating behaviour the SDK does not implement.
+    skip 'Ruby OAuth2TokenManager redirect-refusal error does not surface the Location header'
+  end
+end

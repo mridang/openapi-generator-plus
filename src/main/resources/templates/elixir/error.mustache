@@ -1,0 +1,96 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Error do
+  @moduledoc """
+  Branded grouping for every exception this SDK can raise.
+
+  Elixir exceptions are plain `defexception` structs and have no
+  inheritance, so there is no literal "root" class the way the
+  object-oriented SDKs express it. Instead, membership in the
+  "Zitadel SDK error" family is expressed explicitly and
+  idiomatically:
+
+    * `exceptions/0` returns the canonical list of every SDK
+      exception module. Use it directly in a single `rescue` clause
+      to catch *any* SDK-thrown error:
+
+          try do
+            {{moduleName}}.SomeApi.some_call(client)
+          rescue
+            e in {{moduleName}}.Error.exceptions() ->
+              # `e` is guaranteed to be a Zitadel SDK error
+              handle(e)
+          end
+
+    * `zitadel_error?/1` is a membership predicate that returns
+      `true` for any SDK exception struct and `false` for anything
+      else (including unrelated `RuntimeError`/`ArgumentError`
+      raised by the BEAM itself):
+
+          rescue
+            e -> if {{moduleName}}.Error.zitadel_error?(e), do: ..., else: reraise(e, __STACKTRACE__)
+
+  The taxonomy mirrors the object-oriented SDKs:
+
+      Zitadel SDK error  (this grouping)
+       ├─ {{moduleName}}.ApiError  (message, status_code, response_headers,
+       │                            response_body, error_body, cause)
+       │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
+       │   │       NotFound(404) Conflict(409) UnprocessableEntity(422)
+       │   │       (and the {{moduleName}}.Errors.ClientError grouping)
+       │   └─ 5xx: InternalServerError(500)
+       │           (and the {{moduleName}}.Errors.ServerError grouping)
+       └─ Serialization error ({{moduleName}}.SerializationError and the
+                               related {{moduleName}}.SchemaMismatchError /
+                               {{moduleName}}.DeserializationError)
+
+  The list is the single source of truth: every SDK exception module
+  must appear in `exceptions/0`, and both the predicate and the type
+  union below are derived from it.
+  """
+
+  @exceptions [
+    {{moduleName}}.ApiError,
+    {{moduleName}}.Errors.ClientError,
+    {{moduleName}}.Errors.ServerError,
+    {{moduleName}}.Errors.BadRequestError,
+    {{moduleName}}.Errors.UnauthorizedError,
+    {{moduleName}}.Errors.ForbiddenError,
+    {{moduleName}}.Errors.NotFoundError,
+    {{moduleName}}.Errors.ConflictError,
+    {{moduleName}}.Errors.UnprocessableEntityError,
+    {{moduleName}}.Errors.InternalServerError,
+    {{moduleName}}.SerializationError,
+    {{moduleName}}.SchemaMismatchError,
+    {{moduleName}}.DeserializationError
+  ]
+
+  @type t ::
+          {{moduleName}}.ApiError.t()
+          | {{moduleName}}.Errors.ClientError.t()
+          | {{moduleName}}.Errors.ServerError.t()
+          | {{moduleName}}.Errors.BadRequestError.t()
+          | {{moduleName}}.Errors.UnauthorizedError.t()
+          | {{moduleName}}.Errors.ForbiddenError.t()
+          | {{moduleName}}.Errors.NotFoundError.t()
+          | {{moduleName}}.Errors.ConflictError.t()
+          | {{moduleName}}.Errors.UnprocessableEntityError.t()
+          | {{moduleName}}.Errors.InternalServerError.t()
+          | Exception.t()
+
+  @doc """
+  Returns the canonical list of every exception module this SDK can
+  raise. Suitable for use directly in a `rescue e in ... ->` clause
+  to catch any Zitadel SDK error.
+  """
+  @spec exceptions() :: [module()]
+  def exceptions, do: @exceptions
+
+  @doc """
+  Returns `true` if `term` is an instance of any Zitadel SDK
+  exception, `false` otherwise.
+  """
+  @spec zitadel_error?(term()) :: boolean()
+  def zitadel_error?(%module{}), do: module in @exceptions
+  def zitadel_error?(_term), do: false
+end

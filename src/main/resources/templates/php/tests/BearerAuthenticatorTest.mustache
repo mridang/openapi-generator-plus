@@ -1,0 +1,71 @@
+{{>api_info}}
+
+// phpcs:ignoreFile
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\BearerAuthenticator;
+
+test('raw token is prefixed with bearer', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'xyz');
+    $headers = $auth->getAuthHeaders();
+    expect($headers['Authorization'])->toBe('Bearer xyz');
+});
+
+test('already prefixed token is not doubled', function (): void {
+    // Tokens read from env files are commonly stored already-prefixed;
+    // emitting "Bearer Bearer xyz" would otherwise silently break auth.
+    $auth = new BearerAuthenticator('https://api.example.com', 'Bearer xyz');
+    $headers = $auth->getAuthHeaders();
+    expect($headers['Authorization'])->toBe('Bearer xyz');
+});
+
+test('lowercase bearer prefix is stripped', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'bearer xyz');
+    $headers = $auth->getAuthHeaders();
+    expect($headers['Authorization'])->toBe('Bearer xyz');
+});
+
+test('mixed case bearer prefix is stripped', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'BeArEr xyz');
+    $headers = $auth->getAuthHeaders();
+    expect($headers['Authorization'])->toBe('Bearer xyz');
+});
+
+test('bearer rejects crlf at construction', function (): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bearer rejects non ascii at construction', function (): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com', 'ñoño'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bearer rejects empty token at construction', function (): void {
+    // An empty / whitespace-only token would emit "Authorization: Bearer "
+    // (no credential), so it must be rejected at construction.
+    expect(fn () => new BearerAuthenticator('https://api.example.com', ''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => new BearerAuthenticator('https://api.example.com', '   '))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('token is masked in var_dump and print_r output', function (): void {
+    /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
+     * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
+     * the masked array, so the token never leaks through a stray dump or an
+     * exception/stack-trace log. */
+    $auth = new BearerAuthenticator('https://api.example.com', 'xyz');
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    $printR = print_r($auth, true);
+
+    expect($varDump)->not->toContain('token=xyz');
+    expect($varDump)->toContain('***');
+    expect($printR)->not->toContain('token=xyz');
+    expect($printR)->toContain('***');
+});

@@ -1,0 +1,149 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\CancellationException;
+use {{invokerPackage}}\SerializationException;
+use {{invokerPackage}}\ZitadelException;
+use {{modelPackage}}\Category;
+
+test('exposes status code, message, body, headers and error body', function (): void {
+    $ex = new ApiException(
+        404,
+        'not found',
+        ['content-type' => 'application/json'],
+        '{"id":7,"name":"missing"}',
+        null,
+    );
+
+    expect($ex->getStatusCode())->toBe(404);
+    expect($ex->getMessage())->toBe('not found');
+    expect($ex->getResponseBody())->toBe('{"id":7,"name":"missing"}');
+    expect($ex->getResponseHeaders())->toBe(['content-type' => 'application/json']);
+    expect($ex->getErrorBody())->toBeNull();
+});
+
+test('null headers and body mark transport-no-response', function (): void {
+    // apierror-responsebody-headers-nullable-split: null is distinct from an
+    // empty header map / empty body so a pre-response transport failure can
+    // be encoded.
+    $ex = new ApiException(
+        0,
+        'connection reset',
+        null,
+        null,
+    );
+
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+});
+
+test('is an Exception subclass', function (): void {
+    $ex = new ApiException(500, 'boom');
+
+    expect($ex)->toBeInstanceOf(Exception::class);
+    expect($ex->getMessage())->not->toBeEmpty();
+});
+
+test('ApiException extends the SDK root ZitadelException', function (): void {
+    /* One SDK root: ApiException extends ZitadelException, so a single
+     * catch on ZitadelException covers every API/HTTP error. */
+    $ex = new ApiException(500, 'boom');
+
+    expect($ex)->toBeInstanceOf(ZitadelException::class);
+    expect($ex)->toBeInstanceOf(Exception::class);
+});
+
+test('a thrown typed error is caught by a ZitadelException catch', function (): void {
+    /* Full chain: UnauthorizedException → ClientException → ApiException
+     * → ZitadelException → \Exception. Catching the root must catch the
+     * 401 typed error. */
+    $caught = null;
+    try {
+        throw new \{{invokerPackage}}\Errors\UnauthorizedException('unauthorized');
+    } catch (ZitadelException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(\{{invokerPackage}}\Errors\UnauthorizedException::class);
+    expect($caught)->toBeInstanceOf(ApiException::class);
+    expect($caught)->toBeInstanceOf(ZitadelException::class);
+    expect($caught->getStatusCode())->toBe(401);
+});
+
+test('SerializationException reaches the SDK root ZitadelException', function (): void {
+    /* Unified hierarchy: serialization failures must also be catchable via
+     * the single ZitadelException root, not just the native \RuntimeException. */
+    $ex = new SerializationException('serialize failed');
+
+    expect($ex)->toBeInstanceOf(ZitadelException::class);
+    expect($ex)->toBeInstanceOf(Exception::class);
+});
+
+test('CancellationException reaches the SDK root ZitadelException', function (): void {
+    /* Unified hierarchy: cancellation must also be catchable via the single
+     * ZitadelException root, not just the native \RuntimeException. */
+    $ex = new CancellationException('operation cancelled');
+
+    expect($ex)->toBeInstanceOf(ZitadelException::class);
+    expect($ex)->toBeInstanceOf(Exception::class);
+});
+
+test('every typed API error extends the base ApiException', function (): void {
+    /* #5: a caller catching the base ApiException must catch every typed
+     * error the SDK throws. ClientException/ServerException extend
+     * ApiException directly; the status-specific errors extend those. A
+     * catch on ApiException therefore covers them all. */
+    $typed = [
+        new \{{invokerPackage}}\Errors\BadRequestException('bad request'),
+        new \{{invokerPackage}}\Errors\UnauthorizedException('unauthorized'),
+        new \{{invokerPackage}}\Errors\ForbiddenException('forbidden'),
+        new \{{invokerPackage}}\Errors\NotFoundException('not found'),
+        new \{{invokerPackage}}\Errors\ConflictException('conflict'),
+        new \{{invokerPackage}}\Errors\UnprocessableEntityException('unprocessable'),
+        new \{{invokerPackage}}\Errors\ClientException(418, 'client error'),
+        new \{{invokerPackage}}\Errors\InternalServerErrorException('server error'),
+        new \{{invokerPackage}}\Errors\ServerException(503, 'server error'),
+    ];
+
+    foreach ($typed as $ex) {
+        expect($ex)->toBeInstanceOf(ApiException::class);
+    }
+});
+
+test('a typed error is caught by a base ApiException catch', function (): void {
+    $caught = null;
+    try {
+        throw new \{{invokerPackage}}\Errors\BadRequestException('bad request');
+    } catch (ApiException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(\{{invokerPackage}}\Errors\BadRequestException::class);
+    expect($caught->getStatusCode())->toBe(400);
+});
+
+test('getTypedErrorBody deserializes the body into the given class', function (): void {
+    $ex = new ApiException(400, 'bad request', [], '{"id":42,"name":"Dogs"}');
+
+    $typed = $ex->getTypedErrorBody(Category::class);
+    expect($typed)->toBeInstanceOf(Category::class);
+    expect($typed->id)->toBe(42);
+    expect($typed->name)->toBe('Dogs');
+});
+
+test('getTypedErrorBody returns null when there is no response body', function (): void {
+    $ex = new ApiException(500, 'oops', [], null);
+
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('getTypedErrorBody ignores extraneous fields not on the model', function (): void {
+    $ex = new ApiException(422, 'unprocessable', [], '{"id":1,"name":"Cat","extra":"drop-me"}');
+
+    $typed = $ex->getTypedErrorBody(Category::class);
+    expect($typed)->toBeInstanceOf(Category::class);
+    expect($typed->id)->toBe(1);
+    expect($typed->name)->toBe('Cat');
+});

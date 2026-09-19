@@ -1,0 +1,92 @@
+# frozen_string_literal: true
+# rubocop:disable all
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require '{{gemName}}'
+
+describe {{moduleName}}::ServerConfiguration do
+  parallelize_me!
+
+  it 'returns the template unchanged when there are no variables' do
+    config = {{moduleName}}::ServerConfiguration.new(url_template: 'https://api.example.com/v1')
+    _(config.url).must_equal 'https://api.example.com/v1'
+  end
+
+  it 'substitutes default variable values when no overrides are given' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod'),
+        'version' => {{moduleName}}::ServerVariable.new(default_value: '2')
+      }
+    )
+    _(config.url).must_equal 'https://prod.api.example.com/v2'
+  end
+
+  it 'substitutes overrides in place of default values' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod'),
+        'version' => {{moduleName}}::ServerVariable.new(default_value: '2')
+      }
+    )
+    _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com/v2'
+  end
+
+  it 'uses the default for variables absent from the overrides' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod'),
+        'version' => {{moduleName}}::ServerVariable.new(default_value: '2')
+      }
+    )
+    _(config.url({ 'version' => '3' })).must_equal 'https://prod.api.example.com/v3'
+  end
+
+  it 'accepts an override value that is in the variable enum' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+      }
+    )
+    _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com'
+  end
+
+  it 'rejects an override value that is not in the variable enum' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+      }
+    )
+    err = _(-> { config.url({ 'env' => 'dev' }) }).must_raise ArgumentError
+    _(err.message).must_include 'dev'
+    _(err.message).must_include 'env'
+  end
+
+  it 'exposes the raw url_template, description, and variables' do
+    variables = { 'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod') }
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      description: 'Primary server',
+      variables: variables
+    )
+    _(config.url_template).must_equal 'https://{env}.api.example.com'
+    _(config.description).must_equal 'Primary server'
+    _(config.variables).must_equal variables
+  end
+
+  it 'is immutable and freezes its variables map' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://api.example.com',
+      variables: { 'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod') }
+    )
+    _(config).must_be :frozen?
+    _(config.variables).must_be :frozen?
+  end
+end

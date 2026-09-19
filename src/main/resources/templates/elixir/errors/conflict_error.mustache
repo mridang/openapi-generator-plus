@@ -1,0 +1,33 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Errors.ConflictError do
+  @moduledoc """
+  Exception for HTTP 409 Conflict.
+  """
+
+  defexception [:message, :status_code, :response_headers, :response_body, :error_body]
+
+  @type t :: %__MODULE__{
+          message: String.t(),
+          status_code: integer(),
+          response_headers: map() | nil,
+          response_body: String.t() | nil,
+          error_body: term() | nil
+        }
+
+  @impl true
+  def exception(opts) when is_map(opts) do
+    %__MODULE__{
+      message: Map.get(opts, :message, "Conflict"),
+      status_code: 409,
+      response_headers: Map.get(opts, :response_headers),
+      response_body: Map.get(opts, :response_body),
+      error_body: Map.get(opts, :error_body)
+    }
+  end
+
+  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, status_code: 409}
+
+  @impl true
+  def message(%__MODULE__{} = error), do: {{moduleName}}.ApiError.message(struct({{moduleName}}.ApiError, Map.from_struct(error)))
+end

@@ -1,0 +1,37 @@
+{{>api_info}}
+
+{{#hasAnyOAuth2}}
+mod oauth2_token_manager;
+pub use oauth2_token_manager::*;
+{{/hasAnyOAuth2}}
+
+{{#hasOAuth2ClientCredentials}}
+pub mod client_auth_method;
+pub use client_auth_method::*;
+mod oauth2_client_credentials_authenticator;
+pub use oauth2_client_credentials_authenticator::*;
+{{/hasOAuth2ClientCredentials}}
+
+{{#hasOAuth2Password}}
+{{^hasOAuth2ClientCredentials}}
+pub mod client_auth_method;
+pub use client_auth_method::*;
+{{/hasOAuth2ClientCredentials}}
+mod oauth2_password_authenticator;
+pub use oauth2_password_authenticator::*;
+{{/hasOAuth2Password}}
+
+{{#hasOAuth2AuthorizationCode}}
+mod oauth2_auth_code_authenticator;
+pub use oauth2_auth_code_authenticator::*;
+{{/hasOAuth2AuthorizationCode}}
+
+{{#hasOAuth2Implicit}}
+mod oauth2_implicit_authenticator;
+pub use oauth2_implicit_authenticator::*;
+{{/hasOAuth2Implicit}}
+
+{{#hasOpenIdConnect}}
+mod openid_connect_authenticator;
+pub use openid_connect_authenticator::*;
+{{/hasOpenIdConnect}}
