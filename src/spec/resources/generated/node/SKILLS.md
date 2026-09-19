@@ -5,7 +5,7 @@
 Install the SDK as a dependency in your project. If published to npm, use:
 
 ```bash
-npm install <package-name>
+npm install petstore-client
 ```
 
 If using locally, add it as a file dependency in your `package.json`.
@@ -13,7 +13,7 @@ If using locally, add it as a file dependency in your `package.json`.
 ## Quick Start
 
 ```typescript
-import { Client } from "./src/client";
+import { Client } from "./src/client.js";
 
 const client = Client.withToken("https://api.example.com", "your-token");
 ```
@@ -25,8 +25,8 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```typescript
-import { BearerAuthenticator } from "./src/auth/bearer-authenticator";
-import { Client } from "./src/client";
+import { BearerAuthenticator } from "./src/auth/bearer-authenticator.js";
+import { Client } from "./src/client.js";
 
 const authenticator = new BearerAuthenticator(
   "https://api.example.com",
@@ -38,7 +38,7 @@ const client = new Client(authenticator);
 ### Basic Auth
 
 ```typescript
-import { BasicAuthenticator } from "./src/auth/basic-authenticator";
+import { BasicAuthenticator } from "./src/auth/basic-authenticator.js";
 
 const authenticator = new BasicAuthenticator(
   "https://api.example.com",
@@ -51,8 +51,8 @@ const client = new Client(authenticator);
 ### API Key
 
 ```typescript
-import { ApiKeyAuthenticator } from "./src/auth/api-key-authenticator";
-import { ApiKeyLocation } from "./src/auth/api-key-location";
+import { ApiKeyAuthenticator } from "./src/auth/api-key-authenticator.js";
+import { ApiKeyLocation } from "./src/auth/api-key-location.js";
 
 const authenticator = new ApiKeyAuthenticator(
   "https://api.example.com",
@@ -66,7 +66,7 @@ const client = new Client(authenticator);
 ### OAuth2 Client Credentials
 
 ```typescript
-import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator";
+import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator.js";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   "https://api.example.com",
@@ -80,7 +80,7 @@ const client = new Client(authenticator);
 ### OAuth2 Authorization Code
 
 ```typescript
-import { OAuth2AuthCodeAuthenticator } from "./src/auth/oauth/oauth2-auth-code-authenticator";
+import { OAuth2AuthCodeAuthenticator } from "./src/auth/oauth/oauth2-auth-code-authenticator.js";
 
 const authenticator = new OAuth2AuthCodeAuthenticator(
   "https://api.example.com",
@@ -96,7 +96,7 @@ const client = new Client(authenticator);
 ### OAuth2 Password
 
 ```typescript
-import { OAuth2PasswordAuthenticator } from "./src/auth/oauth/oauth2-password-authenticator";
+import { OAuth2PasswordAuthenticator } from "./src/auth/oauth/oauth2-password-authenticator.js";
 
 const authenticator = new OAuth2PasswordAuthenticator(
   "https://api.example.com",
@@ -114,7 +114,7 @@ const client = new Client(authenticator);
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```typescript
-import { OAuth2ImplicitAuthenticator } from "./src/auth/oauth/oauth2-implicit-authenticator";
+import { OAuth2ImplicitAuthenticator } from "./src/auth/oauth/oauth2-implicit-authenticator.js";
 
 const authenticator = new OAuth2ImplicitAuthenticator(
   "https://api.example.com",
@@ -126,7 +126,7 @@ const client = new Client(authenticator);
 ### OpenID Connect
 
 ```typescript
-import { OpenIdConnectAuthenticator } from "./src/auth/oauth/openid-connect-authenticator";
+import { OpenIdConnectAuthenticator } from "./src/auth/oauth/openid-connect-authenticator.js";
 
 const authenticator = new OpenIdConnectAuthenticator(
   "https://api.example.com",
@@ -161,8 +161,8 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 Override the default if your authorization server only accepts one form:
 
 ```typescript
-import { ClientAuthMethod } from "./src/auth/oauth/client-auth-method";
-import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator";
+import { ClientAuthMethod } from "./src/auth/oauth/client-auth-method.js";
+import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator.js";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   "https://api.example.com",
@@ -179,9 +179,9 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` static property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` array. Pass the desired server's URL to the client:
 
 ```typescript
-import { Servers } from "./src/servers";
+import { Servers } from "./src/servers.js";
 
-const client = Client.withToken(Servers.SERVER_0.url(), "your-token");
+const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 ```
 
 ## Testing
@@ -217,9 +217,9 @@ All API errors extend `ApiError`. The error hierarchy is:
     - `InternalServerError` (500)
 
 ```typescript
-import { NotFoundError } from "./src/errors/not-found-error";
-import { ClientError } from "./src/errors/client-error";
-import { ServerError } from "./src/errors/server-error";
+import { NotFoundError } from "./src/errors/not-found-error.js";
+import { ClientError } from "./src/errors/client-error.js";
+import { ServerError } from "./src/errors/server-error.js";
 
 try {
   const result = await client.pet.addPet(/* ... */);
@@ -239,7 +239,7 @@ try {
 ### Custom Transport Options
 
 ```typescript
-import { TransportOptions } from "./src/transport-options";
+import { TransportOptions } from "./src/transport-options.js";
 
 const transport = TransportOptions.builder()
   .proxy("http://proxy:3128")
@@ -251,7 +251,7 @@ const client = new Client(authenticator, transport);
 
 ## API Methods
 
-Each API group is exposed as a typed property on the client. API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 All API methods return `Promise` values and should be used with `await`.
 

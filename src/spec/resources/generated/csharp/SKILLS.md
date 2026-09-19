@@ -12,7 +12,7 @@ dotnet add package PetstoreClient
 using PetstoreClient;
 using PetstoreClient.Auth;
 
-var client = Client.WithToken("https://api.example.com", "your-token");
+var client = global::PetstoreClient.Client.WithToken("https://api.example.com", "your-token");
 ```
 
 ## Authentication
@@ -25,21 +25,21 @@ All authentication is handled via `IAuthenticator` implementations passed to the
 using PetstoreClient.Auth;
 
 var authenticator = new BearerAuthenticator("https://api.example.com", "your-token");
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### Basic Auth
 
 ```csharp
 var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### API Key
 
 ```csharp
 var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.Header);
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### OAuth2 Client Credentials
@@ -49,7 +49,7 @@ using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
     "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### OAuth2 Authorization Code
@@ -60,7 +60,7 @@ using PetstoreClient.Auth.OAuth;
 var authenticator = new OAuth2AuthCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### OAuth2 Password
@@ -71,7 +71,7 @@ using PetstoreClient.Auth.OAuth;
 var authenticator = new OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "username", "password");
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### OAuth2 Implicit
@@ -82,7 +82,7 @@ The implicit flow obtains the access token out of band (typically in the browser
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### OpenID Connect
@@ -93,7 +93,7 @@ using PetstoreClient.Auth.OAuth;
 var authenticator = new OpenIdConnectAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/.well-known/openid-configuration");
-var client = new Client(authenticator);
+var client = new global::PetstoreClient.Client(authenticator);
 ```
 
 ### OAuth2 token lifecycle
@@ -134,7 +134,7 @@ If the OpenAPI spec defines multiple servers, the generated `Servers` class expo
 ```csharp
 using PetstoreClient;
 
-var client = Client.WithToken(Servers.Server0.Url(), "your-token");
+var client = global::PetstoreClient.Client.WithToken(Servers.Server0.GetUrl(), "your-token");
 ```
 
 ## Testing
@@ -150,7 +150,7 @@ public sealed class FakeAuthenticator : IAuthenticator
     public string Host => "https://api.example.com";
 }
 
-var client = new Client(new FakeAuthenticator());
+var client = new global::PetstoreClient.Client(new FakeAuthenticator());
 ```
 
 ## Error Handling
@@ -203,7 +203,7 @@ var transport = TransportOptions.Builder()
     .Timeout(5000)
     .Build();
 
-var client = new Client(authenticator, transport);
+var client = new global::PetstoreClient.Client(authenticator, transport);
 ```
 
 The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done.

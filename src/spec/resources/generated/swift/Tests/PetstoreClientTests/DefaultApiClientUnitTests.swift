@@ -347,7 +347,7 @@
 
     // A multipart/form-data body that includes a MODEL part must serialise that
     // part through the SDK's CONFIGURED ObjectSerializer, so the JSON uses WIRE
-    // property names (isPrimary, takenAt — NOT snake_case is_primary/taken_at)
+    // property names (isEnabled, recordedAt — NOT snake_case is_enabled/recorded_at)
     // and the SDK's date-time format. This guards the model-part branch of
     // appendMultipartField against a regression to JSONSerialization (which
     // would crash on a struct) or any alternate encoder that disagrees on key
@@ -358,7 +358,7 @@
       parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
       let instant = parser.date(from: "2020-01-02T03:04:05.123Z")!
 
-      let metadata = MultipartModelPartFixture(isPrimary: true, takenAt: instant)
+      let metadata = MultipartModelPartFixture(isEnabled: true, recordedAt: instant)
       let formParts: [String: Any] = ["metadata": metadata]
       let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
       let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -373,22 +373,22 @@
 
       // WIRE property names — never snake_case.
       #expect(
-        bodyStr.contains("\"isPrimary\""),
-        "model part must use wire name isPrimary, got: \(bodyStr)")
+        bodyStr.contains("\"isEnabled\""),
+        "model part must use wire name isEnabled, got: \(bodyStr)")
       #expect(
-        bodyStr.contains("\"takenAt\""),
-        "model part must use wire name takenAt, got: \(bodyStr)")
+        bodyStr.contains("\"recordedAt\""),
+        "model part must use wire name recordedAt, got: \(bodyStr)")
       #expect(
-        !bodyStr.contains("is_primary"),
-        "model part must NOT snake_case isPrimary, got: \(bodyStr)")
+        !bodyStr.contains("is_enabled"),
+        "model part must NOT snake_case isEnabled, got: \(bodyStr)")
       #expect(
-        !bodyStr.contains("taken_at"),
-        "model part must NOT snake_case takenAt, got: \(bodyStr)")
+        !bodyStr.contains("recorded_at"),
+        "model part must NOT snake_case recordedAt, got: \(bodyStr)")
 
       // The date-time carries the SDK format with the millisecond fraction.
       #expect(
         bodyStr.contains("2020-01-02T03:04:05.123"),
-        "takenAt must carry the SDK date-time string with .123 fraction, got: \(bodyStr)")
+        "recordedAt must carry the SDK date-time string with .123 fraction, got: \(bodyStr)")
     }
 
     // MARK: - Response charset handling (Gap H)
@@ -648,8 +648,8 @@
   /// do, so the multipart model-part branch can be exercised without referring
   /// to any model that happens to exist in the spec being generated.
   private struct MultipartModelPartFixture: Codable {
-    let isPrimary: Bool
-    let takenAt: Date
+    let isEnabled: Bool
+    let recordedAt: Date
   }
 
   // MARK: - URL Protocol stub for unit tests

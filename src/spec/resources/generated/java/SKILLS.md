@@ -8,14 +8,15 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>com.example.petstore</groupId>
     <artifactId>openapi-java-client</artifactId>
-    <version>1.0.0</version>
+    <!-- use the latest published version -->
+    <version>LATEST</version>
 </dependency>
 ```
 
 Or with Gradle:
 
 ```groovy
-implementation 'com.example.petstore:openapi-java-client:1.0.0'
+implementation 'com.example.petstore:openapi-java-client'
 ```
 
 ## Quick Start
@@ -152,7 +153,7 @@ If the OpenAPI spec defines multiple servers, the generated `Servers` class expo
 ```java
 import com.example.petstore.Servers;
 
-var client = Client.withToken(Servers.SERVER_0.url(), "your-token");
+var client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 ```
 
 ## Testing

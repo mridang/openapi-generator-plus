@@ -996,8 +996,8 @@ public class DefaultApiClientUnitTest
         // part diverges from the body the same SDK emits on the JSON path.
         //
         // The wire property names come from each model's [JsonPropertyName]
-        // attribute, so the part MUST carry the WIRE keys "isPrimary"/"takenAt"
-        // (never snake_case "is_primary"/"taken_at"), and the date-time MUST be
+        // attribute, so the part MUST carry the WIRE keys "isEnabled"/"recordedAt"
+        // (never snake_case "is_enabled"/"recorded_at"), and the date-time MUST be
         // rendered in the SDK's millisecond ISO-8601 form.
         string? wireText = null;
         var handler = new CapturingHandler(async req =>
@@ -1008,8 +1008,8 @@ public class DefaultApiClientUnitTest
         var client = new DefaultApiClient(new HttpClient(handler));
         var metadata = new MultipartModelPart
         {
-            IsPrimary = true,
-            TakenAt = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero),
+            IsEnabled = true,
+            RecordedAt = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero),
         };
         var formData = new Dictionary<string, object>
         {
@@ -1022,10 +1022,10 @@ public class DefaultApiClientUnitTest
 
         Assert.NotNull(wireText);
         // Wire (camelCase) keys from [JsonPropertyName], never snake_case.
-        Assert.Contains("\"isPrimary\":true", wireText);
-        Assert.Contains("\"takenAt\":", wireText);
-        Assert.DoesNotContain("is_primary", wireText);
-        Assert.DoesNotContain("taken_at", wireText);
+        Assert.Contains("\"isEnabled\":true", wireText);
+        Assert.Contains("\"recordedAt\":", wireText);
+        Assert.DoesNotContain("is_enabled", wireText);
+        Assert.DoesNotContain("recorded_at", wireText);
         // The SDK DateTimeOffset converter emits yyyy-MM-dd'T'HH:mm:ss.fffzzz.
         Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText);
         // Null-omission from the configured options: the unset "caption" and
@@ -1318,9 +1318,9 @@ public class DefaultApiClientUnitTest
 /// </summary>
 public sealed class MultipartModelPart
 {
-    [System.Text.Json.Serialization.JsonPropertyName("isPrimary")]
-    public bool? IsPrimary { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("isEnabled")]
+    public bool? IsEnabled { get; set; }
 
-    [System.Text.Json.Serialization.JsonPropertyName("takenAt")]
-    public DateTimeOffset? TakenAt { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("recordedAt")]
+    public DateTimeOffset? RecordedAt { get; set; }
 }

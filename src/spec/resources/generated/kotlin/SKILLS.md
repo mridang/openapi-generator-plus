@@ -153,7 +153,7 @@ If the OpenAPI spec defines multiple servers, the generated `Servers` object exp
 ```kotlin
 import com.example.petstore.Servers
 
-val client = Client.withToken(Servers.SERVER_0.url(), "your-token")
+val client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token")
 ```
 
 ## Testing
@@ -218,7 +218,7 @@ val client = Client(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed property on the client. API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 

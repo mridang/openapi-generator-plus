@@ -53,6 +53,18 @@ class FixtureVocabularyLeakTest {
      */
     private static final Set<String> DISTINCTIVE_EXTRAS = Set.of("petstore", "swatch", "fido", "doggie");
 
+    /**
+     * Property names the fixture happens to share with the vocabulary of HTTP
+     * and OAuth itself.
+     *
+     * <p>Every SDK has a Content-Type guess and an access-token expiry, so
+     * {@code mimeTypeForFilename} and a comment about {@code expiresAt} are
+     * the generator's own words, not the fixture's. Nothing here may be a
+     * name the fixture invented — that is the whole point of the check.
+     */
+    private static final Set<String> SHARED_WITH_PROTOCOL_VOCABULARY =
+            Set.of("mimeType", "expiresAt");
+
     @Test
     void generatedSdksContainNoFixtureVocabulary() throws IOException {
         final Set<String> forbidden = forbiddenVocabulary();
@@ -92,6 +104,14 @@ class FixtureVocabularyLeakTest {
         collect(candidates, Pattern.compile("^\\s{4}([A-Z][A-Za-z0-9]+):\\s*$", Pattern.MULTILINE), text);
         collect(candidates, Pattern.compile("operationId:\\s*([A-Za-z0-9_]+)"), text);
 
+        /* Property names too. Matching only schema and operation names let
+           "weightKg" — a property of the fixture's Pet — reach 1,197 generated
+           model files unnoticed, because it does not spell "pet". Only
+           multi-word camelCase names are taken: a single lowercase word such
+           as "name" or "status" occurs everywhere by coincidence, while
+           "weightKg" does not. */
+        final Set<String> properties = declaredPropertyNames(text);
+
         /* Keep only what is DISTINCTIVE to the fixture. Its schemas are largely
            ordinary English nouns — Order, Category, Photo, Tag — which occur
            legitimately throughout any SDK, so matching them reports noise rather
@@ -103,7 +123,74 @@ class FixtureVocabularyLeakTest {
                 words.add(candidate);
             }
         }
+
+        /* A property name is only evidence of a leak if it belongs to THIS
+           spec alone. Anything the probe spec also declares is a word both
+           specs happened to choose, so its presence in probe output says
+           nothing. */
+        final String probe = readProbeSpec();
+        for (final String property : properties) {
+            if (SHARED_WITH_PROTOCOL_VOCABULARY.contains(property)) {
+                continue;
+            }
+            if (!lower(probe).contains(lower(property))) {
+                words.add(property);
+            }
+        }
         return words;
+    }
+
+    /**
+     * The multi-word camelCase keys declared under a {@code properties:} block.
+     *
+     * <p>Scoping to that block is what separates the spec's vocabulary from
+     * its structure: a bare scan for camelCase keys also picks up {@code oneOf}
+     * and {@code anyOf}, which are OpenAPI keywords rather than anything the
+     * fixture named. Single lowercase words such as "name" are skipped for the
+     * opposite reason — they occur everywhere by coincidence.
+     *
+     * @param text the spec's raw YAML
+     * @return the property names the spec declares
+     */
+    private static Set<String> declaredPropertyNames(String text) {
+        final Set<String> names = new LinkedHashSet<>();
+        final Pattern camelKey = Pattern.compile("^(\\s+)([a-z][a-z0-9]*[A-Z][A-Za-z0-9]*):\\s*$");
+        int propertiesIndent = -1;
+        for (final String line : text.split("\n", -1)) {
+            if (line.isBlank()) {
+                continue;
+            }
+            final int indent = line.length() - line.stripLeading().length();
+            if (propertiesIndent >= 0 && indent <= propertiesIndent) {
+                propertiesIndent = -1;
+            }
+            if (line.stripTrailing().endsWith("properties:")
+                    && !line.stripLeading().startsWith("additionalProperties:")) {
+                propertiesIndent = indent;
+                continue;
+            }
+            if (propertiesIndent < 0) {
+                continue;
+            }
+            final Matcher matcher = camelKey.matcher(line);
+            /* Only the keys directly beneath the block, not nested schemas. */
+            if (matcher.matches() && matcher.group(1).length() == propertiesIndent + 2) {
+                names.add(matcher.group(2));
+            }
+        }
+        return names;
+    }
+
+    /** The probe spec's raw text, used to discard vocabulary the two specs share. */
+    private static String readProbeSpec() throws IOException {
+        final URL spec =
+                FixtureVocabularyLeakTest.class
+                        .getClassLoader()
+                        .getResource("specs/probe/openapi.yaml");
+        if (spec == null) {
+            throw new IllegalStateException("probe spec not found on the test classpath");
+        }
+        return Files.readString(Path.of(spec.getPath()), StandardCharsets.UTF_8);
     }
 
     private static void collect(Set<String> into, Pattern pattern, String text) {

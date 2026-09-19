@@ -139,7 +139,7 @@ If the OpenAPI spec defines multiple servers, the generated `petstore_client.ser
 ```python
 from petstore_client.servers import SERVER_0
 
-client = Client.with_token(SERVER_0.url(), "your-token")
+client = Client.with_token(SERVER_0.get_url(), "your-token")
 ```
 
 ## Testing

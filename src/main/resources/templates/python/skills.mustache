@@ -9,7 +9,7 @@ pip install {{packageName}}
 ## Quick Start
 
 ```python
-from {{packageName}}.client import {{clientClassName}}
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
 
 client = {{clientClassName}}.with_token("https://api.example.com", "your-token")
 ```
@@ -157,7 +157,7 @@ If the OpenAPI spec defines multiple servers, the generated `{{packageName}}.ser
 ```python
 from {{packageName}}.servers import SERVER_0
 
-client = {{clientClassName}}.with_token(SERVER_0.url(), "your-token")
+client = {{clientClassName}}.with_token(SERVER_0.get_url(), "your-token")
 ```
 
 {{/hasServers}}

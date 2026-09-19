@@ -4574,6 +4574,43 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Records a real {@code format: byte} property for documentation that
+     * needs to show one.
+     *
+     * <p>The README section on binary properties used to name the first model
+     * in the spec and a made-up property on it. That is wrong twice over: the
+     * first model is rarely the one carrying bytes, and the property did not
+     * exist at all — the Zitadel SDK shipped a snippet reading
+     * {@code some_byte_property} off a model whose only fields are two
+     * strings.
+     *
+     * <p>Templates should render the section only under
+     * {@code hasByteExample}, since a spec with no byte property has nothing
+     * to illustrate and the section is then better omitted than faked.
+     *
+     * @param models every model in the spec, keyed as the codegen supplies them
+     */
+    private void recordByteArrayExample(Map<String, ModelsMap> models) {
+        for (final ModelsMap modelsMap : models.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (model == null || model.vars == null) {
+                    continue;
+                }
+                for (final CodegenProperty prop : model.vars) {
+                    if (prop.isByteArray) {
+                        additionalProperties.put("byteExampleClassname", model.classname);
+                        additionalProperties.put("byteExamplePropertyName", prop.name);
+                        additionalProperties.put("hasByteExample", true);
+                        return;
+                    }
+                }
+            }
+        }
+        additionalProperties.put("hasByteExample", false);
+    }
+
+    /**
      * The document title with a trailing "SDK" removed, for the templates
      * that append a suffix of their own.
      *
@@ -5145,6 +5182,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
         final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        recordByteArrayExample(result);
         final Map<String, String> typeImportMap = getPropertyTypeImportMap();
         // Decorator pass over model properties — runs BEFORE the
         // operation-level decorator pass (postProcessAllModels precedes

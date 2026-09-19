@@ -12,7 +12,7 @@ dotnet add package {{packageName}}
 using {{packageName}};
 using {{packageName}}.Auth;
 
-var client = {{clientClassName}}.WithToken("https://api.example.com", "your-token");
+var client = global::{{packageName}}.{{clientClassName}}.WithToken("https://api.example.com", "your-token");
 ```
 
 ## Authentication
@@ -25,7 +25,7 @@ All authentication is handled via `IAuthenticator` implementations passed to the
 using {{packageName}}.Auth;
 
 var authenticator = new BearerAuthenticator("https://api.example.com", "your-token");
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{#hasBasicAuth}}
@@ -33,7 +33,7 @@ var client = new {{clientClassName}}(authenticator);
 
 ```csharp
 var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{/hasBasicAuth}}
@@ -42,7 +42,7 @@ var client = new {{clientClassName}}(authenticator);
 
 ```csharp
 var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.Header);
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{/hasApiKeyAuth}}
@@ -54,7 +54,7 @@ using {{packageName}}.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
     "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{/hasOAuth2ClientCredentials}}
@@ -67,7 +67,7 @@ using {{packageName}}.Auth.OAuth;
 var authenticator = new OAuth2AuthCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{/hasOAuth2AuthorizationCode}}
@@ -80,7 +80,7 @@ using {{packageName}}.Auth.OAuth;
 var authenticator = new OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "username", "password");
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{/hasOAuth2Password}}
@@ -93,7 +93,7 @@ The implicit flow obtains the access token out of band (typically in the browser
 using {{packageName}}.Auth.OAuth;
 
 var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{/hasOAuth2Implicit}}
@@ -106,7 +106,7 @@ using {{packageName}}.Auth.OAuth;
 var authenticator = new OpenIdConnectAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/.well-known/openid-configuration");
-var client = new {{clientClassName}}(authenticator);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
 {{/hasOpenIdConnect}}
@@ -151,7 +151,7 @@ If the OpenAPI spec defines multiple servers, the generated `Servers` class expo
 ```csharp
 using {{packageName}};
 
-var client = {{clientClassName}}.WithToken(Servers.Server0.Url(), "your-token");
+var client = global::{{packageName}}.{{clientClassName}}.WithToken(Servers.Server0.GetUrl(), "your-token");
 ```
 
 {{/hasServers}}
@@ -169,7 +169,7 @@ public sealed class FakeAuthenticator : IAuthenticator
     public string Host => "https://api.example.com";
 }
 
-var client = new {{clientClassName}}(new FakeAuthenticator());
+var client = new global::{{packageName}}.{{clientClassName}}(new FakeAuthenticator());
 ```
 
 ## Error Handling
@@ -222,7 +222,7 @@ var transport = TransportOptions.Builder()
     .Timeout(5000)
     .Build();
 
-var client = new {{clientClassName}}(authenticator, transport);
+var client = new global::{{packageName}}.{{clientClassName}}(authenticator, transport);
 ```
 
 The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done.

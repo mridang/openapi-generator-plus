@@ -170,7 +170,7 @@ If the OpenAPI spec defines multiple servers, the generated `Servers` object exp
 ```kotlin
 import {{invokerPackage}}.Servers
 
-val client = {{clientClassName}}.withToken(Servers.SERVER_0.url(), "your-token")
+val client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), "your-token")
 ```
 
 {{/hasServers}}
@@ -237,7 +237,7 @@ val client = {{clientClassName}}(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed property on the client. API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed property on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 

@@ -68,6 +68,33 @@ fn resolve_host(container: &testcontainers::Container<GenericImage>) -> String {
         })
 }
 
+/// Returns a mapped host port, retrying until Docker reports it.
+///
+/// `start()` returns once the container is running, but Docker publishes the
+/// port mapping a moment later. Under load that gap widens, and the first read
+/// fails with `PortNotExposed` — which failed roughly one run in two here,
+/// taking a different test with it each time. Squid has no startup log line to
+/// wait on, so a fixed three-second sleep stood in for readiness and lost the
+/// race whenever the daemon was busy.
+fn port_when_mapped(
+    container: &testcontainers::Container<GenericImage>,
+    port: u16,
+    label: &str,
+) -> u16 {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        match container.get_host_port_ipv4(port) {
+            Ok(mapped) => return mapped,
+            Err(err) => {
+                if std::time::Instant::now() >= deadline {
+                    panic!("failed to get {label} port {port} within 60s: {err}");
+                }
+                std::thread::sleep(std::time::Duration::from_millis(250));
+            }
+        }
+    }
+}
+
 fn init_containers_inner() -> TestContainers {
     let fixtures = fixtures_dir();
     let squid_conf_path = fixtures.join("proxy").join("squid.conf");
@@ -82,12 +109,8 @@ fn init_containers_inner() -> TestContainers {
         .start()
         .expect("Failed to start Squid container");
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
     let squid_host = resolve_host(&squid);
-    let squid_port = squid
-        .get_host_port_ipv4(3128)
-        .expect("failed to get Squid port");
+    let squid_port = port_when_mapped(&squid, 3128, "Squid");
 
     // Start Chasm
     let chasm_cert_path = fixtures.join("certs").join("server.pem");
@@ -119,15 +142,22 @@ fn init_containers_inner() -> TestContainers {
     let chasm_bridge_ip = chasm
         .get_bridge_ip_address()
         .expect("failed to get Chasm bridge IP");
-    let chasm_port = chasm
-        .get_host_port_ipv4(4010)
-        .expect("failed to get Chasm port");
-    let chasm_https_port = chasm
-        .get_host_port_ipv4(8443)
-        .expect("failed to get Chasm HTTPS port");
+    let chasm_port = port_when_mapped(&chasm, 4010, "Chasm");
+    let chasm_https_port = port_when_mapped(&chasm, 8443, "Chasm HTTPS");
 
-    // Leak container handles to keep them alive for the test suite lifetime.
-    // They will be cleaned up when the process exits (Ryuk).
+    // Keep the containers alive for the lifetime of this test binary: the
+    // handles are locals, and dropping them here would remove the very
+    // containers the tests are about to talk to.
+    //
+    // NOTE: this leaks them. testcontainers-rs removes a container from
+    // its Drop impl and this crate does not run Ryuk, so nothing reaps
+    // them afterwards — contrary to what this comment used to claim. Cargo
+    // builds each file under tests/ as its own binary, so a full run
+    // strands one Squid and one Chasm per binary, and they accumulate
+    // across runs until the daemon is starved and new containers fail to
+    // start. Until that is addressed, clear them between runs with:
+    //   docker ps -q --filter ancestor=mridang/chasm:1.3.0 \
+    //     --filter ancestor=ubuntu/squid:5.2-22.04_beta | xargs -r docker rm -f
     std::mem::forget(squid);
     std::mem::forget(chasm);
 

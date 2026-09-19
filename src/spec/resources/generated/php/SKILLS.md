@@ -5,7 +5,7 @@
 Add the SDK to your project via Composer:
 
 ```bash
-composer require <vendor>/<package-name>
+composer require openapi/petstoreclient
 ```
 
 ## Quick Start
@@ -136,12 +136,12 @@ $authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `PetstoreClient\Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers::SERVER_0`, `Servers::SERVER_1`, ...) plus an `Servers::ALL` array. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `PetstoreClient\Servers` class exposes each as a `ServerConfiguration` static method (e.g., `Servers::server0()`, `Servers::server1()`, ...) plus a `Servers::all()` array. Pass the desired server's URL to the client:
 
 ```php
 use PetstoreClient\Servers;
 
-$client = Client::withToken(Servers::SERVER_0->url(), 'your-token');
+$client = Client::withToken(Servers::server0()->getUrl(), 'your-token');
 ```
 
 ## Testing

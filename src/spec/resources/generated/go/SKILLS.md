@@ -121,7 +121,12 @@ authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
 If the OpenAPI spec defines multiple servers, the generated package exposes each as a `*ServerConfiguration` variable (e.g., `Server0`, `Server1`, ...) plus an `AllServers` slice. Pass the desired server's URL to the client constructor:
 
 ```go
-client := petstore.NewClientWithToken(petstore.Server0.URL(), "your-token", nil)
+url, err := petstore.Server0.URL(nil)
+if err != nil {
+	log.Fatal(err)
+}
+
+client := petstore.NewClientWithToken(url, "your-token", nil)
 ```
 
 ## Testing

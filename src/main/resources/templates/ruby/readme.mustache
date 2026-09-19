@@ -69,11 +69,13 @@ binary-encoded Ruby `String`s on the model surface — **not** as the
 base64 text from the wire. The transport layer base64-decodes on
 read and base64-encodes (strict, no line breaks) on write.
 
+{{#hasByteExample}}
 ```ruby
-model = {{moduleName}}::ObjectSerializer.deserialize(json, '{{#models}}{{#model}}{{#-first}}{{classname}}{{/-first}}{{/model}}{{/models}}')
-model.some_byte_property.encoding  # => #<Encoding:ASCII-8BIT>
-File.binwrite('thumb.jpg', model.some_byte_property)
+model = {{moduleName}}::ObjectSerializer.deserialize(json, '{{byteExampleClassname}}')
+model.{{byteExamplePropertyName}}.encoding  # => #<Encoding:ASCII-8BIT>
+File.binwrite('out.bin', model.{{byteExamplePropertyName}})
 ```
+{{/hasByteExample}}
 
 Assigning a non-base64 string when serializing raises
 `SerializationError`. Round-tripping a wire value preserves the

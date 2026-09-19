@@ -8,14 +8,15 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>{{groupId}}</groupId>
     <artifactId>{{artifactId}}</artifactId>
-    <version>{{artifactVersion}}</version>
+    <!-- use the latest published version -->
+    <version>LATEST</version>
 </dependency>
 ```
 
 Or with Gradle:
 
 ```groovy
-implementation '{{groupId}}:{{artifactId}}:{{artifactVersion}}'
+implementation '{{groupId}}:{{artifactId}}'
 ```
 
 ## Quick Start
@@ -169,7 +170,7 @@ If the OpenAPI spec defines multiple servers, the generated `Servers` class expo
 ```java
 import {{invokerPackage}}.Servers;
 
-var client = {{clientClassName}}.withToken(Servers.SERVER_0.url(), "your-token");
+var client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), "your-token");
 ```
 
 {{/hasServers}}
