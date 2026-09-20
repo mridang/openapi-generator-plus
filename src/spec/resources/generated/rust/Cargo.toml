@@ -28,4 +28,7 @@ version = "0.32"
 optional = true
 
 [dev-dependencies]
-testcontainers = { version = "0.24", features = ["blocking"] }
+# reusable-containers lets every integration binary share one set of fixture
+# containers. Cargo compiles each file under tests/ separately, so without it
+# each of them starts its own Squid and Chasm; see tests/testcontainers_helper.rs.
+testcontainers = { version = "0.24", features = ["blocking", "reusable-containers"] }

@@ -22,7 +22,7 @@ use std::sync::OnceLock;
 
 use testcontainers::core::{ContainerPort, WaitFor};
 use testcontainers::runners::SyncRunner;
-use testcontainers::{GenericImage, ImageExt};
+use testcontainers::{GenericImage, ImageExt, ReuseDirective};
 
 /// Shared test infrastructure URLs, populated once when first accessed.
 struct TestContainers {
@@ -95,81 +95,131 @@ fn port_when_mapped(
     }
 }
 
-fn init_containers_inner() -> TestContainers {
-    let fixtures = fixtures_dir();
-    let squid_conf_path = fixtures.join("proxy").join("squid.conf");
-    let spec_path = fixtures.join("openapi.yaml");
-    let ca_cert = fixtures.join("certs").join("ca.pem");
-
-    // Start Squid
-    let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
-        .with_exposed_port(ContainerPort::Tcp(3128))
-        .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
-        .with_startup_timeout(std::time::Duration::from_secs(120))
-        .start()
-        .expect("Failed to start Squid container");
-
-    let squid_host = resolve_host(&squid);
-    let squid_port = port_when_mapped(&squid, 3128, "Squid");
-
-    // Start Chasm
-    let chasm_cert_path = fixtures.join("certs").join("server.pem");
-    let chasm_key_path = fixtures.join("certs").join("server-key.pem");
-    let chasm = GenericImage::new("mridang/chasm", "1.3.0")
-        .with_wait_for(WaitFor::message_on_stdout("Listening on"))
-        .with_exposed_port(ContainerPort::Tcp(4010))
-        .with_exposed_port(ContainerPort::Tcp(8443))
-        .with_copy_to("/tmp/openapi.yaml", spec_path)
-        .with_copy_to("/certs/cert.pem", chasm_cert_path)
-        .with_copy_to("/certs/key.pem", chasm_key_path)
-        .with_cmd(vec![
-            "mock".to_string(),
-            "/tmp/openapi.yaml".to_string(),
-            "--host".to_string(),
-            "0.0.0.0".to_string(),
-            "--tls-cert".to_string(),
-            "/certs/cert.pem".to_string(),
-            "--tls-key".to_string(),
-            "/certs/key.pem".to_string(),
-            "--tls-port".to_string(),
-            "8443".to_string(),
-        ])
-        .with_startup_timeout(std::time::Duration::from_secs(120))
-        .start()
-        .expect("Failed to start Chasm container");
-
-    let chasm_host = resolve_host(&chasm);
-    let chasm_bridge_ip = chasm
-        .get_bridge_ip_address()
-        .expect("failed to get Chasm bridge IP");
-    let chasm_port = port_when_mapped(&chasm, 4010, "Chasm");
-    let chasm_https_port = port_when_mapped(&chasm, 8443, "Chasm HTTPS");
-
-    // Keep the containers alive for the lifetime of this test binary: the
-    // handles are locals, and dropping them here would remove the very
-    // containers the tests are about to talk to.
-    //
-    // NOTE: this leaks them. testcontainers-rs removes a container from
-    // its Drop impl and this crate does not run Ryuk, so nothing reaps
-    // them afterwards — contrary to what this comment used to claim. Cargo
-    // builds each file under tests/ as its own binary, so a full run
-    // strands one Squid and one Chasm per binary, and they accumulate
-    // across runs until the daemon is starved and new containers fail to
-    // start. Until that is addressed, clear them between runs with:
-    //   docker ps -q --filter ancestor=mridang/chasm:1.3.0 \
-    //     --filter ancestor=ubuntu/squid:5.2-22.04_beta | xargs -r docker rm -f
-    std::mem::forget(squid);
-    std::mem::forget(chasm);
-
-    TestContainers {
-        proxy_url: format!("http://{}:{}", squid_host, squid_port),
-        chasm_url: format!("http://{}:{}", chasm_host, chasm_port),
-        chasm_http_url: format!("http://{}:{}", chasm_host, chasm_port),
-        chasm_https_url: format!("https://{}:{}", chasm_host, chasm_https_port),
-        chasm_internal_http_url: format!("http://{}:4010", chasm_bridge_ip),
-        chasm_internal_https_url: format!("https://{}:8443", chasm_bridge_ip),
-        ca_cert_path: ca_cert.to_str().unwrap().to_string(),
+/// Serializes fixture-container creation across test binaries.
+///
+/// Cargo compiles each file under tests/ as its own binary and the runner
+/// executes them concurrently, so they all reach the reuse check at the same
+/// moment, all find nothing running, and all create their own pair. Reuse only
+/// helps once a container exists, so the first one through has to finish before
+/// the rest look. Holding a lock file for the creation window is enough: the
+/// winner creates the pair, everyone else then finds and attaches to it.
+fn with_creation_lock<T>(body: impl FnOnce() -> T) -> T {
+    let lock_path = std::env::temp_dir().join("openapi-generator-fixture-containers.lock");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+    loop {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock_path)
+        {
+            Ok(_) => break,
+            Err(_) => {
+                // A binary that died mid-creation would otherwise block every
+                // later one for the whole run, so an old lock counts as free.
+                let stale = std::fs::metadata(&lock_path)
+                    .ok()
+                    .and_then(|meta| meta.modified().ok())
+                    .and_then(|modified| modified.elapsed().ok())
+                    .is_some_and(|age| age > std::time::Duration::from_secs(240));
+                if stale {
+                    let _ = std::fs::remove_file(&lock_path);
+                    continue;
+                }
+                // Proceed unlocked rather than fail the run outright: a
+                // duplicate container is wasteful, a false failure is worse.
+                if std::time::Instant::now() >= deadline {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+        }
     }
+    let result = body();
+    let _ = std::fs::remove_file(&lock_path);
+    result
+}
+
+fn init_containers_inner() -> TestContainers {
+    with_creation_lock(|| {
+        let fixtures = fixtures_dir();
+        let squid_conf_path = fixtures.join("proxy").join("squid.conf");
+        let spec_path = fixtures.join("openapi.yaml");
+        let ca_cert = fixtures.join("certs").join("ca.pem");
+
+        // Start Squid
+        let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
+            .with_exposed_port(ContainerPort::Tcp(3128))
+            .with_label("io.openapi-generator.fixture", "squid")
+            .with_reuse(ReuseDirective::Always)
+            .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
+            .with_startup_timeout(std::time::Duration::from_secs(120))
+            .start()
+            .expect("Failed to start Squid container");
+
+        let squid_host = resolve_host(&squid);
+        let squid_port = port_when_mapped(&squid, 3128, "Squid");
+
+        // Start Chasm
+        let chasm_cert_path = fixtures.join("certs").join("server.pem");
+        let chasm_key_path = fixtures.join("certs").join("server-key.pem");
+        let chasm = GenericImage::new("mridang/chasm", "1.3.0")
+            .with_exposed_port(ContainerPort::Tcp(4010))
+            .with_exposed_port(ContainerPort::Tcp(8443))
+            .with_wait_for(WaitFor::message_on_stdout("Listening on"))
+            .with_label("io.openapi-generator.fixture", "chasm")
+            .with_reuse(ReuseDirective::Always)
+            .with_copy_to("/tmp/openapi.yaml", spec_path)
+            .with_copy_to("/certs/cert.pem", chasm_cert_path)
+            .with_copy_to("/certs/key.pem", chasm_key_path)
+            .with_cmd(vec![
+                "mock".to_string(),
+                "/tmp/openapi.yaml".to_string(),
+                "--host".to_string(),
+                "0.0.0.0".to_string(),
+                "--tls-cert".to_string(),
+                "/certs/cert.pem".to_string(),
+                "--tls-key".to_string(),
+                "/certs/key.pem".to_string(),
+                "--tls-port".to_string(),
+                "8443".to_string(),
+            ])
+            .with_startup_timeout(std::time::Duration::from_secs(120))
+            .start()
+            .expect("Failed to start Chasm container");
+
+        let chasm_host = resolve_host(&chasm);
+        let chasm_bridge_ip = chasm
+            .get_bridge_ip_address()
+            .expect("failed to get Chasm bridge IP");
+        let chasm_port = port_when_mapped(&chasm, 4010, "Chasm");
+        let chasm_https_port = port_when_mapped(&chasm, 8443, "Chasm HTTPS");
+
+        // Keep the containers alive for the lifetime of this test binary: the
+        // handles are locals, and dropping them would remove the very
+        // containers the tests are about to talk to — and, now that they are
+        // shared, the ones every other test binary is using too.
+        //
+        // Cargo compiles each file under tests/ as its own binary, so this
+        // function runs once per binary rather than once per run. Each used to
+        // start its own Squid and Chasm and then strand them, leaving fifty-odd
+        // containers behind and starving the daemon partway through the run,
+        // which surfaced as unrelated tests failing to reach a port. The
+        // reuse directive above makes the first binary create the pair and
+        // every later one attach to it, matched on the fixture label, so a
+        // whole run now leaves exactly two.
+        std::mem::forget(squid);
+        std::mem::forget(chasm);
+
+        TestContainers {
+            proxy_url: format!("http://{}:{}", squid_host, squid_port),
+            chasm_url: format!("http://{}:{}", chasm_host, chasm_port),
+            chasm_http_url: format!("http://{}:{}", chasm_host, chasm_port),
+            chasm_https_url: format!("https://{}:{}", chasm_host, chasm_https_port),
+            chasm_internal_http_url: format!("http://{}:4010", chasm_bridge_ip),
+            chasm_internal_https_url: format!("https://{}:8443", chasm_bridge_ip),
+            ca_cert_path: ca_cert.to_str().unwrap().to_string(),
+        }
+    })
 }
 
 pub fn proxy_url() -> &'static str {
