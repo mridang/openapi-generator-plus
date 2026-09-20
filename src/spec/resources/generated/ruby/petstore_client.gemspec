@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
   s.name        = 'petstore_client'
   s.version     = ::PetstoreClient::VERSION
   s.platform    = Gem::Platform::RUBY
-  s.authors     = ['OpenAPI-Generator']
+  s.authors     = ['Swagger Petstore - OpenAPI 3.0']
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'
   s.description = 'A simplified Pet Store API for integration testing.'
   s.license     = 'MIT'

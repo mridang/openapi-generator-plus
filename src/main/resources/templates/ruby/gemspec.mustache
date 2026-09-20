@@ -10,10 +10,10 @@ Gem::Specification.new do |s|
   s.name        = '{{gemName}}'
   s.version     = ::{{moduleName}}::VERSION
   s.platform    = Gem::Platform::RUBY
-  s.authors     = ['OpenAPI-Generator']
+  s.authors     = ['{{#infoName}}{{infoName}}{{/infoName}}{{^infoName}}{{appNameBase}}{{/infoName}}']
   s.summary     = '{{appNameBase}} Ruby Gem'
   s.description = '{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}{{appNameBase}} Ruby Gem{{/appDescription}}'
-  s.license     = 'MIT'
+  s.license     = '{{licenseId}}'
   s.required_ruby_version = '>= 3.1'
   s.metadata['rubygems_mfa_required'] = 'true'
 

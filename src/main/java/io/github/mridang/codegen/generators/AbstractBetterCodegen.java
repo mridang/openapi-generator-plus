@@ -505,6 +505,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         getPropertyOrDefault("clientClassName", "Client");
 
+        /* Every package manifest used to declare MIT as a literal, whatever the
+           package was actually licensed under — Zitadel's Ruby SDK shipped a
+           gemspec saying MIT alongside an Apache-2.0 LICENSE file. The value is
+           an SPDX identifier, and licenseUrl is derived from it for the manifests
+           that want a link rather than an identifier. */
+        final String licenseId = getPropertyOrDefault("licenseId", "MIT");
+        getPropertyOrDefault("licenseUrl", "https://opensource.org/licenses/" + licenseId);
+
         for (SupportingFileSpec spec : getSupportingFileSpecs()) {
             supportingFiles.add(
                     new SupportingFile(spec.template(), spec.folder(), spec.outputName()));

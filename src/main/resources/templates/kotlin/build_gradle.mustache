@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: {{licenseId}}
 plugins {
     kotlin("multiplatform") version "2.2.0"
     kotlin("plugin.serialization") version "2.2.0"
@@ -19,8 +19,8 @@ publishing {
                 description.set("{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}Generated API client for {{#appName}}{{{appName}}}{{/appName}}{{/appDescription}}")
                 licenses {
                     license {
-                        name.set("MIT")
-                        url.set("https://opensource.org/licenses/MIT")
+                        name.set("{{licenseId}}")
+                        url.set("{{licenseUrl}}")
                     }
                 }
             }
