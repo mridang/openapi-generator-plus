@@ -141,7 +141,7 @@ const client = new Client(authenticator);
 
 #### Async authentication
 
-OAuth2 authenticators implement an async `getAuthHeaders(request): Promise<Record<string, string>>` because resolving the access token requires an HTTP call to the token endpoint. The generated client always `await`s this call before sending the request; you do not need to interact with it directly.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -203,7 +203,7 @@ const client = new Client(fake);
 
 ## Error Handling
 
-All API errors extend `ApiError`. The error hierarchy is:
+All API errors derive from `ApiError`. The error hierarchy is:
 
 - `ApiError` (base)
   - `ClientError` (4xx)
@@ -251,9 +251,9 @@ const client = new Client(authenticator, transport);
 
 ## API Methods
 
-Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
-All API methods return `Promise` values and should be used with `await`.
+All API methods are asynchronous; await the returned `Promise`.
 
 ## Models
 
@@ -271,7 +271,7 @@ File upload parameters are typed as `Buffer`. Binary response bodies are returne
 
 ## Comment Style
 
-Never use inline comments (`//`). Always use block comments (`/* ... */`).
+Never place a comment on the same line as code. Use block comments (`/* ... */`); JSDoc (`/** ... */`) is fine.
 
 ```good
 /* This explains the logic */

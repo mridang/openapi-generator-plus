@@ -106,7 +106,7 @@ $client = new Client($authenticator);
 
 #### Async authentication
 
-OAuth2 authenticators resolve the access token through `getAuthHeaders()` because obtaining a token requires a blocking HTTP call to the token endpoint. The generated client invokes this for you before sending each request; you do not need to interact with it directly. PHP's HTTP client is synchronous, so the token fetch happens inline on the calling thread rather than via a future/promise.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -163,7 +163,7 @@ $client = new Client($fake);
 
 ## Error Handling
 
-All API errors extend `ApiException`. The exception hierarchy is:
+All API errors derive from `ApiException`. The error hierarchy is:
 
 - `ApiException` (base)
   - `ClientException` (4xx)
@@ -226,11 +226,11 @@ $model = new ApiResponse();
 
 ## Binary / File Uploads
 
-File upload parameters accept `SplFileInfo` or file path strings. Binary response bodies are returned as `string`.
+File upload parameters are typed as `SplFileInfo`. Binary response bodies are returned as `string`.
 
 ## Comment Style
 
-Never use inline comments (`//`). Always use block comments (`/* ... */`). PHPDoc `/** ... */` is fine.
+Never place a comment on the same line as code. Use block comments (`/* ... */`); PHPDoc (`/** ... */`) is fine.
 
 ```good
 /* This explains the logic */

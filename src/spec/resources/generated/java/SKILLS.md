@@ -117,7 +117,7 @@ var client = new Client(authenticator);
 
 #### Async authentication
 
-OAuth2 (and OpenID Connect) authenticators resolve the access token by making an HTTP call to the token endpoint, so they implement `HttpAwareAuthenticator`. The shared `ApiClient` is injected into the authenticator by the `Client` constructor via `setApiClient(...)`, so the token exchange reuses the same transport configuration (proxy, TLS, timeouts) as regular API calls. The call is made synchronously inside `getAuthHeaders()` before the request is sent; do not call `getAuthHeaders()` on an OAuth2/OIDC authenticator before the `ApiClient` has been injected.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -174,7 +174,7 @@ var client = new Client(fake);
 
 ## Error Handling
 
-All API errors extend `ApiException`. The error hierarchy is:
+All API errors derive from `ApiException`. The error hierarchy is:
 
 - `ApiException` (base)
   - `ClientException` (4xx)
@@ -224,7 +224,7 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 
 ## Models
 
-Models are generated as Java classes with public fields and a no-argument constructor. They are located in the `com.example.petstore.models` package.
+Models are generated as Java classes with public fields and a no-argument constructor in the `com.example.petstore.models` package.
 
 ```java
 import com.example.petstore.models.ApiResponse;
@@ -238,7 +238,7 @@ File upload parameters are typed as `File`. Binary response bodies are returned 
 
 ## Comment Style
 
-Never use inline comments (`//`). Always use block comments (`/* ... */`).
+Never place a comment on the same line as code. Use block comments (`/* ... */`); Javadoc (`/** ... */`) is fine.
 
 ```good
 /* This explains the logic */

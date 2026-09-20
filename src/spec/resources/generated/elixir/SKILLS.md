@@ -26,7 +26,7 @@ client = PetstoreClient.Client.with_token("https://api.example.com", "your-token
 
 ## Authentication
 
-All authentication is handled via authenticator structs passed to the client constructor.
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
 ### Bearer Token
 
@@ -98,7 +98,7 @@ client = PetstoreClient.Client.new(authenticator)
 
 #### Async authentication
 
-OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint the first time `auth_headers/1` is invoked (and again whenever the cached token has expired). That token fetch runs synchronously inside `auth_headers/1`, and the generated API functions always resolve the auth headers before sending the request. Because the fetch can perform network I/O and raise, call OAuth-backed operations from a process that can tolerate the blocking call (or wrap them in a `Task`) rather than from a latency-sensitive hot path.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -125,7 +125,7 @@ authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.n
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`. Resolve the URL via `ServerConfiguration.url/1`:
+If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`. Pass the desired server's URL to the client:
 
 ```elixir
 url = PetstoreClient.Servers.server_0() |> PetstoreClient.ServerConfiguration.url()
@@ -134,7 +134,7 @@ client = PetstoreClient.Client.with_token(url, "your-token")
 
 ## Testing
 
-The authenticator behaviour is the seam for tests: substitute a fake struct that returns a known header map.
+The `Authenticator` behaviour is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```elixir
 defmodule FakeAuthenticator do
@@ -160,7 +160,7 @@ client = PetstoreClient.Client.new(%FakeAuthenticator{})
 
 ## Error Handling
 
-All API errors are represented as exception structs. The error hierarchy is:
+All API errors derive from `ApiError`. The error hierarchy is:
 
 - `ApiError` (base)
   - `ClientError` (4xx)
@@ -204,7 +204,7 @@ client = PetstoreClient.Client.new(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client struct (e.g., `client.pet`). API modules have functions that correspond to OpenAPI operations, accepting the API struct and typed request parameters and returning `{:ok, result}` or `{:error, reason}` tuples.
+Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 
@@ -216,11 +216,11 @@ model = %PetstoreClient.Models.ApiResponse{}
 
 ## Binary / File Uploads
 
-File upload parameters accept `binary()` data. Binary response bodies are returned as `binary()`.
+File upload parameters are typed as `binary()`. Binary response bodies are returned as `binary()`.
 
 ## Comment Style
 
-Use `#` comments and `@moduledoc`/`@doc` attributes for documentation. Place comments on their own line.
+Never place a comment on the same line as code. Use `#` comments; `@moduledoc` and `@doc` are fine.
 
 ```good
 # This explains the logic

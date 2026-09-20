@@ -19,7 +19,7 @@ let client = Client::with_token("https://api.example.com", "your-token", None);
 
 ## Authentication
 
-All authentication is handled via `Authenticator` trait implementations passed to the client constructor.
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
 ### Bearer Token
 
@@ -108,7 +108,7 @@ let client = Client::new(Box::new(authenticator), None);
 
 #### Async authentication
 
-OAuth2 authenticators return a boxed future from `auth_headers` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `.await` this call before sending the request. A synchronous helper is preserved for back-compat but the OAuth flows require the async path.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -125,7 +125,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 - `ClientAuthMethod::Body` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
 - `ClientAuthMethod::Basic` sends them as an HTTP Basic `Authorization` header.
 
-Override the default with the `with_client_auth_method` builder:
+Override the default if your authorization server only accepts one form:
 
 ```rust
 use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
@@ -138,7 +138,7 @@ let authenticator = OAuth2ClientCredentialsAuthenticator::new(
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`. Resolve the URL and pass it to the client:
+If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`. Pass the desired server's URL to the client:
 
 ```rust
 use petstore::servers::server_0;
@@ -175,7 +175,7 @@ let client = Client::new(Box::new(FakeAuthenticator), None);
 
 ## Error Handling
 
-All API errors are represented by the `ApiError` enum. The error hierarchy is:
+All API errors derive from `ApiError`. The error hierarchy is:
 
 - `ApiError` (base)
   - `ClientError` (4xx)
@@ -218,13 +218,13 @@ let client = Client::new(Box::new(authenticator), Some(transport));
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client struct (e.g., `client.pet`). API structs have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning `Result<T, ApiError>`.
+Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
-All API methods are async and should be called with `.await`.
+All API methods are asynchronous; call them with `.await`.
 
 ## Models
 
-Models are generated as Rust structs with `serde::Serialize` and `serde::Deserialize` derives in the `models` module.
+Models are generated as Rust structs in the `models` module.
 
 ```rust
 use petstore::models::ApiResponse;
@@ -236,11 +236,11 @@ let model = ApiResponse {
 
 ## Binary / File Uploads
 
-File upload parameters accept `Vec<u8>`. Binary response bodies are returned as `Vec<u8>`.
+File upload parameters are typed as `Vec<u8>`. Binary response bodies are returned as `Vec<u8>`.
 
 ## Comment Style
 
-Never use inline comments (`//`). Always use block comments (`/* ... */`). Doc comments (`///`) are fine.
+Never place a comment on the same line as code. Use block comments (`/* ... */`); doc comments (`///`) are fine.
 
 ```good
 /* This explains the logic */

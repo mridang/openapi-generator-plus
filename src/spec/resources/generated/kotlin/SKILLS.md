@@ -117,7 +117,7 @@ val client = Client(authenticator)
 
 #### Async authentication
 
-OAuth2 authenticators expose a `suspend fun authHeadersAsync(request): Map<String, String>` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `await` this call before sending the request. A synchronous overload is preserved for back-compat but the OAuth flows require the async path.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -171,7 +171,7 @@ val client = Client(fake)
 
 ## Error Handling
 
-All API errors extend `ApiException`. The error hierarchy is:
+All API errors derive from `ApiException`. The error hierarchy is:
 
 - `ApiException` (base)
   - `ClientException` (4xx)
@@ -224,9 +224,11 @@ val client = Client(authenticator, transport)
 
 Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
+All API methods are asynchronous; call them from a coroutine.
+
 ## Models
 
-Models are generated as Kotlin data classes. They are located in the `com.example.petstore.models` package.
+Models are generated as Kotlin data classes in the `com.example.petstore.models` package.
 
 ```kotlin
 import com.example.petstore.models.*
@@ -240,7 +242,7 @@ File upload parameters are typed as `java.io.File`. Binary response bodies are r
 
 ## Comment Style
 
-Never use inline comments (`//`). Always use block comments (`/* ... */`).
+Never place a comment on the same line as code. Use block comments (`/* ... */`); KDoc (`/** ... */`) is fine.
 
 ```good
 /* This explains the logic */

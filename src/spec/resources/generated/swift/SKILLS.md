@@ -22,7 +22,7 @@ let client = Client(host: "https://api.example.com", accessToken: "your-token")
 
 ## Authentication
 
-All authentication is handled via `Authenticator` protocol implementations passed to the client initializer.
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
 ### Bearer Token
 
@@ -84,7 +84,7 @@ let client = Client(authenticator: authenticator)
 
 ### OAuth2 Implicit
 
-The implicit flow obtains the access token in the browser via the authorization URL. The authenticator wraps the configuration; the access token itself is supplied by your front-end.
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```swift
 let authenticator = OAuth2ImplicitAuthenticator(
@@ -110,7 +110,7 @@ let client = Client(authenticator: authenticator)
 
 #### Async authentication
 
-OAuth2 authenticators implement `authHeaders(request:) async throws -> [String: String]` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `await` this call before sending the request. A synchronous overload is preserved for back-compat but the OAuth flows require the async path.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -163,7 +163,7 @@ let client = Client(authenticator: FakeAuthenticator())
 
 ## Error Handling
 
-All API errors conform to the `Error` protocol. The error hierarchy is:
+All API errors derive from `ApiError`. The error hierarchy is:
 
 - `ApiError` (base)
   - `ClientError` (4xx)
@@ -205,13 +205,13 @@ let client = Client(authenticator: authenticator, transportOptions: transport)
 
 ## API Methods
 
-Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
-All API methods are async and should be called with `try await`.
+All API methods are asynchronous; call them with `try await`.
 
 ## Models
 
-Models are generated as Swift structs conforming to `Codable` in the `Models` directory.
+Models are generated as Swift structs in the `Models` directory.
 
 ```swift
 let model = ApiResponse(/* properties */)
@@ -223,7 +223,7 @@ File upload parameters are typed as `Data`. Binary response bodies are returned 
 
 ## Comment Style
 
-Never use inline comments (`//`). Always use block comments (`/* ... */`). Doc comments (`///`) are fine.
+Never place a comment on the same line as code. Use block comments (`/* ... */`); doc comments (`///`) are fine.
 
 ```good
 /* This explains the logic */

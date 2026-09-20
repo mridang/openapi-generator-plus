@@ -125,7 +125,7 @@ final client = Client(authenticator: authenticator);
 
 #### Async authentication
 
-OAuth2 authenticators expose `Future<Map<String, String>> getAuthHeaders(request)` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `await` this call before sending the request.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -180,7 +180,7 @@ final client = Client(authenticator: FakeAuthenticator());
 
 ## Error Handling
 
-All API errors extend `ApiError`. The error hierarchy is:
+All API errors derive from `ApiError`. The error hierarchy is:
 
 - `ApiError` (base)
   - `ClientError` (4xx)
@@ -225,9 +225,9 @@ final client = Client(
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
-All API methods return `Future<T>` and should be used with `await`.
+All API methods are asynchronous; await the returned `Future`.
 
 ## Models
 
@@ -239,11 +239,11 @@ final model = ApiResponse(/* properties */);
 
 ## Binary / File Uploads
 
-File upload parameters accept `Uint8List` (from `dart:typed_data`). Binary response bodies are returned as `Uint8List`. `Uint8List` is a subtype of `List<int>`, so any code that consumes the result as `List<int>` continues to work; producers should wrap byte literals via `Uint8List.fromList([...])`.
+File upload parameters are typed as `Uint8List`. Binary response bodies are returned as `Uint8List`.
 
 ## Comment Style
 
-Never use inline comments (`//`). Always use block comments (`/* ... */`). Doc comments (`///`) are fine.
+Never place a comment on the same line as code. Use block comments (`/* ... */`); doc comments (`///`) are fine.
 
 ```good
 /* This explains the logic */

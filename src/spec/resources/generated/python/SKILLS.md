@@ -104,7 +104,7 @@ client = Client(authenticator)
 
 #### Async authentication
 
-OAuth2 authenticators are `HttpAwareAuthenticator`s: resolving the access token requires an HTTP call to the token endpoint, which they make through the same shared `ApiClient` (and therefore the same proxy, TLS, and timeout configuration) as regular API calls. The generated client wires this up and fetches/refreshes the token as needed before each request; you do not need to interact with the token manager directly.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -144,7 +144,7 @@ client = Client.with_token(SERVER_0.get_url(), "your-token")
 
 ## Testing
 
-The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect. Combine with a stub HTTP transport (e.g., `responses`, `requests-mock`) to assert request URLs/bodies without a network.
+The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```python
 class FakeAuthenticator:
@@ -159,7 +159,7 @@ client = Client(FakeAuthenticator())
 
 ## Error Handling
 
-All API errors extend `ApiException`. The exception hierarchy is:
+All API errors derive from `ApiException`. The error hierarchy is:
 
 - `ApiException` (base)
   - `ClientException` (4xx)
@@ -214,9 +214,11 @@ client = Client(authenticator, transport)
 
 Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
+All API methods are asynchronous; await them.
+
 ## Models
 
-Models are generated as pydantic models. They are located in `petstore_client.models`.
+Models are generated as pydantic models in `petstore_client.models`.
 
 ```python
 from petstore_client.models.api_response import ApiResponse
@@ -226,11 +228,11 @@ model = ApiResponse()
 
 ## Binary / File Uploads
 
-File upload parameters accept file-like objects or `bytes`. Binary response bodies are returned as `bytes`.
+File upload parameters are typed as `bytes`. Binary response bodies are returned as `bytes`.
 
 ## Comment Style
 
-Use multi-line `"""` docstrings or `#` comments on their own line. Never place inline comments on the same line as code.
+Never place a comment on the same line as code. Use `#` comments; `"""` docstrings are fine.
 
 ```good
 # This explains the logic

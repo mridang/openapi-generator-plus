@@ -96,7 +96,7 @@ client = PetstoreClient::Client.new(authenticator)
 
 #### Async authentication
 
-OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint the first time `auth_headers` is invoked (and again when the cached token expires). The generated API methods call `auth_headers` for you before sending each request, so you never interact with it directly. Because the token fetch shares the same PetstoreClient::ApiClient as your regular calls, it inherits the same transport configuration (proxy, TLS, timeouts) and is serialized through the token manager so concurrent requests do not trigger duplicate token fetches.
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
 
 #### Refresh tokens
 
@@ -146,7 +146,7 @@ client = PetstoreClient::Client.new(fake_authenticator)
 
 ## Error Handling
 
-All API errors inherit from `ApiError`. The error hierarchy is:
+All API errors derive from `ApiError`. The error hierarchy is:
 
 - `ApiError` (base)
   - `ClientError` (4xx)
@@ -200,11 +200,11 @@ model = PetstoreClient::Models::ApiResponse.new
 
 ## Binary / File Uploads
 
-File upload parameters accept `File` objects or `IO`-like objects. Binary response bodies are returned as `String` with binary encoding.
+File upload parameters are typed as `IO`. Binary response bodies are returned as `String`.
 
 ## Comment Style
 
-Use `#` comments on their own line. Never place inline comments on the same line as code.
+Never place a comment on the same line as code. Use `#` comments.
 
 ```good
 # This explains the logic
