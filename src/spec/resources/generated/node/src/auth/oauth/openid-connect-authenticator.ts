@@ -7,7 +7,7 @@
 
 import type { ApiClient } from "../../api-client.js";
 import type { HttpAwareAuthenticator } from "../http-aware-authenticator.js";
-import { OAuth2AuthorizationCodeAuthenticator } from "./oauth2-auth-code-authenticator.js";
+import { OAuth2AuthorizationCodeAuthenticator } from "./oauth2-authorization-code-authenticator.js";
 
 /**
  * Authenticator for OpenID Connect.

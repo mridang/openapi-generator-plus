@@ -685,7 +685,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 new OAuthTestFileSpec("tests/BasicAuthenticatorTest.mustache", "tests", "BasicAuthenticatorTest.php", OAuthTestCondition.BASIC),
                 new OAuthTestFileSpec("tests/MockTokenApiClient.mustache", "tests", "MockTokenApiClient.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
                 new OAuthTestFileSpec("tests/OAuth2TokenManagerTest.mustache", "tests", "OAuth2TokenManagerTest.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
-                new OAuthTestFileSpec("tests/OAuth2AuthCodeAuthenticatorTest.mustache", "tests", "OAuth2AuthCodeAuthenticatorTest.php", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("tests/OAuth2AuthCodeAuthenticatorTest.mustache", "tests", "OAuth2AuthorizationCodeAuthenticatorTest.php", OAuthTestCondition.AUTH_CODE),
                 new OAuthTestFileSpec("tests/OAuth2ImplicitAuthenticatorTest.mustache", "tests", "OAuth2ImplicitAuthenticatorTest.php", OAuthTestCondition.IMPLICIT),
                 new OAuthTestFileSpec("tests/OAuth2ClientCredentialsAuthenticatorTest.mustache", "tests", "OAuth2ClientCredentialsAuthenticatorTest.php", OAuthTestCondition.CLIENT_CREDENTIALS),
                 new OAuthTestFileSpec("tests/OAuth2PasswordAuthenticatorTest.mustache", "tests", "OAuth2PasswordAuthenticatorTest.php", OAuthTestCondition.PASSWORD),

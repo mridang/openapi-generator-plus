@@ -24,7 +24,7 @@ import { ConflictError } from "../src/errors/conflict-error.js";
 import { UnprocessableEntityError } from "../src/errors/unprocessable-entity-error.js";
 import { InternalServerError } from "../src/errors/internal-server-error.js";
 import type { ApiClient } from "../src/api-client.js";
-import type { ApiHttpResponse } from "../src/api-response.js";
+import type { ApiHttpResponse } from "../src/api-http-response.js";
 import type { ApiResult } from "../src/api-result.js";
 import { PetApi } from "../src/api/pet-api.js";
 import { StoreApi } from "../src/api/store-api.js";

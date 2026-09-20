@@ -12,7 +12,7 @@ import {
 } from "../src/auth/oauth/oauth2-token-manager.js";
 import { ZitadelError } from "../src/errors/zitadel-error.js";
 import type { ApiClient, SendRequestOptions } from "../src/api-client.js";
-import type { ApiHttpResponse } from "../src/api-response.js";
+import type { ApiHttpResponse } from "../src/api-http-response.js";
 
 class MockApiClient implements ApiClient {
   lastMethod = "";

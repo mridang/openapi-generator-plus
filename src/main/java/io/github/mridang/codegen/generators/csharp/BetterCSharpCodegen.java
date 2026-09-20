@@ -664,7 +664,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return List.of(
                 new OAuthTestFileSpec("test/BasicAuthenticatorTest.mustache", "Test", "BasicAuthenticatorTest.cs", OAuthTestCondition.BASIC),
                 new OAuthTestFileSpec("test/OAuth2TokenManagerTest.mustache", "Test", "OAuth2TokenManagerTest.cs", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
-                new OAuthTestFileSpec("test/OAuth2AuthCodeAuthenticatorTest.mustache", "Test", "OAuth2AuthCodeAuthenticatorTest.cs", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("test/OAuth2AuthCodeAuthenticatorTest.mustache", "Test", "OAuth2AuthorizationCodeAuthenticatorTest.cs", OAuthTestCondition.AUTH_CODE),
                 new OAuthTestFileSpec("test/OAuth2ImplicitAuthenticatorTest.mustache", "Test", "OAuth2ImplicitAuthenticatorTest.cs", OAuthTestCondition.IMPLICIT),
                 new OAuthTestFileSpec("test/OAuth2ClientCredentialsAuthenticatorTest.mustache", "Test", "OAuth2ClientCredentialsAuthenticatorTest.cs", OAuthTestCondition.CLIENT_CREDENTIALS),
                 new OAuthTestFileSpec("test/OAuth2PasswordAuthenticatorTest.mustache", "Test", "OAuth2PasswordAuthenticatorTest.cs", OAuthTestCondition.PASSWORD),

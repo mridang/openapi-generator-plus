@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Test;
 
-public class OAuth2AuthCodeAuthenticatorTest
+public class OAuth2AuthorizationCodeAuthenticatorTest
 {
     private sealed class FakeApiClient : IApiClient
     {

@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite final class OAuth2AuthCodeAuthenticatorTests {
+@Suite final class OAuth2AuthorizationCodeAuthenticatorTests {
 
   // MARK: - Mock ApiClient
 

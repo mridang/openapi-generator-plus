@@ -290,7 +290,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),
             new SupportingFileSpec("value_serializer.mustache", libDir, "value_serializer.ex"),
             new SupportingFileSpec("trace_context_util.mustache", libDir, "trace_context_util.ex"),
-            new SupportingFileSpec("api_response.mustache", libDir, "api_response.ex"),
+            new SupportingFileSpec("api_response.mustache", libDir, "api_http_response.ex"),
             new SupportingFileSpec("api_result.mustache", libDir, "api_result.ex"),
             new SupportingFileSpec("api_client.mustache", libDir, "api_client.ex"),
             new SupportingFileSpec("default_api_client.mustache", libDir, "default_api_client.ex"),
@@ -448,7 +448,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                     new SupportingFile(
                             "test/oauth2_auth_code_authenticator_test.mustache",
                             "test",
-                            "oauth2_auth_code_authenticator_test.exs"));
+                            "oauth2_authorization_code_authenticator_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_implicit_authenticator_test.mustache",

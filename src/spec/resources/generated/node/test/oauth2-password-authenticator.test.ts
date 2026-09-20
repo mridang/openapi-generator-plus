@@ -9,7 +9,7 @@ import * as util from "node:util";
 import { OAuth2PasswordAuthenticator } from "../src/auth/oauth/oauth2-password-authenticator.js";
 import { ClientAuthMethod } from "../src/auth/oauth/client-auth-method.js";
 import type { ApiClient } from "../src/api-client.js";
-import type { ApiHttpResponse } from "../src/api-response.js";
+import type { ApiHttpResponse } from "../src/api-http-response.js";
 
 class MockApiClient implements ApiClient {
   lastMethod = "";

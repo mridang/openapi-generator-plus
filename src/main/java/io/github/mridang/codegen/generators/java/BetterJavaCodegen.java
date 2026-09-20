@@ -823,7 +823,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         new SupportingFile(
                                 "test/OAuth2AuthCodeAuthenticatorTest.mustache",
                                 testAuthOauthFolder,
-                                "OAuth2AuthCodeAuthenticatorTest.java"));
+                                "OAuth2AuthorizationCodeAuthenticatorTest.java"));
             }
             if (hasOAuth2Implicit) {
                 supportingFiles.add(

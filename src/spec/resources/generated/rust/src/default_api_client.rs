@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
 use crate::api_error::ApiError;
-use crate::api_response::ApiHttpResponse;
+use crate::api_http_response::ApiHttpResponse;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
 

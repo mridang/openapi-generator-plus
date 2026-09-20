@@ -65,7 +65,7 @@
 pub mod api;
 pub mod api_client;
 pub mod api_error;
-pub mod api_response;
+pub mod api_http_response;
 pub mod api_result;
 pub mod auth;
 pub mod client;
@@ -101,7 +101,7 @@ pub(crate) mod value_serializer;
 
 pub use api_client::ApiClient;
 pub use api_error::ApiError;
-pub use api_response::ApiHttpResponse;
+pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
 pub use client::Client;

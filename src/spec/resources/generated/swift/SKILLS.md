@@ -59,7 +59,7 @@ let client = Client(authenticator: authenticator)
 ### OAuth2 Authorization Code
 
 ```swift
-let authenticator = OAuth2AuthCodeAuthenticator(
+let authenticator = OAuth2AuthorizationCodeAuthenticator(
     host: "https://api.example.com",
     clientID: "client-id",
     clientSecret: "client-secret",

@@ -448,7 +448,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     new SupportingFile(
                             "test/oauth2_auth_code_authenticator_test.mustache",
                             "test",
-                            "oauth2_auth_code_authenticator_test.go"));
+                            "oauth2_authorization_code_authenticator_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_implicit_authenticator_test.mustache",
@@ -553,7 +553,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("value_serializer.mustache", "pkg", "value_serializer.go"),
                 new SupportingFileSpec(
                         "trace_context_util.mustache", "pkg", "trace_context_util.go"),
-                new SupportingFileSpec("api_response.mustache", "pkg", "api_response.go"),
+                new SupportingFileSpec("api_response.mustache", "pkg", "api_http_response.go"),
                 new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
                 new SupportingFileSpec("api_client.mustache", "pkg", "api_client.go"),
                 new SupportingFileSpec(

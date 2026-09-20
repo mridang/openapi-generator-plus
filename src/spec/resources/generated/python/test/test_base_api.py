@@ -34,7 +34,7 @@ from petstore_client.errors.unprocessable_entity_exception import (
 from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
-from petstore_client.api_response import ApiHttpResponse
+from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.models import Category
 from petstore_client import servers as Servers
 

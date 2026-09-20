@@ -12,10 +12,10 @@ import pytest
 from unittest.mock import MagicMock
 from urllib.parse import urlparse, parse_qs
 
-from petstore_client.auth.oauth.oauth2_auth_code_authenticator import (
+from petstore_client.auth.oauth.oauth2_authorization_code_authenticator import (
     OAuth2AuthorizationCodeAuthenticator,
 )
-from petstore_client.api_response import ApiHttpResponse
+from petstore_client.api_http_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:

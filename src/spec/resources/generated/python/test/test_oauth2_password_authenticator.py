@@ -18,7 +18,7 @@ from petstore_client.auth.oauth.client_auth_method import ClientAuthMethod
 from petstore_client.auth.oauth.oauth2_password_authenticator import (
     OAuth2PasswordAuthenticator,
 )
-from petstore_client.api_response import ApiHttpResponse
+from petstore_client.api_http_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OAuth2PasswordAuthenticator:

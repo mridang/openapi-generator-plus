@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::api_response::ApiHttpResponse;
+use crate::api_http_response::ApiHttpResponse;
 
 /// Represents the body of an HTTP request.
 ///

@@ -66,7 +66,7 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ### OAuth2 Authorization Code
 
 ```ruby
-authenticator = {{moduleName}}::Auth::OAuth::OAuth2AuthCodeAuthenticator.new(
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
   'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback')
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)

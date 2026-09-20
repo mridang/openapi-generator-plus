@@ -59,9 +59,9 @@ client = Client(authenticator)
 ### OAuth2 Authorization Code
 
 ```python
-from petstore_client.auth.oauth.oauth2_auth_code_authenticator import OAuth2AuthCodeAuthenticator
+from petstore_client.auth.oauth.oauth2_authorization_code_authenticator import OAuth2AuthorizationCodeAuthenticator
 
-authenticator = OAuth2AuthCodeAuthenticator(
+authenticator = OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
 client = Client(authenticator)

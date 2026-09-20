@@ -63,9 +63,9 @@ let client = Client::new(Box::new(authenticator), None);
 ### OAuth2 Authorization Code
 
 ```rust
-use petstore::auth::oauth::oauth2_auth_code_authenticator::OAuth2AuthCodeAuthenticator;
+use petstore::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
 
-let authenticator = OAuth2AuthCodeAuthenticator::new(
+let authenticator = OAuth2AuthorizationCodeAuthenticator::new(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
 let client = Client::new(Box::new(authenticator), None);

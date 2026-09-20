@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
-use crate::auth::oauth::oauth2_auth_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
+use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
 use crate::auth::Authenticator;
 
 /// OpenIdConnectAuthenticator provides OpenID Connect authentication.

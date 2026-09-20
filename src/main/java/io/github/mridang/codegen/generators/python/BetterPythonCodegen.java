@@ -368,7 +368,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("py_typed.mustache", packagePath, "py.typed"),
             new SupportingFileSpec("api_client.mustache", packagePath, "api_client.py"),
             new SupportingFileSpec("default_api_client.mustache", packagePath, "default_api_client.py"),
-            new SupportingFileSpec("api_response.mustache", packagePath, "api_response.py"),
+            new SupportingFileSpec("api_response.mustache", packagePath, "api_http_response.py"),
             new SupportingFileSpec("api_result.mustache", packagePath, "api_result.py"),
             new SupportingFileSpec("base_api.mustache", apiPath, "base_api.py"),
             new SupportingFileSpec("configuration.mustache", packagePath, "configuration.py"),
@@ -923,7 +923,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return List.of(
                 new OAuthTestFileSpec("test/test_basic_authenticator.mustache", "test", "test_basic_authenticator.py", OAuthTestCondition.BASIC),
                 new OAuthTestFileSpec("test/test_oauth2_token_manager.mustache", "test", "test_oauth2_token_manager.py", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
-                new OAuthTestFileSpec("test/test_oauth2_auth_code_authenticator.mustache", "test", "test_oauth2_auth_code_authenticator.py", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("test/test_oauth2_auth_code_authenticator.mustache", "test", "test_oauth2_authorization_code_authenticator.py", OAuthTestCondition.AUTH_CODE),
                 new OAuthTestFileSpec("test/test_oauth2_implicit_authenticator.mustache", "test", "test_oauth2_implicit_authenticator.py", OAuthTestCondition.IMPLICIT),
                 new OAuthTestFileSpec("test/test_oauth2_client_credentials_authenticator.mustache", "test", "test_oauth2_client_credentials_authenticator.py", OAuthTestCondition.CLIENT_CREDENTIALS),
                 new OAuthTestFileSpec("test/test_oauth2_password_authenticator.mustache", "test", "test_oauth2_password_authenticator.py", OAuthTestCondition.PASSWORD),
@@ -948,7 +948,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             "OAuth2TokenManager",                     "oauth2_token_manager",
             "OAuth2ClientCredentialsAuthenticator",   "oauth2_client_credentials_authenticator",
             "OAuth2PasswordAuthenticator",            "oauth2_password_authenticator",
-            "OAuth2AuthorizationCodeAuthenticator",   "oauth2_auth_code_authenticator",
+            "OAuth2AuthorizationCodeAuthenticator",   "oauth2_authorization_code_authenticator",
             "OAuth2ImplicitAuthenticator",            "oauth2_implicit_authenticator",
             "OpenIdConnectAuthenticator",             "openid_connect_authenticator"
     );

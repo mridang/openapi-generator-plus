@@ -57,7 +57,7 @@ var client = new global::PetstoreClient.Client(authenticator);
 ```csharp
 using PetstoreClient.Auth.OAuth;
 
-var authenticator = new OAuth2AuthCodeAuthenticator(
+var authenticator = new OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
 var client = new global::PetstoreClient.Client(authenticator);

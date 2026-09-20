@@ -6,7 +6,7 @@ from urllib.parse import urlparse, parse_qs
 
 from {{packageName}}.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
 from {{packageName}}.auth.oauth.oauth2_token_manager import OAuth2TokenError
-from {{packageName}}.api_response import ApiHttpResponse
+from {{packageName}}.api_http_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OpenIdConnectAuthenticator:

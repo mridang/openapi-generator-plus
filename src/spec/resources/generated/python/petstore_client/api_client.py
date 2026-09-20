@@ -9,7 +9,7 @@
 
 from typing import Any, Dict, Protocol, runtime_checkable
 
-from petstore_client.api_response import ApiHttpResponse
+from petstore_client.api_http_response import ApiHttpResponse
 
 
 @runtime_checkable

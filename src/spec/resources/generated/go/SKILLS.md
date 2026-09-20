@@ -54,7 +54,7 @@ client := petstore.NewClient(authenticator, nil)
 ### OAuth2 Authorization Code
 
 ```go
-authenticator := oauth.NewOAuth2AuthCodeAuthenticator(
+authenticator := oauth.NewOAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
 client := petstore.NewClient(authenticator, nil)

@@ -75,7 +75,7 @@ final client = Client(authenticator: authenticator);
 ### OAuth2 Authorization Code
 
 ```dart
-final authenticator = OAuth2AuthCodeAuthenticator(
+final authenticator = OAuth2AuthorizationCodeAuthenticator(
   host: 'https://api.example.com',
   clientId: 'client-id',
   clientSecret: 'client-secret',

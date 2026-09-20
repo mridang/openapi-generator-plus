@@ -26,7 +26,7 @@ require '{{modulePath}}/header_selector'
 require '{{modulePath}}/object_serializer'
 require '{{modulePath}}/value_serializer'
 require '{{modulePath}}/trace_context_util'
-require '{{modulePath}}/api_response'
+require '{{modulePath}}/api_http_response'
 require '{{modulePath}}/api_result'
 require '{{modulePath}}/api_client'
 require '{{modulePath}}/default_api_client'
@@ -58,7 +58,7 @@ require '{{modulePath}}/auth/oauth/client_auth_method'
 require '{{modulePath}}/auth/oauth/oauth2_password_authenticator'
 {{/hasOAuth2Password}}
 {{#hasOAuth2AuthorizationCode}}
-require '{{modulePath}}/auth/oauth/oauth2_auth_code_authenticator'
+require '{{modulePath}}/auth/oauth/oauth2_authorization_code_authenticator'
 {{/hasOAuth2AuthorizationCode}}
 {{#hasOAuth2Implicit}}
 require '{{modulePath}}/auth/oauth/oauth2_implicit_authenticator'

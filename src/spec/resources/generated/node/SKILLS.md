@@ -80,9 +80,9 @@ const client = new Client(authenticator);
 ### OAuth2 Authorization Code
 
 ```typescript
-import { OAuth2AuthCodeAuthenticator } from "./src/auth/oauth/oauth2-auth-code-authenticator.js";
+import { OAuth2AuthorizationCodeAuthenticator } from "./src/auth/oauth/oauth2-authorization-code-authenticator.js";
 
-const authenticator = new OAuth2AuthCodeAuthenticator(
+const authenticator = new OAuth2AuthorizationCodeAuthenticator(
   "https://api.example.com",
   "client-id",
   "client-secret",

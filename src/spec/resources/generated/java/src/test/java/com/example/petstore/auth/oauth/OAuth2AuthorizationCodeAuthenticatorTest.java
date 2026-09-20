@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
   "checkstyle:VariableDeclarationUsageDistance",
   "checkstyle:ConstructorsDeclarationGrouping"
 })
-class OAuth2AuthCodeAuthenticatorTest {
+class OAuth2AuthorizationCodeAuthenticatorTest {
 
   private static OAuth2AuthorizationCodeAuthenticator createAuthenticator() {
     return new OAuth2AuthorizationCodeAuthenticator(

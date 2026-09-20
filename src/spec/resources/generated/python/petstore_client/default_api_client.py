@@ -24,7 +24,7 @@ from urllib.parse import (
 
 import urllib3
 
-from petstore_client.api_response import ApiHttpResponse
+from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.errors import ApiException
 from petstore_client.transport_options import TransportOptions
 

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
 
-class OAuth2AuthCodeAuthenticatorTest {
+class OAuth2AuthorizationCodeAuthenticatorTest {
     private class FakeApiClient : ApiClient {
         private val responses = LinkedList<ApiHttpResponse>()
         var lastBody: String? = null

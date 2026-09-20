@@ -8,7 +8,7 @@
 import * as util from "node:util";
 import { OpenIdConnectAuthenticator } from "../src/auth/oauth/openid-connect-authenticator.js";
 import type { ApiClient } from "../src/api-client.js";
-import type { ApiHttpResponse } from "../src/api-response.js";
+import type { ApiHttpResponse } from "../src/api-http-response.js";
 
 class MockApiClient implements ApiClient {
   lastMethod = "";

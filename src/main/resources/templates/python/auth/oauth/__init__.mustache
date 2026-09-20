@@ -27,7 +27,7 @@ from {{packageName}}.auth.oauth.client_auth_method import (
 {{/hasOAuth2Password}}
 {{/hasOAuth2ClientCredentials}}
 {{#hasOAuth2AuthorizationCode}}
-from {{packageName}}.auth.oauth.oauth2_auth_code_authenticator import (
+from {{packageName}}.auth.oauth.oauth2_authorization_code_authenticator import (
     OAuth2AuthorizationCodeAuthenticator as OAuth2AuthorizationCodeAuthenticator,
 )
 {{/hasOAuth2AuthorizationCode}}

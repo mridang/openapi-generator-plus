@@ -830,7 +830,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         m.put("oauth2_token_manager", "OAuth2TokenManager");
         m.put("oauth2_client_credentials_authenticator", "OAuth2ClientCredentialsAuthenticator");
         m.put("oauth2_password_authenticator", "OAuth2PasswordAuthenticator");
-        m.put("oauth2_auth_code_authenticator", "OAuth2AuthorizationCodeAuthenticator");
+        m.put("oauth2_authorization_code_authenticator", "OAuth2AuthorizationCodeAuthenticator");
         m.put("oauth2_implicit_authenticator", "OAuth2ImplicitAuthenticator");
         m.put("openid_connect_authenticator", "OpenIdConnectAuthenticator");
         m.put("client_auth_method", "ClientAuthMethod");
@@ -1007,7 +1007,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             supportingFiles.add(new SupportingFile(
                     "auth/oauth/oauth2_auth_code_authenticator.mustache",
                     getOAuthDir(),
-                    toAuthFilename("oauth2_auth_code_authenticator")));
+                    toAuthFilename("oauth2_authorization_code_authenticator")));
         }
         if (hasOAuth2Implicit) {
             supportingFiles.add(new SupportingFile(

@@ -468,7 +468,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                     new SupportingFile(
                             "test/OAuth2AuthCodeAuthenticatorTest.mustache",
                             testAuthFolder,
-                            "OAuth2AuthCodeAuthenticatorTest.kt"));
+                            "OAuth2AuthorizationCodeAuthenticatorTest.kt"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/OAuth2ImplicitAuthenticatorTest.mustache",

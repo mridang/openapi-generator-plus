@@ -28,7 +28,7 @@ export * from "./models/index.js";
  * Transport-level DTOs and the pluggable HTTP client seam.
  *
  * The transport response shape carried by `ApiClient.sendRequest` lives in
- * `./api-response` and is exposed structurally through the exported
+ * `./api-http-response` and is exposed structurally through the exported
  * `ApiClient` interface; the `ApiHttpResponse` type is intentionally NOT
  * re-exported by name here so it cannot collide with a spec model that
  * happens to be named `ApiResponse` (the model wins via the `./models` star
@@ -73,7 +73,7 @@ export { ApiKeyAuthenticator } from "./auth/api-key-authenticator.js";
 export { ApiKeyLocation } from "./auth/api-key-location.js";
 export { OAuth2ClientCredentialsAuthenticator } from "./auth/oauth/oauth2-client-credentials-authenticator.js";
 export { OAuth2PasswordAuthenticator } from "./auth/oauth/oauth2-password-authenticator.js";
-export { OAuth2AuthorizationCodeAuthenticator } from "./auth/oauth/oauth2-auth-code-authenticator.js";
+export { OAuth2AuthorizationCodeAuthenticator } from "./auth/oauth/oauth2-authorization-code-authenticator.js";
 export { OAuth2ImplicitAuthenticator } from "./auth/oauth/oauth2-implicit-authenticator.js";
 export { OpenIdConnectAuthenticator } from "./auth/oauth/openid-connect-authenticator.js";
 export { ClientAuthMethod } from "./auth/oauth/client-auth-method.js";

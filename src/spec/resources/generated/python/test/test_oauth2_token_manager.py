@@ -19,7 +19,7 @@ from petstore_client.auth.oauth.oauth2_token_manager import (
     OAuth2TokenError,
     OAuth2TokenManager,
 )
-from petstore_client.api_response import ApiHttpResponse
+from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.errors import ZitadelException
 
 

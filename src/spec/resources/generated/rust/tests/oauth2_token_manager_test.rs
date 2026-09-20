@@ -11,7 +11,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
-use petstore::api_response::ApiHttpResponse;
+use petstore::api_http_response::ApiHttpResponse;
 use petstore::auth::oauth::{OAuth2ServerError, OAuth2TokenError, OAuth2TokenManager};
 
 struct FakeApiClient {

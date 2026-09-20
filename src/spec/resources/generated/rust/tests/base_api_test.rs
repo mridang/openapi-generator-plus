@@ -333,7 +333,7 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
         Box<
             dyn std::future::Future<
                     Output = Result<
-                        petstore::api_response::ApiHttpResponse,
+                        petstore::api_http_response::ApiHttpResponse,
                         Box<dyn std::error::Error + Send + Sync>,
                     >,
                 > + Send
@@ -341,7 +341,7 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
         >,
     > {
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
                 200,
                 "hello plain text".to_string(),
                 {
@@ -389,7 +389,7 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
         Box<
             dyn std::future::Future<
                     Output = Result<
-                        petstore::api_response::ApiHttpResponse,
+                        petstore::api_http_response::ApiHttpResponse,
                         Box<dyn std::error::Error + Send + Sync>,
                     >,
                 > + Send
@@ -397,7 +397,7 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
         >,
     > {
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
                 200,
                 r#"{"title":"Not Found"}"#.to_string(),
                 {
@@ -474,7 +474,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
         Box<
             dyn std::future::Future<
                     Output = Result<
-                        petstore::api_response::ApiHttpResponse,
+                        petstore::api_http_response::ApiHttpResponse,
                         Box<dyn std::error::Error + Send + Sync>,
                     >,
                 > + Send
@@ -488,7 +488,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
             _ => None,
         };
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
                 200,
                 "{}".to_string(),
                 {
@@ -908,7 +908,7 @@ impl petstore::api_client::ApiClient for QueryCapturingApiClient {
         Box<
             dyn std::future::Future<
                     Output = Result<
-                        petstore::api_response::ApiHttpResponse,
+                        petstore::api_http_response::ApiHttpResponse,
                         Box<dyn std::error::Error + Send + Sync>,
                     >,
                 > + Send
@@ -917,7 +917,7 @@ impl petstore::api_client::ApiClient for QueryCapturingApiClient {
     > {
         *self.captured_url.lock().unwrap() = url.to_string();
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
                 200,
                 "{}".to_string(),
                 {
@@ -1115,7 +1115,7 @@ impl petstore::api_client::ApiClient for BinaryResponseApiClient {
         Box<
             dyn std::future::Future<
                     Output = Result<
-                        petstore::api_response::ApiHttpResponse,
+                        petstore::api_http_response::ApiHttpResponse,
                         Box<dyn std::error::Error + Send + Sync>,
                     >,
                 > + Send
@@ -1125,11 +1125,15 @@ impl petstore::api_client::ApiClient for BinaryResponseApiClient {
         let body = self.body.clone();
         let ct = self.content_type.clone();
         Box::pin(async move {
-            Ok(petstore::api_response::ApiHttpResponse::new(200, body, {
-                let mut h = HashMap::new();
-                h.insert("Content-Type".to_string(), ct);
-                h
-            }))
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
+                200,
+                body,
+                {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), ct);
+                    h
+                },
+            ))
         })
     }
 }
@@ -1364,7 +1368,7 @@ impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
         Box<
             dyn std::future::Future<
                     Output = Result<
-                        petstore::api_response::ApiHttpResponse,
+                        petstore::api_http_response::ApiHttpResponse,
                         Box<dyn std::error::Error + Send + Sync>,
                     >,
                 > + Send
@@ -1377,7 +1381,7 @@ impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
             _ => None,
         };
         Box::pin(async {
-            Ok(petstore::api_response::ApiHttpResponse::new(
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
                 200,
                 "{}".to_string(),
                 {
@@ -1680,7 +1684,7 @@ fn test_api_result_and_response_accessor_only() {
     assert_eq!(result.into_data(), Some(42));
 
     let response =
-        petstore::api_response::ApiHttpResponse::new(204, "no content".to_string(), headers);
+        petstore::api_http_response::ApiHttpResponse::new(204, "no content".to_string(), headers);
     assert_eq!(response.status_code(), 204);
     assert_eq!(response.body(), "no content");
     assert_eq!(

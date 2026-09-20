@@ -277,7 +277,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("object_serializer.mustache", libPath, "object_serializer.rb"),
             new SupportingFileSpec("value_serializer.mustache", libPath, "value_serializer.rb"),
             new SupportingFileSpec("trace_context_util.mustache", libPath, "trace_context_util.rb"),
-            new SupportingFileSpec("api_response.mustache", libPath, "api_response.rb"),
+            new SupportingFileSpec("api_response.mustache", libPath, "api_http_response.rb"),
             new SupportingFileSpec("api_result.mustache", libPath, "api_result.rb"),
             new SupportingFileSpec("api_client.mustache", libPath, "api_client.rb"),
             new SupportingFileSpec("default_api_client.mustache", libPath, "default_api_client.rb"),
@@ -532,7 +532,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                     new SupportingFile(
                             "test/oauth2_auth_code_authenticator_test.mustache",
                             "test",
-                            "oauth2_auth_code_authenticator_test.rb"));
+                            "oauth2_authorization_code_authenticator_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_implicit_authenticator_test.mustache",

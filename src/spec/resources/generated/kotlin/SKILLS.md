@@ -72,9 +72,9 @@ val client = Client(authenticator)
 ### OAuth2 Authorization Code
 
 ```kotlin
-import com.example.petstore.auth.oauth.OAuth2AuthCodeAuthenticator
+import com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator
 
-val authenticator = OAuth2AuthCodeAuthenticator(
+val authenticator = OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
 val client = Client(authenticator)

@@ -61,9 +61,9 @@ $client = new Client($authenticator);
 ### OAuth2 Authorization Code
 
 ```php
-use PetstoreClient\Auth\OAuth\OAuth2AuthCodeAuthenticator;
+use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
 
-$authenticator = new OAuth2AuthCodeAuthenticator(
+$authenticator = new OAuth2AuthorizationCodeAuthenticator(
     'https://api.example.com', 'client-id', 'client-secret',
     'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback');
 $client = new Client($authenticator);

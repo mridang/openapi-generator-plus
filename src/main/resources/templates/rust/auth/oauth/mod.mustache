@@ -22,8 +22,8 @@ pub use oauth2_password_authenticator::*;
 {{/hasOAuth2Password}}
 
 {{#hasOAuth2AuthorizationCode}}
-mod oauth2_auth_code_authenticator;
-pub use oauth2_auth_code_authenticator::*;
+mod oauth2_authorization_code_authenticator;
+pub use oauth2_authorization_code_authenticator::*;
 {{/hasOAuth2AuthorizationCode}}
 
 {{#hasOAuth2Implicit}}

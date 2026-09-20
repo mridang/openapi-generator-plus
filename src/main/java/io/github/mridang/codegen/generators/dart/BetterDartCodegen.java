@@ -323,7 +323,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("iso8601_duration.mustache", srcDir, "iso8601_duration.dart"),
             new SupportingFileSpec("value_serializer.mustache", srcDir, "value_serializer.dart"),
             new SupportingFileSpec("trace_context_util.mustache", srcDir, "trace_context_util.dart"),
-            new SupportingFileSpec("api_response.mustache", srcDir, "api_response.dart"),
+            new SupportingFileSpec("api_response.mustache", srcDir, "api_http_response.dart"),
             new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
             new SupportingFileSpec("api_client.mustache", srcDir, "api_client.dart"),
             new SupportingFileSpec("abstract_api_client.mustache", srcDir, "abstract_api_client.dart"),
@@ -478,7 +478,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                     new SupportingFile(
                             "test/oauth2_auth_code_authenticator_test.mustache",
                             "test",
-                            "oauth2_auth_code_authenticator_test.dart"));
+                            "oauth2_authorization_code_authenticator_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_implicit_authenticator_test.mustache",
@@ -875,7 +875,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg =
                     spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
-            imports = List.of("oauth2_auth_code_authenticator.dart");
+            imports = List.of("oauth2_authorization_code_authenticator.dart");
             constructorSig =
                     "required String host, required String clientId, "
                             + "required String clientSecret, required String redirectUri";

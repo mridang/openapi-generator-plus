@@ -59,7 +59,7 @@ client = PetstoreClient::Client.new(authenticator)
 ### OAuth2 Authorization Code
 
 ```ruby
-authenticator = PetstoreClient::Auth::OAuth::OAuth2AuthCodeAuthenticator.new(
+authenticator = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
   'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback')
 client = PetstoreClient::Client.new(authenticator)

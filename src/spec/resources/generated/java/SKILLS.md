@@ -72,9 +72,9 @@ var client = new Client(authenticator);
 ### OAuth2 Authorization Code
 
 ```java
-import com.example.petstore.auth.oauth.OAuth2AuthCodeAuthenticator;
+import com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator;
 
-var authenticator = new OAuth2AuthCodeAuthenticator(
+var authenticator = new OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
     "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
 var client = new Client(authenticator);

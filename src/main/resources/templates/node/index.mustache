@@ -23,7 +23,7 @@ export * from './models/index{{importFileExtension}}';
  * Transport-level DTOs and the pluggable HTTP client seam.
  *
  * The transport response shape carried by `ApiClient.sendRequest` lives in
- * `./api-response` and is exposed structurally through the exported
+ * `./api-http-response` and is exposed structurally through the exported
  * `ApiClient` interface; the `ApiHttpResponse` type is intentionally NOT
  * re-exported by name here so it cannot collide with a spec model that
  * happens to be named `ApiResponse` (the model wins via the `./models` star
@@ -73,7 +73,7 @@ export { OAuth2ClientCredentialsAuthenticator } from './auth/oauth/oauth2-client
 export { OAuth2PasswordAuthenticator } from './auth/oauth/oauth2-password-authenticator{{importFileExtension}}';
 {{/hasOAuth2Password}}
 {{#hasOAuth2AuthorizationCode}}
-export { OAuth2AuthorizationCodeAuthenticator } from './auth/oauth/oauth2-auth-code-authenticator{{importFileExtension}}';
+export { OAuth2AuthorizationCodeAuthenticator } from './auth/oauth/oauth2-authorization-code-authenticator{{importFileExtension}}';
 {{/hasOAuth2AuthorizationCode}}
 {{#hasOAuth2Implicit}}
 export { OAuth2ImplicitAuthenticator } from './auth/oauth/oauth2-implicit-authenticator{{importFileExtension}}';

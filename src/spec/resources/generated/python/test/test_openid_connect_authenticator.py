@@ -16,7 +16,7 @@ from petstore_client.auth.oauth.openid_connect_authenticator import (
     OpenIdConnectAuthenticator,
 )
 from petstore_client.auth.oauth.oauth2_token_manager import OAuth2TokenError
-from petstore_client.api_response import ApiHttpResponse
+from petstore_client.api_http_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OpenIdConnectAuthenticator:

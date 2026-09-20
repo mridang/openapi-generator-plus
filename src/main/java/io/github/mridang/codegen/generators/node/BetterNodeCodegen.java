@@ -281,7 +281,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("abstract_api_client.mustache", "src", "abstract-api-client.ts"),
             new SupportingFileSpec("default_api_client.mustache", "src", "default-api-client.ts"),
             new SupportingFileSpec("web_api_client.mustache", "src", "default-api-client.web.ts"),
-            new SupportingFileSpec("api_response.mustache", "src", "api-response.ts"),
+            new SupportingFileSpec("api_response.mustache", "src", "api-http-response.ts"),
             new SupportingFileSpec("api_result.mustache", "src", "api-result.ts"),
             new SupportingFileSpec("configuration.mustache", "src", "configuration.ts"),
             new SupportingFileSpec("transport_options.mustache", "src", "transport-options.ts"),
@@ -899,7 +899,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return List.of(
                 new OAuthTestFileSpec("test/basic-authenticator.test.mustache", "test", "basic-authenticator.test.ts", OAuthTestCondition.BASIC),
                 new OAuthTestFileSpec("test/oauth2-token-manager.test.mustache", "test", "oauth2-token-manager.test.ts", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
-                new OAuthTestFileSpec("test/oauth2-auth-code-authenticator.test.mustache", "test", "oauth2-auth-code-authenticator.test.ts", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("test/oauth2-auth-code-authenticator.test.mustache", "test", "oauth2-authorization-code-authenticator.test.ts", OAuthTestCondition.AUTH_CODE),
                 new OAuthTestFileSpec("test/oauth2-implicit-authenticator.test.mustache", "test", "oauth2-implicit-authenticator.test.ts", OAuthTestCondition.IMPLICIT),
                 new OAuthTestFileSpec("test/oauth2-client-credentials-authenticator.test.mustache", "test", "oauth2-client-credentials-authenticator.test.ts", OAuthTestCondition.CLIENT_CREDENTIALS),
                 new OAuthTestFileSpec("test/oauth2-password-authenticator.test.mustache", "test", "oauth2-password-authenticator.test.ts", OAuthTestCondition.PASSWORD),
@@ -973,7 +973,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("OAuth2AuthorizationCodeAuthenticator",
-                    "./oauth2-auth-code-authenticator"));
+                    "./oauth2-authorization-code-authenticator"));
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("OAuth2ImplicitAuthenticator",

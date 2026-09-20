@@ -19,7 +19,7 @@ from petstore_client.auth.oauth.oauth2_password_authenticator import (
 from petstore_client.auth.oauth.client_auth_method import (
     ClientAuthMethod as ClientAuthMethod,
 )
-from petstore_client.auth.oauth.oauth2_auth_code_authenticator import (
+from petstore_client.auth.oauth.oauth2_authorization_code_authenticator import (
     OAuth2AuthorizationCodeAuthenticator as OAuth2AuthorizationCodeAuthenticator,
 )
 from petstore_client.auth.oauth.oauth2_implicit_authenticator import (

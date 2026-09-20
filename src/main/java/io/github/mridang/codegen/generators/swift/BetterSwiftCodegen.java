@@ -481,7 +481,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                     new SupportingFile(
                             "test/OAuth2AuthCodeAuthenticatorTests.mustache",
                             testDir,
-                            "OAuth2AuthCodeAuthenticatorTests.swift"));
+                            "OAuth2AuthorizationCodeAuthenticatorTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/OAuth2ImplicitAuthenticatorTests.mustache",

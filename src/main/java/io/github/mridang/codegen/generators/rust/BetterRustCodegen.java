@@ -466,7 +466,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     new SupportingFile(
                             "test/oauth2_auth_code_authenticator_test.mustache",
                             "tests",
-                            "oauth2_auth_code_authenticator_test.rs"));
+                            "oauth2_authorization_code_authenticator_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_implicit_authenticator_test.mustache",
@@ -550,7 +550,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "form_url_encode.rs"),
                 new SupportingFileSpec(
                         "trace_context_util.mustache", "src", "trace_context_util.rs"),
-                new SupportingFileSpec("api_response.mustache", "src", "api_response.rs"),
+                new SupportingFileSpec("api_response.mustache", "src", "api_http_response.rs"),
                 new SupportingFileSpec("api_result.mustache", "src", "api_result.rs"),
                 new SupportingFileSpec("api_client.mustache", "src", "api_client.rs"),
                 new SupportingFileSpec(

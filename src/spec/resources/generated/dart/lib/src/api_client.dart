@@ -7,7 +7,7 @@
 
 import 'dart:typed_data';
 
-import 'api_response.dart';
+import 'api_http_response.dart';
 
 /// ApiClient is the interface for HTTP clients. Implementations must provide
 /// [sendRequest] to perform the actual HTTP call.

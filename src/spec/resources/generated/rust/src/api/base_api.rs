@@ -13,7 +13,7 @@ use serde::de::DeserializeOwned;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody};
 use crate::api_error::ApiError;
-use crate::api_response::ApiHttpResponse;
+use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;

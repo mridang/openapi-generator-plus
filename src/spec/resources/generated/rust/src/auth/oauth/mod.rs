@@ -16,8 +16,8 @@ pub use oauth2_client_credentials_authenticator::*;
 mod oauth2_password_authenticator;
 pub use oauth2_password_authenticator::*;
 
-mod oauth2_auth_code_authenticator;
-pub use oauth2_auth_code_authenticator::*;
+mod oauth2_authorization_code_authenticator;
+pub use oauth2_authorization_code_authenticator::*;
 
 mod oauth2_implicit_authenticator;
 pub use oauth2_implicit_authenticator::*;
