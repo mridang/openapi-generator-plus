@@ -45,6 +45,7 @@ export {
   TransportOptionsBuilder,
 } from "./transport-options.js";
 export { ServerConfiguration, ServerVariable } from "./server-configuration.js";
+export { Servers } from "./servers.js";
 
 /* Branded scalar types and their constructors. */
 export { isUuid, uuid, URI, Email, Decimal } from "./brand.js";

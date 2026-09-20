@@ -172,7 +172,7 @@ The `Authenticator` protocol is the seam for tests: substitute a fake authentica
 ```swift
 struct FakeAuthenticator: Authenticator {
     var host: String { "https://api.example.com" }
-    func authHeaders(request: RequestContext) async throws -> [String: String] {
+    func authHeaders() async throws -> [String: String] {
         ["Authorization": "Bearer test-token"]
     }
 }

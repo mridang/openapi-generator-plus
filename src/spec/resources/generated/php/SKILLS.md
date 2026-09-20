@@ -150,10 +150,12 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 
 ```php
 $fake = new class implements PetstoreClient\Auth\Authenticator {
-    public function getAuthHeaders(RequestContext $request): array {
+    public function getHost(): string { return 'https://api.example.com'; }
+    public function getAuthHeaders(): array {
         return ['Authorization' => 'Bearer test-token'];
     }
-    public function getHost(): string { return 'https://api.example.com'; }
+    public function getQueryParams(): array { return []; }
+    public function getCookieParams(): array { return []; }
 };
 
 $client = new Client($fake);

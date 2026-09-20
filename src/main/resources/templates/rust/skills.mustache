@@ -123,7 +123,7 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 
 #### Async authentication
 
-OAuth2 authenticators implement `async fn get_auth_headers(&self, request: &RequestContext) -> Result<HashMap<String, String>, AuthError>` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `.await` this call before sending the request. A synchronous helper is preserved for back-compat but the OAuth flows require the async path.
+OAuth2 authenticators return a boxed future from `auth_headers` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `.await` this call before sending the request. A synchronous helper is preserved for back-compat but the OAuth flows require the async path.
 
 #### Refresh tokens
 
@@ -170,18 +170,23 @@ let client = {{clientClassName}}::with_token(&server_0().url(), "your-token", No
 The `Authenticator` trait is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```rust
-use async_trait::async_trait;
 use std::collections::HashMap;
-use {{packageName}}::auth::authenticator::{Authenticator, AuthError, RequestContext};
+use std::future::Future;
+use std::pin::Pin;
+use {{packageName}}::auth::authenticator::Authenticator;
 
 struct FakeAuthenticator;
 
-#[async_trait]
 impl Authenticator for FakeAuthenticator {
-    async fn get_auth_headers(&self, _req: &RequestContext) -> Result<HashMap<String, String>, AuthError> {
-        Ok(HashMap::from([("Authorization".to_string(), "Bearer test-token".to_string())]))
-    }
     fn host(&self) -> &str { "https://api.example.com" }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async {
+            HashMap::from([("Authorization".to_string(), "Bearer test-token".to_string())])
+        })
+    }
 }
 
 let client = {{clientClassName}}::new(Box::new(FakeAuthenticator), None);

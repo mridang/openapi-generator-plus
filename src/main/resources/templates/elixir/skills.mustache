@@ -157,9 +157,21 @@ The authenticator behaviour is the seam for tests: substitute a fake struct that
 
 ```elixir
 defmodule FakeAuthenticator do
+  @behaviour {{moduleName}}.Auth.Authenticator
+
   defstruct []
-  def get_auth_headers(_), do: {:ok, %{"Authorization" => "Bearer test-token"}}
+
+  @impl true
   def host(_), do: "https://api.example.com"
+
+  @impl true
+  def auth_headers(_), do: %{"Authorization" => "Bearer test-token"}
+
+  @impl true
+  def query_params(_), do: %{}
+
+  @impl true
+  def cookie_params(_), do: %{}
 end
 
 client = {{moduleName}}.{{clientClassName}}.new(%FakeAuthenticator{})

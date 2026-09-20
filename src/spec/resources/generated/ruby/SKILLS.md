@@ -135,8 +135,10 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 
 ```ruby
 fake_authenticator = Class.new do
-  def get_auth_headers(request) = { 'Authorization' => 'Bearer test-token' }
   def host = 'https://api.example.com'
+  def auth_headers = { 'Authorization' => 'Bearer test-token' }
+  def query_params = {}
+  def cookie_params = {}
 end.new
 
 client = PetstoreClient::Client.new(fake_authenticator)

@@ -190,11 +190,11 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 
 ```typescript
 const fake = {
-  async getAuthHeaders(_req: RequestContext): Promise<Record<string, string>> {
-    return { Authorization: "Bearer test-token" };
-  },
   getHost(): string {
     return "https://api.example.com";
+  },
+  getAuthHeaders(): Record<string, string> {
+    return { Authorization: "Bearer test-token" };
   },
 };
 

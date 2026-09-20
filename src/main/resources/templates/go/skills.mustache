@@ -155,10 +155,12 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 ```go
 type fakeAuth struct{}
 
-func (fakeAuth) GetAuthHeaders(_ *auth.RequestContext) (map[string]string, error) {
-    return map[string]string{"Authorization": "Bearer test-token"}, nil
-}
 func (fakeAuth) Host() string { return "https://api.example.com" }
+func (fakeAuth) AuthHeaders() map[string]string {
+    return map[string]string{"Authorization": "Bearer test-token"}
+}
+func (fakeAuth) QueryParams() map[string]string  { return nil }
+func (fakeAuth) CookieParams() map[string]string { return nil }
 
 client := {{packageName}}.New{{clientClassName}}(fakeAuth{}, nil)
 ```

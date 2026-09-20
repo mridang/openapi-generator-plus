@@ -148,11 +148,11 @@ The `Authenticator` protocol is the seam for tests: substitute a fake authentica
 
 ```python
 class FakeAuthenticator:
-    def get_auth_headers(self, request):
-        return {"Authorization": "Bearer test-token"}
-
     def get_host(self):
         return "https://api.example.com"
+
+    def get_auth_headers(self):
+        return {"Authorization": "Bearer test-token"}
 
 client = Client(FakeAuthenticator())
 ```
@@ -180,16 +180,17 @@ from petstore_client.errors import (
     ApiException,
 )
 
-try:
-    result = client.pet.add_pet(...)
-except NotFoundException as e:
-    print(f"Not found: {e}")
-except ClientException as e:
-    print(f"Client error {e.status_code}: {e}")
-except ServerException as e:
-    print(f"Server error: {e}")
-except ApiException as e:
-    print(f"API error: {e}")
+async def main():
+    try:
+        result = await client.pet.add_pet(...)
+    except NotFoundException as e:
+        print(f"Not found: {e}")
+    except ClientException as e:
+        print(f"Client error {e.status_code}: {e}")
+    except ServerException as e:
+        print(f"Server error: {e}")
+    except ApiException as e:
+        print(f"API error: {e}")
 ```
 
 ## Configuration
@@ -215,7 +216,7 @@ Each API group is exposed as a typed attribute on the client (e.g., `client.pet`
 
 ## Models
 
-Models are generated as Python dataclasses. They are located in `petstore_client.models`.
+Models are generated as pydantic models. They are located in `petstore_client.models`.
 
 ```python
 from petstore_client.models.api_response import ApiResponse

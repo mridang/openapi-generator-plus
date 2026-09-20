@@ -162,8 +162,8 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 
 ```kotlin
 val fake = object : Authenticator {
-    override fun getAuthHeaders(request: RequestContext) = mapOf("Authorization" to "Bearer test-token")
     override fun getHost() = "https://api.example.com"
+    override suspend fun getAuthHeaders() = mapOf("Authorization" to "Bearer test-token")
 }
 
 val client = Client(fake)
@@ -187,17 +187,21 @@ All API errors extend `ApiException`. The error hierarchy is:
 ```kotlin
 import com.example.petstore.ApiException
 import com.example.petstore.errors.*
+import kotlinx.coroutines.runBlocking
 
-try {
-    val result = client.pet.addPet(/* parameters */)
-} catch (e: NotFoundException) {
-    println("Not found: ${e.message}")
-} catch (e: ClientException) {
-    println("Client error ${e.statusCode}: ${e.message}")
-} catch (e: ServerException) {
-    println("Server error: ${e.message}")
-} catch (e: ApiException) {
-    println("API error: ${e.message}")
+// Operations are suspend functions, so they must be called from a coroutine.
+runBlocking {
+    try {
+        val result = client.pet.addPet(/* parameters */)
+    } catch (e: NotFoundException) {
+        println("Not found: ${e.message}")
+    } catch (e: ClientException) {
+        println("Client error ${e.statusCode}: ${e.message}")
+    } catch (e: ServerException) {
+        println("Server error: ${e.message}")
+    } catch (e: ApiException) {
+        println("API error: ${e.message}")
+    }
 }
 ```
 

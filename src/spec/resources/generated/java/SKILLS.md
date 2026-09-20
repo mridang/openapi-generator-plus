@@ -8,15 +8,14 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>com.example.petstore</groupId>
     <artifactId>openapi-java-client</artifactId>
-    <!-- use the latest published version -->
-    <version>LATEST</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
 Or with Gradle:
 
 ```groovy
-implementation 'com.example.petstore:openapi-java-client'
+implementation 'com.example.petstore:openapi-java-client:1.0.0'
 ```
 
 ## Quick Start
@@ -164,7 +163,7 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 import com.example.petstore.auth.Authenticator;
 
 var fake = new Authenticator() {
-    public java.util.Map<String, String> getAuthHeaders(RequestContext req) {
+    public java.util.Map<String, String> getAuthHeaders() {
         return java.util.Map.of("Authorization", "Bearer test-token");
     }
     public String getHost() { return "https://api.example.com"; }
@@ -225,7 +224,7 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 
 ## Models
 
-Models are generated as Java classes with builder patterns. They are located in the `com.example.petstore.models` package.
+Models are generated as Java classes with public fields and a no-argument constructor. They are located in the `com.example.petstore.models` package.
 
 ```java
 import com.example.petstore.models.ApiResponse;

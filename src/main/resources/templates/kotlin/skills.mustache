@@ -181,8 +181,8 @@ The `Authenticator` interface is the seam for tests: substitute a fake authentic
 
 ```kotlin
 val fake = object : Authenticator {
-    override fun getAuthHeaders(request: RequestContext) = mapOf("Authorization" to "Bearer test-token")
     override fun getHost() = "https://api.example.com"
+    override suspend fun getAuthHeaders() = mapOf("Authorization" to "Bearer test-token")
 }
 
 val client = {{clientClassName}}(fake)
@@ -206,17 +206,21 @@ All API errors extend `ApiException`. The error hierarchy is:
 ```kotlin
 import {{invokerPackage}}.ApiException
 import {{invokerPackage}}.errors.*
+import kotlinx.coroutines.runBlocking
 
-try {
-    val result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* parameters */)
-} catch (e: NotFoundException) {
-    println("Not found: ${e.message}")
-} catch (e: ClientException) {
-    println("Client error ${e.statusCode}: ${e.message}")
-} catch (e: ServerException) {
-    println("Server error: ${e.message}")
-} catch (e: ApiException) {
-    println("API error: ${e.message}")
+// Operations are suspend functions, so they must be called from a coroutine.
+runBlocking {
+    try {
+        val result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* parameters */)
+    } catch (e: NotFoundException) {
+        println("Not found: ${e.message}")
+    } catch (e: ClientException) {
+        println("Client error ${e.statusCode}: ${e.message}")
+    } catch (e: ServerException) {
+        println("Server error: ${e.message}")
+    } catch (e: ApiException) {
+        println("API error: ${e.message}")
+    }
 }
 ```
 

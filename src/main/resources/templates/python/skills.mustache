@@ -168,11 +168,11 @@ The `Authenticator` protocol is the seam for tests: substitute a fake authentica
 
 ```python
 class FakeAuthenticator:
-    def get_auth_headers(self, request):
-        return {"Authorization": "Bearer test-token"}
-
     def get_host(self):
         return "https://api.example.com"
+
+    def get_auth_headers(self):
+        return {"Authorization": "Bearer test-token"}
 
 client = {{clientClassName}}(FakeAuthenticator())
 ```
@@ -200,16 +200,17 @@ from {{packageName}}.errors import (
     ApiException,
 )
 
-try:
-    result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(...)
-except NotFoundException as e:
-    print(f"Not found: {e}")
-except ClientException as e:
-    print(f"Client error {e.status_code}: {e}")
-except ServerException as e:
-    print(f"Server error: {e}")
-except ApiException as e:
-    print(f"API error: {e}")
+async def main():
+    try:
+        result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(...)
+    except NotFoundException as e:
+        print(f"Not found: {e}")
+    except ClientException as e:
+        print(f"Client error {e.status_code}: {e}")
+    except ServerException as e:
+        print(f"Server error: {e}")
+    except ApiException as e:
+        print(f"API error: {e}")
 ```
 
 ## Configuration
@@ -235,7 +236,7 @@ Each API group is exposed as a typed attribute on the client (e.g., `client.{{#a
 
 ## Models
 
-Models are generated as Python dataclasses. They are located in `{{packageName}}.models`.
+Models are generated as pydantic models. They are located in `{{packageName}}.models`.
 
 ```python
 {{#models}}{{#model}}{{#-first}}from {{packageName}}.models.{{classFilename}} import {{classname}}
