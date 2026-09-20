@@ -39,6 +39,22 @@ $specPath = $hostAppPath . '/tests/fixtures/openapi.yaml';
 $chasmCertPath = $hostAppPath . '/tests/fixtures/certs/server.pem';
 $chasmKeyPath = $hostAppPath . '/tests/fixtures/certs/server-key.pem';
 
+/*
+ * Paratest runs each worker as its own process, and every one of them runs
+ * this bootstrap, so without a lock they all start their Chasm and Squid at
+ * the same instant. Across a full run that is twenty-odd containers racing
+ * for the daemon, and Chasm's WaitForLog times out waiting for a container
+ * that is merely starved. The exception names the container, which reads as
+ * a container fault rather than the stampede it actually is.
+ *
+ * Bringing them up one worker at a time costs a little wall clock and removes
+ * the race. The lock is held only for the startup window, not the tests.
+ */
+$startupLock = fopen(sys_get_temp_dir() . '/openapi-generator-fixture-startup.lock', 'c');
+if ($startupLock !== false) {
+    flock($startupLock, LOCK_EX);
+}
+
 $chasm = (new GenericContainer('mridang/chasm:1.3.0'))
     ->withExposedPorts(4010, 8443)
     ->withMount($specPath, '/tmp/openapi.yaml')
@@ -132,6 +148,11 @@ try {
     fwrite(STDERR, "[bootstrap] could not resolve squid proxy port: " . $e->getMessage() . "\n");
     putenv('PROXY_URL=http://proxy-unavailable.invalid:0');
 }
+if ($startupLock !== false) {
+    flock($startupLock, LOCK_UN);
+    fclose($startupLock);
+}
+
 putenv('CA_CERT_PATH=' . getcwd() . '/tests/fixtures/certs/ca.pem');
 
 register_shutdown_function(function () use ($chasm, $squid, $networkName, $socketPath): void {
