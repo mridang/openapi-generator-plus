@@ -72,7 +72,7 @@ class DefaultApiClientTest {
                     .build();
 
             DefaultApiClient client = new DefaultApiClient(transport);
-            assertThrows(ApiException.class, () ->
+            assertThrows({{invokerPackage}}.errors.NetworkException.class, () ->
                     client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
         }
 
@@ -234,8 +234,10 @@ class DefaultApiClientTest {
                     .build();
 
             DefaultApiClient client = new DefaultApiClient(transport);
-            assertThrows(ApiException.class, () ->
+            {{invokerPackage}}.errors.NetworkTimeoutException ex = assertThrows({{invokerPackage}}.errors.NetworkTimeoutException.class, () ->
                     client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null));
+            assertEquals(0, ex.getStatusCode());
+            assertNotNull(ex.getCause(), "the transport exception must be kept as the cause");
         }
     }
 

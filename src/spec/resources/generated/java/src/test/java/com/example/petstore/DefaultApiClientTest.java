@@ -89,7 +89,7 @@ class DefaultApiClientTest {
 
       DefaultApiClient client = new DefaultApiClient(transport);
       assertThrows(
-          ApiException.class,
+          com.example.petstore.errors.NetworkException.class,
           () -> client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
     }
 
@@ -241,9 +241,12 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().timeout(1).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      assertThrows(
-          ApiException.class,
-          () -> client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null));
+      com.example.petstore.errors.NetworkTimeoutException ex =
+          assertThrows(
+              com.example.petstore.errors.NetworkTimeoutException.class,
+              () -> client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null));
+      assertEquals(0, ex.getStatusCode());
+      assertNotNull(ex.getCause(), "the transport exception must be kept as the cause");
     }
   }
 

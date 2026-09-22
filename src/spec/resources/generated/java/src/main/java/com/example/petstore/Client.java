@@ -51,8 +51,8 @@ public final class Client {
    * Creates a new client with the given authenticator and default transport settings.
    *
    * @param authenticator provides host URL and auth credentials
-   * @throws ApiException if the transport cannot be configured (never thrown for default transport,
-   *     which configures no custom CA certificate)
+   * @throws IllegalArgumentException if the transport cannot be configured (never thrown for
+   *     default transport, which configures no custom CA certificate)
    */
   public Client(Authenticator authenticator) {
     this(authenticator, TransportOptions.builder().build());
@@ -67,7 +67,7 @@ public final class Client {
    *
    * @param authenticator provides host URL and auth credentials
    * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
-   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+   * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
    */
   public Client(Authenticator authenticator, TransportOptions transportOptions) {
     ApiClient apiClient = new DefaultApiClient(transportOptions);
@@ -88,7 +88,7 @@ public final class Client {
    * @param accessToken Bearer token
    * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @return configured client instance
-   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+   * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
    */
   public static Client withToken(
       String host,
@@ -105,7 +105,7 @@ public final class Client {
    * @param host API base URL
    * @param accessToken Bearer token
    * @return configured client instance
-   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+   * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
    */
   public static Client withToken(String host, String accessToken) {
     return withToken(host, accessToken, null);
@@ -120,7 +120,7 @@ public final class Client {
    *
    * @param authenticator provides host URL and auth credentials
    * @return configured client instance
-   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+   * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
    */
   public static Client withAuthenticator(Authenticator authenticator) {
     return new Client(authenticator);
@@ -132,7 +132,7 @@ public final class Client {
    * @param authenticator provides host URL and auth credentials
    * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @return configured client instance
-   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
+   * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
    */
   public static Client withAuthenticator(
       Authenticator authenticator, TransportOptions transportOptions) {

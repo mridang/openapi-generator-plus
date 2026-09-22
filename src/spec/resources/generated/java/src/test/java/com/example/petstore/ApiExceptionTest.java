@@ -130,6 +130,26 @@ class ApiExceptionTest {
   }
 
   @Test
+  void networkExceptionsExtendApiExceptionWithStatusZero() {
+    // No HTTP response arrived, so the status is 0 and the transport
+    // failure is kept as the cause. Both sit under ApiException so an
+    // existing catch on ApiException keeps catching them.
+    java.io.IOException cause = new java.io.IOException("connection refused");
+    com.example.petstore.errors.NetworkException network =
+        new com.example.petstore.errors.NetworkException("connection refused", cause);
+    com.example.petstore.errors.NetworkTimeoutException timeout =
+        new com.example.petstore.errors.NetworkTimeoutException("timed out", cause);
+
+    assertInstanceOf(ApiException.class, network);
+    assertEquals(0, network.getStatusCode());
+    assertEquals(cause, network.getCause());
+    assertInstanceOf(com.example.petstore.errors.NetworkException.class, timeout);
+    assertInstanceOf(ApiException.class, timeout);
+    assertEquals(0, timeout.getStatusCode());
+    assertEquals(cause, timeout.getCause());
+  }
+
+  @Test
   void serializationExceptionExtendsTheSdkRoot() {
     // The serializer's failure type lives under the same branded root, so a
     // single catch on OpenAPIException covers serialization errors too.
