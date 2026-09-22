@@ -17,11 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
-import com.example.petstore.ObjectSerializer;
-import com.example.petstore.OpenAPIException;
 import com.example.petstore.errors.InternalServerErrorException;
 import com.example.petstore.errors.NetworkException;
 import com.example.petstore.errors.NotFoundException;
+import com.example.petstore.errors.OpenAPIException;
+import com.example.petstore.errors.SerializationException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -227,9 +227,8 @@ class OpenIdConnectAuthenticatorTest {
     OpenIdConnectAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
 
-    ObjectSerializer.SerializationException ex =
-        assertThrowsExactly(
-            ObjectSerializer.SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    SerializationException ex =
+        assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
     assertInstanceOf(OpenAPIException.class, ex);
   }
 
@@ -245,8 +244,7 @@ class OpenIdConnectAuthenticatorTest {
 
     // Missing authorization_endpoint must throw rather than build a
     // delegate with a null/empty endpoint URL.
-    assertThrowsExactly(
-        ObjectSerializer.SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
   }
 
   @Test
@@ -261,8 +259,7 @@ class OpenIdConnectAuthenticatorTest {
     OpenIdConnectAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
 
-    assertThrowsExactly(
-        ObjectSerializer.SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
   }
 
   @Test

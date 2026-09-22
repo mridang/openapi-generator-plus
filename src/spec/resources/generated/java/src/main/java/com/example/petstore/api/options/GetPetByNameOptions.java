@@ -1,6 +1,5 @@
 package com.example.petstore.api.options;
 
-
 /** Options for the getPetByName operation. */
 public final class GetPetByNameOptions {
   private final String category;

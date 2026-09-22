@@ -2,6 +2,8 @@
 
 package {{invokerPackage}};
 
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
+import {{invokerPackage}}.errors.SerializationException;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -404,7 +406,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("truncated JSON throws SerializationException not raw parse error")
         void truncatedJsonThrowsSerializationException() {
-            ObjectSerializer.SerializationException ex = assertThrowsExactly(ObjectSerializer.SerializationException.class, () ->
+            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
                 serializer.deserialize("{", new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Category>() {}.getType()));
             assertInstanceOf({{errorPrefix}}Exception.class, ex);
         }
@@ -412,7 +414,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("type mismatch JSON throws SerializationException")
         void typeMismatchThrowsSerializationException() {
-            ObjectSerializer.SerializationException ex = assertThrowsExactly(ObjectSerializer.SerializationException.class, () ->
+            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
                 serializer.deserialize("{\"id\":\"not-a-number\",\"name\":123}", new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Category>() {}.getType()));
             assertInstanceOf({{errorPrefix}}Exception.class, ex);
         }
@@ -420,7 +422,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("thrown SerializationException has cause referencing original error")
         void serializationExceptionHasCause() {
-            ObjectSerializer.SerializationException ex = assertThrows(ObjectSerializer.SerializationException.class, () ->
+            SerializationException ex = assertThrows(SerializationException.class, () ->
                 serializer.deserialize("{", new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Category>() {}.getType()));
             assertNotNull(ex.getCause(), "exception should have a cause");
         }
@@ -432,7 +434,7 @@ class ObjectSerializerTest {
             // value the schema never declared (status="banana") must fail loudly
             // with the SDK's (de)serialization exception, not be silently coerced
             // to null or a default constant.
-            ObjectSerializer.SerializationException ex = assertThrowsExactly(ObjectSerializer.SerializationException.class, () ->
+            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
                 serializer.deserialize(
                     "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
                     new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Pet>() {}.getType()));
@@ -444,7 +446,7 @@ class ObjectSerializerTest {
         void missingRequiredFieldThrowsSerializationException() {
             // Pet.name and Pet.photoUrls are required: a payload that omits
             // them must fail with the SDK's SerializationException.
-            ObjectSerializer.SerializationException ex = assertThrowsExactly(ObjectSerializer.SerializationException.class, () ->
+            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
                 serializer.deserialize(
                     "{\"id\":1}",
                     new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Pet>() {}.getType()));
@@ -456,7 +458,7 @@ class ObjectSerializerTest {
         void malformedDateTimeThrowsSerializationException() {
             // Order.shipDate is format: date-time; a value that is not an
             // RFC 3339 timestamp must fail with the SDK's SerializationException.
-            ObjectSerializer.SerializationException ex = assertThrowsExactly(ObjectSerializer.SerializationException.class, () ->
+            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
                 serializer.deserialize(
                     "{\"shipDate\":\"not-a-date\"}",
                     new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Order>() {}.getType()));
@@ -484,7 +486,7 @@ class ObjectSerializerTest {
             // Parity regression: a wrong-typed primitive ("42" for a numeric
             // field, 1 for a boolean field) must fail loudly. With Jackson's
             // ALLOW_COERCION_OF_SCALARS left on, these are silently coerced.
-            assertThrows(ObjectSerializer.SerializationException.class, () ->
+            assertThrows(SerializationException.class, () ->
                 serializer.deserialize(
                     "{\"id\":\"42\"}",
                     new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Order>() {}.getType()));
@@ -493,7 +495,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("numeric for a boolean field throws (no scalar coercion)")
         void numericForBooleanFieldThrows() {
-            assertThrows(ObjectSerializer.SerializationException.class, () ->
+            assertThrows(SerializationException.class, () ->
                 serializer.deserialize(
                     "{\"complete\":1}",
                     new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Order>() {}.getType()));
@@ -510,7 +512,7 @@ class ObjectSerializerTest {
             // requireNonNull rejects the null and Jackson surfaces it as a
             // SerializationException. (go/python/kotlin were the divergent SDKs;
             // Java already throws -> this guard is green here.)
-            assertThrows(ObjectSerializer.SerializationException.class, () ->
+            assertThrows(SerializationException.class, () ->
                 serializer.deserialize(
                     "{\"name\":null,\"photoUrls\":[\"u\"]}",
                     new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Pet>() {}.getType()));
@@ -790,8 +792,8 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("ISO-8601 Duration string fails to deserialize")
         void iso8601DurationStringRejected() {
-            ObjectSerializer.SerializationException ex = assertThrowsExactly(
-                    ObjectSerializer.SerializationException.class,
+            SerializationException ex = assertThrowsExactly(
+                    SerializationException.class,
                     () ->
                             serializer.deserialize(
                                     "{\"ttl\":\"PT1H\"}",
@@ -865,7 +867,7 @@ class ObjectSerializerTest {
             // foodType, Jackson cannot resolve the @JsonSubTypes mapping and
             // surfaces a SerializationException. (python/php were the divergent
             // SDKs; Java already throws -> this guard is green here.)
-            assertThrows(ObjectSerializer.SerializationException.class, () ->
+            assertThrows(SerializationException.class, () ->
                 serializer.deserialize(
                     "{\"weightKg\":5.0}",
                     new com.fasterxml.jackson.core.type.TypeReference<
@@ -940,7 +942,7 @@ class ObjectSerializerTest {
         @DisplayName("malformed UUID string fails to deserialize within a model object")
         void malformedUuidFailsWithinModel() {
             assertThrows(
-                    ObjectSerializer.SerializationException.class,
+                    SerializationException.class,
                     () ->
                             serializer.deserialize(
                                     "{\"id\":\"not-a-uuid\"}",
@@ -990,7 +992,7 @@ class ObjectSerializerTest {
                                 throw new IllegalStateException("variant B does not match");
                             });
             assertThrows(
-                    ObjectSerializer.SerializationException.class,
+                    SerializationException.class,
                     () -> serializer.resolveOneOf("{\"unexpected\":true}", candidates));
         }
 
@@ -1000,7 +1002,7 @@ class ObjectSerializerTest {
             List<java.util.function.Function<String, String>> candidates =
                     Arrays.asList(json -> null);
             assertThrows(
-                    ObjectSerializer.SerializationException.class,
+                    SerializationException.class,
                     () -> serializer.resolveAnyOf("{}", candidates));
         }
     }
@@ -1063,7 +1065,7 @@ class ObjectSerializerTest {
         @DisplayName("referenced enum field rejects an unknown wire value")
         void referencedEnumRejectsUnknownValue() {
             assertThrows(
-                    ObjectSerializer.SerializationException.class,
+                    SerializationException.class,
                     () ->
                             serializer.deserialize(
                                     "{\"priority\":1,\"availability\":\"banana\"}",

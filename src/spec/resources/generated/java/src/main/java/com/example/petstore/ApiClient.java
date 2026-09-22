@@ -7,6 +7,7 @@
 
 package com.example.petstore;
 
+import com.example.petstore.errors.ApiException;
 import java.util.Map;
 import javax.annotation.Nullable;
 

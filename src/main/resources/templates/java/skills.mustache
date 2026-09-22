@@ -68,9 +68,11 @@ var client = new {{clientClassName}}(authenticator);
 
 ```java
 import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+import java.util.List;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", List.of());
 var client = new {{clientClassName}}(authenticator);
 ```
 
@@ -80,11 +82,14 @@ var client = new {{clientClassName}}(authenticator);
 
 ```java
 import {{invokerPackage}}.auth.oauth.OAuth2AuthorizationCodeAuthenticator;
+import java.util.List;
 
 var authenticator = new OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", List.of());
 var client = new {{clientClassName}}(authenticator);
+authenticator.exchangeCode("authorization-code");
 ```
 
 {{/hasOAuth2AuthorizationCode}}
@@ -93,10 +98,11 @@ var client = new {{clientClassName}}(authenticator);
 
 ```java
 import {{invokerPackage}}.auth.oauth.OAuth2PasswordAuthenticator;
+import java.util.List;
 
 var authenticator = new OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password");
+    "https://auth.example.com/token", "username", "password", List.of());
 var client = new {{clientClassName}}(authenticator);
 ```
 
@@ -108,8 +114,11 @@ The implicit flow obtains the access token out of band (typically in the browser
 
 ```java
 import {{invokerPackage}}.auth.oauth.OAuth2ImplicitAuthenticator;
+import java.util.List;
 
-var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
+var authenticator = new OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", List.of());
+authenticator.setAccessToken("your-access-token");
 var client = new {{clientClassName}}(authenticator);
 ```
 
@@ -119,11 +128,13 @@ var client = new {{clientClassName}}(authenticator);
 
 ```java
 import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator;
+import java.util.List;
 
 var authenticator = new OpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration");
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", List.of());
 var client = new {{clientClassName}}(authenticator);
+authenticator.exchangeCode("authorization-code");
 ```
 
 {{/hasOpenIdConnect}}
@@ -210,9 +221,11 @@ All API errors derive from `ApiException`. The error hierarchy is:
 
 ```java
 import {{invokerPackage}}.errors.*;
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}import {{modelPackage}}.{{{dataType}}};
+{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 
 try {
-    var result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(request);
+    client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
 } catch (NotFoundException e) {
     System.out.println("Not found: " + e.getMessage());
 } catch (ClientException e) {

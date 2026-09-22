@@ -18,7 +18,9 @@ public class JavaClientSpec extends AbstractClientSpec implements JavaSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "mvn compile test-compile -q -B",
-      "mvn test -q -B",
+      /* Not quiet: Surefire's own "Tests run:" totals stay in the log, so
+       * they can be checked against the report printed from .out/reports. */
+      "mvn test -B",
       "mv .out/jacoco.xml .out/coverage.xml"
     };
   }

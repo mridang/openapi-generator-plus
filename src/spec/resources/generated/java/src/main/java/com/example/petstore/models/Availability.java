@@ -7,7 +7,6 @@
 
 package com.example.petstore.models;
 
-
 /** Stock availability, non-lowercase string enum. */
 @SuppressWarnings({
   "checkstyle:SummaryJavadoc",

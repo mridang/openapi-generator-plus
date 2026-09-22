@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.petstore.ObjectSerializer;
+import com.example.petstore.errors.SerializationException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
@@ -363,7 +364,7 @@ class ComposedSchemaTest {
     void missingRequiredFieldRaises() {
       String json = "{\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
       assertThatThrownBy(() -> serializer.deserialize(json, PET_TYPE))
-          .isInstanceOf(ObjectSerializer.SerializationException.class);
+          .isInstanceOf(SerializationException.class);
     }
 
     @Test
@@ -371,7 +372,7 @@ class ComposedSchemaTest {
     void explicitNullRequiredFieldRaises() {
       String json = "{\"name\":null,\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
       assertThatThrownBy(() -> serializer.deserialize(json, PET_TYPE))
-          .isInstanceOf(ObjectSerializer.SerializationException.class);
+          .isInstanceOf(SerializationException.class);
     }
 
     @Test

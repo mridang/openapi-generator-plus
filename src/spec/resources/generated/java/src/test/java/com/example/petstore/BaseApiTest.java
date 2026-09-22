@@ -25,12 +25,14 @@ import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
+import com.example.petstore.errors.ApiException;
 import com.example.petstore.errors.BadRequestException;
 import com.example.petstore.errors.ClientException;
 import com.example.petstore.errors.ConflictException;
 import com.example.petstore.errors.ForbiddenException;
 import com.example.petstore.errors.InternalServerErrorException;
 import com.example.petstore.errors.NotFoundException;
+import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.ServerException;
 import com.example.petstore.errors.UnauthorizedException;
 import com.example.petstore.errors.UnprocessableEntityException;
@@ -42,7 +44,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1615,28 +1616,34 @@ class BaseApiTest {
   class ProxyAuthenticationTests {
 
     @Test
-    @Disabled(
-        "requires Squid configured with basic-auth; the shared SquidContainer in this "
-            + "test environment runs without basic_auth ACLs, so userinfo in the proxy "
-            + "URL cannot be verified end-to-end. Enable when SquidContainer's "
-            + "squid.conf is provisioned with htpasswd-backed auth.")
     @DisplayName("proxy URL with userinfo sends Proxy-Authorization through the proxy")
     void proxyUrlWithUserinfoSendsProxyAuthorization() throws ApiException {
       String chasmUrl = ChasmContainer.getInternalHttpUrl();
-      String baseProxyUrl = SquidContainer.getProxyUrl();
-      // Splice basic-auth userinfo into the proxy URL: http://user:pass@host:port
-      java.net.URI uri = java.net.URI.create(baseProxyUrl);
+      java.net.URI uri = java.net.URI.create(SquidContainer.getAuthProxyUrl());
       String proxyUrlWithAuth =
           uri.getScheme() + "://user:pass@" + uri.getHost() + ":" + uri.getPort();
 
-      TransportOptions transport = TransportOptions.builder().proxy(proxyUrlWithAuth).build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().proxy(proxyUrlWithAuth).build());
       ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+      assertTrue(response.body().contains("\"method\""));
+    }
+
+    @Test
+    @DisplayName("proxy that requires credentials answers 407 when none are sent")
+    void proxyWithoutCredentialsIsRefused() throws ApiException {
+      String chasmUrl = ChasmContainer.getInternalHttpUrl();
+
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build());
+      ApiHttpResponse response =
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+
+      assertEquals(407, response.statusCode());
     }
   }
 

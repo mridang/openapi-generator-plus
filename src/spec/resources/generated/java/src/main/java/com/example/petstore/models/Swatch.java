@@ -7,7 +7,6 @@
 
 package com.example.petstore.models;
 
-
 /** Swatch. */
 @SuppressWarnings({
   "checkstyle:SummaryJavadoc",

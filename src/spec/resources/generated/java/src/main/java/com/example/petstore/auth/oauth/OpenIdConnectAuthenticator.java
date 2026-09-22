@@ -8,19 +8,10 @@
 package com.example.petstore.auth.oauth;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiException;
 import com.example.petstore.ApiHttpResponse;
-import com.example.petstore.ObjectSerializer.SerializationException;
 import com.example.petstore.auth.HttpAwareAuthenticator;
-import com.example.petstore.errors.BadRequestException;
-import com.example.petstore.errors.ClientException;
-import com.example.petstore.errors.ConflictException;
-import com.example.petstore.errors.ForbiddenException;
-import com.example.petstore.errors.InternalServerErrorException;
-import com.example.petstore.errors.NotFoundException;
-import com.example.petstore.errors.ServerException;
-import com.example.petstore.errors.UnauthorizedException;
-import com.example.petstore.errors.UnprocessableEntityException;
+import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.SerializationException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -123,7 +114,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
      * otherwise surface as a confusing "invalid JSON" error instead
      * of the real "discovery failed" condition. */
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throw statusError(response);
+      throw ApiException.fromResponse(response.statusCode(), response.headers(), response.body());
     }
     JsonNode discovery;
     try {
@@ -149,39 +140,6 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     delegate.setApiClient(apiClient);
     discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
     return delegate;
-  }
-
-  /**
-   * Map a non-2xx discovery response to the {@link ApiException} subclass for its status, exactly
-   * as an API operation would.
-   *
-   * @param response the non-2xx discovery response
-   * @return the typed exception to throw
-   */
-  private ApiException statusError(ApiHttpResponse response) {
-    int code = response.statusCode();
-    String message =
-        "OpenID Connect discovery request to "
-            + openIdConnectUrl
-            + " failed with HTTP status "
-            + code;
-    Map<String, String> headers = response.headers();
-    String body = response.body();
-    return switch (code) {
-      case 400 -> new BadRequestException(message, headers, body, null);
-      case 401 -> new UnauthorizedException(message, headers, body, null);
-      case 403 -> new ForbiddenException(message, headers, body, null);
-      case 404 -> new NotFoundException(message, headers, body, null);
-      case 409 -> new ConflictException(message, headers, body, null);
-      case 422 -> new UnprocessableEntityException(message, headers, body, null);
-      case 500 -> new InternalServerErrorException(message, headers, body, null);
-      default ->
-          code >= 400 && code < 500
-              ? new ClientException(code, message, headers, body, null)
-              : code >= 500
-                  ? new ServerException(code, message, headers, body, null)
-                  : new ApiException(code, message, headers, body);
-    };
   }
 
   /**

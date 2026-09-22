@@ -7,7 +7,6 @@
 
 package com.example.petstore.models;
 
-
 /** A standalone, reusable colour enumeration. */
 @SuppressWarnings({
   "checkstyle:SummaryJavadoc",

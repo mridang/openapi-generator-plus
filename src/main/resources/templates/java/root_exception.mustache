@@ -1,12 +1,12 @@
 {{>api_info}}
 
-package {{invokerPackage}};
+package {{invokerPackage}}.errors;
 
 /**
  * Root of the SDK exception hierarchy.
  *
  * <p>Every error the SDK raises ultimately extends this single branded base, so
- * a caller can write one {@code catch ({{invokerPackage}}.{{errorPrefix}}Exception e)}
+ * a caller can write one {@code catch ({{invokerPackage}}.errors.{{errorPrefix}}Exception e)}
  * and be certain it covers all SDK-originated failures — API/HTTP errors
  * ({@link ApiException} and its typed subclasses), serialization failures, and
  * OAuth2 token/server errors raised during authentication.

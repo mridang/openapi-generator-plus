@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.example.petstore.errors.ApiException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
@@ -97,12 +98,13 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("verifySsl=false accepts hostname mismatch (curl -k semantics)")
-    @org.junit.jupiter.api.Disabled(
-        "testcontainer fails to bind on 127.0.0.1 on GitHub-hosted runners (IPv4/6 mismatch);"
-            + " passes locally")
     void verifySslFalseAcceptsHostnameMismatch() throws Exception {
-      int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
-      String chasmUrl = "https://127.0.0.1:" + httpsPort;
+      /* Reach the mock server by its IP address, which the certificate
+       * does not name, so the host name check would fail if it ran. */
+      java.net.URI httpsBase = java.net.URI.create(ChasmContainer.getHttpsBaseUrl());
+      String address = java.net.InetAddress.getByName(httpsBase.getHost()).getHostAddress();
+      String host = address.contains(":") ? "[" + address + "]" : address;
+      String chasmUrl = "https://" + host + ":" + httpsBase.getPort();
 
       TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
 

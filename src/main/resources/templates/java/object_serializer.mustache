@@ -34,6 +34,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import {{invokerPackage}}.errors.SerializationException;
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
@@ -438,34 +439,6 @@ public final class ObjectSerializer {
      */
     public <T> T resolveAnyOf(String json, List<Function<String, T>> candidates) {
         return resolveOneOf(json, candidates);
-    }
-
-    /**
-     * Exception raised when serialization or deserialization fails.
-     */
-    public static class SerializationException extends {{errorPrefix}}Exception {
-
-        @java.io.Serial
-        private static final long serialVersionUID = 1L;
-
-        /**
-         * Creates an exception with a detail message and cause.
-         *
-         * @param message the detail message
-         * @param cause the underlying cause
-         */
-        public SerializationException(String message, Throwable cause) {
-            super(message, cause);
-        }
-
-        /**
-         * Creates an exception with a detail message.
-         *
-         * @param message the detail message
-         */
-        public SerializationException(String message) {
-            super(message);
-        }
     }
 
     /**

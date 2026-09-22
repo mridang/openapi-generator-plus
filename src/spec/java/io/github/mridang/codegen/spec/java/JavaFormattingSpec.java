@@ -19,12 +19,9 @@ public class JavaFormattingSpec extends AbstractFormattingSpec implements JavaSp
 
   @Override
   protected String[] getBuildCommands() {
-    // Spotless google-java-format depends on JDK-internal compiler API that
-    // changed in JDK 25; current spotless-maven-plugin 2.46.1 hits a
-    // NoSuchMethodError on Log$DeferredDiagnosticHandler.getDiagnostics().
-    // Until a JDK 25-compatible spotless ships, run plain compile as the
-    // format gate (inline-comment + html-entity checks still run from base).
-    return new String[] {"mvn compile -q -B"};
+    // The generated pom pins google-java-format 1.28.0, which runs on JDK 25,
+    // so Spotless checks both the main and the test sources.
+    return new String[] {"mvn spotless:check -B"};
   }
 
   @Override

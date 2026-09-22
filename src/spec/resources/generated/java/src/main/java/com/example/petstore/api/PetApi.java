@@ -8,7 +8,6 @@
 package com.example.petstore.api;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.api.options.AddPetOptions;
@@ -22,6 +21,7 @@ import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
 import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
 import com.example.petstore.models.PetPassport;
@@ -53,7 +53,8 @@ import javax.annotation.Nullable;
   "checkstyle:MemberName",
   "checkstyle:OverloadMethodsDeclarationOrder",
   "checkstyle:VariableDeclarationUsageDistance",
-  "checkstyle:ConstructorsDeclarationGrouping"
+  "checkstyle:ConstructorsDeclarationGrouping",
+  "checkstyle:LineLength"
 })
 public class PetApi extends BaseApi {
 

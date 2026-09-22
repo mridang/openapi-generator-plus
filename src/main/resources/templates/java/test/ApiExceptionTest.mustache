@@ -2,6 +2,9 @@
 
 package {{invokerPackage}};
 
+import {{invokerPackage}}.errors.ApiException;
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
+import {{invokerPackage}}.errors.SerializationException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -132,10 +135,71 @@ class ApiExceptionTest {
     void serializationExceptionExtendsTheSdkRoot() {
         // The serializer's failure type lives under the same branded root, so a
         // single catch on {{errorPrefix}}Exception covers serialization errors too.
-        ObjectSerializer.SerializationException ex =
-                new ObjectSerializer.SerializationException("bad json");
+        SerializationException ex =
+                new SerializationException("bad json");
 
         assertInstanceOf({{errorPrefix}}Exception.class, ex);
         assertInstanceOf(RuntimeException.class, ex);
+    }
+
+    @Test
+    void fromResponseMapsEveryStatusToItsException() {
+        Map<Integer, Class<? extends ApiException>> expected = Map.of(
+                400, {{invokerPackage}}.errors.BadRequestException.class,
+                401, {{invokerPackage}}.errors.UnauthorizedException.class,
+                403, {{invokerPackage}}.errors.ForbiddenException.class,
+                404, {{invokerPackage}}.errors.NotFoundException.class,
+                409, {{invokerPackage}}.errors.ConflictException.class,
+                422, {{invokerPackage}}.errors.UnprocessableEntityException.class,
+                418, {{invokerPackage}}.errors.ClientException.class,
+                500, {{invokerPackage}}.errors.InternalServerErrorException.class,
+                503, {{invokerPackage}}.errors.ServerException.class,
+                302, ApiException.class);
+        for (Map.Entry<Integer, Class<? extends ApiException>> entry : expected.entrySet()) {
+            ApiException ex = ApiException.fromResponse(
+                    entry.getKey(), Map.of("x-request-id", "abc"), "{\"code\":\"denied\"}");
+
+            assertEquals(entry.getValue(), ex.getClass());
+            assertEquals(entry.getKey(), ex.getStatusCode());
+            assertEquals("abc",
+                    Objects.requireNonNull(ex.getResponseHeaders()).get("x-request-id"));
+            assertEquals("{\"code\":\"denied\"}", ex.getResponseBody());
+            assertEquals(Map.of("code", "denied"), ex.getErrorBody());
+        }
+    }
+
+    @Test
+    void fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
+        ApiException ex = ApiException.fromResponse(502, Map.of(), "<html>bad gateway</html>");
+
+        assertEquals({{invokerPackage}}.errors.ServerException.class, ex.getClass());
+        assertEquals("<html>bad gateway</html>", ex.getResponseBody());
+        assertNull(ex.getErrorBody());
+    }
+
+    @Test
+    void everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+        java.util.List<Class<? extends RuntimeException>> errors = java.util.List.of(
+                {{errorPrefix}}Exception.class,
+                ApiException.class,
+                {{invokerPackage}}.errors.ClientException.class,
+                {{invokerPackage}}.errors.ServerException.class,
+                {{invokerPackage}}.errors.BadRequestException.class,
+                {{invokerPackage}}.errors.UnauthorizedException.class,
+                {{invokerPackage}}.errors.ForbiddenException.class,
+                {{invokerPackage}}.errors.NotFoundException.class,
+                {{invokerPackage}}.errors.ConflictException.class,
+                {{invokerPackage}}.errors.UnprocessableEntityException.class,
+                {{invokerPackage}}.errors.InternalServerErrorException.class,
+                {{invokerPackage}}.errors.NetworkException.class,
+                {{invokerPackage}}.errors.NetworkTimeoutException.class,
+                SerializationException.class,
+                {{invokerPackage}}.errors.OAuth2ServerException.class,
+                {{invokerPackage}}.errors.OAuth2TokenException.class);
+        for (Class<? extends RuntimeException> error : errors) {
+            assertEquals("{{invokerPackage}}.errors", error.getPackageName(), error.getName());
+            assertNull(error.getEnclosingClass(), error.getName());
+            assertTrue({{errorPrefix}}Exception.class.isAssignableFrom(error), error.getName());
+        }
     }
 }

@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.errors.OAuth2ServerException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -161,7 +162,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
 
-    assertThrowsExactly(OAuth2TokenManager.OAuth2ServerException.class, auth::getAuthHeaders);
+    assertThrowsExactly(OAuth2ServerException.class, auth::getAuthHeaders);
   }
 
   @Test

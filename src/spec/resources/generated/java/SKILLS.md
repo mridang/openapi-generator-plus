@@ -63,9 +63,11 @@ var client = new Client(authenticator);
 
 ```java
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+import java.util.List;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", List.of());
 var client = new Client(authenticator);
 ```
 
@@ -73,21 +75,25 @@ var client = new Client(authenticator);
 
 ```java
 import com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator;
+import java.util.List;
 
 var authenticator = new OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", List.of());
 var client = new Client(authenticator);
+authenticator.exchangeCode("authorization-code");
 ```
 
 ### OAuth2 Password
 
 ```java
 import com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator;
+import java.util.List;
 
 var authenticator = new OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password");
+    "https://auth.example.com/token", "username", "password", List.of());
 var client = new Client(authenticator);
 ```
 
@@ -97,8 +103,11 @@ The implicit flow obtains the access token out of band (typically in the browser
 
 ```java
 import com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator;
+import java.util.List;
 
-var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
+var authenticator = new OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", List.of());
+authenticator.setAccessToken("your-access-token");
 var client = new Client(authenticator);
 ```
 
@@ -106,11 +115,13 @@ var client = new Client(authenticator);
 
 ```java
 import com.example.petstore.auth.oauth.OpenIdConnectAuthenticator;
+import java.util.List;
 
 var authenticator = new OpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration");
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", List.of());
 var client = new Client(authenticator);
+authenticator.exchangeCode("authorization-code");
 ```
 
 ### OAuth2 token lifecycle
@@ -191,9 +202,10 @@ All API errors derive from `ApiException`. The error hierarchy is:
 
 ```java
 import com.example.petstore.errors.*;
+import com.example.petstore.models.Pet;
 
 try {
-    var result = client.pet.addPet(request);
+    client.pet.addPet(new Pet());
 } catch (NotFoundException e) {
     System.out.println("Not found: " + e.getMessage());
 } catch (ClientException e) {

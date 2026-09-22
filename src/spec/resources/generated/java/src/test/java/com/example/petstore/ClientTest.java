@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.BearerAuthenticator;
+import com.example.petstore.errors.ApiException;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({
@@ -125,8 +126,7 @@ class ClientTest {
     // non-empty <description> so the artifact has a description on
     // Maven Central, matching the python/ruby/dart manifests.
     java.nio.file.Path pom = java.nio.file.Paths.get("pom.xml");
-    org.junit.jupiter.api.Assumptions.assumeTrue(
-        java.nio.file.Files.exists(pom), "pom.xml not present in working dir");
+    assertTrue(java.nio.file.Files.exists(pom), "pom.xml must be in the working dir");
     String contents = java.nio.file.Files.readString(pom);
     java.util.regex.Matcher matcher =
         java.util.regex.Pattern.compile(

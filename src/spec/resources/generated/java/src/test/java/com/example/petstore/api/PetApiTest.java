@@ -293,10 +293,40 @@ class PetApiTest {
   }
 
   @Test
-  @org.junit.jupiter.api.Disabled("Per-operation server URL points to external host")
   void testGetExternalPetInfo() throws Exception {
-    Pet result = api.getExternalPetInfo(1L);
+    /* The operation declares its own server. The client below sends every
+     * request for that server to the mock server instead, and records the
+     * URL the SDK asked for, so the test proves the chosen per-operation
+     * server was used and still gets a real response. */
+    String externalServer = "https://external-api.example.com/v1";
+    List<String> requestedUrls = new java.util.ArrayList<>();
+    DefaultApiClient transport = new DefaultApiClient();
+    ApiClient redirectingClient =
+        new ApiClient() {
+          @Override
+          public com.example.petstore.ApiHttpResponse sendRequest(
+              String method,
+              String url,
+              java.util.Map<String, String> headers,
+              @javax.annotation.Nullable Object body) {
+            requestedUrls.add(url);
+            return transport.sendRequest(
+                method, url.replace(externalServer, ChasmContainer.getBaseUrl()), headers, body);
+          }
+        };
+    PetApi externalApi =
+        new PetApi(
+            redirectingClient,
+            Configuration.builder()
+                .baseUrl(ChasmContainer.getBaseUrl())
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build());
+
+    Pet result = externalApi.getExternalPetInfo(1L, new PetApi.GetExternalPetInfoServer.Server0());
+
     assertNotNull(result);
+    assertThat(requestedUrls).hasSize(1);
+    assertThat(requestedUrls.get(0)).startsWith(externalServer + "/");
   }
 
   @Test
@@ -359,7 +389,7 @@ class PetApiTest {
     PetApi mockApi = newPetApiForMock(200, "application/json", "");
 
     assertThatThrownBy(() -> mockApi.getPetById(1L))
-        .isInstanceOf(com.example.petstore.ApiException.class);
+        .isInstanceOf(com.example.petstore.errors.ApiException.class);
   }
 
   @Test

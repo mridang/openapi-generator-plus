@@ -8,22 +8,13 @@
 package com.example.petstore.api;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiException;
 import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.ObjectSerializer;
 import com.example.petstore.auth.Authenticator;
-import com.example.petstore.errors.BadRequestException;
-import com.example.petstore.errors.ClientException;
-import com.example.petstore.errors.ConflictException;
-import com.example.petstore.errors.ForbiddenException;
-import com.example.petstore.errors.InternalServerErrorException;
-import com.example.petstore.errors.NotFoundException;
-import com.example.petstore.errors.ServerException;
-import com.example.petstore.errors.UnauthorizedException;
-import com.example.petstore.errors.UnprocessableEntityException;
+import com.example.petstore.errors.ApiException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Type;
@@ -40,8 +31,6 @@ import javax.annotation.Nullable;
  * deserialization.
  */
 public abstract class BaseApi {
-
-  private static final Type OBJECT_TYPE = Object.class;
 
   /** The HTTP transport client used for sending requests. */
   protected final ApiClient apiClient;
@@ -298,7 +287,7 @@ public abstract class BaseApi {
     ApiHttpResponse response = apiClient.sendRequest(method, url, headers, requestBody);
 
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throwApiException(response);
+      throw ApiException.fromResponse(response.statusCode(), response.headers(), response.body());
     }
 
     T data = null;
@@ -424,50 +413,6 @@ public abstract class BaseApi {
     return this.<T>invokeApiForResult(
             method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth)
         .data();
-  }
-
-  /**
-   * Throw the appropriate exception subclass for the given error response.
-   *
-   * <p>Attempts to deserialize the response body as JSON so that structured error data (e.g. from a
-   * {@code default} response schema) is available via {@link ApiException#getErrorBody()}.
-   *
-   * @param response the API response with a non-2xx status code
-   * @throws ApiException always
-   */
-  private void throwApiException(ApiHttpResponse response) {
-    int code = response.statusCode();
-    String message = "API returned status code " + code;
-    String body = response.body();
-    Map<String, String> headers = response.headers();
-
-    Object errorBody = null;
-    if (body != null && !body.isEmpty()) {
-      try {
-        errorBody = objectSerializer.deserialize(body, OBJECT_TYPE);
-      } catch (Exception e) {
-        errorBody = null;
-      }
-    }
-
-    if (code >= 400 && code < 500) {
-      throw switch (code) {
-        case 400 -> new BadRequestException(message, headers, body, errorBody);
-        case 401 -> new UnauthorizedException(message, headers, body, errorBody);
-        case 403 -> new ForbiddenException(message, headers, body, errorBody);
-        case 404 -> new NotFoundException(message, headers, body, errorBody);
-        case 409 -> new ConflictException(message, headers, body, errorBody);
-        case 422 -> new UnprocessableEntityException(message, headers, body, errorBody);
-        default -> new ClientException(code, message, headers, body, errorBody);
-      };
-    }
-    if (code >= 500) {
-      throw switch (code) {
-        case 500 -> new InternalServerErrorException(message, headers, body, errorBody);
-        default -> new ServerException(code, message, headers, body, errorBody);
-      };
-    }
-    throw new ApiException(code, message, headers, body, errorBody);
   }
 
   /**

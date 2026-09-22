@@ -176,7 +176,12 @@
                             <include>src/main/java/**/*.java</include>
                             <include>src/test/java/**/*.java</include>
                         </includes>
-                        <googleJavaFormat/>
+                        <googleJavaFormat>
+                            <!-- Pin a google-java-format release that runs
+                                 on JDK 25; older ones fail with
+                                 NoSuchMethodError inside javac. -->
+                            <version>${google-java-format-version}</version>
+                        </googleJavaFormat>
                     </java>
                 </configuration>
             </plugin>
@@ -346,6 +351,18 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+            <version>${opentelemetry-version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-testing</artifactId>
+            <version>${opentelemetry-version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${junit-version}</version>
@@ -390,6 +407,7 @@
         <spotbugs-plugin-version>4.9.3.2</spotbugs-plugin-version>
         <spotbugs-annotations-version>4.9.6</spotbugs-annotations-version>
         <spotless-version>2.46.1</spotless-version>
+        <google-java-format-version>1.28.0</google-java-format-version>
         <checkstyle-plugin-version>3.6.0</checkstyle-plugin-version>
         <checkstyle-version>10.20.2</checkstyle-version>
         <openrewrite-plugin-version>6.13.0</openrewrite-plugin-version>

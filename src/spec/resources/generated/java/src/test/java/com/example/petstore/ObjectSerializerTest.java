@@ -19,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.example.petstore.errors.OpenAPIException;
+import com.example.petstore.errors.SerializationException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -427,9 +429,9 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("truncated JSON throws SerializationException not raw parse error")
     void truncatedJsonThrowsSerializationException() {
-      ObjectSerializer.SerializationException ex =
+      SerializationException ex =
           assertThrowsExactly(
-              ObjectSerializer.SerializationException.class,
+              SerializationException.class,
               () ->
                   serializer.deserialize(
                       "{",
@@ -441,9 +443,9 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("type mismatch JSON throws SerializationException")
     void typeMismatchThrowsSerializationException() {
-      ObjectSerializer.SerializationException ex =
+      SerializationException ex =
           assertThrowsExactly(
-              ObjectSerializer.SerializationException.class,
+              SerializationException.class,
               () ->
                   serializer.deserialize(
                       "{\"id\":\"not-a-number\",\"name\":123}",
@@ -455,9 +457,9 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("thrown SerializationException has cause referencing original error")
     void serializationExceptionHasCause() {
-      ObjectSerializer.SerializationException ex =
+      SerializationException ex =
           assertThrows(
-              ObjectSerializer.SerializationException.class,
+              SerializationException.class,
               () ->
                   serializer.deserialize(
                       "{",
@@ -473,9 +475,9 @@ class ObjectSerializerTest {
       // value the schema never declared (status="banana") must fail loudly
       // with the SDK's (de)serialization exception, not be silently coerced
       // to null or a default constant.
-      ObjectSerializer.SerializationException ex =
+      SerializationException ex =
           assertThrowsExactly(
-              ObjectSerializer.SerializationException.class,
+              SerializationException.class,
               () ->
                   serializer.deserialize(
                       "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
@@ -489,9 +491,9 @@ class ObjectSerializerTest {
     void missingRequiredFieldThrowsSerializationException() {
       // Pet.name and Pet.photoUrls are required: a payload that omits
       // them must fail with the SDK's SerializationException.
-      ObjectSerializer.SerializationException ex =
+      SerializationException ex =
           assertThrowsExactly(
-              ObjectSerializer.SerializationException.class,
+              SerializationException.class,
               () ->
                   serializer.deserialize(
                       "{\"id\":1}",
@@ -505,9 +507,9 @@ class ObjectSerializerTest {
     void malformedDateTimeThrowsSerializationException() {
       // Order.shipDate is format: date-time; a value that is not an
       // RFC 3339 timestamp must fail with the SDK's SerializationException.
-      ObjectSerializer.SerializationException ex =
+      SerializationException ex =
           assertThrowsExactly(
-              ObjectSerializer.SerializationException.class,
+              SerializationException.class,
               () ->
                   serializer.deserialize(
                       "{\"shipDate\":\"not-a-date\"}",
@@ -539,7 +541,7 @@ class ObjectSerializerTest {
       // field, 1 for a boolean field) must fail loudly. With Jackson's
       // ALLOW_COERCION_OF_SCALARS left on, these are silently coerced.
       assertThrows(
-          ObjectSerializer.SerializationException.class,
+          SerializationException.class,
           () ->
               serializer.deserialize(
                   "{\"id\":\"42\"}",
@@ -551,7 +553,7 @@ class ObjectSerializerTest {
     @DisplayName("numeric for a boolean field throws (no scalar coercion)")
     void numericForBooleanFieldThrows() {
       assertThrows(
-          ObjectSerializer.SerializationException.class,
+          SerializationException.class,
           () ->
               serializer.deserialize(
                   "{\"complete\":1}",
@@ -571,7 +573,7 @@ class ObjectSerializerTest {
       // SerializationException. (go/python/kotlin were the divergent SDKs;
       // Java already throws -> this guard is green here.)
       assertThrows(
-          ObjectSerializer.SerializationException.class,
+          SerializationException.class,
           () ->
               serializer.deserialize(
                   "{\"name\":null,\"photoUrls\":[\"u\"]}",
@@ -854,9 +856,9 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("ISO-8601 Duration string fails to deserialize")
     void iso8601DurationStringRejected() {
-      ObjectSerializer.SerializationException ex =
+      SerializationException ex =
           assertThrowsExactly(
-              ObjectSerializer.SerializationException.class,
+              SerializationException.class,
               () ->
                   serializer.deserialize(
                       "{\"ttl\":\"PT1H\"}",
@@ -930,7 +932,7 @@ class ObjectSerializerTest {
       // surfaces a SerializationException. (python/php were the divergent
       // SDKs; Java already throws -> this guard is green here.)
       assertThrows(
-          ObjectSerializer.SerializationException.class,
+          SerializationException.class,
           () ->
               serializer.deserialize(
                   "{\"weightKg\":5.0}",
@@ -1000,7 +1002,7 @@ class ObjectSerializerTest {
     @DisplayName("malformed UUID string fails to deserialize within a model object")
     void malformedUuidFailsWithinModel() {
       assertThrows(
-          ObjectSerializer.SerializationException.class,
+          SerializationException.class,
           () ->
               serializer.deserialize(
                   "{\"id\":\"not-a-uuid\"}",
@@ -1048,7 +1050,7 @@ class ObjectSerializerTest {
                 throw new IllegalStateException("variant B does not match");
               });
       assertThrows(
-          ObjectSerializer.SerializationException.class,
+          SerializationException.class,
           () -> serializer.resolveOneOf("{\"unexpected\":true}", candidates));
     }
 
@@ -1056,9 +1058,7 @@ class ObjectSerializerTest {
     @DisplayName("resolveAnyOf throws when no variant matches")
     void resolveAnyOfThrowsOnNoMatch() {
       List<java.util.function.Function<String, String>> candidates = Arrays.asList(json -> null);
-      assertThrows(
-          ObjectSerializer.SerializationException.class,
-          () -> serializer.resolveAnyOf("{}", candidates));
+      assertThrows(SerializationException.class, () -> serializer.resolveAnyOf("{}", candidates));
     }
   }
 
@@ -1116,7 +1116,7 @@ class ObjectSerializerTest {
     @DisplayName("referenced enum field rejects an unknown wire value")
     void referencedEnumRejectsUnknownValue() {
       assertThrows(
-          ObjectSerializer.SerializationException.class,
+          SerializationException.class,
           () ->
               serializer.deserialize(
                   "{\"priority\":1,\"availability\":\"banana\"}",

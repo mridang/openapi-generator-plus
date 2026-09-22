@@ -11,11 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
-import com.example.petstore.OpenAPIException;
+import com.example.petstore.errors.OAuth2ServerException;
+import com.example.petstore.errors.OAuth2TokenException;
+import com.example.petstore.errors.OpenAPIException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -433,9 +434,9 @@ class OAuth2TokenManagerTest {
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "client_credentials");
 
-    OAuth2TokenManager.OAuth2ServerException ex =
+    OAuth2ServerException ex =
         assertThrowsExactly(
-            OAuth2TokenManager.OAuth2ServerException.class,
+            OAuth2ServerException.class,
             () -> manager.getAccessToken("https://auth.example.com/token", params));
     assertEquals(401, ex.getStatusCode());
     assertInstanceOf(OpenAPIException.class, ex);
@@ -452,7 +453,7 @@ class OAuth2TokenManagerTest {
     params.put("grant_type", "client_credentials");
 
     assertThrowsExactly(
-        OAuth2TokenManager.OAuth2TokenException.class,
+        OAuth2TokenException.class,
         () -> manager.getAccessToken("https://auth.example.com/token", params));
   }
 
@@ -490,9 +491,9 @@ class OAuth2TokenManagerTest {
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "client_credentials");
 
-    OAuth2TokenManager.OAuth2TokenException ex =
+    OAuth2TokenException ex =
         assertThrowsExactly(
-            OAuth2TokenManager.OAuth2TokenException.class,
+            OAuth2TokenException.class,
             () -> manager.getAccessToken("https://auth.example.com/token", params));
     assertInstanceOf(OpenAPIException.class, ex);
   }
@@ -513,9 +514,9 @@ class OAuth2TokenManagerTest {
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "client_credentials");
 
-    OAuth2TokenManager.OAuth2ServerException serverError =
+    OAuth2ServerException serverError =
         assertThrowsExactly(
-            OAuth2TokenManager.OAuth2ServerException.class,
+            OAuth2ServerException.class,
             () -> manager.getAccessToken("https://auth.example.com/token", params));
     assertEquals(400, serverError.getStatusCode());
     assertEquals("invalid_grant", serverError.getCode());
@@ -602,9 +603,9 @@ class OAuth2TokenManagerTest {
 
     // A 3xx is a non-2xx answer from the token endpoint, so it is an
     // OAuth2ServerException carrying the redirect status.
-    OAuth2TokenManager.OAuth2ServerException ex =
+    OAuth2ServerException ex =
         assertThrowsExactly(
-            OAuth2TokenManager.OAuth2ServerException.class,
+            OAuth2ServerException.class,
             () -> manager.getAccessToken("https://auth.example.com/token", params));
     assertEquals(status, ex.getStatusCode());
   }
@@ -659,50 +660,5 @@ class OAuth2TokenManagerTest {
     for (String token : tokens) {
       assertEquals("tok2", token, "all callers must observe the same refreshed token");
     }
-  }
-
-  /*
-   * Bucket 3.2 — the redirect-refusal error should include the offending
-   * Location header for diagnostics. The Java SDK's OAuth2ServerException only
-   * carries the status code and response body, not the Location target,
-   * so this scenario cannot be asserted without fabricating behaviour the
-   * SDK does not implement.
-   */
-  @org.junit.jupiter.api.Disabled(
-      "Java OAuth2TokenManager redirect-refusal error does not surface the Location header")
-  @Test
-  void redirectRefusalErrorIncludesLocationHeader() {
-    ApiClient client =
-        new ApiClient() {
-          @Override
-          public ApiHttpResponse sendRequest(
-              String method, String url, Map<String, String> headers, @Nullable Object body) {
-            return sendRequest(method, url, headers, body, false);
-          }
-
-          @Override
-          public ApiHttpResponse sendRequest(
-              String method,
-              String url,
-              Map<String, String> headers,
-              @Nullable Object body,
-              boolean noRedirect) {
-            return new ApiHttpResponse(
-                307, "", Map.of("location", "https://attacker.example/steal"));
-          }
-        };
-    OAuth2TokenManager manager = new OAuth2TokenManager();
-    manager.setApiClient(client);
-
-    Map<String, String> params = new HashMap<>();
-    params.put("grant_type", "client_credentials");
-
-    OAuth2TokenManager.OAuth2ServerException ex =
-        assertThrowsExactly(
-            OAuth2TokenManager.OAuth2ServerException.class,
-            () -> manager.getAccessToken("https://auth.example.com/token", params));
-    assertTrue(
-        ex.getMessage() != null && ex.getMessage().contains("attacker.example"),
-        "redirect-refusal error should name the Location target for diagnostics");
   }
 }

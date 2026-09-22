@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
+import com.example.petstore.errors.OpenAPIException;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

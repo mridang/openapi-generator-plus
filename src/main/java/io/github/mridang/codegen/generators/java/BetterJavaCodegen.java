@@ -238,10 +238,20 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return NamingConvention.UPPER_SNAKE_CASE;
     }
 
+    /** Formats every Java file in place with google-java-format. */
+    private static final String GJF_REPLACE =
+            "find . -name '*.java' -print0 | xargs -0 java"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                    + " -jar /tmp/gjf.jar --replace";
+
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "eclipse-temurin:17-jdk@sha256:b04a8c5d46e210873ffd1af6ad5f4d62c69ed3a6736993556eae60bba1373a23";
+        return "eclipse-temurin:21-jdk@sha256:b9142586f9712700c6c9e07adcedfb18608b1a3a056e4001423a3354adfa9d80";
     }
 
     /** {@inheritDoc} */
@@ -252,14 +262,13 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
              * /tmp/gjf.jar (which would later fail as a corrupt jar); --retry
              * rides out transient GitHub-release hiccups; -S shows the error. */
             "curl -fSL --retry 5 --retry-delay 2 --retry-all-errors -o /tmp/gjf.jar"
-                + " https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
-            "find . -name '*.java' -print0 | xargs -0 java"
-                    + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
-                    + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
-                    + " --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
-                    + " --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
-                    + " --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
-                    + " -jar /tmp/gjf.jar --replace"
+                + " https://github.com/google/google-java-format/releases/download/v1.28.0/google-java-format-1.28.0-all-deps.jar",
+            GJF_REPLACE,
+            /* A second pass: removing an unused import in the first pass can
+             * leave two blank lines behind, which only a second pass collapses.
+             * Without it the output is not a fixed point of google-java-format
+             * and `mvn spotless:check` in the generated project fails. */
+            GJF_REPLACE
         };
     }
 
@@ -307,8 +316,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("reflect_config.mustache", nativeImageFolder, "reflect-config.json"),
-            new SupportingFileSpec("root_exception.mustache", invokerFolder, rootErrorName("Exception") + ".java"),
-            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.java"),
+            new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".java"),
+            new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.java"),
+            new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.java"),
+            new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.java"),
+            new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.java"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.java"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.java"),
             new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.java"),

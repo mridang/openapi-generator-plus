@@ -7,8 +7,10 @@
 
 package com.example.petstore;
 
+import com.example.petstore.errors.ApiException;
 import com.example.petstore.errors.NetworkException;
 import com.example.petstore.errors.NetworkTimeoutException;
+import com.example.petstore.errors.SerializationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -49,7 +51,7 @@ import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 
 /**
  * Default implementation of {@link ApiClient} using {@link java.net.http.HttpClient}.
@@ -107,13 +109,34 @@ public final class DefaultApiClient implements ApiClient {
    * deliberate, opt-in feature mirrored across all 12 SDKs, so the warning
    * is suppressed on the empty trust-check methods rather than removed.
    */
-  private static final X509TrustManager TRUST_ALL_MANAGER =
-      new X509TrustManager() {
+  /* An X509ExtendedTrustManager, not a plain X509TrustManager: the JDK
+   * wraps a plain one and runs its own host name check on the result,
+   * so verifySsl=false would still reject a certificate that does not
+   * name the host. The extended variants below are the ones the JDK
+   * calls, and they accept everything, as curl -k does. */
+  private static final X509ExtendedTrustManager TRUST_ALL_MANAGER =
+      new X509ExtendedTrustManager() {
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) {}
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+
+        @Override
+        public void checkClientTrusted(
+            X509Certificate[] chain, String authType, java.net.Socket socket) {}
+
+        @Override
+        public void checkServerTrusted(
+            X509Certificate[] chain, String authType, java.net.Socket socket) {}
+
+        @Override
+        public void checkClientTrusted(
+            X509Certificate[] chain, String authType, javax.net.ssl.SSLEngine engine) {}
+
+        @Override
+        public void checkServerTrusted(
+            X509Certificate[] chain, String authType, javax.net.ssl.SSLEngine engine) {}
 
         @Override
         public X509Certificate[] getAcceptedIssuers() {
@@ -197,13 +220,10 @@ public final class DefaultApiClient implements ApiClient {
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
         builder.sslContext(sslContext);
-        /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
-         * hostname verification (curl -k semantics). The TRUST_ALL
-         * trust manager skips chain validation, but java.net.http
-         * still performs HTTPS hostname verification by default —
-         * users get inconsistent behavior across SDKs unless we
-         * disable it explicitly. Setting `jdk.internal.httpclient
-         * .disableHostnameVerification` covers that case. */
+        /* verifySsl=false disables BOTH the certificate chain AND the
+         * host name check (curl -k semantics). TRUST_ALL_MANAGER
+         * skips both; clearing the endpoint identification algorithm
+         * keeps the engine from asking for the host name check. */
         javax.net.ssl.SSLParameters sslParameters = new javax.net.ssl.SSLParameters();
         sslParameters.setEndpointIdentificationAlgorithm(null);
         builder.sslParameters(sslParameters);
@@ -969,7 +989,7 @@ public final class DefaultApiClient implements ApiClient {
             ("\"" + safeName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
                 .getBytes(StandardCharsets.UTF_8));
       } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-        throw new ObjectSerializer.SerializationException(
+        throw new SerializationException(
             "Failed to serialize multipart field '" + fieldName + "' as JSON", e);
       }
     }

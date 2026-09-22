@@ -7,7 +7,6 @@
 
 package com.example.petstore.models;
 
-
 /** Task priority, integer-backed enum. */
 @SuppressWarnings({
   "checkstyle:SummaryJavadoc",

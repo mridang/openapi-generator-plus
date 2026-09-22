@@ -2,6 +2,7 @@
 
 package {{invokerPackage}};
 
+import {{invokerPackage}}.errors.ApiException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -97,8 +98,7 @@ class ClientTest {
         // non-empty <description> so the artifact has a description on
         // Maven Central, matching the python/ruby/dart manifests.
         java.nio.file.Path pom = java.nio.file.Paths.get("pom.xml");
-        org.junit.jupiter.api.Assumptions.assumeTrue(
-                java.nio.file.Files.exists(pom), "pom.xml not present in working dir");
+        assertTrue(java.nio.file.Files.exists(pom), "pom.xml must be in the working dir");
         String contents = java.nio.file.Files.readString(pom);
         java.util.regex.Matcher matcher = java.util.regex.Pattern
                 .compile("<description>(.*?)</description>", java.util.regex.Pattern.DOTALL)

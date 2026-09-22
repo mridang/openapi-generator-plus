@@ -14,6 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.OpenAPIException;
+import com.example.petstore.errors.SerializationException;
 import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
@@ -153,10 +156,72 @@ class ApiExceptionTest {
   void serializationExceptionExtendsTheSdkRoot() {
     // The serializer's failure type lives under the same branded root, so a
     // single catch on OpenAPIException covers serialization errors too.
-    ObjectSerializer.SerializationException ex =
-        new ObjectSerializer.SerializationException("bad json");
+    SerializationException ex = new SerializationException("bad json");
 
     assertInstanceOf(OpenAPIException.class, ex);
     assertInstanceOf(RuntimeException.class, ex);
+  }
+
+  @Test
+  void fromResponseMapsEveryStatusToItsException() {
+    Map<Integer, Class<? extends ApiException>> expected =
+        Map.of(
+            400, com.example.petstore.errors.BadRequestException.class,
+            401, com.example.petstore.errors.UnauthorizedException.class,
+            403, com.example.petstore.errors.ForbiddenException.class,
+            404, com.example.petstore.errors.NotFoundException.class,
+            409, com.example.petstore.errors.ConflictException.class,
+            422, com.example.petstore.errors.UnprocessableEntityException.class,
+            418, com.example.petstore.errors.ClientException.class,
+            500, com.example.petstore.errors.InternalServerErrorException.class,
+            503, com.example.petstore.errors.ServerException.class,
+            302, ApiException.class);
+    for (Map.Entry<Integer, Class<? extends ApiException>> entry : expected.entrySet()) {
+      ApiException ex =
+          ApiException.fromResponse(
+              entry.getKey(), Map.of("x-request-id", "abc"), "{\"code\":\"denied\"}");
+
+      assertEquals(entry.getValue(), ex.getClass());
+      assertEquals(entry.getKey(), ex.getStatusCode());
+      assertEquals("abc", Objects.requireNonNull(ex.getResponseHeaders()).get("x-request-id"));
+      assertEquals("{\"code\":\"denied\"}", ex.getResponseBody());
+      assertEquals(Map.of("code", "denied"), ex.getErrorBody());
+    }
+  }
+
+  @Test
+  void fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
+    ApiException ex = ApiException.fromResponse(502, Map.of(), "<html>bad gateway</html>");
+
+    assertEquals(com.example.petstore.errors.ServerException.class, ex.getClass());
+    assertEquals("<html>bad gateway</html>", ex.getResponseBody());
+    assertNull(ex.getErrorBody());
+  }
+
+  @Test
+  void everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+    java.util.List<Class<? extends RuntimeException>> errors =
+        java.util.List.of(
+            OpenAPIException.class,
+            ApiException.class,
+            com.example.petstore.errors.ClientException.class,
+            com.example.petstore.errors.ServerException.class,
+            com.example.petstore.errors.BadRequestException.class,
+            com.example.petstore.errors.UnauthorizedException.class,
+            com.example.petstore.errors.ForbiddenException.class,
+            com.example.petstore.errors.NotFoundException.class,
+            com.example.petstore.errors.ConflictException.class,
+            com.example.petstore.errors.UnprocessableEntityException.class,
+            com.example.petstore.errors.InternalServerErrorException.class,
+            com.example.petstore.errors.NetworkException.class,
+            com.example.petstore.errors.NetworkTimeoutException.class,
+            SerializationException.class,
+            com.example.petstore.errors.OAuth2ServerException.class,
+            com.example.petstore.errors.OAuth2TokenException.class);
+    for (Class<? extends RuntimeException> error : errors) {
+      assertEquals("com.example.petstore.errors", error.getPackageName(), error.getName());
+      assertNull(error.getEnclosingClass(), error.getName());
+      assertTrue(OpenAPIException.class.isAssignableFrom(error), error.getName());
+    }
   }
 }

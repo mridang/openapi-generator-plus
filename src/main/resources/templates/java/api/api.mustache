@@ -3,7 +3,7 @@
 package {{package}};
 
 import {{invokerPackage}}.ApiClient;
-import {{invokerPackage}}.ApiException;
+import {{invokerPackage}}.errors.ApiException;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.auth.Authenticator;
@@ -28,7 +28,24 @@ import javax.annotation.Nullable;
  * @see <a href="{{url}}">{{{description}}}</a>
 {{/tagExternalDocs}}
  */
-{{>models/checkstyle_suppressions}}
+{{! Operation summaries and descriptions come from the spec and can hold a }}
+{{! token longer than a line, such as a relative link, that no formatter can break. }}
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping",
+  "checkstyle:LineLength"
+})
 public class {{classname}} extends BaseApi {
 {{#operation}}
 {{#returnType}}
