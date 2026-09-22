@@ -10,11 +10,12 @@ use petstore::auth::api_key_location::ApiKeyLocation;
 use petstore::auth::Authenticator;
 use petstore::auth::BearerAuthenticator;
 use petstore::Client;
+use petstore::ConfigurationError;
 use petstore::TransportOptionsBuilder;
 
 #[test]
 fn test_client_construct_with_authenticator_only() {
-    let authenticator = BearerAuthenticator::new("/api/v3", "test-token");
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
 
     let client = Client::new(Box::new(authenticator), None);
 
@@ -26,7 +27,7 @@ fn test_client_construct_with_authenticator_only() {
 fn test_client_construct_with_none_transport_options() {
     // A None transport must fall back to the default builder output, so the
     // constructor stays usable when callers do not customise transport.
-    let authenticator = BearerAuthenticator::new("/api/v3", "test-token");
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
 
     let client = Client::new(Box::new(authenticator), None);
 
@@ -35,7 +36,7 @@ fn test_client_construct_with_none_transport_options() {
 
 #[test]
 fn test_client_construct_with_transport_options() {
-    let authenticator = BearerAuthenticator::new("/api/v3", "test-token");
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
     let transport = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -45,64 +46,48 @@ fn test_client_construct_with_transport_options() {
     let _ = &client;
 }
 
+/// Gap AC and bearer-no-empty-token-guard: `with_token` forwards the Bearer
+/// constructor's `ConfigurationError::InvalidArgument` for a CR/LF, non-ASCII,
+/// empty or whitespace-only token instead of panicking.
 #[test]
-#[should_panic(expected = "printable ASCII")]
-fn test_client_bearer_rejects_crlf() {
-    // Gap AC — Bearer tokens with CR/LF would CRLF-inject the
-    // Authorization header.
-    let _ = BearerAuthenticator::new("/api/v3", "tok\r\nInjected: yes");
+fn test_client_with_token_rejects_invalid_tokens() {
+    for token in ["tok\r\nInjected: yes", "ñoño", "", "   "] {
+        match Client::with_token("/api/v3", token, None) {
+            Err(ConfigurationError::InvalidArgument(_)) => {}
+            Err(other) => panic!("expected InvalidArgument for {:?}, got {:?}", token, other),
+            Ok(_) => panic!("expected InvalidArgument for {:?}, got a client", token),
+        }
+    }
+    assert!(Client::with_token("/api/v3", "test-token", None).is_ok());
 }
 
+/// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location rejects anything
+/// outside printable ASCII + TAB (header injection via CR/LF, silent UTF-8
+/// mangling) with `ConfigurationError::InvalidArgument`.
 #[test]
-#[should_panic(expected = "printable ASCII")]
-fn test_client_bearer_rejects_non_ascii() {
-    let _ = BearerAuthenticator::new("/api/v3", "ñoño");
-}
-
-#[test]
-#[should_panic(expected = "must not be empty")]
-fn test_client_bearer_rejects_empty_token() {
-    // bearer-no-empty-token-guard: an empty token would emit a bare
-    // `Authorization: Bearer ` header. Must fail closed.
-    let _ = BearerAuthenticator::new("/api/v3", "");
-}
-
-#[test]
-#[should_panic(expected = "must not be empty")]
-fn test_client_bearer_rejects_whitespace_token() {
-    let _ = BearerAuthenticator::new("/api/v3", "   ");
-}
-
-#[test]
-#[should_panic(expected = "control characters")]
-fn test_client_api_key_header_rejects_crlf() {
-    // RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
-    // reject anything outside printable ASCII + TAB to prevent header
-    // injection (\r\n) and silent UTF-8 mangling.
-    let _ = ApiKeyAuthenticator::new(
-        "/api/v3",
-        "X-Api-Key",
-        "abc\r\nInjected: yes",
-        ApiKeyLocation::Header,
-    );
-}
-
-#[test]
-#[should_panic(expected = "printable ASCII")]
-fn test_client_api_key_header_rejects_non_ascii() {
-    let _ = ApiKeyAuthenticator::new("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation::Header);
+fn test_client_api_key_header_rejects_crlf_and_non_ascii() {
+    for key in ["abc\r\nInjected: yes", "kéy"] {
+        let result = ApiKeyAuthenticator::new("/api/v3", "X-Api-Key", key, ApiKeyLocation::Header);
+        assert!(
+            matches!(result, Err(ConfigurationError::InvalidArgument(_))),
+            "expected InvalidArgument for {:?}, got {:?}",
+            key,
+            result
+        );
+    }
 }
 
 #[test]
 fn test_client_api_key_query_accepts_non_ascii() {
     // Non-header locations accept arbitrary chars.
-    let auth = ApiKeyAuthenticator::new("/api/v3", "api_key", "kéy", ApiKeyLocation::Query);
+    let auth =
+        ApiKeyAuthenticator::new("/api/v3", "api_key", "kéy", ApiKeyLocation::Query).unwrap();
     assert_eq!(auth.query_params().get("api_key"), Some(&"kéy".to_string()));
 }
 
 #[test]
 fn test_client_api_groups_are_accessible() {
-    let authenticator = BearerAuthenticator::new("/api/v3", "test-token");
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
 
     let client = Client::new(Box::new(authenticator), None);
 

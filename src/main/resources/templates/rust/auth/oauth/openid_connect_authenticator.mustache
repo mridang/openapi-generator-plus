@@ -10,6 +10,8 @@ use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
 use crate::auth::Authenticator;
+use crate::configuration_error::ConfigurationError;
+use crate::object_serializer::SerializationError;
 
 /// OpenIdConnectAuthenticator provides OpenID Connect authentication.
 ///
@@ -86,7 +88,11 @@ impl OpenIdConnectAuthenticator {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         self.resolve_delegate().await?;
         let delegate_guard = self.delegate.lock().unwrap();
-        let delegate = delegate_guard.as_ref().unwrap();
+        let delegate = delegate_guard.as_ref().ok_or_else(|| {
+            Box::new(ConfigurationError::InvalidState(
+                "OIDC delegate is in use by a concurrent call".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
         Ok(delegate.build_authorization_url(state))
     }
 
@@ -96,14 +102,10 @@ impl OpenIdConnectAuthenticator {
         &self,
         code: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.resolve_delegate().await?;
         /* The delegate's exchange_code is async; take ownership of the
          * delegate temporarily so the mutex is not held across the await. */
-        let delegate = {
-            let mut delegate_guard = self.delegate.lock().unwrap();
-            delegate_guard.take().ok_or(
-                "delegate not initialized; call build_authorization_url first",
-            )?
-        };
+        let delegate = self.take_delegate()?;
         let result = delegate.exchange_code(code).await;
         /* Restore the delegate regardless of the result. */
         {
@@ -111,6 +113,19 @@ impl OpenIdConnectAuthenticator {
             *delegate_guard = Some(delegate);
         }
         result
+    }
+
+    /// Takes the resolved delegate out of its mutex so it can be awaited on
+    /// without holding the lock. Two concurrent calls can race for it; the
+    /// loser gets [`ConfigurationError::InvalidState`].
+    fn take_delegate(
+        &self,
+    ) -> Result<OAuth2AuthorizationCodeAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
+        self.delegate.lock().unwrap().take().ok_or_else(|| {
+            Box::new(ConfigurationError::InvalidState(
+                "OIDC delegate is in use by a concurrent call".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })
     }
 
     /// Lazily resolves the delegate by fetching the OIDC discovery document
@@ -138,45 +153,59 @@ impl OpenIdConnectAuthenticator {
 
         let client = {
             let client_guard = self.api_client.lock().unwrap();
-            client_guard.as_ref().ok_or(
-                "ApiClient has not been injected. \
-                 Ensure the {{clientClassName}} constructor calls set_api_client \
-                 on HttpAwareAuthenticator before making API requests",
-            )?.clone()
+            client_guard
+                .as_ref()
+                .ok_or_else(|| {
+                    Box::new(ConfigurationError::InvalidState(
+                        "ApiClient has not been injected. \
+                         Ensure the {{clientClassName}} constructor calls set_api_client \
+                         on HttpAwareAuthenticator before making API requests"
+                            .to_string(),
+                    )) as Box<dyn std::error::Error + Send + Sync>
+                })?
+                .clone()
         };
 
         let mut headers = HashMap::new();
         headers.insert("Accept".to_string(), "application/json".to_string());
 
+        /* Discovery is an HTTP call like any other: a transport failure is
+         * already a NetworkError or NetworkTimeoutError and passes through. */
         let response = client
             .send_request("GET", &self.openid_connect_url, &headers, None)
             .await?;
 
         // oauth-oidc-discovery-no-status-check: reject a non-2xx discovery
-        // response BEFORE attempting to JSON-parse it. Otherwise a 500-HTML or
-        // 404 error page surfaces to the caller as a misleading "invalid JSON"
-        // error instead of the real transport-level failure.
+        // response BEFORE attempting to JSON-parse it, as the typed error for
+        // its status. Otherwise a 500-HTML or 404 error page surfaces to the
+        // caller as a misleading "invalid JSON" error.
         if response.status_code() < 200 || response.status_code() >= 300 {
-            return Err(format!(
-                "OIDC discovery request to {} failed with HTTP status {}",
-                self.openid_connect_url, response.status_code()
-            )
-            .into());
+            return Err(crate::api::throw_api_error(&response));
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(response.body())?;
+        /* An unparseable or incomplete document is a SerializationError. */
+        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
+            Box::new(SerializationError::new(
+                "failed to parse OIDC discovery document".to_string(),
+                Some(Box::new(e)),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
 
-        let authorization_endpoint = parsed
-            .get("authorization_endpoint")
-            .and_then(|v| v.as_str())
-            .ok_or("missing authorization_endpoint in OIDC discovery document")?
-            .to_string();
-
-        let token_endpoint = parsed
-            .get("token_endpoint")
-            .and_then(|v| v.as_str())
-            .ok_or("missing token_endpoint in OIDC discovery document")?
-            .to_string();
+        let endpoint = |name: &str| -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+            parsed
+                .get(name)
+                .and_then(|v| v.as_str())
+                .filter(|v| !v.trim().is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    Box::new(SerializationError::new(
+                        format!("missing {} in OIDC discovery document", name),
+                        None,
+                    )) as Box<dyn std::error::Error + Send + Sync>
+                })
+        };
+        let authorization_endpoint = endpoint("authorization_endpoint")?;
+        let token_endpoint = endpoint("token_endpoint")?;
 
         let mut delegate = OAuth2AuthorizationCodeAuthenticator::new(
             &self.host,
@@ -255,15 +284,7 @@ impl Authenticator for OpenIdConnectAuthenticator {
 
             /* The delegate's try_auth_headers is async; take ownership briefly
              * so the mutex is not held across the await. */
-            let delegate = {
-                let mut delegate_guard = self.delegate.lock().unwrap();
-                match delegate_guard.take() {
-                    Some(d) => d,
-                    None => {
-                        return Err("delegate not initialized; call build_authorization_url first".into())
-                    }
-                }
-            };
+            let delegate = self.take_delegate()?;
 
             let headers = delegate.try_auth_headers().await;
 

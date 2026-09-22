@@ -6,8 +6,17 @@ pub struct ApiKeyHeaderAuthenticator(ApiKeyAuthenticator);
 
 impl ApiKeyHeaderAuthenticator {
     /// Creates a new `ApiKeyHeaderAuthenticator`.
-    pub fn new(host: &str, api_key: &str) -> Self {
-        Self(ApiKeyAuthenticator::new(host, "X-API-Key", api_key, ApiKeyLocation::Header))
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`ApiKeyAuthenticator`] constructor's
+    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// when the credentials are invalid.
+    pub fn new(
+        host: &str,
+        api_key: &str,
+    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+        Ok(Self(ApiKeyAuthenticator::new(host, "X-API-Key", api_key, ApiKeyLocation::Header)?))
     }
 }
 

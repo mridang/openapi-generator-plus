@@ -6,8 +6,17 @@ pub struct SessionCookieAuthenticator(ApiKeyAuthenticator);
 
 impl SessionCookieAuthenticator {
     /// Creates a new `SessionCookieAuthenticator`.
-    pub fn new(host: &str, api_key: &str) -> Self {
-        Self(ApiKeyAuthenticator::new(host, "SESSION_ID", api_key, ApiKeyLocation::Cookie))
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`ApiKeyAuthenticator`] constructor's
+    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// when the credentials are invalid.
+    pub fn new(
+        host: &str,
+        api_key: &str,
+    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+        Ok(Self(ApiKeyAuthenticator::new(host, "SESSION_ID", api_key, ApiKeyLocation::Cookie)?))
     }
 }
 

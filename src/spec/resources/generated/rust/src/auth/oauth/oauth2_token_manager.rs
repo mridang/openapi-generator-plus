@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
 use crate::api_client::{ApiClient, RequestBody, RequestOptions};
+use crate::configuration_error::ConfigurationError;
 use crate::utils::form_url_encode;
 
 /// OAuth2TokenManager manages the OAuth2 token lifecycle: fetching, caching,
@@ -117,11 +118,14 @@ impl OAuth2TokenManager {
             .read()
             .unwrap()
             .as_ref()
-            .ok_or(
-                "ApiClient has not been injected. \
-                 Ensure the Client constructor calls set_api_client \
-                 on HttpAwareAuthenticator before making API requests",
-            )?
+            .ok_or_else(|| {
+                Box::new(ConfigurationError::InvalidState(
+                    "ApiClient has not been injected. \
+                     Ensure the Client constructor calls set_api_client \
+                     on HttpAwareAuthenticator before making API requests"
+                        .to_string(),
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?
             .clone();
         let current_refresh_token = inner.refresh_token.clone();
 
@@ -224,7 +228,13 @@ impl OAuth2TokenManager {
             )) as Box<dyn std::error::Error + Send + Sync>);
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(response.body())?;
+        /* A 2xx answer the SDK cannot use is an OAuth2TokenError, never a
+         * leaked serde_json::Error. */
+        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
+            Box::new(OAuth2TokenError {
+                message: format!("failed to parse token response: {}", e),
+            }) as Box<dyn std::error::Error + Send + Sync>
+        })?;
 
         let token = parsed
             .get("access_token")

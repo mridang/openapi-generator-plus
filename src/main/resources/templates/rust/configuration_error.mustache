@@ -2,10 +2,14 @@
 
 use std::fmt;
 
-/// Error returned when the client is configured with an invalid value: a
-/// proxy URL that does not parse or is not http(s), a CA certificate file that
-/// cannot be read or parsed, a negative timeout, or a server variable outside
-/// its enum.
+/// Error returned when the SDK is configured or called with an invalid value,
+/// or called in the wrong order: a proxy URL that does not parse or is not
+/// http(s), a CA certificate file that cannot be read or parsed, a negative
+/// timeout, a server variable outside its enum, a malformed argument (bad
+/// credentials, a missing required parameter, a header or cookie value that
+/// would corrupt the HTTP message, a malformed request URL), or a call made in
+/// the wrong state (a closed client, an authenticator used before its API
+/// client or access token is set).
 ///
 /// This is a programming error, not an API failure, so it is deliberately not
 /// part of the SDK error hierarchy rooted at `{{errorPrefix}}Error`.
@@ -19,6 +23,13 @@ pub enum ConfigurationError {
     InvalidTimeout(i64),
     /// A server variable override is outside the variable's enum.
     InvalidServerVariable(String),
+    /// An argument is malformed: bad credentials, a missing required
+    /// parameter, a header, cookie or multipart value holding characters that
+    /// would corrupt the HTTP message, or a malformed request URL.
+    InvalidArgument(String),
+    /// The call was made in the wrong state: the client was closed, or an
+    /// authenticator was used before its API client or access token was set.
+    InvalidState(String),
 }
 
 impl fmt::Display for ConfigurationError {
@@ -30,6 +41,8 @@ impl fmt::Display for ConfigurationError {
                 write!(f, "invalid timeout: {} ms; must not be negative", ms)
             }
             Self::InvalidServerVariable(reason) => write!(f, "invalid server variable: {}", reason),
+            Self::InvalidArgument(reason) => write!(f, "invalid argument: {}", reason),
+            Self::InvalidState(reason) => write!(f, "invalid state: {}", reason),
         }
     }
 }

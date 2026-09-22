@@ -13,6 +13,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 
 use super::Authenticator;
+use crate::configuration_error::ConfigurationError;
 
 /// BasicAuthenticator provides HTTP Basic authentication.
 pub struct BasicAuthenticator {
@@ -24,22 +25,24 @@ pub struct BasicAuthenticator {
 impl BasicAuthenticator {
     /// Creates a new Basic authenticator.
     ///
-    /// # Panics
+    /// # Errors
     ///
     /// Credentials are validated eagerly at construction, so a malformed
     /// credential (colon in user-id, or CR/LF/NUL in either field per
-    /// RFC 7617 §2) panics where it is supplied rather than lazily at first
-    /// use — matching the fail-closed behaviour of the Bearer and API-key
-    /// authenticators.
-    pub fn new(host: &str, username: &str, password: &str) -> Self {
+    /// RFC 7617 §2) is reported where it is supplied rather than lazily at
+    /// first use, as [`ConfigurationError::InvalidArgument`].
+    pub fn new(host: &str, username: &str, password: &str) -> Result<Self, ConfigurationError> {
         if let Some(problem) = credential_problem(username, password) {
-            panic!("invalid HTTP Basic credentials: {}", problem);
+            return Err(ConfigurationError::InvalidArgument(format!(
+                "invalid HTTP Basic credentials: {}",
+                problem
+            )));
         }
-        Self {
+        Ok(Self {
             host: host.to_string(),
             username: username.to_string(),
             password: password.to_string(),
-        }
+        })
     }
 }
 

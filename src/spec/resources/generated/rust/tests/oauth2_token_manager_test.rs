@@ -13,9 +13,12 @@ use std::sync::{Arc, Mutex};
 use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
 use petstore::api_http_response::ApiHttpResponse;
 use petstore::auth::oauth::{OAuth2ServerError, OAuth2TokenError, OAuth2TokenManager};
+use petstore::{ApiError, ConfigurationError, NetworkError, NetworkTimeoutError};
+
+type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 struct FakeApiClient {
-    responses: Mutex<Vec<ApiHttpResponse>>,
+    responses: Mutex<Vec<Result<ApiHttpResponse, BoxError>>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_no_redirect: Mutex<Option<bool>>,
@@ -33,11 +36,15 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiHttpResponse::new(
+        responses.push(Ok(ApiHttpResponse::new(
             status_code,
             body.to_string(),
             HashMap::new(),
-        ));
+        )));
+    }
+
+    fn enqueue_error(&self, error: BoxError) {
+        self.responses.lock().unwrap().push(Err(error));
     }
 }
 
@@ -91,7 +98,7 @@ impl ApiClient for FakeApiClient {
             let mut responses = self.responses.lock().unwrap();
             responses.remove(0)
         };
-        Box::pin(async move { Ok(response) })
+        Box::pin(async move { response })
     }
 }
 
@@ -227,18 +234,97 @@ async fn test_invalidate_access_token_forces_refetch() {
     assert_eq!("tok2", second);
 }
 
+/// A token requested before the ApiClient is injected is a wrong call order:
+/// `ConfigurationError::InvalidState`, never a panic.
 #[tokio::test(flavor = "multi_thread")]
-#[should_panic(expected = "ApiClient has not been injected")]
 async fn test_throws_when_no_api_client_injected() {
     let manager = OAuth2TokenManager::new();
 
     let mut params = HashMap::new();
     params.insert("grant_type".to_string(), "client_credentials".to_string());
 
-    manager
+    let err = manager
         .get_access_token("https://auth.example.com/token", &params)
         .await
-        .unwrap();
+        .expect_err("a token request without an ApiClient must fail");
+    match err.downcast_ref::<ConfigurationError>() {
+        Some(ConfigurationError::InvalidState(reason)) => {
+            assert!(
+                reason.contains("ApiClient has not been injected"),
+                "{}",
+                reason
+            )
+        }
+        other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
+    }
+}
+
+/// Token endpoint: a 2xx body that is not JSON is an `OAuth2TokenError`, a
+/// non-2xx answer an `OAuth2ServerError`, and a transport failure passes
+/// through as the `NetworkError` / `NetworkTimeoutError` it already is.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_endpoint_failures_are_typed() {
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("<html>ok</html>", 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a non-JSON 2xx body must fail");
+    assert!(
+        err.downcast_ref::<OAuth2TokenError>().is_some(),
+        "got: {}",
+        err
+    );
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("upstream down", 503);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a 503 must fail");
+    assert!(
+        err.downcast_ref::<OAuth2ServerError>().is_some(),
+        "got: {}",
+        err
+    );
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_error(Box::new(NetworkError::from(ApiError::new(
+        0,
+        "connection refused".to_string(),
+        None,
+        None,
+    ))));
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a refused connection must fail");
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_error(Box::new(NetworkTimeoutError::from(NetworkError::from(
+        ApiError::new(0, "timed out".to_string(), None, None),
+    ))));
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a timeout must fail");
+    assert!(
+        err.downcast_ref::<NetworkTimeoutError>().is_some(),
+        "got: {}",
+        err
+    );
 }
 
 /// Counts every request so the single-flight test can assert that N

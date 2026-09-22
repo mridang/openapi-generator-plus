@@ -17,6 +17,7 @@ use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
+use crate::configuration_error::ConfigurationError;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
@@ -360,11 +361,10 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!(
+            Box::new(ConfigurationError::InvalidArgument(format!(
                 "missing required parameter '{}' when calling PetApi.add_pet_photos",
                 "options"
-            )
-            .into()
+            )))
         })?;
         multipart.insert(
             "files".to_string(),
@@ -597,8 +597,8 @@ impl PetApi {
                     // above. The serialized value is interpolated raw into the
                     // Cookie header (no percent-encoding per RFC 6265), so a
                     // CR/LF/control-char value is rejected here, failing closed
-                    // by returning the SDK's typed error and mirroring the
-                    // auth-cookie RFC 6265 check in BaseApi.
+                    // with ConfigurationError::InvalidArgument and mirroring
+                    // the auth-cookie RFC 6265 check in BaseApi.
                     // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
                     let cookie_value_valid = v.chars().all(|c| {
                         let o = c as u32;
@@ -609,10 +609,10 @@ impl PetApi {
                             || (0x5D..=0x7E).contains(&o)
                     });
                     if !cookie_value_valid {
-                        return Err(format!(
+                        return Err(Box::new(ConfigurationError::InvalidArgument(format!(
                             "cookie value for '{}' contains characters forbidden by RFC 6265 when calling PetApi.delete_pet",
                             "api_key"
-                        ).into());
+                        ))));
                     }
                     cookie_parts.push(format!("api_key={}", v));
                 }
@@ -1467,11 +1467,10 @@ impl PetApi {
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         if name.is_empty() {
-            return Err(format!(
+            return Err(Box::new(ConfigurationError::InvalidArgument(format!(
                 "missing required parameter '{}' when calling PetApi.get_pet_by_name",
                 "name"
-            )
-            .into());
+            ))));
         }
 
         let mut path = "/pet/byName/{name}".to_string();
@@ -1497,11 +1496,10 @@ impl PetApi {
         // missing Options is a programming error and is rejected up front,
         // matching the required-param validation the other SDKs perform.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!(
+            Box::new(ConfigurationError::InvalidArgument(format!(
                 "missing required parameter '{}' when calling PetApi.get_pet_by_name",
                 "category"
-            )
-            .into()
+            )))
         })?;
         if let Some(serialized) = value_serializer::serialize_styled(
             "category",
@@ -1823,11 +1821,10 @@ impl PetApi {
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         if tag_name.is_empty() {
-            return Err(format!(
+            return Err(Box::new(ConfigurationError::InvalidArgument(format!(
                 "missing required parameter '{}' when calling PetApi.get_pet_tag",
                 "tag_name"
-            )
-            .into());
+            ))));
         }
 
         let mut path = "/pet/{petId}/tag/{tagName}".to_string();
@@ -2598,11 +2595,10 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!(
+            Box::new(ConfigurationError::InvalidArgument(format!(
                 "missing required parameter '{}' when calling PetApi.upload_pet_certificate",
                 "options"
-            )
-            .into()
+            )))
         })?;
         multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
         let request_body: Option<Vec<u8>> = None;
@@ -2744,11 +2740,10 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            format!(
+            Box::new(ConfigurationError::InvalidArgument(format!(
                 "missing required parameter '{}' when calling PetApi.upload_pet_document",
                 "options"
-            )
-            .into()
+            )))
         })?;
         multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
         if let Some(ref val) = opts.document_type {

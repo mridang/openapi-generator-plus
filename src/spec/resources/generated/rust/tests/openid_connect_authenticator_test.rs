@@ -15,9 +15,15 @@ use petstore::api_http_response::ApiHttpResponse;
 use petstore::auth::oauth::OpenIdConnectAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
+use petstore::{
+    ApiError, ConfigurationError, InternalServerError, NetworkError, NetworkTimeoutError,
+    NotFoundError, SerializationError,
+};
+
+type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 struct FakeApiClient {
-    responses: Mutex<Vec<ApiHttpResponse>>,
+    responses: Mutex<Vec<Result<ApiHttpResponse, BoxError>>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_method: Mutex<Option<String>>,
@@ -41,11 +47,15 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiHttpResponse::new(
+        responses.push(Ok(ApiHttpResponse::new(
             status_code,
             body.to_string(),
             HashMap::new(),
-        ));
+        )));
+    }
+
+    fn enqueue_error(&self, error: BoxError) {
+        self.responses.lock().unwrap().push(Err(error));
     }
 
     fn last_url(&self) -> Option<String> {
@@ -95,7 +105,7 @@ impl ApiClient for FakeApiClient {
             let mut responses = self.responses.lock().unwrap();
             responses.remove(0)
         };
-        Box::pin(async move { Ok(response) })
+        Box::pin(async move { response })
     }
 }
 
@@ -167,15 +177,80 @@ async fn test_discovery_non_2xx_status_surfaces_status_error() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    let result = auth.build_authorization_url("").await;
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a 500 discovery response must produce an error");
+    let internal = err
+        .downcast_ref::<InternalServerError>()
+        .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
+    assert_eq!(internal.server_error().api_error().status_code(), 500);
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("missing", 404);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a 404 discovery response must produce an error");
     assert!(
-        result.is_err(),
-        "a 500 discovery response must produce an error"
+        err.downcast_ref::<NotFoundError>().is_some(),
+        "expected NotFoundError, got: {}",
+        err
     );
-    let err = result.unwrap_err().to_string().to_lowercase();
+}
+
+/// OIDC discovery is an HTTP call like any other: an unparseable document is
+/// a `SerializationError`, and a transport failure passes through as the
+/// `NetworkError` / `NetworkTimeoutError` it already is.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_failures_are_typed() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("{not json", 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("malformed discovery must fail");
     assert!(
-        err.contains("500") || err.contains("status"),
-        "error must reference the HTTP status, not be a JSON parse error: {}",
+        err.downcast_ref::<SerializationError>().is_some(),
+        "expected SerializationError, got: {}",
+        err
+    );
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_error(Box::new(NetworkError::from(ApiError::new(
+        0,
+        "connection refused".to_string(),
+        None,
+        None,
+    ))));
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("refused discovery must fail");
+    let network = err
+        .downcast_ref::<NetworkError>()
+        .unwrap_or_else(|| panic!("expected NetworkError, got: {}", err));
+    assert_eq!(network.api_error().status_code(), 0);
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_error(Box::new(NetworkTimeoutError::from(NetworkError::from(
+        ApiError::new(0, "timed out".to_string(), None, None),
+    ))));
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("timed-out discovery must fail");
+    assert!(
+        err.downcast_ref::<NetworkTimeoutError>().is_some(),
+        "expected NetworkTimeoutError, got: {}",
         err
     );
 }
@@ -247,10 +322,14 @@ async fn test_throws_when_discovery_missing_authorization_endpoint() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    let result = auth.build_authorization_url("").await;
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a discovery document missing authorization_endpoint must produce an error");
     assert!(
-        result.is_err(),
-        "a discovery document missing authorization_endpoint must produce an error"
+        err.downcast_ref::<SerializationError>().is_some(),
+        "an incomplete discovery document is a SerializationError, got: {}",
+        err
     );
 }
 
@@ -265,10 +344,14 @@ async fn test_throws_when_discovery_missing_token_endpoint() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    let result = auth.build_authorization_url("").await;
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a discovery document missing token_endpoint must produce an error");
     assert!(
-        result.is_err(),
-        "a discovery document missing token_endpoint must produce an error"
+        err.downcast_ref::<SerializationError>().is_some(),
+        "an incomplete discovery document is a SerializationError, got: {}",
+        err
     );
 }
 
@@ -276,9 +359,18 @@ async fn test_throws_when_discovery_missing_token_endpoint() {
 async fn test_throws_when_no_api_client_injected() {
     let auth = create_authenticator();
 
-    let result = auth.build_authorization_url("").await;
-
-    assert!(result.is_err());
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("discovery without an injected ApiClient must fail");
+    assert!(
+        matches!(
+            err.downcast_ref::<ConfigurationError>(),
+            Some(ConfigurationError::InvalidState(_))
+        ),
+        "expected ConfigurationError::InvalidState, got: {}",
+        err
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

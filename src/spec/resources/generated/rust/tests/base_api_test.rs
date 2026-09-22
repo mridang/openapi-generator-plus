@@ -901,6 +901,94 @@ async fn test_base_api_sets_cookie_from_auth() {
     // If no Cookie header, the authenticator may use a different mechanism - that's OK
 }
 
+struct InvalidCookieAuthenticator;
+
+impl petstore::auth::Authenticator for InvalidCookieAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        Box::pin(async { HashMap::new() })
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        let mut cookies = HashMap::new();
+        cookies.insert("session".to_string(), "a;b".to_string());
+        cookies
+    }
+}
+
+/// An authenticator cookie holding characters RFC 6265 forbids is a caller
+/// mistake: `ConfigurationError::InvalidArgument` before any request is sent,
+/// never a panic.
+#[tokio::test]
+async fn test_base_api_invalid_auth_cookie_is_invalid_argument() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let err = api
+        .add_pet(
+            pet,
+            Some(&AddPetOptions::new().auth(Arc::new(InvalidCookieAuthenticator))),
+        )
+        .await
+        .expect_err("an invalid auth cookie must fail the call");
+    assert!(
+        matches!(
+            err.downcast_ref::<petstore::ConfigurationError>(),
+            Some(petstore::ConfigurationError::InvalidArgument(_))
+        ),
+        "expected ConfigurationError::InvalidArgument, got: {}",
+        err
+    );
+    assert!(
+        client.captured_url.lock().unwrap().is_empty(),
+        "no request may be sent"
+    );
+}
+
+/// A missing required parameter is a caller mistake:
+/// `ConfigurationError::InvalidArgument` before any request is sent.
+#[tokio::test]
+async fn test_base_api_missing_required_param_is_invalid_argument() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    for result in [
+        api.get_pet_by_name("rex".to_string(), None).await,
+        api.get_pet_by_name(
+            String::new(),
+            Some(&petstore::api::options::GetPetByNameOptions::new(
+                "dog".to_string(),
+            )),
+        )
+        .await,
+    ] {
+        let err = result.expect_err("a missing required parameter must fail the call");
+        assert!(
+            matches!(
+                err.downcast_ref::<petstore::ConfigurationError>(),
+                Some(petstore::ConfigurationError::InvalidArgument(_))
+            ),
+            "expected ConfigurationError::InvalidArgument, got: {}",
+            err
+        );
+    }
+    assert!(
+        client.captured_url.lock().unwrap().is_empty(),
+        "no request may be sent"
+    );
+}
+
 // -- Empty content-type defaults to application/json --
 
 #[tokio::test]
@@ -1778,7 +1866,8 @@ async fn test_base_api_configured_bearer_authenticator_reaches_wire() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let auth = petstore::auth::BearerAuthenticator::new("http://localhost", "secret-token");
+    let auth =
+        petstore::auth::BearerAuthenticator::new("http://localhost", "secret-token").unwrap();
     let pet = Pet::new("AuthPet".to_string(), HashSet::new());
     let _ = api
         .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
@@ -1808,7 +1897,8 @@ async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
         "X-API-Key",
         "key-abc123",
         ApiKeyLocation::Header,
-    );
+    )
+    .unwrap();
     let pet = Pet::new("ApiKeyPet".to_string(), HashSet::new());
     let _ = api
         .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))

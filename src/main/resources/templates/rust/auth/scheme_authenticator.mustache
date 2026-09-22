@@ -5,10 +5,27 @@ use super::{{baseClass}};
 pub struct {{className}}({{baseClass}});
 
 impl {{className}} {
+{{#fallible}}
+    /// Creates a new `{{className}}`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`{{baseClass}}`] constructor's
+    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// when the credentials are invalid.
+    pub fn new(
+        {{#constructorParams}}{{name}}: {{type}},{{^-last}}
+        {{/-last}}{{/constructorParams}}
+    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+        Ok(Self({{baseClass}}::new({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})?))
+    }
+{{/fallible}}
+{{^fallible}}
     /// Creates a new `{{className}}`.
     pub fn new({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) -> Self {
         Self({{baseClass}}::new({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}}))
     }
+{{/fallible}}
 }
 
 impl std::ops::Deref for {{className}} {

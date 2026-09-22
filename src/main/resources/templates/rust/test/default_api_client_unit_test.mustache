@@ -851,7 +851,7 @@ fn start_truncated_body_server() -> String {
 
 /// Gap AL: starts a server that LIES about its body encoding — it sets
 /// `Content-Encoding: gzip` on the response but writes a plain, non-gzip body.
-/// reqwest (with `.gzip(true)`) will attempt to inflate the body and fail.
+/// The client attempts to inflate the body and fails.
 /// Handles one connection then stops.
 fn start_content_encoding_lie_server() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
@@ -880,32 +880,33 @@ fn start_content_encoding_lie_server() -> String {
 
 /// Gap AL (fleet-wide regression guard) — a server that mislabels its encoding
 /// (declares `Content-Encoding: gzip` but sends plaintext) must surface a
-/// uniform SDK `NetworkError`, NOT crash and NOT pass the corrupted bytes through
-/// silently. reqwest's gzip decoder fails to inflate the bogus body during the
-/// body read; the client wraps that body-read failure as a `NetworkError`
-/// (statusCode 0), the same treatment any post-header read failure gets.
-/// dart/csharp/kotlin/node/swift/elixir were the buggy SDKs; Rust is already
-/// correct, so this asserts GREEN.
+/// uniform SDK error, NOT crash and NOT pass the corrupted bytes through
+/// silently. The response arrived, so it is an `ApiError` carrying the real
+/// status code — never a `NetworkError`.
 #[tokio::test]
 async fn test_al_content_encoding_lie_surfaces_api_error() {
     let base_url = start_content_encoding_lie_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
 
-    let result = client
+    let err = client
         .send_request("GET", &format!("{}/lie", base_url), &headers, None)
-        .await;
-
+        .await
+        .expect_err("Gap AL: a Content-Encoding: gzip lie over a plaintext body must error");
     assert!(
-        result.is_err(),
-        "Gap AL: a Content-Encoding: gzip lie over a plaintext body must error, not pass through"
-    );
-    let err = result.unwrap_err();
-    assert!(
-        err.downcast_ref::<NetworkError>().is_some(),
-        "Gap AL: the decompression failure must be wrapped in the SDK NetworkError type, got: {}",
+        err.downcast_ref::<NetworkError>().is_none(),
+        "Gap AL: a corrupt compressed body must not be a NetworkError, got: {}",
         err
     );
+    let api_err = err
+        .downcast_ref::<ApiError>()
+        .unwrap_or_else(|| panic!("Gap AL: expected ApiError, got: {}", err));
+    assert_eq!(api_err.status_code(), 200, "the real status code must be kept");
+    assert!(
+        std::error::Error::source(api_err).is_some(),
+        "the decompression error must be kept as source()"
+    );
+    let _: &dyn {{errorPrefix}}Error = api_err;
 }
 
 /// Gap: a body-read failure that happens AFTER response headers are received
@@ -1008,6 +1009,7 @@ async fn test_transport_error_preserves_underlying_cause() {
     let network_err = err
         .downcast_ref::<NetworkError>()
         .expect("transport failure must be a NetworkError");
+    let _: &dyn {{errorPrefix}}Error = network_err;
     let api_err = network_err.api_error();
     assert_eq!(api_err.status_code(), 0, "a transport failure has status 0");
     let source = std::error::Error::source(api_err)
@@ -1051,6 +1053,8 @@ async fn test_timeout_returns_network_timeout_error() {
     let timeout_err = err
         .downcast_ref::<NetworkTimeoutError>()
         .unwrap_or_else(|| panic!("expected NetworkTimeoutError, got: {}", err));
+    let _: &dyn {{errorPrefix}}Error = timeout_err;
+    /* A NetworkTimeoutError is a NetworkError, which is an ApiError. */
     let api_err = timeout_err.network_error().api_error();
     assert_eq!(api_err.status_code(), 0, "a timeout has status 0");
     assert!(
@@ -1066,10 +1070,11 @@ async fn test_timeout_returns_network_timeout_error() {
     );
 }
 
-/// Gap T6: a request issued AFTER `close()` must fail fast with the uniform
-/// SDK error type, not silently succeed and not leak a foreign reqwest error.
+/// Gap T6: a request issued AFTER `close()` is a wrong call order. It fails
+/// fast with `ConfigurationError::InvalidState` — not an SDK error, not a
+/// silent success, and not a foreign reqwest error.
 #[tokio::test]
-async fn test_request_after_close_returns_sdk_error() {
+async fn test_request_after_close_returns_invalid_state() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     assert!(!client.is_closed(), "client must start open");
@@ -1078,20 +1083,75 @@ async fn test_request_after_close_returns_sdk_error() {
     assert!(client.is_closed(), "close() must mark the client closed");
 
     let headers = HashMap::new();
-    let result = client
+    let err = client
         .send_request("GET", &format!("{}/echo", base_url), &headers, None)
-        .await;
+        .await
+        .expect_err("use-after-close must return an error, not succeed silently");
+    match err.downcast_ref::<ConfigurationError>() {
+        Some(ConfigurationError::InvalidState(reason)) => {
+            assert!(reason.contains("closed"), "{}", reason)
+        }
+        other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
+    }
+}
 
+/// A malformed request URL is a caller mistake: `ConfigurationError::
+/// InvalidArgument`, not a `NetworkError`.
+#[tokio::test]
+async fn test_malformed_url_returns_invalid_argument() {
+    let client = DefaultApiClient::new(None);
+    let err = client
+        .send_request("GET", "http://[::1", &HashMap::new(), None)
+        .await
+        .expect_err("a malformed URL must fail");
     assert!(
-        result.is_err(),
-        "use-after-close must return an error, not succeed silently"
-    );
-    let err = result.unwrap_err().to_string().to_lowercase();
-    assert!(
-        err.contains("closed"),
-        "use-after-close error must mention 'closed': {}",
+        matches!(
+            err.downcast_ref::<ConfigurationError>(),
+            Some(ConfigurationError::InvalidArgument(_))
+        ),
+        "expected ConfigurationError::InvalidArgument, got: {:?}",
         err
     );
+    assert!(err.downcast_ref::<NetworkError>().is_none());
+}
+
+/// Starts a server that answers one connection with `response` verbatim and
+/// returns its base URL.
+fn start_canned_response_server(response: Vec<u8>) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    thread::spawn(move || {
+        if let Some(Ok(mut stream)) = listener.incoming().next() {
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let _ = std::io::Write::write_all(&mut stream, &response);
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+    format!("http://{}", addr)
+}
+
+/// A redirect to a non-HTTP scheme is refused: the redirect response arrived,
+/// so the error is an `ApiError` with its real status, never a `NetworkError`.
+#[tokio::test]
+async fn test_redirect_to_non_http_scheme_is_api_error_with_status() {
+    let response = b"HTTP/1.1 302 Found\r\nLocation: ftp://example.com/file\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+    let base_url = start_canned_response_server(response);
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let err = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a redirect to ftp:// must be refused");
+    assert!(err.downcast_ref::<NetworkError>().is_none(), "must not be a NetworkError: {}", err);
+    let api_err = err
+        .downcast_ref::<ApiError>()
+        .unwrap_or_else(|| panic!("expected ApiError, got: {}", err));
+    assert_eq!(api_err.status_code(), 302);
 }
 
 /// ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
@@ -1109,6 +1169,8 @@ fn test_nonexistent_ca_cert_path_fails_fast() {
         "expected InvalidCaCertificate, got {:?}",
         result
     );
+    /* ConfigurationError deliberately does not implement the SDK root trait:
+     * `let _: &dyn {{errorPrefix}}Error = &ConfigurationError::...` would not compile. */
 }
 
 // The per-part MIME sniffing (Gap J), multipart filename-directive (Gap BI /

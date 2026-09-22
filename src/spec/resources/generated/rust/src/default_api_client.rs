@@ -20,6 +20,7 @@ use uuid::Uuid;
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
 use crate::api_error::{ApiError, TransportFailure};
 use crate::api_http_response::ApiHttpResponse;
+use crate::configuration_error::ConfigurationError;
 use crate::errors::{NetworkError, NetworkTimeoutError};
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
@@ -147,14 +148,12 @@ impl ApiClient for DefaultApiClient {
         let options = options.clone();
 
         Box::pin(async move {
-            // Gap T6: use-after-close must surface as a uniform SDK error,
-            // not a foreign library exception or a silent success.
+            // Gap T6: use-after-close is a wrong call order, reported as
+            // ConfigurationError::InvalidState rather than a foreign library
+            // error or a silent success.
             if self.closed.load(Ordering::SeqCst) {
-                return Err(Box::new(ApiError::new(
-                    0,
+                return Err(Box::new(ConfigurationError::InvalidState(
                     "ApiClient is closed".to_string(),
-                    None,
-                    None,
                 ))
                     as Box<dyn std::error::Error + Send + Sync>);
             }
@@ -189,7 +188,8 @@ impl ApiClient for DefaultApiClient {
                 Some(RequestBody::Bytes(b)) => Some(b.clone()),
                 Some(RequestBody::Multipart(fields)) => {
                     let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
-                    let serialized = serialize_multipart_body(fields, &boundary);
+                    let serialized = serialize_multipart_body(fields, &boundary)
+                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
                     // Force the multipart Content-Type (with the boundary we
                     // generated) onto the outgoing request; if the caller set
                     // a Content-Type it would not contain our boundary, so the
@@ -208,11 +208,23 @@ impl ApiClient for DefaultApiClient {
                 merged.remove("Content-Type");
             }
 
-            let http_method = method
-                .parse::<reqwest::Method>()
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+            let http_method = method.parse::<reqwest::Method>().map_err(|e| {
+                Box::new(ConfigurationError::InvalidArgument(format!(
+                    "invalid HTTP method '{}': {}",
+                    method, e
+                ))) as Box<dyn std::error::Error + Send + Sync>
+            })?;
 
-            let mut request_builder = self.http_client.request(http_method, &url);
+            // A malformed request URL is a caller mistake, not a network
+            // failure: reject it before reqwest reports it as a builder error.
+            let parsed_url = reqwest::Url::parse(&url).map_err(|e| {
+                Box::new(ConfigurationError::InvalidArgument(format!(
+                    "invalid request URL '{}': {}",
+                    url, e
+                ))) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+
+            let mut request_builder = self.http_client.request(http_method, parsed_url);
 
             for (k, v) in &merged {
                 request_builder = request_builder.header(k.as_str(), v.as_str());
@@ -342,9 +354,12 @@ impl ApiClient for DefaultApiClient {
                             ("GET".to_string(), None)
                         };
 
-                    let http_method = next_method
-                        .parse::<reqwest::Method>()
-                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+                    let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
+                        Box::new(ConfigurationError::InvalidArgument(format!(
+                            "invalid HTTP method '{}': {}",
+                            next_method, e
+                        ))) as Box<dyn std::error::Error + Send + Sync>
+                    })?;
                     let mut redirect_builder =
                         self.http_client.request(http_method, next_url.clone());
                     let mut redirect_headers = current_headers.clone();
@@ -422,10 +437,36 @@ impl ApiClient for DefaultApiClient {
                 .unwrap_or_default();
             // Gap: a body-read failure that occurs AFTER response headers are
             // received (connection reset, read timeout, truncated chunked
-            // transfer, decompression error) must be wrapped in the uniform
-            // NetworkError (statusCode 0) — the same treatment a send-phase failure
-            // gets — rather than escaping as a raw reqwest::Error.
-            let resp_bytes = response.bytes().await.map_err(transport_error)?;
+            // transfer) is wrapped in the uniform NetworkError (statusCode 0),
+            // the same treatment a send-phase failure gets.
+            let raw_bytes = response.bytes().await.map_err(transport_error)?;
+            // A body that arrived but cannot be decompressed is not a network
+            // failure: the server answered, so it is an ApiError carrying the
+            // real status code.
+            let content_encoding = resp_headers
+                .get("content-encoding")
+                .cloned()
+                .unwrap_or_default();
+            let resp_bytes = match decompress_body(&content_encoding, &raw_bytes) {
+                Ok(Some(decoded)) => {
+                    /* The headers now describe the decoded body, as they did
+                     * when reqwest decompressed it. */
+                    resp_headers.remove("content-encoding");
+                    resp_headers.remove("content-length");
+                    decoded
+                }
+                Ok(None) => raw_bytes.to_vec(),
+                Err(e) => {
+                    return Err(Box::new(ApiError::with_source(
+                        status_code,
+                        format!("failed to decompress response body: {}", e),
+                        None,
+                        Some(resp_headers),
+                        Arc::new(e),
+                    ))
+                        as Box<dyn std::error::Error + Send + Sync>);
+                }
+            };
             let resp_body = if is_text_content_type(&content_type) {
                 decode_text_body(&resp_bytes, &content_type)
             } else {
@@ -436,6 +477,31 @@ impl ApiClient for DefaultApiClient {
             Ok(ApiHttpResponse::new(status_code, resp_body, resp_headers))
         })
     }
+}
+
+/// Decodes a fully read response body according to its `Content-Encoding`.
+/// Returns `Ok(None)` when the body is not encoded, and an error when it is
+/// encoded but corrupt.
+fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option<Vec<u8>>> {
+    use std::io::Read;
+    /* A bodiless response (HEAD, 204, 304) may still name an encoding. */
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    let mut decoded = Vec::new();
+    match content_encoding.trim().to_ascii_lowercase().as_str() {
+        "gzip" | "x-gzip" => {
+            flate2::read::MultiGzDecoder::new(raw).read_to_end(&mut decoded)?;
+        }
+        "deflate" => {
+            flate2::read::ZlibDecoder::new(raw).read_to_end(&mut decoded)?;
+        }
+        "zstd" => {
+            decoded = zstd::stream::decode_all(raw)?;
+        }
+        _ => return Ok(None),
+    }
+    Ok(Some(decoded))
 }
 
 /// Classifies a reqwest transport failure. A timeout becomes
@@ -456,15 +522,10 @@ fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync
 fn build_http_client(opts: &TransportOptions) -> Client {
     let mut builder = ClientBuilder::new();
 
-    // F-W5-5: reqwest only decompresses response bodies when the relevant
-    // decompression features are explicitly enabled on the builder.
-    // Without these calls, the client advertises gzip/deflate/zstd
-    // in Accept-Encoding but returns the raw compressed bytes to the caller,
-    // corrupting any server response that picks one of those encodings.
-    // Brotli is intentionally omitted: reqwest's `brotli` feature pulls
-    // `brotli` 8.x, which fails to compile against the current
-    // `brotli-decompressor` (incompatible `alloc-no-stdlib` versions).
-    builder = builder.gzip(true).deflate(true).zstd(true);
+    // F-W5-5: response bodies are decompressed by `decompress_body` after the
+    // raw bytes are read, not by reqwest, so a body that arrived but cannot be
+    // decoded is told apart from a body that never fully arrived. Brotli is
+    // intentionally not advertised.
 
     // Gap AM: `verify_ssl=false` must skip BOTH the certificate-chain check
     // and the hostname check, matching `curl -k` and the other SDKs. reqwest
@@ -563,18 +624,23 @@ pub(crate) fn same_origin(a: &reqwest::Url, b: &reqwest::Url) -> bool {
 /// ```
 ///
 /// followed by the closing `--<boundary>--CRLF` delimiter.
+///
+/// # Errors
+///
+/// Returns [`ConfigurationError::InvalidArgument`] when a field name holds CR,
+/// LF or NUL characters that would corrupt the Content-Disposition header.
 pub fn serialize_multipart_body(
     fields: &HashMap<String, MultipartValue>,
     boundary: &str,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, ConfigurationError> {
     let mut out: Vec<u8> = Vec::new();
     for (name, value) in fields {
-        append_multipart_field(&mut out, boundary, name, value);
+        append_multipart_field(&mut out, boundary, name, value)?;
     }
     out.extend_from_slice(b"--");
     out.extend_from_slice(boundary.as_bytes());
     out.extend_from_slice(b"--\r\n");
-    out
+    Ok(out)
 }
 
 /// Appends a single multipart field (recursing into List variants) to the
@@ -582,22 +648,23 @@ pub fn serialize_multipart_body(
 /// filename directive derived from the field name; text parts are written
 /// without a Content-Type header; JSON object parts carry an explicit
 /// `Content-Type: application/json` header (their OAS `encoding.contentType`).
-fn append_multipart_field(out: &mut Vec<u8>, boundary: &str, name: &str, value: &MultipartValue) {
+fn append_multipart_field(
+    out: &mut Vec<u8>,
+    boundary: &str,
+    name: &str,
+    value: &MultipartValue,
+) -> Result<(), ConfigurationError> {
     /* W-new-2: validate the field name on every branch (text and bytes)
      * before it lands in Content-Disposition. The name is interpolated
      * directly into `Content-Disposition: form-data; name="..."`, so
      * CR/LF/NUL must be rejected even when the value is text, and
      * quote/backslash must be escaped so a malicious name cannot break out
      * of the `name="..."` parameter. */
-    if validate_multipart_field_name(name).is_err() {
-        return;
-    }
+    validate_multipart_field_name(name)?;
     let safe_name = escape_multipart_field_name(name);
     match value {
         MultipartValue::Bytes(bytes) => {
-            if validate_multipart_filename(name).is_err() {
-                return;
-            }
+            validate_multipart_filename(name)?;
             let mime = mime_for_filename(name);
             let filename_directive = build_filename_directive(name);
             out.extend_from_slice(b"--");
@@ -641,20 +708,21 @@ fn append_multipart_field(out: &mut Vec<u8>, boundary: &str, name: &str, value: 
         }
         MultipartValue::List(items) => {
             for item in items {
-                append_multipart_field(out, boundary, name, item);
+                append_multipart_field(out, boundary, name, item)?;
             }
         }
     }
+    Ok(())
 }
 
 /// Rejects multipart filenames that would allow Content-Disposition header
 /// injection or smuggling. Returns Err for filenames containing CR, LF, or NUL.
-pub fn validate_multipart_filename(filename: &str) -> Result<(), String> {
+pub fn validate_multipart_filename(filename: &str) -> Result<(), ConfigurationError> {
     for c in filename.chars() {
         if c == '\r' || c == '\n' || c == '\0' {
-            return Err(
+            return Err(ConfigurationError::InvalidArgument(
                 "multipart filename must not contain CR, LF, or NUL characters".to_string(),
-            );
+            ));
         }
     }
     Ok(())
@@ -664,12 +732,12 @@ pub fn validate_multipart_filename(filename: &str) -> Result<(), String> {
 /// header injection or smuggling. Returns Err for names containing CR, LF, or
 /// NUL. Must run on every branch of `append_multipart_field` because the name
 /// is interpolated directly into `Content-Disposition: form-data; name="..."`.
-pub fn validate_multipart_field_name(name: &str) -> Result<(), String> {
+pub fn validate_multipart_field_name(name: &str) -> Result<(), ConfigurationError> {
     for c in name.chars() {
         if c == '\r' || c == '\n' || c == '\0' {
-            return Err(
+            return Err(ConfigurationError::InvalidArgument(
                 "multipart field name must not contain CR, LF, or NUL characters".to_string(),
-            );
+            ));
         }
     }
     Ok(())
@@ -966,7 +1034,7 @@ mod tests {
             "avatar.png".to_string(),
             MultipartValue::Bytes(vec![0x89, 0x50, 0x4e, 0x47]),
         );
-        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
             body_str.contains("Content-Type: image/png\r\n"),
@@ -982,7 +1050,7 @@ mod tests {
             "data.json".to_string(),
             MultipartValue::Bytes(b"{}".to_vec()),
         );
-        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
             body_str.contains("Content-Type: application/json\r\n"),
@@ -995,7 +1063,7 @@ mod tests {
     fn test_multipart_file_part_content_type_unknown_extension_falls_back() {
         let mut fields = std::collections::HashMap::new();
         fields.insert("file".to_string(), MultipartValue::Bytes(vec![1, 2, 3]));
-        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
             body_str.contains("Content-Type: application/octet-stream\r\n"),
@@ -1015,7 +1083,7 @@ mod tests {
             "file".to_string(),
             MultipartValue::Bytes(vec![0x00, 0x01, 0x02]),
         );
-        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
             body_str.contains("name=\"file\"; filename=\"file\""),
@@ -1068,7 +1136,7 @@ mod tests {
             .expect("model part must serialize through the configured serializer");
         let mut fields = std::collections::HashMap::new();
         fields.insert("metadata".to_string(), MultipartValue::Json(part_json));
-        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
 
         // (1) The model part must use the WIRE property names from the schema,
@@ -1134,7 +1202,7 @@ mod tests {
             field_name.to_string(),
             MultipartValue::Text("v".to_string()),
         );
-        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
 
         // The raw UTF-8 bytes for "café" must appear verbatim in the body.
         let needle = b"name=\"caf\xC3\xA9\"";
@@ -1155,7 +1223,7 @@ mod tests {
         let field_name = "日本.png"; // emits image/png too (behavior 4 cross-check)
         let mut fields = std::collections::HashMap::new();
         fields.insert(field_name.to_string(), MultipartValue::Bytes(vec![0, 1, 2]));
-        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
 
         let nihon = "日本".as_bytes(); // E6 97 A5 E6 9C AC
         assert!(
@@ -1299,21 +1367,21 @@ mod tests {
         assert!(validate_multipart_field_name("description").is_ok());
 
         /* End-to-end: when a String (text) multipart field has a CR/LF in its
-         * name, serialize_multipart_body must NOT emit a part with the bad name
-         * embedded in Content-Disposition. The current implementation drops the
-         * bad field silently rather than panic. */
+         * name, serialize_multipart_body refuses the whole body with
+         * ConfigurationError::InvalidArgument rather than emitting the bad name
+         * into Content-Disposition or silently dropping the field. */
         let mut fields = std::collections::HashMap::new();
         fields.insert(
             "name\r\nInjected: yes".to_string(),
             MultipartValue::Text("value".to_string()),
         );
-        let body = serialize_multipart_body(&fields, "boundary");
-        let body_str = String::from_utf8_lossy(&body);
-        assert!(
-            !body_str.contains("Injected: yes"),
-            "serialize_multipart_body must not emit the injected header: {}",
-            body_str
-        );
+        match serialize_multipart_body(&fields, "boundary") {
+            Err(crate::configuration_error::ConfigurationError::InvalidArgument(_)) => {}
+            other => panic!(
+                "expected ConfigurationError::InvalidArgument, got {:?}",
+                other
+            ),
+        }
     }
 
     // ── Response charset decoding (Gap H) ──

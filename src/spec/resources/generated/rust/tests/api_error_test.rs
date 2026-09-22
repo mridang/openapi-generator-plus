@@ -283,22 +283,20 @@ fn test_serialization_error_is_open_api_error() {
 fn test_heterogeneous_errors_collect_as_open_api_trait_objects() {
     // The whole point of the branded root: one container can hold any
     // SDK-thrown error behind a single `Box<dyn OpenAPIError>`, and each still
-    // behaves as a std::error::Error. The mix below deliberately spans all
-    // three branches of the hierarchy: transport/API, (de)serialization, and
-    // the auth-layer precondition errors.
+    // behaves as a std::error::Error. The mix below deliberately spans the
+    // transport/API and (de)serialization branches of the hierarchy.
     let errors: Vec<Box<dyn OpenAPIError>> = vec![
         Box::new(ApiError::new(500, "api".to_string(), None, None)),
         Box::new(BadRequestError::from(client_chain(400, "bad"))),
         Box::new(InternalServerError::from(server_chain(500, "boom"))),
         Box::new(SerializationError::new("serde".to_string(), None)),
-        Box::new(OAuth2AuthorizationCodeError::CodeNotExchanged),
     ];
     for err in &errors {
         // Display (from the std::error::Error supertrait) is available on the
         // trait object without knowing the concrete type.
         assert!(!err.to_string().is_empty());
     }
-    assert_eq!(errors.len(), 5);
+    assert_eq!(errors.len(), 4);
 }
 
 // -- Branded error hierarchy: auth-layer errors ----------------------------
@@ -315,16 +313,20 @@ fn test_heterogeneous_errors_collect_as_open_api_trait_objects() {
 /// alone fails to compile if the brand is missing.
 fn assert_type_is_open_api_error<T: OpenAPIError>() {}
 
+/// `OAuth2AuthorizationCodeError` reports a caller mistake (a wrong call
+/// order or an empty code), not an API failure, so like `ConfigurationError`
+/// it is a plain `std::error::Error` and deliberately does NOT implement
+/// `OpenAPIError`: `assert_type_is_open_api_error::<OAuth2AuthorizationCodeError>()`
+/// would not compile.
 #[test]
-fn test_oauth2_authorization_code_error_is_open_api_error() {
+fn test_oauth2_authorization_code_error_is_a_plain_error() {
     for err in [
         OAuth2AuthorizationCodeError::CodeNotExchanged,
         OAuth2AuthorizationCodeError::EmptyCode,
     ] {
-        let branded = assert_is_open_api_error(&err);
-        // Supertrait gives Display; this is a leaf precondition error with no cause.
-        assert!(!branded.to_string().is_empty());
-        assert!(std::error::Error::source(branded).is_none());
+        let plain: &dyn std::error::Error = &err;
+        assert!(!plain.to_string().is_empty());
+        assert!(plain.source().is_none());
     }
 }
 

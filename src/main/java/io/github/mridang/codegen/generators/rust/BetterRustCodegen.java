@@ -421,27 +421,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api_error_test.mustache",
                             "tests",
                             "api_error_test.rs"));
-            if (hasBasicAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/basic_authenticator_test.mustache",
-                                "tests",
-                                "basic_authenticator_test.rs"));
-            }
-            if (hasBearerAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/bearer_authenticator_test.mustache",
-                                "tests",
-                                "bearer_authenticator_test.rs"));
-            }
-            if (hasApiKeyAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/api_key_authenticator_test.mustache",
-                                "tests",
-                                "api_key_authenticator_test.rs"));
-            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/server_configuration_test.mustache",
@@ -845,6 +824,33 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             supportingFiles.add(
                     new SupportingFile("auth/oauth/mod.mustache", getOAuthDir(), "mod.rs"));
         }
+        // The Basic, Bearer and API-key authenticator tests are registered
+        // here, not in processOpts: the security-scheme flags are only set once
+        // the spec has been read, so a check in processOpts always saw them
+        // false and the tests were never generated.
+        if (generateTests) {
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/basic_authenticator_test.mustache",
+                                "tests",
+                                "basic_authenticator_test.rs"));
+            }
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/bearer_authenticator_test.mustache",
+                                "tests",
+                                "bearer_authenticator_test.rs"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/api_key_authenticator_test.mustache",
+                                "tests",
+                                "api_key_authenticator_test.rs"));
+            }
+        }
     }
 
     /** {@inheritDoc} */
@@ -919,6 +925,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", superArgs);
+        // Basic, Bearer and API-key constructors validate their credentials and
+        // return Result<Self, ConfigurationError>; the scheme wrapper forwards it.
+        ctx.put("fallible", java.util.Set.of(
+                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                .contains(spec.baseClass()));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 

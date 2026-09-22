@@ -406,6 +406,35 @@ mod tests {
         assert!(pet.photo_urls.contains("http://example.com/fido.jpg"));
     }
 
+    /// Every wire-shape failure is a `SerializationError` and part of the
+    /// `OpenAPIError` hierarchy: malformed JSON, a wrong primitive type, an
+    /// unknown enum value, a missing required field, and a malformed
+    /// date-time or duration.
+    #[test]
+    fn test_wire_shape_failures_are_serialization_errors() {
+        fn assert_serialization_error<T: serde::de::DeserializeOwned + std::fmt::Debug>(
+            case: &str,
+            payload: &[u8],
+        ) {
+            let err = object_serializer::deserialize::<T>(payload)
+                .expect_err(&format!("{} must fail", case));
+            let _: &dyn crate::errors::OpenAPIError = &err;
+            assert!(!err.to_string().is_empty(), "{}", case);
+        }
+        assert_serialization_error::<Pet>("malformed JSON", b"{");
+        assert_serialization_error::<Pet>("wrong primitive type", br#"{"name":7,"photoUrls":[]}"#);
+        assert_serialization_error::<Pet>("missing required field", br#"{"photoUrls":[]}"#);
+        assert_serialization_error::<crate::models::Order>("unknown enum", br#"{"status":"lost"}"#);
+        assert_serialization_error::<crate::models::Order>(
+            "malformed date-time",
+            br#"{"shipDate":"not-a-date"}"#,
+        );
+        assert_serialization_error::<crate::models::EdgeCases>(
+            "malformed duration",
+            br#"{"retryAfter":"PT1H"}"#,
+        );
+    }
+
     #[test]
     fn test_to_path_value_int() {
         let result = object_serializer::to_path_value(&42.to_string());

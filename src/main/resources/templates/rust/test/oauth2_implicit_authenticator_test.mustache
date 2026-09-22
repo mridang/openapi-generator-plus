@@ -2,6 +2,7 @@
 
 use {{packageName}}::auth::oauth::OAuth2ImplicitAuthenticator;
 use {{packageName}}::auth::Authenticator;
+use {{packageName}}::ConfigurationError;
 
 fn create_authenticator() -> OAuth2ImplicitAuthenticator {
     OAuth2ImplicitAuthenticator::new(
@@ -53,18 +54,43 @@ fn test_builds_authorization_url_with_state() {
 #[tokio::test]
 async fn test_get_auth_headers_returns_bearer_after_set_access_token() {
     let auth = create_authenticator();
-    auth.set_access_token("implicit-tok");
+    auth.set_access_token("implicit-tok").unwrap();
 
     let headers = auth.auth_headers().await;
 
     assert_eq!("Bearer implicit-tok", headers.get("Authorization").unwrap());
 }
 
+/// A request made before `set_access_token` is a wrong call order:
+/// `try_auth_headers` (which the API client calls) returns
+/// `ConfigurationError::InvalidState`, never a panic, and `auth_headers`
+/// degrades to an empty map.
 #[tokio::test]
-#[should_panic(expected = "must set access token")]
-async fn test_throws_when_access_token_not_set() {
+async fn test_try_auth_headers_before_set_access_token_is_invalid_state() {
     let auth = create_authenticator();
-    auth.auth_headers().await;
+    let err = auth.try_auth_headers().await.expect_err("expected an error before set_access_token");
+    match err.downcast_ref::<ConfigurationError>() {
+        Some(ConfigurationError::InvalidState(reason)) => {
+            assert!(reason.contains("must set access token"), "{}", reason)
+        }
+        other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
+    }
+    assert!(auth.auth_headers().await.is_empty());
+}
+
+/// F-A5-04: a token that would inject a header is rejected with
+/// `ConfigurationError::InvalidArgument`, never a panic, and is not stored.
+#[tokio::test]
+async fn test_set_access_token_rejects_invalid_token() {
+    let auth = create_authenticator();
+    for token in ["tok\r\nInjected: yes", "ñoño", "tok\0"] {
+        assert!(
+            matches!(auth.set_access_token(token), Err(ConfigurationError::InvalidArgument(_))),
+            "expected InvalidArgument for {:?}",
+            token
+        );
+    }
+    assert!(auth.try_auth_headers().await.is_err());
 }
 
 #[test]
@@ -76,7 +102,7 @@ fn test_get_host_returns_configured_host() {
 #[test]
 fn redacts_secret() {
     let auth = create_authenticator();
-    auth.set_access_token("implicit-tok");
+    auth.set_access_token("implicit-tok").unwrap();
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("implicit-tok"));
     assert!(debug.contains("***"));

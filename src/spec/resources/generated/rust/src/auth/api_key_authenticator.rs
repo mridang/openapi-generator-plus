@@ -11,6 +11,7 @@ use std::pin::Pin;
 
 use super::Authenticator;
 use crate::auth::api_key_location::ApiKeyLocation;
+use crate::configuration_error::ConfigurationError;
 
 /// ApiKeyAuthenticator provides API key authentication.
 ///
@@ -32,37 +33,48 @@ impl ApiKeyAuthenticator {
     /// * `key_param_name` - name of the key parameter
     /// * `api_key` - the API key value
     /// * `location` - where to send the key (header, query, or cookie)
-    pub fn new(host: &str, key_param_name: &str, api_key: &str, location: ApiKeyLocation) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`] when the key cannot be
+    /// sent safely.
+    pub fn new(
+        host: &str,
+        key_param_name: &str,
+        api_key: &str,
+        location: ApiKeyLocation,
+    ) -> Result<Self, ConfigurationError> {
         // Validation applies to ALL locations: empty/whitespace API keys
-        // and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
-        // printable-ASCII rule still applies to HEADER values. panic is
-        // appropriate because this is a programmer error, not a recoverable
-        // runtime condition.
-        if api_key.is_empty() || api_key.trim().is_empty() {
-            panic!("API key value for '{}' must not be empty", key_param_name);
+        // and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
+        // printable-ASCII rule still applies to HEADER values.
+        if api_key.trim().is_empty() {
+            return Err(ConfigurationError::InvalidArgument(format!(
+                "API key value for '{}' must not be empty",
+                key_param_name
+            )));
         }
         if api_key.chars().any(|c| c == '\r' || c == '\n' || c == '\0') {
-            panic!(
+            return Err(ConfigurationError::InvalidArgument(format!(
                 "API key value for '{}' contains forbidden control characters (CR/LF/NUL)",
                 key_param_name
-            );
+            )));
         }
         if location == ApiKeyLocation::Header
             && api_key
                 .chars()
                 .any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
         {
-            panic!(
+            return Err(ConfigurationError::InvalidArgument(format!(
                 "API key for header '{}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
                 key_param_name
-            );
+            )));
         }
-        Self {
+        Ok(Self {
             host: host.to_string(),
             key_param_name: key_param_name.to_string(),
             api_key: api_key.to_string(),
             location,
-        }
+        })
     }
 }
 

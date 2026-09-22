@@ -6,8 +6,17 @@ pub struct ServiceTokenAuthenticator(BearerAuthenticator);
 
 impl ServiceTokenAuthenticator {
     /// Creates a new `ServiceTokenAuthenticator`.
-    pub fn new(host: &str, token: &str) -> Self {
-        Self(BearerAuthenticator::new(host, token))
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`BearerAuthenticator`] constructor's
+    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// when the credentials are invalid.
+    pub fn new(
+        host: &str,
+        token: &str,
+    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+        Ok(Self(BearerAuthenticator::new(host, token)?))
     }
 }
 

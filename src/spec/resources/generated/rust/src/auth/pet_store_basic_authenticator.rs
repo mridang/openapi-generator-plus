@@ -6,8 +6,18 @@ pub struct PetStoreBasicAuthenticator(BasicAuthenticator);
 
 impl PetStoreBasicAuthenticator {
     /// Creates a new `PetStoreBasicAuthenticator`.
-    pub fn new(host: &str, username: &str, password: &str) -> Self {
-        Self(BasicAuthenticator::new(host, username, password))
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`BasicAuthenticator`] constructor's
+    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// when the credentials are invalid.
+    pub fn new(
+        host: &str,
+        username: &str,
+        password: &str,
+    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+        Ok(Self(BasicAuthenticator::new(host, username, password)?))
     }
 }
 

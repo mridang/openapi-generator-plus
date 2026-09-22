@@ -14,7 +14,7 @@ Add to your `Cargo.toml`:
 ```rust
 use {{packageName}}::{{clientClassName}};
 
-let client = {{clientClassName}}::with_token("https://api.example.com", "your-token", None);
+let client = {{clientClassName}}::with_token("https://api.example.com", "your-token", None)?;
 ```
 
 ## Authentication
@@ -24,10 +24,10 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```rust
-use {{packageName}}::auth::bearer_authenticator::BearerAuthenticator;
+use {{packageName}}::auth::BearerAuthenticator;
 use {{packageName}}::{{clientClassName}};
 
-let authenticator = BearerAuthenticator::new("https://api.example.com", "your-token");
+let authenticator = BearerAuthenticator::new("https://api.example.com", "your-token")?;
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -35,9 +35,10 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ### Basic Auth
 
 ```rust
-use {{packageName}}::auth::basic_authenticator::BasicAuthenticator;
+use {{packageName}}::auth::BasicAuthenticator;
+use {{packageName}}::{{clientClassName}};
 
-let authenticator = BasicAuthenticator::new("https://api.example.com", "username", "password");
+let authenticator = BasicAuthenticator::new("https://api.example.com", "username", "password")?;
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -46,10 +47,10 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ### API Key
 
 ```rust
-use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
-use {{packageName}}::auth::api_key_location::ApiKeyLocation;
+use {{packageName}}::auth::{ApiKeyAuthenticator, ApiKeyLocation};
+use {{packageName}}::{{clientClassName}};
 
-let authenticator = ApiKeyAuthenticator::new("https://api.example.com", "key-name", "key-value", ApiKeyLocation::Header);
+let authenticator = ApiKeyAuthenticator::new("https://api.example.com", "key-name", "key-value", ApiKeyLocation::Header)?;
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -58,10 +59,11 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ### OAuth2 Client Credentials
 
 ```rust
-use {{packageName}}::auth::oauth::oauth2_client_credentials_authenticator::OAuth2ClientCredentialsAuthenticator;
+use {{packageName}}::auth::oauth::OAuth2ClientCredentialsAuthenticator;
+use {{packageName}}::{{clientClassName}};
 
 let authenticator = OAuth2ClientCredentialsAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![]);
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -70,11 +72,13 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ### OAuth2 Authorization Code
 
 ```rust
-use {{packageName}}::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
+use {{packageName}}::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
+use {{packageName}}::{{clientClassName}};
 
 let authenticator = OAuth2AuthorizationCodeAuthenticator::new(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", vec![], "");
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -83,11 +87,12 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ### OAuth2 Password
 
 ```rust
-use {{packageName}}::auth::oauth::oauth2_password_authenticator::OAuth2PasswordAuthenticator;
+use {{packageName}}::auth::oauth::OAuth2PasswordAuthenticator;
+use {{packageName}}::{{clientClassName}};
 
 let authenticator = OAuth2PasswordAuthenticator::new(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password");
+    "https://auth.example.com/token", "username", "password", vec![], "");
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -98,9 +103,12 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```rust
-use {{packageName}}::auth::oauth::oauth2_implicit_authenticator::OAuth2ImplicitAuthenticator;
+use {{packageName}}::auth::oauth::OAuth2ImplicitAuthenticator;
+use {{packageName}}::{{clientClassName}};
 
-let authenticator = OAuth2ImplicitAuthenticator::new("https://api.example.com", "your-access-token");
+let authenticator = OAuth2ImplicitAuthenticator::new(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", vec![]);
+authenticator.set_access_token("your-access-token")?;
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -109,11 +117,12 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ### OpenID Connect
 
 ```rust
-use {{packageName}}::auth::oauth::openid_connect_authenticator::OpenIdConnectAuthenticator;
+use {{packageName}}::auth::oauth::OpenIdConnectAuthenticator;
+use {{packageName}}::{{clientClassName}};
 
 let authenticator = OpenIdConnectAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration");
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", vec![]);
 let client = {{clientClassName}}::new(Box::new(authenticator), None);
 ```
 
@@ -143,11 +152,10 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 Override the default if your authorization server only accepts one form:
 
 ```rust
-use {{packageName}}::auth::oauth::client_auth_method::ClientAuthMethod;
-use {{packageName}}::auth::oauth::oauth2_client_credentials_authenticator::OAuth2ClientCredentialsAuthenticator;
+use {{packageName}}::auth::oauth::{ClientAuthMethod, OAuth2ClientCredentialsAuthenticator};
 
 let authenticator = OAuth2ClientCredentialsAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![])
     .with_client_auth_method(ClientAuthMethod::Basic);
 ```
 
@@ -158,9 +166,12 @@ let authenticator = OAuth2ClientCredentialsAuthenticator::new(
 If the OpenAPI spec defines multiple servers, the generated `{{packageName}}::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`. Pass the desired server's URL to the client:
 
 ```rust
-use {{packageName}}::servers::server_0;
+use std::collections::HashMap;
 
-let client = {{clientClassName}}::with_token(&server_0().url(), "your-token", None);
+use {{packageName}}::servers::server_0;
+use {{packageName}}::{{clientClassName}};
+
+let client = {{clientClassName}}::with_token(&server_0().url(&HashMap::new())?, "your-token", None)?;
 ```
 
 {{/hasServers}}
@@ -173,7 +184,8 @@ The `Authenticator` trait is the seam for tests: substitute a fake authenticator
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use {{packageName}}::auth::authenticator::Authenticator;
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::{{clientClassName}};
 
 struct FakeAuthenticator;
 
@@ -228,6 +240,7 @@ match client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName
 
 ```rust
 use {{packageName}}::transport_options::TransportOptionsBuilder;
+use {{packageName}}::{{clientClassName}};
 
 let transport = TransportOptionsBuilder::new()
     .proxy("http://proxy:3128")

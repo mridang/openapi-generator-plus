@@ -13,6 +13,7 @@ use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
 use crate::auth::BearerAuthenticator;
 use crate::configuration::ConfigurationBuilder;
+use crate::configuration_error::ConfigurationError;
 use crate::default_api_client::DefaultApiClient;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
@@ -78,15 +79,20 @@ impl Client {
     }
 
     /// Creates a client authenticated with a static Bearer token.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`] when the token is empty
+    /// or holds a character that cannot be sent in a header.
     pub fn with_token(
         host: &str,
         access_token: &str,
         transport_options: Option<TransportOptions>,
-    ) -> Self {
-        Self::new(
-            Box::new(BearerAuthenticator::new(host, access_token)),
+    ) -> Result<Self, ConfigurationError> {
+        Ok(Self::new(
+            Box::new(BearerAuthenticator::new(host, access_token)?),
             transport_options,
-        )
+        ))
     }
 
     /// Creates a client from any pre-built [`Authenticator`].

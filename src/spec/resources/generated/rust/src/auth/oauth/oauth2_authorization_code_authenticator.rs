@@ -45,13 +45,10 @@ impl fmt::Display for OAuth2AuthorizationCodeError {
     }
 }
 
+// A caller mistake, not an API failure: like `ConfigurationError` it is a
+// plain `std::error::Error` and deliberately not part of the SDK error
+// hierarchy rooted at `OpenAPIError`.
 impl Error for OAuth2AuthorizationCodeError {}
-
-// Brands this SDK-thrown error as part of the `OpenAPIError` hierarchy so a
-// single `&dyn OpenAPIError` / `Box<dyn OpenAPIError>` can hold it alongside
-// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
-// satisfied by the `impl Error` above and the unit-like variants.
-impl crate::errors::OpenAPIError for OAuth2AuthorizationCodeError {}
 
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
 /// flow authentication.

@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::Authenticator;
+use crate::configuration_error::ConfigurationError;
 
 /// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
 ///
@@ -55,16 +56,22 @@ impl OAuth2ImplicitAuthenticator {
     /// §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
     /// only fail at the next API call via the Authorization-header concat,
     /// allowing HTTP header injection from a redirect-fragment-derived value.
-    /// Panics on invalid input — consistent with BearerAuthenticator.
-    pub fn set_access_token(&self, token: &str) {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`] on invalid input and
+    /// keeps the previous token.
+    pub fn set_access_token(&self, token: &str) -> Result<(), ConfigurationError> {
         for b in token.bytes() {
             if b != b'\t' && (b < 0x20 || b >= 0x7F) {
-                panic!(
+                return Err(ConfigurationError::InvalidArgument(
                     "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-                );
+                        .to_string(),
+                ));
             }
         }
         *self.access_token.lock().unwrap() = token.to_string();
+        Ok(())
     }
 
     /// Builds the authorization URL to redirect the user to.
@@ -112,13 +119,35 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
         &self.host
     }
 
+    /// Returns the Bearer authentication header, or an empty map before
+    /// [`set_access_token`](OAuth2ImplicitAuthenticator::set_access_token) is
+    /// called. The API client calls
+    /// [`try_auth_headers`](Self::try_auth_headers) instead, which reports the
+    /// missing token.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move { self.try_auth_headers().await.unwrap_or_default() })
+    }
+
+    /// Returns the Bearer authentication header, or
+    /// [`ConfigurationError::InvalidState`] when no access token has been set.
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<HashMap<String, String>, Box<dyn std::error::Error + Send + Sync>>,
+                > + Send
+                + 'a,
+        >,
+    > {
         Box::pin(async move {
             let token = self.access_token.lock().unwrap().clone();
             if token.is_empty() {
-                panic!("must set access token before making API requests");
+                return Err(Box::new(ConfigurationError::InvalidState(
+                    "must set access token before making API requests".to_string(),
+                )) as Box<dyn std::error::Error + Send + Sync>);
             }
 
             let mut headers = HashMap::new();
@@ -126,7 +155,7 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
                 "Authorization".to_string(),
                 format!("Bearer {}", token),
             );
-            headers
+            Ok(headers)
         })
     }
 

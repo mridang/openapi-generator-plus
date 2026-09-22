@@ -17,6 +17,7 @@ use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
+use crate::configuration_error::ConfigurationError;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;

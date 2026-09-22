@@ -5,6 +5,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 use super::Authenticator;
+use crate::configuration_error::ConfigurationError;
 
 /// BearerAuthenticator provides HTTP Bearer token authentication.
 pub struct BearerAuthenticator {
@@ -15,28 +16,33 @@ pub struct BearerAuthenticator {
 impl BearerAuthenticator {
     /// Creates a new Bearer authenticator.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. Panics
-    /// on any value outside printable ASCII + TAB so callers see a clear
-    /// error rather than HTTP header injection from CR/LF or silently-
+    /// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. A token
+    /// that is empty, whitespace-only, or holds a character outside printable
+    /// ASCII + TAB is rejected with [`ConfigurationError::InvalidArgument`]
+    /// rather than risking HTTP header injection from CR/LF or silently-
     /// mangled non-ASCII bytes.
-    pub fn new(host: &str, token: &str) -> Self {
+    pub fn new(host: &str, token: &str) -> Result<Self, ConfigurationError> {
         // Reject empty / whitespace-only tokens: emitting a bare
-        // `Authorization: Bearer ` header is a programmer error that mirrors
-        // the api-key authenticator's own empty guard. Fail closed.
-        if token.is_empty() || token.trim().is_empty() {
-            panic!("Bearer token must not be empty or whitespace-only");
+        // `Authorization: Bearer ` header would send the request
+        // unauthenticated, mirroring the api-key authenticator's own empty
+        // guard. Fail closed.
+        if token.trim().is_empty() {
+            return Err(ConfigurationError::InvalidArgument(
+                "Bearer token must not be empty or whitespace-only".to_string(),
+            ));
         }
         if token.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F)) {
-            panic!(
+            return Err(ConfigurationError::InvalidArgument(
                 "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-            );
+                    .to_string(),
+            ));
         }
-        Self {
+        Ok(Self {
             host: host.to_string(),
             token: token.to_string(),
-        }
+        })
     }
 }
 
