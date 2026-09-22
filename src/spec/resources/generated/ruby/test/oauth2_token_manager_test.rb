@@ -360,12 +360,13 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     manager.api_client = client
 
     # A failed token request surfaces as the typed OAuth2ServerError, which
-    # subclasses the SDK's common ApiError base so a rescue on ApiError
-    # catches it alongside every other API error.
-    error = assert_raises(PetstoreClient::ApiError) do
+    # subclasses the SDK's branded root so a rescue on the root catches it
+    # alongside every other SDK error.
+    error = assert_raises(PetstoreClient::OpenAPIError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
     _(error).must_be_kind_of PetstoreClient::Auth::OAuth::OAuth2ServerError
+    _(error).wont_be_kind_of PetstoreClient::ApiError
   end
 
   it 'token POST requests no_redirect from transport (Bucket 3.2)' do

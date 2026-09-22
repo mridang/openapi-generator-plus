@@ -91,9 +91,10 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   end
 
   it 'throws before exchange code called' do
-    assert_raises(PetstoreClient::ApiError) do
+    error = assert_raises(RuntimeError) do
       auth.auth_headers
     end
+    _(error).must_be_instance_of RuntimeError
   end
 
   it 'getHost returns configured host' do
@@ -119,7 +120,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     caught = nil
     begin
       auth.auth_headers
-    rescue PetstoreClient::ApiError => e
+    rescue RuntimeError => e
       caught = e
     end
     _(caught).wont_be_nil

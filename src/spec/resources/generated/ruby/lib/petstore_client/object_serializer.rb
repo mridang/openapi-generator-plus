@@ -17,10 +17,6 @@ require 'time'
 require 'tod'
 
 module PetstoreClient
-  # NOTE: ObjectSerializer is declared first on purpose. Zeitwerk resolves
-  # this file to the first constant it declares, so a helper class above
-  # this point would take the file's name and leave ObjectSerializer
-  # unreachable — `PetstoreClient::ObjectSerializer` raised NameError.
   # Handles JSON serialization and deserialization for API requests and responses.
   #
   # All serde operations in the generated client route through this class.
@@ -624,16 +620,6 @@ module PetstoreClient
     private_class_method :sanitize_for_serialization, :deserialize_model
   end
 
-  # Exception raised when serialization or deserialization fails.
-  class SerializationError < PetstoreClient::OpenAPIError
-    attr_reader :cause
-    def initialize(message, cause = nil)
-      super(message)
-      @cause = cause
-    end
-  end
-  # Exception raised when data does not match a schema during oneOf/anyOf resolution.
-  class SchemaMismatchError < PetstoreClient::OpenAPIError; end
   # Canonical RFC 4122 UUID textual form. Validated on both the
   # deserialize and serialize paths for any `format: uuid` property.
   # Stdlib-only — no `uuid` gem dependency required.

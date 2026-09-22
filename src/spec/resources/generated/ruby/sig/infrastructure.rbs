@@ -131,6 +131,13 @@ module PetstoreClient
     class InternalServerError < ServerError
       def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
     end
+
+    class NetworkError < ApiError
+      def initialize: (?message: String?) -> void
+    end
+
+    class NetworkTimeoutError < NetworkError
+    end
   end
 
   class ApiClient
@@ -144,6 +151,7 @@ module PetstoreClient
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def network_error_class: (Faraday::Error) -> singleton(Errors::NetworkError)
     def validate_ca_cert_path: (String?) -> void
     def https_to_http_downgrade?: (String, String) -> bool
     def text_content_type?: (String) -> bool
@@ -170,9 +178,6 @@ module PetstoreClient
   class SerializationError < PetstoreClient::OpenAPIError
     attr_reader cause: Exception?
     def initialize: (String, ?Exception?) -> void
-  end
-
-  class SchemaMismatchError < PetstoreClient::OpenAPIError
   end
 
   class ValueSerializer
@@ -342,10 +347,10 @@ module PetstoreClient
         def parse_expires_in: (untyped) -> Integer
       end
 
-      class OAuth2TokenError < ::PetstoreClient::ApiError
+      class OAuth2TokenError < PetstoreClient::OpenAPIError
       end
 
-      class OAuth2ServerError < ::PetstoreClient::ApiError
+      class OAuth2ServerError < PetstoreClient::OpenAPIError
         attr_reader status_code: Integer?
         attr_reader code: String?
         attr_reader description: String?

@@ -158,6 +158,8 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `UnprocessableEntityError` (422)
   - `ServerError` (5xx)
     - `InternalServerError` (500)
+  - `NetworkError` (no HTTP response)
+    - `NetworkTimeoutError` (timed out)
 
 ```ruby
 begin

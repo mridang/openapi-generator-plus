@@ -143,7 +143,9 @@ describe PetstoreClient::DefaultApiClient do
         .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
-      _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise StandardError
+      error = _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise PetstoreClient::Errors::NetworkTimeoutError
+      _(error.status_code).must_equal 0
+      _(error.cause).wont_be_nil
     end
   end
 

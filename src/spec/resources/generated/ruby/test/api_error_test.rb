@@ -59,14 +59,22 @@ describe PetstoreClient::ApiError do
     _(err).must_be_kind_of(PetstoreClient::OpenAPIError)
   end
 
-  it 'roots SerializationError at the branded base' do
-    err = PetstoreClient::SerializationError.new('boom')
+  it 'chains NetworkTimeoutError up through NetworkError and ApiError with status 0' do
+    err = PetstoreClient::Errors::NetworkTimeoutError.new(message: 'timed out')
 
+    _(err).must_be_kind_of(PetstoreClient::Errors::NetworkError)
+    _(err).must_be_kind_of(PetstoreClient::ApiError)
     _(err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(err.status_code).must_equal(0)
+    _(PetstoreClient::Errors::NetworkError.new(message: 'refused').status_code).must_equal(0)
   end
 
-  it 'roots SchemaMismatchError at the branded base' do
-    err = PetstoreClient::SchemaMismatchError.new('no variant matched')
+  it 'defaults status_code to 0 when no HTTP response was received' do
+    _(PetstoreClient::ApiError.new('connection reset').status_code).must_equal(0)
+  end
+
+  it 'roots SerializationError at the branded base' do
+    err = PetstoreClient::SerializationError.new('boom')
 
     _(err).must_be_kind_of(PetstoreClient::OpenAPIError)
   end
@@ -75,10 +83,10 @@ describe PetstoreClient::ApiError do
     token_err = PetstoreClient::Auth::OAuth::OAuth2TokenError.new('missing access_token')
     server_err = PetstoreClient::Auth::OAuth::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
 
-    _(token_err).must_be_kind_of(PetstoreClient::ApiError)
     _(token_err).must_be_kind_of(PetstoreClient::OpenAPIError)
-    _(server_err).must_be_kind_of(PetstoreClient::ApiError)
+    _(token_err).wont_be_kind_of(PetstoreClient::ApiError)
     _(server_err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(server_err).wont_be_kind_of(PetstoreClient::ApiError)
   end
 
   it 'typed_error_body deserializes the body into the typed model' do
