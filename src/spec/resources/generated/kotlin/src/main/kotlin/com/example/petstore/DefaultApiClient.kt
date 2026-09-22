@@ -9,8 +9,10 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.NetworkException
 import com.example.petstore.errors.NetworkTimeoutException
+import com.example.petstore.errors.OpenAPIException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
@@ -135,7 +137,7 @@ class DefaultApiClient internal constructor(
             mergedHeaders["X-Request-ID"] = generateRequestId()
         }
         if ("Accept-Encoding" !in mergedHeaders) {
-            mergedHeaders["Accept-Encoding"] = "gzip, deflate"
+            mergedHeaders["Accept-Encoding"] = "gzip, deflate, br, zstd"
         }
         if (proxyAuthHeader != null) {
             mergedHeaders["Proxy-Authorization"] = proxyAuthHeader
@@ -517,6 +519,14 @@ internal fun decodeContentEncoding(
         "deflate" ->
             java.util.zip
                 .InflaterInputStream(data.inputStream())
+                .use { it.readBytes() }
+        "br" ->
+            org.brotli.dec
+                .BrotliInputStream(data.inputStream())
+                .use { it.readBytes() }
+        "zstd" ->
+            com.github.luben.zstd
+                .ZstdInputStream(data.inputStream())
                 .use { it.readBytes() }
         else -> data
     }

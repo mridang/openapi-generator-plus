@@ -3,6 +3,7 @@
 
 package {{invokerPackage}}
 
+import {{invokerPackage}}.errors.ApiException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.ktor.client.HttpClient
@@ -15,7 +16,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -355,17 +355,10 @@ class DefaultApiClientTest {
 
         /**
          * T-new-3: multipart bodies must be replayed across 307 redirects per
-         * RFC 7231 §6.4.7 / RFC 7538. Ktor's HttpClient strips the body when
-         * following a 307 redirect, so this regression is not exercisable here
-         * without a manual multipart byte-serializer in the redirect loop
-         * (see the Rust SDK for the canonical implementation). Tracked as a
-         * follow-up to T-new-3.
+         * RFC 7231 §6.4.7 / RFC 7538. The client follows redirects itself and
+         * rebuilds the multipart body for every hop.
          */
         @Test
-        @Disabled(
-            "Ktor strips body on 307; multipart replay requires manual " +
-                "byte-serializer like Rust impl — tracked as follow-up to T-new-3"
-        )
         @DisplayName("307 replays multipart body to redirected location (T-new-3)")
         fun multipart_body_replayed_on_307_redirect() {
             val chasmUrl = ChasmContainer.getBaseUrl()
@@ -706,38 +699,36 @@ class DefaultApiClientTest {
     @DisplayName("HTTP compression")
     inner class HttpCompression {
 
-        private val compressionUrl = "https://jsonplaceholder.typicode.com/posts/1"
+        private fun compressionUrl(encoding: String) = "${ChasmContainer.getBaseUrl()}/test/compressed/$encoding"
 
         @Test
         @DisplayName("decompresses gzip response")
         fun decompressesGzipResponse() {
             val client = DefaultApiClient()
             val response = runBlocking {
-                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "gzip"), null)
+                client.sendRequest("GET", compressionUrl("gzip"), mapOf("Accept-Encoding" to "gzip"), null)
             }
             assertEquals(200, response.statusCode)
             assertTrue(response.body.contains("userId"))
         }
 
         @Test
-        @Disabled("brotli decompression is not natively supported by the Ktor ContentEncoding plugin on JVM")
         @DisplayName("decompresses brotli response")
         fun decompressesBrotliResponse() {
             val client = DefaultApiClient()
             val response = runBlocking {
-                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "br"), null)
+                client.sendRequest("GET", compressionUrl("br"), mapOf("Accept-Encoding" to "br"), null)
             }
             assertEquals(200, response.statusCode)
             assertTrue(response.body.contains("userId"))
         }
 
         @Test
-        @Disabled("zstd decompression is not natively supported by the Ktor ContentEncoding plugin on JVM")
         @DisplayName("decompresses zstd response")
         fun decompressesZstdResponse() {
             val client = DefaultApiClient()
             val response = runBlocking {
-                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "zstd"), null)
+                client.sendRequest("GET", compressionUrl("zstd"), mapOf("Accept-Encoding" to "zstd"), null)
             }
             assertEquals(200, response.statusCode)
             assertTrue(response.body.contains("userId"))

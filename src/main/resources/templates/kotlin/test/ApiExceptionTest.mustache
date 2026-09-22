@@ -3,6 +3,9 @@
 
 package {{invokerPackage}}
 
+import {{invokerPackage}}.errors.ApiException
+import {{invokerPackage}}.errors.SerializationException
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.BadRequestException
 import {{invokerPackage}}.errors.ClientException
 import org.junit.jupiter.api.Test
@@ -139,5 +142,71 @@ class ApiExceptionTest {
         )
 
         assertNull(ex.getTypedErrorBody({{modelPackage}}.Category::class.java))
+    }
+
+    @Test
+    fun fromResponseMapsEveryStatusToItsException() {
+        val expected =
+            mapOf(
+                400 to {{invokerPackage}}.errors.BadRequestException::class.java,
+                401 to {{invokerPackage}}.errors.UnauthorizedException::class.java,
+                403 to {{invokerPackage}}.errors.ForbiddenException::class.java,
+                404 to {{invokerPackage}}.errors.NotFoundException::class.java,
+                409 to {{invokerPackage}}.errors.ConflictException::class.java,
+                422 to {{invokerPackage}}.errors.UnprocessableEntityException::class.java,
+                418 to {{invokerPackage}}.errors.ClientException::class.java,
+                500 to {{invokerPackage}}.errors.InternalServerErrorException::class.java,
+                503 to {{invokerPackage}}.errors.ServerException::class.java,
+                302 to ApiException::class.java,
+            )
+        for ((status, type) in expected) {
+            val ex = ApiException.fromResponse(status, mapOf("x-request-id" to "abc"), "{\"code\":\"denied\"}")
+
+            assertEquals(type, ex.javaClass)
+            assertEquals(status, ex.statusCode)
+            assertEquals("abc", ex.responseHeaders?.get("x-request-id"))
+            assertEquals("{\"code\":\"denied\"}", ex.responseBody)
+            assertEquals(
+                kotlinx.serialization.json.Json.parseToJsonElement("{\"code\":\"denied\"}"),
+                ex.errorBody,
+            )
+        }
+    }
+
+    @Test
+    fun fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
+        val ex = ApiException.fromResponse(502, emptyMap(), "<html>bad gateway</html>")
+
+        assertEquals({{invokerPackage}}.errors.ServerException::class.java, ex.javaClass)
+        assertEquals("<html>bad gateway</html>", ex.responseBody)
+        assertNull(ex.errorBody)
+    }
+
+    @Test
+    fun everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+        val errors =
+            listOf(
+                {{errorPrefix}}Exception::class.java,
+                ApiException::class.java,
+                {{invokerPackage}}.errors.ClientException::class.java,
+                {{invokerPackage}}.errors.ServerException::class.java,
+                {{invokerPackage}}.errors.BadRequestException::class.java,
+                {{invokerPackage}}.errors.UnauthorizedException::class.java,
+                {{invokerPackage}}.errors.ForbiddenException::class.java,
+                {{invokerPackage}}.errors.NotFoundException::class.java,
+                {{invokerPackage}}.errors.ConflictException::class.java,
+                {{invokerPackage}}.errors.UnprocessableEntityException::class.java,
+                {{invokerPackage}}.errors.InternalServerErrorException::class.java,
+                {{invokerPackage}}.errors.NetworkException::class.java,
+                {{invokerPackage}}.errors.NetworkTimeoutException::class.java,
+                SerializationException::class.java,
+                {{invokerPackage}}.errors.OAuth2ServerException::class.java,
+                {{invokerPackage}}.errors.OAuth2TokenException::class.java,
+            )
+        for (error in errors) {
+            assertEquals("{{invokerPackage}}.errors", error.packageName, error.name)
+            assertNull(error.enclosingClass, error.name)
+            assertTrue({{errorPrefix}}Exception::class.java.isAssignableFrom(error), error.name)
+        }
     }
 }

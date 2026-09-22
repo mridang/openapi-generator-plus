@@ -10,7 +10,6 @@
 package com.example.petstore.api
 
 import com.example.petstore.ApiClient
-import com.example.petstore.ApiException
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
@@ -18,6 +17,7 @@ import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.api.options.GetStockItemOptions
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
+import com.example.petstore.errors.ApiException
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department

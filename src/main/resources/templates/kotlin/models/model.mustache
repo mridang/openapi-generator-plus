@@ -7,6 +7,7 @@
 package {{modelPackage}}
 
 {{#imports}}
+import {{invokerPackage}}.errors.SerializationException
 import {{import}}
 {{/imports}}
 import {{invokerPackage}}.Base64ByteArraySerializer
@@ -791,10 +792,10 @@ class {{classname}}(
       }
       try {
         return strict.decodeFromString(serializer(), raw)
-      } catch (e: {{invokerPackage}}.{{errorPrefix}}Exception) {
+      } catch (e: {{invokerPackage}}.errors.{{errorPrefix}}Exception) {
         throw e
       } catch (e: IllegalArgumentException) {
-        throw {{invokerPackage}}.SerializationException(
+        throw {{invokerPackage}}.errors.SerializationException(
           "Unknown property on {{classname}} (unevaluatedProperties:false): " + e.message, e)
       }
     }

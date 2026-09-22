@@ -65,7 +65,8 @@ val client = Client(authenticator)
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator
 
 val authenticator = OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", listOf())
 val client = Client(authenticator)
 ```
 
@@ -73,11 +74,14 @@ val client = Client(authenticator)
 
 ```kotlin
 import com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator
+import kotlinx.coroutines.runBlocking
 
 val authenticator = OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", listOf())
 val client = Client(authenticator)
+runBlocking { authenticator.exchangeCode("authorization-code") }
 ```
 
 ### OAuth2 Password
@@ -87,7 +91,7 @@ import com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator
 
 val authenticator = OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password")
+    "https://auth.example.com/token", null, "username", "password", listOf())
 val client = Client(authenticator)
 ```
 
@@ -98,7 +102,9 @@ The implicit flow obtains the access token out of band (typically in the browser
 ```kotlin
 import com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator
 
-val authenticator = OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token")
+val authenticator = OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", listOf())
+authenticator.setAccessToken("your-access-token")
 val client = Client(authenticator)
 ```
 
@@ -106,11 +112,13 @@ val client = Client(authenticator)
 
 ```kotlin
 import com.example.petstore.auth.oauth.OpenIdConnectAuthenticator
+import kotlinx.coroutines.runBlocking
 
 val authenticator = OpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration")
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", listOf())
 val client = Client(authenticator)
+runBlocking { authenticator.exchangeCode("authorization-code") }
 ```
 
 ### OAuth2 token lifecycle
@@ -142,7 +150,7 @@ import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator
 
 val authenticator = OAuth2ClientCredentialsAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token",
+    "https://auth.example.com/token", listOf(),
     clientAuthMethod = ClientAuthMethod.BASIC)
 ```
 
@@ -161,6 +169,8 @@ val client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token")
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```kotlin
+import com.example.petstore.auth.Authenticator
+
 val fake = object : Authenticator {
     override fun getHost() = "https://api.example.com"
     override suspend fun getAuthHeaders() = mapOf("Authorization" to "Bearer test-token")
@@ -187,14 +197,14 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```kotlin
-import com.example.petstore.ApiException
+import com.example.petstore.Client
 import com.example.petstore.errors.*
-import kotlinx.coroutines.runBlocking
+import com.example.petstore.models.Pet
 
 // Operations are suspend functions, so they must be called from a coroutine.
-runBlocking {
+suspend fun addPetOrReport(client: Client, pet: Pet) {
     try {
-        val result = client.pet.addPet(/* parameters */)
+        client.pet.addPet(pet)
     } catch (e: NotFoundException) {
         println("Not found: ${e.message}")
     } catch (e: ClientException) {

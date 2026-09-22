@@ -9,6 +9,8 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.ApiException
+import com.example.petstore.errors.OpenAPIException
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond

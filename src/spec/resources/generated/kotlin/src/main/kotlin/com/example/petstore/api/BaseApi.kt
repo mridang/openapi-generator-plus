@@ -10,7 +10,6 @@
 package com.example.petstore.api
 
 import com.example.petstore.ApiClient
-import com.example.petstore.ApiException
 import com.example.petstore.ApiHttpResponse
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
@@ -18,9 +17,9 @@ import com.example.petstore.DefaultApiClient
 import com.example.petstore.HeaderSelector
 import com.example.petstore.ObjectSerializer
 import com.example.petstore.TraceContextUtil
-import com.example.petstore.apiExceptionForStatus
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
+import com.example.petstore.errors.ApiException
 import io.ktor.http.encodeURLQueryComponent
 
 /**
@@ -250,7 +249,7 @@ abstract class BaseApi {
         val response = apiClient.sendRequest(method, url, headers, requestBody)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throwApiException(response)
+            throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
         }
 
         return response
@@ -330,35 +329,6 @@ abstract class BaseApi {
                 null
             }
         return ApiResult(response.statusCode, data, response.body, response.headers)
-    }
-
-    /**
-     * Throw the appropriate exception subclass for the given error response.
-     *
-     * Attempts to deserialize the response body as JSON so that structured
-     * error data is available via [ApiException.errorBody].
-     *
-     * @param response the API response with a non-2xx status code
-     * @throws ApiException always
-     */
-    private fun throwApiException(response: ApiHttpResponse): Nothing {
-        val code = response.statusCode
-        val message = "API returned status code $code"
-        val body = response.body
-        val headers = response.headers
-
-        val errorBody: Any? =
-            if (body.isNotEmpty()) {
-                try {
-                    objectSerializer.parseToJsonElement(body)
-                } catch (_: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-
-        throw apiExceptionForStatus(code, message, headers, body, errorBody)
     }
 
     /**

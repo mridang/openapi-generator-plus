@@ -12,6 +12,7 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
+import com.example.petstore.errors.SerializationException
 import com.example.petstore.models.DryFood
 import com.example.petstore.models.WetFood
 import kotlinx.serialization.Contextual

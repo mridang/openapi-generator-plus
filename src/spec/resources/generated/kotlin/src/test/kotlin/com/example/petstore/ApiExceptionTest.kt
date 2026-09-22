@@ -9,8 +9,11 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.BadRequestException
 import com.example.petstore.errors.ClientException
+import com.example.petstore.errors.OpenAPIException
+import com.example.petstore.errors.SerializationException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -157,5 +160,72 @@ class ApiExceptionTest {
             )
 
         assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category::class.java))
+    }
+
+    @Test
+    fun fromResponseMapsEveryStatusToItsException() {
+        val expected =
+            mapOf(
+                400 to com.example.petstore.errors.BadRequestException::class.java,
+                401 to com.example.petstore.errors.UnauthorizedException::class.java,
+                403 to com.example.petstore.errors.ForbiddenException::class.java,
+                404 to com.example.petstore.errors.NotFoundException::class.java,
+                409 to com.example.petstore.errors.ConflictException::class.java,
+                422 to com.example.petstore.errors.UnprocessableEntityException::class.java,
+                418 to com.example.petstore.errors.ClientException::class.java,
+                500 to com.example.petstore.errors.InternalServerErrorException::class.java,
+                503 to com.example.petstore.errors.ServerException::class.java,
+                302 to ApiException::class.java,
+            )
+        for ((status, type) in expected) {
+            val ex = ApiException.fromResponse(status, mapOf("x-request-id" to "abc"), "{\"code\":\"denied\"}")
+
+            assertEquals(type, ex.javaClass)
+            assertEquals(status, ex.statusCode)
+            assertEquals("abc", ex.responseHeaders?.get("x-request-id"))
+            assertEquals("{\"code\":\"denied\"}", ex.responseBody)
+            assertEquals(
+                kotlinx.serialization.json.Json
+                    .parseToJsonElement("{\"code\":\"denied\"}"),
+                ex.errorBody,
+            )
+        }
+    }
+
+    @Test
+    fun fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
+        val ex = ApiException.fromResponse(502, emptyMap(), "<html>bad gateway</html>")
+
+        assertEquals(com.example.petstore.errors.ServerException::class.java, ex.javaClass)
+        assertEquals("<html>bad gateway</html>", ex.responseBody)
+        assertNull(ex.errorBody)
+    }
+
+    @Test
+    fun everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+        val errors =
+            listOf(
+                OpenAPIException::class.java,
+                ApiException::class.java,
+                com.example.petstore.errors.ClientException::class.java,
+                com.example.petstore.errors.ServerException::class.java,
+                com.example.petstore.errors.BadRequestException::class.java,
+                com.example.petstore.errors.UnauthorizedException::class.java,
+                com.example.petstore.errors.ForbiddenException::class.java,
+                com.example.petstore.errors.NotFoundException::class.java,
+                com.example.petstore.errors.ConflictException::class.java,
+                com.example.petstore.errors.UnprocessableEntityException::class.java,
+                com.example.petstore.errors.InternalServerErrorException::class.java,
+                com.example.petstore.errors.NetworkException::class.java,
+                com.example.petstore.errors.NetworkTimeoutException::class.java,
+                SerializationException::class.java,
+                com.example.petstore.errors.OAuth2ServerException::class.java,
+                com.example.petstore.errors.OAuth2TokenException::class.java,
+            )
+        for (error in errors) {
+            assertEquals("com.example.petstore.errors", error.packageName, error.name)
+            assertNull(error.enclosingClass, error.name)
+            assertTrue(OpenAPIException::class.java.isAssignableFrom(error), error.name)
+        }
     }
 }

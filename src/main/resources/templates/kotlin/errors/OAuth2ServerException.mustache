@@ -1,0 +1,29 @@
+{{>api_info}}
+@file:Suppress("detekt:all")
+
+package {{invokerPackage}}.errors
+
+/**
+ * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+ * [code] field carries the OAuth2 error code (e.g. `invalid_grant`,
+ * `invalid_client`); [description] and [uri] are the optional human-readable
+ * description and a URL to a page describing the error. [rawBody] preserves
+ * the original response payload for diagnostics when the body is not a
+ * well-formed OAuth2 error object.
+ */
+class OAuth2ServerException(
+    val statusCode: Int,
+    val code: String?,
+    val description: String?,
+    val uri: String?,
+    val rawBody: String,
+) : {{errorPrefix}}Exception(buildMessage(statusCode, code, description, rawBody)) {
+    private companion object {
+        fun buildMessage(statusCode: Int, code: String?, description: String?, rawBody: String): String =
+            when {
+                code == null -> "Token request failed with status $statusCode: $rawBody"
+                description != null -> "Token request failed with status $statusCode: $code — $description"
+                else -> "Token request failed with status $statusCode: $code"
+            }
+    }
+}

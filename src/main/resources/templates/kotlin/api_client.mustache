@@ -3,6 +3,8 @@
 
 package {{invokerPackage}}
 
+import {{invokerPackage}}.errors.ApiException
+
 /**
  * Interface for API HTTP transport. Extends [AutoCloseable] so callers can
  * use try-with-resources / Kotlin's `use { }` to release the underlying

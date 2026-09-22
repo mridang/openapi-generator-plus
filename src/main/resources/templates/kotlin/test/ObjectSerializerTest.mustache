@@ -5,8 +5,9 @@
 
 package {{invokerPackage}}
 
+import {{invokerPackage}}.errors.SerializationException
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
@@ -137,7 +138,7 @@ class ObjectSerializerTest {
         @DisplayName("truncated JSON throws SerializationException not raw parse error")
         fun truncatedJsonThrowsSerializationException() {
             // Fully qualified: the SDK type, never kotlinx's SerializationException.
-            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Category>("{")
             }
             assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
@@ -151,7 +152,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("type mismatch JSON throws SerializationException")
         fun typeMismatchThrowsSerializationException() {
-            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Category>("{\"id\":\"not-a-number\",\"name\":123}")
             }
             assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
@@ -160,7 +161,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("unknown enum value throws SerializationException")
         fun unknownEnumValueThrowsSerializationException() {
-            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}")
             }
             assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
@@ -169,7 +170,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("missing required field throws SerializationException")
         fun missingRequiredFieldThrowsSerializationException() {
-            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Pet>("{\"id\":1}")
             }
             assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
@@ -178,7 +179,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("malformed date-time throws SerializationException")
         fun malformedDateTimeThrowsSerializationException() {
-            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Order>("{\"shipDate\":\"not-a-date\"}")
             }
             assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
@@ -838,7 +839,7 @@ class ObjectSerializerTest {
                 { _ -> throw IllegalStateException("variant A does not match") },
                 { _ -> throw IllegalStateException("variant B does not match") },
             )
-            assertThrows({{invokerPackage}}.SerializationException::class.java) {
+            assertThrows({{invokerPackage}}.errors.SerializationException::class.java) {
                 serializer.resolveOneOf("{\"unexpected\":true}", candidates)
             }
         }
@@ -860,7 +861,7 @@ class ObjectSerializerTest {
             val candidates: List<(String) -> Any?> = listOf(
                 { _ -> null },
             )
-            assertThrows({{invokerPackage}}.SerializationException::class.java) {
+            assertThrows({{invokerPackage}}.errors.SerializationException::class.java) {
                 serializer.resolveAnyOf("{}", candidates)
             }
         }
@@ -871,19 +872,13 @@ class ObjectSerializerTest {
     inner class DiscriminatorDeserializationTests {
 
         @Test
-        @Disabled(
-            "Feature gap: the Kotlin SDK generates PetFood as a plain `abstract` " +
-                "class and its DryFood/WetFood subtypes as standalone @Serializable " +
-                "data classes that are NOT registered as polymorphic subclasses " +
-                "(no `: PetFood`, no class-level @SerialName, no SerializersModule). " +
-                "kotlinx.serialization therefore cannot route a discriminator-tagged " +
-                "payload to the concrete subtype on deserialize, unlike Java/Go/Node."
-        )
         @DisplayName("deserializing the oneOf parent routes to the subtype by discriminator")
         fun deserializeParentRoutesToSubtype() {
             val json = "{\"foodType\":\"dry\",\"weightKg\":2.5}"
             val food = serializer.deserialize<{{modelPackage}}.PetFood>(json)
-            assertTrue(food is {{modelPackage}}.DryFood)
+            val variant = food?.actualInstance
+            assertTrue(variant is {{modelPackage}}.DryFood)
+            assertEquals(2.5, (variant as {{modelPackage}}.DryFood).weightKg)
         }
 
         @Test
@@ -1183,7 +1178,7 @@ class ObjectSerializerTest {
             // NumberFormatException may escape: both become the SDK's own
             // SerializationException, which a catch on the SDK root sees.
             for (wire in listOf("90", "1.5m", "99999999999999999999s")) {
-                val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
                     serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"$wire\"}")
                 }
                 assertTrue(ex is {{errorPrefix}}Exception, "must extend the SDK root, was: $ex")

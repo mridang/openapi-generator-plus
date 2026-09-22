@@ -7,7 +7,7 @@
 
 @file:Suppress("detekt:all")
 
-package com.example.petstore
+package com.example.petstore.errors
 
 /**
  * Branded root of the exception hierarchy raised by this SDK.

@@ -10,6 +10,7 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OpenIdConnectAuthenticator
+import com.example.petstore.errors.OpenAPIException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -206,7 +207,7 @@ class OpenIdConnectAuthenticatorTest {
         auth.setApiClient(client)
 
         val ex =
-            assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+            assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                 runBlocking { auth.buildAuthorizationUrl() }
             }
         assertInstanceOf(OpenAPIException::class.java, ex)
@@ -222,7 +223,7 @@ class OpenIdConnectAuthenticatorTest {
 
         // Missing authorization_endpoint must throw rather than build a
         // delegate with a null/empty endpoint URL.
-        assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+        assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }
@@ -235,7 +236,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+        assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }

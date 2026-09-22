@@ -9,6 +9,8 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.ApiException
+
 /**
  * Interface for API HTTP transport. Extends [AutoCloseable] so callers can
  * use try-with-resources / Kotlin's `use { }` to release the underlying

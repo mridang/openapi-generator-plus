@@ -3,9 +3,9 @@
 
 package {{invokerPackage}}.auth.oauth
 
+import {{invokerPackage}}.errors.ApiException
 import {{invokerPackage}}.ApiClient
-import {{invokerPackage}}.SerializationException
-import {{invokerPackage}}.apiExceptionForStatus
+import {{invokerPackage}}.errors.SerializationException
 import {{invokerPackage}}.auth.HttpAwareAuthenticator
 import java.time.Instant
 import kotlinx.serialization.json.Json
@@ -74,12 +74,7 @@ open class OpenIdConnectAuthenticator(
         val response = client.sendRequest("GET", discoveryUrl, headers, null)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw apiExceptionForStatus(
-                response.statusCode,
-                "OIDC discovery request to $discoveryUrl failed with HTTP status ${response.statusCode}",
-                response.headers,
-                response.body,
-            )
+            throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
         }
 
         val discovery = try {

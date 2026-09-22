@@ -10,9 +10,9 @@
 package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
-import com.example.petstore.SerializationException
-import com.example.petstore.apiExceptionForStatus
 import com.example.petstore.auth.HttpAwareAuthenticator
+import com.example.petstore.errors.ApiException
+import com.example.petstore.errors.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import java.time.Instant
@@ -80,12 +80,7 @@ open class OpenIdConnectAuthenticator(
         val response = client.sendRequest("GET", discoveryUrl, headers, null)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw apiExceptionForStatus(
-                response.statusCode,
-                "OIDC discovery request to $discoveryUrl failed with HTTP status ${response.statusCode}",
-                response.headers,
-                response.body,
-            )
+            throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
         }
 
         val discovery =

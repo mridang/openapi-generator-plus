@@ -10,6 +10,7 @@
 package com.example.petstore.api
 
 import com.example.petstore.*
+import com.example.petstore.errors.ApiException
 import com.example.petstore.models.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine

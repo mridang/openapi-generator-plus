@@ -42,10 +42,10 @@ data class StrictTag(
                 }
             try {
                 return strict.decodeFromString(serializer(), raw)
-            } catch (e: com.example.petstore.OpenAPIException) {
+            } catch (e: com.example.petstore.errors.OpenAPIException) {
                 throw e
             } catch (e: IllegalArgumentException) {
-                throw com.example.petstore.SerializationException(
+                throw com.example.petstore.errors.SerializationException(
                     "Unknown property on StrictTag (unevaluatedProperties:false): " + e.message,
                     e,
                 )

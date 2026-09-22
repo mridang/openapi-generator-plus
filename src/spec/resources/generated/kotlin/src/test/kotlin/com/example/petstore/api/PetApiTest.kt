@@ -21,6 +21,8 @@ import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.auth.AdminBasicAuthenticator
 import com.example.petstore.auth.PetStoreBearerAuthenticator
+import com.example.petstore.errors.ApiException
+import com.example.petstore.errors.SerializationException
 import com.example.petstore.models.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -30,7 +32,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -342,12 +343,44 @@ class PetApiTest {
         }
 
         @Test
-        @Disabled("Per-operation server URL points to external host")
         @DisplayName("getExternalPetInfo uses per-operation server URL")
         fun testGetExternalPetInfo() {
-            val result = runBlocking { api.getExternalPetInfo(1L) }
+            // The operation declares its own server. The client below sends
+            // every request for that server to the mock server instead, and
+            // records the URL the SDK asked for, so the test proves the chosen
+            // per-operation server was used and still gets a real response.
+            val externalServer = "https://external-api.example.com/v1"
+            val requestedUrls = mutableListOf<String>()
+            val transport = DefaultApiClient()
+            val redirectingClient =
+                object : ApiClient {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse {
+                        requestedUrls.add(url)
+                        return transport.sendRequest(
+                            method,
+                            url.replace(externalServer, getBaseUrl()),
+                            headers,
+                            body,
+                            noRedirect,
+                        )
+                    }
+                }
+            val externalApi = PetApi(redirectingClient, sharedConfig)
+
+            val result =
+                runBlocking {
+                    externalApi.getExternalPetInfo(1L, PetApi.GetExternalPetInfoServer.Server0)
+                }
 
             assertNotNull(result)
+            assertEquals(1, requestedUrls.size)
+            assertTrue(requestedUrls[0].startsWith("$externalServer/"))
         }
     }
 
@@ -1064,7 +1097,7 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            assertThrows(com.example.petstore.SerializationException::class.java) {
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
                 runBlocking { api.getPetById(1L) }
             }
         }
@@ -1120,7 +1153,7 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            assertThrows(com.example.petstore.SerializationException::class.java) {
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
                 runBlocking { api.getPetById(1L) }
             }
         }

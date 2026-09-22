@@ -70,6 +70,8 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.0")
+                implementation("org.brotli:dec:0.1.2")
+                implementation("com.github.luben:zstd-jni:1.5.6-4")
             }
         }
         val jvmMain by getting {
@@ -86,6 +88,8 @@ kotlin {
                 implementation("io.ktor:ktor-client-mock:3.5.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
                 implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
+                implementation("io.opentelemetry:opentelemetry-sdk:1.62.0")
+                implementation("io.opentelemetry:opentelemetry-sdk-testing:1.62.0")
                 implementation("org.testcontainers:testcontainers:1.21.4")
             }
         }
@@ -100,7 +104,7 @@ detekt {
     buildUponDefaultConfig = true
     allRules = false
     autoCorrect = false
-    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin"))
+    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin"))
     config.setFrom(files("detekt.yml"))
 }
 
@@ -143,6 +147,36 @@ tasks.named<Test>("jvmTest") {
     // the host build.
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
     reports.junitXml.outputLocation.set(file(".out/reports"))
+    // The suite talks to live containers, so a result restored from the
+    // build cache would report tests that never ran in this build.
+    outputs.cacheIf { false }
+    outputs.upToDateWhen { false }
+    // Print the runner's own totals so they can be checked against the
+    // JUnit XML reports.
+    addTestListener(
+        object : TestListener {
+            override fun beforeSuite(suite: TestDescriptor) {}
+
+            override fun beforeTest(testDescriptor: TestDescriptor) {}
+
+            override fun afterTest(
+                testDescriptor: TestDescriptor,
+                result: TestResult,
+            ) {}
+
+            override fun afterSuite(
+                suite: TestDescriptor,
+                result: TestResult,
+            ) {
+                if (suite.parent == null) {
+                    println(
+                        "Tests run: ${result.testCount}, Failures: ${result.failedTestCount}, " +
+                            "Skipped: ${result.skippedTestCount}",
+                    )
+                }
+            }
+        },
+    )
     // Pass Docker env vars to the forked test JVM for DinD support
     listOf(
         "DOCKER_HOST",

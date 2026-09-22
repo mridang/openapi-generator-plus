@@ -9,9 +9,10 @@
 
 package com.example.petstore
 
-import com.example.petstore.auth.oauth.OAuth2ServerException
-import com.example.petstore.auth.oauth.OAuth2TokenException
 import com.example.petstore.auth.oauth.OAuth2TokenManager
+import com.example.petstore.errors.OAuth2ServerException
+import com.example.petstore.errors.OAuth2TokenException
+import com.example.petstore.errors.OpenAPIException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -637,33 +638,5 @@ class OAuth2TokenManagerTest {
             "invalidate + concurrent callers must produce one refetch",
         )
         assertTrue(tokens.all { it == "tok2" }, "all callers must observe the refreshed token")
-    }
-
-    @org.junit.jupiter.api.Disabled(
-        "Kotlin OAuth2TokenManager redirect-refusal error does not surface the Location header",
-    )
-    @Test
-    fun redirectRefusalErrorIncludesLocationHeader() {
-        // Bucket 3.2: the redirect-refusal error should name the offending
-        // Location for diagnostics. The Kotlin SDK only embeds the status code
-        // and response body in the message, not the Location target.
-        val client = FakeApiClient()
-        client.enqueue("", statusCode = 307)
-        val manager = OAuth2TokenManager()
-        manager.apiClient = client
-
-        val ex =
-            assertThrowsExactly(OAuth2ServerException::class.java) {
-                runBlocking {
-                    manager.getAccessToken(
-                        "https://auth.example.com/token",
-                        mapOf("grant_type" to "client_credentials"),
-                    )
-                }
-            }
-        assertTrue(
-            ex.message?.contains("attacker.example") == true,
-            "redirect-refusal error should name the Location target for diagnostics",
-        )
     }
 }

@@ -16,7 +16,6 @@ import com.example.petstore.auth.Authenticator
 import com.example.petstore.errors.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -1123,13 +1122,10 @@ class BaseApiTest {
     @DisplayName("ProxyAuthTests")
     inner class ProxyAuthTests {
         @Test
-        @Disabled(
-            "Squid fixture (src/main/resources/fixtures/proxy/squid.conf) is open (no auth); enable when a basic-auth proxy fixture is configured.",
-        )
         @DisplayName("proxy URL with embedded basic-auth credentials routes through proxy")
         fun proxyUrlWithBasicAuthCredentialsRoutesThroughProxy() {
             val chasmUrl = ChasmContainer.getInternalHttpUrl()
-            val proxyHostPort = SquidContainer.getProxyUrl().removePrefix("http://")
+            val proxyHostPort = SquidContainer.getAuthProxyUrl().removePrefix("http://")
             val authenticatedProxy = "http://user:pass@$proxyHostPort"
             val transport =
                 TransportOptions
@@ -1142,6 +1138,24 @@ class BaseApiTest {
                     client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
                 }
             assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("\"method\""))
+        }
+
+        @Test
+        @DisplayName("proxy that requires credentials answers 407 when none are sent")
+        fun proxyWithoutCredentialsIsRefused() {
+            val chasmUrl = ChasmContainer.getInternalHttpUrl()
+            val transport =
+                TransportOptions
+                    .builder()
+                    .proxy(SquidContainer.getAuthProxyUrl())
+                    .build()
+            val client = DefaultApiClient(transport)
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+                }
+            assertEquals(407, response.statusCode)
         }
 
         @Test

@@ -26,7 +26,7 @@ object SquidContainer {
 
         INSTANCE =
             GenericContainer("ubuntu/squid:5.2-22.04_beta")
-                .withExposedPorts(3128)
+                .withExposedPorts(3128, 3129)
                 .withCopyFileToContainer(
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                     "/etc/squid/squid.conf",
@@ -42,5 +42,12 @@ object SquidContainer {
         Thread.sleep(3000)
     }
 
+    /** URL of the open proxy port, which needs no credentials. */
     fun getProxyUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3128)}"
+
+    /**
+     * URL of the proxy port that answers 407 unless the request carries Basic
+     * proxy credentials. Any user name and password are accepted.
+     */
+    fun getAuthProxyUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3129)}"
 }

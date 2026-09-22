@@ -11,11 +11,12 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.OpenAPIException
+import com.example.petstore.errors.SerializationException
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -142,7 +143,7 @@ class ObjectSerializerTest {
         fun truncatedJsonThrowsSerializationException() {
             // Fully qualified: the SDK type, never kotlinx's SerializationException.
             val ex =
-                assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                     serializer.deserialize<com.example.petstore.models.Category>("{")
                 }
             assertInstanceOf(OpenAPIException::class.java, ex)
@@ -157,7 +158,7 @@ class ObjectSerializerTest {
         @DisplayName("type mismatch JSON throws SerializationException")
         fun typeMismatchThrowsSerializationException() {
             val ex =
-                assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                     serializer.deserialize<com.example.petstore.models.Category>("{\"id\":\"not-a-number\",\"name\":123}")
                 }
             assertInstanceOf(OpenAPIException::class.java, ex)
@@ -167,7 +168,7 @@ class ObjectSerializerTest {
         @DisplayName("unknown enum value throws SerializationException")
         fun unknownEnumValueThrowsSerializationException() {
             val ex =
-                assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                     serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}")
                 }
             assertInstanceOf(OpenAPIException::class.java, ex)
@@ -177,7 +178,7 @@ class ObjectSerializerTest {
         @DisplayName("missing required field throws SerializationException")
         fun missingRequiredFieldThrowsSerializationException() {
             val ex =
-                assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                     serializer.deserialize<com.example.petstore.models.Pet>("{\"id\":1}")
                 }
             assertInstanceOf(OpenAPIException::class.java, ex)
@@ -187,7 +188,7 @@ class ObjectSerializerTest {
         @DisplayName("malformed date-time throws SerializationException")
         fun malformedDateTimeThrowsSerializationException() {
             val ex =
-                assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                     serializer.deserialize<com.example.petstore.models.Order>("{\"shipDate\":\"not-a-date\"}")
                 }
             assertInstanceOf(OpenAPIException::class.java, ex)
@@ -857,7 +858,7 @@ class ObjectSerializerTest {
                     { _ -> throw IllegalStateException("variant A does not match") },
                     { _ -> throw IllegalStateException("variant B does not match") },
                 )
-            assertThrows(com.example.petstore.SerializationException::class.java) {
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
                 serializer.resolveOneOf("{\"unexpected\":true}", candidates)
             }
         }
@@ -881,7 +882,7 @@ class ObjectSerializerTest {
                 listOf(
                     { _ -> null },
                 )
-            assertThrows(com.example.petstore.SerializationException::class.java) {
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
                 serializer.resolveAnyOf("{}", candidates)
             }
         }
@@ -891,19 +892,13 @@ class ObjectSerializerTest {
     @DisplayName("DiscriminatorDeserializationTests")
     inner class DiscriminatorDeserializationTests {
         @Test
-        @Disabled(
-            "Feature gap: the Kotlin SDK generates PetFood as a plain `abstract` " +
-                "class and its DryFood/WetFood subtypes as standalone @Serializable " +
-                "data classes that are NOT registered as polymorphic subclasses " +
-                "(no `: PetFood`, no class-level @SerialName, no SerializersModule). " +
-                "kotlinx.serialization therefore cannot route a discriminator-tagged " +
-                "payload to the concrete subtype on deserialize, unlike Java/Go/Node.",
-        )
         @DisplayName("deserializing the oneOf parent routes to the subtype by discriminator")
         fun deserializeParentRoutesToSubtype() {
             val json = "{\"foodType\":\"dry\",\"weightKg\":2.5}"
             val food = serializer.deserialize<com.example.petstore.models.PetFood>(json)
-            assertTrue(food is com.example.petstore.models.DryFood)
+            val variant = food?.actualInstance
+            assertTrue(variant is com.example.petstore.models.DryFood)
+            assertEquals(2.5, (variant as com.example.petstore.models.DryFood).weightKg)
         }
 
         @Test
@@ -1228,7 +1223,7 @@ class ObjectSerializerTest {
             // SerializationException, which a catch on the SDK root sees.
             for (wire in listOf("90", "1.5m", "99999999999999999999s")) {
                 val ex =
-                    assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+                    assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                         serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"retryAfter\":\"$wire\"}")
                     }
                 assertTrue(ex is OpenAPIException, "must extend the SDK root, was: $ex")

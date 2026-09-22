@@ -11,6 +11,8 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.OpenAPIException
+import com.example.petstore.errors.SerializationException
 import io.ktor.http.Url
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -864,21 +866,4 @@ internal class ObjectSerializer(
                 serializersModule = contextualSerializersModule
             }
     }
-}
-
-/**
- * Thrown for every encode or decode failure: malformed JSON, a wrong primitive
- * type, a missing or null required field, an unknown enum value, a malformed
- * date, UUID, URI or duration, or a oneOf/anyOf payload that matches no
- * declared variant. The underlying kotlinx-serialization or parsing exception,
- * when there is one, is kept as the cause.
- *
- * Declared at the top level (rather than nested inside [ObjectSerializer])
- * so it remains part of the public API even though [ObjectSerializer] itself
- * is internal transport machinery. Catchable by callers alongside the typed
- * [ApiException] hierarchy; both share the branded [OpenAPIException] root.
- */
-class SerializationException : OpenAPIException {
-    constructor(message: String, cause: Throwable) : super(message, cause)
-    constructor(message: String) : super(message)
 }

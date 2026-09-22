@@ -9,6 +9,7 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.OpenAPIException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

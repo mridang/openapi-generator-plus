@@ -275,8 +275,11 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
-            new SupportingFileSpec("root_exception.mustache", invokerFolder, rootErrorName("Exception") + ".kt"),
-            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.kt"),
+            new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".kt"),
+            new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.kt"),
+            new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.kt"),
+            new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.kt"),
+            new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.kt"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.kt"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.kt"),
             new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.kt"),
@@ -438,59 +441,71 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTest.mustache",
                             testModelsFolder,
                             "ComposedSchemaTest.kt"));
-            final String testBasicAuthFolder = Path.of(testFolder, "auth").toString();
-            final String testAuthFolder = Path.of(testFolder, "auth", "oauth").toString();
-            if (hasBasicAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/BasicAuthenticatorTest.mustache",
-                                testBasicAuthFolder,
-                                "BasicAuthenticatorTest.kt"));
-            }
-            if (hasBearerAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/BearerAuthenticatorTest.mustache",
-                                testBasicAuthFolder,
-                                "BearerAuthenticatorTest.kt"));
-            }
-            if (hasApiKeyAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/ApiKeyAuthenticatorTest.mustache",
-                                testBasicAuthFolder,
-                                "ApiKeyAuthenticatorTest.kt"));
-            }
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2TokenManagerTest.mustache",
-                            testAuthFolder,
-                            "OAuth2TokenManagerTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2AuthCodeAuthenticatorTest.mustache",
-                            testAuthFolder,
-                            "OAuth2AuthorizationCodeAuthenticatorTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2ImplicitAuthenticatorTest.mustache",
-                            testAuthFolder,
-                            "OAuth2ImplicitAuthenticatorTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
-                            testAuthFolder,
-                            "OAuth2ClientCredentialsAuthenticatorTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2PasswordAuthenticatorTest.mustache",
-                            testAuthFolder,
-                            "OAuth2PasswordAuthenticatorTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OpenIdConnectAuthenticatorTest.mustache",
-                            testAuthFolder,
-                            "OpenIdConnectAuthenticatorTest.kt"));
+        }
+    }
+
+    /**
+     * Registers the authenticator tests once the spec has been parsed. The
+     * scheme flags are only set by {@code detectSecuritySchemes}, which runs in
+     * {@code processOpenAPI} after {@code processOpts}; reading them in
+     * {@code processOpts} saw every flag as false and never emitted the
+     * Basic, Bearer and API-key tests.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (!generateTests) {
+            return;
+        }
+        final String testFolder =
+                Path.of("src", "test", "kotlin", invokerPackage.replace(".", "/")).toString();
+        final String testBasicAuthFolder = Path.of(testFolder, "auth").toString();
+        final String testAuthFolder = Path.of(testFolder, "auth", "oauth").toString();
+        if (hasBasicAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "test/BasicAuthenticatorTest.mustache", testBasicAuthFolder, "BasicAuthenticatorTest.kt"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "test/BearerAuthenticatorTest.mustache", testBasicAuthFolder, "BearerAuthenticatorTest.kt"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "test/ApiKeyAuthenticatorTest.mustache", testBasicAuthFolder, "ApiKeyAuthenticatorTest.kt"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile(
+                    "test/OAuth2TokenManagerTest.mustache", testAuthFolder, "OAuth2TokenManagerTest.kt"));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(new SupportingFile(
+                    "test/OAuth2AuthCodeAuthenticatorTest.mustache",
+                    testAuthFolder,
+                    "OAuth2AuthorizationCodeAuthenticatorTest.kt"));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(new SupportingFile(
+                    "test/OAuth2ImplicitAuthenticatorTest.mustache",
+                    testAuthFolder,
+                    "OAuth2ImplicitAuthenticatorTest.kt"));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(new SupportingFile(
+                    "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
+                    testAuthFolder,
+                    "OAuth2ClientCredentialsAuthenticatorTest.kt"));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(new SupportingFile(
+                    "test/OAuth2PasswordAuthenticatorTest.mustache",
+                    testAuthFolder,
+                    "OAuth2PasswordAuthenticatorTest.kt"));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile(
+                    "test/OpenIdConnectAuthenticatorTest.mustache",
+                    testAuthFolder,
+                    "OpenIdConnectAuthenticatorTest.kt"));
         }
     }
 

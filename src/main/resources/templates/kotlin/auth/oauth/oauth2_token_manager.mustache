@@ -3,9 +3,11 @@
 
 package {{invokerPackage}}.auth.oauth
 
+import {{invokerPackage}}.errors.OAuth2ServerException
+import {{invokerPackage}}.errors.OAuth2TokenException
 import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.ApiHttpResponse
-import {{invokerPackage}}.{{errorPrefix}}Exception
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -262,41 +264,5 @@ class OAuth2TokenManager {
             return 0L
         }
         return floor(asDouble).toLong()
-    }
-}
-
-/**
- * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
- * be used: a body that is not a JSON object, or one whose `access_token`
- * field is missing or empty. Distinct from [OAuth2ServerException] (which
- * represents any non-2xx answer) so callers can recover differently.
- */
-class OAuth2TokenException : {{errorPrefix}}Exception {
-    constructor(message: String) : super(message)
-    constructor(message: String, cause: Throwable) : super(message, cause)
-}
-
-/**
- * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
- * [code] field carries the OAuth2 error code (e.g. `invalid_grant`,
- * `invalid_client`); [description] and [uri] are the optional human-readable
- * description and a URL to a page describing the error. [rawBody] preserves
- * the original response payload for diagnostics when the body is not a
- * well-formed OAuth2 error object.
- */
-class OAuth2ServerException(
-    val statusCode: Int,
-    val code: String?,
-    val description: String?,
-    val uri: String?,
-    val rawBody: String,
-) : {{errorPrefix}}Exception(buildMessage(statusCode, code, description, rawBody)) {
-    private companion object {
-        fun buildMessage(statusCode: Int, code: String?, description: String?, rawBody: String): String =
-            when {
-                code == null -> "Token request failed with status $statusCode: $rawBody"
-                description != null -> "Token request failed with status $statusCode: $code — $description"
-                else -> "Token request failed with status $statusCode: $code"
-            }
     }
 }

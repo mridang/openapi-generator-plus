@@ -3,6 +3,8 @@
 
 package {{invokerPackage}}
 
+import {{invokerPackage}}.errors.ApiException
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -191,7 +193,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+        val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
         assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
@@ -207,7 +209,7 @@ class OpenIdConnectAuthenticatorTest {
 
         // Missing authorization_endpoint must throw rather than build a
         // delegate with a null/empty endpoint URL.
-        assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+        assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }
@@ -220,7 +222,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+        assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }

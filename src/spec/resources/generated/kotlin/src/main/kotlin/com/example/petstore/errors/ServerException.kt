@@ -9,8 +9,6 @@
 
 package com.example.petstore.errors
 
-import com.example.petstore.ApiException
-
 /**
  * Exception for HTTP 5xx server errors.
  */

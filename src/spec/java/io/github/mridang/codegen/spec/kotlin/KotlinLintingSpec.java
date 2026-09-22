@@ -14,11 +14,10 @@ public class KotlinLintingSpec extends AbstractIntegrationSpec implements Kotlin
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {
-            "gradle compileKotlinJvm 2>&1; GRADLE_EXIT=$?; "
-                + "if [ $GRADLE_EXIT -ne 0 ] && [ -d build/classes ]; "
-                + "then exit 0; fi; exit $GRADLE_EXIT"
-        };
+        // detekt over the main and test sources, using the generated
+        // detekt.yml. Its exit code is the result: no fallback that passes
+        // the spec when the task fails.
+        return new String[] {"gradle detekt --console=plain"};
     }
 
     @Test

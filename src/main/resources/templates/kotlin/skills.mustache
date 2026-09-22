@@ -70,7 +70,8 @@ val client = {{clientClassName}}(authenticator)
 import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator
 
 val authenticator = OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", listOf())
 val client = {{clientClassName}}(authenticator)
 ```
 
@@ -80,11 +81,14 @@ val client = {{clientClassName}}(authenticator)
 
 ```kotlin
 import {{invokerPackage}}.auth.oauth.OAuth2AuthorizationCodeAuthenticator
+import kotlinx.coroutines.runBlocking
 
 val authenticator = OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", listOf())
 val client = {{clientClassName}}(authenticator)
+runBlocking { authenticator.exchangeCode("authorization-code") }
 ```
 
 {{/hasOAuth2AuthorizationCode}}
@@ -96,7 +100,7 @@ import {{invokerPackage}}.auth.oauth.OAuth2PasswordAuthenticator
 
 val authenticator = OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password")
+    "https://auth.example.com/token", null, "username", "password", listOf())
 val client = {{clientClassName}}(authenticator)
 ```
 
@@ -109,7 +113,9 @@ The implicit flow obtains the access token out of band (typically in the browser
 ```kotlin
 import {{invokerPackage}}.auth.oauth.OAuth2ImplicitAuthenticator
 
-val authenticator = OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token")
+val authenticator = OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", listOf())
+authenticator.setAccessToken("your-access-token")
 val client = {{clientClassName}}(authenticator)
 ```
 
@@ -119,11 +125,13 @@ val client = {{clientClassName}}(authenticator)
 
 ```kotlin
 import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator
+import kotlinx.coroutines.runBlocking
 
 val authenticator = OpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration")
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", listOf())
 val client = {{clientClassName}}(authenticator)
+runBlocking { authenticator.exchangeCode("authorization-code") }
 ```
 
 {{/hasOpenIdConnect}}
@@ -157,7 +165,7 @@ import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator
 
 val authenticator = OAuth2ClientCredentialsAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token",
+    "https://auth.example.com/token", listOf(),
     clientAuthMethod = ClientAuthMethod.BASIC)
 ```
 
@@ -180,6 +188,8 @@ val client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), "your-toke
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```kotlin
+import {{invokerPackage}}.auth.Authenticator
+
 val fake = object : Authenticator {
     override fun getHost() = "https://api.example.com"
     override suspend fun getAuthHeaders() = mapOf("Authorization" to "Bearer test-token")
@@ -206,14 +216,15 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```kotlin
-import {{invokerPackage}}.ApiException
+import {{invokerPackage}}.{{clientClassName}}
 import {{invokerPackage}}.errors.*
-import kotlinx.coroutines.runBlocking
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}{{/bodyParam}}
 
 // Operations are suspend functions, so they must be called from a coroutine.
-runBlocking {
+suspend fun {{operationId}}OrReport(client: {{clientClassName}}{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{/bodyParam}}) {
     try {
-        val result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* parameters */)
+        client.{{clientPropertyName}}.{{operationId}}({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}})
     } catch (e: NotFoundException) {
         println("Not found: ${e.message}")
     } catch (e: ClientException) {
@@ -223,7 +234,7 @@ runBlocking {
     } catch (e: ApiException) {
         println("API error: ${e.message}")
     }
-}
+}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 ```
 
 ## Configuration

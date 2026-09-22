@@ -146,7 +146,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrowsExactly(com.example.petstore.auth.oauth.OAuth2ServerException::class.java) {
+        assertThrowsExactly(com.example.petstore.errors.OAuth2ServerException::class.java) {
             runBlocking { auth.getAuthHeaders() }
         }
     }

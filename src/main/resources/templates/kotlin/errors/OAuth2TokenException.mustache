@@ -1,0 +1,15 @@
+{{>api_info}}
+@file:Suppress("detekt:all")
+
+package {{invokerPackage}}.errors
+
+/**
+ * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
+ * be used: a body that is not a JSON object, or one whose `access_token`
+ * field is missing or empty. Distinct from [OAuth2ServerException] (which
+ * represents any non-2xx answer) so callers can recover differently.
+ */
+class OAuth2TokenException : {{errorPrefix}}Exception {
+    constructor(message: String) : super(message)
+    constructor(message: String, cause: Throwable) : super(message, cause)
+}
