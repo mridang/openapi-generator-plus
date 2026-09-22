@@ -184,7 +184,10 @@ final class SharedRuntimeContainer {
             container.execInContainer(
                 "sh", "-c", "chmod 666 /var/run/docker.sock 2>/dev/null || true");
 
-            container.execInContainer("sh", "-c", "cp -a /app /work");
+            /* .out holds the previous run's reports; dropping it from the
+             * working copy means every report under /work/.out comes from
+             * a command of this run. */
+            container.execInContainer("sh", "-c", "cp -a /app /work && rm -rf /work/.out");
 
             List<String> setupCommands = spec.getSetupCommands();
             for (String command : setupCommands) {
@@ -258,9 +261,15 @@ final class SharedRuntimeContainer {
       container.execInContainer(
           "sh",
           "-c",
+          /* Replace, never merge: a report left over from an earlier run
+           * would otherwise be counted as if this run had produced it. Only
+           * a command that wrote reports replaces them, so a lint spec that
+           * runs after the client spec leaves the client spec's reports. */
           "mkdir -p /app/.out/reports && "
               + "cp /work/.out/coverage.xml /app/.out/coverage.xml 2>/dev/null || true; "
-              + "cp /work/.out/reports/*.xml /app/.out/reports/ 2>/dev/null || true");
+              + "if ls /work/.out/reports/*.xml >/dev/null 2>&1; then "
+              + "rm -f /app/.out/reports/*.xml; "
+              + "cp /work/.out/reports/*.xml /app/.out/reports/; fi");
 
       container.execInContainer("sh", "-c", "chmod -R 777 /app/.out 2>/dev/null || true");
 
