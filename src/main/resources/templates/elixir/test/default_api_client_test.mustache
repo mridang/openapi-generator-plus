@@ -103,11 +103,8 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     transport = {{moduleName}}.TransportOptions.new(timeout: 1)
     client = {{moduleName}}.DefaultApiClient.new(transport)
 
-    try do
+    assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
       {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/slow", %{}, nil)
-      flunk("Expected a transport error but none was raised")
-    rescue
-      _ in [{{moduleName}}.ApiError, Req.TransportError, Finch.TransportError] -> :ok
     end
   end
 
@@ -596,12 +593,9 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
         )
         :no_raise
       rescue
-        e in {{moduleName}}.ApiError ->
-          assert e.message =~ "timeout" or e.message =~ "request exceeded total timeout"
-          :api_error
-
-        _ in [Req.TransportError, Finch.TransportError] ->
-          :transport_error
+        e in {{moduleName}}.Errors.NetworkTimeoutError ->
+          assert e.status_code == 0
+          :timeout
       end
 
     elapsed = System.monotonic_time(:millisecond) - started
@@ -611,7 +605,7 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
            "expected wall-clock timeout to fire well before the slow endpoint completes, " <>
              "got elapsed=#{elapsed}ms result=#{inspect(result)}"
 
-    refute result == :no_raise, "expected a timeout error to be raised"
+    assert result == :timeout, "expected a NetworkTimeoutError to be raised"
   end
 
   # Regression: POST/PUT/PATCH with body == nil must emit an explicit

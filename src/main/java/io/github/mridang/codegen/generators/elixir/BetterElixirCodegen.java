@@ -285,6 +285,8 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/conflict_error.mustache", errorsDir, "conflict_error.ex"),
             new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "unprocessable_entity_error.ex"),
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "internal_server_error.ex"),
+            new SupportingFileSpec("errors/network_error.mustache", errorsDir, "network_error.ex"),
+            new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "network_timeout_error.ex"),
             new SupportingFileSpec("root_error.mustache", libDir, errorPrefixSnake() + "_error.ex"),
             new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),
             new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),

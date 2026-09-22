@@ -62,8 +62,9 @@ defmodule PetstoreClient.Models.StrictTag do
 
   @doc """
   Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-  Decodes a JSON-decoded map into this struct, raising `ArgumentError` if any
-  key is not declared in `attribute_map/0`.
+  Decodes a JSON-decoded map into this struct, raising
+  `PetstoreClient.SerializationError` if any key is not declared in
+  `attribute_map/0`.
   """
   @spec from_map_strict(map()) :: t()
   def from_map_strict(data) when is_map(data) do
@@ -73,8 +74,8 @@ defmodule PetstoreClient.Models.StrictTag do
       key_str = to_string(key)
 
       unless MapSet.member?(declared, key_str) do
-        raise ArgumentError,
-              "Unknown property '#{key_str}' on StrictTag (unevaluatedProperties:false)"
+        raise PetstoreClient.SerializationError,
+          message: "Unknown property '#{key_str}' on StrictTag (unevaluatedProperties:false)"
       end
     end)
 

@@ -120,6 +120,22 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(caught)
     end
 
+    test "network and OAuth errors are recognised" do
+      for err <- [
+            {{moduleName}}.Errors.NetworkError.exception(message: "refused"),
+            {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out"),
+            %{{moduleName}}.Auth.OAuth.OAuth2TokenError{message: "no access_token"},
+            %{{moduleName}}.Auth.OAuth.OAuth2ServerError{status_code: 400, message: "invalid_grant"}
+          ] do
+        assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+      end
+    end
+
+    test "network errors carry status 0" do
+      assert {{moduleName}}.Errors.NetworkError.exception(message: "refused").status_code == 0
+      assert {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out").status_code == 0
+    end
+
     test "non-SDK exceptions are not recognised" do
       refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%RuntimeError{message: "unrelated"})
       refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%ArgumentError{message: "unrelated"})

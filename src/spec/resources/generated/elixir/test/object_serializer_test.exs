@@ -187,7 +187,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
-  describe "DeserializationErrorWrapping" do
+  describe "deserialize wraps decode failures" do
     test "truncated JSON raises SerializationError" do
       assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize("{", "Category")
@@ -426,8 +426,8 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "rejects non-string payload with ArgumentError" do
-      assert_raise ArgumentError, fn ->
+    test "rejects non-string payload with SerializationError" do
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(123, "ByteArray")
       end
     end
@@ -467,7 +467,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "rejects non-string payload" do
-      assert_raise ArgumentError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(42, "UUID")
       end
     end
@@ -871,12 +871,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
     # property MUST raise rather than wrap the raw map in a union container.
     # python/php wrap (silent contract violation); the other 10 (elixir among
     # them) throw. Canonical = throw. GREEN in elixir — PetFood.build raises
-    # ArgumentError ("Missing discriminator 'foodType' for PetFood") when the
-    # discriminator value is absent, before any subtype can be resolved.
+    # SerializationError ("Missing discriminator 'foodType' for PetFood") when
+    # the discriminator value is absent, before any subtype can be resolved.
     test "Gap AU-resid: missing discriminator on PetFood raises" do
       json = ~s({"weightKg":5.0})
 
-      assert_raise ArgumentError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
@@ -960,7 +960,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
         fn _ -> raise "variant B does not match" end
       ]
 
-      assert_raise PetstoreClient.SchemaMismatchError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.resolve_one_of(%{"unexpected" => true}, candidates)
       end
     end
@@ -968,8 +968,47 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "resolve_any_of raises when no variant matches" do
       candidates = [fn _ -> raise "no match" end]
 
-      assert_raise PetstoreClient.SchemaMismatchError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.resolve_any_of(%{}, candidates)
+      end
+    end
+
+    test "match_any_of reports no match without raising" do
+      candidates = [fn _ -> raise "no match" end]
+      assert PetstoreClient.ObjectSerializer.match_any_of(%{}, candidates) == :no_match
+    end
+  end
+
+  # A wrong primitive type, and a malformed date, date-time, time or duration,
+  # is a SerializationError. None of them is passed through as the raw value.
+  describe "wire-shape failures raise SerializationError" do
+    test "wrong primitive types" do
+      for {value, type} <- [
+            {42, "String"},
+            {"42", "Integer"},
+            {"4.2", "Float"},
+            {"true", "Boolean"},
+            {"not-a-list", "[String]"}
+          ] do
+        assert_raise PetstoreClient.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.convert_to_type(value, type)
+        end
+      end
+    end
+
+    test "malformed temporal values" do
+      for {value, type} <- [
+            {"not-a-date", "Date"},
+            {"2024-13-45", "Date.t()"},
+            {"not-a-date-time", "DateTime"},
+            {"2024-01-01", "DateTime.t()"},
+            {"25:99:00", "Time"},
+            {"PT1H", "Duration"},
+            {"3600", "Duration.t()"}
+          ] do
+        assert_raise PetstoreClient.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.convert_to_type(value, type)
+        end
       end
     end
   end

@@ -43,11 +43,12 @@ defmodule PetstoreClient.OpenAPIError do
        │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
        │   │       NotFound(404) Conflict(409) UnprocessableEntity(422)
        │   │       (and the PetstoreClient.Errors.ClientError grouping)
-       │   └─ 5xx: InternalServerError(500)
-       │           (and the PetstoreClient.Errors.ServerError grouping)
-       └─ Serialization error (PetstoreClient.SerializationError and the
-                               related PetstoreClient.SchemaMismatchError /
-                               PetstoreClient.DeserializationError)
+       │   ├─ 5xx: InternalServerError(500)
+       │   │       (and the PetstoreClient.Errors.ServerError grouping)
+       │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
+       ├─ PetstoreClient.SerializationError  (every encode/decode failure)
+       ├─ PetstoreClient.Auth.OAuth.OAuth2ServerError  (token endpoint returned 4xx/5xx)
+       └─ PetstoreClient.Auth.OAuth.OAuth2TokenError   (token endpoint answered unusably)
 
   The list is the single source of truth: every SDK exception module
   must appear in `exceptions/0`, and both the predicate and the type
@@ -65,9 +66,11 @@ defmodule PetstoreClient.OpenAPIError do
     PetstoreClient.Errors.ConflictError,
     PetstoreClient.Errors.UnprocessableEntityError,
     PetstoreClient.Errors.InternalServerError,
+    PetstoreClient.Errors.NetworkError,
+    PetstoreClient.Errors.NetworkTimeoutError,
     PetstoreClient.SerializationError,
-    PetstoreClient.SchemaMismatchError,
-    PetstoreClient.DeserializationError
+    PetstoreClient.Auth.OAuth.OAuth2ServerError,
+    PetstoreClient.Auth.OAuth.OAuth2TokenError
   ]
 
   @type t ::
@@ -81,6 +84,8 @@ defmodule PetstoreClient.OpenAPIError do
           | PetstoreClient.Errors.ConflictError.t()
           | PetstoreClient.Errors.UnprocessableEntityError.t()
           | PetstoreClient.Errors.InternalServerError.t()
+          | PetstoreClient.Errors.NetworkError.t()
+          | PetstoreClient.Errors.NetworkTimeoutError.t()
           | Exception.t()
 
   @doc """

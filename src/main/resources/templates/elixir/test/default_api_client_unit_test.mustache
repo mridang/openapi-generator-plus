@@ -460,15 +460,74 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   end
 
   # ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
-  # be read or parsed must fail fast at construction with a typed SDK error
-  # rather than silently falling back to the system trust store (security
-  # theater).
-  test "non-existent caCertPath raises ApiError at construction" do
+  # be read or parsed must fail fast at construction rather than silently
+  # falling back to the system trust store (security theater). It is a
+  # configuration mistake, so it raises ArgumentError, not ApiError.
+  test "non-existent caCertPath raises ArgumentError at construction" do
     transport = {{moduleName}}.TransportOptions.new(ca_cert_path: "/nonexistent/ca.pem")
 
-    assert_raise {{moduleName}}.ApiError, fn ->
+    assert_raise ArgumentError, fn ->
       {{moduleName}}.DefaultApiClient.new(transport)
     end
+  end
+
+  # network-error: a request that gets no HTTP response (connection refused)
+  # raises NetworkError with status 0, keeping the Req exception as `cause`.
+  # Req's default transient retry is off, so it fails once and fast.
+  test "connection refused raises NetworkError" do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false])
+    {:ok, port} = :inet.port(socket)
+    :ok = :gen_tcp.close(socket)
+
+    client = {{moduleName}}.DefaultApiClient.new()
+    started = System.monotonic_time(:millisecond)
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/refused",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+    assert %Req.TransportError{} = err.cause
+    assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+    assert System.monotonic_time(:millisecond) - started < 2_000, "the request must not be retried"
+  end
+
+  # network-timeout-error: a request that exceeds the configured timeout
+  # raises NetworkTimeoutError with status 0.
+  test "timeout raises NetworkTimeoutError" do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(socket)
+
+    # Accept and hold the connection without ever answering.
+    spawn(fn ->
+      {:ok, conn} = :gen_tcp.accept(socket)
+      Process.sleep(5_000)
+      :gen_tcp.close(conn)
+    end)
+
+    transport = {{moduleName}}.TransportOptions.new(timeout: 200)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/slow",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+    assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
   end
 
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do

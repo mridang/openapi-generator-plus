@@ -18,23 +18,6 @@ defmodule PetstoreClient.SerializationError do
   defexception [:message, :cause]
 end
 
-defmodule PetstoreClient.SchemaMismatchError do
-  @moduledoc """
-  Exception raised when data does not match a schema during oneOf/anyOf resolution.
-  """
-  defexception [:message]
-end
-
-defmodule PetstoreClient.DeserializationError do
-  @moduledoc """
-  Exception raised when deserialization fails because the wire data
-  cannot be reconciled with the declared schema — for example, a
-  discriminator value that does not point at any of the `oneOf`
-  `$ref` entries listed by the parent schema.
-  """
-  defexception [:message]
-end
-
 defmodule PetstoreClient.AnyOfComposite do
   @moduledoc """
   Container holding EVERY `anyOf` variant a payload satisfied at once.
@@ -459,13 +442,14 @@ defmodule PetstoreClient.ObjectSerializer do
     do: data
 
   def convert_to_type(data, type) when type in ["String", "String.t()"],
-    do: raise(ArgumentError, "Expected String, got #{inspect(data)}")
+    do: raise(PetstoreClient.SerializationError, message: "Expected String, got #{inspect(data)}")
 
   def convert_to_type(data, type) when type in ["Integer", "integer()"] and is_integer(data),
     do: data
 
   def convert_to_type(data, type) when type in ["Integer", "integer()"],
-    do: raise(ArgumentError, "Expected Integer, got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.SerializationError, message: "Expected Integer, got #{inspect(data)}")
 
   def convert_to_type(data, type) when type in ["Float", "float()"] and is_float(data), do: data
 
@@ -473,13 +457,17 @@ defmodule PetstoreClient.ObjectSerializer do
     do: data / 1
 
   def convert_to_type(data, type) when type in ["Float", "float()"],
-    do: raise(ArgumentError, "Expected Float/Integer, got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.SerializationError,
+        message: "Expected Float/Integer, got #{inspect(data)}"
+      )
 
   def convert_to_type(data, type) when type in ["Boolean", "boolean()"] and is_boolean(data),
     do: data
 
   def convert_to_type(data, type) when type in ["Boolean", "boolean()"],
-    do: raise(ArgumentError, "Expected Boolean, got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.SerializationError, message: "Expected Boolean, got #{inspect(data)}")
 
   def convert_to_type(data, "Object"), do: data
 
@@ -498,7 +486,10 @@ defmodule PetstoreClient.ObjectSerializer do
   end
 
   def convert_to_type(data, "ByteArray"),
-    do: raise(ArgumentError, "Expected base64 String for ByteArray, got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.SerializationError,
+        message: "Expected base64 String for ByteArray, got #{inspect(data)}"
+      )
 
   # 2.4 / 3.3: `format: byte` leaves carried inside a typespec descriptor
   # arrive as `binary()` — either the element type of an array of bytes
@@ -519,7 +510,10 @@ defmodule PetstoreClient.ObjectSerializer do
   end
 
   def convert_to_type(data, "binary()"),
-    do: raise(ArgumentError, "Expected base64 String for binary(), got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.SerializationError,
+        message: "Expected base64 String for binary(), got #{inspect(data)}"
+      )
 
   # 2.2 format: uuid — RFC 4122 canonical 8-4-4-4-12 hex form, case
   # insensitive. Validated at construction; invalid payloads surface as
@@ -537,46 +531,47 @@ defmodule PetstoreClient.ObjectSerializer do
   end
 
   def convert_to_type(data, "UUID"),
-    do: raise(ArgumentError, "Expected UUID String, got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.SerializationError,
+        message: "Expected UUID String, got #{inspect(data)}"
+      )
 
   # Matches both the bare name and the typespec form ("DateTime.t()") that
   # `openapi_types/0` emits via the codegen's typeMapping, mirroring the
-  # Time/Duration clauses below. Without the typespec-form alternative the
-  # descriptor never matched and the raw ISO-8601 string was returned.
+  # Time/Duration clauses below. A value that does not parse is a
+  # SerializationError, like every other wire-shape failure; it is never
+  # passed through as the raw string.
   def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] do
     case DateTime.from_iso8601(to_string(data)) do
       {:ok, dt, _offset} -> dt
-      _ -> data
+      _ -> raise_unparseable(data, "date-time")
     end
   end
 
   def convert_to_type(data, type) when type in ["Date", "Date.t()"] do
     case Date.from_iso8601(to_string(data)) do
       {:ok, d} -> d
-      _ -> data
+      _ -> raise_unparseable(data, "date")
     end
   end
 
   # 4.8: format:time — ISO-8601 HH:MM:SS[.fff] decoded to stdlib `Time.t()`.
   # Matches both the bare name and the typespec form ("Time.t()") that
-  # `openapi_types/0` emits via the codegen's typeMapping. Falls back to the
-  # raw payload on parse failure (matches the lenient behaviour of the
-  # Date/DateTime decoders above).
+  # `openapi_types/0` emits via the codegen's typeMapping.
   def convert_to_type(data, type) when type in ["Time", "Time.t()"] do
     case Time.from_iso8601(to_string(data)) do
       {:ok, t} -> t
-      _ -> data
+      _ -> raise_unparseable(data, "time")
     end
   end
 
   # 4.8: format:duration — google.protobuf.Duration protobuf-JSON
   # ("<seconds>s") decoded to stdlib `Duration.t()` (Elixir 1.17+). Stdlib
-  # floor is enforced via mix.exs `elixir: "~> 1.17"`. Falls back to the raw
-  # payload on parse failure.
+  # floor is enforced via mix.exs `elixir: "~> 1.17"`.
   def convert_to_type(data, type) when type in ["Duration", "Duration.t()"] do
     case parse_protobuf_duration(to_string(data)) do
       {:ok, d} -> d
-      _ -> data
+      _ -> raise_unparseable(data, "duration")
     end
   end
 
@@ -631,7 +626,10 @@ defmodule PetstoreClient.ObjectSerializer do
   # scalar variant (base64-decoded bytes), never mis-parsed element-by-
   # element into a list.
   def convert_to_type(data, "[" <> _rest),
-    do: raise(ArgumentError, "Expected a list for array type, got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.SerializationError,
+        message: "Expected a list for array type, got #{inspect(data)}"
+      )
 
   def convert_to_type(data, "%{String.t() => " <> rest) when is_map(data) do
     sub_type = String.replace_suffix(rest, "}", "")
@@ -662,6 +660,11 @@ defmodule PetstoreClient.ObjectSerializer do
       raise PetstoreClient.SerializationError,
         message: "Unknown enum value #{inspect(str)}; allowed values: #{inspect(allowed)}"
     end
+  end
+
+  defp raise_unparseable(data, format) do
+    raise PetstoreClient.SerializationError,
+      message: "Invalid #{format}: #{inspect(data)}"
   end
 
   def convert_to_type(data, return_type) do
@@ -757,7 +760,7 @@ defmodule PetstoreClient.ObjectSerializer do
     if is_nil(resolved) do
       # A payload satisfying none of the declared variants is a contract
       # violation and must fail loudly rather than be silently dropped to nil.
-      raise PetstoreClient.SchemaMismatchError,
+      raise PetstoreClient.SerializationError,
         message: "No oneOf/anyOf variant matched the JSON"
     else
       resolved
@@ -774,7 +777,7 @@ defmodule PetstoreClient.ObjectSerializer do
   # dropped the fields of every later-matching variant, breaking the
   # round-trip for a co-satisfied payload. This collects all matches:
   #
-  #   * zero matches  -> raise SchemaMismatchError (contract violation, loud)
+  #   * zero matches  -> raise SerializationError (contract violation, loud)
   #   * one match     -> return that bare variant struct (backward compatible;
   #                      a medication-only or surgery-only payload is unchanged)
   #   * many matches  -> return an `AnyOfComposite` retaining each matched
@@ -782,6 +785,25 @@ defmodule PetstoreClient.ObjectSerializer do
   #                      fields for a lossless round-trip
   @spec resolve_any_of(term(), [function()]) :: term()
   def resolve_any_of(data, candidates) do
+    case match_any_of(data, candidates) do
+      {:ok, value} ->
+        value
+
+      :no_match ->
+        # A payload satisfying none of the declared variants is a contract
+        # violation and must fail loudly rather than be silently dropped.
+        raise PetstoreClient.SerializationError,
+          message: "No oneOf/anyOf variant matched the JSON"
+    end
+  end
+
+  @doc false
+  # The matching half of resolve_any_of/2: `{:ok, value}` for one or more
+  # matches, `:no_match` otherwise. An anyOf that also admits AnyType uses
+  # this directly, since a payload no typed variant matches is still valid
+  # there and is kept raw.
+  @spec match_any_of(term(), [function()]) :: {:ok, term()} | :no_match
+  def match_any_of(data, candidates) do
     matches =
       Enum.reduce(candidates, [], fn candidate, acc ->
         try do
@@ -800,19 +822,17 @@ defmodule PetstoreClient.ObjectSerializer do
 
     case matches do
       [] ->
-        # A payload satisfying none of the declared variants is a contract
-        # violation and must fail loudly rather than be silently dropped.
-        raise PetstoreClient.SchemaMismatchError,
-          message: "No oneOf/anyOf variant matched the JSON"
+        :no_match
 
       [single] ->
-        single
+        {:ok, single}
 
       multiple ->
-        %PetstoreClient.AnyOfComposite{
-          instances: multiple,
-          fields: flatten_variant_fields(multiple)
-        }
+        {:ok,
+         %PetstoreClient.AnyOfComposite{
+           instances: multiple,
+           fields: flatten_variant_fields(multiple)
+         }}
     end
   end
 
@@ -843,7 +863,7 @@ defmodule PetstoreClient.ObjectSerializer do
     result = convert_to_type(data, type_str)
 
     if is_nil(result) do
-      raise PetstoreClient.SchemaMismatchError,
+      raise PetstoreClient.SerializationError,
         message: "#{inspect(data)} doesn't match the #{type_str} type"
     else
       result

@@ -38,11 +38,12 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
        │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
        │   │       NotFound(404) Conflict(409) UnprocessableEntity(422)
        │   │       (and the {{moduleName}}.Errors.ClientError grouping)
-       │   └─ 5xx: InternalServerError(500)
-       │           (and the {{moduleName}}.Errors.ServerError grouping)
-       └─ Serialization error ({{moduleName}}.SerializationError and the
-                               related {{moduleName}}.SchemaMismatchError /
-                               {{moduleName}}.DeserializationError)
+       │   ├─ 5xx: InternalServerError(500)
+       │   │       (and the {{moduleName}}.Errors.ServerError grouping)
+       │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
+       ├─ {{moduleName}}.SerializationError  (every encode/decode failure)
+       ├─ {{moduleName}}.Auth.OAuth.OAuth2ServerError  (token endpoint returned 4xx/5xx)
+       └─ {{moduleName}}.Auth.OAuth.OAuth2TokenError   (token endpoint answered unusably)
 
   The list is the single source of truth: every SDK exception module
   must appear in `exceptions/0`, and both the predicate and the type
@@ -60,9 +61,11 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
     {{moduleName}}.Errors.ConflictError,
     {{moduleName}}.Errors.UnprocessableEntityError,
     {{moduleName}}.Errors.InternalServerError,
+    {{moduleName}}.Errors.NetworkError,
+    {{moduleName}}.Errors.NetworkTimeoutError,
     {{moduleName}}.SerializationError,
-    {{moduleName}}.SchemaMismatchError,
-    {{moduleName}}.DeserializationError
+    {{moduleName}}.Auth.OAuth.OAuth2ServerError,
+    {{moduleName}}.Auth.OAuth.OAuth2TokenError
   ]
 
   @type t ::
@@ -76,6 +79,8 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
           | {{moduleName}}.Errors.ConflictError.t()
           | {{moduleName}}.Errors.UnprocessableEntityError.t()
           | {{moduleName}}.Errors.InternalServerError.t()
+          | {{moduleName}}.Errors.NetworkError.t()
+          | {{moduleName}}.Errors.NetworkTimeoutError.t()
           | Exception.t()
 
   @doc """

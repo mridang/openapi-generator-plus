@@ -18,34 +18,34 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert %PetstoreClient.Models.WetFood{} = result
     end
 
-    test "raises ArgumentError for unknown discriminator value" do
+    test "raises SerializationError for unknown discriminator value" do
       # Gap L: union deserialise with an unmapped discriminator now
       # raises instead of silently returning nil. Aligns Elixir with
       # Python / Swift / Dart / Go / Rust.
       json = ~s({"foodType":"raw","calories":300})
 
-      assert_raise ArgumentError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
 
-    test "raises ArgumentError for missing discriminator field" do
+    test "raises SerializationError for missing discriminator field" do
       # A payload omitting the discriminator field entirely cannot route to
       # any variant; the union build raises instead of silently returning nil.
       # Aligns Elixir with Python / Swift / PHP / Ruby / Dart / Rust.
       json = ~s({"weightKg":2.5})
 
-      assert_raise ArgumentError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
 
-    test "raises ArgumentError for empty discriminator value" do
+    test "raises SerializationError for empty discriminator value" do
       # An empty discriminator value matches no listed mapping and must raise
       # rather than route to a structurally-fitting variant.
       json = ~s({"foodType":"","weightKg":2.5})
 
-      assert_raise ArgumentError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
@@ -56,7 +56,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       json = ~s({"foodType":"raw","calories":300})
 
       err =
-        assert_raise ArgumentError, fn ->
+        assert_raise PetstoreClient.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
         end
 
@@ -69,21 +69,6 @@ defmodule PetstoreClient.ComposedSchemaTest do
       serialized = PetstoreClient.ObjectSerializer.serialize(result)
 
       assert serialized =~ "dry"
-    end
-
-    # 4.7: the discriminator branch must reject a mapping that points
-    # at a schema outside the `oneOf` `$ref` list. The DeserializationError
-    # exception is declared in ObjectSerializer; verify it exists and is
-    # an Elixir exception module so generated discriminator code can
-    # raise it.
-    test "DeserializationError module is declared as an exception" do
-      # Elixir 1.19 loads modules lazily, so `function_exported?/3` reports
-      # `false` for a module that has not yet been loaded. Force the load
-      # before introspecting it.
-      Code.ensure_loaded(PetstoreClient.DeserializationError)
-      assert function_exported?(PetstoreClient.DeserializationError, :exception, 1)
-      err = PetstoreClient.DeserializationError.exception(message: "boom")
-      assert err.message == "boom"
     end
   end
 
@@ -166,10 +151,10 @@ defmodule PetstoreClient.ComposedSchemaTest do
     test "raises for anyOf payload matching no variant" do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty
-      # union. resolve_any_of raises SchemaMismatchError on union no-match.
+      # union. resolve_any_of raises SerializationError on union no-match.
       json = ~s({"unrelatedKey":"value","anotherUnknown":123})
 
-      assert_raise PetstoreClient.SchemaMismatchError, fn ->
+      assert_raise PetstoreClient.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
       end
     end

@@ -28,10 +28,11 @@ defmodule PetstoreClient.Models.PetTreatment do
       end)
 
     if "AnyType" in openapi_any_of() do
-      try do
-        PetstoreClient.ObjectSerializer.resolve_any_of(data, candidates)
-      rescue
-        PetstoreClient.SchemaMismatchError -> data
+      # AnyType admits any payload, so a payload no typed variant matches is
+      # still valid: keep it raw rather than raising.
+      case PetstoreClient.ObjectSerializer.match_any_of(data, candidates) do
+        {:ok, value} -> value
+        :no_match -> data
       end
     else
       # resolve_any_of raises on union no-match instead of returning nil,

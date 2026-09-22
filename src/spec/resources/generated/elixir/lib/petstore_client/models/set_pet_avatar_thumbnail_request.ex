@@ -43,8 +43,8 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
 
       true ->
         # Raise on union no-match (see comment above).
-        raise ArgumentError,
-              "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
+        raise PetstoreClient.SerializationError,
+          message: "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
     end
   end
 

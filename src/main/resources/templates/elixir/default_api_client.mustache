@@ -70,24 +70,23 @@ defmodule {{moduleName}}.DefaultApiClient do
   # Gap T4: fail fast on a user-supplied CA cert that cannot be read or
   # parsed rather than silently falling back to the system trust store.
   # If the caller explicitly asked for SSL pinning we must not pretend it
-  # succeeded -- validate the PEM eagerly at construction.
+  # succeeded -- validate the PEM eagerly at construction. A bad CA file is
+  # a configuration mistake, so it raises ArgumentError, not ApiError.
   defp validate_ca_cert_path(nil), do: :ok
 
   defp validate_ca_cert_path(path) when is_binary(path) do
     case File.read(path) do
       {:error, reason} ->
-        raise {{moduleName}}.ApiError,
-          message:
-            "failed to read CA certificate from #{inspect(path)}: #{to_string(:file.format_error(reason))}",
-          status_code: 0
+        raise ArgumentError,
+              "failed to read CA certificate from #{inspect(path)}: " <>
+                to_string(:file.format_error(reason))
 
       {:ok, contents} ->
         case :public_key.pem_decode(contents) do
           [] ->
-            raise {{moduleName}}.ApiError,
-              message:
-                "failed to parse CA certificate from #{inspect(path)}: no PEM blocks found or unparseable",
-              status_code: 0
+            raise ArgumentError,
+                  "failed to parse CA certificate from #{inspect(path)}: " <>
+                    "no PEM blocks found or unparseable"
 
           _entries ->
             :ok
@@ -255,7 +254,20 @@ defmodule {{moduleName}}.DefaultApiClient do
           no_redirect
         )
       rescue
-        e -> raise {{moduleName}}.ApiError, message: Exception.message(e), status_code: 0, cause: e
+        e in [
+          {{moduleName}}.ApiError,
+          {{moduleName}}.Errors.NetworkError,
+          {{moduleName}}.Errors.NetworkTimeoutError
+        ] ->
+          reraise e, __STACKTRACE__
+
+        e in [Req.TransportError, Req.HTTPError] ->
+          reraise transport_error(e), __STACKTRACE__
+
+        e ->
+          reraise {{moduleName}}.ApiError,
+                  [message: Exception.message(e), status_code: 0, cause: e],
+                  __STACKTRACE__
       end
 
     headers = normalize_headers(response.headers)
@@ -275,6 +287,26 @@ defmodule {{moduleName}}.DefaultApiClient do
       body: response_body,
       headers: headers
     }
+  end
+
+  # No HTTP response: a `Req.TransportError` whose reason is `:timeout` is a
+  # NetworkTimeoutError; any other transport failure (connection refused, DNS,
+  # TLS, reset, malformed HTTP) is a NetworkError. Both carry status 0 and keep
+  # the Req exception as `cause`.
+  defp transport_error(%Req.TransportError{reason: :timeout} = e) do
+    {{moduleName}}.Errors.NetworkTimeoutError.exception(
+      message: Exception.message(e),
+      status_code: 0,
+      cause: e
+    )
+  end
+
+  defp transport_error(e) do
+    {{moduleName}}.Errors.NetworkError.exception(
+      message: Exception.message(e),
+      status_code: 0,
+      cause: e
+    )
   end
 
   # Explicitly decompress a response body keyed on its Content-Encoding. Req's
@@ -502,9 +534,12 @@ defmodule {{moduleName}}.DefaultApiClient do
     # left gzip bodies undecoded nondeterministically across CI runs; doing it
     # ourselves is version-independent and matches the explicit decompression
     # the other 11 SDKs perform.
+    # `retry: false` disables Req's default retry of transient failures: a
+    # transport error surfaces once, as NetworkError, like every other SDK.
     req_opts = [
       raw: true,
-      redirect: false
+      redirect: false,
+      retry: false
     ]
     _ = opts.follow_redirects
 
@@ -645,7 +680,7 @@ defmodule {{moduleName}}.DefaultApiClient do
               reraise(exception, stacktrace)
 
             nil ->
-              raise {{moduleName}}.ApiError,
+              raise {{moduleName}}.Errors.NetworkTimeoutError,
                 message: "request exceeded total timeout of #{total}ms",
                 status_code: 0
           end

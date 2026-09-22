@@ -37,8 +37,8 @@ defmodule PetstoreClient.Models.PetFood do
     # which throw on union no-match (5 of 12 SDKs already strict;
     # we promote Elixir to the same behaviour here).
     if is_nil(discriminator_value) do
-      raise ArgumentError,
-            "Missing discriminator '#{openapi_discriminator_name()}' for PetFood"
+      raise PetstoreClient.SerializationError,
+        message: "Missing discriminator '#{openapi_discriminator_name()}' for PetFood"
     end
 
     do_build_discriminated(data, discriminator_value)
@@ -48,8 +48,8 @@ defmodule PetstoreClient.Models.PetFood do
     klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
 
     if is_nil(klass_name) do
-      raise ArgumentError,
-            "Unknown discriminator value for PetFood: '#{discriminator_value}'"
+      raise PetstoreClient.SerializationError,
+        message: "Unknown discriminator value for PetFood: '#{discriminator_value}'"
     end
 
     # Gap 4.7: the discriminator mapping must point at one of the
@@ -57,7 +57,7 @@ defmodule PetstoreClient.Models.PetFood do
     # schema outside the union is malformed; refuse to deserialize
     # instead of silently building an off-union type.
     unless klass_name in openapi_one_of() do
-      raise PetstoreClient.DeserializationError,
+      raise PetstoreClient.SerializationError,
         message:
           "Discriminator '#{discriminator_value}' for PetFood resolves to " <>
             "'#{klass_name}', which is not listed in oneOf"

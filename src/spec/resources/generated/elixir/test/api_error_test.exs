@@ -119,6 +119,27 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.OpenAPIError.open_api_error?(caught)
     end
 
+    test "network and OAuth errors are recognised" do
+      for err <- [
+            PetstoreClient.Errors.NetworkError.exception(message: "refused"),
+            PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out"),
+            %PetstoreClient.Auth.OAuth.OAuth2TokenError{message: "no access_token"},
+            %PetstoreClient.Auth.OAuth.OAuth2ServerError{
+              status_code: 400,
+              message: "invalid_grant"
+            }
+          ] do
+        assert PetstoreClient.OpenAPIError.open_api_error?(err)
+      end
+    end
+
+    test "network errors carry status 0" do
+      assert PetstoreClient.Errors.NetworkError.exception(message: "refused").status_code == 0
+
+      assert PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out").status_code ==
+               0
+    end
+
     test "non-SDK exceptions are not recognised" do
       refute PetstoreClient.OpenAPIError.open_api_error?(%RuntimeError{message: "unrelated"})
       refute PetstoreClient.OpenAPIError.open_api_error?(%ArgumentError{message: "unrelated"})

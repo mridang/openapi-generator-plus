@@ -131,7 +131,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     transport = PetstoreClient.TransportOptions.new(timeout: 1)
     client = PetstoreClient.DefaultApiClient.new(transport)
 
-    try do
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :get,
@@ -139,10 +139,6 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
         %{},
         nil
       )
-
-      flunk("Expected a transport error but none was raised")
-    rescue
-      _ in [PetstoreClient.ApiError, Req.TransportError, Finch.TransportError] -> :ok
     end
   end
 
@@ -738,12 +734,9 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
         :no_raise
       rescue
-        e in PetstoreClient.ApiError ->
-          assert e.message =~ "timeout" or e.message =~ "request exceeded total timeout"
-          :api_error
-
-        _ in [Req.TransportError, Finch.TransportError] ->
-          :transport_error
+        e in PetstoreClient.Errors.NetworkTimeoutError ->
+          assert e.status_code == 0
+          :timeout
       end
 
     elapsed = System.monotonic_time(:millisecond) - started
@@ -753,7 +746,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
            "expected wall-clock timeout to fire well before the slow endpoint completes, " <>
              "got elapsed=#{elapsed}ms result=#{inspect(result)}"
 
-    refute result == :no_raise, "expected a timeout error to be raised"
+    assert result == :timeout, "expected a NetworkTimeoutError to be raised"
   end
 
   # Regression: POST/PUT/PATCH with body == nil must emit an explicit

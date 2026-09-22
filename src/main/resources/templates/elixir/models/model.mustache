@@ -105,8 +105,8 @@ defmodule {{moduleName}}.Models.{{classname}} do
     # which throw on union no-match (5 of 12 SDKs already strict;
     # we promote Elixir to the same behaviour here).
     if is_nil(discriminator_value) do
-      raise ArgumentError,
-            "Missing discriminator '#{openapi_discriminator_name()}' for {{classname}}"
+      raise {{moduleName}}.SerializationError,
+            message: "Missing discriminator '#{openapi_discriminator_name()}' for {{classname}}"
     end
 
     do_build_discriminated(data, discriminator_value)
@@ -131,8 +131,8 @@ defmodule {{moduleName}}.Models.{{classname}} do
       :AnyType in openapi_one_of() -> data
       true ->
         # Raise on union no-match (see comment above).
-        raise ArgumentError,
-              "JSON did not match any schema in the {{classname}} oneOf union"
+        raise {{moduleName}}.SerializationError,
+              message: "JSON did not match any schema in the {{classname}} oneOf union"
     end
   {{/discriminator}}
   end
@@ -190,8 +190,8 @@ defmodule {{moduleName}}.Models.{{classname}} do
     klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
 
     if is_nil(klass_name) do
-      raise ArgumentError,
-            "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+      raise {{moduleName}}.SerializationError,
+            message: "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
     end
 
     # Gap 4.7: the discriminator mapping must point at one of the
@@ -199,7 +199,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     # schema outside the union is malformed; refuse to deserialize
     # instead of silently building an off-union type.
     unless klass_name in openapi_one_of() do
-      raise {{moduleName}}.DeserializationError,
+      raise {{moduleName}}.SerializationError,
             message:
               "Discriminator '#{discriminator_value}' for {{classname}} resolves to " <>
                 "'#{klass_name}', which is not listed in oneOf"
@@ -218,7 +218,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
       Enum.any?(openapi_one_of(), fn ref -> Atom.to_string(ref) == candidate end)
 
     unless listed? do
-      raise {{moduleName}}.DeserializationError,
+      raise {{moduleName}}.SerializationError,
             message:
               "Discriminator value '#{discriminator_value}' for {{classname}} is not " <>
                 "listed in oneOf"
@@ -267,10 +267,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
       end)
 
     if "AnyType" in openapi_any_of() do
-      try do
-        {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
-      rescue
-        {{moduleName}}.SchemaMismatchError -> data
+      # AnyType admits any payload, so a payload no typed variant matches is
+      # still valid: keep it raw rather than raising.
+      case {{moduleName}}.ObjectSerializer.match_any_of(data, candidates) do
+        {:ok, value} -> value
+        :no_match -> data
       end
     else
       # resolve_any_of raises on union no-match instead of returning nil,
@@ -402,8 +403,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{#isUnevaluatedPropertiesFalse}}
   @doc """
   Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-  Decodes a JSON-decoded map into this struct, raising `ArgumentError` if any
-  key is not declared in `attribute_map/0`.
+  Decodes a JSON-decoded map into this struct, raising
+  `{{moduleName}}.SerializationError` if any key is not declared in
+  `attribute_map/0`.
   """
   @spec from_map_strict(map()) :: t()
   def from_map_strict(data) when is_map(data) do
@@ -413,8 +415,8 @@ defmodule {{moduleName}}.Models.{{classname}} do
       key_str = to_string(key)
 
       unless MapSet.member?(declared, key_str) do
-        raise ArgumentError,
-              "Unknown property '#{key_str}' on {{classname}} (unevaluatedProperties:false)"
+        raise {{moduleName}}.SerializationError,
+              message: "Unknown property '#{key_str}' on {{classname}} (unevaluatedProperties:false)"
       end
     end)
 
