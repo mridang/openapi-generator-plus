@@ -259,7 +259,11 @@ internal class ObjectSerializer(
             // *properties* are null-stripped, mirroring the other SDKs which
             // omit absent optional fields but keep explicit nulls inside
             // free-form payloads).
-            return json.encodeToString(JsonElement.serializer(), toJsonElement(unwrapped))
+            return try {
+                json.encodeToString(JsonElement.serializer(), toJsonElement(unwrapped))
+            } catch (e: kotlinx.serialization.SerializationException) {
+                throw SerializationException("Failed to encode request body: ${e.message}", e)
+            }
         }
         // Two separate wire contracts are intentionally decoupled here, because
         // kotlinx-serialization's encodeDefaults conflates them:
@@ -278,9 +282,15 @@ internal class ObjectSerializer(
         // findings call for and keeps Kotlin byte-compatible with the other 11
         // SDKs for both default-valued and explicitly-nulled fields.
         val encoded =
-            json.parseToJsonElement(
-                json.encodeToString(serializer(unwrapped::class.java), unwrapped),
-            )
+            try {
+                json.parseToJsonElement(
+                    json.encodeToString(serializer(unwrapped::class.java), unwrapped),
+                )
+            } catch (e: OpenAPIException) {
+                throw e
+            } catch (e: Exception) {
+                throw SerializationException("Failed to encode request body: ${e.message}", e)
+            }
         // Re-attach any free-form `additionalProperties` the model carries. The
         // map is declared @Transient on the model so kotlinx-serialization
         // ignores it during encoding; without this merge those extra keys would
@@ -359,7 +369,12 @@ internal class ObjectSerializer(
      * instance. Exposed so callers (e.g. error-body parsing) do not need direct
      * access to the underlying kotlinx-serialization [Json].
      */
-    fun parseToJsonElement(jsonString: String): JsonElement = json.parseToJsonElement(jsonString)
+    fun parseToJsonElement(jsonString: String): JsonElement =
+        try {
+            json.parseToJsonElement(jsonString)
+        } catch (e: kotlinx.serialization.SerializationException) {
+            throw SerializationException("Failed to parse JSON: ${e.message}", e)
+        }
 
     @PublishedApi
     internal inline fun <reified T> deserialize(jsonString: String?): T? {
@@ -374,7 +389,19 @@ internal class ObjectSerializer(
         // (Go encoding/json, Python json, etc.) whose parsers accept a `null`
         // payload on no-content responses without throwing.
         if (stripped.trim() == "null") return null
-        val decoded = json.decodeFromString<T>(stripped)
+        val decoded =
+            try {
+                json.decodeFromString<T>(stripped)
+            } catch (e: OpenAPIException) {
+                throw e
+            } catch (e: Exception) {
+                // kotlinx.serialization.SerializationException (malformed JSON,
+                // missing field, unknown enum, wrong primitive) and the errors a
+                // contextual serializer raises (bad date, URI, UUID, duration) all
+                // become the SDK's own SerializationException, so a catch on the
+                // SDK root sees every decode failure.
+                throw SerializationException("Failed to decode response body: ${e.message}", e)
+            }
         // Capture any JSON keys that are not declared properties of the model
         // into its free-form `additionalProperties` map. The configured Json has
         // ignoreUnknownKeys = true, so undeclared keys are dropped during
@@ -691,7 +718,7 @@ internal class ObjectSerializer(
 
             private fun parse(value: String): Duration {
                 if (!durationRegex.matches(value)) {
-                    throw kotlinx.serialization.SerializationException(
+                    throw SerializationException(
                         "Could not parse '$value' as a protobuf-JSON duration",
                     )
                 }
@@ -708,7 +735,11 @@ internal class ObjectSerializer(
                     secsStr = body
                     fracStr = ""
                 }
-                val secs = secsStr.toLong()
+                val secs =
+                    secsStr.toLongOrNull()
+                        ?: throw SerializationException(
+                            "Duration '$value' is out of range",
+                        )
                 val nanos = if (fracStr.isEmpty()) 0L else fracStr.padEnd(9, '0').toLong()
                 return Duration.ofSeconds(sign * secs, sign * nanos)
             }
@@ -836,8 +867,11 @@ internal class ObjectSerializer(
 }
 
 /**
- * Thrown when a response body cannot be deserialized into any declared
- * oneOf/anyOf variant.
+ * Thrown for every encode or decode failure: malformed JSON, a wrong primitive
+ * type, a missing or null required field, an unknown enum value, a malformed
+ * date, UUID, URI or duration, or a oneOf/anyOf payload that matches no
+ * declared variant. The underlying kotlinx-serialization or parsing exception,
+ * when there is one, is kept as the cause.
  *
  * Declared at the top level (rather than nested inside [ObjectSerializer])
  * so it remains part of the public API even though [ObjectSerializer] itself

@@ -109,6 +109,10 @@ class OAuth2TokenManager {
                 try {
                     fetchToken(tokenUrl, refreshParams, extraHeaders)
                     accessToken?.let { return@withLock it }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    /* Coroutine cancellation is not a refresh failure: let it
+                     * through untouched so structured concurrency keeps working. */
+                    throw e
                 } catch (_: RuntimeException) {
                     /* Refresh failed (e.g. refresh token revoked or expired).
                      * Fall back to re-running the original grant below. */
@@ -191,7 +195,14 @@ class OAuth2TokenManager {
             throw parseOAuth2ServerError(response.statusCode, response.body)
         }
 
-        val jsonObject = json.parseToJsonElement(response.body).jsonObject
+        val jsonObject =
+            try {
+                json.parseToJsonElement(response.body).jsonObject
+            } catch (e: IllegalArgumentException) {
+            /* kotlinx.serialization.SerializationException extends
+             * IllegalArgumentException, as does .jsonObject on a non-object. */
+                throw OAuth2TokenError("Token response is not a JSON object: ${e.message}")
+            }
         val accessTokenValue = jsonObject["access_token"]?.jsonPrimitive?.contentOrNull
         if (accessTokenValue.isNullOrEmpty()) {
             throw OAuth2TokenError("Token response missing or empty access_token field")

@@ -17,6 +17,7 @@ import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -989,12 +990,12 @@ class DefaultApiClientUnitTest {
     @DisplayName("response body read error")
     inner class ResponseBodyReadError {
         @Test
-        @DisplayName("response-body-read-error-not-wrapped: body-read failure is wrapped in ApiException")
-        fun bodyReadFailureWrappedInApiException() {
+        @DisplayName("response-body-read-error-not-wrapped: body-read failure is a NetworkException")
+        fun bodyReadFailureWrappedInNetworkException() {
             // Headers are received (status 200) but the body channel is closed
             // with a failure cause, simulating a connection reset / truncated
             // body after the response started. Reading it must surface the
-            // SDK's ApiException, not leak the raw Ktor/IO exception.
+            // SDK's NetworkException, not leak the raw Ktor/IO exception.
             val engine =
                 MockEngine { _ ->
                     val channel =
@@ -1010,11 +1011,13 @@ class DefaultApiClientUnitTest {
                     )
                 }
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
-            assertThrows(ApiException::class.java) {
-                runBlocking {
-                    apiClient.sendRequest("GET", "http://localhost/body-fail", emptyMap(), null)
+            val ex =
+                assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest("GET", "http://localhost/body-fail", emptyMap(), null)
+                    }
                 }
-            }
+            assertEquals(0, ex.statusCode)
         }
     }
 
@@ -1087,9 +1090,109 @@ class DefaultApiClientUnitTest {
             // or parsed must fail fast at construction rather than silently
             // falling back to the system trust store (security theater).
             val transport = TransportOptions.builder().caCertPath("/nonexistent/ca.pem").build()
-            assertThrows(Exception::class.java) {
-                DefaultApiClient(transport)
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    DefaultApiClient(transport)
+                }
+            assertNotNull(ex.cause, "the read/parse failure must be kept as the cause")
+        }
+    }
+
+    @Nested
+    @DisplayName("network failures")
+    inner class NetworkFailures {
+        @Test
+        @DisplayName("connection refused raises NetworkException with status 0 and the cause kept")
+        fun connectionRefusedRaisesNetworkException() {
+            val apiClient = DefaultApiClient()
+            val ex =
+                assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest("GET", "http://127.0.0.1:1/never", emptyMap(), null)
+                    }
+                }
+            assertEquals(0, ex.statusCode)
+            assertNotNull(ex.cause, "the transport exception must be kept as the cause")
+            assertFalse(
+                ex is com.example.petstore.errors.NetworkTimeoutException,
+                "connection refused is not a timeout",
+            )
+        }
+
+        @Test
+        @DisplayName("Ktor request timeout raises NetworkTimeoutException")
+        fun requestTimeoutRaisesNetworkTimeoutException() {
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(5_000)
+                    respond("late", HttpStatusCode.OK)
+                }
+            val client =
+                HttpClient(engine) {
+                    followRedirects = false
+                    install(io.ktor.client.plugins.HttpTimeout) { requestTimeoutMillis = 50 }
+                }
+            val ex =
+                assertThrows(com.example.petstore.errors.NetworkTimeoutException::class.java) {
+                    runBlocking {
+                        DefaultApiClient(client).sendRequest("GET", "http://localhost/slow", emptyMap(), null)
+                    }
+                }
+            assertEquals(0, ex.statusCode)
+            assertInstanceOf(io.ktor.client.plugins.HttpRequestTimeoutException::class.java, ex.cause)
+        }
+    }
+
+    @Nested
+    @DisplayName("coroutine cancellation")
+    inner class CoroutineCancellation {
+        @Test
+        @DisplayName("withTimeout surfaces TimeoutCancellationException, never ApiException")
+        fun withTimeoutIsNotRewrapped() {
+            // Structured concurrency: the SDK must not catch and rewrap the
+            // coroutine's cancellation signal, so a caller's withTimeout keeps
+            // its own exception type.
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(5_000)
+                    respond("late", HttpStatusCode.OK)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            assertThrows(kotlinx.coroutines.TimeoutCancellationException::class.java) {
+                runBlocking {
+                    kotlinx.coroutines.withTimeout(50) {
+                        apiClient.sendRequest("GET", "http://localhost/slow", emptyMap(), null)
+                    }
+                }
             }
+        }
+
+        @Test
+        @DisplayName("cancelling the calling job cancels the request without an ApiException")
+        fun jobCancellationIsNotRewrapped() {
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(5_000)
+                    respond("late", HttpStatusCode.OK)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            var caught: Throwable? = null
+            runBlocking {
+                val job =
+                    launch {
+                        try {
+                            apiClient.sendRequest("GET", "http://localhost/slow", emptyMap(), null)
+                        } catch (e: Throwable) {
+                            caught = e
+                            throw e
+                        }
+                    }
+                kotlinx.coroutines.delay(50)
+                job.cancel()
+                job.join()
+            }
+            assertInstanceOf(kotlinx.coroutines.CancellationException::class.java, caught)
+            assertFalse(caught is ApiException, "cancellation must not be rewrapped, was: $caught")
         }
     }
 }

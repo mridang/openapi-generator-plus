@@ -97,13 +97,11 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("T-CA-ERRTYPE: missing CA cert surfaces ApiException, not raw JDK exception")
-    fun missingCaCertThrowsApiException() {
-        // A custom CA cert path that does not exist is a TLS-pinning
-        // misconfiguration. Construction must fail fast with the SDK's own
-        // typed ApiException so a caller wrapping construction in
-        // `catch (ApiException)` does not miss it (a raw FileNotFoundException
-        // would slip through).
+    @DisplayName("missing CA cert surfaces IllegalArgumentException, not raw JDK exception")
+    fun missingCaCertThrowsIllegalArgumentException() {
+        // A custom CA cert path that does not exist is a configuration mistake,
+        // not an API failure. Construction must fail fast with
+        // IllegalArgumentException rather than a raw FileNotFoundException.
         val transport =
             TransportOptions
                 .builder()
@@ -111,19 +109,19 @@ class ClientTest {
                 .build()
 
         val ex =
-            assertThrows(ApiException::class.java) {
+            assertThrows(IllegalArgumentException::class.java) {
                 Client(authenticator, transport)
             }
         assertTrue(ex.message!!.contains("CA certificate"))
     }
 
     @Test
-    @DisplayName("T-CA-ERRTYPE: garbage CA cert surfaces ApiException, not raw JDK exception")
-    fun invalidCaCertThrowsApiException(
+    @DisplayName("garbage CA cert surfaces IllegalArgumentException, not raw JDK exception")
+    fun invalidCaCertThrowsIllegalArgumentException(
         @TempDir tempDir: Path,
     ) {
         // A readable file whose contents are not a valid PEM certificate must
-        // also surface as the SDK's typed ApiException (wrapping the underlying
+        // also surface as IllegalArgumentException (wrapping the underlying
         // CertificateException), never a raw java.security.cert.CertificateException.
         val badCert = File(tempDir.toFile(), "bad-ca.pem")
         badCert.writeText("not a valid certificate")
@@ -135,7 +133,7 @@ class ClientTest {
                 .build()
 
         val ex =
-            assertThrows(ApiException::class.java) {
+            assertThrows(IllegalArgumentException::class.java) {
                 Client(authenticator, transport)
             }
         assertTrue(ex.message!!.contains("CA certificate"))

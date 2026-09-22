@@ -177,11 +177,13 @@ class DefaultApiClientTest {
                 .timeout(1L)
                 .build()
             val client = DefaultApiClient(transport)
-            assertThrows(ApiException::class.java) {
+            val ex = assertThrows({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {
                 runBlocking {
                     client.sendRequest("GET", "$chasmUrl/test/slow", emptyMap(), null)
                 }
             }
+            assertEquals(0, ex.statusCode)
+            assertNotNull(ex.cause, "the transport exception must be kept as the cause")
         }
     }
 
@@ -687,18 +689,15 @@ class DefaultApiClientTest {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
             val badField = mapOf<String, Any?>("name\r\nInjected: yes" to "value")
-            // sendRequest wraps the validation IllegalArgumentException in an
-            // ApiException; assert the wrapped cause type so the W-new-2 guard
-            // is verified on the non-binary (string-value) branch.
-            val thrown = assertThrows(ApiException::class.java) {
+            // A caller mistake: sendRequest lets the validation
+            // IllegalArgumentException through rather than wrapping it as an
+            // API failure, so the W-new-2 guard is verified on the non-binary
+            // (string-value) branch.
+            assertThrows(IllegalArgumentException::class.java) {
                 runBlocking {
                     client.sendRequest("POST", "$chasmUrl/test/echo", emptyMap(), badField)
                 }
             }
-            assertTrue(
-                thrown.cause is IllegalArgumentException,
-                "expected IllegalArgumentException as cause, got ${thrown.cause}"
-            )
         }
     }
 

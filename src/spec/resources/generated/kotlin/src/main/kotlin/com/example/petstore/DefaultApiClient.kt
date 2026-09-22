@@ -9,6 +9,8 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.NetworkException
+import com.example.petstore.errors.NetworkTimeoutException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
@@ -153,7 +155,7 @@ class DefaultApiClient internal constructor(
                     buildRequestBody(this, method, body, mergedHeaders)
                 }
             } catch (e: Exception) {
-                throw ApiException(e.toString(), e)
+                throw transportFailure(e)
             }
 
         // Gap T1+T2: redirects are ALWAYS handled manually so we can strip
@@ -173,7 +175,11 @@ class DefaultApiClient internal constructor(
 
             while (response.status.value in 300..399 && redirectsRemaining > 0) {
                 val location = response.headers[HttpHeaders.Location] ?: break
-                response.bodyAsBytes() // consume redirect body to release the connection
+                try {
+                    response.bodyAsBytes() // consume redirect body to release the connection
+                } catch (e: Exception) {
+                    throw transportFailure(e)
+                }
                 val originalUri = java.net.URI(currentUrl)
                 val redirectUri = originalUri.resolve(location)
                 // Refuse non-HTTP(S) redirect schemes (javascript:, file:,
@@ -271,7 +277,7 @@ class DefaultApiClient internal constructor(
                             buildRequestBody(this, currentMethod, nextBody, redirectHeaders)
                         }
                     } catch (e: Exception) {
-                        throw ApiException(e.toString(), e)
+                        throw transportFailure(e)
                     }
                 redirectsRemaining--
             }
@@ -304,13 +310,13 @@ class DefaultApiClient internal constructor(
 
         // Read the response body inside a try/catch so a post-headers
         // failure (connection reset, read timeout, truncated/decompression
-        // error) surfaces as the SDK's uniform ApiException rather than a
-        // raw Ktor exception, matching how send-phase failures are wrapped.
+        // error) surfaces as the SDK's own error type rather than a raw Ktor
+        // exception, matching how send-phase failures are wrapped.
         val rawBytes =
             try {
                 response.bodyAsBytes()
             } catch (e: Exception) {
-                throw ApiException(e.toString(), e)
+                throw transportFailure(e)
             }
         val contentType = responseHeaders["content-type"] ?: ""
         val responseBody =
@@ -327,6 +333,32 @@ class DefaultApiClient internal constructor(
             headers = responseHeaders,
         )
     }
+
+    /**
+     * Map a failure raised while sending a request or reading its response to
+     * the SDK's error types.
+     *
+     * - A timeout becomes [NetworkTimeoutException].
+     * - Coroutine cancellation is rethrown untouched, so `withTimeout` and
+     *   scope cancellation keep working (structured concurrency).
+     * - A caller mistake ([IllegalArgumentException], such as a multipart
+     *   field name carrying CR/LF) and the SDK's own errors pass through.
+     * - Any other failure (connection refused, DNS, TLS, reset) becomes
+     *   [NetworkException]. The original exception is kept as the cause.
+     */
+    private fun transportFailure(e: Exception): Exception =
+        when (e) {
+            is io.ktor.client.plugins.HttpRequestTimeoutException,
+            is io.ktor.client.network.sockets.ConnectTimeoutException,
+            is io.ktor.client.network.sockets.SocketTimeoutException,
+            is java.net.SocketTimeoutException,
+            -> NetworkTimeoutException(e.toString(), e)
+            is kotlinx.coroutines.CancellationException -> e
+            is java.nio.channels.UnresolvedAddressException -> NetworkException(e.toString(), e)
+            is IllegalArgumentException -> e
+            is OpenAPIException -> e
+            else -> NetworkException(e.toString(), e)
+        }
 
     private fun buildRequestBody(
         builder: HttpRequestBuilder,

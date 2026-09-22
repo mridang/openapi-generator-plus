@@ -286,6 +286,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.kt"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.kt"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.kt"),
+            new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.kt"),
+            new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.kt"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.kt"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.kt"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.kt"),

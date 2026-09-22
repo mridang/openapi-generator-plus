@@ -1033,7 +1033,7 @@ class PetApiTest {
         fun testUnknownEnumValueThrows() {
             // Parity rule 6: an unknown enum value in a response body must
             // surface a (de)serialization error, never be silently coerced to
-            // null or a default. kotlinx.serialization throws
+            // null or a default. The SDK throws its own
             // SerializationException for a status the StatusEnum doesn't define.
             val engine =
                 MockEngine { _ ->
@@ -1050,7 +1050,7 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+            assertThrows({{invokerPackage}}.SerializationException::class.java) {
                 runBlocking { api.getPetById(1L) }
             }
         }
@@ -1106,7 +1106,7 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+            assertThrows({{invokerPackage}}.SerializationException::class.java) {
                 runBlocking { api.getPetById(1L) }
             }
         }

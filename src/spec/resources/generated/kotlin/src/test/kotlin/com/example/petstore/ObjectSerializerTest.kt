@@ -14,7 +14,6 @@ package com.example.petstore
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
@@ -141,9 +140,15 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("truncated JSON throws SerializationException not raw parse error")
         fun truncatedJsonThrowsSerializationException() {
-            assertThrows(SerializationException::class.java) {
-                serializer.deserialize<com.example.petstore.models.Category>("{")
-            }
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Category>("{")
+                }
+            // The kotlinx-serialization failure is kept as the cause.
+            assertTrue(
+                ex.cause is kotlinx.serialization.SerializationException,
+                "cause must be the kotlinx error, was: ${ex.cause}",
+            )
         }
 
         @Test
@@ -1179,6 +1184,21 @@ class ObjectSerializerTest {
                 negReEncoded.contains("\"retryAfter\":\"$negHuge\""),
                 "negative duration past the nanosecond range must re-serialize, got: $negReEncoded",
             )
+        }
+
+        @Test
+        @DisplayName("format:duration that is malformed or overflows raises the SDK SerializationException")
+        fun malformedOrOverflowingDurationRaisesSerializationException() {
+            // Neither kotlinx's SerializationException nor a raw
+            // NumberFormatException may escape: both become the SDK's own
+            // SerializationException, which a catch on the SDK root sees.
+            for (wire in listOf("90", "1.5m", "99999999999999999999s")) {
+                val ex =
+                    assertThrows(com.example.petstore.SerializationException::class.java) {
+                        serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"retryAfter\":\"$wire\"}")
+                    }
+                assertTrue(ex is OpenAPIException, "must extend the SDK root, was: $ex")
+            }
         }
     }
 

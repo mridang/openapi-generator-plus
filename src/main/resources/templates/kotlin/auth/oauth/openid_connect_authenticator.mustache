@@ -77,7 +77,11 @@ open class OpenIdConnectAuthenticator(
             )
         }
 
-        val discovery = json.parseToJsonElement(response.body).jsonObject
+        val discovery = try {
+            json.parseToJsonElement(response.body).jsonObject
+        } catch (e: IllegalArgumentException) {
+            throw {{errorPrefix}}Exception("OIDC discovery document is not a JSON object: ${e.message}", e)
+        }
         val authorizationEndpoint = discovery["authorization_endpoint"]?.jsonPrimitive?.content
             ?: throw {{errorPrefix}}Exception("OIDC discovery document missing authorization_endpoint")
         val tokenEndpoint = discovery["token_endpoint"]?.jsonPrimitive?.content

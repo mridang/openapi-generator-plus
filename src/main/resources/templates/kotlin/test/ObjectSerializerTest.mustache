@@ -17,7 +17,6 @@ import kotlin.uuid.Uuid
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 
 // File-scoped fixture for the StrictModuleTests (M7): a unevaluatedProperties:false
 // model that carries a @Contextual field. Declared at file scope because Kotlin
@@ -137,9 +136,14 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("truncated JSON throws SerializationException not raw parse error")
         fun truncatedJsonThrowsSerializationException() {
-            assertThrows(SerializationException::class.java) {
+            val ex = assertThrows(SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Category>("{")
             }
+            // The kotlinx-serialization failure is kept as the cause.
+            assertTrue(
+                ex.cause is kotlinx.serialization.SerializationException,
+                "cause must be the kotlinx error, was: ${ex.cause}",
+            )
         }
 
         @Test
@@ -1140,6 +1144,20 @@ class ObjectSerializerTest {
             assertTrue(
                 negReEncoded.contains("\"retryAfter\":\"$negHuge\""),
                 "negative duration past the nanosecond range must re-serialize, got: $negReEncoded")
+        }
+
+        @Test
+        @DisplayName("format:duration that is malformed or overflows raises the SDK SerializationException")
+        fun malformedOrOverflowingDurationRaisesSerializationException() {
+            // Neither kotlinx's SerializationException nor a raw
+            // NumberFormatException may escape: both become the SDK's own
+            // SerializationException, which a catch on the SDK root sees.
+            for (wire in listOf("90", "1.5m", "99999999999999999999s")) {
+                val ex = assertThrows({{invokerPackage}}.SerializationException::class.java) {
+                    serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"$wire\"}")
+                }
+                assertTrue(ex is {{errorPrefix}}Exception, "must extend the SDK root, was: $ex")
+            }
         }
     }
 

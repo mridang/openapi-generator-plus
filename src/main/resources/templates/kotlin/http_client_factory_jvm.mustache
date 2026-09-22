@@ -121,11 +121,10 @@ private fun loadCaCertTrustManager(caCertPath: String): X509TrustManager =
         tmf.init(trustStore)
         tmf.trustManagers[0] as X509TrustManager
     } catch (e: java.io.IOException) {
-        // Gap T-CA-ERRTYPE: a missing/unreadable/unparseable CA cert must surface as
-        // the SDK's own typed ApiException (statusCode 0, cause preserved) so callers
-        // wrapping construction in `catch (ApiException)` don't miss this TLS-pinning
-        // misconfiguration. Match the typed-SDK message style and keep fail-fast timing.
-        throw ApiException("failed to read or parse CA certificate from $caCertPath: $e", e)
+        // A missing/unreadable/unparseable CA cert is a configuration mistake, not
+        // an API failure: raise IllegalArgumentException (cause preserved) at
+        // construction so TLS pinning never silently falls back to the system store.
+        throw IllegalArgumentException("failed to read or parse CA certificate from $caCertPath: $e", e)
     } catch (e: java.security.GeneralSecurityException) {
-        throw ApiException("failed to read or parse CA certificate from $caCertPath: $e", e)
+        throw IllegalArgumentException("failed to read or parse CA certificate from $caCertPath: $e", e)
     }

@@ -81,6 +81,28 @@ class ApiExceptionTest {
     }
 
     @Test
+    fun networkExceptionsExtendApiExceptionWithStatusZero() {
+        // No HTTP response arrived, so the status is 0 and the transport
+        // failure is kept as the cause. Both sit under ApiException so an
+        // existing catch on ApiException keeps catching them.
+        val cause = java.io.IOException("connection refused")
+        val network =
+            com.example.petstore.errors
+                .NetworkException("connection refused", cause)
+        val timeout =
+            com.example.petstore.errors
+                .NetworkTimeoutException("timed out", cause)
+
+        assertTrue(network is ApiException)
+        assertEquals(0, network.statusCode)
+        assertSame(cause, network.cause)
+        assertTrue(timeout is com.example.petstore.errors.NetworkException)
+        assertTrue(timeout is ApiException)
+        assertEquals(0, timeout.statusCode)
+        assertSame(cause, timeout.cause)
+    }
+
+    @Test
     fun serializationExceptionShareTheBrandedRoot() {
         // SerializationException is-a OpenAPI, so callers can catch the whole
         // SDK error surface via the single branded root.

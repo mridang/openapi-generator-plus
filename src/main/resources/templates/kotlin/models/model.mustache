@@ -777,7 +777,7 @@ class {{classname}}(
   /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
    * deserializers must reject any JSON key not declared above. Callers should
    * decode this class with [parseStrict] (or a Json configured with
-   * ignoreUnknownKeys = false) so unknown keys raise IllegalArgumentException. */
+   * ignoreUnknownKeys = false) so unknown keys raise SerializationException. */
   companion object {
     fun parseStrict(raw: String): {{classname}} {
       val strict = kotlinx.serialization.json.Json {
@@ -791,8 +791,10 @@ class {{classname}}(
       }
       try {
         return strict.decodeFromString(serializer(), raw)
-      } catch (e: kotlinx.serialization.SerializationException) {
-        throw IllegalArgumentException(
+      } catch (e: {{invokerPackage}}.{{errorPrefix}}Exception) {
+        throw e
+      } catch (e: IllegalArgumentException) {
+        throw {{invokerPackage}}.SerializationException(
           "Unknown property on {{classname}} (unevaluatedProperties:false): " + e.message, e)
       }
     }
