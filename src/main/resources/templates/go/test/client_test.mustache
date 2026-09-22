@@ -37,7 +37,10 @@ func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
 func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	t.Parallel()
 	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
-	transport := {{packageName}}.NewTransportOptionsBuilder().Build()
+	transport, buildErr := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 
 	client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
 

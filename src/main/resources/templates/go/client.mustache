@@ -19,10 +19,13 @@ import (
 //
 // Example with custom transport (proxy, timeouts, etc.):
 //
-//	transport := {{packageName}}.NewTransportOptionsBuilder().
+//	transport, err := {{packageName}}.NewTransportOptionsBuilder().
 //		Proxy("http://proxy:3128").
-//		Timeout(5 * time.Second).
+//		Timeout(5000).
 //		Build()
+//	if err != nil {
+//		return err
+//	}
 //	client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
 type {{clientClassName}} struct {
 {{#apiInfo}}
@@ -42,7 +45,7 @@ type {{clientClassName}} struct {
 // TLS, and timeout settings.
 func New{{clientClassName}}(authenticator Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
 	if transportOptions == nil {
-		transportOptions = NewTransportOptionsBuilder().Build()
+		transportOptions = defaultTransportOptions()
 	}
 	apiClient := NewDefaultApiClient(transportOptions)
 

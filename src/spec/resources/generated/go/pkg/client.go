@@ -27,10 +27,13 @@ import (
 //
 // Example with custom transport (proxy, timeouts, etc.):
 //
-//	transport := petstore.NewTransportOptionsBuilder().
+//	transport, err := petstore.NewTransportOptionsBuilder().
 //		Proxy("http://proxy:3128").
-//		Timeout(5 * time.Second).
+//		Timeout(5000).
 //		Build()
+//	if err != nil {
+//		return err
+//	}
 //	client := petstore.NewClient(authenticator, transport)
 type Client struct {
 	/* Pet provides methods for the Pet API group. */
@@ -46,7 +49,7 @@ type Client struct {
 // TLS, and timeout settings.
 func NewClient(authenticator Authenticator, transportOptions *TransportOptions) *Client {
 	if transportOptions == nil {
-		transportOptions = NewTransportOptionsBuilder().Build()
+		transportOptions = defaultTransportOptions()
 	}
 	apiClient := NewDefaultApiClient(transportOptions)
 

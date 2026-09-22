@@ -2,9 +2,14 @@
 package {{packageName}}
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrInvalidServerVariable is returned by ServerConfiguration.URL when a
+// variable override is outside the variable's enum. Match it with errors.Is.
+var ErrInvalidServerVariable = errors.New("invalid server variable")
 
 // ServerVariable represents a server variable from the OpenAPI specification.
 //
@@ -116,7 +121,8 @@ func (s *ServerConfiguration) Variables() map[string]ServerVariable {
 // URL resolves the URL template using default variable values or the given overrides.
 //
 // Variables not present in overrides use their default values. If a variable
-// has an enum constraint, the override value is validated against the allowed values.
+// has an enum constraint, the override value is validated against the allowed
+// values, and a value outside them returns ErrInvalidServerVariable.
 func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
 	result := s.urlTemplate
 	for varName, variable := range s.variables {
@@ -134,7 +140,7 @@ func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
 				}
 			}
 			if !valid {
-				return "", fmt.Errorf("invalid value '%s' for variable '%s'; allowed: %v", value, varName, variable.enumValues)
+				return "", fmt.Errorf("%w: invalid value '%s' for variable '%s'; allowed: %v", ErrInvalidServerVariable, value, varName, variable.enumValues)
 			}
 		}
 

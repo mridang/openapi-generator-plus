@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"petstore/pkg/auth"
+	errors_pkg "petstore/pkg/errors"
 )
 
 // expirySafetyMargin is applied to token expiry checks so that we refresh
@@ -225,6 +226,7 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 // Its state is immutable: the message is set once at construction via
 // newOAuth2TokenError and read through the Message getter.
 type OAuth2TokenError struct {
+	errors_pkg.ErrorMarker
 	message string
 }
 
@@ -252,6 +254,7 @@ func (e *OAuth2TokenError) Error() string {
 // Its state is immutable: fields are set once at construction via
 // newOAuth2ServerError and read through the getter methods.
 type OAuth2ServerError struct {
+	errors_pkg.ErrorMarker
 	statusCode  int
 	code        string
 	description string

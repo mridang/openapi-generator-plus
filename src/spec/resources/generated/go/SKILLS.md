@@ -160,6 +160,8 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `UnprocessableEntityError` (422)
   - `ServerError` (5xx)
     - `InternalServerError` (500)
+  - `NetworkError` (no HTTP response, status 0)
+    - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```go
 import "petstore/pkg/errors"
@@ -184,10 +186,13 @@ if err != nil {
 ### Custom Transport Options
 
 ```go
-transport := petstore.NewTransportOptionsBuilder().
+transport, err := petstore.NewTransportOptionsBuilder().
     Proxy("http://proxy:3128").
-    Timeout(5 * time.Second).
+    Timeout(5000).
     Build()
+if err != nil {
+    return err
+}
 
 client := petstore.NewClient(authenticator, transport)
 ```

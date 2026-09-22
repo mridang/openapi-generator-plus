@@ -15,9 +15,9 @@ import (
 	"compress/zlib"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -69,7 +69,7 @@ type DefaultApiClient struct {
 // If transportOptions is nil, default transport settings are used.
 func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 	if transportOptions == nil {
-		transportOptions = NewTransportOptionsBuilder().Build()
+		transportOptions = defaultTransportOptions()
 	}
 
 	httpClient := buildHTTPClient(transportOptions)
@@ -166,15 +166,11 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		// Wrap as ApiError so callers see a uniform error type whether the
-		// failure was at the transport layer or in the HTTP response. The
-		// underlying lib error is preserved on .Cause and surfaced via
-		// errors.Unwrap.
-		return nil, errors_pkg.NewApiError(
-			0,
-			fmt.Sprintf("request failed: %s", err.Error()),
-			"", nil, nil, err,
-		)
+		// No HTTP response: a timeout surfaces as *NetworkTimeoutError, any
+		// other transport failure (connection refused, DNS, TLS, reset) as
+		// *NetworkError. Both carry status 0 and keep the net/http error as
+		// the cause, so errors.Is / errors.As still reach it.
+		return nil, newTransportError(fmt.Sprintf("request failed: %s", err.Error()), err)
 	}
 	defer resp.Body.Close()
 
@@ -182,15 +178,10 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	if err != nil {
 		// response-body-read-error-not-wrapped: a failure reading or
 		// decompressing the body (connection reset / truncated chunked /
-		// decompression error AFTER headers were received) must be wrapped in
-		// the uniform ApiError (StatusCode 0, underlying preserved on .Cause)
-		// just like a send-phase failure, so callers get one error type for the
+		// decompression error AFTER headers were received) is wrapped just
+		// like a send-phase failure, so callers get one error type for the
 		// entire transport phase.
-		return nil, errors_pkg.NewApiError(
-			0,
-			fmt.Sprintf("failed to read response body: %s", err.Error()),
-			"", nil, nil, err,
-		)
+		return nil, newTransportError(fmt.Sprintf("failed to read response body: %s", err.Error()), err)
 	}
 
 	// Gap BE+BF: response header keys are normalised to lowercase so callers
@@ -221,6 +212,17 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	}, nil
 }
 
+// newTransportError classifies a net/http transport failure. An error that
+// reports Timeout() — a *url.Error from http.Client.Timeout, or the body read
+// cut short by it — becomes *NetworkTimeoutError; anything else *NetworkError.
+func newTransportError(msg string, err error) error {
+	var timeout interface{ Timeout() bool }
+	if errors.As(err, &timeout) && timeout.Timeout() {
+		return errors_pkg.NewNetworkTimeoutError(msg, err)
+	}
+	return errors_pkg.NewNetworkError(msg, err)
+}
+
 // Close releases idle TCP/TLS connections held by the underlying
 // http.Transport. After Close the client should not be reused.
 func (c *DefaultApiClient) Close() error {
@@ -240,19 +242,11 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 		tlsConfig.InsecureSkipVerify = true
 	}
 
-	if opts.CACertPath() != "" {
-		// Gap T4: surface CA-cert load failures rather than silently falling
-		// back to the system trust store. If the user explicitly asked for
-		// SSL pinning we must not pretend it succeeded.
-		caCert, err := os.ReadFile(opts.CACertPath())
-		if err != nil {
-			panic(fmt.Sprintf("failed to read CA certificate from %q: %v", opts.CACertPath(), err))
-		}
-		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			panic(fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found or unparseable", opts.CACertPath()))
-		}
-		tlsConfig.RootCAs = caCertPool
+	// Gap T4: the CA bundle was read and parsed by TransportOptionsBuilder.Build,
+	// which reports an unreadable file as ErrInvalidCACertificate rather than
+	// silently falling back to the system trust store.
+	if opts.caCertPool != nil {
+		tlsConfig.RootCAs = opts.caCertPool
 	}
 
 	transport.TLSClientConfig = tlsConfig

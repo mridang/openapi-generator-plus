@@ -1392,9 +1392,12 @@ func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
 
 func TestProxyAuth_BuilderAcceptsUserinfoInProxyUrl(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, buildErr := petstore.NewTransportOptionsBuilder().
 		Proxy("http://user:pass@proxy.example.com:3128").
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	p := opts.Proxy()
 	if p == nil {
 		t.Fatal("expected non-nil proxy")

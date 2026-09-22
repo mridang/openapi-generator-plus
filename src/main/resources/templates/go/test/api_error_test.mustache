@@ -3,18 +3,20 @@ package {{packageName}}_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"{{packageName}}/pkg"
+	"{{packageName}}/pkg/auth/oauth"
 	apierrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
 )
 
 // Compile-time proof that every SDK-thrown error type satisfies the branded
 // {{errorPrefix}}Error root. Go has no inheritance, so the hierarchy is expressed
-// through interface conformance: *ApiError and the typed 4xx/5xx subclasses
-// (which embed ApiError) plus *SerializationError all implement error and
-// therefore {{errorPrefix}}Error. If any of these stops satisfying the brand, the
+// through interface conformance: *ApiError, the typed 4xx/5xx and network
+// subclasses (which embed ApiError), *SerializationError and the OAuth2 errors
+// all carry the brand's marker method and therefore satisfy {{errorPrefix}}Error. If any of these stops satisfying the brand, the
 // package fails to compile rather than failing a test at runtime.
 var (
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.ApiError)(nil)
@@ -27,8 +29,57 @@ var (
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.ConflictError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.UnprocessableEntityError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.InternalServerError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkTimeoutError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*{{packageName}}.SerializationError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*oauth.OAuth2TokenError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*oauth.OAuth2ServerError)(nil)
 )
+
+// TestForeignError_DoesNotSatisfy{{errorPrefix}}Error confirms the brand is exclusive:
+// an arbitrary error, even one wrapping nothing SDK-shaped, must not match
+// {{errorPrefix}}Error, or errors.As against the brand would tell a caller nothing.
+func TestForeignError_DoesNotSatisfy{{errorPrefix}}Error(t *testing.T) {
+	t.Parallel()
+	for _, err := range []error{errors.New("boom"), fmt.Errorf("wrapped: %w", errors.New("boom"))} {
+		if _, ok := err.({{errorPrefix}}ErrorBrand); ok {
+			t.Errorf("expected %T not to satisfy {{errorPrefix}}Error", err)
+		}
+		var ze apierrors.{{errorPrefix}}Error
+		if errors.As(err, &ze) {
+			t.Errorf("expected errors.As not to match %T against {{errorPrefix}}Error", err)
+		}
+	}
+}
+
+// {{errorPrefix}}ErrorBrand aliases the brand so the type assertion above reads as one.
+type {{errorPrefix}}ErrorBrand = apierrors.{{errorPrefix}}Error
+
+// TestNetworkErrors_AreApiErrorsWithStatusZero confirms the transport errors
+// carry status 0, keep their cause and satisfy the brand.
+func TestNetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("connection refused")
+	var netErr error = apierrors.NewNetworkError("request failed", cause)
+	var timeoutErr error = apierrors.NewNetworkTimeoutError("request timed out", cause)
+	for _, err := range []error{netErr, timeoutErr} {
+		type statusReader interface{ StatusCode() int }
+		if sr, ok := err.(statusReader); !ok || sr.StatusCode() != 0 {
+			t.Errorf("expected %T to expose StatusCode() == 0", err)
+		}
+		if !errors.Is(err, cause) {
+			t.Errorf("expected %T to unwrap to its cause", err)
+		}
+		var ze apierrors.{{errorPrefix}}Error
+		if !errors.As(err, &ze) {
+			t.Errorf("expected %T to satisfy {{errorPrefix}}Error", err)
+		}
+	}
+	var asTimeout *apierrors.NetworkTimeoutError
+	if errors.As(netErr, &asTimeout) {
+		t.Error("a *NetworkError must not match *NetworkTimeoutError")
+	}
+}
 
 func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
 	t.Parallel()

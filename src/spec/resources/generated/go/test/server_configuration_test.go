@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"errors"
 	petstore "petstore/pkg"
 	"testing"
 )
@@ -85,8 +86,8 @@ func TestServerConfiguration_URLRejectsValueOutsideEnum(t *testing.T) {
 	)
 
 	_, err := server.URL(map[string]string{"env": "invalid"})
-	if err == nil {
-		t.Error("expected error for value outside the enum, got nil")
+	if !errors.Is(err, petstore.ErrInvalidServerVariable) {
+		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
 	}
 }
 

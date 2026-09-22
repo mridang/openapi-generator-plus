@@ -10,9 +10,22 @@
 package petstore
 
 import (
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"net/url"
+	"os"
 )
+
+// ErrInvalidProxyURL is returned by TransportOptionsBuilder.Build when the
+// proxy URL does not parse, uses a scheme other than http or https, or has no
+// host. Match it with errors.Is.
+var ErrInvalidProxyURL = errors.New("invalid proxy URL")
+
+// ErrInvalidCACertificate is returned by TransportOptionsBuilder.Build when the
+// CA certificate file cannot be read or contains no PEM certificate. Match it
+// with errors.Is.
+var ErrInvalidCACertificate = errors.New("invalid CA certificate")
 
 // TransportOptions holds immutable HTTP transport configuration for DefaultApiClient.
 //
@@ -23,18 +36,25 @@ import (
 //
 // Use NewTransportOptionsBuilder to create instances:
 //
-//	transport := petstore.NewTransportOptionsBuilder().
+//	transport, err := petstore.NewTransportOptionsBuilder().
 //		VerifySsl(false).
 //		Proxy("http://proxy.example.com:8080").
 //		Timeout(5000).
 //		UserAgent(&userAgent).
 //		Build()
+//	if err != nil {
+//		// ErrInvalidProxyURL or ErrInvalidCACertificate
+//	}
 type TransportOptions struct {
 	/* verifySsl controls whether TLS certificate verification is enabled. */
 	verifySsl bool
 
 	/* caCertPath is the path to a custom CA certificate bundle for TLS verification. */
 	caCertPath string
+
+	/* caCertPool holds the certificates read from caCertPath by Build, or nil
+	 * when no custom CA bundle is configured. */
+	caCertPool *x509.CertPool
 
 	/* proxy is the HTTP or HTTPS proxy URL for all outbound requests. */
 	proxy *url.URL
@@ -108,6 +128,7 @@ type TransportOptionsBuilder struct {
 	verifySsl       bool
 	caCertPath      string
 	proxy           *url.URL
+	proxyErr        error
 	timeout         *int
 	followRedirects bool
 	maxRedirects    *int
@@ -146,21 +167,23 @@ func (b *TransportOptionsBuilder) CACertPath(val string) *TransportOptionsBuilde
 	return b
 }
 
-// Proxy sets the HTTP/HTTPS proxy URL. Panics if the URL is invalid.
+// Proxy sets the HTTP/HTTPS proxy URL. An invalid URL is reported by Build
+// as ErrInvalidProxyURL.
 func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
+	b.proxy = nil
+	b.proxyErr = nil
 	if val == "" {
-		b.proxy = nil
-	} else {
-		parsed, err := url.Parse(val)
-		if err != nil {
-			panic(fmt.Sprintf("invalid proxy URL %q: %v", val, err))
-		}
-		if parsed.Scheme != "http" && parsed.Scheme != "https" {
-			panic(fmt.Sprintf("invalid proxy URL %q: must use http or https scheme", val))
-		}
-		if parsed.Host == "" {
-			panic(fmt.Sprintf("invalid proxy URL %q: missing host", val))
-		}
+		return b
+	}
+	parsed, err := url.Parse(val)
+	switch {
+	case err != nil:
+		b.proxyErr = fmt.Errorf("%w %q: %v", ErrInvalidProxyURL, val, err)
+	case parsed.Scheme != "http" && parsed.Scheme != "https":
+		b.proxyErr = fmt.Errorf("%w %q: must use http or https scheme", ErrInvalidProxyURL, val)
+	case parsed.Host == "":
+		b.proxyErr = fmt.Errorf("%w %q: missing host", ErrInvalidProxyURL, val)
+	default:
 		b.proxy = parsed
 	}
 	return b
@@ -214,8 +237,26 @@ func (b *TransportOptionsBuilder) InjectRequestID(val bool) *TransportOptionsBui
 	return b
 }
 
-// Build creates and returns an immutable TransportOptions instance.
-func (b *TransportOptionsBuilder) Build() *TransportOptions {
+// Build validates the configuration and returns an immutable TransportOptions
+// instance. It returns ErrInvalidProxyURL when the proxy URL is invalid, and
+// ErrInvalidCACertificate when the CA certificate file cannot be read or holds
+// no PEM certificate. Both are configuration mistakes, reported here rather
+// than on the first request.
+func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
+	if b.proxyErr != nil {
+		return nil, b.proxyErr
+	}
+	var caCertPool *x509.CertPool
+	if b.caCertPath != "" {
+		caCert, err := os.ReadFile(b.caCertPath)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to read %q: %v", ErrInvalidCACertificate, b.caCertPath, err)
+		}
+		caCertPool = x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			return nil, fmt.Errorf("%w: no PEM certificate found in %q", ErrInvalidCACertificate, b.caCertPath)
+		}
+	}
 	headers := make(map[string]string, len(b.defaultHeaders))
 	for k, v := range b.defaultHeaders {
 		headers[k] = v
@@ -223,6 +264,7 @@ func (b *TransportOptionsBuilder) Build() *TransportOptions {
 	return &TransportOptions{
 		verifySsl:       b.verifySsl,
 		caCertPath:      b.caCertPath,
+		caCertPool:      caCertPool,
 		proxy:           b.proxy,
 		timeout:         b.timeout,
 		followRedirects: b.followRedirects,
@@ -230,5 +272,12 @@ func (b *TransportOptionsBuilder) Build() *TransportOptions {
 		userAgent:       b.userAgent,
 		defaultHeaders:  headers,
 		injectRequestID: b.injectRequestID,
-	}
+	}, nil
+}
+
+// defaultTransportOptions returns the TransportOptions a nil argument stands
+// for. The defaults configure no proxy and no CA bundle, so they cannot fail.
+func defaultTransportOptions() *TransportOptions {
+	opts, _ := NewTransportOptionsBuilder().Build()
+	return opts
 }

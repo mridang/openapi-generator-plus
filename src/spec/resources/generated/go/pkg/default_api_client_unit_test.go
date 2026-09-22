@@ -17,6 +17,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	pkgerrors "petstore/pkg/errors"
 	"strings"
 	"testing"
@@ -32,9 +33,12 @@ func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
 	defer server.Close()
 
 	customAgent := "TestAgent/1.0"
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		UserAgent(&customAgent).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
@@ -55,7 +59,10 @@ func TestDefaultApiClient_InjectsBrandedUserAgentByDefault(t *testing.T) {
 	}))
 	defer server.Close()
 
-	opts := NewTransportOptionsBuilder().Build()
+	opts, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	if opts.UserAgent() == nil {
 		t.Fatal("expected UserAgent to default to the branded value, got nil")
 	}
@@ -82,9 +89,12 @@ func TestDefaultApiClient_InjectsRequestId(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
@@ -105,9 +115,12 @@ func TestDefaultApiClient_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		InjectRequestID(false).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
@@ -128,9 +141,12 @@ func TestDefaultApiClient_DoesNotOverrideCallerRequestId(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	headers := map[string]string{"X-Request-ID": "my-custom-id"}
@@ -152,9 +168,12 @@ func TestDefaultApiClient_TransportDefaultHeadersAreForwarded(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		DefaultHeader("X-Default", "default-value").
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
@@ -175,9 +194,12 @@ func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		DefaultHeader("X-Default", "transport-value").
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	headers := map[string]string{"X-Default": "caller-value"}
@@ -199,9 +221,12 @@ func TestDefaultApiClient_RequestIdsAreUnique(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	for i := 0; i < 2; i++ {
@@ -752,10 +777,13 @@ func TestDefaultApiClient_RefusesBodyReplayOnHttpsToHttpDowngrade(t *testing.T) 
 	}))
 	defer tlsServer.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		VerifySsl(false).
 		FollowRedirects(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest(
 		"POST", tlsServer.URL+"/issue",
@@ -791,9 +819,12 @@ func TestDefaultApiClient_Drops303ContentLengthOnCoercedGet(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest(
 		"POST", server.URL+"/post",
@@ -833,9 +864,12 @@ func TestDefaultApiClient_StripsAuthorizationAcrossCrossOriginRedirect(t *testin
 	}))
 	defer origin.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest("GET", origin.URL+"/start",
 		map[string]string{"Authorization": "Bearer leaked-token"}, nil)
@@ -894,9 +928,12 @@ func TestDefaultApiClient_StripsApiKeyHeaderAcrossCrossOriginRedirect(t *testing
 	}))
 	defer origin.Close()
 
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest("GET", origin.URL+"/start",
 		map[string]string{apiKeyHeader: "secret-api-key-value"}, nil)
@@ -937,10 +974,10 @@ func TestDefaultApiClient_UseAfterCloseReturnsApiError(t *testing.T) {
 }
 
 // response-body-read-error-not-wrapped: a body-read/decompression failure that
-// occurs AFTER headers are received must be wrapped in the uniform ApiError
+// occurs AFTER headers are received must be wrapped in the uniform NetworkError
 // (StatusCode 0, underlying error preserved on .Cause), matching send-phase
 // failures — not surfaced as a bare error.
-func TestDefaultApiClient_BodyReadErrorWrappedInApiError(t *testing.T) {
+func TestDefaultApiClient_BodyReadErrorWrappedInNetworkError(t *testing.T) {
 	t.Parallel()
 	// Advertise gzip but send bytes that are not valid gzip, so the body-read
 	// (decompression) step fails after the 200 headers are received.
@@ -956,34 +993,98 @@ func TestDefaultApiClient_BodyReadErrorWrappedInApiError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when the response body cannot be decompressed")
 	}
-	var apiErr *pkgerrors.ApiError
-	if !errors.As(err, &apiErr) {
-		t.Fatalf("expected body-read failure to be wrapped in *ApiError, got %T: %v", err, err)
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected body-read failure to be wrapped in *NetworkError, got %T: %v", err, err)
 	}
-	if apiErr.StatusCode() != 0 {
-		t.Errorf("expected StatusCode 0 for a body-read failure, got %d", apiErr.StatusCode())
+	if netErr.StatusCode() != 0 {
+		t.Errorf("expected StatusCode 0 for a body-read failure, got %d", netErr.StatusCode())
 	}
-	if apiErr.Cause() == nil {
+	if netErr.Cause() == nil {
 		t.Error("expected the underlying decompression error to be preserved on .Cause")
 	}
 }
 
 // ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
 // be read or parsed must fail fast at construction rather than silently
-// falling back to the system trust store (security theater). The Go client
-// panics when buildHTTPClient cannot load the cert.
+// falling back to the system trust store (security theater). Build returns
+// ErrInvalidCACertificate: a configuration mistake, not an API failure.
 func TestDefaultApiClient_NonexistentCaCertPathFailsFast(t *testing.T) {
 	t.Parallel()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected a panic when constructing with a non-existent caCertPath")
-		}
-	}()
-
-	transport := NewTransportOptionsBuilder().
+	transport, err := NewTransportOptionsBuilder().
 		CACertPath("/nonexistent/ca.pem").
 		Build()
-	_ = NewDefaultApiClient(transport)
+	if !errors.Is(err, ErrInvalidCACertificate) {
+		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
+	}
+	var apiErr *pkgerrors.ApiError
+	if errors.As(err, &apiErr) {
+		t.Errorf("a missing CA file must not be an *ApiError, got %v", err)
+	}
+	if transport != nil {
+		t.Error("expected nil TransportOptions")
+	}
+}
+
+// network-error: a request that gets no HTTP response (connection refused)
+// surfaces as *NetworkError with status 0, keeping the transport error as the
+// cause so errors.As still reaches the *url.Error.
+func TestDefaultApiClient_ConnectionRefusedReturnsNetworkError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	addr := server.URL
+	server.Close()
+
+	client := NewDefaultApiClient(nil)
+	_, err := client.SendRequest("GET", addr+"/test", map[string]string{}, nil)
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	if netErr.StatusCode() != 0 {
+		t.Errorf("expected StatusCode 0, got %d", netErr.StatusCode())
+	}
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if errors.As(err, &timeoutErr) {
+		t.Error("a refused connection must not be a *NetworkTimeoutError")
+	}
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) {
+		t.Errorf("expected the *url.Error to be reachable through Unwrap, got %v", err)
+	}
+	var root pkgerrors.OpenAPIError
+	if !errors.As(err, &root) {
+		t.Error("expected *NetworkError to satisfy OpenAPIError")
+	}
+}
+
+// network-timeout-error: a request that exceeds the configured timeout
+// surfaces as *NetworkTimeoutError with status 0, keeping the cause.
+func TestDefaultApiClient_TimeoutReturnsNetworkTimeoutError(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+	}))
+	defer server.Close()
+	defer close(release)
+
+	transport, err := NewTransportOptionsBuilder().Timeout(100).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err = client.SendRequest("GET", server.URL+"/slow", map[string]string{}, nil)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+	if timeoutErr.StatusCode() != 0 {
+		t.Errorf("expected StatusCode 0, got %d", timeoutErr.StatusCode())
+	}
+	if timeoutErr.Cause() == nil {
+		t.Error("expected the transport error to be preserved on .Cause")
+	}
 }
 
 // multipart-nonascii-field-name: a non-ASCII multipart field name must be

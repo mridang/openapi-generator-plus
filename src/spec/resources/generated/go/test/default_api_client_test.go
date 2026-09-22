@@ -11,6 +11,7 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -21,11 +22,15 @@ import (
 	"testing"
 
 	. "petstore/pkg"
+	pkgerrors "petstore/pkg/errors"
 )
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().VerifySsl(false).Build()
+	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(false).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -41,10 +46,13 @@ func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 
 func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		VerifySsl(true).
 		CACertPath(caCertPath).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -60,9 +68,12 @@ func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 
 func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmInternalHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -82,9 +93,12 @@ func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
 // so we assert TransportOptions preserves the userinfo end-to-end.
 func TestDefaultApiClient_ProxyWithCredentialsInjectsBasicAuthorization(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		Proxy("http://alice:s3cret@127.0.0.1:3128").
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	proxy := transport.Proxy()
 	if proxy == nil {
 		t.Fatal("expected proxy URL to be non-nil")
@@ -103,10 +117,13 @@ func TestDefaultApiClient_ProxyWithCredentialsInjectsBasicAuthorization(t *testi
 
 func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		VerifySsl(false).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmInternalHTTPSURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -122,22 +139,29 @@ func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *tes
 
 func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		Timeout(1000).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest("GET", chasmHTTPURL+"/test/slow", map[string]string{}, nil)
-	if err == nil {
-		t.Fatal("expected timeout error, got nil")
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
 	}
 }
 
 func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 	t.Parallel()
 	customAgent := "MyApp/1.0"
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		UserAgent(&customAgent).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -158,9 +182,12 @@ func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 
 func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -186,9 +213,12 @@ func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 
 func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	resp1, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
@@ -217,9 +247,12 @@ func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 
 func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		DefaultHeader("X-Custom", "custom-value").
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -235,9 +268,12 @@ func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 
 func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		DefaultHeader("Accept", "text/plain").
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	callerHeaders := map[string]string{"Accept": "application/json"}
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", callerHeaders, nil)
@@ -254,9 +290,12 @@ func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 
 func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/redirect/302", map[string]string{}, nil)
 	if err != nil {
@@ -272,9 +311,12 @@ func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 
 func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(false).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/redirect/302", map[string]string{}, nil)
 	if err != nil {
@@ -289,10 +331,13 @@ func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 // Go's net/http already enforces this; the test pins the behaviour.
 func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest(
 		"POST",
@@ -323,10 +368,13 @@ func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 // request after a 307 still carries the multipart form parts.
 func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	headers := map[string]string{
 		"Content-Type": "multipart/form-data; boundary=test-boundary",
@@ -365,10 +413,13 @@ func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 
 func TestDefaultApiClient_RespectsMaxRedirectsLimit(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 	if client == nil {
 		t.Fatal("expected non-nil client")
@@ -477,9 +528,12 @@ func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 	// Inject userinfo into the proxy URL — Squid in default config accepts
 	// any credentials (no auth_param basic), so the request should succeed.
 	authProxy := strings.Replace(proxyURL, "http://", "http://user:pass@", 1)
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		Proxy(authProxy).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	if transport.Proxy() == nil || transport.Proxy().User == nil {
 		t.Fatal("expected proxy with userinfo")
 	}
@@ -499,7 +553,7 @@ func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 // bytes.Reader on body-bearing verbs so net/http emits the header.
 func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
 	t.Parallel()
-	client := NewDefaultApiClient(NewTransportOptionsBuilder().Build())
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("POST", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -528,7 +582,7 @@ func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
 // contract across SDKs.
 func TestDefaultApiClient_CloseReleasesUnderlyingClient(t *testing.T) {
 	t.Parallel()
-	client := NewDefaultApiClient(NewTransportOptionsBuilder().Build())
+	client := NewDefaultApiClient(nil)
 	if err := client.Close(); err != nil {
 		t.Fatalf("unexpected error from Close: %v", err)
 	}
@@ -572,10 +626,13 @@ func TestDefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t *testing.T) {
 	}
 
 	send := func(origin *httptest.Server) error {
-		transport := NewTransportOptionsBuilder().
+		transport, buildErr := NewTransportOptionsBuilder().
 			VerifySsl(false).
 			FollowRedirects(true).
 			Build()
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
 		client := NewDefaultApiClient(transport)
 		_, err := client.SendRequest(
 			"POST", origin.URL+"/start",
@@ -651,10 +708,13 @@ func TestDefaultApiClient_ConcurrentRedirectCountIsPerRequest(t *testing.T) {
 	// One shared client across every concurrent request — the crux of the
 	// test. If redirect state lived on the client/transport the deep
 	// requests' hops would corrupt the shallow ones (or vice versa).
-	transport := NewTransportOptionsBuilder().
+	transport, buildErr := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(maxRedirects).
 		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	client := NewDefaultApiClient(transport)
 
 	// Interleave many shallow (1-hop, must succeed) and deep (20-hop, must

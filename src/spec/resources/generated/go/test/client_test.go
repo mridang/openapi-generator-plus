@@ -45,7 +45,10 @@ func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
 func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	t.Parallel()
 	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
-	transport := petstore.NewTransportOptionsBuilder().Build()
+	transport, buildErr := petstore.NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 
 	client := petstore.NewClient(authenticator, transport)
 

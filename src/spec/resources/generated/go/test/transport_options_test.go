@@ -10,13 +10,18 @@
 package petstore_test
 
 import (
-	petstore "petstore/pkg"
+	"errors"
 	"testing"
+
+	petstore "petstore/pkg"
 )
 
 func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !opts.VerifySsl() {
 		t.Error("expected VerifySsl to be true by default")
 	}
@@ -24,7 +29,10 @@ func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
 
 func TestTransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.CACertPath() != "" {
 		t.Errorf("expected empty CACertPath, got %q", opts.CACertPath())
 	}
@@ -32,7 +40,10 @@ func TestTransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
 
 func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Proxy() != nil {
 		t.Error("expected nil Proxy by default")
 	}
@@ -40,7 +51,10 @@ func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
 
 func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Timeout() == nil {
 		t.Fatal("expected non-nil default timeout")
 	}
@@ -51,7 +65,10 @@ func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
 
 func TestTransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be true by default")
 	}
@@ -59,7 +76,10 @@ func TestTransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
 
 func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.MaxRedirects() != nil {
 		t.Error("expected MaxRedirects nil by default")
 	}
@@ -70,7 +90,10 @@ func TestTransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
 	// userAgent is a nullable *string (parity with Java @Nullable String, C#
 	// string?). The default builder injects the branded "<pkg>/<ver> (go)"
 	// value so requests are attributable; callers can pass nil to omit it.
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.UserAgent() == nil {
 		t.Fatal("expected UserAgent to default to the branded value, got nil")
 	}
@@ -83,13 +106,19 @@ func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 	t.Parallel()
 	// The default carries the branded value; once set via the nullable setter
 	// it is applied and read back through the pointer.
-	preset := petstore.NewTransportOptionsBuilder().Build()
+	preset, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if preset.UserAgent() == nil || *preset.UserAgent() != "petstore/1.0.0 (go)" {
 		t.Errorf("expected branded default UserAgent, got %v", preset.UserAgent())
 	}
 
 	ua := "MyApp/1.0"
-	set := petstore.NewTransportOptionsBuilder().UserAgent(&ua).Build()
+	set, err := petstore.NewTransportOptionsBuilder().UserAgent(&ua).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if set.UserAgent() == nil {
 		t.Fatal("expected non-nil UserAgent after setting it")
 	}
@@ -100,7 +129,10 @@ func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 
 func TestTransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(opts.DefaultHeaders()) != 0 {
 		t.Errorf("expected empty default headers, got %v", opts.DefaultHeaders())
 	}
@@ -108,7 +140,10 @@ func TestTransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
 
 func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.InjectRequestID() {
 		t.Error("expected InjectRequestID to be false by default")
 	}
@@ -117,9 +152,9 @@ func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
 func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 	t.Parallel()
 	customAgent := "CustomAgent/2.0"
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		VerifySsl(false).
-		CACertPath("/path/to/ca.pem").
+		CACertPath("../testdata/certs/ca.pem").
 		Proxy("http://proxy.example.com:8080").
 		Timeout(30000).
 		FollowRedirects(false).
@@ -128,12 +163,15 @@ func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 		DefaultHeader("X-Custom", "value").
 		InjectRequestID(true).
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if opts.VerifySsl() {
 		t.Error("expected VerifySsl to be false")
 	}
-	if opts.CACertPath() != "/path/to/ca.pem" {
-		t.Errorf("expected CACertPath '/path/to/ca.pem', got %q", opts.CACertPath())
+	if opts.CACertPath() != "../testdata/certs/ca.pem" {
+		t.Errorf("expected CACertPath '../testdata/certs/ca.pem', got %q", opts.CACertPath())
 	}
 	if opts.Proxy() == nil {
 		t.Fatal("expected non-nil Proxy")
@@ -163,9 +201,12 @@ func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 
 func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be true")
@@ -177,21 +218,40 @@ func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *t
 
 func TestTransportOptions_InvalidProxyUrlThrowsException(t *testing.T) {
 	t.Parallel()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for invalid proxy URL, got none")
+	for _, proxy := range []string{"not-a-valid-url", "ftp://proxy.example.com:21", "http://"} {
+		opts, err := petstore.NewTransportOptionsBuilder().
+			Proxy(proxy).
+			Build()
+		if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+			t.Errorf("expected ErrInvalidProxyURL for %q, got %v", proxy, err)
 		}
-	}()
-	petstore.NewTransportOptionsBuilder().
-		Proxy("not-a-valid-url").
+		if opts != nil {
+			t.Errorf("expected nil TransportOptions for %q", proxy)
+		}
+	}
+}
+
+func TestTransportOptions_MissingCaCertFileIsRejected(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().
+		CACertPath("/nonexistent/ca.pem").
 		Build()
+	if !errors.Is(err, petstore.ErrInvalidCACertificate) {
+		t.Errorf("expected ErrInvalidCACertificate, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected nil TransportOptions")
+	}
 }
 
 func TestTransportOptions_NullProxyUrlIsAccepted(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		Proxy("").
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if opts.Proxy() != nil {
 		t.Error("expected nil Proxy for empty string")
@@ -212,7 +272,10 @@ func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 		t.Fatal("expected non-nil builder from chaining")
 	}
 
-	opts := result.Build()
+	opts, err := result.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.UserAgent() == nil || *opts.UserAgent() != "Test/1.0" {
 		t.Errorf("expected UserAgent 'Test/1.0', got %v", opts.UserAgent())
 	}
@@ -223,10 +286,13 @@ func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 
 func TestTransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-First", "one").
 		DefaultHeader("X-Second", "two").
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	headers := opts.DefaultHeaders()
 	if len(headers) != 2 {
@@ -242,13 +308,16 @@ func TestTransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T)
 
 func TestTransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-First", "one").
 		DefaultHeaders(map[string]string{
 			"X-Second": "two",
 			"X-Third":  "three",
 		}).
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	headers := opts.DefaultHeaders()
 	if len(headers) != 3 {
@@ -267,9 +336,12 @@ func TestTransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
 
 func TestTransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-Test", "value").
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	headers := opts.DefaultHeaders()
 	headers["X-Mutated"] = "should-not-affect-options"
@@ -283,8 +355,14 @@ func TestTransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing
 func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewTransportOptionsBuilder().VerifySsl(false)
-	first := builder.Build()
-	second := builder.Build()
+	first, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if first.VerifySsl() != second.VerifySsl() {
 		t.Error("expected both instances to have the same VerifySsl value")
@@ -300,7 +378,10 @@ func TestTransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) 
 	t.Parallel()
 	// Default TransportOptions ships with a 10-second (10000ms) timeout to
 	// match Java, Python, Node, etc. and prevent runaway requests.
-	opts := petstore.NewTransportOptionsBuilder().Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Timeout() == nil {
 		t.Fatal("expected non-nil default timeout")
 	}
@@ -311,7 +392,10 @@ func TestTransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) 
 
 func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().Timeout(5000).Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Timeout(5000).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Timeout() == nil || *opts.Timeout() != 5000 {
 		t.Error("expected timeout to be 5000")
 	}
@@ -330,7 +414,10 @@ func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
 	t.Parallel()
 	// Verify via the Timeout() accessor that the field is named 'Timeout'
 	// (not e.g. 'ConnectionTimeout' or 'OpenTimeout').
-	opts := petstore.NewTransportOptionsBuilder().Timeout(1000).Build()
+	opts, err := petstore.NewTransportOptionsBuilder().Timeout(1000).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Timeout() == nil {
 		t.Fatal("expected non-nil timeout")
 	}
@@ -343,9 +430,12 @@ func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
 
 func TestTransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
 	t.Parallel()
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		Proxy("http://proxy.example.com:8080").
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if opts.Proxy() == nil {
 		t.Fatal("expected non-nil proxy")
@@ -358,9 +448,12 @@ func TestTransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
 func TestTransportOptions_SettingProxyIsSupportedOnAllPlatforms(t *testing.T) {
 	t.Parallel()
 	// Proxy configuration must not panic on any platform.
-	opts := petstore.NewTransportOptionsBuilder().
+	opts, err := petstore.NewTransportOptionsBuilder().
 		Proxy("http://proxy.example.com:8080").
 		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if opts.Proxy() == nil {
 		t.Error("expected non-nil proxy")

@@ -87,19 +87,17 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("decimal", "float64");
         typeMapping.put("date", "string");
         typeMapping.put("DateTime", "time.Time");
-        // 4.8: format:time and format:duration. Go's stdlib has no
-        // civil-time type and time.Duration's default JSON encoding is
-        // int64 nanoseconds, not the protobuf-JSON duration shape.
-        // cloud.google.com/go/civil would supply civil.Time but drags in
-        // a 100MB+ dep tree just for a struct, so both formats map to
-        // string on the wire. The generated iso8601.go file ships
-        // MarshalDurationProtoJSON / UnmarshalDurationProtoJSON helpers so
-        // callers can convert between time.Duration and the
-        // google.protobuf.Duration form ("<seconds>s", e.g. "3600s")
-        // that Zitadel's API requires, without reaching for a 3rd-party
-        // parser.
+        // 4.8: format:time maps to string: Go's stdlib has no civil-time
+        // type, and cloud.google.com/go/civil would drag in a 100MB+ dep tree
+        // just for a struct. The generated iso8601.go ships FormatTimeOfDay /
+        // ParseTimeOfDay for callers who want a time.Time.
+        //
+        // format:duration maps to the generated models.Duration, a
+        // time.Duration whose JSON form is the protobuf-JSON
+        // google.protobuf.Duration string ("3600s"). time.Duration itself
+        // JSON-encodes as int64 nanoseconds, which no protobuf-JSON API accepts.
         typeMapping.put("time", "string");
-        typeMapping.put("duration", "string");
+        typeMapping.put("duration", "Duration");
         typeMapping.put("array", "[]");
         typeMapping.put("List", "[]");
         typeMapping.put("map", "map");
@@ -546,6 +544,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "errors/internal_server_error.mustache",
                         "pkg/errors",
                         "internal_server_error.go"),
+                new SupportingFileSpec(
+                        "errors/network_error.mustache", "pkg/errors", "network_error.go"),
+                new SupportingFileSpec(
+                        "errors/network_timeout_error.mustache",
+                        "pkg/errors",
+                        "network_timeout_error.go"),
                 new SupportingFileSpec("header_selector.mustache", "pkg", "header_selector.go"),
                 new SupportingFileSpec(
                         "object_serializer.mustache", "pkg", "object_serializer.go"),
@@ -566,7 +570,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
                 new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
                 new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"),
-                new SupportingFileSpec("models/set.mustache", "pkg/models", "set.go"));
+                new SupportingFileSpec("models/set.mustache", "pkg/models", "set.go"),
+                new SupportingFileSpec(
+                        "models/duration.mustache", "pkg/models", "duration.go"));
     }
 
     /**

@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"errors"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -220,8 +221,8 @@ func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) 
 
 	_, err := petstore.NewConfigurationBuilder().
 		Server(server, map[string]string{"env": "invalid"})
-	if err == nil {
-		t.Error("expected error for invalid enum value, got nil")
+	if !errors.Is(err, petstore.ErrInvalidServerVariable) {
+		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
 	}
 }
 

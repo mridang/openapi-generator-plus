@@ -14,19 +14,21 @@ package errors
 // other SDKs, where each language expresses the hierarchy in its own idiom —
 // class inheritance in the OO SDKs, interface conformance here.
 //
-//	OpenAPIError                       (this interface; embeds the builtin error)
+//	OpenAPIError                       (this interface)
 //	 ├─ ApiError                       (HTTP error: status code, message, headers, body)
 //	 │   ├─ ClientError (4xx)          BadRequest(400) Unauthorized(401)
 //	 │   │                             Forbidden(403) NotFound(404)
 //	 │   │                             Conflict(409) UnprocessableEntity(422)
-//	 │   └─ ServerError (5xx)          InternalServerError(500)
-//	 └─ SerializationError             (serialize/deserialize failure)
+//	 │   ├─ ServerError (5xx)          InternalServerError(500)
+//	 │   └─ NetworkError               (no HTTP response: connection, DNS, TLS, reset)
+//	 │       └─ NetworkTimeoutError    (the request timed out)
+//	 ├─ SerializationError             (serialize/deserialize failure)
+//	 ├─ OAuth2ServerError              (token endpoint returned 4xx/5xx)
+//	 └─ OAuth2TokenError               (token endpoint answered unusably)
 //
 // Go has no inheritance, so the "is-a OpenAPIError" relationship is expressed
-// through interface conformance rather than a base class: *ApiError (and every
-// typed subclass that embeds it) and *SerializationError each implement the
-// error interface and therefore satisfy OpenAPIError. Callers can branch on the
-// brand to tell an SDK-originated failure apart from an arbitrary error:
+// through interface conformance rather than a base class. Callers can branch on
+// the brand to tell an SDK-originated failure apart from an arbitrary error:
 //
 //	var ze OpenAPIError
 //	if errors.As(err, &ze) {
@@ -36,11 +38,19 @@ package errors
 // and then narrow to the specific type with a further errors.As against, e.g.,
 // *NotFoundError, *ApiError, or *SerializationError.
 //
-// It is deliberately just `error` rather than `error` plus a private marker
-// method: SerializationError lives in the package that imports this one, so a
-// package-private marker here could never be satisfied across that boundary.
-// Embedding error keeps a single brand that spans the whole hierarchy without
-// forcing every error type into one package.
+// The interface carries an unexported marker method, so an arbitrary error does
+// not satisfy it: only the SDK's own error types do. Types declared in this
+// package implement the marker directly; SDK error types declared in other
+// packages (SerializationError, OAuth2TokenError, OAuth2ServerError) embed
+// ErrorMarker, which promotes the marker to them.
 type OpenAPIError interface {
 	error
+	isOpenAPIError()
 }
+
+// ErrorMarker brands an SDK error type declared outside this package as a
+// OpenAPIError. It is embedded by the SDK's own error types and is not
+// meant to be used by callers.
+type ErrorMarker struct{}
+
+func (ErrorMarker) isOpenAPIError() {}

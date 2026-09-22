@@ -692,6 +692,40 @@ func TestSerializationError_SatisfiesOpenAPIError(t *testing.T) {
 	}
 }
 
+// format:duration fields are models.Duration, a time.Duration that travels on
+// the wire in the protobuf-JSON form, so a Go caller gets a native duration.
+func TestDeserialize_DurationFieldIsNativeDuration(t *testing.T) {
+	t.Parallel()
+	var result models.EdgeCases
+	if err := deserialize([]byte(`{"retryAfter":"3600.5s"}`), &result); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.RetryAfter == nil || time.Duration(*result.RetryAfter) != time.Hour+500*time.Millisecond {
+		t.Fatalf("expected retryAfter of 1h0.5s, got %v", result.RetryAfter)
+	}
+	data, err := serialize(result)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"retryAfter":"3600.500s"`) {
+		t.Errorf("expected protobuf-JSON duration on the wire, got %s", data)
+	}
+}
+
+// A malformed or out-of-range duration is a *SerializationError, like any
+// other wire-shape failure.
+func TestDeserialize_MalformedDurationIsSerializationError(t *testing.T) {
+	t.Parallel()
+	for _, wire := range []string{`"PT1H"`, `"3600"`, `3600`, `"9223372037s"`, `"-9223372037s"`} {
+		var result models.EdgeCases
+		err := deserialize([]byte(`{"retryAfter":`+wire+`}`), &result)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for %s, got %T: %v", wire, err, err)
+		}
+	}
+}
+
 func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
 	t.Parallel()
 	id := int64(0)

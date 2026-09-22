@@ -3,29 +3,20 @@ package {{packageName}}
 
 import (
 	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
 	"time"
+
+	"{{packageName}}/pkg/models"
 )
 
 // 4.8: helpers for OAS `format: time` and `format: duration`. Go's stdlib
-// has no civil-time type and `time.Duration` does not JSON-encode as a
-// protobuf-JSON duration by default (it serialises as int64 nanoseconds).
-// Rather than pulling in the heavyweight cloud.google.com/go/civil dep,
-// we ship stdlib-only conversion helpers and a partial-time HH:MM:SS[.fff]
-// formatter for `format: time`.
+// has no civil-time type, so `format: time` is surfaced as `string` in
+// generated models; FormatTimeOfDay / ParseTimeOfDay convert it to and from
+// the time-of-day component of a `time.Time`.
 //
-// Wire-format note: both formats are surfaced as `string` in generated
-// models so they round-trip through encoding/json unchanged. Callers can
-// convert to/from `time.Duration` via MarshalDurationProtoJSON /
-// UnmarshalDurationProtoJSON, and to/from `time.Time` (using only the
-// time-of-day component) via FormatTimeOfDay / ParseTimeOfDay.
-
-// protoDurationPattern is the google.protobuf.Duration JSON grammar: an
-// optional sign, an integer second count, an optional fractional part of
-// up to nine digits, and a trailing "s".
-var protoDurationPattern = regexp.MustCompile(`^-?\d+(\.\d{1,9})?s$`)
+// `format: duration` is surfaced as models.Duration, a time.Duration that
+// JSON-encodes in the protobuf-JSON google.protobuf.Duration form ("3600s").
+// MarshalDurationProtoJSON / UnmarshalDurationProtoJSON convert a plain
+// time.Duration to and from that string form.
 
 // MarshalDurationProtoJSON formats a time.Duration as a protobuf-JSON
 // google.protobuf.Duration string: a decimal number of seconds suffixed
@@ -37,68 +28,21 @@ var protoDurationPattern = regexp.MustCompile(`^-?\d+(\.\d{1,9})?s$`)
 // that preserves every non-zero nanosecond), matching the protobuf JSON
 // encoder. Negative durations carry a leading "-".
 func MarshalDurationProtoJSON(d time.Duration) string {
-	totalNanos := int64(d)
-	sign := ""
-	if totalNanos < 0 {
-		sign = "-"
-		totalNanos = -totalNanos
-	}
-	secs := totalNanos / int64(time.Second)
-	nanos := totalNanos % int64(time.Second)
-	if nanos == 0 {
-		return fmt.Sprintf("%s%ds", sign, secs)
-	}
-	frac := fmt.Sprintf("%09d", nanos)
-	if strings.HasSuffix(frac, "000000") {
-		frac = frac[:3]
-	} else if strings.HasSuffix(frac, "000") {
-		frac = frac[:6]
-	}
-	return fmt.Sprintf("%s%d.%ss", sign, secs, frac)
+	return models.Duration(d).String()
 }
 
 // UnmarshalDurationProtoJSON parses a protobuf-JSON google.protobuf.Duration
 // string (see MarshalDurationProtoJSON) and returns the corresponding
 // time.Duration. The accepted grammar is -?\d+(\.\d{1,9})?s; anything else
 // (an ISO-8601 "PT1H", a bare number, or a fractional part wider than nine
-// digits) is rejected. time.Duration resolution is nanoseconds, so the
-// full nine fractional digits are preserved.
+// digits) is rejected with a *SerializationError, as is a value outside the
+// range of time.Duration (about ±292 years).
 func UnmarshalDurationProtoJSON(s string) (time.Duration, error) {
-	if !protoDurationPattern.MatchString(s) {
-		return 0, fmt.Errorf(
-			"protobuf-JSON duration: %q is not a decimal number of seconds suffixed with \"s\" (e.g. \"3600s\")",
-			s,
-		)
+	var d models.Duration
+	if err := d.UnmarshalText([]byte(s)); err != nil {
+		return 0, newSerializationError(fmt.Sprintf("invalid duration %q", s), err)
 	}
-	neg := false
-	body := s[:len(s)-1]
-	if body[0] == '-' {
-		neg = true
-		body = body[1:]
-	}
-	secsStr := body
-	fracStr := ""
-	if dot := strings.IndexByte(body, '.'); dot >= 0 {
-		secsStr = body[:dot]
-		fracStr = body[dot+1:]
-	}
-	secs, err := strconv.ParseInt(secsStr, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("protobuf-JSON duration: bad seconds %q: %w", secsStr, err)
-	}
-	var nanos int64
-	if fracStr != "" {
-		padded := fracStr + strings.Repeat("0", 9-len(fracStr))
-		nanos, err = strconv.ParseInt(padded, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("protobuf-JSON duration: bad fraction %q: %w", fracStr, err)
-		}
-	}
-	total := secs*int64(time.Second) + nanos
-	if neg {
-		total = -total
-	}
-	return time.Duration(total), nil
+	return time.Duration(d), nil
 }
 
 // FormatTimeOfDay returns the HH:MM:SS portion of a time.Time, matching

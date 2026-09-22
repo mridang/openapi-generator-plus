@@ -11,18 +11,20 @@ package petstore_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	petstore "petstore/pkg"
+	"petstore/pkg/auth/oauth"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 )
 
 // Compile-time proof that every SDK-thrown error type satisfies the branded
 // OpenAPIError root. Go has no inheritance, so the hierarchy is expressed
-// through interface conformance: *ApiError and the typed 4xx/5xx subclasses
-// (which embed ApiError) plus *SerializationError all implement error and
-// therefore OpenAPIError. If any of these stops satisfying the brand, the
+// through interface conformance: *ApiError, the typed 4xx/5xx and network
+// subclasses (which embed ApiError), *SerializationError and the OAuth2 errors
+// all carry the brand's marker method and therefore satisfy OpenAPIError. If any of these stops satisfying the brand, the
 // package fails to compile rather than failing a test at runtime.
 var (
 	_ apierrors.OpenAPIError = (*apierrors.ApiError)(nil)
@@ -35,8 +37,57 @@ var (
 	_ apierrors.OpenAPIError = (*apierrors.ConflictError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.UnprocessableEntityError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.InternalServerError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.NetworkError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.NetworkTimeoutError)(nil)
 	_ apierrors.OpenAPIError = (*petstore.SerializationError)(nil)
+	_ apierrors.OpenAPIError = (*oauth.OAuth2TokenError)(nil)
+	_ apierrors.OpenAPIError = (*oauth.OAuth2ServerError)(nil)
 )
+
+// TestForeignError_DoesNotSatisfyOpenAPIError confirms the brand is exclusive:
+// an arbitrary error, even one wrapping nothing SDK-shaped, must not match
+// OpenAPIError, or errors.As against the brand would tell a caller nothing.
+func TestForeignError_DoesNotSatisfyOpenAPIError(t *testing.T) {
+	t.Parallel()
+	for _, err := range []error{errors.New("boom"), fmt.Errorf("wrapped: %w", errors.New("boom"))} {
+		if _, ok := err.(OpenAPIErrorBrand); ok {
+			t.Errorf("expected %T not to satisfy OpenAPIError", err)
+		}
+		var ze apierrors.OpenAPIError
+		if errors.As(err, &ze) {
+			t.Errorf("expected errors.As not to match %T against OpenAPIError", err)
+		}
+	}
+}
+
+// OpenAPIErrorBrand aliases the brand so the type assertion above reads as one.
+type OpenAPIErrorBrand = apierrors.OpenAPIError
+
+// TestNetworkErrors_AreApiErrorsWithStatusZero confirms the transport errors
+// carry status 0, keep their cause and satisfy the brand.
+func TestNetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("connection refused")
+	var netErr error = apierrors.NewNetworkError("request failed", cause)
+	var timeoutErr error = apierrors.NewNetworkTimeoutError("request timed out", cause)
+	for _, err := range []error{netErr, timeoutErr} {
+		type statusReader interface{ StatusCode() int }
+		if sr, ok := err.(statusReader); !ok || sr.StatusCode() != 0 {
+			t.Errorf("expected %T to expose StatusCode() == 0", err)
+		}
+		if !errors.Is(err, cause) {
+			t.Errorf("expected %T to unwrap to its cause", err)
+		}
+		var ze apierrors.OpenAPIError
+		if !errors.As(err, &ze) {
+			t.Errorf("expected %T to satisfy OpenAPIError", err)
+		}
+	}
+	var asTimeout *apierrors.NetworkTimeoutError
+	if errors.As(netErr, &asTimeout) {
+		t.Error("a *NetworkError must not match *NetworkTimeoutError")
+	}
+}
 
 func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
 	t.Parallel()

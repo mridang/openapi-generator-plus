@@ -10,6 +10,8 @@
 package petstore_test
 
 import (
+	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -118,8 +120,39 @@ func TestUnmarshalDurationProtoJSON_RejectsMalformed(t *testing.T) {
 	t.Parallel()
 	cases := []string{"", "3600", "s", "1.2345678901s", "1,5s", "PT1H"}
 	for _, c := range cases {
-		if _, err := petstore.UnmarshalDurationProtoJSON(c); err == nil {
-			t.Errorf("expected error for %q", c)
+		_, err := petstore.UnmarshalDurationProtoJSON(c)
+		var serErr *petstore.SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for %q, got %T: %v", c, err, err)
+		}
+	}
+}
+
+// secs*1e9 wraps an int64 past about 9.2e9 seconds; a value outside the range
+// of time.Duration must be rejected, not silently wrapped.
+func TestUnmarshalDurationProtoJSON_RejectsOverflow(t *testing.T) {
+	t.Parallel()
+	cases := []string{"9223372037s", "-9223372037s", "9223372036.854775808s", "99999999999999999999s"}
+	for _, c := range cases {
+		_, err := petstore.UnmarshalDurationProtoJSON(c)
+		var serErr *petstore.SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for %q, got %T: %v", c, err, err)
+		}
+	}
+}
+
+func TestDuration_RoundTripsTheExtremes(t *testing.T) {
+	t.Parallel()
+	for _, orig := range []time.Duration{math.MaxInt64, -math.MaxInt64} {
+		wire := petstore.MarshalDurationProtoJSON(orig)
+		got, err := petstore.UnmarshalDurationProtoJSON(wire)
+		if err != nil {
+			t.Errorf("round-trip parse failed for %v (%q): %v", orig, wire, err)
+			continue
+		}
+		if got != orig {
+			t.Errorf("round-trip mismatch: original=%v wire=%q parsed=%v", orig, wire, got)
 		}
 	}
 }

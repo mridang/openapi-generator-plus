@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"errors"
 	"testing"
 
 	"{{packageName}}/pkg"
@@ -212,8 +213,8 @@ func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) 
 
 	_, err := {{packageName}}.NewConfigurationBuilder().
 		Server(server, map[string]string{"env": "invalid"})
-	if err == nil {
-		t.Error("expected error for invalid enum value, got nil")
+	if !errors.Is(err, {{packageName}}.ErrInvalidServerVariable) {
+		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
 	}
 }
 

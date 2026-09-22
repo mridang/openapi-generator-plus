@@ -82,6 +82,10 @@ func (e *ApiError) Unwrap() error {
 	return e.cause
 }
 
+// isOpenAPIError brands ApiError, and every type embedding it, as a
+// OpenAPIError.
+func (e *ApiError) isOpenAPIError() {}
+
 // Error implements the error interface.
 func (e *ApiError) Error() string {
 	msg := e.msg
@@ -114,6 +118,20 @@ func (e *ApiError) TypedErrorBody(target any) error {
 // apiErr.GetTypedErrorBody(&e)`).
 func (e *ApiError) GetTypedErrorBody(target any) error {
 	return e.TypedErrorBody(target)
+}
+
+// NewNetworkError builds the error returned when a request produced no HTTP
+// response: connection refused, DNS failure, TLS failure or connection reset.
+// The status code is 0 and the transport error is kept as the cause, so
+// errors.Is and errors.As still reach it.
+func NewNetworkError(msg string, cause error) *NetworkError {
+	return &NetworkError{ApiError: ApiError{msg: msg, cause: cause}}
+}
+
+// NewNetworkTimeoutError builds the error returned when a request timed out.
+// The status code is 0 and the transport error is kept as the cause.
+func NewNetworkTimeoutError(msg string, cause error) *NetworkTimeoutError {
+	return &NetworkTimeoutError{NetworkError: NetworkError{ApiError: ApiError{msg: msg, cause: cause}}}
 }
 
 // NewTypedApiError builds the most specific error type for the given HTTP

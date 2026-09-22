@@ -26,7 +26,7 @@ type EdgeCases struct {
 	Class           *string `json:"class,omitempty"`
 	Return          *string `json:"return,omitempty"`
 	/* RetryAfter Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
-	RetryAfter *string `json:"retryAfter,omitempty"`
+	RetryAfter *Duration `json:"retryAfter,omitempty"`
 	/* ExpiresAt Absolute expiry instant */
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 }
