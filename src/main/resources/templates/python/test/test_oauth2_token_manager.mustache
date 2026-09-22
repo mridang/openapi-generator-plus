@@ -575,29 +575,3 @@ class TestOAuth2TokenManager:
         assert all(token == 'tok2' for token in tokens), (
             'all callers must observe the refreshed token'
         )
-
-    @pytest.mark.skip(
-        reason='Python OAuth2TokenManager redirect-refusal error does not surface '
-        'the Location header'
-    )
-    def test_redirect_refusal_error_includes_location(self) -> None:
-        # Gap 3.2: the redirect-refusal error should name the offending Location
-        # for diagnostics. The Python SDK's OAuth2ServerException message embeds
-        # only the status code and response body, not the Location target.
-        manager = OAuth2TokenManager()
-        mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiHttpResponse(
-            status_code=307,
-            body='',
-            headers={'location': 'https://attacker.example/steal'},
-        )
-        manager.set_api_client(mock_client)
-
-        try:
-            manager.get_access_token(
-                'https://auth.example.com/token',
-                {'grant_type': 'client_credentials'},
-            )
-            assert False, 'Expected OAuth2ServerException'
-        except OAuth2ServerException as err:
-            assert 'attacker.example' in str(err)

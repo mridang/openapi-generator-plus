@@ -22,16 +22,10 @@ class OpenAPIException(Exception):
     """
 
 
-# Back-compat alias for consumers that still import the historical root
-# name. ``OpenAPIException`` is the canonical branded root; this keeps
-# ``from <pkg>.errors import OpenApiException`` working unchanged.
-OpenApiException = OpenAPIException
-
-
 class ApiException(OpenAPIException):
     def __init__(
         self,
-        status_code: Optional[int] = None,
+        status_code: int = 0,
         message: Optional[str] = None,
         response_headers: Optional[Any] = None,
         response_body: Optional[str] = None,
@@ -48,7 +42,7 @@ class ApiException(OpenAPIException):
         self._error_body = error_body
 
     @property
-    def status_code(self) -> Optional[int]:
+    def status_code(self) -> int:
         return self._status_code
 
     @property
@@ -122,7 +116,6 @@ from petstore_client.errors.network_timeout_exception import NetworkTimeoutExcep
 
 __all__ = [
     "OpenAPIException",
-    "OpenApiException",
     "ApiException",
     "ClientException",
     "ServerException",

@@ -12,7 +12,6 @@ __all__ = [
     'ServerConfiguration',
     'ServerVariable',
     '{{errorPrefix}}Exception',
-    'OpenApiException',
     'ApiException',
     {{#hasHttpSignatureMethods}}'HttpSigningConfiguration',
     {{/hasHttpSignatureMethods}}{{#models}}{{#model}}'{{classname}}'{{^-last}},
@@ -31,7 +30,6 @@ from {{packageName}}.transport_options import TransportOptions as TransportOptio
 from {{packageName}}.server_configuration import ServerConfiguration as ServerConfiguration
 from {{packageName}}.server_configuration import ServerVariable as ServerVariable
 from {{packageName}}.errors import {{errorPrefix}}Exception as {{errorPrefix}}Exception
-from {{packageName}}.errors import OpenApiException as OpenApiException
 from {{packageName}}.errors import ApiException as ApiException
 {{#hasHttpSignatureMethods}}
 from {{packageName}}.signing import HttpSigningConfiguration as HttpSigningConfiguration

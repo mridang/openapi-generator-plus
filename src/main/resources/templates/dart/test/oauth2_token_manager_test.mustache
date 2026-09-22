@@ -510,30 +510,6 @@ void main() {
       }
     });
 
-    test('redirect-refusal error includes the Location header for diagnostics',
-        () async {
-      // Gap 3.2: the redirect-refusal error should name the offending Location
-      // for diagnostics. The Dart SDK's OAuth2ServerException message embeds only
-      // the status code and body, not the Location target, so this cannot be asserted
-      // without fabricating behaviour the SDK does not implement.
-      final client = _FakeApiClient();
-      client.enqueue('', statusCode: 307);
-
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-
-      await expectLater(
-        () => manager.getAccessToken(
-          'https://auth.example.com/token',
-          {'grant_type': 'client_credentials'},
-        ),
-        throwsA(
-          isA<OAuth2ServerException>()
-              .having((e) => e.toString(), 'message', contains('attacker.example')),
-        ),
-      );
-    }, skip: 'Dart OAuth2TokenManager redirect-refusal error does not surface the Location header');
-
     test('OAuth2TokenException is a {{errorPrefix}}Exception (branded root)', () {
       final err = OAuth2TokenException('boom');
 

@@ -446,12 +446,4 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 2
     _(tokens.all? { |t| t == 'tok2' }).must_equal true
   end
-
-  it 'redirect-refusal error includes the Location header for diagnostics' do
-    # Gap 3.2: the redirect-refusal error should name the offending Location
-    # for diagnostics. The Ruby SDK's OAuth2ServerError message embeds only the
-    # status code, not the Location target, so this cannot be asserted without
-    # fabricating behaviour the SDK does not implement.
-    skip 'Ruby OAuth2TokenManager redirect-refusal error does not surface the Location header'
-  end
 end

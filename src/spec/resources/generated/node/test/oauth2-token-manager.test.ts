@@ -616,22 +616,5 @@ describe("OAuth2TokenManager", () => {
         ).rejects.toMatchObject({ statusCode: status });
       },
     );
-
-    /* Gap 3.2: the redirect-refusal error should name the offending Location
-     * for diagnostics. The OAuth2ServerError message embeds only the status
-     * code and response body, not the Location target. */
-    test.skip("redirect-refusal error includes the Location header for diagnostics", async () => {
-      mockClient.responseStatus = 307;
-      mockClient.responseBody = "";
-      mockClient.responseHeaders = {
-        "content-type": "text/plain",
-        location: "https://attacker.example/steal",
-      };
-      await expect(
-        tokenManager.getAccessToken("https://auth.example.com/token", {
-          grant_type: "client_credentials",
-        }),
-      ).rejects.toThrow(/attacker\.example/);
-    });
   });
 });

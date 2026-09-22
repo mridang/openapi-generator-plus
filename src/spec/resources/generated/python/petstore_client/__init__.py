@@ -21,7 +21,6 @@ __all__ = [
     "ServerConfiguration",
     "ServerVariable",
     "OpenAPIException",
-    "OpenApiException",
     "ApiException",
     "ApiResponse",
     "Availability",
@@ -71,7 +70,6 @@ from petstore_client.server_configuration import (
 )
 from petstore_client.server_configuration import ServerVariable as ServerVariable
 from petstore_client.errors import OpenAPIException as OpenAPIException
-from petstore_client.errors import OpenApiException as OpenApiException
 from petstore_client.errors import ApiException as ApiException
 
 # import models into sdk package

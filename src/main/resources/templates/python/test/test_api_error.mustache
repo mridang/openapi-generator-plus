@@ -8,7 +8,6 @@ from {{packageName}}.errors import (
     ClientException,
     NetworkException,
     NetworkTimeoutException,
-    OpenApiException,
     {{errorPrefix}}Exception,
 )
 from {{packageName}}.models import Category
@@ -75,16 +74,15 @@ class TestExceptionHierarchy:
         assert err.status_code == 0
         assert NetworkException(message='refused').status_code == 0
 
+    def test_defaults_status_code_to_0_when_no_http_response_was_received(self) -> None:
+        assert ApiException().status_code == 0
+        assert ApiException(message='connection reset').status_code == 0
+
     def test_serialization_error_inherits_from_branded_root(self) -> None:
         err = SerializationException('boom')
 
         assert isinstance(err, {{errorPrefix}}Exception)
         assert issubclass(SerializationException, {{errorPrefix}}Exception)
-
-    def test_open_api_exception_is_branded_root_alias(self) -> None:
-        # Back-compat alias: the historical root name resolves to the
-        # branded root so existing `import OpenApiException` keeps working.
-        assert OpenApiException is {{errorPrefix}}Exception
 
 
 class TestApiErrorImmutability:
