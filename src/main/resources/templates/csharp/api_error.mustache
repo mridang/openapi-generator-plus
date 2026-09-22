@@ -20,6 +20,18 @@ public class ApiException : {{errorPrefix}}Exception
     public ApiException(string message, Exception innerException)
         : base(message, innerException) { }
 
+    /// <summary>
+    /// Creates an exception for a response that arrived but could not be used,
+    /// such as a body whose Content-Encoding cannot be decoded. The status code
+    /// is the real status of the response that arrived, and the underlying
+    /// failure is kept as the inner exception.
+    /// </summary>
+    public ApiException(int statusCode, string message, Exception innerException)
+        : base(message, innerException)
+    {
+        StatusCode = statusCode;
+    }
+
     public ApiException(
         int statusCode,
         string message,
@@ -33,6 +45,48 @@ public class ApiException : {{errorPrefix}}Exception
         ResponseHeaders = responseHeaders;
         ResponseBody = responseBody;
         ErrorBody = errorBody;
+    }
+
+    /// <summary>
+    /// Builds the <see cref="ApiException"/> subclass for a non-2xx HTTP
+    /// status: the typed 4xx/5xx exceptions for the statuses that have one,
+    /// <see cref="Errors.ClientException"/> or <see cref="Errors.ServerException"/>
+    /// for any other 4xx/5xx, and <see cref="ApiException"/> otherwise. Shared by
+    /// the API operations and the OpenID Connect discovery request so both map a
+    /// status identically.
+    /// </summary>
+    internal static ApiException ForStatus(
+        int code,
+        string message,
+        Dictionary<string, string>? headers,
+        string? body,
+        object? errorBody = null
+    )
+    {
+        if (code is >= 400 and < 500)
+        {
+            return code switch
+            {
+                400 => new Errors.BadRequestException(message, headers, body, errorBody),
+                401 => new Errors.UnauthorizedException(message, headers, body, errorBody),
+                403 => new Errors.ForbiddenException(message, headers, body, errorBody),
+                404 => new Errors.NotFoundException(message, headers, body, errorBody),
+                409 => new Errors.ConflictException(message, headers, body, errorBody),
+                422 => new Errors.UnprocessableEntityException(message, headers, body, errorBody),
+                _ => new Errors.ClientException(code, message, headers, body, errorBody),
+            };
+        }
+
+        if (code >= 500)
+        {
+            return code switch
+            {
+                500 => new Errors.InternalServerErrorException(message, headers, body, errorBody),
+                _ => new Errors.ServerException(code, message, headers, body, errorBody),
+            };
+        }
+
+        return new ApiException(code, message, headers, body, errorBody);
     }
 
     public T? GetTypedErrorBody<T>()

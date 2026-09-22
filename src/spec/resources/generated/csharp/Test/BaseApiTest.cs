@@ -189,6 +189,7 @@ public class BaseApiTest
                 null, ["application/json"], "application/json"));
         Assert.IsType<ClientException>(ex, exactMatch: false);
         Assert.IsType<ApiException>(ex, exactMatch: false);
+        Assert.IsType<OpenAPIException>(ex, exactMatch: false);
     }
 
     [Fact]
@@ -202,6 +203,7 @@ public class BaseApiTest
                 null, ["application/json"], "application/json"));
         Assert.IsType<ServerException>(ex, exactMatch: false);
         Assert.IsType<ApiException>(ex, exactMatch: false);
+        Assert.IsType<OpenAPIException>(ex, exactMatch: false);
     }
 
     [Fact]

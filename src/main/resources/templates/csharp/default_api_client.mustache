@@ -70,11 +70,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
     /// <summary>
     /// Set once <see cref="Dispose"/> has been called. Guards against
-    /// use-after-close: a request issued on a disposed client surfaces a
-    /// typed SDK <see cref="ApiException"/> rather than the raw
-    /// <see cref="ObjectDisposedException"/> leaked by the underlying
-    /// HttpClient — harmonising the close lifecycle across SDKs (closed-flag
-    /// plus SDK error on use-after-close).
+    /// use-after-close: a request issued on a disposed client is a wrong call
+    /// order, so it surfaces as <see cref="InvalidOperationException"/> rather
+    /// than the <see cref="ObjectDisposedException"/> subclass leaked by the
+    /// underlying HttpClient.
     /// </summary>
     private bool _closed;
 
@@ -276,7 +275,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         if (_closed)
         {
-            throw new ApiException("ApiClient has been closed");
+            throw new InvalidOperationException("ApiClient has been closed");
+        }
+
+        if (!url.IsAbsoluteUri)
+        {
+            throw new ArgumentException($"Request URL must be absolute: {url}", nameof(url));
         }
 
         Dictionary<string, string> mergedHeaders = new(_transportOptions.DefaultHeaders);
@@ -313,6 +317,14 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 _ = request.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
+        }
+
+        /* A malformed Content-Type is a caller mistake: reject it here as an
+           ArgumentException instead of letting the content constructors below
+           leak a raw FormatException. */
+        if (contentType != null && !System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(contentType, out _))
+        {
+            throw new ArgumentException($"Invalid Content-Type header value: {contentType}", nameof(headers));
         }
 
         if (body != null)
@@ -410,8 +422,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                            returning the 3xx so the caller can detect the
                            blocked redirect — matching java/kotlin/python and
                            the harmonised cross-SDK canonical. */
+                        int refusedStatus = (int)response.StatusCode;
                         response.Dispose();
                         throw new ApiException(
+                            refusedStatus,
                             $"Refusing to follow redirect to non-http(s) URL: {nextUrl}");
                     }
                     bool crossOrigin = !SameOrigin(originalUrl, nextUrl);
@@ -440,6 +454,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                            is harmonised. */
                         response.Dispose();
                         throw new ApiException(
+                            redirectStatus,
                             $"Refusing to replay request body across HTTPS->HTTP downgrade redirect to: {nextUrl}");
                     }
 
@@ -512,6 +527,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         response.Dispose();
                         next.Dispose();
                         throw new ApiException(
+                            statusCode,
                             $"Cannot replay a streaming request body across a body-preserving redirect to: {nextUrl}");
                     }
                     response.Dispose();
@@ -530,8 +546,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                    everywhere). */
                 if (hops >= maxRedirects && IsRedirectStatus((int)response.StatusCode))
                 {
+                    int lastStatus = (int)response.StatusCode;
                     response.Dispose();
                     throw new ApiException(
+                        lastStatus,
                         $"Exceeded maximum number of redirects ({maxRedirects})");
                 }
             }
@@ -577,9 +595,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                NOT an IOException, so it would otherwise leak out untyped.
                Surface it as the SDK's own ApiException (no crash, no corrupt
                passthrough) so the caller sees one uniform transport error. */
+            int decodeStatus = (int)response.StatusCode;
             response.Dispose();
             throw new ApiException(
-                $"failed to decode response body: {ex.Message}", ex);
+                decodeStatus, $"failed to decode response body: {ex.Message}", ex);
         }
         catch (TaskCanceledException ex)
         {
@@ -605,9 +624,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             }
             catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or IOException)
             {
+                int decodeStatus = (int)response.StatusCode;
                 response.Dispose();
                 throw new ApiException(
-                    $"failed to decode response body: {ex.Message}", ex);
+                    decodeStatus, $"failed to decode response body: {ex.Message}", ex);
             }
         }
         string? contentTypeHeader = response.Content.Headers.ContentType?.ToString();

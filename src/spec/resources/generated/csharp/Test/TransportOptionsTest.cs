@@ -125,8 +125,10 @@ public class TransportOptionsTest
     [Fact]
     public void InvalidProxyUrlThrowsException()
     {
-        Assert.Throws<ArgumentException>(() =>
+        var ex = Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().Proxy("not a valid url").Build());
+        // A bad proxy URL is a configuration mistake, not an SDK error.
+        Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex));
         Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().Proxy("socks5://proxy:1080").Build());
     }

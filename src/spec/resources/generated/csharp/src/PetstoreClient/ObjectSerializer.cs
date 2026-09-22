@@ -115,6 +115,15 @@ internal class ObjectSerializer
                 e
             );
         }
+        catch (Exception e) when (e is FormatException or OverflowException)
+        {
+            /* A converter that parses a scalar (date, number, duration) must
+               never leak the BCL parse failure: it is a wire-shape error. */
+            throw new SerializationException(
+                $"Failed to deserialize JSON to {typeof(T)}",
+                e
+            );
+        }
     }
 
     /// <summary>
@@ -330,7 +339,23 @@ internal class ObjectSerializer
 
         public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return DateTimeOffset.Parse(reader.GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+            /* A malformed date-time is a wire-shape failure: raise JsonException
+               (wrapped as SerializationException by Deserialize) rather than
+               letting DateTimeOffset.Parse leak a raw FormatException. */
+            if (reader.TokenType != JsonTokenType.String)
+            {
+                throw new JsonException($"Expected a JSON string for a date-time but got {reader.TokenType}.");
+            }
+            string text = reader.GetString()!;
+            if (!DateTimeOffset.TryParse(
+                    text,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out DateTimeOffset value))
+            {
+                throw new JsonException($"Invalid date-time: {text}");
+            }
+            return value;
         }
 
         public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)

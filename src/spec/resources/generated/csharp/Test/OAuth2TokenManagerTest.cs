@@ -309,8 +309,7 @@ public class OAuth2TokenManagerTest
         // 1) Initial grant: returns an access token + refresh token, near-expiry
         //    (expires_in=1, minus the 30s buffer) so the next call refreshes.
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
-        // 2) Refresh attempt: malformed JSON body -> JsonException (not in the
-        //    old allowlist of HttpRequestException/OAuth2ServerError/OAuth2TokenError).
+        // 2) Refresh attempt: malformed JSON body -> OAuth2TokenException.
         client.Enqueue("this is not json", statusCode: 200);
         // 3) Fallback original grant: succeeds.
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
@@ -412,21 +411,65 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        await Assert.ThrowsAsync<OAuth2ServerError>(
+        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(
             () => manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+        Assert.Equal(401, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task MalformedTokenResponseRaisesOAuth2TokenException()
+    {
+        // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException,
+        // never a raw JsonException.
+        var client = new FakeApiClient();
+        client.Enqueue("<html>not json</html>");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2TokenException>(
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
+    }
+
+    [Fact]
+    public async Task TokenTransportFailurePropagatesNetworkException()
+    {
+        // A transport failure on the token POST reaches the caller unchanged.
+        var failure = new PetstoreClient.Errors.NetworkException(
+            "connection refused", new HttpRequestException("refused"));
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(new ThrowingApiClient(failure));
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+        Assert.Same(failure, ex);
+    }
+
+    private sealed class ThrowingApiClient(Exception failure) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            return Task.FromException<ApiHttpResponse>(failure);
+        }
     }
 
     [Fact]
     public void OAuth2ErrorsDeriveFromBrandedRoot()
     {
-        var tokenError = new OAuth2TokenError("missing access_token");
+        var tokenError = new OAuth2TokenException("missing access_token");
         Assert.IsAssignableFrom<OpenAPIException>(tokenError);
         Assert.IsAssignableFrom<Exception>(tokenError);
         Assert.IsNotAssignableFrom<ApiException>(tokenError);
 
-        var serverError = new OAuth2ServerError(400, "invalid_grant", null, null, "{}");
+        var serverError = new OAuth2ServerException(400, "invalid_grant", null, null, "{}");
         Assert.IsAssignableFrom<OpenAPIException>(serverError);
         Assert.IsAssignableFrom<Exception>(serverError);
         Assert.IsNotAssignableFrom<ApiException>(serverError);
@@ -441,7 +484,7 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        await Assert.ThrowsAsync<OAuth2TokenError>(
+        await Assert.ThrowsAsync<OAuth2TokenException>(
             () => manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
@@ -459,7 +502,7 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
+        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(
             () => manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
@@ -491,10 +534,8 @@ public class OAuth2TokenManagerTest
 
     // RFC 6749 §3.2 forbids redirects at the token endpoint; the manager must
     // reject the whole 300-399 range (302 and 307 both exercised here, plus
-    // 301/303/308) rather than only the body-preserving 307/308. A redirect is
-    // a client-side/transport refusal, so the manager raises OAuth2TokenError
-    // (NOT OAuth2ServerError, which is reserved for RFC 6749 §5.2 4xx/5xx error
-    // bodies) — matching the other 11 SDKs.
+    // 301/303/308) rather than only the body-preserving 307/308. A 3xx is a
+    // non-2xx answer, so it is an OAuth2ServerException carrying the status.
     [Theory]
     [InlineData(301)]
     [InlineData(302)]
@@ -509,31 +550,11 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        await Assert.ThrowsAsync<OAuth2TokenError>(
+        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(
             () => manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
-    }
-
-    // A 3xx redirect at the token endpoint must NOT be reported as an
-    // OAuth2ServerError (that type is reserved for RFC 6749 §5.2 error bodies).
-    [Fact]
-    public async Task RedirectFromTokenEndpointIsNotOAuth2ServerError()
-    {
-        var client = new FakeApiClient();
-        client.Enqueue("", statusCode: 307);
-
-        var manager = new OAuth2TokenManager();
-        manager.SetApiClient(client);
-
-        Exception? ex = await Record.ExceptionAsync(
-            () => manager.GetAccessTokenAsync(
-                new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
-
-        Assert.NotNull(ex);
-        Assert.IsType<OAuth2TokenError>(ex);
-        Assert.IsNotType<OAuth2ServerError>(ex);
+        Assert.Equal(statusCode, ex.StatusCode);
     }
 
     [Fact]
@@ -598,7 +619,7 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<OAuth2TokenError>(
+        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(
             () => manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));

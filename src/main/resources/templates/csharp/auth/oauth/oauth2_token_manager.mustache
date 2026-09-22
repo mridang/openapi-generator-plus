@@ -135,8 +135,8 @@ public sealed class OAuth2TokenManager
                 when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 /* Refresh failed for ANY recoverable reason — a revoked/expired
-                 * refresh token (OAuth2ServerError), a 2xx refresh body missing
-                 * access_token (OAuth2TokenError), a transport failure
+                 * refresh token (OAuth2ServerException), a 2xx refresh body missing
+                 * access_token (OAuth2TokenException), a transport failure
                  * (HttpRequestException), a malformed JSON body (JsonException),
                  * a timeout (TaskCanceledException), etc. Fall back to re-running
                  * the original grant below — matching the other 11 SDKs, which
@@ -150,7 +150,7 @@ public sealed class OAuth2TokenManager
         }
 
         await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
-        return _accessToken ?? throw new InvalidOperationException("Failed to obtain access token");
+        return _accessToken ?? throw new OAuth2TokenException("Failed to obtain access token");
     }
 
     /// <summary>
@@ -219,35 +219,30 @@ public sealed class OAuth2TokenManager
          * malicious token endpoint could otherwise issue a redirect that
          * replays the form body (containing the client secret / refresh
          * token) to an attacker-controlled URL. We pass noRedirect: true so
-         * the transport surfaces the 3xx verbatim; if the response is any
-         * 3xx we refuse to honour it. This is a client-side/transport refusal,
-         * not an RFC 6749 §5.2 server error body, so we raise OAuth2TokenError
-         * (reserving OAuth2ServerError for 4xx/5xx error bodies) — matching the
-         * other 11 SDKs, which all throw their token/transport error here. */
+         * the transport surfaces the 3xx verbatim and we refuse to honour it.
+         * A transport failure propagates unchanged as NetworkException /
+         * NetworkTimeoutException. */
         ApiHttpResponse response = await _apiClient
             .SendRequestAsync("POST", tokenUrl, headers, body, noRedirect: true)
             .ConfigureAwait(false);
 
-        if (response.StatusCode is >= 300 and < 400)
-        {
-            throw new OAuth2TokenError(
-                $"Refusing to follow redirect from OAuth2 token endpoint {tokenUrl} "
-                    + $"(status {response.StatusCode}); replaying client credentials "
-                    + "to the redirect target would leak them.");
-        }
-
         if (response.StatusCode is < 200 or >= 300)
         {
-            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
-             * `error` (required), `error_description`, `error_uri`. Parse
-             * them into a typed OAuth2ServerError so callers can catch
-             * them specifically. Fall back to the raw body when the
-             * response is not a valid error object. */
+            /* Any non-2xx answer, a refused 3xx included, is an
+             * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
+             * are JSON bodies with `error` (required), `error_description`,
+             * `error_uri`. Parse them into the typed properties so callers
+             * can recover. Fall back to the raw body when the response is
+             * not a valid error object. */
             throw ParseOAuth2ServerError(response.StatusCode, response.Body);
         }
 
-        using JsonDocument doc = JsonDocument.Parse(response.Body);
+        using JsonDocument doc = ParseTokenResponse(response.Body);
         JsonElement root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new OAuth2TokenException("Token response is not a JSON object");
+        }
         string? accessTokenValue =
             root.TryGetProperty("access_token", out JsonElement accessTokenElement)
             && accessTokenElement.ValueKind == JsonValueKind.String
@@ -255,10 +250,11 @@ public sealed class OAuth2TokenManager
                 : null;
         if (string.IsNullOrEmpty(accessTokenValue))
         {
-            throw new OAuth2TokenError("Token response missing or empty access_token field");
+            throw new OAuth2TokenException("Token response missing or empty access_token field");
         }
         _accessToken = accessTokenValue;
-        if (root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement))
+        if (root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement)
+            && refreshTokenElement.ValueKind == JsonValueKind.String)
         {
             string? newRefreshToken = refreshTokenElement.GetString();
             if (!string.IsNullOrEmpty(newRefreshToken))
@@ -291,11 +287,27 @@ public sealed class OAuth2TokenManager
     }
 
     /// <summary>
+    /// Parse a 2xx token response body. A body that is not JSON is unusable,
+    /// which is an <see cref="OAuth2TokenException"/>.
+    /// </summary>
+    private static JsonDocument ParseTokenResponse(string body)
+    {
+        try
+        {
+            return JsonDocument.Parse(body);
+        }
+        catch (JsonException ex)
+        {
+            throw new OAuth2TokenException($"Token response is not valid JSON: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
     /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
-    /// <see cref="OAuth2ServerError"/>. Falls back to a generic error using
+    /// <see cref="OAuth2ServerException"/>. Falls back to a generic error using
     /// the raw body when the body is not a valid OAuth2 error object.
     /// </summary>
-    private static OAuth2ServerError ParseOAuth2ServerError(int statusCode, string body)
+    private static OAuth2ServerException ParseOAuth2ServerError(int statusCode, string body)
     {
         try
         {
@@ -318,7 +330,7 @@ public sealed class OAuth2TokenManager
                         && uriElement.ValueKind == JsonValueKind.String
                             ? uriElement.GetString()
                             : null;
-                    return new OAuth2ServerError(statusCode, code, description, uri, body);
+                    return new OAuth2ServerException(statusCode, code, description, uri, body);
                 }
             }
         }
@@ -326,7 +338,7 @@ public sealed class OAuth2TokenManager
         {
             /* Not a JSON body; fall through and report the raw body. */
         }
-        return new OAuth2ServerError(statusCode, null, null, null, body);
+        return new OAuth2ServerException(statusCode, null, null, null, body);
     }
 
     /// <summary>
@@ -391,23 +403,23 @@ public sealed class OAuth2TokenManager
 }
 
 /// <summary>
-/// Thrown when the OAuth2 token endpoint returns a 2xx response whose body
-/// is missing or contains an empty <c>access_token</c> field. Distinct from
-/// <see cref="OAuth2ServerError"/> (which represents RFC 6749 §5.2 error
-/// responses on 4xx/5xx) so callers can recover differently.
+/// Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
+/// be used: a body that is not a JSON object, or one whose
+/// <c>access_token</c> field is missing or empty. Distinct from
+/// <see cref="OAuth2ServerException"/> (which represents any non-2xx answer)
+/// so callers can recover differently.
 /// </summary>
-/* CA1710: idiomatic .NET would name this OAuth2TokenException, but the name
-   is shared verbatim across all 12 SDK languages for parity (Python's
-   OAuth2TokenError, Ruby's OAuth2TokenError, etc.). Cross-language rename
-   would be a breaking API change for downstream consumers. */
-/* CA1032: extra constructors (parameterless / message+inner) are unused;
-   we only ever throw this from one site with a fixed-shape message. */
+/* CA1032: the parameterless constructor is unused. */
 /* IDE0290: primary-constructor form makes the XML doc less natural. */
-/* CA1710/CA1032/IDE0290 are silenced project-wide in .editorconfig. */
-public sealed class OAuth2TokenError : {{errorPrefix}}Exception
+/* CA1032/IDE0290 are silenced project-wide in .editorconfig. */
+public sealed class OAuth2TokenException : {{errorPrefix}}Exception
 {
-    /// <summary>Creates a new <see cref="OAuth2TokenError"/> with the given message.</summary>
-    public OAuth2TokenError(string message) : base(message) { }
+    /// <summary>Creates a new <see cref="OAuth2TokenException"/> with the given message.</summary>
+    public OAuth2TokenException(string message) : base(message) { }
+
+    /// <summary>Creates a new <see cref="OAuth2TokenException"/> with the given message and cause.</summary>
+    public OAuth2TokenException(string message, Exception innerException)
+        : base(message, innerException) { }
 }
 
 /// <summary>
@@ -419,14 +431,13 @@ public sealed class OAuth2TokenError : {{errorPrefix}}Exception
 /// original response payload for diagnostics when the body is not a
 /// well-formed OAuth2 error object.
 /// </summary>
-/* CA1710: kept as -Error for cross-language naming parity (see above). */
 /* CA1032: only thrown from one site; extra constructors are unused. */
 /* CA1054/CA1056: error_uri in RFC 6749 §5.2 is a freeform URI string from
    the OAuth2 server response — keep as `string` to round-trip verbatim
    what the server sent without forcing System.Uri's stricter parsing. */
 /* IDE0290: primary-constructor form is awkward with the BuildMessage call. */
-/* CA1710/CA1032/CA1054/CA1056/IDE0290 are silenced project-wide in .editorconfig. */
-public sealed class OAuth2ServerError : {{errorPrefix}}Exception
+/* CA1032/CA1054/CA1056/IDE0290 are silenced project-wide in .editorconfig. */
+public sealed class OAuth2ServerException : {{errorPrefix}}Exception
 {
     /// <summary>HTTP status code returned by the token endpoint.</summary>
     public int StatusCode { get; }
@@ -439,8 +450,8 @@ public sealed class OAuth2ServerError : {{errorPrefix}}Exception
     /// <summary>Raw response body for diagnostics.</summary>
     public string RawBody { get; }
 
-    /// <summary>Creates a new <see cref="OAuth2ServerError"/>.</summary>
-    public OAuth2ServerError(
+    /// <summary>Creates a new <see cref="OAuth2ServerException"/>.</summary>
+    public OAuth2ServerException(
         int statusCode,
         string? code,
         string? description,

@@ -135,7 +135,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => auth.GetAuthHeadersAsync());
+        await Assert.ThrowsAsync<OAuth2ServerException>(() => auth.GetAuthHeadersAsync());
     }
 
     [Fact]

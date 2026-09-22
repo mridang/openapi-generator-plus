@@ -81,6 +81,8 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
             );
         }
 
+        /* Discovery is an HTTP call like any other: a transport failure
+           propagates unchanged as NetworkException / NetworkTimeoutException. */
         Dictionary<string, string> headers = new() { ["Accept"] = "application/json" };
         ApiHttpResponse response = await _apiClient
             .SendRequestAsync("GET", _openIdConnectUrl, headers, null)
@@ -88,34 +90,25 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
 
         if (response.StatusCode < 200 || response.StatusCode >= 300)
         {
-            throw new InvalidOperationException(
-                $"OIDC discovery request to {_openIdConnectUrl} failed with HTTP status {response.StatusCode}"
+            throw ApiException.ForStatus(
+                response.StatusCode,
+                $"OIDC discovery request to {_openIdConnectUrl} failed with HTTP status {response.StatusCode}",
+                new Dictionary<string, string>(response.Headers),
+                response.Body
             );
         }
 
-        using JsonDocument doc = JsonDocument.Parse(response.Body);
+        using JsonDocument doc = ParseDiscoveryDocument(response.Body);
         JsonElement root = doc.RootElement;
-        string authorizationEndpoint =
-            root.TryGetProperty("authorization_endpoint", out JsonElement authEndpointElement)
-            && authEndpointElement.GetString() is { } authEndpoint
-                ? authEndpoint
-                : throw new InvalidOperationException(
-                    "Discovery document missing authorization_endpoint"
-                );
-        string tokenEndpoint =
-            root.TryGetProperty("token_endpoint", out JsonElement tokenEndpointElement)
-            && tokenEndpointElement.GetString() is { } tokenEndpointValue
-                ? tokenEndpointValue
-                : throw new InvalidOperationException(
-                    "Discovery document missing token_endpoint"
-                );
+        Uri authorizationEndpoint = RequireEndpoint(root, "authorization_endpoint");
+        Uri tokenEndpoint = RequireEndpoint(root, "token_endpoint");
 
         _delegate = new OAuth2AuthorizationCodeAuthenticator(
             _host,
             _clientId,
             _clientSecret,
-            new Uri(authorizationEndpoint),
-            new Uri(tokenEndpoint),
+            authorizationEndpoint,
+            tokenEndpoint,
             null,
             _redirectUri,
             _scopes
@@ -123,6 +116,49 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
         _delegate.SetApiClient(_apiClient);
         _discoveryExpiry = DateTimeOffset.UtcNow.AddSeconds(ParseMaxAge(response.Headers));
         return _delegate;
+    }
+
+    /// <summary>
+    /// Parse the discovery response body. A body that is not a JSON object is
+    /// unusable, which is a <see cref="SerializationException"/>.
+    /// </summary>
+    private static JsonDocument ParseDiscoveryDocument(string body)
+    {
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(body);
+        }
+        catch (JsonException ex)
+        {
+            throw new SerializationException($"OIDC discovery document is not valid JSON: {ex.Message}", ex);
+        }
+        if (doc.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            doc.Dispose();
+            throw new SerializationException("OIDC discovery document is not a JSON object");
+        }
+        return doc;
+    }
+
+    /// <summary>
+    /// Extract a required endpoint from the discovery document. An absent,
+    /// non-string, empty or non-absolute-URL field makes the document unusable,
+    /// which is a <see cref="SerializationException"/>.
+    /// </summary>
+    private static Uri RequireEndpoint(JsonElement root, string field)
+    {
+        if (!root.TryGetProperty(field, out JsonElement element)
+            || element.ValueKind != JsonValueKind.String
+            || string.IsNullOrEmpty(element.GetString()))
+        {
+            throw new SerializationException($"Discovery document missing {field}");
+        }
+        if (!Uri.TryCreate(element.GetString(), UriKind.Absolute, out Uri? endpoint))
+        {
+            throw new SerializationException($"Discovery document {field} is not an absolute URL");
+        }
+        return endpoint;
     }
 
     /// <summary>

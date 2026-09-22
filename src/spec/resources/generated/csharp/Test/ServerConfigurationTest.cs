@@ -85,6 +85,8 @@ public class ServerConfigurationTest
         );
         Assert.Contains("Invalid value 'invalid'", ex.Message);
         Assert.Contains("env", ex.Message);
+        // A server variable outside its enum is a caller mistake, not an SDK error.
+        Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex));
     }
 
     [Fact]

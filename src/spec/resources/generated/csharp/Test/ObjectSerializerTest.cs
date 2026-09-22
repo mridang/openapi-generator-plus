@@ -399,13 +399,33 @@ public class ObjectSerializerTest
         [Fact]
         public void TruncatedJsonThrowsSerializationException()
         {
-            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
         }
 
         [Fact]
         public void InvalidJsonStructureThrowsSerializationException()
         {
-            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("\"hello\""));
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("\"hello\""));
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
+        }
+
+        [Fact]
+        public void WrongPrimitiveTypeThrowsSerializationException()
+        {
+            var ex = Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Category>("{\"id\":\"not-a-number\",\"name\":\"Dogs\"}"));
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
+        }
+
+        [Fact]
+        public void MalformedDateTimeThrowsSerializationException()
+        {
+            // Order.shipDate is format: date-time; a value that is not an
+            // RFC 3339 timestamp must fail with the SDK's SerializationException.
+            var ex = Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Order>("{\"shipDate\":\"not-a-date\"}"));
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
         }
 
         [Fact]
@@ -549,8 +569,9 @@ public class ObjectSerializerTest
             // JsonStringEnumConverter throws a JsonException on an unknown
             // value, which the serializer wraps. Canonical across all 12 SDKs.
             var json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"],\"status\":\"banana\"}";
-            Assert.Throws<SerializationException>(
+            var ex = Assert.Throws<SerializationException>(
                 () => _serializer.Deserialize<Pet>(json));
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
         }
 
         [Fact]
@@ -558,8 +579,9 @@ public class ObjectSerializerTest
         {
             // 'name' is required but absent — [JsonRequired] rejects it.
             var json = "{\"id\":1,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
-            Assert.Throws<SerializationException>(
+            var ex = Assert.Throws<SerializationException>(
                 () => _serializer.Deserialize<Pet>(json));
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
         }
 
         [Fact]
@@ -991,7 +1013,8 @@ public class ObjectSerializerTest
         {
             // Neither a raw FormatException/OverflowException nor a silently
             // wrapped tick count: the caller sees the SDK's own error.
-            Assert.Throws<SerializationException>(() => _serializer.Deserialize<TimeSpan>(json));
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<TimeSpan>(json));
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
         }
     }
 

@@ -38,6 +38,15 @@ public class OpenIdConnectAuthenticatorTest
         }
     }
 
+    private sealed class ThrowingApiClient(Exception failure) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            return Task.FromException<ApiHttpResponse>(failure);
+        }
+    }
+
     private static readonly string[] Scopes = new[] { "openid", "profile" };
 
     private static OpenIdConnectAuthenticator CreateAuthenticator()
@@ -151,7 +160,7 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => auth.BuildAuthorizationUrlAsync());
+        await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
     }
 
     [Fact]
@@ -163,7 +172,49 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => auth.BuildAuthorizationUrlAsync());
+        await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public async Task MalformedDiscoveryDocumentRaisesSerializationException()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{not json");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
+    }
+
+    [Fact]
+    public async Task Discovery404RaisesNotFoundException()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("not found", statusCode: 404);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.Equal(404, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task DiscoveryTransportFailurePropagatesNetworkException()
+    {
+        // Discovery is an HTTP call like any other: a transport failure from
+        // the ApiClient must reach the caller unchanged, not rewrapped.
+        var failure = new PetstoreClient.Errors.NetworkException(
+            "connection refused", new HttpRequestException("refused"));
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new ThrowingApiClient(failure));
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.Same(failure, ex);
     }
 
     [Fact]
@@ -179,15 +230,17 @@ public class OpenIdConnectAuthenticatorTest
     {
         var client = new FakeApiClient();
         // A non-2xx discovery response (e.g. a 500 HTML error page) must
-        // surface as a status error, not an "invalid JSON" parse failure of
-        // the HTML error page body.
+        // surface as the ApiException subclass for its status, not an
+        // "invalid JSON" parse failure of the HTML error page body.
         client.Enqueue("<html>internal server error</html>", statusCode: 500);
 
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(
             () => auth.BuildAuthorizationUrlAsync());
+        Assert.Equal(500, ex.StatusCode);
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
     }
 
     [Fact]

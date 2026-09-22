@@ -8,7 +8,6 @@
 #nullable enable
 
 using PetstoreClient.Auth;
-using PetstoreClient.Errors;
 
 namespace PetstoreClient.Api;
 
@@ -393,30 +392,7 @@ public abstract class BaseApi
             }
         }
 
-        if (code is >= 400 and < 500)
-        {
-            throw code switch
-            {
-                400 => new BadRequestException(message, headers, body, errorBody),
-                401 => new UnauthorizedException(message, headers, body, errorBody),
-                403 => new ForbiddenException(message, headers, body, errorBody),
-                404 => new NotFoundException(message, headers, body, errorBody),
-                409 => new ConflictException(message, headers, body, errorBody),
-                422 => new UnprocessableEntityException(message, headers, body, errorBody),
-                _ => new ClientException(code, message, headers, body, errorBody),
-            };
-        }
-
-        if (code >= 500)
-        {
-            throw code switch
-            {
-                500 => new InternalServerErrorException(message, headers, body, errorBody),
-                _ => new ServerException(code, message, headers, body, errorBody),
-            };
-        }
-
-        throw new ApiException(code, message, headers, body, errorBody);
+        throw ApiException.ForStatus(code, message, headers, body, errorBody);
     }
 
     /// <summary>
@@ -504,8 +480,9 @@ public abstract class BaseApi
                 return value;
             }
         }
-        throw new ApiException(
-            "No binary payload found in request body for raw octet-stream upload");
+        throw new ArgumentException(
+            "No binary payload found in request body for raw octet-stream upload",
+            nameof(formBody));
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

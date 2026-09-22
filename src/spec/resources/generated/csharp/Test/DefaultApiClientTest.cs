@@ -160,6 +160,7 @@ public class DefaultApiClientTest
                 null
             )
         );
+        Assert.IsAssignableFrom<PetstoreClient.Errors.NetworkException>(ex);
         Assert.Equal(0, ex.StatusCode);
         Assert.NotNull(ex.InnerException);
     }
@@ -401,6 +402,9 @@ public class DefaultApiClientTest
 
         Assert.Single(handler.Requests);
         Assert.Contains("downgrade", ex.Message, StringComparison.OrdinalIgnoreCase);
+        // A refused redirect is a response that arrived but could not be
+        // used: ApiException carrying the redirect's real status.
+        Assert.Equal(307, ex.StatusCode);
     }
 
     /* T-new-3: multipart body replay on 307/308 is NOT exercisable from
@@ -526,7 +530,7 @@ public class DefaultApiClientTest
         {
             { "name\r\nInjected: yes", "string-value" }
         };
-        await Assert.ThrowsAnyAsync<Exception>(async () =>
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
             await client.SendRequestAsync(
                 "POST",
                 new Uri(_fixture.BaseUrl + "/test/echo"),
@@ -647,7 +651,7 @@ public class DefaultApiClientTest
         client.Dispose();
         client.Dispose();
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             client.SendRequestAsync(
                 "GET",
                 new Uri("https://example.com"),
@@ -655,7 +659,8 @@ public class DefaultApiClientTest
                 null
             )
         );
-        Assert.Contains("closed", ex.Message);
+        Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex), "use-after-close must not be an SDK error");
+        Assert.Contains("closed", ex.Message, StringComparison.Ordinal);
     }
 
     /// <summary>

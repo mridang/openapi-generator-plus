@@ -802,6 +802,8 @@ public class DefaultApiClientUnitTest
         // downgraded follow-up must be refused.
         Assert.Single(handler.Requests);
         Assert.Contains("downgrade", ex.Message, StringComparison.OrdinalIgnoreCase);
+        // A refused redirect carries the redirect's real status.
+        Assert.Equal(307, ex.StatusCode);
     }
 
     // ---- T-D3: non-http(s) redirect target is refused with a typed error ----
@@ -823,6 +825,7 @@ public class DefaultApiClientUnitTest
         // The blocked redirect must surface as an error, not a silent 3xx.
         Assert.Single(handler.Requests);
         Assert.Contains("non-http", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(302, ex.StatusCode);
     }
 
     // ---- T-D1: exceeding maxRedirects throws "too many redirects" ----
@@ -844,6 +847,7 @@ public class DefaultApiClientUnitTest
         ));
 
         Assert.Contains("redirect", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(302, ex.StatusCode);
     }
 
     [Fact]
@@ -946,25 +950,31 @@ public class DefaultApiClientUnitTest
         ));
 
         Assert.Contains("decode", ex.Message, StringComparison.OrdinalIgnoreCase);
+        // A response did arrive: the error carries its real status and is
+        // never a NetworkException.
+        Assert.Equal(200, ex.StatusCode);
+        Assert.False(ex is PetstoreClient.Errors.NetworkException, "a corrupt body is not a network failure");
     }
 
-    // ---- close-lifecycle-three-way: use-after-close throws SDK error ----
+    // ---- close-lifecycle-three-way: use-after-close throws the state error ----
 
     [Fact]
-    public async Task UseAfterCloseThrowsApiException()
+    public async Task UseAfterCloseThrowsInvalidOperationException()
     {
         var client = new DefaultApiClient(
             CreateMockHttpClient(HttpStatusCode.OK, "{}"));
         client.Dispose();
 
-        // A request on a disposed client must surface a typed SDK error, not
-        // the raw ObjectDisposedException leaked by HttpClient.
-        await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+        // A request on a disposed client is a wrong call order: the built-in
+        // InvalidOperationException, not an SDK error and not the
+        // ObjectDisposedException subclass leaked by HttpClient.
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => client.SendRequestAsync(
             "GET",
             new Uri("http://example.com/echo"),
             new Dictionary<string, string>(),
             null
         ));
+        Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex), "use-after-close must not be an SDK error");
     }
 
     [Fact]
@@ -976,6 +986,7 @@ public class DefaultApiClientUnitTest
         // It is a configuration mistake, so the type is ArgumentException.
         var transport = TransportOptions.Builder().CaCertPath("/nonexistent/ca.pem").Build();
         var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
+        Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex), "a configuration mistake must not be an SDK error");
         Assert.NotNull(ex.InnerException);
     }
 
@@ -991,6 +1002,7 @@ public class DefaultApiClientUnitTest
             new Dictionary<string, string>(),
             null
         ));
+        Assert.IsAssignableFrom<ApiException>(ex);
         Assert.Equal(0, ex.StatusCode);
         Assert.IsType<HttpRequestException>(ex.InnerException);
         Assert.IsNotType<PetstoreClient.Errors.NetworkTimeoutException>(ex);
@@ -1010,6 +1022,7 @@ public class DefaultApiClientUnitTest
             new Dictionary<string, string>(),
             null
         ));
+        Assert.IsAssignableFrom<PetstoreClient.Errors.NetworkException>(ex);
         Assert.Equal(0, ex.StatusCode);
         Assert.IsType<TaskCanceledException>(ex.InnerException);
     }
