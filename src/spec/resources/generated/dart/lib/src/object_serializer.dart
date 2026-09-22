@@ -10,11 +10,7 @@ import 'dart:convert';
 import 'errors/open_api_exception.dart';
 import 'iso8601_duration.dart';
 export 'iso8601_duration.dart'
-    show
-        ProtobufDurationFormatException,
-        formatProtobufDuration,
-        parseProtobufDuration,
-        validatePartialTime;
+    show formatProtobufDuration, parseProtobufDuration, validatePartialTime;
 
 /// Canonical RFC 4122 UUID shape. Case-insensitive; matches all variants
 /// (`format: uuid` is intentionally permissive about which variant is on the

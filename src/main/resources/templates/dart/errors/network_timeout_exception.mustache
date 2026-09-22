@@ -1,0 +1,12 @@
+{{>api_info}}
+import 'network_exception.dart';
+
+/// NetworkTimeoutException represents a request that timed out. The status
+/// code is always 0; the underlying error (a `dart:async` `TimeoutException`)
+/// is kept as [underlyingError].
+class NetworkTimeoutException extends NetworkException {
+  const NetworkTimeoutException({
+    required super.message,
+    super.underlyingError,
+  });
+}

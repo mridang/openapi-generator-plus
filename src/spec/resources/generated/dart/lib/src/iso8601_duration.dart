@@ -23,27 +23,7 @@
 ///   * Negative durations parse and format with a leading `-`.
 library;
 
-/// Format for [parseProtobufDuration] errors. The message names the
-/// offending input so call sites can surface useful diagnostics.
-class ProtobufDurationFormatException implements FormatException {
-  @override
-  final String message;
-  @override
-  final String? source;
-  @override
-  final int? offset;
-
-  const ProtobufDurationFormatException(this.message, [this.source])
-    : offset = null;
-
-  @override
-  String toString() {
-    if (source != null) {
-      return 'ProtobufDurationFormatException: $message (input: $source)';
-    }
-    return 'ProtobufDurationFormatException: $message';
-  }
-}
+import 'object_serializer.dart' show SerializationError;
 
 /// Regex matching the `google.protobuf.Duration` JSON grammar.
 ///
@@ -55,18 +35,15 @@ final RegExp _protobufDurationPattern = RegExp(r'^(-)?(\d+)(?:\.(\d{1,9}))?s$');
 /// Accepts the `google.protobuf.Duration` JSON form
 /// `-?\d+(\.\d{1,9})?s`. The fractional part is right-padded to nine
 /// digits to recover nanoseconds; sub-microsecond digits are truncated
-/// to fit [Duration]'s resolution. Throws
-/// [ProtobufDurationFormatException] for malformed input.
+/// to fit [Duration]'s resolution. Throws [SerializationError] for
+/// malformed input.
 Duration parseProtobufDuration(String input) {
   if (input.isEmpty) {
-    throw ProtobufDurationFormatException('empty duration string', input);
+    throw const SerializationError('empty duration string');
   }
   final match = _protobufDurationPattern.firstMatch(input);
   if (match == null) {
-    throw ProtobufDurationFormatException(
-      'not a protobuf-JSON duration',
-      input,
-    );
+    throw SerializationError('not a protobuf-JSON duration: $input');
   }
 
   final negative = match.group(1) == '-';

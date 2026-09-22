@@ -121,6 +121,22 @@ void main() {
       },
     );
 
+    test(
+      'NetworkTimeoutException is NetworkException and ApiError with status 0',
+      () {
+        const err = NetworkTimeoutException(message: 'timed out');
+
+        expect(err, isA<NetworkException>());
+        expect(err, isA<ApiError>());
+        expect(err, isA<OpenAPIException>());
+        expect(err.statusCode, equals(0));
+        expect(
+          const NetworkException(message: 'refused').statusCode,
+          equals(0),
+        );
+      },
+    );
+
     test('SerializationError is a OpenAPIException', () {
       const err = SerializationError('nope');
 

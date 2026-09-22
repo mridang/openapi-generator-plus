@@ -1,5 +1,6 @@
 {{>api_info}}
 {{#generateTests}}
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -114,14 +115,19 @@ void main() {
           .timeout(1000)
           .build();
       final client = DefaultApiClient(transportOptions: transport);
-      expect(
-        () => client.sendRequest(
+      await expectLater(
+        client.sendRequest(
           'GET',
           '$chasmHttpUrl/test/slow',
           {},
           null,
         ),
-        throwsA(isA<ApiError>()),
+        throwsA(
+          isA<NetworkTimeoutException>()
+              .having((e) => e.statusCode, 'statusCode', 0)
+              .having((e) => e.underlyingError, 'underlyingError',
+                  isA<TimeoutException>()),
+        ),
       );
     });
 

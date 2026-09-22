@@ -109,6 +109,17 @@ void main() {
       expect(err, isA<{{errorPrefix}}Exception>());
     });
 
+    test('NetworkTimeoutException is NetworkException and ApiError with status 0',
+        () {
+      const err = NetworkTimeoutException(message: 'timed out');
+
+      expect(err, isA<NetworkException>());
+      expect(err, isA<ApiError>());
+      expect(err, isA<{{errorPrefix}}Exception>());
+      expect(err.statusCode, equals(0));
+      expect(const NetworkException(message: 'refused').statusCode, equals(0));
+    });
+
     test('SerializationError is a {{errorPrefix}}Exception', () {
       const err = SerializationError('nope');
 

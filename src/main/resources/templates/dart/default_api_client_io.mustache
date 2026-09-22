@@ -28,9 +28,8 @@ class DefaultApiClient extends AbstractApiClient {
   ///
   /// A factory body (rather than an initializer list) is used so that a
   /// failure to read/load/parse a caller-supplied custom CA certificate
-  /// is caught and rethrown as the SDK's typed [ApiError] (statusCode 0,
-  /// original error preserved as [ApiError.underlyingError]) instead of
-  /// leaking a raw `dart:io` FileSystemException / TlsException.
+  /// is caught and rethrown as an [ArgumentError] instead of leaking a raw
+  /// `dart:io` FileSystemException / TlsException.
   factory DefaultApiClient({TransportOptions? transportOptions}) {
     final options = transportOptions ?? TransportOptionsBuilder().build();
     return DefaultApiClient._(
@@ -42,6 +41,14 @@ class DefaultApiClient extends AbstractApiClient {
 
   DefaultApiClient._(super.options, super.client, super.proxyAuth);
 
+  /// A raw `dart:io` socket, TLS or HTTP error means no HTTP response
+  /// arrived, so it surfaces as a `NetworkException`.
+  @override
+  bool isNetworkError(Object error) =>
+      error is SocketException ||
+      error is TlsException ||
+      error is HttpException;
+
   /// Creates an [IOClient] configured from the given [TransportOptions].
   ///
   /// Configures TLS certificate verification, custom CA certificates,
@@ -50,21 +57,17 @@ class DefaultApiClient extends AbstractApiClient {
     final context = SecurityContext(withTrustedRoots: true);
     if (options.caCertPath != null) {
       /* A caller-supplied custom CA certificate (TLS pinning) that is
-       * missing, unreadable, or unparseable must fail fast — but as the
-       * SDK's typed ApiError, not the raw dart:io FileSystemException /
-       * TlsException that setTrustedCertificates throws. A caller guarding
-       * construction with `on ApiError` would otherwise MISS this
-       * security-relevant TLS-pinning misconfiguration. statusCode 0 marks
-       * a pre-flight (no HTTP exchange) failure; the original error is
-       * preserved as underlyingError. */
+       * missing, unreadable, or unparseable must fail fast. It is a
+       * configuration error, so it surfaces as an ArgumentError rather than
+       * the raw dart:io FileSystemException / TlsException that
+       * setTrustedCertificates throws. */
       try {
         context.setTrustedCertificates(options.caCertPath!);
       } catch (e) {
-        throw ApiError(
-          statusCode: 0,
-          message:
-              'failed to read or parse CA certificate from ${options.caCertPath}: $e',
-          underlyingError: e,
+        throw ArgumentError.value(
+          options.caCertPath,
+          'caCertPath',
+          'failed to read or parse CA certificate: $e',
         );
       }
     }

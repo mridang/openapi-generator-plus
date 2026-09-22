@@ -624,15 +624,15 @@ void main() {
 
     test('parseProtobufDuration rejects malformed input', () {
       expect(() => parseProtobufDuration('not-a-duration'),
-          throwsA(isA<ProtobufDurationFormatException>()));
+          throwsA(isA<SerializationError>()));
       expect(() => parseProtobufDuration(''),
-          throwsA(isA<ProtobufDurationFormatException>()));
+          throwsA(isA<SerializationError>()));
       // Missing the trailing `s` suffix.
       expect(() => parseProtobufDuration('3600'),
-          throwsA(isA<ProtobufDurationFormatException>()));
+          throwsA(isA<SerializationError>()));
       // ISO-8601 form is no longer accepted.
       expect(() => parseProtobufDuration('PT1H30M'),
-          throwsA(isA<ProtobufDurationFormatException>()));
+          throwsA(isA<SerializationError>()));
     });
 
     test('formatProtobufDuration emits canonical zero', () {

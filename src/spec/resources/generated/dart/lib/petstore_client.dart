@@ -39,6 +39,8 @@ export 'src/errors/client_error.dart';
 export 'src/errors/conflict_error.dart';
 export 'src/errors/forbidden_error.dart';
 export 'src/errors/internal_server_error.dart';
+export 'src/errors/network_exception.dart';
+export 'src/errors/network_timeout_exception.dart';
 export 'src/errors/not_found_error.dart';
 export 'src/errors/server_error.dart';
 export 'src/errors/unauthorized_error.dart';

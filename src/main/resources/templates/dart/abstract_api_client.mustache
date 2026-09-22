@@ -11,6 +11,8 @@ import 'dart:math';
 import 'api_client.dart';
 import 'api_http_response.dart';
 import 'errors/api_error.dart';
+import 'errors/network_exception.dart';
+import 'errors/network_timeout_exception.dart';
 import 'transport_options.dart';
 
 /// Transport-agnostic base for [ApiClient] implementations.
@@ -66,6 +68,13 @@ abstract class AbstractApiClient implements ApiClient {
   /// on the browser having already decoded the response and returns [bytes]
   /// unchanged. An empty encoding passes bytes through on both.
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding);
+
+  /// Platform seam: whether [error], raised while sending the request or
+  /// reading the response body, means no HTTP response arrived (connection
+  /// refused, DNS failure, TLS failure, connection reset). The native
+  /// transport recognises the `dart:io` socket and TLS errors; the web
+  /// transport only ever sees them wrapped in `http.ClientException`.
+  bool isNetworkError(Object error) => false;
 
   /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
   /// embedded in the proxy URL, or returns null when no credentials are
@@ -343,20 +352,26 @@ abstract class AbstractApiClient implements ApiClient {
       /* package:http surfaces send-phase failures and post-header body-read
        * failures (truncated/malformed chunked body, connection reset
        * mid-stream) — and wraps native socket/TLS errors from its IOClient —
-       * as ClientException. Wrap it in the uniform ApiError so callers
-       * guarding with `on ApiError` see transport failures consistently. */
-      throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
+       * as ClientException. No HTTP response arrived, so it is a
+       * NetworkException (an ApiError with status 0). */
+      throw NetworkException(message: e.message, underlyingError: e);
     } on TimeoutException catch (e) {
-      throw ApiError(
-        statusCode: 0,
+      /* `Future.timeout` throws dart:async's TimeoutException, which is
+       * why the SDK type is NetworkTimeoutException and not a name that
+       * would clash with it. */
+      throw NetworkTimeoutException(
         message: e.message ?? 'Request timed out',
         underlyingError: e,
       );
     } catch (e) {
-      /* Any other transport-layer error (e.g. a raw dart:io
-       * SocketException / HandshakeException that surfaces from the
-       * body-read stream on the native transport) is wrapped uniformly so
-       * no foreign exception type escapes the SDK surface. */
+      /* A raw dart:io SocketException / HandshakeException that surfaces
+       * from the body-read stream on the native transport is a
+       * NetworkException; the transport decides via [isNetworkError]. Any
+       * other error is wrapped as a plain ApiError so no foreign exception
+       * type escapes the SDK surface. */
+      if (isNetworkError(e)) {
+        throw NetworkException(message: e.toString(), underlyingError: e);
+      }
       throw ApiError(statusCode: 0, message: e.toString(), underlyingError: e);
     }
     final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '').toLowerCase().trim();

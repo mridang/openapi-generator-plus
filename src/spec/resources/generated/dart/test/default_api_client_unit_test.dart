@@ -936,8 +936,8 @@ void main() {
     /* response-body-read-error-not-wrapped: a connection that drops
      * AFTER the response headers (here: a declared Content-Length that
      * is never fully delivered before the socket is destroyed) must
-     * surface as the uniform ApiError, not a raw dart:io exception. */
-    test('wraps a body-read failure in ApiError', () async {
+     * surface as a NetworkException, not a raw dart:io exception. */
+    test('wraps a body-read failure in NetworkException', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         // Announce 100 bytes, send only a few, then kill the socket so
@@ -964,11 +964,38 @@ void main() {
             {},
             null,
           ),
-          throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 0)),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.statusCode,
+              'statusCode',
+              0,
+            ),
+          ),
         );
       } finally {
         await server.close();
       }
+    });
+
+    test('a refused connection throws NetworkException', () async {
+      // Bind then release a port so nothing listens on it.
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+      final client = DefaultApiClient();
+      await expectLater(
+        client.sendRequest('GET', 'http://127.0.0.1:$port/refused', {}, null),
+        throwsA(
+          isA<NetworkException>()
+              .having(
+                (e) => e,
+                'not a timeout',
+                isNot(isA<NetworkTimeoutException>()),
+              )
+              .having((e) => e.statusCode, 'statusCode', 0)
+              .having((e) => e.underlyingError, 'underlyingError', isNotNull),
+        ),
+      );
     });
 
     test('joins multi-value response headers', () async {
@@ -1003,21 +1030,21 @@ void main() {
     });
 
     /* T-CA-ERRTYPE: an explicitly configured CA certificate path that cannot
-     * be read or parsed must fail fast at construction with the SDK's typed
-     * ApiError (statusCode 0) — NOT a raw dart:io FileSystemException /
-     * TlsException. A caller guarding construction with `on ApiError` would
-     * otherwise miss this security-relevant TLS-pinning misconfiguration. */
-    test('non-existent caCertPath throws ApiError at construction', () {
+     * be read or parsed must fail fast at construction with an ArgumentError
+     * (a configuration error) — NOT a raw dart:io FileSystemException /
+     * TlsException, and not an ApiError. */
+    test('non-existent caCertPath throws ArgumentError at construction', () {
       final transport = TransportOptionsBuilder()
           .caCertPath('/nonexistent/ca.pem')
           .build();
       expect(
         () => DefaultApiClient(transportOptions: transport),
         throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 0)
-              .having((e) => e.message, 'message', contains('CA certificate'))
-              .having((e) => e.underlyingError, 'underlyingError', isNotNull),
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('CA certificate'),
+          ),
         ),
       );
       // It must NOT leak the raw dart:io exception type.
@@ -1027,36 +1054,40 @@ void main() {
       );
     });
 
-    test('garbage-PEM caCertPath throws ApiError at construction', () async {
-      final dir = await Directory.systemTemp.createTemp('ca_cert_test');
-      final badPem = File('${dir.path}/garbage.pem');
-      await badPem.writeAsString(
-        '-----BEGIN CERTIFICATE-----\n'
-        'this is not valid base64 PEM content\n'
-        '-----END CERTIFICATE-----\n',
-      );
-      try {
-        final transport = TransportOptionsBuilder()
-            .caCertPath(badPem.path)
-            .build();
-        expect(
-          () => DefaultApiClient(transportOptions: transport),
-          throwsA(
-            isA<ApiError>()
-                .having((e) => e.statusCode, 'statusCode', 0)
-                .having((e) => e.message, 'message', contains('CA certificate'))
-                .having((e) => e.underlyingError, 'underlyingError', isNotNull),
-          ),
+    test(
+      'garbage-PEM caCertPath throws ArgumentError at construction',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('ca_cert_test');
+        final badPem = File('${dir.path}/garbage.pem');
+        await badPem.writeAsString(
+          '-----BEGIN CERTIFICATE-----\n'
+          'this is not valid base64 PEM content\n'
+          '-----END CERTIFICATE-----\n',
         );
-        // It must NOT leak the raw dart:io TlsException type.
-        expect(
-          () => DefaultApiClient(transportOptions: transport),
-          throwsA(isNot(isA<TlsException>())),
-        );
-      } finally {
-        await dir.delete(recursive: true);
-      }
-    });
+        try {
+          final transport = TransportOptionsBuilder()
+              .caCertPath(badPem.path)
+              .build();
+          expect(
+            () => DefaultApiClient(transportOptions: transport),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('CA certificate'),
+              ),
+            ),
+          );
+          // It must NOT leak the raw dart:io TlsException type.
+          expect(
+            () => DefaultApiClient(transportOptions: transport),
+            throwsA(isNot(isA<TlsException>())),
+          );
+        } finally {
+          await dir.delete(recursive: true);
+        }
+      },
+    );
 
     // -- Gap BI / Gap F: multipart filename directive + validation --
 
