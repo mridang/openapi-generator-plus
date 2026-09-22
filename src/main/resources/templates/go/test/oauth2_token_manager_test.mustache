@@ -91,7 +91,8 @@ func TestOAuth2TokenManager_TokenPostsSetNoRedirect(t *testing.T) {
 
 // Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The manager
 // must refuse the whole 300-399 range (302 and 307 both exercised below, plus
-// 301/303/308) with an *OAuth2TokenError rather than silently falling through.
+// 301/303/308) rather than silently falling through. Like any non-2xx answer,
+// the refusal is an *OAuth2ServerError carrying that status.
 func TestOAuth2TokenManager_RejectsRedirect(t *testing.T) {
 	t.Parallel()
 	for _, status := range []int{301, 302, 303, 307, 308} {
@@ -107,9 +108,13 @@ func TestOAuth2TokenManager_RejectsRedirect(t *testing.T) {
 			t.Errorf("status %d: expected redirect refusal error, got nil", status)
 			continue
 		}
-		var tokenErr *oauth.OAuth2TokenError
-		if !errors.As(err, &tokenErr) {
-			t.Errorf("status %d: expected *OAuth2TokenError, got %T: %v", status, err, err)
+		var serverErr *oauth.OAuth2ServerError
+		if !errors.As(err, &serverErr) {
+			t.Errorf("status %d: expected *OAuth2ServerError, got %T: %v", status, err, err)
+			continue
+		}
+		if serverErr.StatusCode() != status {
+			t.Errorf("status %d: expected StatusCode %d, got %d", status, status, serverErr.StatusCode())
 		}
 	}
 }
@@ -755,8 +760,9 @@ func TestOAuth2TokenManager_InvalidateTriggersSingleRefetchUnderConcurrency(t *t
 func TestOAuth2TokenManager_RedirectRefusalErrorIncludesLocation(t *testing.T) {
 	t.Parallel()
 	// Gap 3.2: the redirect-refusal error should name the offending Location
-	// header for diagnostics. The Go SDK's *OAuth2TokenError message embeds the
-	// status code and token endpoint URL only, not the Location target, so this
-	// cannot be asserted without fabricating behaviour the SDK does not provide.
+	// header for diagnostics. The Go SDK refuses the redirect with an
+	// *OAuth2ServerError that carries the status code and raw body only, not the
+	// Location target, so this cannot be asserted without fabricating behaviour
+	// the SDK does not provide.
 	t.Skip("Go OAuth2TokenManager redirect-refusal error does not surface the Location header")
 }

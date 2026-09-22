@@ -160,20 +160,13 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		return err
 	}
 
-	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
-		/* RFC 6749 §3.2 forbids redirects at the token endpoint. With
-		 * NoRedirect set, the transport surfaces the 3xx verbatim instead
-		 * of replaying the credential-bearing POST; we refuse all 3xx
-		 * explicitly so the caller fails closed rather than leaking the
-		 * client_secret / refresh_token to the redirect target. */
-		return newOAuth2TokenError(fmt.Sprintf(
-			"refusing to follow %d redirect on OAuth2 token endpoint %s; "+
-				"token POSTs carry credentials and must not be replayed",
-			resp.StatusCode, tokenURL))
-	}
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		/* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+		/* Any non-2xx answer is an *OAuth2ServerError carrying its status,
+		 * including a 3xx: RFC 6749 §3.2 forbids redirects at the token
+		 * endpoint, and with NoRedirect set the transport surfaces the 3xx
+		 * verbatim instead of replaying the credential-bearing POST.
+		 *
+		 * RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
 		 * `error` (required), `error_description`, `error_uri`. Parse
 		 * them into a typed *OAuth2ServerError so callers can recover
 		 * via errors.As. Fall back to the raw body when the response is
@@ -220,9 +213,10 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 }
 
 // OAuth2TokenError is returned when the OAuth2 token endpoint returns a 2xx
-// response whose body is missing or contains an empty `access_token` field.
-// Distinct from *OAuth2ServerError (which represents RFC 6749 §5.2 error
-// responses on 4xx/5xx) so callers can recover differently via errors.As.
+// response the SDK cannot use: a body that is not JSON, or one that is missing
+// or has an empty `access_token` field. Distinct from *OAuth2ServerError
+// (which represents any non-2xx answer) so callers can recover differently via
+// errors.As.
 //
 // Its state is immutable: the message is set once at construction via
 // newOAuth2TokenError and read through the Message getter.
@@ -245,11 +239,12 @@ func (e *OAuth2TokenError) Error() string {
 	return e.message
 }
 
-// OAuth2ServerError is the typed representation of an RFC 6749 §5.2 OAuth2
-// error response. The code carries the OAuth2 error code (e.g.
-// "invalid_grant", "invalid_client"); description and URI are the
-// optional human-readable description and a URL to a page describing the
-// error. rawBody preserves the original response payload for diagnostics
+// OAuth2ServerError is returned when the OAuth2 token endpoint answers with any
+// non-2xx status, including a refused 3xx redirect. It is the typed
+// representation of an RFC 6749 §5.2 OAuth2 error response. The code carries
+// the OAuth2 error code (e.g. "invalid_grant", "invalid_client"); description
+// and URI are the optional human-readable description and a URL to a page
+// describing the error. rawBody preserves the original response payload for diagnostics
 // when the body is not a well-formed OAuth2 error object.
 //
 // Its state is immutable: fields are set once at construction via
