@@ -171,6 +171,8 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `UnprocessableEntityException` (422)
   - `ServerException` (5xx)
     - `InternalServerErrorException` (500)
+  - `NetworkException` (no HTTP response)
+    - `NetworkTimeoutException` (timed out)
 
 ```python
 from petstore_client.errors import (

@@ -104,6 +104,8 @@ from {{packageName}}.errors.not_found_exception import NotFoundException
 from {{packageName}}.errors.conflict_exception import ConflictException
 from {{packageName}}.errors.unprocessable_entity_exception import UnprocessableEntityException
 from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
+from {{packageName}}.errors.network_exception import NetworkException
+from {{packageName}}.errors.network_timeout_exception import NetworkTimeoutException
 
 __all__ = [
     '{{errorPrefix}}Exception',
@@ -118,4 +120,6 @@ __all__ = [
     'ConflictException',
     'UnprocessableEntityException',
     'InternalServerErrorException',
+    'NetworkException',
+    'NetworkTimeoutException',
 ]

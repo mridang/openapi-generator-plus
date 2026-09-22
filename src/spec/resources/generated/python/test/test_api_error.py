@@ -6,6 +6,8 @@ from petstore_client.errors import (
     ApiException,
     BadRequestException,
     ClientException,
+    NetworkException,
+    NetworkTimeoutException,
     OpenApiException,
     OpenAPIException,
 )
@@ -62,6 +64,16 @@ class TestExceptionHierarchy:
         assert issubclass(BadRequestException, ClientException)
         assert issubclass(ClientException, ApiException)
         assert issubclass(ApiException, OpenAPIException)
+
+    def test_network_errors_inherit_through_to_api_exception(self) -> None:
+        # NetworkTimeoutException -> NetworkException -> ApiException
+        err = NetworkTimeoutException(message="timed out")
+
+        assert isinstance(err, NetworkException)
+        assert isinstance(err, ApiException)
+        assert isinstance(err, OpenAPIException)
+        assert err.status_code == 0
+        assert NetworkException(message="refused").status_code == 0
 
     def test_serialization_error_inherits_from_branded_root(self) -> None:
         err = SerializationError("boom")

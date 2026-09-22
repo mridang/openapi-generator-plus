@@ -121,8 +121,12 @@ class TestRequestTimeout:
         transport = TransportOptions.builder().timeout(1).build()
         client = DefaultApiClient(transport)
 
-        with pytest.raises(Exception):
+        from {{packageName}}.errors import NetworkTimeoutException
+
+        with pytest.raises(NetworkTimeoutException) as excinfo:
             client.send_request('GET', chasm_http_url + '/test/slow', {}, None)
+        assert excinfo.value.status_code == 0
+        assert excinfo.value.__cause__ is not None
 
 
 class TestUserAgentHeader:

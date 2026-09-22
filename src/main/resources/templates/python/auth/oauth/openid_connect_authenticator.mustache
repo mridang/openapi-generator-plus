@@ -12,7 +12,7 @@ from .oauth2_token_manager import OAuth2TokenError
 
 # RFC 8414 recommended default max-age for OIDC discovery documents.
 _DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
-_MAX_AGE_PATTERN = re.compile(r'max-age=(\d+)', re.IGNORECASE)
+_MAX_AGE_PATTERN = re.compile(r'max-age=([0-9]+)', re.IGNORECASE)
 
 
 def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:

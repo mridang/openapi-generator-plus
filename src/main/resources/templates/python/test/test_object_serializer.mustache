@@ -675,7 +675,7 @@ class TestTimeFormat:
 
 class TestDurationFormat:
     """4.8: ``format: duration`` round-trips through ``datetime.timedelta``
-    using the protobuf-JSON duration grammar (``-?\\d+(\\.\\d{1,9})?s``).
+    using the protobuf-JSON duration grammar (``-?[0-9]+(\\.[0-9]{1,9})?s``).
     A protobuf-JSON API validates google.protobuf.Duration, so the wire form is a
     decimal second count with an ``s`` suffix, not ISO-8601."""
 
@@ -736,6 +736,15 @@ class TestDurationFormat:
         # A second count without the trailing 's' is not a valid duration.
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize('3600', 'datetime.timedelta')
+
+    def test_non_ascii_digits_are_rejected(self) -> None:
+        # Python's \d matches Arabic-Indic digits; the grammar is ASCII only.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize('\u0663s', 'datetime.timedelta')
+
+    def test_malformed_duration_raises_serialization_error(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('"PT1H"', datetime.timedelta)
 
 
 class TestModelDurationField:
