@@ -600,8 +600,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             throw new ApiException(
                 decodeStatus, $"failed to decode response body: {ex.Message}", ex);
         }
-        catch (TaskCanceledException ex)
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
         {
+            /* Only our own timeout becomes NetworkTimeoutException. Any other
+               cancellation is the caller's and propagates untouched. */
             response.Dispose();
             throw new Errors.NetworkTimeoutException("Request timed out", ex);
         }

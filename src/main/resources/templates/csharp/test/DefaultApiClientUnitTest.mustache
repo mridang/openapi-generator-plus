@@ -1023,6 +1023,43 @@ public class DefaultApiClientUnitTest
         Assert.IsType<TaskCanceledException>(ex.InnerException);
     }
 
+    [Fact]
+    public async Task CallerCancellationPropagatesUnwrapped()
+    {
+        // Only the SDK's own timeout becomes NetworkTimeoutException. A
+        // cancellation the caller triggers (here CancelPendingRequests on the
+        // HttpClient) is the platform's signal and must propagate as an
+        // OperationCanceledException, never as an SDK error.
+        var handler = new SignallingHangingHandler();
+        var httpClient = new HttpClient(handler);
+        var client = new DefaultApiClient(httpClient);
+        Task<ApiHttpResponse> pending = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null
+        );
+        await handler.Entered.Task;
+        httpClient.CancelPendingRequests();
+
+        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        Assert.False(typeof({{errorPrefix}}Exception).IsInstanceOfType(ex), "cancellation must not be rewrapped as an SDK error");
+    }
+
+    private sealed class SignallingHangingHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Entered.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
+    }
+
     private sealed class HangingHandler : HttpMessageHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(

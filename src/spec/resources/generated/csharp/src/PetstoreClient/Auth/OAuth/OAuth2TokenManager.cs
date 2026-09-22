@@ -139,18 +139,21 @@ public sealed class OAuth2TokenManager
                 }
             }
             catch (Exception ex)
-                when (ex is not OutOfMemoryException and not StackOverflowException)
+                when (ex is not OutOfMemoryException
+                    and not StackOverflowException
+                    and not OperationCanceledException)
             {
                 /* Refresh failed for ANY recoverable reason — a revoked/expired
                  * refresh token (OAuth2ServerException), a 2xx refresh body missing
                  * access_token (OAuth2TokenException), a transport failure
                  * (HttpRequestException), a malformed JSON body (JsonException),
-                 * a timeout (TaskCanceledException), etc. Fall back to re-running
+                 * a timeout (NetworkTimeoutException), etc. Fall back to re-running
                  * the original grant below — matching the other 11 SDKs, which
                  * all catch any refresh failure here (Java catch (RuntimeException),
                  * Python except Exception, Ruby rescue StandardError, ...). The
                  * `when` filter both keeps CA1031 satisfied (no bare catch-all)
-                 * and lets genuinely fatal runtime failures propagate. Scoped to
+                 * and lets genuinely fatal runtime failures and the caller's
+                 * cancellation (OperationCanceledException) propagate. Scoped to
                  * the refresh attempt only; the fallback grant below is not
                  * wrapped, so its failures propagate normally. */
             }
