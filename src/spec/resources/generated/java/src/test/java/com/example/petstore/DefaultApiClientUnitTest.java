@@ -839,6 +839,33 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void interruptionSurfacesAsCancellationNotAnSdkError() throws Exception {
+    // Thread interruption is Java's cancellation signal: it must surface as
+    // the platform's CancellationException (the InterruptedException as its
+    // cause) with the interrupt flag restored, never as an SDK error. The
+    // socket accepts the connection and never answers, so the send is still
+    // waiting when the interrupted thread reaches it.
+    DefaultApiClient client = new DefaultApiClient();
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      Thread.currentThread().interrupt();
+      try {
+        java.util.concurrent.CancellationException ex =
+            assertThrowsExactly(
+                java.util.concurrent.CancellationException.class,
+                () -> client.sendRequest("GET", url, Map.of(), null));
+        assertInstanceOf(InterruptedException.class, ex.getCause());
+        assertFalse(
+            ((Object) ex) instanceof OpenAPIException,
+            "cancellation must not be rewrapped as an SDK error");
+        assertTrue(Thread.currentThread().isInterrupted(), "the interrupt flag must be restored");
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Test
   void useAfterCloseThrowsIllegalStateException() throws Exception {
     // Using a client after close() is a wrong call order: the built-in
     // invalid-state error, not an SDK error.

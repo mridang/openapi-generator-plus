@@ -636,8 +636,15 @@ public final class DefaultApiClient implements ApiClient {
             /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
             throw new NetworkException(e.toString(), e);
         } catch (InterruptedException e) {
+            /* Thread interruption is Java's cancellation signal, not an API
+             * failure: restore the interrupt flag and surface it as the
+             * platform's unchecked CancellationException (the interruption
+             * kept as its cause), never as an SDK error. */
             Thread.currentThread().interrupt();
-            throw new ApiException(e.toString(), e);
+            java.util.concurrent.CancellationException cancelled =
+                    new java.util.concurrent.CancellationException("request interrupted");
+            cancelled.initCause(e);
+            throw cancelled;
         }
     }
 

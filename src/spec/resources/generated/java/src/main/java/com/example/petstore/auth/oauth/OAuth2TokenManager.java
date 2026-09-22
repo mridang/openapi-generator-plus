@@ -123,6 +123,10 @@ public class OAuth2TokenManager {
         if (accessToken != null) {
           return accessToken;
         }
+      } catch (java.util.concurrent.CancellationException cancelled) {
+        /* Cancellation is not a refresh failure: let it through
+         * untouched instead of falling back to the original grant. */
+        throw cancelled;
       } catch (RuntimeException ignored) {
         /* Refresh failed (e.g. refresh token revoked or expired). Fall
          * back to re-running the original grant below. */
