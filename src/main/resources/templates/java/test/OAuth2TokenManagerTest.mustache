@@ -3,7 +3,9 @@
 package {{invokerPackage}}.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import {{invokerPackage}}.ApiClient;
@@ -145,7 +147,7 @@ class OAuth2TokenManagerTest {
         Map<String, String> params = new HashMap<>();
         params.put("grant_type", "client_credentials");
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrowsExactly(IllegalStateException.class, () ->
                 manager.getAccessToken("https://auth.example.com/token", params));
     }
 
@@ -392,14 +394,51 @@ class OAuth2TokenManagerTest {
         Map<String, String> params = new HashMap<>();
         params.put("grant_type", "client_credentials");
 
-        assertThrows(RuntimeException.class, () ->
+        OAuth2TokenManager.OAuth2ServerException ex = assertThrowsExactly(
+                OAuth2TokenManager.OAuth2ServerException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(401, ex.getStatusCode());
+        assertInstanceOf({{errorPrefix}}Exception.class, ex);
+    }
+
+    @Test
+    void malformedTokenResponseRaisesOAuth2TokenException() {
+        // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException,
+        // never a raw parser exception or a wrapping RuntimeException.
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(fakeClient(200, "<html>not json</html>"));
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        assertThrowsExactly(OAuth2TokenManager.OAuth2TokenException.class, () ->
                 manager.getAccessToken("https://auth.example.com/token", params));
+    }
+
+    @Test
+    void tokenTransportFailurePropagatesNetworkException() {
+        // A transport failure on the token POST reaches the caller unchanged.
+        {{invokerPackage}}.errors.NetworkException failure =
+                new {{invokerPackage}}.errors.NetworkException(
+                        "connection refused", new java.io.IOException("refused"));
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient((method, url, headers, body) -> {
+            throw failure;
+        });
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        {{invokerPackage}}.errors.NetworkException ex = assertThrowsExactly(
+                {{invokerPackage}}.errors.NetworkException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
+        assertSame(failure, ex);
     }
 
     @Test
     void token_response_missing_access_token_throws_typed_error() {
         // A 2xx response whose body omits access_token (e.g. only refresh_token)
-        // must surface as the typed OAuth2TokenError, not silently cache an
+        // must surface as the typed OAuth2TokenException, not silently cache an
         // empty/null token. The typed error extends the branded
         // {{errorPrefix}}Exception root, so a single catch covers all SDK failures.
         OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -408,16 +447,16 @@ class OAuth2TokenManagerTest {
         Map<String, String> params = new HashMap<>();
         params.put("grant_type", "client_credentials");
 
-        {{errorPrefix}}Exception ex = assertThrows({{errorPrefix}}Exception.class, () ->
-                manager.getAccessToken("https://auth.example.com/token", params));
-        assertTrue(ex instanceof OAuth2TokenManager.OAuth2TokenError,
-                "expected OAuth2TokenError, got " + ex.getClass().getName());
+        OAuth2TokenManager.OAuth2TokenException ex = assertThrowsExactly(
+                OAuth2TokenManager.OAuth2TokenException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
+        assertInstanceOf({{errorPrefix}}Exception.class, ex);
     }
 
     @Test
     void token_endpoint_error_response_parsed_to_typed_error() {
         // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
-        // as a typed OAuth2ServerError carrying code/description/uri so callers
+        // as a typed OAuth2ServerException carrying code/description/uri so callers
         // can branch on the OAuth2 error code without re-parsing the body.
         OAuth2TokenManager manager = new OAuth2TokenManager();
         manager.setApiClient(fakeClient(400,
@@ -428,12 +467,9 @@ class OAuth2TokenManagerTest {
         Map<String, String> params = new HashMap<>();
         params.put("grant_type", "client_credentials");
 
-        {{errorPrefix}}Exception ex = assertThrows({{errorPrefix}}Exception.class, () ->
-                manager.getAccessToken("https://auth.example.com/token", params));
-        assertTrue(ex instanceof OAuth2TokenManager.OAuth2ServerError,
-                "expected OAuth2ServerError, got " + ex.getClass().getName());
-        OAuth2TokenManager.OAuth2ServerError serverError =
-                (OAuth2TokenManager.OAuth2ServerError) ex;
+        OAuth2TokenManager.OAuth2ServerException serverError = assertThrowsExactly(
+                OAuth2TokenManager.OAuth2ServerException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
         assertEquals(400, serverError.getStatusCode());
         assertEquals("invalid_grant", serverError.getCode());
         assertEquals("refresh token expired", serverError.getDescription());
@@ -506,13 +542,12 @@ class OAuth2TokenManagerTest {
         params.put("grant_type", "client_credentials");
         params.put("client_secret", "super-secret");
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                manager.getAccessToken("https://auth.example.com/token", params));
-        assertTrue(ex.getMessage() == null || ex.getMessage().contains("redirect")
-                        || (ex.getCause() != null && ex.getCause().getMessage() != null
-                                && ex.getCause().getMessage().contains("redirect"))
-                        || ex instanceof OAuth2TokenManager.OAuth2TokenError,
-                "expected redirect-refusal failure for status " + status + ", got " + ex);
+        // A 3xx is a non-2xx answer from the token endpoint, so it is an
+        // OAuth2ServerException carrying the redirect status.
+        OAuth2TokenManager.OAuth2ServerException ex = assertThrowsExactly(
+                OAuth2TokenManager.OAuth2ServerException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(status, ex.getStatusCode());
     }
 
     @Test
@@ -568,8 +603,8 @@ class OAuth2TokenManagerTest {
 
     /*
      * Bucket 3.2 — the redirect-refusal error should include the offending
-     * Location header for diagnostics. The Java SDK's OAuth2TokenError only
-     * carries the status code and token endpoint URL, not the Location target,
+     * Location header for diagnostics. The Java SDK's OAuth2ServerException only
+     * carries the status code and response body, not the Location target,
      * so this scenario cannot be asserted without fabricating behaviour the
      * SDK does not implement.
      */
@@ -596,8 +631,9 @@ class OAuth2TokenManagerTest {
         Map<String, String> params = new HashMap<>();
         params.put("grant_type", "client_credentials");
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                manager.getAccessToken("https://auth.example.com/token", params));
+        OAuth2TokenManager.OAuth2ServerException ex = assertThrowsExactly(
+                OAuth2TokenManager.OAuth2ServerException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
         assertTrue(ex.getMessage() != null && ex.getMessage().contains("attacker.example"),
                 "redirect-refusal error should name the Location target for diagnostics");
     }

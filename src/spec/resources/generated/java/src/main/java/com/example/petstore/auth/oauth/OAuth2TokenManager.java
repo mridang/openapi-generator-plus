@@ -8,7 +8,6 @@
 package com.example.petstore.auth.oauth;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiException;
 import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.OpenAPIException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,9 +43,6 @@ import javax.annotation.Nullable;
   "checkstyle:VariableDeclarationUsageDistance",
   "checkstyle:ConstructorsDeclarationGrouping"
 })
-@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-    value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
-    justification = "generated code")
 public class OAuth2TokenManager {
 
   /**
@@ -88,7 +84,7 @@ public class OAuth2TokenManager {
    * @param tokenUrl the OAuth2 token endpoint URL
    * @param params the token request parameters (grant_type, client_id, etc.)
    * @return a valid access token
-   * @throws IllegalStateException if no API client has been injected or token fetch fails
+   * @throws IllegalStateException if no API client has been injected
    */
   public synchronized String getAccessToken(String tokenUrl, Map<String, String> params) {
     return getAccessToken(tokenUrl, params, Collections.emptyMap());
@@ -134,7 +130,7 @@ public class OAuth2TokenManager {
     }
     fetchToken(tokenUrl, params, extraHeaders);
     if (accessToken == null) {
-      throw new IllegalStateException("Token fetch did not return an access token");
+      throw new OAuth2TokenException("Token fetch did not return an access token");
     }
     return accessToken;
   }
@@ -189,39 +185,35 @@ public class OAuth2TokenManager {
     headers.put("Accept", "application/json");
     headers.putAll(extraHeaders);
 
+    /* Bucket 3.2: refuse to follow 307/308 (and other 3xx) redirects on
+     * OAuth2 token POSTs. The token endpoint receives the client's
+     * credentials (or refresh token) in the request body — replaying
+     * that body to an attacker-controlled Location target would leak
+     * the credential. The ApiClient honours noRedirect=true by
+     * surfacing the first 3xx straight to us. A transport failure
+     * propagates unchanged as NetworkException / NetworkTimeoutException. */
+    ApiHttpResponse response =
+        apiClient.sendRequest("POST", tokenUrl, headers, body.toString(), true);
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      /* Any non-2xx answer, a refused 3xx included, is an
+       * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
+       * are JSON bodies with `error` (required), `error_description`,
+       * `error_uri`. Parse them into the typed fields so callers can
+       * recover. Fall back to the raw body when the response is not a
+       * valid error object. */
+      throw parseOAuth2ServerError(response.statusCode(), response.body());
+    }
     try {
-      /* Bucket 3.2: refuse to follow 307/308 (and other 3xx) redirects on
-       * OAuth2 token POSTs. The token endpoint receives the client's
-       * credentials (or refresh token) in the request body — replaying
-       * that body to an attacker-controlled Location target would leak
-       * the credential. The ApiClient honours noRedirect=true by
-       * surfacing the first 3xx straight to us; we treat any redirect
-       * here as a server misconfiguration and abort. */
-      ApiHttpResponse response =
-          apiClient.sendRequest("POST", tokenUrl, headers, body.toString(), true);
-      if (response.statusCode() >= 300 && response.statusCode() < 400) {
-        throw new OAuth2TokenError(
-            "Refusing to follow redirect on OAuth2 token endpoint "
-                + tokenUrl
-                + " (status "
-                + response.statusCode()
-                + ")");
-      }
-      if (response.statusCode() < 200 || response.statusCode() >= 300) {
-        /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
-         * `error` (required), `error_description`, `error_uri`. Parse
-         * them into a typed OAuth2ServerError so callers can recover.
-         * Fall back to the raw body when the response is not a valid
-         * error object. */
-        throw parseOAuth2ServerError(response.statusCode(), response.body());
-      }
       JsonNode json = objectMapper.readTree(response.body());
+      if (json == null || !json.isObject()) {
+        throw new OAuth2TokenException("Token response is not a JSON object");
+      }
       JsonNode accessTokenNode = json.get("access_token");
       if (accessTokenNode == null
           || accessTokenNode.isNull()
           || !accessTokenNode.isTextual()
           || accessTokenNode.asText().isEmpty()) {
-        throw new OAuth2TokenError("Token response missing or empty access_token field");
+        throw new OAuth2TokenException("Token response missing or empty access_token field");
       }
       this.accessToken = accessTokenNode.asText();
       if (json.has("refresh_token")) {
@@ -245,8 +237,9 @@ public class OAuth2TokenManager {
           this.tokenExpiry = Instant.now();
         }
       }
-    } catch (ApiException | IOException e) {
-      throw new RuntimeException("Failed to fetch OAuth2 token", e);
+    } catch (IOException e) {
+      /* A 2xx answer whose body is not JSON is unusable. */
+      throw new OAuth2TokenException("Token response is not valid JSON: " + e.getMessage(), e);
     }
   }
 
@@ -261,17 +254,18 @@ public class OAuth2TokenManager {
    * @return the parsed lifetime in seconds, or {@code 0} when unusable
    */
   /**
-   * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed {@link OAuth2ServerError}. Falls
-   * back to a generic error using the raw body when the body is not a valid OAuth2 error object.
+   * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed {@link OAuth2ServerException}.
+   * Falls back to a generic error using the raw body when the body is not a valid OAuth2 error
+   * object.
    */
-  private OAuth2ServerError parseOAuth2ServerError(int statusCode, String body) {
+  private OAuth2ServerException parseOAuth2ServerError(int statusCode, String body) {
     try {
       JsonNode root = objectMapper.readTree(body);
       JsonNode errorNode = root.get("error");
       if (errorNode != null && errorNode.isTextual() && !errorNode.asText().isEmpty()) {
         JsonNode descNode = root.get("error_description");
         JsonNode uriNode = root.get("error_uri");
-        return new OAuth2ServerError(
+        return new OAuth2ServerException(
             statusCode,
             errorNode.asText(),
             descNode != null && descNode.isTextual() ? descNode.asText() : null,
@@ -281,7 +275,7 @@ public class OAuth2TokenManager {
     } catch (IOException ignored) {
       /* Not a JSON body; fall through and report the raw body. */
     }
-    return new OAuth2ServerError(statusCode, null, null, null, body);
+    return new OAuth2ServerException(statusCode, null, null, null, body);
   }
 
   private static long parseExpiresIn(JsonNode node) {
@@ -313,12 +307,13 @@ public class OAuth2TokenManager {
   }
 
   /**
-   * Thrown when the OAuth2 token endpoint returns a 2xx response whose body is missing or contains
-   * an empty {@code access_token} field. Distinct from {@link OAuth2ServerError} (which represents
-   * RFC 6749 §5.2 error responses on 4xx/5xx) so callers can recover differently — typically a
-   * malformed-server-response bug needs operator attention rather than a client-side retry.
+   * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot be used: a body that
+   * is not a JSON object, or one whose {@code access_token} field is missing or empty. Distinct
+   * from {@link OAuth2ServerException} (which represents any non-2xx answer) so callers can recover
+   * differently — typically a malformed-server-response bug needs operator attention rather than a
+   * client-side retry.
    */
-  public static class OAuth2TokenError extends OpenAPIException {
+  public static class OAuth2TokenException extends OpenAPIException {
     @java.io.Serial private static final long serialVersionUID = 1L;
 
     /**
@@ -326,8 +321,18 @@ public class OAuth2TokenManager {
      *
      * @param message the detail message
      */
-    public OAuth2TokenError(String message) {
+    public OAuth2TokenException(String message) {
       super(message);
+    }
+
+    /**
+     * Creates a token error with the given detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying failure
+     */
+    public OAuth2TokenException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 
@@ -338,7 +343,7 @@ public class OAuth2TokenManager {
    * error. {@code rawBody} preserves the original response payload for diagnostics when the body is
    * not a well-formed OAuth2 error object.
    */
-  public static class OAuth2ServerError extends OpenAPIException {
+  public static class OAuth2ServerException extends OpenAPIException {
     @java.io.Serial private static final long serialVersionUID = 1L;
 
     /** The HTTP status code of the error response. */
@@ -365,7 +370,7 @@ public class OAuth2TokenManager {
      * @param uri a URI describing the error, if present
      * @param rawBody the original response payload
      */
-    public OAuth2ServerError(
+    public OAuth2ServerException(
         int statusCode,
         @Nullable String code,
         @Nullable String description,

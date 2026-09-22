@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
@@ -143,9 +143,12 @@ class TransportOptionsTest {
   @Test
   @DisplayName("invalid proxy URL throws IllegalArgumentException")
   void invalidProxyUrlThrowsException() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> TransportOptions.builder().proxy("not a valid url ^%$"));
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().proxy("not a valid url ^%$"));
+    // A bad proxy URL is a configuration mistake, not an SDK error.
+    assertFalse(((Object) ex) instanceof OpenAPIException);
   }
 
   @Test

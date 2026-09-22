@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.api.PetApi;
@@ -201,7 +202,7 @@ class BaseApiTest {
     @DisplayName("throws correct exception for status code")
     void throwsCorrectException(int status, Class<? extends ApiException> expected) {
       var ex =
-          assertThrows(
+          assertThrowsExactly(
               expected,
               () ->
                   api()
@@ -229,7 +230,7 @@ class BaseApiTest {
     @DisplayName("NotFoundException is ClientException is ApiException")
     void notFoundHierarchy() {
       var ex =
-          assertThrows(
+          assertThrowsExactly(
               NotFoundException.class,
               () ->
                   api()
@@ -245,13 +246,14 @@ class BaseApiTest {
                           null));
       assertInstanceOf(ClientException.class, ex);
       assertInstanceOf(ApiException.class, ex);
+      assertInstanceOf(OpenAPIException.class, ex);
     }
 
     @Test
     @DisplayName("InternalServerErrorException is ServerException is ApiException")
     void internalServerErrorHierarchy() {
       var ex =
-          assertThrows(
+          assertThrowsExactly(
               InternalServerErrorException.class,
               () ->
                   api()
@@ -267,6 +269,7 @@ class BaseApiTest {
                           null));
       assertInstanceOf(ServerException.class, ex);
       assertInstanceOf(ApiException.class, ex);
+      assertInstanceOf(OpenAPIException.class, ex);
     }
   }
 

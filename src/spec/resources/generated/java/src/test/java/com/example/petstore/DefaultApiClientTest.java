@@ -9,9 +9,11 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -242,9 +244,10 @@ class DefaultApiClientTest {
 
       DefaultApiClient client = new DefaultApiClient(transport);
       com.example.petstore.errors.NetworkTimeoutException ex =
-          assertThrows(
+          assertThrowsExactly(
               com.example.petstore.errors.NetworkTimeoutException.class,
               () -> client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null));
+      assertInstanceOf(com.example.petstore.errors.NetworkException.class, ex);
       assertEquals(0, ex.getStatusCode());
       assertNotNull(ex.getCause(), "the transport exception must be kept as the cause");
     }
@@ -692,11 +695,11 @@ class DefaultApiClientTest {
       client.close();
       // Calling close again is idempotent.
       client.close();
-      ApiException ex =
-          assertThrows(
-              ApiException.class,
+      IllegalStateException ex =
+          assertThrowsExactly(
+              IllegalStateException.class,
               () -> client.sendRequest("GET", "https://example.com", new HashMap<>(), null));
-      assertTrue(ex.getMessage().contains("closed"));
+      assertTrue(String.valueOf(ex.getMessage()).contains("closed"));
     }
   }
 

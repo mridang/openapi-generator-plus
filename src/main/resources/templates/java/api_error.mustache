@@ -55,6 +55,25 @@ public class ApiException extends {{errorPrefix}}Exception {
     }
 
     /**
+     * Construct an exception for a response that arrived but could not be
+     * used, such as a body whose Content-Encoding cannot be decoded.
+     *
+     * <p>The status code is the real status of the response that arrived,
+     * and the underlying failure is kept as the {@linkplain #getCause() cause}.
+     *
+     * @param statusCode the HTTP status code of the response that arrived
+     * @param message    the detail message
+     * @param cause      the underlying failure
+     */
+    public ApiException(int statusCode, String message, Throwable cause) {
+        super(message, cause);
+        this.statusCode = statusCode;
+        this.responseHeaders = null;
+        this.responseBody = null;
+        this.errorBody = null;
+    }
+
+    /**
      * Construct an exception with response context but no deserialized error body.
      *
      * @param statusCode the HTTP status code

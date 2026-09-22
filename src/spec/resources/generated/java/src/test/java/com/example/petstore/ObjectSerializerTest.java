@@ -10,11 +10,13 @@ package com.example.petstore;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
@@ -425,25 +427,29 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("truncated JSON throws SerializationException not raw parse error")
     void truncatedJsonThrowsSerializationException() {
-      assertThrows(
-          ObjectSerializer.SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "{",
-                  new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.Category>() {}.getType()));
+      ObjectSerializer.SerializationException ex =
+          assertThrowsExactly(
+              ObjectSerializer.SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Category>() {}.getType()));
+      assertInstanceOf(OpenAPIException.class, ex);
     }
 
     @Test
     @DisplayName("type mismatch JSON throws SerializationException")
     void typeMismatchThrowsSerializationException() {
-      assertThrows(
-          ObjectSerializer.SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "{\"id\":\"not-a-number\",\"name\":123}",
-                  new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.Category>() {}.getType()));
+      ObjectSerializer.SerializationException ex =
+          assertThrowsExactly(
+              ObjectSerializer.SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"id\":\"not-a-number\",\"name\":123}",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Category>() {}.getType()));
+      assertInstanceOf(OpenAPIException.class, ex);
     }
 
     @Test
@@ -467,13 +473,47 @@ class ObjectSerializerTest {
       // value the schema never declared (status="banana") must fail loudly
       // with the SDK's (de)serialization exception, not be silently coerced
       // to null or a default constant.
-      assertThrows(
-          ObjectSerializer.SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
-                  new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.Pet>() {}.getType()));
+      ObjectSerializer.SerializationException ex =
+          assertThrowsExactly(
+              ObjectSerializer.SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Pet>() {}.getType()));
+      assertInstanceOf(OpenAPIException.class, ex);
+    }
+
+    @Test
+    @DisplayName("missing required field throws SerializationException")
+    void missingRequiredFieldThrowsSerializationException() {
+      // Pet.name and Pet.photoUrls are required: a payload that omits
+      // them must fail with the SDK's SerializationException.
+      ObjectSerializer.SerializationException ex =
+          assertThrowsExactly(
+              ObjectSerializer.SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"id\":1}",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Pet>() {}.getType()));
+      assertInstanceOf(OpenAPIException.class, ex);
+    }
+
+    @Test
+    @DisplayName("malformed date-time throws SerializationException")
+    void malformedDateTimeThrowsSerializationException() {
+      // Order.shipDate is format: date-time; a value that is not an
+      // RFC 3339 timestamp must fail with the SDK's SerializationException.
+      ObjectSerializer.SerializationException ex =
+          assertThrowsExactly(
+              ObjectSerializer.SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"shipDate\":\"not-a-date\"}",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Order>() {}.getType()));
+      assertInstanceOf(OpenAPIException.class, ex);
     }
 
     @Test
@@ -814,13 +854,15 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("ISO-8601 Duration string fails to deserialize")
     void iso8601DurationStringRejected() {
-      assertThrows(
-          ObjectSerializer.SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "{\"ttl\":\"PT1H\"}",
-                  new com.fasterxml.jackson.core.type.TypeReference<
-                      DurationHolder>() {}.getType()));
+      ObjectSerializer.SerializationException ex =
+          assertThrowsExactly(
+              ObjectSerializer.SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"ttl\":\"PT1H\"}",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          DurationHolder>() {}.getType()));
+      assertInstanceOf(OpenAPIException.class, ex);
     }
   }
 

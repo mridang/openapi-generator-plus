@@ -9,12 +9,19 @@ package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.ObjectSerializer;
+import com.example.petstore.OpenAPIException;
+import com.example.petstore.errors.InternalServerErrorException;
+import com.example.petstore.errors.NetworkException;
+import com.example.petstore.errors.NotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -151,7 +158,7 @@ class OpenIdConnectAuthenticatorTest {
   void throwsWhenNoApiClientInjected() {
     OpenIdConnectAuthenticator auth = createAuthenticator();
 
-    assertThrows(IllegalStateException.class, () -> auth.buildAuthorizationUrl(null));
+    assertThrowsExactly(IllegalStateException.class, () -> auth.buildAuthorizationUrl(null));
   }
 
   @Test
@@ -170,9 +177,60 @@ class OpenIdConnectAuthenticatorTest {
     OpenIdConnectAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
 
-    // A non-2xx discovery response must surface as a clear error, not as
-    // an "invalid JSON" parse failure of the HTML error page.
-    assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+    // A non-2xx discovery response must surface as the ApiException
+    // subclass for its status, not as an "invalid JSON" parse failure of
+    // the HTML error page.
+    InternalServerErrorException ex =
+        assertThrowsExactly(
+            InternalServerErrorException.class, () -> auth.buildAuthorizationUrl(null));
+    assertEquals(500, ex.getStatusCode());
+    assertInstanceOf(OpenAPIException.class, ex);
+  }
+
+  @Test
+  void discovery404RaisesNotFoundException() {
+    ApiClient client =
+        (method, url, headers, body) -> new ApiHttpResponse(404, "not found", Map.of());
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    NotFoundException ex =
+        assertThrowsExactly(NotFoundException.class, () -> auth.buildAuthorizationUrl(null));
+    assertEquals(404, ex.getStatusCode());
+  }
+
+  @Test
+  void discoveryTransportFailurePropagatesNetworkException() {
+    // Discovery is an HTTP call like any other: a transport failure from
+    // the ApiClient must reach the caller unchanged, not rewrapped.
+    NetworkException failure =
+        new NetworkException("connection refused", new java.io.IOException("refused"));
+    ApiClient client =
+        (method, url, headers, body) -> {
+          throw failure;
+        };
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    NetworkException ex =
+        assertThrowsExactly(NetworkException.class, () -> auth.buildAuthorizationUrl(null));
+    assertSame(failure, ex);
+  }
+
+  @Test
+  void malformedDiscoveryDocumentRaisesSerializationException() {
+    ApiClient client =
+        (method, url, headers, body) -> new ApiHttpResponse(200, "{not json", Map.of());
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    ObjectSerializer.SerializationException ex =
+        assertThrowsExactly(
+            ObjectSerializer.SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    assertInstanceOf(OpenAPIException.class, ex);
   }
 
   @Test
@@ -187,7 +245,8 @@ class OpenIdConnectAuthenticatorTest {
 
     // Missing authorization_endpoint must throw rather than build a
     // delegate with a null/empty endpoint URL.
-    assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+    assertThrowsExactly(
+        ObjectSerializer.SerializationException.class, () -> auth.buildAuthorizationUrl(null));
   }
 
   @Test
@@ -202,7 +261,8 @@ class OpenIdConnectAuthenticatorTest {
     OpenIdConnectAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
 
-    assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+    assertThrowsExactly(
+        ObjectSerializer.SerializationException.class, () -> auth.buildAuthorizationUrl(null));
   }
 
   @Test

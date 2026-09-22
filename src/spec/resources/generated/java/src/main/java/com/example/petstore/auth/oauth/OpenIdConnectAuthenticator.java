@@ -10,7 +10,17 @@ package com.example.petstore.auth.oauth;
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.ObjectSerializer.SerializationException;
 import com.example.petstore.auth.HttpAwareAuthenticator;
+import com.example.petstore.errors.BadRequestException;
+import com.example.petstore.errors.ClientException;
+import com.example.petstore.errors.ConflictException;
+import com.example.petstore.errors.ForbiddenException;
+import com.example.petstore.errors.InternalServerErrorException;
+import com.example.petstore.errors.NotFoundException;
+import com.example.petstore.errors.ServerException;
+import com.example.petstore.errors.UnauthorizedException;
+import com.example.petstore.errors.UnprocessableEntityException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -47,9 +57,6 @@ import javax.annotation.Nullable;
   "checkstyle:VariableDeclarationUsageDistance",
   "checkstyle:ConstructorsDeclarationGrouping"
 })
-@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-    value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
-    justification = "generated code")
 public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
 
   private static final Pattern MAX_AGE_PATTERN =
@@ -106,40 +113,75 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
               + "Ensure the Client constructor calls setApiClient() "
               + "on HttpAwareAuthenticator before making API requests.");
     }
-    try {
-      Map<String, String> headers = new HashMap<>();
-      headers.put("Accept", "application/json");
-      ApiHttpResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
-      /* Guard the HTTP status before parsing: a 5xx/4xx discovery
-       * response is typically an HTML/text error page, which would
-       * otherwise surface as a confusing "invalid JSON" error instead
-       * of the real "discovery failed" condition. */
-      if (response.statusCode() < 200 || response.statusCode() >= 300) {
-        throw new IllegalStateException(
-            "OpenID Connect discovery request to "
-                + openIdConnectUrl
-                + " failed with HTTP status "
-                + response.statusCode());
-      }
-      ObjectMapper mapper = new ObjectMapper();
-      JsonNode discovery = mapper.readTree(response.body());
-      String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
-      String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
-      delegate =
-          new OAuth2AuthorizationCodeAuthenticator(
-              host,
-              clientId,
-              clientSecret,
-              authorizationEndpoint,
-              tokenEndpoint,
-              redirectUri,
-              scopes);
-      delegate.setApiClient(apiClient);
-      discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
-    } catch (ApiException | IOException e) {
-      throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
+    /* Discovery is an HTTP call like any other: a transport failure
+     * propagates unchanged as NetworkException / NetworkTimeoutException. */
+    Map<String, String> headers = new HashMap<>();
+    headers.put("Accept", "application/json");
+    ApiHttpResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
+    /* Guard the HTTP status before parsing: a 5xx/4xx discovery
+     * response is typically an HTML/text error page, which would
+     * otherwise surface as a confusing "invalid JSON" error instead
+     * of the real "discovery failed" condition. */
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      throw statusError(response);
     }
+    JsonNode discovery;
+    try {
+      discovery = new ObjectMapper().readTree(response.body());
+    } catch (IOException e) {
+      throw new SerializationException(
+          "OpenID Connect discovery document is not valid JSON: " + e.getMessage(), e);
+    }
+    if (discovery == null || !discovery.isObject()) {
+      throw new SerializationException("OpenID Connect discovery document is not a JSON object");
+    }
+    String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
+    String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
+    delegate =
+        new OAuth2AuthorizationCodeAuthenticator(
+            host,
+            clientId,
+            clientSecret,
+            authorizationEndpoint,
+            tokenEndpoint,
+            redirectUri,
+            scopes);
+    delegate.setApiClient(apiClient);
+    discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
     return delegate;
+  }
+
+  /**
+   * Map a non-2xx discovery response to the {@link ApiException} subclass for its status, exactly
+   * as an API operation would.
+   *
+   * @param response the non-2xx discovery response
+   * @return the typed exception to throw
+   */
+  private ApiException statusError(ApiHttpResponse response) {
+    int code = response.statusCode();
+    String message =
+        "OpenID Connect discovery request to "
+            + openIdConnectUrl
+            + " failed with HTTP status "
+            + code;
+    Map<String, String> headers = response.headers();
+    String body = response.body();
+    return switch (code) {
+      case 400 -> new BadRequestException(message, headers, body, null);
+      case 401 -> new UnauthorizedException(message, headers, body, null);
+      case 403 -> new ForbiddenException(message, headers, body, null);
+      case 404 -> new NotFoundException(message, headers, body, null);
+      case 409 -> new ConflictException(message, headers, body, null);
+      case 422 -> new UnprocessableEntityException(message, headers, body, null);
+      case 500 -> new InternalServerErrorException(message, headers, body, null);
+      default ->
+          code >= 400 && code < 500
+              ? new ClientException(code, message, headers, body, null)
+              : code >= 500
+                  ? new ServerException(code, message, headers, body, null)
+                  : new ApiException(code, message, headers, body);
+    };
   }
 
   /**
@@ -149,17 +191,21 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    * @param discovery the parsed discovery document
    * @param field the discovery field name (e.g. {@code token_endpoint})
    * @return the endpoint URL
-   * @throws IllegalStateException if the field is absent, null, or empty
+   * @throws SerializationException if the field is absent, null, not a string, or empty
    */
   private static String requireEndpoint(JsonNode discovery, String field) {
     JsonNode node = discovery.get(field);
     if (node == null || node.isNull()) {
-      throw new IllegalStateException(
+      throw new SerializationException(
           "OpenID Connect discovery document is missing required field: " + field);
+    }
+    if (!node.isTextual()) {
+      throw new SerializationException(
+          "OpenID Connect discovery document field is not a string: " + field);
     }
     String value = node.asText();
     if (value.isEmpty()) {
-      throw new IllegalStateException(
+      throw new SerializationException(
           "OpenID Connect discovery document has empty required field: " + field);
     }
     return value;

@@ -9,10 +9,12 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
@@ -525,9 +527,10 @@ class DefaultApiClientUnitTest {
     // whose getCause() is the underlying IOException.
     DefaultApiClient client = new DefaultApiClient();
     com.example.petstore.errors.NetworkException ex =
-        assertThrows(
+        assertThrowsExactly(
             com.example.petstore.errors.NetworkException.class,
             () -> client.sendRequest("GET", "http://127.0.0.1:1/never", Map.of(), null));
+    assertInstanceOf(ApiException.class, ex);
     assertEquals(0, ex.getStatusCode());
     assertFalse(
         ex instanceof com.example.petstore.errors.NetworkTimeoutException,
@@ -562,7 +565,10 @@ class DefaultApiClientUnitTest {
     TransportOptions transport =
         TransportOptions.builder().caCertPath("/nonexistent/ca.pem").build();
     IllegalArgumentException ex =
-        assertThrows(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
+        assertThrowsExactly(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
+    assertFalse(
+        ((Object) ex) instanceof OpenAPIException,
+        "a configuration mistake must not be an SDK error");
     assertNotNull(ex.getCause(), "original read/parse failure must be preserved as the cause");
     assertTrue(
         String.valueOf(ex.getMessage())
@@ -818,21 +824,32 @@ class DefaultApiClientUnitTest {
 
   @Test
   void redirectToNonHttpSchemeThrows() throws ApiException {
+    // A refused redirect is a response that arrived but could not be used:
+    // ApiException carrying the redirect's real status, never NetworkException.
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiException ex =
-        assertThrows(
+        assertThrowsExactly(
             ApiException.class,
             () -> client.sendRequest("GET", baseUrl + "/redirect-bad-scheme", Map.of(), null));
     assertTrue(ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("non-http"));
+    assertTrue(
+        ex.getStatusCode() >= 300 && ex.getStatusCode() < 400,
+        "a refused redirect must carry the 3xx status, was " + ex.getStatusCode());
   }
 
   @Test
-  void useAfterCloseThrowsApiException() throws Exception {
+  void useAfterCloseThrowsIllegalStateException() throws Exception {
+    // Using a client after close() is a wrong call order: the built-in
+    // invalid-state error, not an SDK error.
     DefaultApiClient client = new DefaultApiClient();
     client.close();
-    assertThrows(
-        ApiException.class, () -> client.sendRequest("GET", baseUrl + "/echo", Map.of(), null));
+    IllegalStateException ex =
+        assertThrowsExactly(
+            IllegalStateException.class,
+            () -> client.sendRequest("GET", baseUrl + "/echo", Map.of(), null));
+    assertFalse(
+        ((Object) ex) instanceof OpenAPIException, "use-after-close must not be an SDK error");
   }
 
   @Test
@@ -878,15 +895,17 @@ class DefaultApiClientUnitTest {
     // Gap AL: a response that advertises `Content-Encoding: gzip` but carries
     // non-gzip plain bytes must surface a typed ApiException — never crash
     // unconditionally and never silently hand back corrupted/garbage bytes.
-    // GZIPInputStream rejects the non-gzip magic with a ZipException
-    // (an IOException), which sendRequest wraps as an ApiException. (dart
-    // crashed; csharp/kotlin/node/swift/elixir passed corrupt bytes through;
-    // Java already wraps -> this guard is green here.)
+    // A response did arrive, so the error is exactly ApiException carrying
+    // the real status (200), never NetworkException with status 0.
     DefaultApiClient client = new DefaultApiClient();
     ApiException ex =
-        assertThrows(
+        assertThrowsExactly(
             ApiException.class,
             () -> client.sendRequest("GET", baseUrl + "/content-encoding-lie", Map.of(), null));
+    assertEquals(200, ex.getStatusCode());
+    assertFalse(
+        ex instanceof com.example.petstore.errors.NetworkException,
+        "a corrupt body is not a network failure");
     assertNotNull(
         ex.getCause(), "the underlying decompression failure must be preserved as the cause");
     assertTrue(

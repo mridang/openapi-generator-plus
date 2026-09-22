@@ -10,7 +10,7 @@ package com.example.petstore.auth.oauth;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
@@ -134,7 +134,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   void throwsBeforeExchangeCodeCalled() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
-    assertThrows(IllegalStateException.class, () -> auth.getAuthHeaders());
+    assertThrowsExactly(IllegalStateException.class, () -> auth.getAuthHeaders());
   }
 
   @Test
@@ -154,8 +154,8 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     // No exchangeCode(null) case: the code parameter is @NonNull, so
     // NullAway rejects a literal null at compile time. Empty + whitespace
     // exercise the runtime guard.
-    assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode(""));
-    assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
+    assertThrowsExactly(IllegalArgumentException.class, () -> auth.exchangeCode(""));
+    assertThrowsExactly(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
   }
 
   @Test
@@ -168,7 +168,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         (method, url, headers, body) ->
             new ApiHttpResponse(200, "{\"access_token\":\"at\"}", Map.of()));
 
-    assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
+    assertThrowsExactly(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
   }
 
   @Test
@@ -179,7 +179,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     // violation. It must surface as a catchable exception so callers
     // can recover -- not as a process crash.
     IllegalStateException caught =
-        assertThrows(
+        assertThrowsExactly(
             IllegalStateException.class,
             () -> auth.getAuthHeaders(),
             "expected getAuthHeaders to throw before exchangeCode");

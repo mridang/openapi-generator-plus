@@ -379,7 +379,7 @@ public final class DefaultApiClient implements ApiClient {
       boolean noRedirect) {
 
     if (this.closed) {
-      throw new ApiException("ApiClient has been closed");
+      throw new IllegalStateException("ApiClient has been closed");
     }
     Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
     mergedHeaders.putAll(headers);
@@ -422,7 +422,7 @@ public final class DefaultApiClient implements ApiClient {
       try {
         streamBytes = stream.readAllBytes();
       } catch (IOException e) {
-        throw new ApiException("Failed to read request body stream", e);
+        throw new IllegalArgumentException("Failed to read request body stream", e);
       }
       bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(streamBytes);
     } else if (body instanceof File file) {
@@ -435,7 +435,7 @@ public final class DefaultApiClient implements ApiClient {
       try {
         fileBytes = Files.readAllBytes(file.toPath());
       } catch (IOException e) {
-        throw new ApiException("Failed to read request body file", e);
+        throw new IllegalArgumentException("Failed to read request body file", e);
       }
       bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(fileBytes);
     } else {
@@ -492,7 +492,10 @@ public final class DefaultApiClient implements ApiClient {
           if (!"http".equalsIgnoreCase(redirectScheme)
               && !"https".equalsIgnoreCase(redirectScheme)) {
             throw new ApiException(
-                "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri);
+                response.statusCode(),
+                "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri,
+                null,
+                null);
           }
           boolean sameOrigin = sameOrigin(originalUri, redirectUri);
 
@@ -508,7 +511,10 @@ public final class DefaultApiClient implements ApiClient {
           if (shouldRefuseHttpsToHttpBodyReplay(
               originalUri, redirectUri, response.statusCode(), currentBody != NO_BODY)) {
             throw new ApiException(
-                "Refusing to replay request body across HTTPS->HTTP redirect: " + redirectUri);
+                response.statusCode(),
+                "Refusing to replay request body across HTTPS->HTTP redirect: " + redirectUri,
+                null,
+                null);
           }
 
           /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
@@ -565,7 +571,11 @@ public final class DefaultApiClient implements ApiClient {
          * the caller the final redirect response as if it were a
          * normal result. */
         if (isRedirect(response.statusCode())) {
-          throw new ApiException("Too many redirects (exceeded maxRedirects) following " + url);
+          throw new ApiException(
+              response.statusCode(),
+              "Too many redirects (exceeded maxRedirects) following " + url,
+              null,
+              null);
         }
       }
 
@@ -600,7 +610,10 @@ public final class DefaultApiClient implements ApiClient {
       } catch (IOException e) {
         /* A corrupt Content-Encoding body is not a transport failure:
          * a response did arrive, so keep it out of NetworkException. */
-        throw new ApiException("failed to decode " + contentEncoding + " response body: " + e, e);
+        throw new ApiException(
+            response.statusCode(),
+            "failed to decode " + contentEncoding + " response body: " + e,
+            e);
       }
       Charset responseCharset = parseCharset(contentType);
       String responseBody =
@@ -908,7 +921,7 @@ public final class DefaultApiClient implements ApiClient {
       try {
         byteArrays.add(Files.readAllBytes(file.toPath()));
       } catch (IOException e) {
-        throw new RuntimeException("Failed to read file: " + file, e);
+        throw new IllegalArgumentException("Failed to read file: " + file, e);
       }
     } else if (value instanceof byte[] bytes) {
       validateMultipartFilename(fieldName);
@@ -938,7 +951,7 @@ public final class DefaultApiClient implements ApiClient {
                 .getBytes(StandardCharsets.UTF_8));
         byteArrays.add(stream.readAllBytes());
       } catch (IOException e) {
-        throw new RuntimeException("Failed to read stream: " + fieldName, e);
+        throw new IllegalArgumentException("Failed to read stream: " + fieldName, e);
       }
     } else if (value instanceof String || value instanceof Number || value instanceof Boolean) {
       byteArrays.add(("\"" + safeName + "\"\r\n\r\n" + value).getBytes(StandardCharsets.UTF_8));
@@ -949,7 +962,7 @@ public final class DefaultApiClient implements ApiClient {
             ("\"" + safeName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
                 .getBytes(StandardCharsets.UTF_8));
       } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-        throw new RuntimeException(
+        throw new ObjectSerializer.SerializationException(
             "Failed to serialize multipart field '" + fieldName + "' as JSON", e);
       }
     }
@@ -1069,7 +1082,7 @@ public final class DefaultApiClient implements ApiClient {
   /**
    * Gap T6: release the underlying {@link HttpClient} (connection pool, executor threads, sockets).
    * Idempotent. After calling this method the client must not be reused — subsequent {@link
-   * #sendRequest} calls will fail with an {@link ApiException}.
+   * #sendRequest} calls will fail with an {@link IllegalStateException}.
    *
    * <p>Calls {@link HttpClient#close()} (JDK 21+ public API). On JDK 25 the implementation class is
    * in {@code jdk.internal.net.http} which isn't reflectively accessible — invoking on the public

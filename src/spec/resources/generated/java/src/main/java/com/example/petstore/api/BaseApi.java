@@ -380,7 +380,7 @@ public abstract class BaseApi {
    *
    * @param formBody the form-style body Map
    * @return the binary part suitable for raw transmission
-   * @throws ApiException if no binary part is present
+   * @throws IllegalArgumentException if no binary part is present
    */
   private static Object extractBinaryPart(Map<?, ?> formBody) {
     for (Object value : formBody.values()) {
@@ -390,7 +390,8 @@ public abstract class BaseApi {
         return value;
       }
     }
-    throw new ApiException("No binary payload found in request body for raw octet-stream upload");
+    throw new IllegalArgumentException(
+        "No binary payload found in request body for raw octet-stream upload");
   }
 
   /**

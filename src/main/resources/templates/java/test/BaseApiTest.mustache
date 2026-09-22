@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -190,7 +191,7 @@ class BaseApiTest {
         @DisplayName("throws correct exception for status code")
         void throwsCorrectException(int status, Class<? extends ApiException> expected) {
             var ex =
-                    assertThrows(
+                    assertThrowsExactly(
                             expected,
                             () ->
                                     api().call(
@@ -217,7 +218,7 @@ class BaseApiTest {
         @DisplayName("NotFoundException is ClientException is ApiException")
         void notFoundHierarchy() {
             var ex =
-                    assertThrows(
+                    assertThrowsExactly(
                             NotFoundException.class,
                             () ->
                                     api().call(
@@ -232,13 +233,14 @@ class BaseApiTest {
                                             null));
             assertInstanceOf(ClientException.class, ex);
             assertInstanceOf(ApiException.class, ex);
+            assertInstanceOf({{errorPrefix}}Exception.class, ex);
         }
 
         @Test
         @DisplayName("InternalServerErrorException is ServerException is ApiException")
         void internalServerErrorHierarchy() {
             var ex =
-                    assertThrows(
+                    assertThrowsExactly(
                             InternalServerErrorException.class,
                             () ->
                                     api().call(
@@ -253,6 +255,7 @@ class BaseApiTest {
                                             null));
             assertInstanceOf(ServerException.class, ex);
             assertInstanceOf(ApiException.class, ex);
+            assertInstanceOf({{errorPrefix}}Exception.class, ex);
         }
     }
 
