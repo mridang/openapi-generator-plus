@@ -1,0 +1,37 @@
+{{>api_info}}
+
+use std::fmt;
+
+use crate::errors::network_error::NetworkError;
+
+/// NetworkTimeoutError represents a request that timed out. The status code
+/// is 0 and the transport error is kept as the source.
+#[derive(Debug, Clone)]
+pub struct NetworkTimeoutError {
+    network_error: NetworkError,
+}
+
+impl NetworkTimeoutError {
+    /// Returns the underlying [`NetworkError`].
+    pub fn network_error(&self) -> &NetworkError {
+        &self.network_error
+    }
+}
+
+impl fmt::Display for NetworkTimeoutError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Network timeout: {}", self.network_error.api_error().message())
+    }
+}
+
+impl std::error::Error for NetworkTimeoutError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.network_error)
+    }
+}
+
+impl From<NetworkError> for NetworkTimeoutError {
+    fn from(network_error: NetworkError) -> Self {
+        Self { network_error }
+    }
+}

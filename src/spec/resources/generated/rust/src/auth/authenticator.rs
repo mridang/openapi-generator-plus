@@ -26,6 +26,30 @@ pub trait Authenticator: Send + Sync {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>>;
 
+    /// Returns the authentication headers, or the error that prevented them
+    /// from being produced (e.g. an OAuth2 token request that failed, or an
+    /// authorization code that was never exchanged).
+    ///
+    /// The API client calls this method, so a failure reaches the caller
+    /// instead of the request going out unauthenticated. The default delegates
+    /// to [`Authenticator::auth_headers`]; authenticators whose headers can
+    /// fail override it.
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        HashMap<String, String>,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move { Ok(self.auth_headers().await) })
+    }
+
     /// Returns query parameters to include for authentication.
     fn query_params(&self) -> HashMap<String, String> {
         HashMap::new()

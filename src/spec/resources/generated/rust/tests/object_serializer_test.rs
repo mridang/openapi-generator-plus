@@ -99,6 +99,40 @@ fn test_proto_duration_rejects_malformed() {
     assert!(proto_duration::parse("").is_err());
     assert!(proto_duration::parse("s").is_err());
     assert!(proto_duration::parse("1.2345678901s").is_err());
+    let err = proto_duration::parse("PT1H").expect_err("an ISO-8601 duration must be rejected");
+    let _: &petstore::SerializationError = &err;
+}
+
+#[test]
+fn test_proto_duration_rejects_overflow() {
+    use petstore::proto_duration;
+
+    // secs * 1e9 overflows an i64 past ~9.2e9 seconds.
+    for s in ["9223372037s", "-9223372037s", "99999999999999999999s"] {
+        assert!(
+            proto_duration::parse(s).is_err(),
+            "expected {:?} to be rejected",
+            s
+        );
+    }
+}
+
+#[test]
+fn test_proto_duration_format_does_not_overflow() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    // Beyond ~292 years num_nanoseconds() is None; the old fallback multiplied
+    // the seconds by 1e9 and overflowed.
+    let huge = Duration::seconds(i64::MAX / 1_000);
+    assert_eq!(
+        proto_duration::format(&huge),
+        format!("{}s", i64::MAX / 1_000)
+    );
+    assert_eq!(
+        proto_duration::format(&-huge),
+        format!("-{}s", i64::MAX / 1_000)
+    );
 }
 
 #[test]

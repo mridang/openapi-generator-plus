@@ -33,8 +33,8 @@ use crate::transport_options::TransportOptionsBuilder;
 /// ```rust,ignore
 /// let transport = TransportOptionsBuilder::new()
 ///     .proxy("http://proxy:3128")
-///     .timeout(Duration::from_secs(5))
-///     .build();
+///     .timeout(5000)
+///     .build()?;
 /// let client = Client::new(authenticator, Some(transport));
 /// ```
 pub struct Client {
@@ -50,7 +50,7 @@ impl Client {
         mut authenticator: Box<dyn Authenticator>,
         transport_options: Option<TransportOptions>,
     ) -> Self {
-        let transport = transport_options.unwrap_or_else(|| TransportOptionsBuilder::new().build());
+        let transport = transport_options.unwrap_or_default();
         let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
 
         if let Some(http_aware) = authenticator.as_http_aware_mut() {

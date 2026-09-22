@@ -1,0 +1,37 @@
+{{>api_info}}
+
+use std::fmt;
+
+/// Error returned when the client is configured with an invalid value: a
+/// proxy URL that does not parse or is not http(s), a CA certificate file that
+/// cannot be read or parsed, a negative timeout, or a server variable outside
+/// its enum.
+///
+/// This is a programming error, not an API failure, so it is deliberately not
+/// part of the SDK error hierarchy rooted at `{{errorPrefix}}Error`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigurationError {
+    /// The proxy URL does not parse, is not http(s), or has no host.
+    InvalidProxy(String),
+    /// The CA certificate file cannot be read or holds no PEM certificate.
+    InvalidCaCertificate(String),
+    /// The request timeout is negative.
+    InvalidTimeout(i64),
+    /// A server variable override is outside the variable's enum.
+    InvalidServerVariable(String),
+}
+
+impl fmt::Display for ConfigurationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidProxy(reason) => write!(f, "invalid proxy URL: {}", reason),
+            Self::InvalidCaCertificate(reason) => write!(f, "invalid CA certificate: {}", reason),
+            Self::InvalidTimeout(ms) => {
+                write!(f, "invalid timeout: {} ms; must not be negative", ms)
+            }
+            Self::InvalidServerVariable(reason) => write!(f, "invalid server variable: {}", reason),
+        }
+    }
+}
+
+impl std::error::Error for ConfigurationError {}

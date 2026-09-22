@@ -11,7 +11,9 @@ use petstore::*;
 
 #[test]
 fn test_transport_options_verify_ssl_defaults_to_true() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert!(
         opts.verify_ssl(),
         "expected verify_ssl to be true by default"
@@ -20,7 +22,9 @@ fn test_transport_options_verify_ssl_defaults_to_true() {
 
 #[test]
 fn test_transport_options_ca_cert_path_defaults_to_none() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert!(
         opts.ca_cert_path().is_none(),
         "expected no CA cert path by default"
@@ -29,7 +33,9 @@ fn test_transport_options_ca_cert_path_defaults_to_none() {
 
 #[test]
 fn test_transport_options_proxy_defaults_to_none() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert!(opts.proxy().is_none(), "expected no proxy by default");
 }
 
@@ -37,13 +43,17 @@ fn test_transport_options_proxy_defaults_to_none() {
 fn test_transport_options_timeout_defaults_to_10_seconds() {
     /* Cross-language parity: a 10s end-to-end timeout (10_000 ms) is the
      * default for every SDK. Callers can override or disable per request. */
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert_eq!(opts.timeout(), Some(10_000), "expected 10s default timeout");
 }
 
 #[test]
 fn test_transport_options_follow_redirects_defaults_to_true() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert!(
         opts.follow_redirects(),
         "expected follow_redirects to be true by default"
@@ -52,7 +62,9 @@ fn test_transport_options_follow_redirects_defaults_to_true() {
 
 #[test]
 fn test_transport_options_max_redirects_defaults_to_none() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert!(
         opts.max_redirects().is_none(),
         "expected no max_redirects by default"
@@ -61,7 +73,9 @@ fn test_transport_options_max_redirects_defaults_to_none() {
 
 #[test]
 fn test_transport_options_user_agent_defaults_to_branded_value() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert_eq!(opts.user_agent(), Some("petstore/1.0.0 (rust)"));
 }
 
@@ -69,7 +83,8 @@ fn test_transport_options_user_agent_defaults_to_branded_value() {
 fn test_transport_options_user_agent_set_value_is_applied() {
     let opts = TransportOptionsBuilder::new()
         .user_agent("CustomAgent/2.0")
-        .build();
+        .build()
+        .expect("valid transport options");
     assert_eq!(opts.user_agent(), Some("CustomAgent/2.0"));
 }
 
@@ -77,14 +92,16 @@ fn test_transport_options_user_agent_set_value_is_applied() {
 fn test_transport_options_user_agent_opt_some_and_none() {
     let some = TransportOptionsBuilder::new()
         .user_agent_opt(Some("UA/1.0"))
-        .build();
+        .build()
+        .expect("valid transport options");
     assert_eq!(some.user_agent(), Some("UA/1.0"));
 
     /* Passing None explicitly omits the header. */
     let none = TransportOptionsBuilder::new()
         .user_agent("UA/1.0")
         .user_agent_opt(None)
-        .build();
+        .build()
+        .expect("valid transport options");
     assert!(
         none.user_agent().is_none(),
         "expected user_agent_opt(None) to clear the User-Agent"
@@ -93,7 +110,9 @@ fn test_transport_options_user_agent_opt_some_and_none() {
 
 #[test]
 fn test_transport_options_default_headers_defaults_to_empty() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert!(
         opts.default_headers().is_empty(),
         "expected empty default headers"
@@ -102,7 +121,9 @@ fn test_transport_options_default_headers_defaults_to_empty() {
 
 #[test]
 fn test_transport_options_inject_request_id_defaults_to_false() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert!(
         !opts.inject_request_id(),
         "expected inject_request_id to be false by default"
@@ -111,9 +132,10 @@ fn test_transport_options_inject_request_id_defaults_to_false() {
 
 #[test]
 fn test_transport_options_builder_sets_all_fields() {
+    let ca_cert = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/certs/ca.pem").to_string();
     let opts = TransportOptionsBuilder::new()
         .verify_ssl(false)
-        .ca_cert_path("/path/to/ca.pem")
+        .ca_cert_path(&ca_cert)
         .proxy("http://proxy.example.com:8080")
         .timeout(30000)
         .follow_redirects(false)
@@ -121,10 +143,11 @@ fn test_transport_options_builder_sets_all_fields() {
         .user_agent("CustomAgent/2.0")
         .default_header("X-Custom", "value")
         .inject_request_id(true)
-        .build();
+        .build()
+        .expect("valid transport options");
 
     assert!(!opts.verify_ssl());
-    assert_eq!(opts.ca_cert_path(), Some("/path/to/ca.pem"));
+    assert_eq!(opts.ca_cert_path(), Some(ca_cert.as_str()));
     assert_eq!(opts.proxy(), Some("http://proxy.example.com:8080"));
     assert_eq!(opts.timeout(), Some(30000));
     assert!(!opts.follow_redirects());
@@ -138,7 +161,8 @@ fn test_transport_options_builder_sets_all_fields() {
 fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redirects() {
     let opts = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .build();
+        .build()
+        .expect("valid transport options");
 
     assert!(
         opts.follow_redirects(),
@@ -148,16 +172,50 @@ fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redire
 }
 
 #[test]
-#[should_panic(expected = "invalid proxy URL")]
 fn test_transport_options_invalid_proxy_url_throws_exception() {
-    TransportOptionsBuilder::new()
-        .proxy("not-a-valid-url")
+    for proxy in [
+        "not-a-valid-url",
+        "ftp://proxy.example.com:21",
+        "socks5://proxy.example.com:1080",
+    ] {
+        let result = TransportOptionsBuilder::new().proxy(proxy).build();
+        assert!(
+            matches!(result, Err(ConfigurationError::InvalidProxy(_))),
+            "expected InvalidProxy for {:?}, got {:?}",
+            proxy,
+            result
+        );
+    }
+}
+
+#[test]
+fn test_transport_options_missing_ca_cert_file_is_rejected() {
+    let result = TransportOptionsBuilder::new()
+        .ca_cert_path("/nonexistent/ca.pem")
         .build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidCaCertificate(_))),
+        "expected InvalidCaCertificate, got {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_transport_options_negative_timeout_is_rejected() {
+    let result = TransportOptionsBuilder::new().timeout(-1).build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidTimeout(-1))),
+        "expected InvalidTimeout(-1), got {:?}",
+        result
+    );
 }
 
 #[test]
 fn test_transport_options_null_proxy_url_is_accepted() {
-    let opts = TransportOptionsBuilder::new().proxy("").build();
+    let opts = TransportOptionsBuilder::new()
+        .proxy("")
+        .build()
+        .expect("valid transport options");
 
     assert!(opts.proxy().is_none(), "expected no proxy for empty string");
 }
@@ -168,7 +226,8 @@ fn test_transport_options_builder_methods_return_same_instance() {
         .verify_ssl(true)
         .user_agent("Test/1.0")
         .timeout(10000)
-        .build();
+        .build()
+        .expect("valid transport options");
 
     assert_eq!(opts.user_agent(), Some("Test/1.0"));
     assert_eq!(opts.timeout(), Some(10000));
@@ -179,7 +238,8 @@ fn test_transport_options_accumulates_headers_from_default_header_calls() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-First", "one")
         .default_header("X-Second", "two")
-        .build();
+        .build()
+        .expect("valid transport options");
 
     let headers = opts.default_headers();
     assert_eq!(headers.len(), 2);
@@ -196,7 +256,8 @@ fn test_transport_options_merges_headers_from_default_headers_call() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-First", "one")
         .default_headers(extra)
-        .build();
+        .build()
+        .expect("valid transport options");
 
     let headers = opts.default_headers();
     assert_eq!(headers.len(), 3);
@@ -209,7 +270,8 @@ fn test_transport_options_merges_headers_from_default_headers_call() {
 fn test_transport_options_modifying_source_map_does_not_affect_built_options() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-Test", "value")
-        .build();
+        .build()
+        .expect("valid transport options");
 
     let mut headers = opts.default_headers();
     headers.insert(
@@ -226,8 +288,14 @@ fn test_transport_options_modifying_source_map_does_not_affect_built_options() {
 
 #[test]
 fn test_transport_options_builder_produces_independent_instances() {
-    let first = TransportOptionsBuilder::new().verify_ssl(false).build();
-    let second = TransportOptionsBuilder::new().verify_ssl(false).build();
+    let first = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
+    let second = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
 
     assert_eq!(first.verify_ssl(), second.verify_ssl());
     assert_ne!(&first as *const _, &second as *const _);
@@ -237,13 +305,18 @@ fn test_transport_options_builder_produces_independent_instances() {
 
 #[test]
 fn test_transport_options_timeout_defaults_to_10_seconds_timeout_group() {
-    let opts = TransportOptionsBuilder::new().build();
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
     assert_eq!(opts.timeout(), Some(10_000), "expected default 10s timeout");
 }
 
 #[test]
 fn test_transport_options_setting_timeout_is_accessible() {
-    let opts = TransportOptionsBuilder::new().timeout(5000).build();
+    let opts = TransportOptionsBuilder::new()
+        .timeout(5000)
+        .build()
+        .expect("valid transport options");
     assert_eq!(opts.timeout(), Some(5000), "expected timeout to be 5000");
 }
 
@@ -259,7 +332,10 @@ fn test_transport_options_timeout_can_be_explicitly_disabled() {}
 fn test_transport_options_timeout_field_is_named_timeout() {
     // Verify via the timeout() accessor that the field is named 'timeout'
     // (not e.g. 'connection_timeout' or 'open_timeout').
-    let opts = TransportOptionsBuilder::new().timeout(1000).build();
+    let opts = TransportOptionsBuilder::new()
+        .timeout(1000)
+        .build()
+        .expect("valid transport options");
     assert!(opts.timeout().is_some(), "expected non-None timeout");
     assert_eq!(opts.timeout(), Some(1000));
 }
@@ -270,7 +346,8 @@ fn test_transport_options_timeout_field_is_named_timeout() {
 fn test_transport_options_proxy_url_is_preserved_on_read_back() {
     let opts = TransportOptionsBuilder::new()
         .proxy("http://proxy.example.com:8080")
-        .build();
+        .build()
+        .expect("valid transport options");
     assert_eq!(opts.proxy(), Some("http://proxy.example.com:8080"));
 }
 
@@ -279,6 +356,7 @@ fn test_transport_options_setting_proxy_is_supported_on_all_platforms() {
     // Proxy configuration must not panic on any platform.
     let opts = TransportOptionsBuilder::new()
         .proxy("http://proxy.example.com:8080")
-        .build();
+        .build()
+        .expect("valid transport options");
     assert!(opts.proxy().is_some(), "expected proxy to be set");
 }

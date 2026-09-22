@@ -7,11 +7,10 @@
 
 use std::collections::HashMap;
 
-use petstore::auth::oauth::{AuthCodeNotExchangedError, OAuth2ServerError, OAuth2TokenError};
-use petstore::auth::BasicAuthError;
+use petstore::auth::oauth::{OAuth2AuthorizationCodeError, OAuth2ServerError, OAuth2TokenError};
 use petstore::errors::{
-    BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError,
-    NotFoundError, ServerError, UnauthorizedError, UnprocessableEntityError,
+    BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NetworkError,
+    NetworkTimeoutError, NotFoundError, ServerError, UnauthorizedError, UnprocessableEntityError,
 };
 use petstore::models::Category;
 use petstore::ApiError;
@@ -292,15 +291,14 @@ fn test_heterogeneous_errors_collect_as_open_api_trait_objects() {
         Box::new(BadRequestError::from(client_chain(400, "bad"))),
         Box::new(InternalServerError::from(server_chain(500, "boom"))),
         Box::new(SerializationError::new("serde".to_string(), None)),
-        Box::new(BasicAuthError::UsernameContainsColon),
-        Box::new(AuthCodeNotExchangedError),
+        Box::new(OAuth2AuthorizationCodeError::CodeNotExchanged),
     ];
     for err in &errors {
         // Display (from the std::error::Error supertrait) is available on the
         // trait object without knowing the concrete type.
         assert!(!err.to_string().is_empty());
     }
-    assert_eq!(errors.len(), 6);
+    assert_eq!(errors.len(), 5);
 }
 
 // -- Branded error hierarchy: auth-layer errors ----------------------------
@@ -318,20 +316,32 @@ fn test_heterogeneous_errors_collect_as_open_api_trait_objects() {
 fn assert_type_is_open_api_error<T: OpenAPIError>() {}
 
 #[test]
-fn test_basic_auth_error_is_open_api_error() {
-    let err = BasicAuthError::PasswordContainsControlChar;
-    let branded = assert_is_open_api_error(&err);
-    // Supertrait gives Display; this is a leaf precondition error with no cause.
-    assert!(!branded.to_string().is_empty());
-    assert!(std::error::Error::source(branded).is_none());
+fn test_oauth2_authorization_code_error_is_open_api_error() {
+    for err in [
+        OAuth2AuthorizationCodeError::CodeNotExchanged,
+        OAuth2AuthorizationCodeError::EmptyCode,
+    ] {
+        let branded = assert_is_open_api_error(&err);
+        // Supertrait gives Display; this is a leaf precondition error with no cause.
+        assert!(!branded.to_string().is_empty());
+        assert!(std::error::Error::source(branded).is_none());
+    }
 }
 
 #[test]
-fn test_auth_code_not_exchanged_error_is_open_api_error() {
-    let err = AuthCodeNotExchangedError;
-    let branded = assert_is_open_api_error(&err);
-    assert!(!branded.to_string().is_empty());
-    assert!(std::error::Error::source(branded).is_none());
+fn test_network_errors_are_open_api_errors() {
+    assert_type_is_open_api_error::<NetworkError>();
+    assert_type_is_open_api_error::<NetworkTimeoutError>();
+}
+
+#[test]
+fn test_network_errors_wrap_a_status_zero_api_error() {
+    let network = NetworkError::from(ApiError::new(0, "refused".to_string(), None, None));
+    assert_eq!(network.api_error().status_code(), 0);
+    let timeout = NetworkTimeoutError::from(network.clone());
+    assert_eq!(timeout.network_error().api_error().status_code(), 0);
+    let source = std::error::Error::source(&timeout).expect("timeout wraps the network error");
+    assert!(source.downcast_ref::<NetworkError>().is_some());
 }
 
 #[test]

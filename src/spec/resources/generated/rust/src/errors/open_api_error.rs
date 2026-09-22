@@ -11,6 +11,8 @@ use crate::errors::client_error::ClientError;
 use crate::errors::conflict_error::ConflictError;
 use crate::errors::forbidden_error::ForbiddenError;
 use crate::errors::internal_server_error::InternalServerError;
+use crate::errors::network_error::NetworkError;
+use crate::errors::network_timeout_error::NetworkTimeoutError;
 use crate::errors::not_found_error::NotFoundError;
 use crate::errors::server_error::ServerError;
 use crate::errors::unauthorized_error::UnauthorizedError;
@@ -23,7 +25,8 @@ use crate::object_serializer::SerializationError;
 /// `OpenAPIError`" relationship that the OO SDKs express via a base class is
 /// modelled here as a marker trait. Every error type this client produces —
 /// the transport/API root [`ApiError`] and its per-status wrappers
-/// ([`ClientError`]/[`ServerError`] and the concrete 4xx/5xx types), the
+/// ([`ClientError`]/[`ServerError`] and the concrete 4xx/5xx types,
+/// [`NetworkError`]/[`NetworkTimeoutError`] for failures with no response), the
 /// pattern-matching [`ApiErrorKind`] view, and the (de)serialization
 /// [`SerializationError`] — has an explicit `impl OpenAPIError`, so a single
 /// `&dyn OpenAPIError` / `Box<dyn OpenAPIError>` can hold any of them.
@@ -63,4 +66,6 @@ impl OpenAPIError for NotFoundError {}
 impl OpenAPIError for ConflictError {}
 impl OpenAPIError for UnprocessableEntityError {}
 impl OpenAPIError for InternalServerError {}
+impl OpenAPIError for NetworkError {}
+impl OpenAPIError for NetworkTimeoutError {}
 impl OpenAPIError for SerializationError {}

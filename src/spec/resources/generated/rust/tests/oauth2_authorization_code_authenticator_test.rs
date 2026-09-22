@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_http_response::ApiHttpResponse;
-use petstore::auth::oauth::AuthCodeNotExchangedError;
 use petstore::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
+use petstore::auth::oauth::OAuth2AuthorizationCodeError;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
 
@@ -144,10 +144,15 @@ async fn test_exchange_code_rejects_empty_code() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    let result = auth.exchange_code("").await;
-    assert!(
-        result.is_err(),
-        "empty code must be rejected before the token POST"
+    let err = auth
+        .exchange_code("")
+        .await
+        .expect_err("empty code must be rejected before the token POST");
+    assert_eq!(
+        err.downcast_ref::<OAuth2AuthorizationCodeError>(),
+        Some(&OAuth2AuthorizationCodeError::EmptyCode),
+        "expected OAuth2AuthorizationCodeError::EmptyCode, got {:?}",
+        err
     );
 
     let result_ws = auth.exchange_code("   ").await;
@@ -170,10 +175,15 @@ async fn test_exchange_code_rejects_whitespace_only_code() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    let result = auth.exchange_code("   ").await;
-    assert!(
-        result.is_err(),
-        "whitespace-only code must be rejected before the token POST"
+    let err = auth
+        .exchange_code("   ")
+        .await
+        .expect_err("whitespace-only code must be rejected before the token POST");
+    assert_eq!(
+        err.downcast_ref::<OAuth2AuthorizationCodeError>(),
+        Some(&OAuth2AuthorizationCodeError::EmptyCode),
+        "expected OAuth2AuthorizationCodeError::EmptyCode, got {:?}",
+        err
     );
 
     assert!(
@@ -211,10 +221,9 @@ async fn test_includes_refresh_token_on_refresh() {
 async fn test_throws_before_exchange_code_called() {
     let auth = create_authenticator();
 
-    // auth_headers (trait method) must NOT panic if exchange_code was never
-    // called -- it now soft-fails to an empty map so the resulting request
-    // surfaces as a 401 instead of crashing the process. Callers that want
-    // a precise error use try_auth_headers.
+    // auth_headers (the infallible trait method) must NOT panic if
+    // exchange_code was never called -- it soft-fails to an empty map. The API
+    // client calls try_auth_headers instead, which reports the error.
     let headers = auth.auth_headers().await;
     assert!(
         headers.is_empty(),
@@ -233,8 +242,9 @@ async fn test_auth_headers_before_exchange_returns_recoverable_error() {
     let result = auth.try_auth_headers().await;
     let err = result.expect_err("expected try_auth_headers to return Err before exchange_code");
     assert!(
-        err.downcast_ref::<AuthCodeNotExchangedError>().is_some(),
-        "expected AuthCodeNotExchangedError, got {:?}",
+        err.downcast_ref::<OAuth2AuthorizationCodeError>()
+            == Some(&OAuth2AuthorizationCodeError::CodeNotExchanged),
+        "expected OAuth2AuthorizationCodeError::CodeNotExchanged, got {:?}",
         err
     );
 

@@ -621,6 +621,43 @@ async fn test_base_api_per_call_auth_overrides_client_authenticator() {
 }
 
 #[tokio::test]
+async fn test_base_api_auth_code_not_exchanged_fails_the_call() {
+    /* An authorization-code authenticator whose code was never exchanged must
+     * fail the call with OAuth2AuthorizationCodeError::CodeNotExchanged; the
+     * request must NOT go out unauthenticated. */
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = petstore::auth::oauth::OAuth2AuthorizationCodeAuthenticator::new(
+        "http://localhost",
+        "client-id",
+        "client-secret",
+        "http://localhost/authorize",
+        "http://localhost/token",
+        "http://localhost/callback",
+        vec![],
+        "",
+    );
+    let pet = Pet::new("Unexchanged".to_string(), HashSet::new());
+    let err = api
+        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
+        .await
+        .expect_err("an unexchanged authorization code must fail the call");
+    assert_eq!(
+        err.downcast_ref::<petstore::auth::oauth::OAuth2AuthorizationCodeError>(),
+        Some(&petstore::auth::oauth::OAuth2AuthorizationCodeError::CodeNotExchanged),
+        "expected CodeNotExchanged, got: {}",
+        err
+    );
+    assert!(
+        client.captured_url.lock().unwrap().is_empty(),
+        "no request may be sent when the authenticator cannot produce credentials"
+    );
+}
+
+#[tokio::test]
 async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
     /* Passing None for both the op auth and the client authenticator is
      * permitted for endpoints that don't strictly require credentials. */
@@ -1467,7 +1504,8 @@ async fn test_base_api_routes_through_proxy_with_basic_auth() {
     let proxy_with_auth = proxy.replacen("http://", "http://proxyuser:proxypass@", 1);
     let transport = petstore::TransportOptionsBuilder::new()
         .proxy(&proxy_with_auth)
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = petstore::DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client
@@ -1588,12 +1626,18 @@ fn test_api_error_kind_other_for_unrecognized_status() {
 }
 
 #[test]
-fn test_api_error_kind_network_variant_carries_io_error() {
-    let io_err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "down");
-    let kind = petstore::api_error::ApiErrorKind::Network(io_err);
+fn test_api_error_kind_network_variants_have_status_zero() {
+    let fields = petstore::api_error::ApiErrorFields::from(make_api_error(0));
+    let kind = petstore::api_error::ApiErrorKind::Network(fields.clone());
     assert!(matches!(
         kind,
         petstore::api_error::ApiErrorKind::Network(_)
+    ));
+    assert_eq!(kind.status_code(), 0);
+    let kind = petstore::api_error::ApiErrorKind::NetworkTimeout(fields);
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::NetworkTimeout(_)
     ));
     assert_eq!(kind.status_code(), 0);
 }

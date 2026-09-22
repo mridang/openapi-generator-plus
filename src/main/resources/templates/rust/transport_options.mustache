@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::configuration_error::ConfigurationError;
+
 /// TransportOptions holds immutable HTTP transport configuration for DefaultApiClient.
 ///
 /// Controls low-level HTTP behavior such as TLS verification, proxy routing,
@@ -18,7 +20,8 @@ use std::collections::HashMap;
 ///     .proxy("http://proxy.example.com:8080")
 ///     .timeout(5000)
 ///     .user_agent("MyApp/1.0")
-///     .build();
+///     .build()?;
+/// # Ok::<(), {{packageName}}::ConfigurationError>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct TransportOptions {
@@ -27,6 +30,10 @@ pub struct TransportOptions {
 
     /// Path to a custom CA certificate bundle for TLS verification.
     ca_cert_path: Option<String>,
+
+    /// The PEM bytes read from `ca_cert_path` by `build`, which also checked
+    /// that they parse as a certificate.
+    ca_cert_pem: Option<Vec<u8>>,
 
     /// HTTP or HTTPS proxy URL for all outbound requests.
     proxy: Option<String>,
@@ -66,6 +73,11 @@ impl TransportOptions {
     /// Returns the path to a custom CA certificate bundle.
     pub fn ca_cert_path(&self) -> Option<&str> {
         self.ca_cert_path.as_deref()
+    }
+
+    /// Returns the PEM bytes read from the CA certificate bundle.
+    pub(crate) fn ca_cert_pem(&self) -> Option<&[u8]> {
+        self.ca_cert_pem.as_deref()
     }
 
     /// Returns the proxy URL, or None if no proxy is configured.
@@ -110,6 +122,7 @@ pub struct TransportOptionsBuilder {
     verify_ssl: bool,
     ca_cert_path: Option<String>,
     proxy: Option<String>,
+    proxy_error: Option<ConfigurationError>,
     timeout: Option<i64>,
     follow_redirects: bool,
     max_redirects: Option<usize>,
@@ -125,6 +138,7 @@ impl TransportOptionsBuilder {
             verify_ssl: true,
             ca_cert_path: None,
             proxy: None,
+            proxy_error: None,
             // Default 10-second end-to-end timeout (10_000 ms). Callers can override
             // via `TransportOptionsBuilder::timeout()` or disable with `timeout(0)`.
             timeout: Some(10_000),
@@ -148,27 +162,37 @@ impl TransportOptionsBuilder {
         self
     }
 
-    /// Sets the HTTP/HTTPS proxy URL. Panics if the URL is invalid.
+    /// Sets the HTTP/HTTPS proxy URL. An invalid URL is reported by
+    /// [`build`](Self::build) as [`ConfigurationError::InvalidProxy`].
     ///
     /// Only HTTP and HTTPS proxy URLs are supported.
     pub fn proxy(mut self, val: &str) -> Self {
+        self.proxy = None;
+        self.proxy_error = None;
         if val.is_empty() {
-            self.proxy = None;
-        } else {
-            let parsed = reqwest::Url::parse(val)
-                .unwrap_or_else(|e| panic!("invalid proxy URL {:?}: {}", val, e));
-            if parsed.scheme() != "http" && parsed.scheme() != "https" {
-                panic!("invalid proxy URL {:?}: must use http or https scheme", val);
+            return self;
+        }
+        match reqwest::Url::parse(val) {
+            Err(e) => {
+                self.proxy_error = Some(ConfigurationError::InvalidProxy(format!("{:?}: {}", val, e)));
             }
-            if parsed.host_str().unwrap_or("").is_empty() {
-                panic!("invalid proxy URL {:?}: missing host", val);
+            Ok(parsed) if parsed.scheme() != "http" && parsed.scheme() != "https" => {
+                self.proxy_error = Some(ConfigurationError::InvalidProxy(format!(
+                    "{:?}: must use http or https scheme",
+                    val
+                )));
             }
-            self.proxy = Some(val.to_string());
+            Ok(parsed) if parsed.host_str().unwrap_or("").is_empty() => {
+                self.proxy_error =
+                    Some(ConfigurationError::InvalidProxy(format!("{:?}: missing host", val)));
+            }
+            Ok(_) => self.proxy = Some(val.to_string()),
         }
         self
     }
 
-    /// Sets the end-to-end request timeout in milliseconds.
+    /// Sets the end-to-end request timeout in milliseconds. A negative value is
+    /// reported by [`build`](Self::build) as [`ConfigurationError::InvalidTimeout`].
     pub fn timeout(mut self, val: i64) -> Self {
         self.timeout = Some(val);
         self
@@ -218,11 +242,45 @@ impl TransportOptionsBuilder {
         self
     }
 
-    /// Creates and returns an immutable TransportOptions instance.
-    pub fn build(self) -> TransportOptions {
+    /// Validates the configuration and returns an immutable TransportOptions
+    /// instance.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidProxy`] when the proxy URL is
+    /// invalid, [`ConfigurationError::InvalidCaCertificate`] when the CA
+    /// certificate file cannot be read or parsed, and
+    /// [`ConfigurationError::InvalidTimeout`] when the timeout is negative.
+    pub fn build(self) -> Result<TransportOptions, ConfigurationError> {
+        if let Some(e) = self.proxy_error {
+            return Err(e);
+        }
+        if let Some(ms) = self.timeout {
+            if ms < 0 {
+                return Err(ConfigurationError::InvalidTimeout(ms));
+            }
+        }
+        let ca_cert_pem = match &self.ca_cert_path {
+            None => None,
+            Some(path) => {
+                let pem = std::fs::read(path).map_err(|e| {
+                    ConfigurationError::InvalidCaCertificate(format!("failed to read {:?}: {}", path, e))
+                })?;
+                reqwest::Certificate::from_pem(&pem).map_err(|e| {
+                    ConfigurationError::InvalidCaCertificate(format!("failed to parse {:?}: {}", path, e))
+                })?;
+                Some(pem)
+            }
+        };
+        Ok(self.assemble(ca_cert_pem))
+    }
+
+    /// Assembles the options from already-validated builder state.
+    fn assemble(self, ca_cert_pem: Option<Vec<u8>>) -> TransportOptions {
         TransportOptions {
             verify_ssl: self.verify_ssl,
             ca_cert_path: self.ca_cert_path,
+            ca_cert_pem,
             proxy: self.proxy,
             timeout: self.timeout,
             follow_redirects: self.follow_redirects,
@@ -231,6 +289,14 @@ impl TransportOptionsBuilder {
             default_headers: self.default_headers,
             inject_request_id: self.inject_request_id,
         }
+    }
+}
+
+impl Default for TransportOptions {
+    /// The options a `None` argument stands for. The defaults configure no
+    /// proxy, no CA bundle and a positive timeout, so they need no validation.
+    fn default() -> Self {
+        TransportOptionsBuilder::new().assemble(None)
     }
 }
 

@@ -7,6 +7,8 @@
 
 use std::collections::HashMap;
 
+use crate::configuration_error::ConfigurationError;
+
 /// ServerVariable represents a server variable from the OpenAPI specification.
 ///
 /// Server variables define substitution parameters in server URL templates.
@@ -106,11 +108,9 @@ impl ServerConfiguration {
     ///
     /// # Errors
     ///
-    /// Returns an error if an override value is not in the variable's enum constraint.
-    pub fn url(
-        &self,
-        overrides: &HashMap<String, String>,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    /// Returns [`ConfigurationError::InvalidServerVariable`] if an override value
+    /// is not in the variable's enum constraint.
+    pub fn url(&self, overrides: &HashMap<String, String>) -> Result<String, ConfigurationError> {
         let mut result = self.url_template.clone();
         for (var_name, variable) in &self.variables {
             let value = overrides
@@ -119,11 +119,10 @@ impl ServerConfiguration {
                 .clone();
 
             if !variable.enum_values.is_empty() && !variable.enum_values.contains(&value) {
-                return Err(format!(
+                return Err(ConfigurationError::InvalidServerVariable(format!(
                     "invalid value '{}' for variable '{}'; allowed: {:?}",
                     value, var_name, variable.enum_values
-                )
-                .into());
+                )));
             }
 
             result = result.replace(&format!("{{{}}}", var_name), &value);

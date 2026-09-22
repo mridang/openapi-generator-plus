@@ -14,7 +14,10 @@ use petstore::*;
 #[tokio::test]
 async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
     let chasm_url = testcontainers_helper::chasm_https_url();
-    let transport = TransportOptionsBuilder::new().verify_ssl(false).build();
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -36,7 +39,8 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
     let transport = TransportOptionsBuilder::new()
         .verify_ssl(true)
         .ca_cert_path(ca_cert)
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -52,7 +56,10 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
 async fn test_default_api_client_makes_http_request_through_proxy() {
     let chasm_url = testcontainers_helper::chasm_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
-    let transport = TransportOptionsBuilder::new().proxy(proxy).build();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(proxy)
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -76,7 +83,8 @@ async fn test_default_api_client_proxy_with_credentials_injects_basic_authorizat
 
     let transport = TransportOptionsBuilder::new()
         .proxy("http://alice:s3cret@127.0.0.1:3128")
-        .build();
+        .build()
+        .expect("valid transport options");
 
     let proxy = transport.proxy().expect("proxy must be set");
     let parsed = Url::parse(proxy).expect("proxy url must parse");
@@ -102,7 +110,8 @@ async fn test_proxy_url_with_userinfo_preserves_credentials() {
 
     let transport = TransportOptionsBuilder::new()
         .proxy("http://user:pass@127.0.0.1:3128")
-        .build();
+        .build()
+        .expect("valid transport options");
 
     // TransportOptions must NOT have stripped the userinfo from the proxy URL.
     let proxy = transport.proxy().expect("proxy must be set");
@@ -136,7 +145,8 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
     let transport = TransportOptionsBuilder::new()
         .proxy(proxy)
         .verify_ssl(false)
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -151,14 +161,22 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
 #[tokio::test]
 async fn test_default_api_client_times_out_on_slow_endpoint() {
     let chasm_url = testcontainers_helper::chasm_http_url();
-    let transport = TransportOptionsBuilder::new().timeout(1000).build();
+    let transport = TransportOptionsBuilder::new()
+        .timeout(1000)
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client
         .send_request("GET", &format!("{}/test/slow", chasm_url), &headers, None)
         .await;
 
-    assert!(result.is_err(), "expected timeout error");
+    let err = result.expect_err("expected timeout error");
+    assert!(
+        err.downcast_ref::<NetworkTimeoutError>().is_some(),
+        "expected NetworkTimeoutError, got: {}",
+        err
+    );
 }
 
 #[tokio::test]
@@ -166,7 +184,8 @@ async fn test_default_api_client_injects_custom_user_agent_header() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .user_agent("MyApp/1.0")
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -190,7 +209,8 @@ async fn test_default_api_client_injects_request_id_header() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(true)
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -218,7 +238,8 @@ async fn test_default_api_client_includes_transport_default_headers() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .default_header("X-Custom", "custom-value")
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -240,7 +261,8 @@ async fn test_default_api_client_caller_headers_override_transport_defaults() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .default_header("Accept", "text/plain")
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let mut headers = HashMap::new();
     headers.insert("Accept".to_string(), "application/json".to_string());
@@ -263,7 +285,8 @@ async fn test_default_api_client_follows_redirects_when_enabled() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -287,7 +310,8 @@ async fn test_default_api_client_returns_redirect_when_disabled() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(false)
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -310,7 +334,8 @@ async fn test_default_api_client_redirect_303_switches_to_get_and_drops_body() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(5))
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let mut headers = HashMap::new();
     headers.insert("Content-Type".to_string(), "application/json".to_string());
@@ -469,7 +494,8 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(5))
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let mut fields: HashMap<String, petstore::api_client::MultipartValue> = HashMap::new();
@@ -515,7 +541,8 @@ async fn test_default_api_client_respects_max_redirects_limit() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(5))
-        .build();
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     assert!(
         client
@@ -560,7 +587,8 @@ async fn test_default_api_client_redirect_state_is_per_request_not_shared() {
     let transport_a = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(1))
-        .build();
+        .build()
+        .expect("valid transport options");
     let client_a = DefaultApiClient::new(Some(transport_a));
     let headers = HashMap::new();
     let f_redirecting = client_a.send_request(
@@ -591,7 +619,8 @@ async fn test_default_api_client_redirect_state_is_per_request_not_shared() {
     let transport_b = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(0))
-        .build();
+        .build()
+        .expect("valid transport options");
     let client_b = DefaultApiClient::new(Some(transport_b));
     let f_over_limit = client_b.send_request(
         "GET",

@@ -500,6 +500,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
                 new SupportingFileSpec("configuration.mustache", "src", "configuration.rs"),
                 new SupportingFileSpec(
+                        "configuration_error.mustache", "src", "configuration_error.rs"),
+                new SupportingFileSpec(
                         "transport_options.mustache", "src", "transport_options.rs"),
                 new SupportingFileSpec(
                         "server_configuration.mustache", "src", "server_configuration.rs"),
@@ -533,6 +535,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "errors/internal_server_error.mustache",
                         "src/errors",
                         "internal_server_error.rs"),
+                new SupportingFileSpec(
+                        "errors/network_error.mustache", "src/errors", "network_error.rs"),
+                new SupportingFileSpec(
+                        "errors/network_timeout_error.mustache",
+                        "src/errors",
+                        "network_timeout_error.rs"),
                 new SupportingFileSpec("errors/mod.mustache", "src/errors", "mod.rs"),
                 new SupportingFileSpec(
                         "models/base64_serde.mustache", "src/models", "base64_serde.rs"),

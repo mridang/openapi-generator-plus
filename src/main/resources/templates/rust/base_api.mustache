@@ -185,7 +185,10 @@ impl BaseApi {
 
         /* Merge auth headers */
         if let Some(auth) = effective_auth {
-            for (k, v) in auth.auth_headers().await {
+            /* try_auth_headers, not auth_headers: an authenticator that cannot
+             * produce credentials must fail the call rather than let the
+             * request go out unauthenticated. */
+            for (k, v) in auth.try_auth_headers().await? {
                 headers.insert(k, v);
             }
             /* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;

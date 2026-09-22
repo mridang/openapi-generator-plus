@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use petstore::{ServerConfiguration, ServerVariable};
+use petstore::{ConfigurationError, ServerConfiguration, ServerVariable};
 
 fn server_with_vars() -> ServerConfiguration {
     let mut variables = HashMap::new();
@@ -61,7 +61,11 @@ fn test_url_rejects_value_outside_enum() {
     overrides.insert("env".to_string(), "invalid".to_string());
 
     let result = server.url(&overrides);
-    assert!(result.is_err(), "expected error for invalid enum value");
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidServerVariable(_))),
+        "expected InvalidServerVariable, got {:?}",
+        result
+    );
 }
 
 #[test]

@@ -82,7 +82,7 @@ async fn test_default_api_client_injects_custom_user_agent() {
 
     let transport = TransportOptionsBuilder::new()
         .user_agent("TestAgent/1.0")
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let headers = HashMap::new();
@@ -119,7 +119,7 @@ async fn test_default_api_client_builds_with_verify_ssl_false() {
 
     let transport = TransportOptionsBuilder::new()
         .verify_ssl(false)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let headers = HashMap::new();
@@ -137,7 +137,7 @@ async fn test_default_api_client_injects_request_id() {
 
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(true)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let headers = HashMap::new();
@@ -155,7 +155,7 @@ async fn test_default_api_client_does_not_inject_request_id_when_disabled() {
 
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(false)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let headers = HashMap::new();
@@ -173,7 +173,7 @@ async fn test_default_api_client_does_not_override_caller_request_id() {
 
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(true)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let mut headers = HashMap::new();
@@ -193,7 +193,7 @@ async fn test_default_api_client_includes_transport_default_headers() {
 
     let transport = TransportOptionsBuilder::new()
         .default_header("X-Default", "default-value")
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let headers = HashMap::new();
@@ -211,7 +211,7 @@ async fn test_default_api_client_caller_headers_override_defaults() {
 
     let transport = TransportOptionsBuilder::new()
         .default_header("X-Default", "transport-value")
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let mut headers = HashMap::new();
@@ -231,7 +231,7 @@ async fn test_default_api_client_generates_unique_request_ids() {
 
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(true)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let headers = HashMap::new();
@@ -453,7 +453,7 @@ async fn test_authorization_stripped_on_cross_origin_redirect() {
 
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let mut headers = HashMap::new();
@@ -500,7 +500,7 @@ async fn test_api_key_header_stripped_on_cross_origin_redirect() {
 
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
     let mut headers = HashMap::new();
@@ -539,7 +539,7 @@ async fn test_no_redirect_returns_307_verbatim() {
 
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let body = RequestBody::Bytes(b"client_secret=top-secret".to_vec());
@@ -589,7 +589,7 @@ async fn test_no_redirect_false_still_follows_307() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(2))
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let body = RequestBody::Bytes(b"payload".to_vec());
@@ -880,9 +880,9 @@ fn start_content_encoding_lie_server() -> String {
 
 /// Gap AL (fleet-wide regression guard) — a server that mislabels its encoding
 /// (declares `Content-Encoding: gzip` but sends plaintext) must surface a
-/// uniform SDK `ApiError`, NOT crash and NOT pass the corrupted bytes through
+/// uniform SDK `NetworkError`, NOT crash and NOT pass the corrupted bytes through
 /// silently. reqwest's gzip decoder fails to inflate the bogus body during the
-/// body read; the client wraps that body-read failure as an `ApiError`
+/// body read; the client wraps that body-read failure as a `NetworkError`
 /// (statusCode 0), the same treatment any post-header read failure gets.
 /// dart/csharp/kotlin/node/swift/elixir were the buggy SDKs; Rust is already
 /// correct, so this asserts GREEN.
@@ -902,18 +902,18 @@ async fn test_al_content_encoding_lie_surfaces_api_error() {
     );
     let err = result.unwrap_err();
     assert!(
-        err.downcast_ref::<{{packageName}}::api_error::ApiError>().is_some(),
-        "Gap AL: the decompression failure must be wrapped in the SDK ApiError type, got: {}",
+        err.downcast_ref::<NetworkError>().is_some(),
+        "Gap AL: the decompression failure must be wrapped in the SDK NetworkError type, got: {}",
         err
     );
 }
 
 /// Gap: a body-read failure that happens AFTER response headers are received
 /// (here a truncated Content-Length response) must be wrapped in the uniform
-/// SDK ApiError (statusCode 0), not surface as a raw reqwest::Error. Callers
-/// downcast the boxed error to `ApiError` to confirm the wrapping.
+/// SDK NetworkError (statusCode 0), not surface as a raw reqwest::Error. Callers
+/// downcast the boxed error to `NetworkError` to confirm the wrapping.
 #[tokio::test]
-async fn test_body_read_failure_wrapped_in_api_error() {
+async fn test_body_read_failure_wrapped_in_network_error() {
     let base_url = start_truncated_body_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -928,8 +928,8 @@ async fn test_body_read_failure_wrapped_in_api_error() {
     );
     let err = result.unwrap_err();
     assert!(
-        err.downcast_ref::<{{packageName}}::api_error::ApiError>().is_some(),
-        "body-read failure must be wrapped in the SDK ApiError type, got: {}",
+        err.downcast_ref::<NetworkError>().is_some(),
+        "body-read failure must be wrapped in the SDK NetworkError type, got: {}",
         err
     );
 }
@@ -943,7 +943,7 @@ async fn test_redirect_exhaustion_returns_error() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(3))
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
 
@@ -971,7 +971,7 @@ async fn test_redirect_to_non_http_scheme_returns_error() {
 
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .build();
+        .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
 
@@ -992,8 +992,9 @@ async fn test_redirect_to_non_http_scheme_returns_error() {
 }
 
 /// apierror-drops-transport-cause: a transport-level failure (here a connect
-/// refusal) must be wrapped in an ApiError that PRESERVES the underlying
-/// reqwest error as its `source()`, rather than stringifying and discarding it.
+/// refusal) must be wrapped in a NetworkError whose ApiError PRESERVES the
+/// underlying reqwest error as its `source()`, rather than stringifying and
+/// discarding it.
 #[tokio::test]
 async fn test_transport_error_preserves_underlying_cause() {
     let client = DefaultApiClient::new(None);
@@ -1004,12 +1005,64 @@ async fn test_transport_error_preserves_underlying_cause() {
         .await;
 
     let err = result.expect_err("connect to a refused port must fail");
-    let api_err = err
-        .downcast_ref::<{{packageName}}::api_error::ApiError>()
-        .expect("transport failure must be an ApiError");
+    let network_err = err
+        .downcast_ref::<NetworkError>()
+        .expect("transport failure must be a NetworkError");
+    let api_err = network_err.api_error();
+    assert_eq!(api_err.status_code(), 0, "a transport failure has status 0");
+    let source = std::error::Error::source(api_err)
+        .expect("ApiError must retain the underlying transport error as source()");
+    assert!(
+        source.downcast_ref::<reqwest::Error>().is_some(),
+        "the source must be the reqwest error, got: {}",
+        source
+    );
+    assert!(
+        matches!(
+            {{packageName}}::api_error::ApiErrorKind::from(api_err.clone()),
+            {{packageName}}::api_error::ApiErrorKind::Network(_)
+        ),
+        "a transport failure must map to ApiErrorKind::Network"
+    );
+}
+
+/// network-timeout-error: a request that exceeds the configured timeout
+/// surfaces as NetworkTimeoutError with status 0, keeping the reqwest error.
+#[tokio::test]
+async fn test_timeout_returns_network_timeout_error() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    /* Accept the connection and never answer, so only the timeout ends it. */
+    thread::spawn(move || {
+        let _held: Vec<_> = listener.incoming().take(1).collect();
+        thread::sleep(std::time::Duration::from_secs(5));
+    });
+
+    let transport = TransportOptionsBuilder::new()
+        .timeout(200)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let result = client
+        .send_request("GET", &format!("http://{}/slow", addr), &HashMap::new(), None)
+        .await;
+
+    let err = result.expect_err("a request past the timeout must fail");
+    let timeout_err = err
+        .downcast_ref::<NetworkTimeoutError>()
+        .unwrap_or_else(|| panic!("expected NetworkTimeoutError, got: {}", err));
+    let api_err = timeout_err.network_error().api_error();
+    assert_eq!(api_err.status_code(), 0, "a timeout has status 0");
     assert!(
         std::error::Error::source(api_err).is_some(),
-        "ApiError must retain the underlying transport error as source()"
+        "the timeout must keep the reqwest error as source()"
+    );
+    assert!(
+        matches!(
+            {{packageName}}::api_error::ApiErrorKind::from(api_err.clone()),
+            {{packageName}}::api_error::ApiErrorKind::NetworkTimeout(_)
+        ),
+        "a timeout must map to ApiErrorKind::NetworkTimeout"
     );
 }
 
@@ -1043,15 +1096,19 @@ async fn test_request_after_close_returns_sdk_error() {
 
 /// ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
 /// be read or parsed must fail fast at construction rather than silently
-/// falling back to the system trust store (security theater). The Rust client
-/// panics when the reqwest builder cannot load the cert.
+/// falling back to the system trust store (security theater). The builder
+/// returns `ConfigurationError::InvalidCaCertificate`: a configuration
+/// mistake, not an `ApiError`, and not a panic.
 #[test]
-#[should_panic(expected = "CA certificate")]
 fn test_nonexistent_ca_cert_path_fails_fast() {
-    let transport = TransportOptionsBuilder::new()
+    let result = TransportOptionsBuilder::new()
         .ca_cert_path("/nonexistent/ca.pem")
         .build();
-    let _client = DefaultApiClient::new(Some(transport));
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidCaCertificate(_))),
+        "expected InvalidCaCertificate, got {:?}",
+        result
+    );
 }
 
 // The per-part MIME sniffing (Gap J), multipart filename-directive (Gap BI /

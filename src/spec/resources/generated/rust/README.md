@@ -117,14 +117,7 @@ through a local HTTP-CONNECT bridge or configure it at the OS level.
 
 ### Per-call cancellation
 
-No generated operation method accepts a per-call cancellation handle.
-In-flight requests can only be terminated by waiting for the configured
-`TransportOptions` request timeout to fire — there is no way to abort
-mid-flight from the caller side. If you need fine-grained per-call
-cancellation, wrap the SDK call in your language's standard concurrency
-primitives (a `Future` you cancel externally, a `Task` you orphan, an
-`asyncio` task you cancel, etc.) and rely on the timeout to break the
-underlying socket.
+The SDK has no cancellation API of its own; bound a call with the timeout option.
 
 ### `LICENSE` file is not auto-emitted
 

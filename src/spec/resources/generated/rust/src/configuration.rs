@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 
+use crate::configuration_error::ConfigurationError;
 use crate::server_configuration::ServerConfiguration;
 
 /// Configuration holds API-level configuration for generated client classes.
@@ -92,12 +93,13 @@ impl ConfigurationBuilder {
     ///
     /// # Errors
     ///
-    /// Returns an error if a variable override is not in the variable's enum constraint.
+    /// Returns [`ConfigurationError::InvalidServerVariable`] if a variable
+    /// override is not in the variable's enum constraint.
     pub fn server(
         mut self,
         server: &ServerConfiguration,
         variables: &HashMap<String, String>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Self, ConfigurationError> {
         self.base_url = server.url(variables)?;
         Ok(self)
     }

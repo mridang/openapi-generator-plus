@@ -70,6 +70,7 @@ pub mod api_result;
 pub mod auth;
 pub mod client;
 pub mod configuration;
+pub mod configuration_error;
 // Internal transport implementation. The public seam is the `ApiClient` trait
 // (re-exported below) plus `DefaultApiClient` (re-exported below); the module's
 // free functions traffic in `reqwest` types and must not leak into the public
@@ -106,6 +107,7 @@ pub use api_result::ApiResult;
 pub use auth::Authenticator;
 pub use client::Client;
 pub use configuration::{Configuration, ConfigurationBuilder};
+pub use configuration_error::ConfigurationError;
 pub use default_api_client::DefaultApiClient;
 pub use errors::*;
 pub use json_value::JsonValue;

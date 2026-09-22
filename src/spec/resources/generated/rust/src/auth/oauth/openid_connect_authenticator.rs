@@ -228,25 +228,55 @@ impl Authenticator for OpenIdConnectAuthenticator {
         &self.host
     }
 
+    /// Returns the Bearer authentication header, or an empty map when
+    /// discovery or the token request fails. The API client does not call
+    /// this method: it calls [`try_auth_headers`](Self::try_auth_headers),
+    /// which reports the failure instead of sending the request
+    /// unauthenticated.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            if self.resolve_delegate().await.is_err() {
-                return HashMap::new();
-            }
+            self.try_auth_headers()
+                .await
+                .unwrap_or_else(|_| HashMap::new())
+        })
+    }
 
-            /* The delegate's auth_headers is async; take ownership briefly so
-             * the mutex is not held across the await. */
+    /// Returns the Bearer authentication header from the discovered
+    /// authorization-code delegate, or propagates the discovery or token
+    /// error (including `OAuth2AuthorizationCodeError::CodeNotExchanged`).
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        HashMap<String, String>,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            self.resolve_delegate().await?;
+
+            /* The delegate's try_auth_headers is async; take ownership briefly
+             * so the mutex is not held across the await. */
             let delegate = {
                 let mut delegate_guard = self.delegate.lock().unwrap();
                 match delegate_guard.take() {
                     Some(d) => d,
-                    None => return HashMap::new(),
+                    None => {
+                        return Err(
+                            "delegate not initialized; call build_authorization_url first".into(),
+                        )
+                    }
                 }
             };
 
-            let headers = delegate.auth_headers().await;
+            let headers = delegate.try_auth_headers().await;
 
             {
                 let mut delegate_guard = self.delegate.lock().unwrap();

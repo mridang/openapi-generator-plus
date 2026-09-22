@@ -36,7 +36,9 @@ fn test_client_construct_with_none_transport_options() {
 #[test]
 fn test_client_construct_with_transport_options() {
     let authenticator = BearerAuthenticator::new("/api/v3", "test-token");
-    let transport = TransportOptionsBuilder::new().build();
+    let transport = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
 
     let client = Client::new(Box::new(authenticator), Some(transport));
 

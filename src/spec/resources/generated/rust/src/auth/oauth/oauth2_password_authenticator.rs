@@ -105,9 +105,35 @@ impl Authenticator for OAuth2PasswordAuthenticator {
         &self.host
     }
 
+    /// Returns the Bearer authentication header, or an empty map on a
+    /// token-fetch failure. The API client does not call this method: it calls
+    /// [`try_auth_headers`](Self::try_auth_headers), which reports the failure
+    /// instead of sending the request unauthenticated.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            self.try_auth_headers()
+                .await
+                .unwrap_or_else(|_| HashMap::new())
+        })
+    }
+
+    /// Returns the Bearer authentication header with a freshly fetched (or
+    /// cached) access token, or propagates the token-fetch error.
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        HashMap<String, String>,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
         Box::pin(async move {
             let refresh_token = self.token_manager.refresh_token().await;
             let mut extra_headers = HashMap::new();
@@ -144,18 +170,13 @@ impl Authenticator for OAuth2PasswordAuthenticator {
                 (self.token_url.clone(), params)
             };
 
-            match self
+            let token = self
                 .token_manager
                 .get_access_token_with_headers(&token_url, &params, &extra_headers)
-                .await
-            {
-                Ok(token) => {
-                    let mut headers = HashMap::new();
-                    headers.insert("Authorization".to_string(), format!("Bearer {}", token));
-                    headers
-                }
-                Err(_) => HashMap::new(),
-            }
+                .await?;
+            let mut headers = HashMap::new();
+            headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+            Ok(headers)
         })
     }
 

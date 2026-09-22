@@ -36,6 +36,22 @@ impl crate::auth::Authenticator for MachineAuthClientCredentialsAuthenticator {
         self.0.auth_headers()
     }
 
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        std::collections::HashMap<String, String>,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        self.0.try_auth_headers()
+    }
+
     fn query_params(&self) -> std::collections::HashMap<String, String> {
         self.0.query_params()
     }

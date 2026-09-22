@@ -222,7 +222,11 @@ fn test_configuration_invalid_server_variable_enum_value_returns_error() {
     overrides.insert("env".to_string(), "invalid".to_string());
 
     let result = ConfigurationBuilder::new().server(&server, &overrides);
-    assert!(result.is_err(), "expected error for invalid enum value");
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidServerVariable(_))),
+        "expected InvalidServerVariable, got {:?}",
+        result.map(|b| b.build().base_url().to_string())
+    );
 }
 
 #[test]

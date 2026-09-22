@@ -12,6 +12,8 @@
 use chrono::Duration;
 use serde::{Deserialize, Deserializer, Serializer, de};
 
+use crate::object_serializer::SerializationError;
+
 const NANOS_PER_SECOND: i64 = 1_000_000_000;
 
 /// Format a `chrono::Duration` as a protobuf-JSON duration string.
@@ -22,15 +24,14 @@ const NANOS_PER_SECOND: i64 = 1_000_000_000;
 /// that preserves every non-zero nanosecond). Negative durations carry a
 /// leading `-`.
 pub fn format(d: &Duration) -> String {
-    let total_nanos = d.num_nanoseconds().unwrap_or_else(|| {
-        // chrono::Duration overflows num_nanoseconds() only beyond ~292
-        // years; fall back to second precision in that regime.
-        d.num_seconds() * NANOS_PER_SECOND
-    });
-    let sign = if total_nanos < 0 { "-" } else { "" };
-    let abs = total_nanos.unsigned_abs();
-    let secs = abs / NANOS_PER_SECOND as u64;
-    let nanos = abs % NANOS_PER_SECOND as u64;
+    // Split into whole seconds and the sub-second remainder rather than
+    // multiplying the seconds by 1e9, which overflows an i64 for durations
+    // beyond ~292 years. chrono gives both parts the sign of the duration.
+    let whole_secs = d.num_seconds();
+    let sub_nanos = d.subsec_nanos();
+    let sign = if whole_secs < 0 || sub_nanos < 0 { "-" } else { "" };
+    let secs = whole_secs.unsigned_abs();
+    let nanos = sub_nanos.unsigned_abs();
     if nanos == 0 {
         return format!("{sign}{secs}s");
     }
@@ -49,8 +50,13 @@ pub fn format(d: &Duration) -> String {
 ///
 /// Accepts the google.protobuf.Duration grammar `-?\d+(\.\d{1,9})?s`. Any
 /// other shape (an ISO-8601 `PT1H`, a bare number, or a fractional part
-/// wider than nine digits) is rejected.
-pub fn parse(s: &str) -> Result<Duration, String> {
+/// wider than nine digits) is rejected with a [`SerializationError`], as is
+/// a value outside the range chrono can represent in nanoseconds (~292 years).
+pub fn parse(s: &str) -> Result<Duration, SerializationError> {
+    parse_message(s).map_err(|message| SerializationError::new(message, None))
+}
+
+fn parse_message(s: &str) -> Result<Duration, String> {
     let body = s
         .strip_suffix('s')
         .ok_or_else(|| format!("protobuf-JSON duration: missing 's' suffix in {s:?}"))?;

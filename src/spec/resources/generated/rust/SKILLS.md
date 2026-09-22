@@ -187,15 +187,18 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `UnprocessableEntityError` (422)
   - `ServerError` (5xx)
     - `InternalServerError` (500)
+  - `NetworkError` (no HTTP response, status 0)
+    - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```rust
 use petstore::errors::*;
 
 match client.pet.add_pet(/* params */).await {
     Ok(value) => println!("Found: {:?}", value),
-    Err(ApiError::NotFound(e)) => println!("Not found: {}", e),
-    Err(ApiError::Client(e)) => println!("Client error {}: {}", e.status_code(), e),
-    Err(ApiError::Server(e)) => println!("Server error: {}", e),
+    Err(e) if e.downcast_ref::<NotFoundError>().is_some() => println!("Not found: {}", e),
+    Err(e) if e.downcast_ref::<ClientError>().is_some() => println!("Client error: {}", e),
+    Err(e) if e.downcast_ref::<ServerError>().is_some() => println!("Server error: {}", e),
+    Err(e) if e.downcast_ref::<NetworkTimeoutError>().is_some() => println!("Timed out: {}", e),
     Err(e) => println!("Error: {}", e),
 }
 ```
@@ -206,12 +209,11 @@ match client.pet.add_pet(/* params */).await {
 
 ```rust
 use petstore::transport_options::TransportOptionsBuilder;
-use std::time::Duration;
 
 let transport = TransportOptionsBuilder::new()
     .proxy("http://proxy:3128")
-    .timeout(Duration::from_secs(5))
-    .build();
+    .timeout(5000)
+    .build()?;
 
 let client = Client::new(Box::new(authenticator), Some(transport));
 ```

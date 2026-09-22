@@ -13,32 +13,40 @@ use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
 use crate::auth::Authenticator;
 
-/// Error returned by [`OAuth2AuthorizationCodeAuthenticator::try_auth_headers`]
-/// when the caller invokes it before
-/// [`exchange_code`](OAuth2AuthorizationCodeAuthenticator::exchange_code).
+/// Error returned when the authorization code flow is used out of order:
+/// requesting auth headers before
+/// [`exchange_code`](OAuth2AuthorizationCodeAuthenticator::exchange_code), or
+/// exchanging an empty code.
 ///
 /// Callers can downcast to this type so they can distinguish a usage error
 /// from a network/token-endpoint failure and recover instead of being
 /// terminated by a `panic!`.
-#[derive(Debug)]
-pub struct AuthCodeNotExchangedError;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OAuth2AuthorizationCodeError {
+    /// Auth headers were requested before `exchange_code` was called.
+    CodeNotExchanged,
+    /// `exchange_code` was called with an empty or whitespace-only code.
+    EmptyCode,
+}
 
-impl fmt::Display for AuthCodeNotExchangedError {
+impl fmt::Display for OAuth2AuthorizationCodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "oauth2 authorization code: must call exchange_code before requesting auth headers"
-        )
+        match self {
+            Self::CodeNotExchanged => f.write_str(
+                "oauth2 authorization code: must call exchange_code before requesting auth headers",
+            ),
+            Self::EmptyCode => f.write_str("oauth2 authorization code: code must not be empty"),
+        }
     }
 }
 
-impl Error for AuthCodeNotExchangedError {}
+impl Error for OAuth2AuthorizationCodeError {}
 
 // Brands this SDK-thrown error as part of the `{{errorPrefix}}Error` hierarchy so a
 // single `&dyn {{errorPrefix}}Error` / `Box<dyn {{errorPrefix}}Error>` can hold it alongside
 // the transport/API errors. The supertrait bounds (Error + Send + Sync) are
-// satisfied by the `impl Error` above and the unit struct.
-impl crate::errors::{{errorPrefix}}Error for AuthCodeNotExchangedError {}
+// satisfied by the `impl Error` above and the unit-like variants.
+impl crate::errors::{{errorPrefix}}Error for OAuth2AuthorizationCodeError {}
 
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
 /// flow authentication.
@@ -139,7 +147,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
         // can never succeed at the token endpoint; reject it up front rather
         // than issuing a guaranteed-to-fail POST with `code=`.
         if code.is_empty() || code.trim().is_empty() {
-            return Err("authorization code must not be empty".into());
+            return Err(Box::new(OAuth2AuthorizationCodeError::EmptyCode));
         }
         let mut params = HashMap::new();
         params.insert("grant_type".to_string(), "authorization_code".to_string());
@@ -153,54 +161,6 @@ impl OAuth2AuthorizationCodeAuthenticator {
             .await?;
         *self.token_exchanged.lock().unwrap() = true;
         Ok(())
-    }
-
-    /// Returns the Bearer authentication header with a valid access token,
-    /// or an error if the caller violated the usage contract
-    /// ([`exchange_code`](Self::exchange_code) was never called) or if
-    /// token refresh failed.
-    ///
-    /// Use this method when you need to distinguish "no auth available
-    /// because the caller forgot to exchange the code" from "no auth
-    /// available because the token endpoint is unreachable". The
-    /// [`Authenticator::auth_headers`] trait method collapses both cases
-    /// to an empty map so that trait conformance can stay infallible.
-    pub fn try_auth_headers<'a>(
-        &'a self,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                    Output = Result<HashMap<String, String>, Box<dyn Error + Send + Sync>>,
-                > + Send
-                + 'a,
-        >,
-    > {
-        Box::pin(async move {
-            let token_exchanged = *self.token_exchanged.lock().unwrap();
-            if !token_exchanged {
-                return Err(Box::new(AuthCodeNotExchangedError)
-                    as Box<dyn Error + Send + Sync>);
-            }
-
-            let mut params = HashMap::new();
-            params.insert("grant_type".to_string(), "refresh_token".to_string());
-            params.insert(
-                "refresh_token".to_string(),
-                self.token_manager.refresh_token().await,
-            );
-
-            let token = self
-                .token_manager
-                .get_access_token(&self.refresh_url, &params)
-                .await?;
-
-            let mut headers = HashMap::new();
-            headers.insert(
-                "Authorization".to_string(),
-                format!("Bearer {}", token),
-            );
-            Ok(headers)
-        })
     }
 }
 
@@ -229,17 +189,58 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
 
     /// Returns the Bearer authentication header with a valid access token.
     ///
-    /// Returns an empty map if [`exchange_code`](Self::exchange_code) has
-    /// not been called yet or if token refresh fails -- the resulting
-    /// unauthenticated request will then surface as a 401 from the server,
-    /// which callers already handle. Use
-    /// [`try_auth_headers`](Self::try_auth_headers) instead when you need
-    /// to recover from the precondition failure programmatically.
+    /// Returns an empty map if [`exchange_code`](Self::exchange_code) has not
+    /// been called yet or if token refresh fails. The API client does not call
+    /// this method: it calls [`try_auth_headers`](Self::try_auth_headers),
+    /// which reports those failures instead.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
             self.try_auth_headers().await.unwrap_or_else(|_| HashMap::new())
+        })
+    }
+
+    /// Returns the Bearer authentication header with a valid access token,
+    /// or an error if the caller violated the usage contract
+    /// ([`exchange_code`](Self::exchange_code) was never called, reported as
+    /// [`OAuth2AuthorizationCodeError::CodeNotExchanged`]) or if token refresh
+    /// failed.
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<HashMap<String, String>, Box<dyn Error + Send + Sync>>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            let token_exchanged = *self.token_exchanged.lock().unwrap();
+            if !token_exchanged {
+                return Err(Box::new(OAuth2AuthorizationCodeError::CodeNotExchanged)
+                    as Box<dyn Error + Send + Sync>);
+            }
+
+            let mut params = HashMap::new();
+            params.insert("grant_type".to_string(), "refresh_token".to_string());
+            params.insert(
+                "refresh_token".to_string(),
+                self.token_manager.refresh_token().await,
+            );
+
+            let token = self
+                .token_manager
+                .get_access_token(&self.refresh_url, &params)
+                .await?;
+
+            let mut headers = HashMap::new();
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", token),
+            );
+            Ok(headers)
         })
     }
 

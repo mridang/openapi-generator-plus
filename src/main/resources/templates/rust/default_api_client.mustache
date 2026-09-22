@@ -13,7 +13,8 @@ use reqwest::Proxy;
 use uuid::Uuid;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
-use crate::api_error::ApiError;
+use crate::api_error::{ApiError, TransportFailure};
+use crate::errors::{NetworkError, NetworkTimeoutError};
 use crate::api_http_response::ApiHttpResponse;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
@@ -58,7 +59,7 @@ impl DefaultApiClient {
     /// Creates a client with the given transport settings.
     /// If `transport_options` is None, default transport settings are used.
     pub fn new(transport_options: Option<TransportOptions>) -> Self {
-        let opts = transport_options.unwrap_or_else(|| TransportOptionsBuilder::new().build());
+        let opts = transport_options.unwrap_or_default();
         let http_client = build_http_client(&opts);
         Self {
             transport_options: opts,
@@ -225,16 +226,7 @@ impl ApiClient for DefaultApiClient {
                 }
             }
 
-            let mut response = request_builder.send().await.map_err(|e| {
-                let message = e.to_string();
-                Box::new(ApiError::with_source(
-                    0,
-                    message,
-                    None,
-                    None,
-                    Arc::new(e),
-                )) as Box<dyn std::error::Error + Send + Sync>
-            })?;
+            let mut response = request_builder.send().await.map_err(transport_error)?;
 
             // Gap BH: manual redirect loop with cross-origin header strip.
             // Gap 3.2: options.no_redirect (the OAuth2 token POST) means "do
@@ -364,16 +356,7 @@ impl ApiClient for DefaultApiClient {
                     if let Some(b) = &next_body {
                         redirect_builder = redirect_builder.body(b.clone());
                     }
-                    response = redirect_builder.send().await.map_err(|e| {
-                        let message = e.to_string();
-                        Box::new(ApiError::with_source(
-                            0,
-                            message,
-                            None,
-                            None,
-                            Arc::new(e),
-                        )) as Box<dyn std::error::Error + Send + Sync>
-                    })?;
+                    response = redirect_builder.send().await.map_err(transport_error)?;
                     current_url = Some(next_url);
                     current_method = next_method;
                     current_body = next_body;
@@ -424,18 +407,9 @@ impl ApiClient for DefaultApiClient {
             // Gap: a body-read failure that occurs AFTER response headers are
             // received (connection reset, read timeout, truncated chunked
             // transfer, decompression error) must be wrapped in the uniform
-            // ApiError (statusCode 0) — the same treatment a send-phase failure
+            // NetworkError (statusCode 0) — the same treatment a send-phase failure
             // gets — rather than escaping as a raw reqwest::Error.
-            let resp_bytes = response.bytes().await.map_err(|e| {
-                let message = e.to_string();
-                Box::new(ApiError::with_source(
-                    0,
-                    message,
-                    None,
-                    None,
-                    Arc::new(e),
-                )) as Box<dyn std::error::Error + Send + Sync>
-            })?;
+            let resp_bytes = response.bytes().await.map_err(transport_error)?;
             let resp_body = if is_text_content_type(&content_type) {
                 decode_text_body(&resp_bytes, &content_type)
             } else {
@@ -445,6 +419,21 @@ impl ApiClient for DefaultApiClient {
 
             Ok(ApiHttpResponse::new(status_code, resp_body, resp_headers))
         })
+    }
+}
+
+/// Classifies a reqwest transport failure. A timeout becomes
+/// [`NetworkTimeoutError`]; any other failure (connection refused, DNS, TLS,
+/// reset) [`NetworkError`]. Both carry status 0 and keep the reqwest error as
+/// their source.
+fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync> {
+    let message = e.to_string();
+    if e.is_timeout() {
+        let api_error = ApiError::transport(TransportFailure::Timeout, message, Arc::new(e));
+        Box::new(NetworkTimeoutError::from(NetworkError::from(api_error)))
+    } else {
+        let api_error = ApiError::transport(TransportFailure::Network, message, Arc::new(e));
+        Box::new(NetworkError::from(api_error))
     }
 }
 
@@ -473,20 +462,13 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
     builder = builder.danger_accept_invalid_hostnames(!opts.verify_ssl());
 
-    if let Some(ca_path) = opts.ca_cert_path() {
-        // Gap T4: surface CA-cert load/parse failures rather than silently
-        // falling back to the system trust store. If the user explicitly
-        // asked for SSL pinning we must not pretend it succeeded.
-        let ca_bytes = std::fs::read(ca_path).unwrap_or_else(|e| {
-            panic!("failed to read CA certificate from {:?}: {}", ca_path, e)
-        });
-        let cert = reqwest::Certificate::from_pem(&ca_bytes).unwrap_or_else(|e| {
-            panic!(
-                "failed to parse CA certificate from {:?}: {}",
-                ca_path, e
-            )
-        });
-        builder = builder.add_root_certificate(cert);
+    // Gap T4: the CA bundle was read and parsed by TransportOptionsBuilder::build,
+    // which reports an unreadable file as ConfigurationError::InvalidCaCertificate
+    // rather than silently falling back to the system trust store.
+    if let Some(pem) = opts.ca_cert_pem() {
+        if let Ok(cert) = reqwest::Certificate::from_pem(pem) {
+            builder = builder.add_root_certificate(cert);
+        }
     }
 
     if let Some(proxy_url) = opts.proxy() {
@@ -495,8 +477,11 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         }
     }
 
-    if let Some(timeout_ms) = opts.timeout() {
-        builder = builder.timeout(Duration::from_millis(timeout_ms as u64));
+    // TransportOptionsBuilder::build rejects a negative timeout, so the
+    // conversion cannot fail; a failed one would otherwise wrap to an
+    // effectively infinite timeout.
+    if let Some(timeout_ms) = opts.timeout().and_then(|ms| u64::try_from(ms).ok()) {
+        builder = builder.timeout(Duration::from_millis(timeout_ms));
     }
 
     // Gap BH: reqwest re-sends Authorization / Cookie / Proxy-Authorization

@@ -34,6 +34,18 @@ fn deserialize_error_body<T: serde::de::DeserializeOwned>(
     }
 }
 
+/// Why a request produced no HTTP response. Recorded on the [`ApiError`] a
+/// [`NetworkError`](crate::errors::NetworkError) or
+/// [`NetworkTimeoutError`](crate::errors::NetworkTimeoutError) wraps, so
+/// [`ApiErrorKind::from`] can route it to the matching variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TransportFailure {
+    /// Connection refused, DNS failure, TLS failure or connection reset.
+    Network,
+    /// The request timed out.
+    Timeout,
+}
+
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
 #[derive(Debug, Clone)]
@@ -65,6 +77,9 @@ pub struct ApiError {
     /// retain `cause` / `Unwrap` / `__cause__` / `InnerException`. Stored as an
     /// `Arc` so `ApiError` stays `Clone`.
     source: Option<Arc<dyn std::error::Error + Send + Sync>>,
+
+    /// Set when the request produced no HTTP response; `None` otherwise.
+    transport_failure: Option<TransportFailure>,
 }
 
 impl ApiError {
@@ -86,6 +101,7 @@ impl ApiError {
             response_headers,
             error_body,
             source: None,
+            transport_failure: None,
         }
     }
 
@@ -110,6 +126,25 @@ impl ApiError {
             response_headers,
             error_body,
             source: Some(source),
+            transport_failure: None,
+        }
+    }
+
+    /// Creates the status-0 ApiError a transport failure is reported with,
+    /// preserving the transport `source` error.
+    pub(crate) fn transport(
+        failure: TransportFailure,
+        message: String,
+        source: Arc<dyn std::error::Error + Send + Sync>,
+    ) -> Self {
+        Self {
+            status_code: 0,
+            message,
+            response_body: None,
+            response_headers: None,
+            error_body: None,
+            source: Some(source),
+            transport_failure: Some(failure),
         }
     }
 
@@ -283,17 +318,17 @@ pub enum ApiErrorKind {
     ClientError(ApiErrorFields),
     /// Any other server-side (5xx) status with no dedicated variant.
     ServerError(ApiErrorFields),
-    /// Transport-level network failure (DNS, connect, TLS, IO).
-    ///
-    /// Mirrors the "status_code = 0" sentinel used by the non-Rust SDKs.
-    Network(std::io::Error),
+    /// No HTTP response: connection refused, DNS failure, TLS failure or
+    /// connection reset. The status code is 0.
+    Network(ApiErrorFields),
+    /// The request timed out. The status code is 0.
+    NetworkTimeout(ApiErrorFields),
     /// Catch-all for any unrecognized status or unrouted condition.
     Other(u16, String),
 }
 
 impl ApiErrorKind {
-    /// Returns the per-variant fields, or `None` for non-HTTP variants
-    /// (`Network`, `Other`).
+    /// Returns the per-variant fields, or `None` for `Other`.
     pub fn fields(&self) -> Option<&ApiErrorFields> {
         match self {
             Self::BadRequest(f)
@@ -304,15 +339,17 @@ impl ApiErrorKind {
             | Self::UnprocessableEntity(f)
             | Self::InternalServerError(f)
             | Self::ClientError(f)
-            | Self::ServerError(f) => Some(f),
-            Self::Network(_) | Self::Other(_, _) => None,
+            | Self::ServerError(f)
+            | Self::Network(f)
+            | Self::NetworkTimeout(f) => Some(f),
+            Self::Other(_, _) => None,
         }
     }
 
-    /// Returns the HTTP status code for the variant, or 0 for `Network`.
+    /// Returns the HTTP status code for the variant, or 0 for `Network` and
+    /// `NetworkTimeout`.
     pub fn status_code(&self) -> u16 {
         match self {
-            Self::Network(_) => 0,
             Self::Other(code, _) => *code,
             other => other.fields().map(|f| f.status_code).unwrap_or(0),
         }
@@ -322,7 +359,13 @@ impl ApiErrorKind {
 impl From<ApiError> for ApiErrorKind {
     fn from(e: ApiError) -> Self {
         let code = e.status_code;
+        let transport_failure = e.transport_failure;
         let f = ApiErrorFields::from(e);
+        match transport_failure {
+            Some(TransportFailure::Network) => return Self::Network(f),
+            Some(TransportFailure::Timeout) => return Self::NetworkTimeout(f),
+            None => {}
+        }
         match code {
             400 => Self::BadRequest(f),
             401 => Self::Unauthorized(f),
@@ -341,7 +384,8 @@ impl From<ApiError> for ApiErrorKind {
 impl fmt::Display for ApiErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Network(e) => write!(f, "Network error: {}", e),
+            Self::Network(fields) => write!(f, "Network error: {}", fields.message),
+            Self::NetworkTimeout(fields) => write!(f, "Network timeout: {}", fields.message),
             Self::Other(code, msg) => write!(f, "API error (status {}): {}", code, msg),
             other => {
                 let fields = other.fields().expect("HTTP variants have fields");

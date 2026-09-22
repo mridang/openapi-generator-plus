@@ -10,6 +10,8 @@ pub mod not_found_error;
 pub mod conflict_error;
 pub mod unprocessable_entity_error;
 pub mod internal_server_error;
+pub mod network_error;
+pub mod network_timeout_error;
 
 pub use {{errorPrefixSnake}}_error::{{errorPrefix}}Error;
 pub use client_error::ClientError;
@@ -21,3 +23,5 @@ pub use not_found_error::NotFoundError;
 pub use conflict_error::ConflictError;
 pub use unprocessable_entity_error::UnprocessableEntityError;
 pub use internal_server_error::InternalServerError;
+pub use network_error::NetworkError;
+pub use network_timeout_error::NetworkTimeoutError;
