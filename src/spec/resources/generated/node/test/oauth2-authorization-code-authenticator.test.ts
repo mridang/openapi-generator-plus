@@ -8,6 +8,7 @@
 import * as util from "node:util";
 import { OAuth2AuthorizationCodeAuthenticator } from "../src/auth/oauth/oauth2-authorization-code-authenticator.js";
 import type { ApiClient } from "../src/api-client.js";
+import { OpenAPIError } from "../src/errors/index.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 
 class MockApiClient implements ApiClient {
@@ -134,14 +135,20 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
   });
 
   test("throws before exchange code called", async () => {
-    await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow();
+    // Requesting a token before the code exchange is a wrong call order: the
+    // invalid-state built-in Error, not an SDK error.
+    const error = await authenticator
+      .getAuthHeadersAsync()
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(Error);
+    expect(error).not.toBeInstanceOf(OpenAPIError);
   });
 
   test("exchangeCode rejects an empty or whitespace code without hitting the token endpoint", async () => {
     // oauth-exchangecode-no-empty-code-guard: an empty code can only fail
     // at the token endpoint, so reject it up front.
-    await expect(authenticator.exchangeCode("")).rejects.toThrow();
-    await expect(authenticator.exchangeCode("   ")).rejects.toThrow();
+    await expect(authenticator.exchangeCode("")).rejects.toThrow(TypeError);
+    await expect(authenticator.exchangeCode("   ")).rejects.toThrow(TypeError);
     // No token request should have been issued for the invalid code.
     expect(mockClient.lastMethod).toBe("");
   });

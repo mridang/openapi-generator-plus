@@ -55,7 +55,7 @@ export class StoreApi extends BaseApi {
    */
   async deleteOrderWithHttpInfo(orderId: number): Promise<ApiResult<void>> {
     if (orderId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "orderId" when calling deleteOrder',
       );
     }
@@ -127,7 +127,7 @@ export class StoreApi extends BaseApi {
     options?: GetBySwatchOptions,
   ): Promise<ApiResult<Category>> {
     if (pathSwatch == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "pathSwatch" when calling getBySwatch',
       );
     }
@@ -439,7 +439,7 @@ export class StoreApi extends BaseApi {
    */
   async getOrderByIdWithHttpInfo(orderId: number): Promise<ApiResult<Order>> {
     if (orderId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "orderId" when calling getOrderById',
       );
     }

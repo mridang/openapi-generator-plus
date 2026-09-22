@@ -41,6 +41,17 @@ export class Metadata {
 
   constructor(data?: Partial<Metadata>) {
     Object.assign(this, data);
+    /* `format: date-time`: an unparseable wire value becomes an Invalid Date
+     * rather than an error, so reject it here. */
+    if (
+      this.createdAt != null &&
+      (!(this.createdAt instanceof Date) ||
+        Number.isNaN(this.createdAt.getTime()))
+    ) {
+      throw new TypeError(
+        `createdAt must be a valid Date, got ${String(this.createdAt)}`,
+      );
+    }
   }
 
   /**

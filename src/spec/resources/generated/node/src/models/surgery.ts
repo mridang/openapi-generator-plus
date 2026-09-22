@@ -31,7 +31,7 @@ export class Surgery {
     Object.assign(this, data);
     if (data !== undefined) {
       if (this.procedureName == null) {
-        throw new Error("procedureName is required");
+        throw new TypeError("procedureName is required");
       }
     }
     if (this.procedureName != null && typeof this.procedureName !== "string") {

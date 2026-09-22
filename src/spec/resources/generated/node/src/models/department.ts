@@ -33,7 +33,7 @@ export class Department {
     Object.assign(this, data);
     if (data !== undefined) {
       if (this.name == null) {
-        throw new Error("name is required");
+        throw new TypeError("name is required");
       }
     }
     if (this.name != null && typeof this.name !== "string") {

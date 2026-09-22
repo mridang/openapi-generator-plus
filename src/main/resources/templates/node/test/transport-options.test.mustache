@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options';
 
 describe('TransportOptions', () => {
@@ -82,9 +83,14 @@ describe('TransportOptions', () => {
   });
 
   test('invalid proxy URL throws TypeError', () => {
-    expect(() => {
+    let caught: unknown;
+    try {
       TransportOptions.builder().proxy('not-a-valid-url');
-    }).toThrow(TypeError);
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as Error).constructor).toBe(TypeError);
+    expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
   });
 
   test('proxy URL with a non-http scheme throws TypeError', () => {

@@ -34,7 +34,7 @@ export class DryFood {
     }
     if (data !== undefined) {
       if (this.weightKg == null) {
-        throw new Error("weightKg is required");
+        throw new TypeError("weightKg is required");
       }
     }
     if (this.foodType != null && typeof this.foodType !== "string") {

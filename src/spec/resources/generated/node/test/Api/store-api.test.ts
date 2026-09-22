@@ -14,6 +14,7 @@ import {
   Category,
   Swatch,
 } from "../../src/models/index.js";
+import { InternalServerError, NotFoundError } from "../../src/errors/index.js";
 
 const baseUrl = process.env.API_BASE_URL || "http://localhost:4010";
 const config = Configuration.builder()
@@ -222,7 +223,9 @@ describe("StoreApi error handling", () => {
       '{"message":"Order not found"}',
     );
     try {
-      await expect(mockApi.getOrderById(99999)).rejects.toThrow();
+      await expect(mockApi.getOrderById(99999)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     } finally {
       close();
     }
@@ -243,7 +246,9 @@ describe("StoreApi error handling", () => {
         status: OrderStatusEnum.Placed,
         complete: false,
       });
-      await expect(mockApi.placeOrder(order)).rejects.toThrow();
+      await expect(mockApi.placeOrder(order)).rejects.toBeInstanceOf(
+        InternalServerError,
+      );
     } finally {
       close();
     }
@@ -256,7 +261,9 @@ describe("StoreApi error handling", () => {
       '{"message":"Order not found"}',
     );
     try {
-      await expect(mockApi.deleteOrder(99999)).rejects.toThrow();
+      await expect(mockApi.deleteOrder(99999)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     } finally {
       close();
     }

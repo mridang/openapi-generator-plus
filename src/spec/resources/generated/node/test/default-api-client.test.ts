@@ -7,7 +7,7 @@
 
 import { DefaultApiClient } from "../src/default-api-client.js";
 import { ApiError } from "../src/api-error.js";
-import { NetworkTimeoutError } from "../src/errors/index.js";
+import { NetworkError, NetworkTimeoutError } from "../src/errors/index.js";
 import { TransportOptions } from "../src/transport-options.js";
 import {
   OAuth2TokenManager,
@@ -184,6 +184,7 @@ describe("DefaultApiClient", () => {
         .sendRequest("GET", `${chasmUrl}/test/slow`, {}, null)
         .catch((e: unknown) => e);
       expect(error).toBeInstanceOf(NetworkTimeoutError);
+      expect(error).toBeInstanceOf(NetworkError);
       expect((error as NetworkTimeoutError).statusCode).toBe(0);
       expect((error as NetworkTimeoutError).cause).toBeDefined();
     });
@@ -833,18 +834,20 @@ describe("DefaultApiClient", () => {
   describe("client lifecycle (Gap T6)", () => {
     /*
      * Gap T6: close() releases the underlying undici dispatcher and is
-     * idempotent. A request issued on a closed client must surface the
-     * SDK's own ApiError (closed-flag guard), matching the uniform
-     * use-after-close contract across SDKs.
+     * idempotent. A request issued on a closed client must throw the
+     * invalid-state built-in Error (closed-flag guard), matching the
+     * uniform use-after-close contract across SDKs.
      */
     test("close releases underlying client", async () => {
       const client = new DefaultApiClient();
       await client.close();
       // close() is idempotent.
       await client.close();
-      await expect(
-        client.sendRequest("GET", "https://example.com", {}, null),
-      ).rejects.toThrow("closed");
+      const error = await client
+        .sendRequest("GET", "https://example.com", {}, null)
+        .catch((e: unknown) => e);
+      expect((error as Error).constructor).toBe(Error);
+      expect((error as Error).message).toContain("closed");
     });
   });
 });

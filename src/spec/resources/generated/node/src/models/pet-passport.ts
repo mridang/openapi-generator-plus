@@ -154,6 +154,17 @@ export class PetPassport {
         `biometricChip must be a Buffer or base64 string, got ${typeof this.biometricChip}`,
       );
     }
+    /* `format: date-time`: an unparseable wire value becomes an Invalid Date
+     * rather than an error, so reject it here. */
+    if (
+      this.issuedAt != null &&
+      (!(this.issuedAt instanceof Date) ||
+        Number.isNaN(this.issuedAt.getTime()))
+    ) {
+      throw new TypeError(
+        `issuedAt must be a valid Date, got ${String(this.issuedAt)}`,
+      );
+    }
   }
 
   /**

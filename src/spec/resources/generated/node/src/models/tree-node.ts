@@ -32,7 +32,7 @@ export class TreeNode {
     Object.assign(this, data);
     if (data !== undefined) {
       if (this.value == null) {
-        throw new Error("value is required");
+        throw new TypeError("value is required");
       }
     }
     if (this.value != null && typeof this.value !== "string") {

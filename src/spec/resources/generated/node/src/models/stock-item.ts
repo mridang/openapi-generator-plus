@@ -38,7 +38,7 @@ export class StockItem {
     Object.assign(this, data);
     if (data !== undefined) {
       if (this.priority == null) {
-        throw new Error("priority is required");
+        throw new TypeError("priority is required");
       }
     }
     if (
@@ -55,7 +55,7 @@ export class StockItem {
           "number",
       );
       if (!(priorityValues as readonly unknown[]).includes(this.priority)) {
-        throw new Error(
+        throw new TypeError(
           `Unknown enum value for priority: ${JSON.stringify(this.priority)}. ` +
             `Expected one of [${priorityValues.map((v) => JSON.stringify(v)).join(", ")}].`,
         );
@@ -70,7 +70,7 @@ export class StockItem {
       if (
         !(availabilityValues as readonly unknown[]).includes(this.availability)
       ) {
-        throw new Error(
+        throw new TypeError(
           `Unknown enum value for availability: ${JSON.stringify(this.availability)}. ` +
             `Expected one of [${availabilityValues.map((v) => JSON.stringify(v)).join(", ")}].`,
         );

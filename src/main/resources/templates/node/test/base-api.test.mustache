@@ -25,6 +25,7 @@ import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFi
 import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
 
 
 class CapturingApiClient implements ApiClient {
@@ -116,6 +117,7 @@ describe('BaseApi exception dispatch', () => {
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(ErrorClass);
+      expect((e as Error).constructor).toBe(ErrorClass);
       expect((e as ApiError).statusCode).toBe(status);
       expect((e as ApiError).responseBody).toBeTruthy();
     }
@@ -145,6 +147,7 @@ describe('BaseApi exception hierarchy', () => {
       expect(e).toBeInstanceOf(NotFoundError);
       expect(e).toBeInstanceOf(ClientError);
       expect(e).toBeInstanceOf(ApiError);
+      expect(e).toBeInstanceOf({{errorPrefix}}Error);
     }
   });
 
@@ -157,6 +160,7 @@ describe('BaseApi exception hierarchy', () => {
       expect(e).toBeInstanceOf(InternalServerError);
       expect(e).toBeInstanceOf(ServerError);
       expect(e).toBeInstanceOf(ApiError);
+      expect(e).toBeInstanceOf({{errorPrefix}}Error);
     }
   });
 });
@@ -662,7 +666,7 @@ describe('Configuration server variable overrides', () => {
     expect(() => {
       Configuration.builder()
         .server(variableServer, { environment: 'invalid' });
-    }).toThrow();
+    }).toThrow(TypeError);
   });
 
   test('API request uses resolved server URL', async () => {

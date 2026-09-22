@@ -154,12 +154,12 @@ export abstract class BaseApi {
         const cookieStr = cookieEntries
           .map(([k, v]) => {
             if (!/^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/.test(k)) {
-              throw new Error(
+              throw new TypeError(
                 `Cookie name '${k}' contains characters forbidden by RFC 6265`,
               );
             }
             if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(v)) {
-              throw new Error(
+              throw new TypeError(
                 `Cookie value for '${k}' contains characters forbidden by RFC 6265`,
               );
             }

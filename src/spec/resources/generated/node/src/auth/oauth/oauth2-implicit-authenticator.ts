@@ -90,13 +90,13 @@ export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
    * allowing HTTP header injection from a redirect-fragment-derived value.
    *
    * @param token the access token
-   * @throws Error if the token contains non-printable-ASCII characters
+   * @throws TypeError if the token contains non-printable-ASCII characters
    */
   setAccessToken(token: string): void {
     for (let i = 0; i < token.length; i++) {
       const c = token.charCodeAt(i);
       if (c !== 0x09 && (c < 0x20 || c >= 0x7f)) {
-        throw new Error(
+        throw new TypeError(
           "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
         );
       }

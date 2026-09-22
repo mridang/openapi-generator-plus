@@ -34,7 +34,7 @@ export class WetFood {
     }
     if (data !== undefined) {
       if (this.volumeMl == null) {
-        throw new Error("volumeMl is required");
+        throw new TypeError("volumeMl is required");
       }
     }
     if (this.foodType != null && typeof this.foodType !== "string") {

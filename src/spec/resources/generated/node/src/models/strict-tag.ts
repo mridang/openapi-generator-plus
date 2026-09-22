@@ -52,7 +52,7 @@ export class StrictTag {
     const declared = StrictTag.__strictDeclaredKeys;
     for (const key of Object.keys(raw)) {
       if (!declared.has(key)) {
-        throw new Error(
+        throw new TypeError(
           "Unknown property '" +
             key +
             "' on StrictTag (unevaluatedProperties:false)",

@@ -46,10 +46,10 @@ export class SetPetAvatarRequest {
     Object.assign(this, data);
     if (data !== undefined) {
       if (this.data == null) {
-        throw new Error("data is required");
+        throw new TypeError("data is required");
       }
       if (this.mimeType == null) {
-        throw new Error("mimeType is required");
+        throw new TypeError("mimeType is required");
       }
     }
     /**

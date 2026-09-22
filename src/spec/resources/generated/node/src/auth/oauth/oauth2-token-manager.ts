@@ -44,7 +44,9 @@ export class OAuth2TokenManager {
    * @param tokenUrl the OAuth2 token endpoint URL
    * @param params the token request parameters (grant_type, client_id, etc.)
    * @returns a valid access token
-   * @throws Error if no API client has been injected or token fetch fails
+   * @throws Error if no API client has been injected
+   * @throws OAuth2ServerError if the token endpoint answers with a non-2xx status
+   * @throws OAuth2TokenError if the token endpoint answers 2xx with an unusable body
    */
   async getAccessToken(
     tokenUrl: string,
@@ -148,9 +150,9 @@ export class OAuth2TokenManager {
      * refresh_token) in the form body; silently following a 307/308 from
      * a compromised or misconfigured authorization server would replay
      * those credentials to the redirect target. The transport is asked
-     * to surface 3xx responses untouched via `noRedirect: true`, and we
-     * reject them explicitly below so the failure is loud rather than a
-     * mysterious "missing access_token" parse error. */
+     * to surface 3xx responses untouched via `noRedirect: true`, and a 3xx
+     * fails below like every other non-2xx status, so the failure is loud
+     * rather than a mysterious "missing access_token" parse error. */
     const response = await this.apiClient.sendRequest(
       "POST",
       tokenUrl,
@@ -163,14 +165,6 @@ export class OAuth2TokenManager {
       { noRedirect: true },
     );
 
-    if (response.statusCode >= 300 && response.statusCode < 400) {
-      const location = response.headers["location"] ?? "<no Location header>";
-      throw new OAuth2TokenError(
-        `Refusing to follow ${response.statusCode} redirect on OAuth2 token endpoint ${tokenUrl} ` +
-          `(Location: ${location}); the token POST carries credentials and must not be replayed.`,
-      );
-    }
-
     if (response.statusCode < 200 || response.statusCode >= 300) {
       /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
        * `error` (required), `error_description`, `error_uri`. Parse them
@@ -182,7 +176,20 @@ export class OAuth2TokenManager {
         response.body,
       );
     }
-    const json = JSON.parse(response.body) as Record<string, unknown>;
+    /* A 2xx body that is not a JSON object cannot yield a token: surface it
+     * as OAuth2TokenError rather than a raw SyntaxError. */
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(response.body);
+    } catch (error) {
+      throw new OAuth2TokenError(
+        `Token response is not valid JSON: ${(error as Error).message}`,
+      );
+    }
+    if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new OAuth2TokenError("Token response is not a JSON object");
+    }
+    const json = parsed as Record<string, unknown>;
     const accessTokenValue = json.access_token;
     if (typeof accessTokenValue !== "string" || accessTokenValue.length === 0) {
       throw new OAuth2TokenError(
@@ -276,10 +283,11 @@ export class OAuth2TokenManager {
 }
 
 /**
- * Thrown when the OAuth2 token endpoint returns a 2xx response whose body
- * is missing or contains an empty `access_token` field. Distinct from
- * {@link OAuth2ServerError} (which represents RFC 6749 §5.2 error responses
- * on 4xx/5xx) so callers can recover differently via `instanceof`.
+ * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
+ * be used: a body that is not a JSON object, or one whose `access_token`
+ * field is missing or empty. Distinct from {@link OAuth2ServerError} (which
+ * represents non-2xx responses) so callers can recover differently via
+ * `instanceof`.
  */
 export class OAuth2TokenError extends OpenAPIError {
   constructor(message: string) {
@@ -289,6 +297,8 @@ export class OAuth2TokenError extends OpenAPIError {
 }
 
 /**
+ * Thrown when the OAuth2 token endpoint answers with a non-2xx status,
+ * including a 3xx redirect, which the token POST never follows.
  * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
  * `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
  * `invalid_client`); `description` and `uri` are the optional

@@ -33,6 +33,7 @@ import { ApiKeyAuthenticator } from "../src/auth/api-key-authenticator.js";
 import { ApiKeyLocation } from "../src/auth/api-key-location.js";
 import { Category } from "../src/models/index.js";
 import { ObjectSerializer } from "../src/object-serializer.js";
+import { OpenAPIError } from "../src/errors/index.js";
 
 class CapturingApiClient implements ApiClient {
   capturedUrl = "";
@@ -170,6 +171,7 @@ describe("BaseApi exception dispatch", () => {
         fail("Expected error not thrown");
       } catch (e) {
         expect(e).toBeInstanceOf(ErrorClass);
+        expect((e as Error).constructor).toBe(ErrorClass);
         expect((e as ApiError).statusCode).toBe(status);
         expect((e as ApiError).responseBody).toBeTruthy();
       }
@@ -216,6 +218,7 @@ describe("BaseApi exception hierarchy", () => {
       expect(e).toBeInstanceOf(NotFoundError);
       expect(e).toBeInstanceOf(ClientError);
       expect(e).toBeInstanceOf(ApiError);
+      expect(e).toBeInstanceOf(OpenAPIError);
     }
   });
 
@@ -236,6 +239,7 @@ describe("BaseApi exception hierarchy", () => {
       expect(e).toBeInstanceOf(InternalServerError);
       expect(e).toBeInstanceOf(ServerError);
       expect(e).toBeInstanceOf(ApiError);
+      expect(e).toBeInstanceOf(OpenAPIError);
     }
   });
 });
@@ -945,7 +949,7 @@ describe("Configuration server variable overrides", () => {
       Configuration.builder().server(variableServer, {
         environment: "invalid",
       });
-    }).toThrow();
+    }).toThrow(TypeError);
   });
 
   test("API request uses resolved server URL", async () => {

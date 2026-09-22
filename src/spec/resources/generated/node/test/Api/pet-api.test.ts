@@ -24,6 +24,8 @@ import {
   SetPetAvatarThumbnailRequest,
 } from "../../src/models/index.js";
 import { ApiError } from "../../src/api-error.js";
+import { InternalServerError, NotFoundError } from "../../src/errors/index.js";
+import { SerializationError } from "../../src/object-serializer.js";
 
 const baseUrl = process.env.API_BASE_URL || "http://localhost:4010";
 const config = Configuration.builder()
@@ -332,7 +334,9 @@ describe("PetApi error handling", () => {
       '{"message":"Pet not found"}',
     );
     try {
-      await expect(mockApi.getPetById(99999)).rejects.toThrow();
+      await expect(mockApi.getPetById(99999)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     } finally {
       close();
     }
@@ -345,7 +349,9 @@ describe("PetApi error handling", () => {
       '{"message":"Internal server error"}',
     );
     try {
-      await expect(mockApi.getPetById(1)).rejects.toThrow();
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(
+        InternalServerError,
+      );
     } finally {
       close();
     }
@@ -410,7 +416,9 @@ describe("PetApi error handling", () => {
     );
     try {
       // The error propagates instead of the raw string being returned.
-      await expect(mockApi.getPetById(1)).rejects.toThrow();
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(
+        SerializationError,
+      );
     } finally {
       close();
     }
@@ -426,7 +434,9 @@ describe("PetApi error handling", () => {
       '{"id":1,"photoUrls":["u"]}',
     );
     try {
-      await expect(mockApi.getPetById(1)).rejects.toThrow();
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(
+        SerializationError,
+      );
     } finally {
       close();
     }

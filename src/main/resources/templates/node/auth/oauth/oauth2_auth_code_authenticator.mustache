@@ -106,7 +106,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
      * posting it to the token endpoint can only fail. Reject it up front
      * so the caller sees the real cause instead of a confusing server error. */
     if (code.trim().length === 0) {
-      throw new Error('Authorization code must not be empty');
+      throw new TypeError('Authorization code must not be empty');
     }
     const params: Record<string, string> = {
       grant_type: 'authorization_code',

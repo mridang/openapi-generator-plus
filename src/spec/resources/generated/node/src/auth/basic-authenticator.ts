@@ -24,15 +24,17 @@ export class BasicAuthenticator extends BaseAuthenticator {
      * construction so a malformed credential surfaces where it is supplied
      * rather than lazily at first request. */
     if (/[\r\n\0]/.test(username)) {
-      throw new Error(
+      throw new TypeError(
         "Basic auth username must not contain CR, LF, or NUL characters",
       );
     }
     if (username.includes(":")) {
-      throw new Error("Basic auth username must not contain ':' (RFC 7617 §2)");
+      throw new TypeError(
+        "Basic auth username must not contain ':' (RFC 7617 §2)",
+      );
     }
     if (/[\r\n\0]/.test(password)) {
-      throw new Error(
+      throw new TypeError(
         "Basic auth password must not contain CR, LF, or NUL characters",
       );
     }

@@ -5,7 +5,7 @@ import * as http from 'node:http';
 import * as zlib from 'node:zlib';
 import { DefaultApiClient, SENSITIVE_HEADER_NAMES } from '../src/default-api-client{{importFileExtension}}';
 import { ApiError } from '../src/api-error{{importFileExtension}}';
-import { NetworkError, NetworkTimeoutError } from '../src/errors/index{{importFileExtension}}';
+import { {{errorPrefix}}Error, NetworkError, NetworkTimeoutError } from '../src/errors/index{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 
 let server: http.Server;
@@ -16,6 +16,13 @@ beforeAll(async () => {
     if (req.url === '/not-found') {
       res.writeHead(404);
       res.end('not found');
+      return;
+    }
+
+    if (req.url === '/bad-gzip') {
+      // Advertise gzip but send bytes that are not a gzip stream.
+      res.writeHead(502, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' });
+      res.end(Buffer.from('this is definitely not gzip', 'utf-8'));
       return;
     }
 
@@ -231,7 +238,14 @@ describe('DefaultApiClient CA certificate fail-fast', () => {
     // TypeError rather than silently falling back to the system trust store
     // (security theater).
     const transport = TransportOptions.builder().caCertPath('/nonexistent/ca.pem').build();
-    expect(() => new DefaultApiClient(transport)).toThrow(TypeError);
+    let caught: unknown;
+    try {
+      new DefaultApiClient(transport);
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as Error).constructor).toBe(TypeError);
+    expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
   });
 });
 
@@ -252,7 +266,7 @@ describe('DefaultApiClient transport-failure responseHeaders', () => {
     } finally {
       await client.close();
     }
-    expect(caught).toBeInstanceOf(NetworkError);
+    expect(caught!.constructor).toBe(NetworkError);
     expect(caught).not.toBeInstanceOf(NetworkTimeoutError);
     expect(caught).toBeInstanceOf(ApiError);
     expect(caught!.statusCode).toBe(0);
@@ -277,21 +291,72 @@ describe('DefaultApiClient transport-failure responseHeaders', () => {
       slow.closeAllConnections();
       await new Promise<void>(resolve => slow.close(() => resolve()));
     }
-    expect(caught).toBeInstanceOf(NetworkTimeoutError);
+    expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+    expect(caught).toBeInstanceOf(NetworkError);
     expect((caught as NetworkTimeoutError).statusCode).toBe(0);
   });
 
-  it('using a closed client throws ApiError with null responseHeaders', async () => {
+  it('using a closed client throws the invalid-state Error', async () => {
+    // A wrong call order is a programming error, not an SDK error.
     const client = new DefaultApiClient();
     await client.close();
-    let caught: ApiError | undefined;
+    let caught: unknown;
     try {
       await client.sendRequest('GET', `${baseUrl}/echo`, {}, null);
     } catch (e) {
-      caught = e as ApiError;
+      caught = e;
     }
-    expect(caught).toBeInstanceOf(ApiError);
-    expect(caught!.responseHeaders).toBeNull();
+    expect((caught as Error).constructor).toBe(Error);
+    expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
+  });
+
+  it('a malformed request URL throws TypeError, not NetworkError', async () => {
+    const client = new DefaultApiClient();
+    let caught: unknown;
+    try {
+      await client.sendRequest('GET', 'not a url', {}, null);
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+    }
+    // fetch's TypeError may come from another realm, so match it by name.
+    expect((caught as Error).name).toBe('TypeError');
+    expect(caught).not.toBeInstanceOf(NetworkError);
+    expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
+  });
+
+  it('a header value with CR/LF throws TypeError, not NetworkError', async () => {
+    const client = new DefaultApiClient();
+    let caught: unknown;
+    try {
+      await client.sendRequest('GET', `${baseUrl}/echo`, { 'X-Bad': 'a\r\nInjected: yes' }, null);
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+    }
+    // fetch's TypeError may come from another realm, so match it by name.
+    expect((caught as Error).name).toBe('TypeError');
+    expect(caught).not.toBeInstanceOf(NetworkError);
+    expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
+  });
+
+  it('a corrupt gzip body throws ApiError with the real status, not NetworkError', async () => {
+    // The body arrives with its status and headers but the fetch layer
+    // cannot decompress it: a response that could not be used.
+    const client = new DefaultApiClient();
+    let caught: unknown;
+    try {
+      await client.sendRequest('GET', `${baseUrl}/bad-gzip`, {}, null);
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+    }
+    expect((caught as Error).constructor).toBe(ApiError);
+    expect(caught).not.toBeInstanceOf(NetworkError);
+    expect((caught as ApiError).statusCode).toBe(502);
   });
 });
 
@@ -865,9 +930,13 @@ describe('redirect to non-HTTP(S) scheme is refused', () => {
 
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
-    await expect(
-      client.sendRequest('GET', 'http://api.example/start', {}, null),
-    ).rejects.toBeInstanceOf(ApiError);
+    const error = await client
+      .sendRequest('GET', 'http://api.example/start', {}, null)
+      .catch((e: unknown) => e);
+    // A refused redirect is a response that could not be used: an ApiError
+    // with the 3xx status, never a NetworkError.
+    expect((error as Error).constructor).toBe(ApiError);
+    expect((error as ApiError).statusCode).toBe(302);
   });
 });
 
@@ -897,23 +966,28 @@ describe('redirect exhaustion throws', () => {
       .maxRedirects(3)
       .build();
     const client = new DefaultApiClient(transport);
-    await expect(
-      client.sendRequest('GET', 'http://api.example/start', {}, null),
-    ).rejects.toBeInstanceOf(ApiError);
+    const error = await client
+      .sendRequest('GET', 'http://api.example/start', {}, null)
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(ApiError);
+    expect((error as ApiError).statusCode).toBe(302);
   });
 });
 
 /*
- * T-D4: use-after-close must surface the SDK's own ApiError type rather than
- * a foreign undici exception or silently succeeding.
+ * T-D4: use-after-close is a wrong call order, so it throws the
+ * invalid-state built-in Error rather than a foreign undici exception or
+ * silently succeeding.
  */
 describe('use-after-close', () => {
-  it('throws an ApiError when sendRequest is called after close()', async () => {
+  it('throws the invalid-state Error when sendRequest is called after close()', async () => {
     const client = new DefaultApiClient();
     await client.close();
-    await expect(
-      client.sendRequest('GET', 'http://api.example/x', {}, null),
-    ).rejects.toBeInstanceOf(ApiError);
+    const error = await client
+      .sendRequest('GET', 'http://api.example/x', {}, null)
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(Error);
+    expect(error).not.toBeInstanceOf(ApiError);
   });
 });
 
@@ -984,9 +1058,12 @@ describe('Content-Encoding lie surfaces ApiError (canonical AL)', () => {
     }) as typeof fetch;
 
     const client = new DefaultApiClient();
-    await expect(
-      client.sendRequest('GET', 'http://api.example/lie', {}, null),
-    ).rejects.toBeInstanceOf(ApiError);
+    const error = await client
+      .sendRequest('GET', 'http://api.example/lie', {}, null)
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(ApiError);
+    expect(error).not.toBeInstanceOf(NetworkError);
+    expect((error as ApiError).statusCode).toBe(200);
   });
 
   it('decodes a genuinely gzip-encoded body that the fetch layer left compressed', async () => {

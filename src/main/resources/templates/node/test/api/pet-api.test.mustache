@@ -7,6 +7,8 @@ import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{import
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
 import { Pet, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index{{importFileExtension}}';
 import { ApiError } from '../../src/api-error{{importFileExtension}}';
+import { InternalServerError, NotFoundError } from '../../src/errors/index{{importFileExtension}}';
+import { SerializationError } from '../../src/object-serializer{{importFileExtension}}';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder()
@@ -293,7 +295,7 @@ describe('PetApi error handling', () => {
   test('404 response throws error', async () => {
     const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Pet not found"}');
     try {
-      await expect(mockApi.getPetById(99999)).rejects.toThrow();
+      await expect(mockApi.getPetById(99999)).rejects.toBeInstanceOf(NotFoundError);
     } finally {
       close();
     }
@@ -302,7 +304,7 @@ describe('PetApi error handling', () => {
   test('500 response throws error', async () => {
     const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
     try {
-      await expect(mockApi.getPetById(1)).rejects.toThrow();
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(InternalServerError);
     } finally {
       close();
     }
@@ -351,7 +353,7 @@ describe('PetApi error handling', () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{ not json');
     try {
       // The error propagates instead of the raw string being returned.
-      await expect(mockApi.getPetById(1)).rejects.toThrow();
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(SerializationError);
     } finally {
       close();
     }
@@ -363,7 +365,7 @@ describe('PetApi error handling', () => {
     // a partial object or the raw dict.
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"id":1,"photoUrls":["u"]}');
     try {
-      await expect(mockApi.getPetById(1)).rejects.toThrow();
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(SerializationError);
     } finally {
       close();
     }

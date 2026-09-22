@@ -119,6 +119,17 @@ export class EdgeCases {
         );
       }
     }
+    /* `format: date-time`: an unparseable wire value becomes an Invalid Date
+     * rather than an error, so reject it here. */
+    if (
+      this.expiresAt != null &&
+      (!(this.expiresAt instanceof Date) ||
+        Number.isNaN(this.expiresAt.getTime()))
+    ) {
+      throw new TypeError(
+        `expiresAt must be a valid Date, got ${String(this.expiresAt)}`,
+      );
+    }
     if (this.favoriteColor != null) {
       const favoriteColorValues = Object.values(Color).filter(
         (v) =>
@@ -129,7 +140,7 @@ export class EdgeCases {
           this.favoriteColor,
         )
       ) {
-        throw new Error(
+        throw new TypeError(
           `Unknown enum value for favoriteColor: ${JSON.stringify(this.favoriteColor)}. ` +
             `Expected one of [${favoriteColorValues.map((v) => JSON.stringify(v)).join(", ")}].`,
         );

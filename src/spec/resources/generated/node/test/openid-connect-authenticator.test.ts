@@ -7,6 +7,8 @@
 
 import * as util from "node:util";
 import { OpenIdConnectAuthenticator } from "../src/auth/oauth/openid-connect-authenticator.js";
+import { InternalServerError, NotFoundError } from "../src/errors/index.js";
+import { SerializationError } from "../src/object-serializer.js";
 import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 
@@ -165,18 +167,44 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer oidc-tok");
   });
 
-  test("throws on a non-2xx discovery response instead of mis-parsing it", async () => {
-    // oauth-oidc-discovery-no-status-check: a 500 (e.g. an HTML error page)
-    // must surface as a discovery failure, not a downstream "invalid JSON".
+  test.each([
+    [404, NotFoundError],
+    [500, InternalServerError],
+  ])(
+    "throws on a non-2xx (%i) discovery response instead of mis-parsing it",
+    async (status, errorClass) => {
+      // oauth-oidc-discovery-no-status-check: a non-2xx answer (e.g. a 500
+      // HTML error page) must surface as the same status-specific error an
+      // API call would throw, not a downstream "invalid JSON".
+      mockClient.responses = [
+        {
+          statusCode: status,
+          body: "<html><body>Error</body></html>",
+          headers: { "content-type": "text/html" },
+        },
+      ];
+
+      const error = await authenticator
+        .buildAuthorizationUrl()
+        .catch((e: unknown) => e);
+      expect((error as Error).constructor).toBe(errorClass);
+      expect((error as NotFoundError).statusCode).toBe(status);
+    },
+  );
+
+  test("throws SerializationError when the discovery document is not JSON", async () => {
     mockClient.responses = [
       {
-        statusCode: 500,
-        body: "<html><body>Internal Server Error</body></html>",
+        statusCode: 200,
+        body: "<html>not json</html>",
         headers: { "content-type": "text/html" },
       },
     ];
 
-    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow();
+    const error = await authenticator
+      .buildAuthorizationUrl()
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(SerializationError);
   });
 
   test("throws when no ApiClient injected", async () => {
@@ -189,7 +217,8 @@ describe("OpenIdConnectAuthenticator", () => {
       ["openid", "profile"],
     );
 
-    await expect(auth.buildAuthorizationUrl()).rejects.toThrow();
+    const error = await auth.buildAuthorizationUrl().catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(Error);
   });
 
   test("getHost returns configured host", () => {
@@ -235,6 +264,9 @@ describe("OpenIdConnectAuthenticator", () => {
     await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
       "OIDC discovery document is missing authorization_endpoint",
     );
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toBeInstanceOf(
+      SerializationError,
+    );
   });
 
   test("throws when discovery is missing token_endpoint", async () => {
@@ -253,6 +285,9 @@ describe("OpenIdConnectAuthenticator", () => {
 
     await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
       "OIDC discovery document is missing token_endpoint",
+    );
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toBeInstanceOf(
+      SerializationError,
     );
   });
 });

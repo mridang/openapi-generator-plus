@@ -166,7 +166,9 @@ export class PetApi extends BaseApi {
     options?: AddPetOptions,
   ): Promise<ApiResult<Pet>> {
     if (pet == null) {
-      throw new Error('Missing required parameter "pet" when calling addPet');
+      throw new TypeError(
+        'Missing required parameter "pet" when calling addPet',
+      );
     }
     const path = `/pet`;
     const queryParams: Record<string, unknown> = {};
@@ -225,17 +227,17 @@ export class PetApi extends BaseApi {
     options: AddPetPhotosOptions,
   ): Promise<ApiResult<Array<Photo>>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling addPetPhotos',
       );
     }
     if (options?.files == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "files" when calling addPetPhotos',
       );
     }
     if (options?.metadata == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "metadata" when calling addPetPhotos',
       );
     }
@@ -318,12 +320,12 @@ export class PetApi extends BaseApi {
     options?: AddPetTreatmentOptions,
   ): Promise<ApiResult<PetTreatment>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling addPetTreatment',
       );
     }
     if (petTreatment == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petTreatment" when calling addPetTreatment',
       );
     }
@@ -375,7 +377,7 @@ export class PetApi extends BaseApi {
     options?: DeletePetOptions,
   ): Promise<ApiResult<void>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling deletePet',
       );
     }
@@ -405,7 +407,7 @@ export class PetApi extends BaseApi {
       if (
         !/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(apiKeyCookieValue)
       ) {
-        throw new Error(
+        throw new TypeError(
           `Cookie value for 'api_key' contains characters forbidden by RFC 6265`,
         );
       }
@@ -465,12 +467,12 @@ export class PetApi extends BaseApi {
     documentId: number,
   ): Promise<ApiResult<Buffer>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling downloadPetDocument',
       );
     }
     if (documentId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "documentId" when calling downloadPetDocument',
       );
     }
@@ -624,7 +626,7 @@ export class PetApi extends BaseApi {
     server?: GetExternalPetInfoServer,
   ): Promise<ApiResult<Pet>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getExternalPetInfo',
       );
     }
@@ -696,7 +698,7 @@ export class PetApi extends BaseApi {
     server?: GetMultiServerPetInfoServer,
   ): Promise<ApiResult<Pet>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getMultiServerPetInfo',
       );
     }
@@ -762,7 +764,7 @@ export class PetApi extends BaseApi {
    */
   async getPetAvatarWithHttpInfo(petId: number): Promise<ApiResult<Buffer>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getPetAvatar',
       );
     }
@@ -827,7 +829,7 @@ export class PetApi extends BaseApi {
     petId: number,
   ): Promise<ApiResult<Buffer>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getPetAvatarThumbnail',
       );
     }
@@ -895,7 +897,7 @@ export class PetApi extends BaseApi {
     server?: GetPetByIdServer,
   ): Promise<ApiResult<Pet>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getPetById',
       );
     }
@@ -967,12 +969,12 @@ export class PetApi extends BaseApi {
     options: GetPetByNameOptions,
   ): Promise<ApiResult<Pet>> {
     if (name == null || name === "") {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "name" when calling getPetByName',
       );
     }
     if (options?.category == null || options.category === "") {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "category" when calling getPetByName',
       );
     }
@@ -1047,7 +1049,7 @@ export class PetApi extends BaseApi {
     petId: number,
   ): Promise<ApiResult<PetPassport>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getPetPassport',
       );
     }
@@ -1116,12 +1118,12 @@ export class PetApi extends BaseApi {
     photoId: number,
   ): Promise<ApiResult<Buffer>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getPetPhoto',
       );
     }
     if (photoId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "photoId" when calling getPetPhoto',
       );
     }
@@ -1210,12 +1212,12 @@ export class PetApi extends BaseApi {
     options?: GetPetTagOptions,
   ): Promise<ApiResult<Pet>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getPetTag',
       );
     }
     if (tagName == null || tagName === "") {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "tagName" when calling getPetTag',
       );
     }
@@ -1330,7 +1332,7 @@ export class PetApi extends BaseApi {
     server?: GetStagingPetInfoServer,
   ): Promise<ApiResult<Pet>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling getStagingPetInfo',
       );
     }
@@ -1392,12 +1394,12 @@ export class PetApi extends BaseApi {
     contentType?: "image/jpeg" | "image/png" | "application/json",
   ): Promise<ApiResult<void>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling setPetAvatar',
       );
     }
     if (body == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "body" when calling setPetAvatar',
       );
     }
@@ -1455,12 +1457,12 @@ export class PetApi extends BaseApi {
     setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null,
   ): Promise<ApiResult<void>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling setPetAvatarThumbnail',
       );
     }
     if (setPetAvatarThumbnailRequest == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "setPetAvatarThumbnailRequest" when calling setPetAvatarThumbnail',
       );
     }
@@ -1534,12 +1536,12 @@ export class PetApi extends BaseApi {
     options: SetPetPreferencesOptions,
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling setPetPreferences',
       );
     }
     if (options?.nickname == null || options.nickname === "") {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "nickname" when calling setPetPreferences',
       );
     }
@@ -1615,12 +1617,12 @@ export class PetApi extends BaseApi {
     pet: DeepInput<Pet>,
   ): Promise<ApiResult<Pet>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling updatePet',
       );
     }
     if (pet == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "pet" when calling updatePet',
       );
     }
@@ -1690,12 +1692,12 @@ export class PetApi extends BaseApi {
     options: UploadPetCertificateOptions,
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling uploadPetCertificate',
       );
     }
     if (options?.file == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "file" when calling uploadPetCertificate',
       );
     }
@@ -1778,12 +1780,12 @@ export class PetApi extends BaseApi {
     contentType?: "multipart/form-data" | "application/octet-stream",
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "petId" when calling uploadPetDocument',
       );
     }
     if (options?.file == null) {
-      throw new Error(
+      throw new TypeError(
         'Missing required parameter "file" when calling uploadPetDocument',
       );
     }

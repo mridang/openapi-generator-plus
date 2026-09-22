@@ -85,13 +85,13 @@ export class PetWithOwner {
     Object.assign(this, data);
     if (data !== undefined) {
       if (this.name == null) {
-        throw new Error("name is required");
+        throw new TypeError("name is required");
       }
       if (this.photoUrls == null) {
-        throw new Error("photoUrls is required");
+        throw new TypeError("photoUrls is required");
       }
       if (this.ownerName == null) {
-        throw new Error("ownerName is required");
+        throw new TypeError("ownerName is required");
       }
     }
     if (this.id != null && typeof this.id !== "number") {
@@ -179,7 +179,7 @@ export class PetWithOwner {
           ] !== "number",
       );
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
-        throw new Error(
+        throw new TypeError(
           `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +
             `Expected one of [${statusValues.map((v) => JSON.stringify(v)).join(", ")}].`,
         );

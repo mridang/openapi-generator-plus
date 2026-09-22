@@ -31,7 +31,7 @@ export class Medication {
     Object.assign(this, data);
     if (data !== undefined) {
       if (this.drugName == null) {
-        throw new Error("drugName is required");
+        throw new TypeError("drugName is required");
       }
     }
     if (this.drugName != null && typeof this.drugName !== "string") {

@@ -64,6 +64,17 @@ export class Order {
         `complete must be a boolean, got ${typeof this.complete}`,
       );
     }
+    /* `format: date-time`: an unparseable wire value becomes an Invalid Date
+     * rather than an error, so reject it here. */
+    if (
+      this.shipDate != null &&
+      (!(this.shipDate instanceof Date) ||
+        Number.isNaN(this.shipDate.getTime()))
+    ) {
+      throw new TypeError(
+        `shipDate must be a valid Date, got ${String(this.shipDate)}`,
+      );
+    }
     if (this.status != null) {
       const statusValues = Object.values(OrderStatusEnum).filter(
         (v) =>
@@ -71,7 +82,7 @@ export class Order {
           "number",
       );
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
-        throw new Error(
+        throw new TypeError(
           `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +
             `Expected one of [${statusValues.map((v) => JSON.stringify(v)).join(", ")}].`,
         );

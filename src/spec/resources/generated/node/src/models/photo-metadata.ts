@@ -46,6 +46,16 @@ export class PhotoMetadata {
         `isPrimary must be a boolean, got ${typeof this.isPrimary}`,
       );
     }
+    /* `format: date-time`: an unparseable wire value becomes an Invalid Date
+     * rather than an error, so reject it here. */
+    if (
+      this.takenAt != null &&
+      (!(this.takenAt instanceof Date) || Number.isNaN(this.takenAt.getTime()))
+    ) {
+      throw new TypeError(
+        `takenAt must be a valid Date, got ${String(this.takenAt)}`,
+      );
+    }
   }
 
   /**

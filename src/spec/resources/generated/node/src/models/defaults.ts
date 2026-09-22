@@ -55,7 +55,7 @@ export class Defaults {
           "number",
       );
       if (!(modeValues as readonly unknown[]).includes(this.mode)) {
-        throw new Error(
+        throw new TypeError(
           `Unknown enum value for mode: ${JSON.stringify(this.mode)}. ` +
             `Expected one of [${modeValues.map((v) => JSON.stringify(v)).join(", ")}].`,
         );

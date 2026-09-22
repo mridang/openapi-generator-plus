@@ -50,7 +50,13 @@ describe("OAuth2ImplicitAuthenticator", () => {
   });
 
   test("throws when access token not set", () => {
-    expect(() => authenticator.getAuthHeaders()).toThrow();
+    let caught: unknown;
+    try {
+      authenticator.getAuthHeaders();
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as Error).constructor).toBe(Error);
   });
 
   test("getHost returns configured host", () => {

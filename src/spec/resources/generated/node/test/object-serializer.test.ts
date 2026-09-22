@@ -14,6 +14,7 @@ import {
 import { OpenAPIError } from "../src/errors/index.js";
 import {
   Category,
+  EdgeCases,
   DryFood,
   WetFood,
   PetFood,
@@ -145,10 +146,56 @@ describe("ObjectSerializer", () => {
 
   describe("SerializationErrorWrappingTests", () => {
     test("truncated JSON throws SerializationError not raw parse error", () => {
-      expect(() => {
-        JSON.parse("{");
-      }).toThrow();
+      expect(() => ObjectSerializer.parseJson("{")).toThrow(SerializationError);
     });
+
+    /* The error contract: every wire-shape failure throws exactly
+     * SerializationError (no subclass, no library error), and that is an
+     * instance of the SDK root so one catch handles it. */
+    test.each([
+      ["malformed JSON", () => ObjectSerializer.parseJson("{")],
+      [
+        "wrong primitive type",
+        () =>
+          ObjectSerializer.deserialize(
+            { id: "abc", name: "doggie", photoUrls: [] },
+            Pet,
+          ),
+      ],
+      [
+        "unknown enum value",
+        () =>
+          ObjectSerializer.deserialize(
+            { name: "doggie", photoUrls: [], status: "banana" },
+            Pet,
+          ),
+      ],
+      [
+        "missing required field",
+        () => ObjectSerializer.deserialize({ photoUrls: [] }, Pet),
+      ],
+      [
+        "malformed duration",
+        () => ObjectSerializer.deserialize({ retryAfter: "soon" }, EdgeCases),
+      ],
+      [
+        "malformed date-time",
+        () =>
+          ObjectSerializer.deserialize({ expiresAt: "not-a-date" }, EdgeCases),
+      ],
+    ])(
+      "throws exactly SerializationError, a root error, for %s",
+      (_failure, decode) => {
+        let caught: unknown;
+        try {
+          decode();
+        } catch (e) {
+          caught = e;
+        }
+        expect((caught as Error).constructor).toBe(SerializationError);
+        expect(caught).toBeInstanceOf(OpenAPIError);
+      },
+    );
 
     test("serialize throws SerializationError on circular reference", () => {
       const a: Record<string, unknown> = {};

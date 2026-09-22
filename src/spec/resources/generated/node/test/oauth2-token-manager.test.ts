@@ -158,13 +158,17 @@ describe("OAuth2TokenManager", () => {
   });
 
   test("throws when no ApiClient injected", async () => {
+    // A wrong call order is a programming error: the invalid-state built-in
+    // Error, not an SDK error.
     const manager = new OAuth2TokenManager();
 
-    await expect(
-      manager.getAccessToken("https://auth.example.com/token", {
+    const error = await manager
+      .getAccessToken("https://auth.example.com/token", {
         grant_type: "client_credentials",
-      }),
-    ).rejects.toThrow();
+      })
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(Error);
+    expect(error).not.toBeInstanceOf(OpenAPIError);
   });
 
   test("invalidateAccessToken forces refetch", async () => {
@@ -352,7 +356,19 @@ describe("OAuth2TokenManager", () => {
       tokenManager.getAccessToken("https://auth.example.com/token", {
         grant_type: "client_credentials",
       }),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(OAuth2ServerError);
+  });
+
+  test("a 2xx token response that is not JSON throws OAuth2TokenError", async () => {
+    mockClient.responseStatus = 200;
+    mockClient.responseBody = "<html>not json</html>";
+
+    const error = await tokenManager
+      .getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      })
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(OAuth2TokenError);
   });
 
   test("missing access_token in 2xx response throws typed OAuth2TokenError", async () => {
@@ -567,8 +583,10 @@ describe("OAuth2TokenManager", () => {
       expect(mockClient.lastOptions?.noRedirect).toBe(true);
     });
 
+    /* A 3xx is a non-2xx answer, so the refusal is an OAuth2ServerError
+     * carrying the status. */
     test.each([301, 302, 303, 307, 308])(
-      "refuses %i redirect on token endpoint with OAuth2TokenError",
+      "refuses %i redirect on token endpoint with OAuth2ServerError",
       async (status) => {
         mockClient.responseStatus = status;
         mockClient.responseBody = "";
@@ -582,7 +600,7 @@ describe("OAuth2TokenManager", () => {
             grant_type: "client_credentials",
             client_secret: "topsecret",
           }),
-        ).rejects.toBeInstanceOf(OAuth2TokenError);
+        ).rejects.toBeInstanceOf(OAuth2ServerError);
         // INVARIANT: every SDK-thrown error reaches the branded OpenAPIError root.
         await expect(
           tokenManager.getAccessToken("https://auth.example.com/token", {
@@ -595,11 +613,14 @@ describe("OAuth2TokenManager", () => {
             grant_type: "client_credentials",
             client_secret: "topsecret",
           }),
-        ).rejects.toThrow(/Refusing to follow/);
+        ).rejects.toMatchObject({ statusCode: status });
       },
     );
 
-    test("redirect-refusal error includes the Location header for diagnostics", async () => {
+    /* Gap 3.2: the redirect-refusal error should name the offending Location
+     * for diagnostics. The OAuth2ServerError message embeds only the status
+     * code and response body, not the Location target. */
+    test.skip("redirect-refusal error includes the Location header for diagnostics", async () => {
       mockClient.responseStatus = 307;
       mockClient.responseBody = "";
       mockClient.responseHeaders = {

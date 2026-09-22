@@ -170,42 +170,42 @@ export class {{classname}} extends BaseApi {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/pathParams}}
 {{#bodyParam}}
 {{#required}}
     if ({{paramName}} == null) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/cookieParams}}
@@ -273,7 +273,7 @@ export class {{classname}} extends BaseApi {
        * in the base client, so a forbidden value fails closed with the
        * same error instead of being injected raw into the header. */
       if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test({{paramName}}CookieValue)) {
-        throw new Error(
+        throw new TypeError(
           `Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265`
         );
       }
