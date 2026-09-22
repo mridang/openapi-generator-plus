@@ -31,18 +31,9 @@ package errors
 // *NotFoundError, *ApiError, or *SerializationError.
 //
 // The interface carries an unexported marker method, so an arbitrary error does
-// not satisfy it: only the SDK's own error types do. Types declared in this
-// package implement the marker directly; SDK error types declared in other
-// packages (OAuth2TokenError, OAuth2ServerError) embed ErrorMarker, which
-// promotes the marker to them.
+// not satisfy it: only the SDK's own error types, all declared in this
+// package, do.
 type {{errorPrefix}}Error interface {
 	error
 	is{{errorPrefix}}Error()
 }
-
-// ErrorMarker brands an SDK error type declared outside this package as a
-// {{errorPrefix}}Error. It is embedded by the SDK's own error types and is not
-// meant to be used by callers.
-type ErrorMarker struct{}
-
-func (ErrorMarker) is{{errorPrefix}}Error() {}

@@ -184,7 +184,7 @@ func TestOAuth2Password_GetHostReturnsConfiguredHost(t *testing.T) {
 func TestOAuth2PasswordRedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createPasswordAuthenticator()
-	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%s", authObj)} {
+	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj)} {
 		if strings.Contains(s, "my-client-secret") {
 			t.Errorf("expected client secret to be redacted, got %q", s)
 		}

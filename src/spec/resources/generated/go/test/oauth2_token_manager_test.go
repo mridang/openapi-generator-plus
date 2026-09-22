@@ -116,7 +116,7 @@ func TestOAuth2TokenManager_RejectsRedirect(t *testing.T) {
 			t.Errorf("status %d: expected redirect refusal error, got nil", status)
 			continue
 		}
-		var serverErr *oauth.OAuth2ServerError
+		var serverErr *apierrors.OAuth2ServerError
 		if !errors.As(err, &serverErr) {
 			t.Errorf("status %d: expected *OAuth2ServerError, got %T: %v", status, err, err)
 			continue
@@ -378,7 +378,7 @@ func TestOAuth2TokenManager_UnusableAnswersAndTransportFailuresAreTyped(t *testi
 	manager := oauth.NewOAuth2TokenManager()
 	manager.SetApiClient(newFakeTokenClient(fakeResponse{body: `<html>ok</html>`, statusCode: 200}))
 	_, err := manager.GetAccessToken("https://auth.example.com/token", params)
-	var tokenErr *oauth.OAuth2TokenError
+	var tokenErr *apierrors.OAuth2TokenError
 	if !errors.As(err, &tokenErr) {
 		t.Errorf("expected *OAuth2TokenError for a non-JSON 2xx body, got %T: %v", err, err)
 	}
@@ -404,7 +404,7 @@ func TestOAuth2TokenManager_UnusableAnswersAndTransportFailuresAreTyped(t *testi
 	manager = oauth.NewOAuth2TokenManager()
 	manager.SetApiClient(newFakeTokenClient(fakeResponse{body: `upstream down`, statusCode: 503}))
 	_, err = manager.GetAccessToken("https://auth.example.com/token", params)
-	var serverErr *oauth.OAuth2ServerError
+	var serverErr *apierrors.OAuth2ServerError
 	if !errors.As(err, &serverErr) || serverErr.StatusCode() != 503 {
 		t.Errorf("expected *OAuth2ServerError with status 503, got %T: %v", err, err)
 	}
@@ -651,7 +651,7 @@ func TestOAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *t
 	if err == nil {
 		t.Fatal("expected error when access_token is missing, got nil")
 	}
-	var typed *oauth.OAuth2TokenError
+	var typed *apierrors.OAuth2TokenError
 	if !errors.As(err, &typed) {
 		t.Fatalf("expected *OAuth2TokenError, got %T: %v", err, err)
 	}
@@ -675,7 +675,7 @@ func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *test
 	if err == nil {
 		t.Fatal("expected error when token request fails, got nil")
 	}
-	var typed *oauth.OAuth2ServerError
+	var typed *apierrors.OAuth2ServerError
 	if !errors.As(err, &typed) {
 		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
 	}
@@ -763,14 +763,4 @@ func TestOAuth2TokenManager_InvalidateTriggersSingleRefetchUnderConcurrency(t *t
 			t.Errorf("all callers must observe the refreshed token 'tok2'; got %q", token)
 		}
 	}
-}
-
-func TestOAuth2TokenManager_RedirectRefusalErrorIncludesLocation(t *testing.T) {
-	t.Parallel()
-	// Gap 3.2: the redirect-refusal error should name the offending Location
-	// header for diagnostics. The Go SDK refuses the redirect with an
-	// *OAuth2ServerError that carries the status code and raw body only, not the
-	// Location target, so this cannot be asserted without fabricating behaviour
-	// the SDK does not provide.
-	t.Skip("Go OAuth2TokenManager redirect-refusal error does not surface the Location header")
 }

@@ -457,7 +457,17 @@ func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
 
 func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
 	t.Parallel()
-	t.Skip("SetPetAvatarThumbnailRequest is a generated oneOf type with no public constructor, so it cannot be invoked from a test in Go.")
+	api := newPetApiForIntegration(t)
+
+	/* The oneOf request body is built the way a caller holding its JSON would
+	 * build it: by unmarshalling, which picks the matching variant. */
+	var thumbnail models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal([]byte(`"/9j/4A=="`), &thumbnail); err != nil {
+		t.Fatalf("failed to build the thumbnail: %v", err)
+	}
+	if err := api.SetPetAvatarThumbnail(int64(1), thumbnail); err != nil {
+		t.Fatalf("SetPetAvatarThumbnail failed: %v", err)
+	}
 }
 
 func TestPetApi_UploadPetCertificate(t *testing.T) {
@@ -636,9 +646,23 @@ func TestPetApi_GetPetTag(t *testing.T) {
 	}
 }
 
+// mockExternalPetInfoServer points the operation's own server at the mock
+// server, which serves every path in the spec.
+type mockExternalPetInfoServer struct{}
+
+func (mockExternalPetInfoServer) GetUrl() string { return chasmURL }
+
 func TestPetApi_GetExternalPetInfo(t *testing.T) {
 	t.Parallel()
-	t.Skip("Per-operation server URL points to external host")
+	api := newPetApiForIntegration(t)
+
+	result, err := api.GetExternalPetInfo(int64(1), mockExternalPetInfoServer{})
+	if err != nil {
+		t.Fatalf("GetExternalPetInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetExternalPetInfo")
+	}
 }
 
 func TestPetApi_DownloadBinaryMock(t *testing.T) {

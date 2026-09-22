@@ -53,13 +53,6 @@ func stringifyDate(value any) string {
 	}
 }
 
-// SerializationError is returned when serialization or deserialization fails.
-//
-// It is declared in the errors package beside the rest of the SDK error
-// hierarchy and re-exported here, so errors.As(err, new(*SerializationError))
-// works from either package.
-type SerializationError = errors_pkg.SerializationError
-
 // newSerializationError constructs a SerializationError with fixed state.
 func newSerializationError(message string, cause error) *SerializationError {
 	return errors_pkg.NewSerializationError(message, cause)

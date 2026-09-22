@@ -1,0 +1,31 @@
+{{>api_info}}
+package errors
+
+// OAuth2TokenError is returned when the OAuth2 token endpoint returns a 2xx
+// response the SDK cannot use: a body that is not JSON, or one that is missing
+// or has an empty `access_token` field. Distinct from *OAuth2ServerError
+// (which represents any non-2xx answer) so callers can recover differently via
+// errors.As.
+//
+// Its state is immutable: the message is set once at construction via
+// NewOAuth2TokenError and read through the Message getter.
+type OAuth2TokenError struct {
+	message string
+}
+
+// NewOAuth2TokenError constructs an OAuth2TokenError with a fixed message.
+func NewOAuth2TokenError(message string) *OAuth2TokenError {
+	return &OAuth2TokenError{message: message}
+}
+
+// Message returns the error message.
+func (e *OAuth2TokenError) Message() string {
+	return e.message
+}
+
+// is{{errorPrefix}}Error brands OAuth2TokenError as a {{errorPrefix}}Error.
+func (e *OAuth2TokenError) is{{errorPrefix}}Error() {}
+
+func (e *OAuth2TokenError) Error() string {
+	return e.message
+}

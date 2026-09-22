@@ -15,7 +15,6 @@ import (
 	"testing"
 
 	petstore "petstore/pkg"
-	"petstore/pkg/auth/oauth"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 )
@@ -39,9 +38,9 @@ var (
 	_ apierrors.OpenAPIError = (*apierrors.InternalServerError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkTimeoutError)(nil)
-	_ apierrors.OpenAPIError = (*petstore.SerializationError)(nil)
-	_ apierrors.OpenAPIError = (*oauth.OAuth2TokenError)(nil)
-	_ apierrors.OpenAPIError = (*oauth.OAuth2ServerError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.SerializationError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.OAuth2TokenError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.OAuth2ServerError)(nil)
 )
 
 // TestForeignError_DoesNotSatisfyOpenAPIError confirms the brand is exclusive:
@@ -104,7 +103,7 @@ func TestNetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
 // *ApiError, and an *InternalServerError is a *ServerError and an *ApiError.
 func TestTypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
 	t.Parallel()
-	notFound := apierrors.NewTypedApiError(404, "not found", "", nil, nil, nil)
+	notFound := apierrors.FromResponse(404, nil, "")
 	if _, ok := notFound.(*apierrors.NotFoundError); !ok {
 		t.Fatalf("expected *NotFoundError for 404, got %T", notFound)
 	}
@@ -116,7 +115,7 @@ func TestTypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
 	if errors.As(notFound, &asServer) {
 		t.Error("a *NotFoundError must not match *ServerError")
 	}
-	internal := apierrors.NewTypedApiError(500, "boom", "", nil, nil, nil)
+	internal := apierrors.FromResponse(500, nil, "")
 	if _, ok := internal.(*apierrors.InternalServerError); !ok {
 		t.Fatalf("expected *InternalServerError for 500, got %T", internal)
 	}
@@ -242,7 +241,7 @@ func TestApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testing.T) {
 // TestApiError_FieldsAreImmutable confirms the error state is set once at
 // construction and is no longer settable from outside the package. The struct
 // fields are unexported, so the only construction path is NewApiError /
-// NewTypedApiError and callers can read state exclusively through the getters.
+// FromResponse and callers can read state exclusively through the getters.
 // The commented assignment below would be a compile error if uncommented:
 //
 //	err := apierrors.NewApiError(404, "x", "", nil, nil, nil)
@@ -280,40 +279,80 @@ func TestApiError_FieldsAreImmutable(t *testing.T) {
 	}
 }
 
-func TestApiError_TypedFactoryProducesSubclassesWithSharedState(t *testing.T) {
+// TestFromResponse_MapsEveryStatusToItsType confirms the public status factory
+// that every generated operation and the OpenID Connect discovery request use
+// builds the most specific type for each status, and keeps the status, headers
+// and body on the embedded ApiError.
+func TestFromResponse_MapsEveryStatusToItsType(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		status int
-		assert func(t *testing.T, err error)
+		want   string
 	}{
-		{400, func(t *testing.T, err error) {
-			if _, ok := err.(*apierrors.BadRequestError); !ok {
-				t.Errorf("expected *BadRequestError, got %T", err)
-			}
-		}},
-		{404, func(t *testing.T, err error) {
-			if _, ok := err.(*apierrors.NotFoundError); !ok {
-				t.Errorf("expected *NotFoundError, got %T", err)
-			}
-		}},
-		{500, func(t *testing.T, err error) {
-			if _, ok := err.(*apierrors.InternalServerError); !ok {
-				t.Errorf("expected *InternalServerError, got %T", err)
-			}
-		}},
+		{400, "*errors.BadRequestError"},
+		{401, "*errors.UnauthorizedError"},
+		{403, "*errors.ForbiddenError"},
+		{404, "*errors.NotFoundError"},
+		{409, "*errors.ConflictError"},
+		{422, "*errors.UnprocessableEntityError"},
+		{418, "*errors.ClientError"},
+		{500, "*errors.InternalServerError"},
+		{503, "*errors.ServerError"},
+		{302, "*errors.ApiError"},
 	}
+	headers := map[string]string{"X-Request-Id": "abc"}
 	for _, tc := range cases {
-		err := apierrors.NewTypedApiError(tc.status, "msg", `{"k":"v"}`, nil, nil, nil)
-		tc.assert(t, err)
-		// Getters are promoted through the embedded ApiError.
-		type statusReader interface{ StatusCode() int }
-		if sr, ok := err.(statusReader); ok {
-			if sr.StatusCode() != tc.status {
-				t.Errorf("expected status %d, got %d", tc.status, sr.StatusCode())
-			}
-		} else {
-			t.Errorf("expected %T to expose StatusCode()", err)
+		err := apierrors.FromResponse(tc.status, headers, `{"k":"v"}`)
+		if got := fmt.Sprintf("%T", err); got != tc.want {
+			t.Errorf("status %d: expected %s, got %s", tc.status, tc.want, got)
 		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("status %d: expected %T to match *ApiError", tc.status, err)
+		}
+		if apiErr.StatusCode() != tc.status {
+			t.Errorf("expected status %d, got %d", tc.status, apiErr.StatusCode())
+		}
+		if apiErr.ResponseHeaders()["X-Request-Id"] != "abc" {
+			t.Errorf("status %d: expected the response headers to be kept", tc.status)
+		}
+		if apiErr.ResponseBody() != `{"k":"v"}` {
+			t.Errorf("status %d: expected the response body to be kept, got %q", tc.status, apiErr.ResponseBody())
+		}
+		if body, ok := apiErr.ErrorBody().(map[string]any); !ok || body["k"] != "v" {
+			t.Errorf("status %d: expected the JSON body to be parsed, got %v", tc.status, apiErr.ErrorBody())
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(err, &root) {
+			t.Errorf("status %d: expected %T to satisfy OpenAPIError", tc.status, err)
+		}
+	}
+}
+
+// TestPackageRoot_ReexportsTheErrorTree confirms every error type can be named
+// from the package root as well as from the errors package.
+func TestPackageRoot_ReexportsTheErrorTree(t *testing.T) {
+	t.Parallel()
+	var (
+		_ petstore.OpenAPIError = (*petstore.ApiError)(nil)
+		_ petstore.OpenAPIError = (*petstore.ClientError)(nil)
+		_ petstore.OpenAPIError = (*petstore.BadRequestError)(nil)
+		_ petstore.OpenAPIError = (*petstore.UnauthorizedError)(nil)
+		_ petstore.OpenAPIError = (*petstore.ForbiddenError)(nil)
+		_ petstore.OpenAPIError = (*petstore.NotFoundError)(nil)
+		_ petstore.OpenAPIError = (*petstore.ConflictError)(nil)
+		_ petstore.OpenAPIError = (*petstore.UnprocessableEntityError)(nil)
+		_ petstore.OpenAPIError = (*petstore.ServerError)(nil)
+		_ petstore.OpenAPIError = (*petstore.InternalServerError)(nil)
+		_ petstore.OpenAPIError = (*petstore.NetworkError)(nil)
+		_ petstore.OpenAPIError = (*petstore.NetworkTimeoutError)(nil)
+		_ petstore.OpenAPIError = (*petstore.SerializationError)(nil)
+		_ petstore.OpenAPIError = (*petstore.OAuth2ServerError)(nil)
+		_ petstore.OpenAPIError = (*petstore.OAuth2TokenError)(nil)
+	)
+	var notFound *petstore.NotFoundError
+	if !errors.As(apierrors.FromResponse(404, nil, ""), &notFound) {
+		t.Error("expected the root package's *NotFoundError to match a 404")
 	}
 }
 
@@ -345,7 +384,7 @@ func TestApiError_SatisfiesOpenAPIError(t *testing.T) {
 // branded root.
 func TestTypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 	t.Parallel()
-	err := apierrors.NewTypedApiError(404, "missing", `{"k":"v"}`, nil, nil, nil)
+	err := apierrors.FromResponse(404, nil, `{"k":"v"}`)
 
 	if _, ok := err.(apierrors.OpenAPIError); !ok {
 		t.Errorf("expected typed error to satisfy OpenAPIError, got %T", err)

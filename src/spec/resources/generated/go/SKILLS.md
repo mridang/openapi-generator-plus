@@ -184,18 +184,23 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```go
-import "petstore/pkg/errors"
+import (
+    "errors"
+    "fmt"
 
-result, err := client.Pet.AddPet(/* params */)
+    "petstore/pkg"
+)
+
+_, err := client.Pet.AddPet(pet, nil)
 if err != nil {
-    var notFound *errors.NotFoundError
-    var clientErr *errors.ClientError
-    var serverErr *errors.ServerError
-    if stderrors.As(err, &notFound) {
+    var notFound *petstore.NotFoundError
+    var clientErr *petstore.ClientError
+    var serverErr *petstore.ServerError
+    if errors.As(err, &notFound) {
         fmt.Printf("Not found: %s\n", notFound.Error())
-    } else if stderrors.As(err, &clientErr) {
+    } else if errors.As(err, &clientErr) {
         fmt.Printf("Client error %d: %s\n", clientErr.StatusCode(), clientErr.Error())
-    } else if stderrors.As(err, &serverErr) {
+    } else if errors.As(err, &serverErr) {
         fmt.Printf("Server error: %s\n", serverErr.Error())
     }
 }

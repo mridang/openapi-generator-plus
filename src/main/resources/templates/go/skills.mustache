@@ -203,18 +203,23 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```go
-import "{{packageName}}/pkg/errors"
+import (
+    "errors"
+    "fmt"
 
-result, err := client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* params */)
+    "{{packageName}}/pkg"
+)
+
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#returnType}}_, {{/returnType}}{{/-first}}{{/operation}}err := client.{{baseName}}.{{#operation}}{{#-first}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}nil{{/isOptions}}{{#isServer}}nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 if err != nil {
-    var notFound *errors.NotFoundError
-    var clientErr *errors.ClientError
-    var serverErr *errors.ServerError
-    if stderrors.As(err, &notFound) {
+    var notFound *{{packageName}}.NotFoundError
+    var clientErr *{{packageName}}.ClientError
+    var serverErr *{{packageName}}.ServerError
+    if errors.As(err, &notFound) {
         fmt.Printf("Not found: %s\n", notFound.Error())
-    } else if stderrors.As(err, &clientErr) {
+    } else if errors.As(err, &clientErr) {
         fmt.Printf("Client error %d: %s\n", clientErr.StatusCode(), clientErr.Error())
-    } else if stderrors.As(err, &serverErr) {
+    } else if errors.As(err, &serverErr) {
         fmt.Printf("Server error: %s\n", serverErr.Error())
     }
 }

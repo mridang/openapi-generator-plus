@@ -1,0 +1,42 @@
+{{>api_info}}
+package {{packageName}}
+
+import errors_pkg "{{packageName}}/pkg/errors"
+
+// The whole SDK error tree, declared in the errors package and re-exported
+// here so every error type can be named from the package root:
+// errors.As(err, new(*NotFoundError)) works from either package.
+type (
+	// {{errorPrefix}}Error is the branded root every SDK error satisfies.
+	{{errorPrefix}}Error = errors_pkg.{{errorPrefix}}Error
+	// ApiError is an HTTP-level failure.
+	ApiError = errors_pkg.ApiError
+	// ClientError is an HTTP 4xx failure.
+	ClientError = errors_pkg.ClientError
+	// BadRequestError is an HTTP 400 failure.
+	BadRequestError = errors_pkg.BadRequestError
+	// UnauthorizedError is an HTTP 401 failure.
+	UnauthorizedError = errors_pkg.UnauthorizedError
+	// ForbiddenError is an HTTP 403 failure.
+	ForbiddenError = errors_pkg.ForbiddenError
+	// NotFoundError is an HTTP 404 failure.
+	NotFoundError = errors_pkg.NotFoundError
+	// ConflictError is an HTTP 409 failure.
+	ConflictError = errors_pkg.ConflictError
+	// UnprocessableEntityError is an HTTP 422 failure.
+	UnprocessableEntityError = errors_pkg.UnprocessableEntityError
+	// ServerError is an HTTP 5xx failure.
+	ServerError = errors_pkg.ServerError
+	// InternalServerError is an HTTP 500 failure.
+	InternalServerError = errors_pkg.InternalServerError
+	// NetworkError is a request that produced no HTTP response.
+	NetworkError = errors_pkg.NetworkError
+	// NetworkTimeoutError is a request that timed out.
+	NetworkTimeoutError = errors_pkg.NetworkTimeoutError
+	// SerializationError is a value that could not be encoded or decoded.
+	SerializationError = errors_pkg.SerializationError
+	// OAuth2ServerError is a non-2xx answer from the OAuth2 token endpoint.
+	OAuth2ServerError = errors_pkg.OAuth2ServerError
+	// OAuth2TokenError is a 2xx answer from the OAuth2 token endpoint that could not be used.
+	OAuth2TokenError = errors_pkg.OAuth2TokenError
+)

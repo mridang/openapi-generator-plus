@@ -652,16 +652,7 @@ func newEmptyBodyError(operationID string, statusCode int, rawBody string, heade
 }
 
 func throwAPIError(response *ApiHttpResponse) error {
-	code := response.StatusCode
-	msg := fmt.Sprintf("API returned status code %d", code)
-	body := response.Body
-
-	var parsed any
-	if body != "" {
-		_ = json.Unmarshal([]byte(body), &parsed)
-	}
-
-	return errors_pkg.NewTypedApiError(code, msg, body, response.Headers, parsed, nil)
+	return errors_pkg.FromResponse(response.StatusCode, response.Headers, response.Body)
 }
 
 // isValidCookieName checks RFC 6265 cookie-name (RFC 7230 token).

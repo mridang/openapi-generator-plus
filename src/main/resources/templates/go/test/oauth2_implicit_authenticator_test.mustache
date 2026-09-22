@@ -119,7 +119,7 @@ func TestOAuth2ImplicitRedactsSecret(t *testing.T) {
 	if err := auth.SetAccessToken("implicit-tok"); err != nil {
 		t.Fatalf("unexpected error from SetAccessToken: %v", err)
 	}
-	for _, s := range []string{auth.String(), fmt.Sprintf("%v", auth), fmt.Sprintf("%+v", auth), fmt.Sprintf("%s", auth)} {
+	for _, s := range []string{auth.String(), fmt.Sprintf("%v", auth), fmt.Sprintf("%+v", auth)} {
 		if strings.Contains(s, "implicit-tok") {
 			t.Errorf("expected access token to be redacted, got %q", s)
 		}

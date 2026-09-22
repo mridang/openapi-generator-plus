@@ -171,11 +171,7 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 	 * status rather than a misleading "invalid JSON" parse failure
 	 * downstream. */
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, errors_pkg.NewTypedApiError(
-			resp.StatusCode,
-			fmt.Sprintf("OIDC discovery request failed with status %d", resp.StatusCode),
-			resp.Body, resp.Headers, nil, nil,
-		)
+		return nil, errors_pkg.FromResponse(resp.StatusCode, resp.Headers, resp.Body)
 	}
 
 	var discovery struct {

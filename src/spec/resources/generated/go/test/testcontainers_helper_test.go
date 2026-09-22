@@ -18,11 +18,13 @@ import (
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 var (
 	proxyURL              string
+	authProxyURL          string
 	chasmURL              string
 	chasmHTTPURL          string
 	chasmHTTPSURL         string
@@ -39,17 +41,14 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Create shared network with a unique name to avoid conflicts
-	networkName := fmt.Sprintf("proxy-network-go-%d", time.Now().UnixNano())
-	network, err := testcontainers.GenericNetwork(ctx, testcontainers.GenericNetworkRequest{
-		NetworkRequest: testcontainers.NetworkRequest{
-			Name: networkName,
-		},
-	})
+	// Create a shared network; network.New gives it a unique name.
+	sharedNetwork, err := network.New(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create network: %v\n", err)
 		os.Exit(1)
 	}
+
+	networkName := sharedNetwork.Name
 
 	caCertPath = filepath.Join(fixturesDir, "certs", "ca.pem")
 
@@ -58,12 +57,15 @@ func TestMain(m *testing.M) {
 
 	squidReq := testcontainers.ContainerRequest{
 		Image:        "ubuntu/squid:5.2-22.04_beta",
-		ExposedPorts: []string{"3128/tcp"},
+		ExposedPorts: []string{"3128/tcp", "3129/tcp"},
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: squidConfPath, ContainerFilePath: "/etc/squid/squid.conf"},
 		},
-		Networks:   []string{networkName},
-		WaitingFor: wait.ForListeningPort("3128/tcp").WithStartupTimeout(120 * time.Second),
+		Networks: []string{networkName},
+		WaitingFor: wait.ForAll(
+			wait.ForListeningPort("3128/tcp"),
+			wait.ForListeningPort("3129/tcp"),
+		).WithStartupTimeoutDefault(120 * time.Second),
 	}
 
 	squidContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -80,6 +82,10 @@ func TestMain(m *testing.M) {
 	squidHost, _ := squidContainer.Host(ctx)
 	squidPort, _ := squidContainer.MappedPort(ctx, "3128/tcp")
 	proxyURL = fmt.Sprintf("http://%s:%s", squidHost, squidPort.Port())
+	/* 3129 is the same proxy but answers 407 unless the request carries
+	 * Proxy-Authorization credentials. */
+	squidAuthPort, _ := squidContainer.MappedPort(ctx, "3129/tcp")
+	authProxyURL = fmt.Sprintf("http://%s:%s", squidHost, squidAuthPort.Port())
 
 	// Start Chasm container
 	specPath := filepath.Join(fixturesDir, "openapi.yaml")
@@ -129,7 +135,7 @@ func TestMain(m *testing.M) {
 	// Cleanup
 	_ = chasmContainer.Terminate(ctx)
 	_ = squidContainer.Terminate(ctx)
-	_ = network.Remove(ctx)
+	_ = sharedNetwork.Remove(ctx)
 
 	os.Exit(code)
 }

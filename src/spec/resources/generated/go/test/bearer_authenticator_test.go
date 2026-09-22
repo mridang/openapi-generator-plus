@@ -89,7 +89,7 @@ func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 func TestBearerAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "super-secret-token")
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
 		if strings.Contains(s, "super-secret-token") {
 			t.Errorf("expected token to be redacted, got %q", s)
 		}

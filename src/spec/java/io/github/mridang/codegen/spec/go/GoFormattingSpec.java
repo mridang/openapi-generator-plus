@@ -16,7 +16,12 @@ public class GoFormattingSpec extends AbstractFormattingSpec implements GoSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"test -z \"$(gofmt -l .)\""};
+        /* gofmt, then gofumpt (a tool dependency in go.mod, run by the
+         * generated Makefile's format target). */
+        return new String[] {
+            "test -z \"$(gofmt -l .)\"",
+            "out=\"$(go tool gofumpt -l .)\"; echo \"$out\"; test -z \"$out\""
+        };
     }
 
     @Override

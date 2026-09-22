@@ -61,7 +61,7 @@ func TestBasicAuthenticator_RejectsMalformedCredentials(t *testing.T) {
 func TestBasicRedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustBasic(t, "https://api.example.com", "alice", "s3cret")
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
 		if strings.Contains(s, "s3cret") {
 			t.Errorf("expected password to be redacted, got %q", s)
 		}

@@ -14,7 +14,16 @@ public class GoLintingSpec extends AbstractIntegrationSpec implements GoSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"go vet ./..."};
+        /* The three checks the generated Makefile's vet, staticcheck and lint
+         * targets run, over the sources and the tests alike: go vet,
+         * staticcheck (a tool dependency in go.mod) and golangci-lint with the
+         * generated .golangci.yml. */
+        return new String[] {
+            "go vet ./...",
+            "go tool staticcheck ./...",
+            "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2",
+            "\"$GOPATH/bin/golangci-lint\" run ./..."
+        };
     }
 
     @Test

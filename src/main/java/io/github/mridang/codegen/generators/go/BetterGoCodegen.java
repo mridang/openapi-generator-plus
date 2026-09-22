@@ -416,36 +416,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/api_result_test.mustache",
                             "test",
                             "api_result_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_token_manager_test.mustache",
-                            "test",
-                            "oauth2_token_manager_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_auth_code_authenticator_test.mustache",
-                            "test",
-                            "oauth2_authorization_code_authenticator_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_implicit_authenticator_test.mustache",
-                            "test",
-                            "oauth2_implicit_authenticator_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_client_credentials_authenticator_test.mustache",
-                            "test",
-                            "oauth2_client_credentials_authenticator_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_password_authenticator_test.mustache",
-                            "test",
-                            "oauth2_password_authenticator_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/openid_connect_authenticator_test.mustache",
-                            "test",
-                            "openid_connect_authenticator_test.go"));
         }
 
         if (emitUnitTests()) {
@@ -533,6 +503,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "errors/serialization_error.mustache",
                         "pkg/errors",
                         "serialization_error.go"),
+                new SupportingFileSpec(
+                        "errors/oauth2_server_error.mustache",
+                        "pkg/errors",
+                        "oauth2_server_error.go"),
+                new SupportingFileSpec(
+                        "errors/oauth2_token_error.mustache",
+                        "pkg/errors",
+                        "oauth2_token_error.go"),
+                new SupportingFileSpec("errors_exports.mustache", "pkg", "errors.go"),
                 new SupportingFileSpec("header_selector.mustache", "pkg", "header_selector.go"),
                 new SupportingFileSpec(
                         "object_serializer.mustache", "pkg", "object_serializer.go"),
@@ -785,6 +764,46 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test",
                             "api_key_authenticator_test.go"));
         }
+    }
+
+    /**
+     * The OAuth2 and OpenID Connect tests, each gated on the scheme it
+     * exercises. Like the Basic, Bearer and API-key tests they are registered
+     * once the spec has been read, never from processOpts.
+     */
+    @Override
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of(
+                new OAuthTestFileSpec(
+                        "test/oauth2_token_manager_test.mustache",
+                        "test",
+                        "oauth2_token_manager_test.go",
+                        OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec(
+                        "test/oauth2_auth_code_authenticator_test.mustache",
+                        "test",
+                        "oauth2_authorization_code_authenticator_test.go",
+                        OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec(
+                        "test/oauth2_implicit_authenticator_test.mustache",
+                        "test",
+                        "oauth2_implicit_authenticator_test.go",
+                        OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec(
+                        "test/oauth2_client_credentials_authenticator_test.mustache",
+                        "test",
+                        "oauth2_client_credentials_authenticator_test.go",
+                        OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec(
+                        "test/oauth2_password_authenticator_test.mustache",
+                        "test",
+                        "oauth2_password_authenticator_test.go",
+                        OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec(
+                        "test/openid_connect_authenticator_test.mustache",
+                        "test",
+                        "openid_connect_authenticator_test.go",
+                        OAuthTestCondition.OIDC));
     }
 
     /** {@inheritDoc} */

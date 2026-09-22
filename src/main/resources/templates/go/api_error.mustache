@@ -10,7 +10,7 @@ import (
 // code, response headers, and response body.
 //
 // Its state is immutable: fields are unexported and set once at construction
-// via NewApiError (or the typed-subclass factory NewTypedApiError). Callers
+// via NewApiError (or the status factory FromResponse). Callers
 // read the state through the getter methods, so an error value handed to one
 // caller can never be mutated out from under another.
 type ApiError struct {
@@ -137,20 +137,24 @@ func NewNetworkTimeoutError(msg string, cause error) *NetworkTimeoutError {
 	return &NetworkTimeoutError{NetworkError: NetworkError{ApiError: ApiError{msg: msg, cause: cause}}}
 }
 
-// NewTypedApiError builds the most specific error type for the given HTTP
-// status code, sharing one immutable ApiError as the embedded base. 4xx codes
-// produce a *ClientError (or a recognised subclass); 5xx codes a *ServerError
-// (or a recognised subclass); anything else the bare *ApiError. The returned
-// value always satisfies the error interface and exposes the base state via the
-// promoted getters.
-func NewTypedApiError(statusCode int, msg, responseBody string, responseHeaders map[string]string, errorBody any, cause error) error {
+// FromResponse builds the error for a non-2xx HTTP response: the most specific
+// type for the status code, sharing one immutable ApiError as the embedded
+// base. 4xx codes produce a *ClientError (or a recognised subclass); 5xx codes
+// a *ServerError (or a recognised subclass); anything else the bare *ApiError.
+// A JSON body is also parsed into the error body. Every generated operation and
+// the OpenID Connect discovery request build their HTTP errors here, so this is
+// the one place the status-to-error mapping lives.
+func FromResponse(statusCode int, headers map[string]string, body string) error {
+	var errorBody any
+	if body != "" {
+		_ = json.Unmarshal([]byte(body), &errorBody)
+	}
 	base := ApiError{
 		statusCode:      statusCode,
-		msg:             msg,
-		responseBody:    responseBody,
-		responseHeaders: responseHeaders,
+		msg:             fmt.Sprintf("API returned status code %d", statusCode),
+		responseBody:    body,
+		responseHeaders: headers,
 		errorBody:       errorBody,
-		cause:           cause,
 	}
 
 	if statusCode >= 400 && statusCode < 500 {

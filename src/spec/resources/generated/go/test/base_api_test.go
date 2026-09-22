@@ -1004,14 +1004,20 @@ func TestBaseApi_SerializesFormUrlencodedBody(t *testing.T) {
 }
 
 func TestBaseApi_FormUrlencodedBodyEncodesSpaceAsPlus(t *testing.T) {
+	t.Parallel()
 	/* form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
-	 * mandates '+' for a space (WHATWG/HTML form-encoding). The SDK's
-	 * serializeBody uses url.Values.Encode() which emits '+', but
-	 * serializeBody is unexported and this is an external (_test) package,
-	 * and generated operations only send JSON bodies — so the form-encoding
-	 * path cannot be exercised from here. Skipped to keep scenario parity
-	 * while flagging the reachability gap. */
-	t.Skip("serializeBody is unexported; form body path not reachable from external test package")
+	 * mandates '+' for a space (WHATWG/HTML form-encoding), not %20. */
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, _ = api.SetPetPreferences(int64(1), &options.SetPetPreferencesOptions{Nickname: "good boy"})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	if string(body) != "nickname=good+boy" {
+		t.Errorf("expected a space encoded as '+', got %q", string(body))
+	}
 }
 
 func TestBaseApi_PassesBinaryBody(t *testing.T) {
@@ -1413,7 +1419,7 @@ func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
 	 * deserialize into the caller's target. Constructed directly with a known
 	 * body (matching the unit-test approach used by the other 11 SDKs) rather
 	 * than depending on a live server returning a body. */
-	typedErr := apierrors.NewTypedApiError(400, "bad request", `{"title":"Bad Input","status":400}`, nil, nil, nil)
+	typedErr := apierrors.FromResponse(400, nil, `{"title":"Bad Input","status":400}`)
 	bre, ok := typedErr.(*apierrors.BadRequestError)
 	if !ok {
 		t.Fatalf("expected *BadRequestError, got %T", typedErr)

@@ -121,7 +121,7 @@ func TestApiKeyAuthenticator_HeaderLocationRejectsNonAscii(t *testing.T) {
 func TestApiKeyAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
 		if strings.Contains(s, "abc123") {
 			t.Errorf("expected api key to be redacted, got %q", s)
 		}
