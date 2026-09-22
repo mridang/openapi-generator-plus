@@ -200,6 +200,29 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
+    # Every wire-shape failure is a SerializationError and part of the
+    # OpenAPIError hierarchy: malformed JSON, a wrong primitive type, a
+    # missing required field, an unknown enum value and a malformed date-time
+    # or duration.
+    test "every wire-shape failure is a SerializationError" do
+      for {json, model} <- [
+            {"{", "Pet"},
+            {~s({"name":7,"photoUrls":[]}), "Pet"},
+            {~s({"photoUrls":[]}), "Pet"},
+            {~s({"status":"lost"}), "Order"},
+            {~s({"shipDate":"not-a-date"}), "Order"},
+            {~s({"retryAfter":"PT1H"}), "EdgeCases"}
+          ] do
+        err =
+          assert_raise PetstoreClient.SerializationError, fn ->
+            PetstoreClient.ObjectSerializer.deserialize(json, model)
+          end
+
+        assert PetstoreClient.OpenAPIError.open_api_error?(err),
+               "#{model} #{json} must raise an SDK error"
+      end
+    end
+
     test "thrown SerializationError has a message referencing the failure" do
       try do
         PetstoreClient.ObjectSerializer.deserialize("{", "Category")

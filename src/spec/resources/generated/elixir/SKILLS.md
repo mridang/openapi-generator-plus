@@ -54,7 +54,7 @@ client = PetstoreClient.Client.new(authenticator)
 
 ```elixir
 authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [])
 client = PetstoreClient.Client.new(authenticator)
 ```
 
@@ -63,7 +63,8 @@ client = PetstoreClient.Client.new(authenticator)
 ```elixir
 authenticator = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
   "https://api.example.com", "client-id", "client-secret",
-  "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+  "https://auth.example.com/authorize", "https://auth.example.com/token",
+  "https://app.example.com/callback", [])
 client = PetstoreClient.Client.new(authenticator)
 ```
 
@@ -72,7 +73,7 @@ client = PetstoreClient.Client.new(authenticator)
 ```elixir
 authenticator = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
   "https://api.example.com", "client-id", "client-secret",
-  "https://auth.example.com/token", "username", "password")
+  "https://auth.example.com/token", "username", "password", [])
 client = PetstoreClient.Client.new(authenticator)
 ```
 
@@ -81,7 +82,10 @@ client = PetstoreClient.Client.new(authenticator)
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```elixir
-authenticator = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new("https://api.example.com", "your-access-token")
+authenticator =
+  PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", [])
+  |> PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token("your-access-token")
 client = PetstoreClient.Client.new(authenticator)
 ```
 
@@ -89,8 +93,8 @@ client = PetstoreClient.Client.new(authenticator)
 
 ```elixir
 authenticator = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret",
-  "https://auth.example.com/.well-known/openid-configuration")
+  "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+  "client-id", "client-secret", "https://app.example.com/callback", [])
 client = PetstoreClient.Client.new(authenticator)
 ```
 
@@ -119,7 +123,7 @@ Override the default if your authorization server only accepts one form:
 
 ```elixir
 authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token",
+  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [],
   client_auth_method: :basic)
 ```
 

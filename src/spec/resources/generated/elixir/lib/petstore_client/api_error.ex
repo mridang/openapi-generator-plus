@@ -83,4 +83,30 @@ defmodule PetstoreClient.ApiError do
   def typed_error_body(%__MODULE__{} = error, type_name) do
     PetstoreClient.ObjectSerializer.deserialize(error.response_body, type_name)
   end
+
+  @family [
+    PetstoreClient.ApiError,
+    PetstoreClient.Errors.ClientError,
+    PetstoreClient.Errors.BadRequestError,
+    PetstoreClient.Errors.UnauthorizedError,
+    PetstoreClient.Errors.ForbiddenError,
+    PetstoreClient.Errors.NotFoundError,
+    PetstoreClient.Errors.ConflictError,
+    PetstoreClient.Errors.UnprocessableEntityError,
+    PetstoreClient.Errors.ServerError,
+    PetstoreClient.Errors.InternalServerError,
+    PetstoreClient.Errors.NetworkError,
+    PetstoreClient.Errors.NetworkTimeoutError
+  ]
+
+  @doc """
+  Returns `true` if `term` is an `ApiError` or one of the errors that
+  specialise it (the 4xx and 5xx errors, `NetworkError` and
+  `NetworkTimeoutError`), `false` otherwise. Elixir exceptions have no
+  inheritance, so this predicate expresses the hierarchy the other SDKs
+  express with subclasses.
+  """
+  @spec api_error?(term()) :: boolean()
+  def api_error?(%module{}), do: module in @family
+  def api_error?(_term), do: false
 end

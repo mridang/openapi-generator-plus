@@ -42,4 +42,17 @@ defmodule PetstoreClient.Errors.NetworkError do
   @impl true
   def message(%__MODULE__{} = error),
     do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
+
+  @family [
+    PetstoreClient.Errors.NetworkError,
+    PetstoreClient.Errors.NetworkTimeoutError
+  ]
+
+  @doc """
+  Returns `true` if `term` is a `NetworkError` or the `NetworkTimeoutError`
+  that specialises it, `false` otherwise.
+  """
+  @spec network_error?(term()) :: boolean()
+  def network_error?(%module{}), do: module in @family
+  def network_error?(_term), do: false
 end

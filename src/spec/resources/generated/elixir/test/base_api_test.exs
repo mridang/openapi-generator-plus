@@ -803,6 +803,35 @@ defmodule PetstoreClient.Api.BaseApiTest do
       )
   end
 
+  # An authenticator cookie holding characters RFC 6265 forbids is a caller
+  # mistake: ArgumentError before any request is sent.
+  test "raises ArgumentError for an auth cookie RFC 6265 forbids", %{state: state} do
+    auth = %TestAuthenticator{
+      host_url: "",
+      headers: %{},
+      query: %{},
+      cookies: %{"session" => "a;b"}
+    }
+
+    err =
+      assert_raise ArgumentError, ~r/6265/, fn ->
+        PetstoreClient.Api.BaseApi.invoke_api(
+          state,
+          :get,
+          "/test/echo",
+          %{},
+          %{},
+          nil,
+          ["application/json"],
+          "application/json",
+          nil,
+          auth
+        )
+      end
+
+    refute PetstoreClient.OpenAPIError.open_api_error?(err)
+  end
+
   # Nil body handling
 
   test "handles nil body", %{state: state} do

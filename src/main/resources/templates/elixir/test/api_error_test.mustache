@@ -131,6 +131,34 @@ defmodule {{moduleName}}.ApiErrorTest do
       end
     end
 
+    # Elixir exceptions have no inheritance, so the family predicates express
+    # the hierarchy: a 404 is a NotFoundError, a ClientError and an ApiError; a
+    # 500 is an InternalServerError, a ServerError and an ApiError; a
+    # NetworkTimeoutError is a NetworkError and an ApiError.
+    test "family predicates express the error hierarchy" do
+      not_found = {{moduleName}}.Errors.NotFoundError.exception(%{message: "missing", status_code: 404})
+      assert {{moduleName}}.Errors.ClientError.client_error?(not_found)
+      refute {{moduleName}}.Errors.ServerError.server_error?(not_found)
+      refute {{moduleName}}.Errors.NetworkError.network_error?(not_found)
+      assert {{moduleName}}.ApiError.api_error?(not_found)
+      assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(not_found)
+
+      internal = {{moduleName}}.Errors.InternalServerError.exception(%{message: "boom", status_code: 500})
+      assert {{moduleName}}.Errors.ServerError.server_error?(internal)
+      refute {{moduleName}}.Errors.ClientError.client_error?(internal)
+      assert {{moduleName}}.ApiError.api_error?(internal)
+      assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(internal)
+
+      timeout = {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out")
+      assert {{moduleName}}.Errors.NetworkError.network_error?(timeout)
+      assert {{moduleName}}.ApiError.api_error?(timeout)
+      refute {{moduleName}}.Errors.NetworkError.network_error?({{moduleName}}.ApiError.exception(message: "x"))
+
+      serialization = %{{moduleName}}.SerializationError{message: "bad"}
+      refute {{moduleName}}.ApiError.api_error?(serialization)
+      refute {{moduleName}}.ApiError.api_error?(%ArgumentError{message: "unrelated"})
+    end
+
     test "network errors carry status 0" do
       assert {{moduleName}}.Errors.NetworkError.exception(message: "refused").status_code == 0
       assert {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out").status_code == 0

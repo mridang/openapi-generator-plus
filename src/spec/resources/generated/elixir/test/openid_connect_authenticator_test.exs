@@ -18,22 +18,27 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       %__MODULE__{agent: agent}
     end
 
+    # A queued exception is raised instead of answered, to simulate a
+    # transport failure.
     def send_request(%__MODULE__{agent: agent}, method, url, _headers, body) do
-      Agent.get_and_update(agent, fn state ->
-        [response | rest] = state.responses
-        get_count = if method == :get, do: state.get_count + 1, else: state.get_count
+      response =
+        Agent.get_and_update(agent, fn state ->
+          [response | rest] = state.responses
+          get_count = if method == :get, do: state.get_count + 1, else: state.get_count
 
-        new_state = %{
-          state
-          | responses: rest,
-            last_url: url,
-            last_body: body,
-            last_method: method,
-            get_count: get_count
-        }
+          new_state = %{
+            state
+            | responses: rest,
+              last_url: url,
+              last_body: body,
+              last_method: method,
+              get_count: get_count
+          }
 
-        {response, new_state}
-      end)
+          {response, new_state}
+        end)
+
+      if is_exception(response), do: raise(response), else: response
     end
 
     def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
@@ -174,14 +179,56 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "throws when no ApiClient injected" do
       auth = create_authenticator()
 
-      assert_raise RuntimeError, fn ->
+      err =
+        assert_raise RuntimeError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+
+      # A wrong call order is not an SDK error.
+      refute PetstoreClient.OpenAPIError.open_api_error?(err)
+    end
+
+    # OIDC discovery is an HTTP call like any other: a 404 is a NotFoundError,
+    # a transport failure propagates as the NetworkError / NetworkTimeoutError
+    # it already is, and an unparseable document is a SerializationError.
+    test "discovery failures are typed" do
+      discover = fn response ->
+        auth =
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+            create_authenticator(),
+            FakeApiClient.new([response])
+          )
+
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      end
+
+      err =
+        assert_raise PetstoreClient.Errors.NotFoundError, fn ->
+          discover.(%PetstoreClient.ApiHttpResponse{status_code: 404, body: "missing"})
+        end
+
+      assert err.status_code == 404
+      assert PetstoreClient.Errors.ClientError.client_error?(err)
+
+      err =
+        assert_raise PetstoreClient.Errors.NetworkError, fn ->
+          discover.(PetstoreClient.Errors.NetworkError.exception(message: "connection refused"))
+        end
+
+      assert err.status_code == 0
+
+      assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+        discover.(PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out"))
+      end
+
+      assert_raise PetstoreClient.SerializationError, fn ->
+        discover.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "{not json"})
       end
     end
 
     # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
-    # raise a discovery-failure error rather than surfacing as an opaque
-    # "invalid JSON" parse error.
+    # raise the typed ApiError for its status rather than surfacing as an
+    # opaque "invalid JSON" parse error.
     test "raises on non-2xx discovery response instead of parsing it as JSON" do
       fake_client =
         FakeApiClient.new([
@@ -196,9 +243,12 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth =
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
-      assert_raise RuntimeError, ~r/discovery/i, fn ->
-        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
-      end
+      err =
+        assert_raise PetstoreClient.Errors.InternalServerError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+
+      assert err.status_code == 500
     end
 
     # oauth-oidc-missing-endpoint-guard: a discovery document missing the
@@ -218,7 +268,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth =
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
-      assert_raise RuntimeError, ~r/authorization_endpoint/, fn ->
+      # An incomplete discovery document is a SerializationError.
+      assert_raise PetstoreClient.SerializationError, ~r/authorization_endpoint/, fn ->
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       end
     end
@@ -238,7 +289,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth =
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
-      assert_raise RuntimeError, ~r/token_endpoint/, fn ->
+      assert_raise PetstoreClient.SerializationError, ~r/token_endpoint/, fn ->
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       end
     end

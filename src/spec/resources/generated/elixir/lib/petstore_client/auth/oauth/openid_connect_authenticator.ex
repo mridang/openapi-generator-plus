@@ -160,15 +160,26 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         mod when is_atom(mod) -> mod.send_request(:get, self.openid_connect_url, headers, nil)
       end
 
-    # Guard the HTTP status before parsing: a 500-HTML / 404 body would
-    # otherwise surface as a confusing "invalid JSON" error instead of a
-    # clear discovery-failure. Matches the other status-checking SDKs.
+    # Discovery is an HTTP call like any other: a transport failure is
+    # already a NetworkError or NetworkTimeoutError and propagates as is, and
+    # a non-2xx status is the typed ApiError for that status. Guarding the
+    # status before parsing keeps a 500-HTML / 404 body from surfacing as a
+    # confusing "invalid JSON" error.
     if response.status_code < 200 or response.status_code >= 300 do
-      raise "OIDC discovery request to #{self.openid_connect_url} failed " <>
-              "with HTTP status #{response.status_code}"
+      raise PetstoreClient.Api.BaseApi.throw_api_error(response)
     end
 
-    discovery = Jason.decode!(response.body)
+    # An unparseable or incomplete document is a SerializationError.
+    discovery =
+      case Jason.decode(response.body || "") do
+        {:ok, %{} = map} ->
+          map
+
+        _ ->
+          raise PetstoreClient.SerializationError,
+            message:
+              "OIDC discovery document from #{self.openid_connect_url} is not a JSON object"
+      end
 
     authorization_endpoint = discovery["authorization_endpoint"]
     token_endpoint = discovery["token_endpoint"]
@@ -178,13 +189,17 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     # delegate with empty/nil endpoint URLs and fail much later with an
     # opaque error.
     if not is_binary(authorization_endpoint) or String.trim(authorization_endpoint) == "" do
-      raise "OIDC discovery document from #{self.openid_connect_url} is missing " <>
-              "a valid 'authorization_endpoint'"
+      raise PetstoreClient.SerializationError,
+        message:
+          "OIDC discovery document from #{self.openid_connect_url} is missing " <>
+            "a valid 'authorization_endpoint'"
     end
 
     if not is_binary(token_endpoint) or String.trim(token_endpoint) == "" do
-      raise "OIDC discovery document from #{self.openid_connect_url} is missing " <>
-              "a valid 'token_endpoint'"
+      raise PetstoreClient.SerializationError,
+        message:
+          "OIDC discovery document from #{self.openid_connect_url} is missing " <>
+            "a valid 'token_endpoint'"
     end
 
     delegate =

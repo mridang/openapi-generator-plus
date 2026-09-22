@@ -537,8 +537,28 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     client = PetstoreClient.DefaultApiClient.new()
 
-    assert_raise PetstoreClient.ApiError, fn ->
-      PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+    err =
+      assert_raise PetstoreClient.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+      end
+
+    # The redirect response arrived, so the error keeps its real status.
+    assert err.status_code == 302
+    refute PetstoreClient.Errors.NetworkError.network_error?(err)
+  end
+
+  # A malformed or non-HTTP request URL is a caller mistake: ArgumentError,
+  # never a NetworkError.
+  test "malformed request URL raises ArgumentError" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    for url <- ["http://[::1", "file:///etc/passwd", "not a url"] do
+      err =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.DefaultApiClient.send_request(client, :get, url, %{}, nil)
+        end
+
+      refute PetstoreClient.OpenAPIError.open_api_error?(err)
     end
   end
 
@@ -549,9 +569,12 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "non-existent caCertPath raises ArgumentError at construction" do
     transport = PetstoreClient.TransportOptions.new(ca_cert_path: "/nonexistent/ca.pem")
 
-    assert_raise ArgumentError, fn ->
-      PetstoreClient.DefaultApiClient.new(transport)
-    end
+    err =
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.DefaultApiClient.new(transport)
+      end
+
+    refute PetstoreClient.OpenAPIError.open_api_error?(err)
   end
 
   # network-error: a request that gets no HTTP response (connection refused)
@@ -579,6 +602,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert err.status_code == 0
     assert %Req.TransportError{} = err.cause
     assert PetstoreClient.OpenAPIError.open_api_error?(err)
+    assert PetstoreClient.ApiError.api_error?(err)
 
     assert System.monotonic_time(:millisecond) - started < 2_000,
            "the request must not be retried"
@@ -613,6 +637,9 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     assert err.status_code == 0
     assert PetstoreClient.OpenAPIError.open_api_error?(err)
+    # A NetworkTimeoutError is a NetworkError, which is an ApiError.
+    assert PetstoreClient.Errors.NetworkError.network_error?(err)
+    assert PetstoreClient.ApiError.api_error?(err)
   end
 
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do
@@ -725,9 +752,12 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     client = PetstoreClient.DefaultApiClient.new(transport)
 
-    assert_raise PetstoreClient.ApiError, fn ->
-      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/loop", %{}, nil)
-    end
+    err =
+      assert_raise PetstoreClient.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/loop", %{}, nil)
+      end
+
+    assert err.status_code == 302
   end
 
   # ── Gap AL — Content-Encoding lie (gzip header, non-gzip body) ─────────────
@@ -750,9 +780,36 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     client = PetstoreClient.DefaultApiClient.new()
 
-    assert_raise PetstoreClient.ApiError, fn ->
-      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
-    end
+    err =
+      assert_raise PetstoreClient.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
+      end
+
+    # The response arrived, so the error carries its real status code and is
+    # never a NetworkError.
+    assert err.status_code == 200
+    refute PetstoreClient.Errors.NetworkError.network_error?(err)
+  end
+
+  # A body that carries the gzip magic bytes but is truncated is also a
+  # response that arrived but cannot be used.
+  test "corrupt gzip body with the magic bytes raises ApiError with the real status" do
+    base_url =
+      start_server(
+        503,
+        "application/json",
+        <<0x1F, 0x8B, 0x08, 0x00>> <> "truncated",
+        [{"Content-Encoding", "gzip"}]
+      )
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    err =
+      assert_raise PetstoreClient.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
+      end
+
+    assert err.status_code == 503
   end
 
   # ── Multipart filename directive (Gap BI / Gap F) ──────────────────────────

@@ -36,4 +36,17 @@ defmodule PetstoreClient.Errors.ServerError do
   @impl true
   def message(%__MODULE__{} = error),
     do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
+
+  @family [
+    PetstoreClient.Errors.ServerError,
+    PetstoreClient.Errors.InternalServerError
+  ]
+
+  @doc """
+  Returns `true` if `term` is a `ServerError` or one of the 5xx errors that
+  specialise it, `false` otherwise.
+  """
+  @spec server_error?(term()) :: boolean()
+  def server_error?(%module{}), do: module in @family
+  def server_error?(_term), do: false
 end

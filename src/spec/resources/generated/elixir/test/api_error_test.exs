@@ -133,6 +133,41 @@ defmodule PetstoreClient.ApiErrorTest do
       end
     end
 
+    # Elixir exceptions have no inheritance, so the family predicates express
+    # the hierarchy: a 404 is a NotFoundError, a ClientError and an ApiError; a
+    # 500 is an InternalServerError, a ServerError and an ApiError; a
+    # NetworkTimeoutError is a NetworkError and an ApiError.
+    test "family predicates express the error hierarchy" do
+      not_found =
+        PetstoreClient.Errors.NotFoundError.exception(%{message: "missing", status_code: 404})
+
+      assert PetstoreClient.Errors.ClientError.client_error?(not_found)
+      refute PetstoreClient.Errors.ServerError.server_error?(not_found)
+      refute PetstoreClient.Errors.NetworkError.network_error?(not_found)
+      assert PetstoreClient.ApiError.api_error?(not_found)
+      assert PetstoreClient.OpenAPIError.open_api_error?(not_found)
+
+      internal =
+        PetstoreClient.Errors.InternalServerError.exception(%{message: "boom", status_code: 500})
+
+      assert PetstoreClient.Errors.ServerError.server_error?(internal)
+      refute PetstoreClient.Errors.ClientError.client_error?(internal)
+      assert PetstoreClient.ApiError.api_error?(internal)
+      assert PetstoreClient.OpenAPIError.open_api_error?(internal)
+
+      timeout = PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out")
+      assert PetstoreClient.Errors.NetworkError.network_error?(timeout)
+      assert PetstoreClient.ApiError.api_error?(timeout)
+
+      refute PetstoreClient.Errors.NetworkError.network_error?(
+               PetstoreClient.ApiError.exception(message: "x")
+             )
+
+      serialization = %PetstoreClient.SerializationError{message: "bad"}
+      refute PetstoreClient.ApiError.api_error?(serialization)
+      refute PetstoreClient.ApiError.api_error?(%ArgumentError{message: "unrelated"})
+    end
+
     test "network errors carry status 0" do
       assert PetstoreClient.Errors.NetworkError.exception(message: "refused").status_code == 0
 

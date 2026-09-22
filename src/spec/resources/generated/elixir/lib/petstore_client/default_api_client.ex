@@ -171,13 +171,22 @@ defmodule PetstoreClient.DefaultApiClient do
         ) :: PetstoreClient.ApiHttpResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body, request_opts)
       when is_list(request_opts) do
-    # Gap T6 / close-lifecycle: reject use-after-close with a typed SDK
-    # error rather than letting the call proceed against a logically
-    # closed client.
+    # Gap T6 / close-lifecycle: use-after-close is a wrong call order, so it
+    # raises RuntimeError rather than letting the call proceed against a
+    # logically closed client.
     if client.closed != nil and :atomics.get(client.closed, 1) == 1 do
-      raise PetstoreClient.ApiError,
-        message: "ApiClient has been closed and can no longer be used",
-        status_code: 0
+      raise RuntimeError, "ApiClient has been closed and can no longer be used"
+    end
+
+    # A malformed or non-HTTP request URL is a caller mistake, not a network
+    # failure.
+    case URI.new(to_string(url)) do
+      {:ok, %URI{scheme: scheme, host: host}}
+      when scheme in ["http", "https"] and is_binary(host) and host != "" ->
+        :ok
+
+      _ ->
+        raise ArgumentError, "malformed request URL: #{inspect(url)}"
     end
 
     opts = client.transport_options
@@ -270,8 +279,14 @@ defmodule PetstoreClient.DefaultApiClient do
         e in [Req.TransportError, Req.HTTPError] ->
           reraise transport_error(e), __STACKTRACE__
 
+        # A malformed request (a bad URL, an unsupported method) is a caller
+        # mistake and keeps its ArgumentError.
+        e in [ArgumentError] ->
+          reraise e, __STACKTRACE__
+
+        # Any other failure produced no HTTP response.
         e ->
-          reraise PetstoreClient.ApiError,
+          reraise PetstoreClient.Errors.NetworkError,
                   [message: Exception.message(e), status_code: 0, cause: e],
                   __STACKTRACE__
       end
@@ -279,7 +294,7 @@ defmodule PetstoreClient.DefaultApiClient do
     headers = normalize_headers(response.headers)
     content_type = Map.get(headers, "content-type") || ""
     content_encoding = Map.get(headers, "content-encoding") || ""
-    body_binary = decompress_body(response.body || "", content_encoding)
+    body_binary = decompress_body(response.body || "", content_encoding, response.status)
 
     response_body =
       if is_text_content_type(content_type) do
@@ -318,11 +333,12 @@ defmodule PetstoreClient.DefaultApiClient do
   # Explicitly decompress a response body keyed on its Content-Encoding. Req's
   # auto-decompression is disabled (raw: true) because its behaviour varies
   # across Req 0.5.x patch releases; doing it here is deterministic and matches
-  # the explicit decompression performed by the other 11 SDKs. A malformed
-  # compressed body surfaces as a typed ApiError rather than a raw library
-  # crash (parity with the cross-SDK "wrap decompression failures" contract).
-  @spec decompress_body(binary(), String.t()) :: binary()
-  defp decompress_body(body, encoding) when is_binary(body) do
+  # the explicit decompression performed by the other 11 SDKs. A response that
+  # arrived but cannot be decompressed surfaces as a typed ApiError carrying the
+  # response's real status code, never a NetworkError (parity with the
+  # cross-SDK "wrap decompression failures" contract).
+  @spec decompress_body(binary(), String.t(), integer()) :: binary()
+  defp decompress_body(body, encoding, status) when is_binary(body) do
     case encoding |> to_string() |> String.trim() |> String.downcase() do
       "" ->
         body
@@ -331,38 +347,38 @@ defmodule PetstoreClient.DefaultApiClient do
         body
 
       "gzip" ->
-        gunzip_body(body, "gzip")
+        gunzip_body(body, "gzip", status)
 
       "x-gzip" ->
-        gunzip_body(body, "x-gzip")
+        gunzip_body(body, "x-gzip", status)
 
       "deflate" ->
-        inflate_body(body)
+        inflate_body(body, status)
 
       "br" ->
-        brotli_body(body)
+        brotli_body(body, status)
 
       other ->
         raise PetstoreClient.ApiError,
           message: "Unsupported Content-Encoding '#{other}' in response body",
-          status_code: 0
+          status_code: status
     end
   end
 
   # Only gunzip when the body actually carries the gzip magic bytes (0x1F 0x8B).
-  defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label) do
+  defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label, status) do
     :zlib.gunzip(body)
   rescue
     e ->
       raise PetstoreClient.ApiError,
         message: "Failed to decompress #{label} response body: #{Exception.message(e)}",
-        status_code: 0,
+        status_code: status,
         cause: e
   end
 
   # An empty body declared gzip is a degenerate but harmless case (nothing to
   # decompress); pass it through untouched rather than failing the request.
-  defp gunzip_body(<<>>, _label), do: <<>>
+  defp gunzip_body(<<>>, _label, _status), do: <<>>
 
   # Gap AL: the body claims `Content-Encoding: gzip` but lacks the gzip magic
   # bytes (0x1F 0x8B). A mislabelling server (or a tampered response) handed us
@@ -371,17 +387,17 @@ defmodule PetstoreClient.DefaultApiClient do
   # Surface a typed ApiError instead — the decode failure must not be hidden.
   # Matches the java/python/ruby/go/php "wrap decompression failures as the
   # SDK error" contract; previously Elixir passed these bytes through unchanged.
-  defp gunzip_body(_body, label) do
+  defp gunzip_body(_body, label, status) do
     raise PetstoreClient.ApiError,
       message:
         "Failed to decompress #{label} response body: " <>
           "Content-Encoding declared #{label} but the body is not a valid gzip stream",
-      status_code: 0
+      status_code: status
   end
 
   # HTTP "deflate" is nominally zlib-wrapped, but some servers emit raw
   # (headerless) DEFLATE; try zlib first, then fall back to raw inflate.
-  defp inflate_body(body) do
+  defp inflate_body(body, status) do
     try do
       :zlib.uncompress(body)
     rescue
@@ -401,7 +417,7 @@ defmodule PetstoreClient.DefaultApiClient do
           e ->
             raise PetstoreClient.ApiError,
               message: "Failed to decompress deflate response body: #{Exception.message(e)}",
-              status_code: 0,
+              status_code: status,
               cause: e
         end
     end
@@ -409,7 +425,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
   # `br` is only advertised in Accept-Encoding when the optional :brotli NIF is
   # loaded, so a server should never send it otherwise; guard anyway.
-  defp brotli_body(body) do
+  defp brotli_body(body, status) do
     if Code.ensure_loaded?(:brotli) do
       case :brotli.decode(body) do
         {:ok, decoded} ->
@@ -418,12 +434,12 @@ defmodule PetstoreClient.DefaultApiClient do
         _ ->
           raise PetstoreClient.ApiError,
             message: "Failed to decompress br response body",
-            status_code: 0
+            status_code: status
       end
     else
       raise PetstoreClient.ApiError,
         message: "Received a br-encoded response but the :brotli decoder is unavailable",
-        status_code: 0
+        status_code: status
     end
   end
 
@@ -667,21 +683,6 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   defp do_request_with_redirects(
-         _client,
-         _method,
-         _url,
-         _orig_url,
-         _headers,
-         _body,
-         max,
-         hops,
-         _no_redirect
-       )
-       when hops > max do
-    raise PetstoreClient.ApiError, message: "too many redirects", status_code: 0
-  end
-
-  defp do_request_with_redirects(
          client,
          method,
          url,
@@ -762,7 +763,7 @@ defmodule PetstoreClient.DefaultApiClient do
                 message:
                   "refusing to follow redirect to non-http(s) Location " <>
                     "(#{response.status} redirect from #{orig_url} to #{next_url})",
-                status_code: 0
+                status_code: response.status
 
             true ->
               cross_origin = not same_origin?(orig_url, next_url)
@@ -778,7 +779,7 @@ defmodule PetstoreClient.DefaultApiClient do
                   message:
                     "refusing to replay request body across HTTPS->HTTP downgrade " <>
                       "(#{response.status} redirect from #{orig_url} to #{next_url})",
-                  status_code: 0
+                  status_code: response.status
               end
 
               # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
@@ -809,6 +810,14 @@ defmodule PetstoreClient.DefaultApiClient do
                 else
                   stripped_headers
                 end
+
+              # Exceeding the redirect cap is a response that arrived but
+              # cannot be used: an ApiError with the redirect's real status.
+              if hops + 1 > max do
+                raise PetstoreClient.ApiError,
+                  message: "too many redirects (exceeded #{max})",
+                  status_code: response.status
+              end
 
               do_request_with_redirects(
                 client,

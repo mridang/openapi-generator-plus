@@ -424,13 +424,6 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.exs"));
-            if (hasBasicAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/basic_authenticator_test.mustache",
-                                "test",
-                                "basic_authenticator_test.exs"));
-            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/bearer_authenticator_test.mustache",
@@ -615,6 +608,24 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     protected String toAuthFilename(String stem) {
         return stem + ".ex";
+    }
+
+    /**
+     * Registers the Basic authenticator test. It must be added here rather than
+     * in processOpts: the security-scheme flags are only set once the spec has
+     * been read, so a check in processOpts always saw them false and the test
+     * was never generated.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (generateTests && hasBasicAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/basic_authenticator_test.mustache",
+                            "test",
+                            "basic_authenticator_test.exs"));
+        }
     }
 
     /** {@inheritDoc} */

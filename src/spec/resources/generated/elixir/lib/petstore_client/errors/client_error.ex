@@ -36,4 +36,22 @@ defmodule PetstoreClient.Errors.ClientError do
   @impl true
   def message(%__MODULE__{} = error),
     do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
+
+  @family [
+    PetstoreClient.Errors.ClientError,
+    PetstoreClient.Errors.BadRequestError,
+    PetstoreClient.Errors.UnauthorizedError,
+    PetstoreClient.Errors.ForbiddenError,
+    PetstoreClient.Errors.NotFoundError,
+    PetstoreClient.Errors.ConflictError,
+    PetstoreClient.Errors.UnprocessableEntityError
+  ]
+
+  @doc """
+  Returns `true` if `term` is a `ClientError` or one of the 4xx errors that
+  specialise it, `false` otherwise.
+  """
+  @spec client_error?(term()) :: boolean()
+  def client_error?(%module{}), do: module in @family
+  def client_error?(_term), do: false
 end

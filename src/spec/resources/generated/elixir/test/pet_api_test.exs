@@ -857,6 +857,25 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "get_pet_by_name raises ArgumentError when the path param is empty" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    err =
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
+          api,
+          "",
+          %PetstoreClient.Api.Options.GetPetByNameOptions{category: "dog"}
+        )
+      end
+
+    refute PetstoreClient.OpenAPIError.open_api_error?(err)
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
   test "get_pet_by_name sends the required category on the wire" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

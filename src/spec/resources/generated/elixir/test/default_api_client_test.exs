@@ -567,10 +567,11 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     # Every refusing request — and ONLY those — got its own "too many
     # redirects" error. The refusal did not leak onto A or B above.
     Enum.each(refuse_results, fn result ->
-      assert {:error, %PetstoreClient.ApiError{message: message}} = result
-      # ApiError renders the message with a trailing "HTTP status code: 0" line,
-      # so match the refusal text as a substring rather than an exact string.
+      assert {:error, %PetstoreClient.ApiError{message: message, status_code: status}} = result
       assert message =~ "too many redirects"
+      # A refused redirect is a response that arrived but cannot be used: it
+      # carries the redirect's real status, never 0.
+      assert status == 302
     end)
   end
 
@@ -685,27 +686,31 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   end
 
   # Gap T6 / close-lifecycle: close/1 is idempotent and returns :ok, and
-  # marks the client closed so any subsequent use raises a typed SDK error
-  # (uniform use-after-close contract).
+  # marks the client closed so any subsequent use raises RuntimeError
+  # (uniform use-after-close contract: a wrong call order is not an SDK
+  # error).
   test "close releases underlying client (Gap T6)" do
     client = PetstoreClient.DefaultApiClient.new()
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
   end
 
-  test "use-after-close raises a typed ApiError" do
+  test "use-after-close raises RuntimeError" do
     client = PetstoreClient.DefaultApiClient.new()
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
 
-    assert_raise PetstoreClient.ApiError, fn ->
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "http://127.0.0.1:1/never",
-        %{},
-        nil
-      )
-    end
+    err =
+      assert_raise RuntimeError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:1/never",
+          %{},
+          nil
+        )
+      end
+
+    refute PetstoreClient.OpenAPIError.open_api_error?(err)
   end
 
   # Gap F-W5-2: Req/Finch's `:receive_timeout` is per-chunk inactivity

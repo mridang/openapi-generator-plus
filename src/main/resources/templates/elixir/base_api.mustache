@@ -312,7 +312,10 @@ defmodule {{moduleName}}.Api.BaseApi do
 
   defp auth_credentials(_effective_auth, _callback), do: nil
 
-  defp throw_api_error(response) do
+  @doc false
+  # Builds the typed error for a non-2xx response. Shared with the OpenID
+  # Connect discovery request, which is an HTTP call like any other.
+  def throw_api_error(response) do
     code = response.status_code
     msg = "API returned status code #{code}"
     body = response.body

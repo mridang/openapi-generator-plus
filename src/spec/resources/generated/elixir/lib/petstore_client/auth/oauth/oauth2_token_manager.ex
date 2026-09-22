@@ -212,19 +212,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           mod.send_request(:post, token_url, headers, body)
       end
 
-    # Gap 3.2: refuse ANY 3xx (RFC 6749 §3.2 forbids redirects at the token
-    # endpoint). 307/308 preserve method and body; 301/302/303 are equally
-    # rejected so a misconfigured or malicious server cannot bounce the
-    # credential-bearing POST anywhere.
-    if response.status_code >= 300 and response.status_code < 400 do
-      raise PetstoreClient.Auth.OAuth.OAuth2TokenError,
-        message:
-          "OAuth2 token endpoint returned #{response.status_code} redirect; " <>
-            "refusing to replay client credentials at the redirect target " <>
-            "(potential credential exfiltration via malicious Location header)"
-    end
-
     if response.status_code < 200 or response.status_code >= 300 do
+      # Any non-2xx answer is an OAuth2ServerError carrying its status,
+      # including a 3xx: RFC 6749 §3.2 forbids redirects at the token
+      # endpoint, and with `no_redirect: true` the transport surfaces the 3xx
+      # verbatim instead of replaying the credential-bearing POST.
+      #
       # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
       # `error` (required), `error_description`, `error_uri`. Raise a typed
       # OAuth2ServerError so callers can rescue it specifically. Fall back
@@ -232,7 +225,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
       raise parse_oauth2_server_error(response.status_code, response.body)
     end
 
-    parsed = Jason.decode!(response.body)
+    # A 2xx answer the SDK cannot use is an OAuth2TokenError, never a leaked
+    # Jason.DecodeError.
+    parsed =
+      case Jason.decode(response.body || "") do
+        {:ok, %{} = map} ->
+          map
+
+        _ ->
+          raise PetstoreClient.Auth.OAuth.OAuth2TokenError,
+            message: "Token response is not a valid token JSON object"
+      end
 
     access_token = parsed["access_token"]
 
@@ -345,10 +348,11 @@ end
 
 defmodule PetstoreClient.Auth.OAuth.OAuth2TokenError do
   @moduledoc """
-  Raised when the OAuth2 token endpoint returns a 2xx response whose body
-  is missing or contains an empty `access_token` field. Distinct from
-  `PetstoreClient.Auth.OAuth.OAuth2ServerError` (which represents RFC 6749
-  §5.2 error responses on 4xx/5xx) so callers can `rescue` them separately.
+  Raised when the OAuth2 token endpoint returns a 2xx response the SDK cannot
+  use: a body that is not a JSON object, or one that is missing or has an
+  empty `access_token` field. Distinct from
+  `PetstoreClient.Auth.OAuth.OAuth2ServerError` (which represents any non-2xx
+  answer) so callers can `rescue` them separately.
   """
 
   defexception [:message]
@@ -356,7 +360,9 @@ end
 
 defmodule PetstoreClient.Auth.OAuth.OAuth2ServerError do
   @moduledoc """
-  Typed representation of an RFC 6749 §5.2 OAuth2 error response.
+  Raised when the OAuth2 token endpoint answers with any non-2xx status,
+  including a refused 3xx redirect. Typed representation of an RFC 6749 §5.2
+  OAuth2 error response.
 
   Fields:
 

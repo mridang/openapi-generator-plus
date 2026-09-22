@@ -177,6 +177,29 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
+    # Every wire-shape failure is a SerializationError and part of the
+    # {{errorPrefix}}Error hierarchy: malformed JSON, a wrong primitive type, a
+    # missing required field, an unknown enum value and a malformed date-time
+    # or duration.
+    test "every wire-shape failure is a SerializationError" do
+      for {json, model} <- [
+            {"{", "Pet"},
+            {~s({"name":7,"photoUrls":[]}), "Pet"},
+            {~s({"photoUrls":[]}), "Pet"},
+            {~s({"status":"lost"}), "Order"},
+            {~s({"shipDate":"not-a-date"}), "Order"},
+            {~s({"retryAfter":"PT1H"}), "EdgeCases"}
+          ] do
+        err =
+          assert_raise {{moduleName}}.SerializationError, fn ->
+            {{moduleName}}.ObjectSerializer.deserialize(json, model)
+          end
+
+        assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err),
+               "#{model} #{json} must raise an SDK error"
+      end
+    end
+
     test "thrown SerializationError has a message referencing the failure" do
       try do
         {{moduleName}}.ObjectSerializer.deserialize("{", "Category")

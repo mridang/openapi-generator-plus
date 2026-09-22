@@ -30,4 +30,22 @@ defmodule {{moduleName}}.Errors.ClientError do
 
   @impl true
   def message(%__MODULE__{} = error), do: {{moduleName}}.ApiError.message(struct({{moduleName}}.ApiError, Map.from_struct(error)))
+
+  @family [
+    {{moduleName}}.Errors.ClientError,
+    {{moduleName}}.Errors.BadRequestError,
+    {{moduleName}}.Errors.UnauthorizedError,
+    {{moduleName}}.Errors.ForbiddenError,
+    {{moduleName}}.Errors.NotFoundError,
+    {{moduleName}}.Errors.ConflictError,
+    {{moduleName}}.Errors.UnprocessableEntityError
+  ]
+
+  @doc """
+  Returns `true` if `term` is a `ClientError` or one of the 4xx errors that
+  specialise it, `false` otherwise.
+  """
+  @spec client_error?(term()) :: boolean()
+  def client_error?(%module{}), do: module in @family
+  def client_error?(_term), do: false
 end

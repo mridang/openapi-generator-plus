@@ -15,18 +15,23 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       %__MODULE__{agent: agent}
     end
 
+    # A queued exception is raised instead of answered, to simulate a
+    # transport failure.
     def send_request(%__MODULE__{agent: agent}, _method, url, _headers, body) do
-      Agent.get_and_update(agent, fn state ->
-        [response | rest] = state.responses
-        new_state = %{
-          state
-          | responses: rest,
-            last_url: url,
-            last_body: body,
-            call_count: state.call_count + 1
-        }
-        {response, new_state}
-      end)
+      response =
+        Agent.get_and_update(agent, fn state ->
+          [response | rest] = state.responses
+          new_state = %{
+            state
+            | responses: rest,
+              last_url: url,
+              last_body: body,
+              call_count: state.call_count + 1
+          }
+          {response, new_state}
+        end)
+
+      if is_exception(response), do: raise(response), else: response
     end
 
     def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
@@ -239,13 +244,17 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     test "throws when no ApiClient injected" do
       {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
 
-      assert_raise RuntimeError, fn ->
-        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
-          manager,
-          "https://auth.example.com/token",
-          %{"grant_type" => "client_credentials"}
-        )
-      end
+      err =
+        assert_raise RuntimeError, fn ->
+          {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      # A wrong call order is not an SDK error.
+      refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
     end
 
     test "10 concurrent get_access_token calls hit token endpoint exactly once" do
@@ -516,12 +525,12 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     # ── 3.2: OAuth2 token redirect refusal ────────────────────────────────
     # RFC 6749 §3.2 forbids redirects at the token endpoint, so the manager
     # must refuse the whole 300-399 range, not only the body-preserving
-    # 307/308. 302 (below) and 307 (further down) are both exercised, plus
-    # 301/303.
+    # 307/308, rather than replay the credential-bearing POST. Like any non-2xx
+    # answer, the refusal is an OAuth2ServerError carrying that status.
 
-    for status <- [301, 302, 303] do
+    for status <- [301, 302, 303, 307, 308] do
       @redirect_status status
-      test "refuses #{@redirect_status} from token endpoint with OAuth2TokenError" do
+      test "refuses #{@redirect_status} from token endpoint with OAuth2ServerError" do
         fake_client =
           FakeApiClient.new([
             %{{moduleName}}.ApiHttpResponse{
@@ -534,58 +543,52 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
         {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
         {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
-        assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, ~r/redirect|refusing/i, fn ->
-          {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
-            manager,
-            "https://auth.example.com/token",
-            %{"grant_type" => "client_credentials", "client_secret" => "topsecret"}
-          )
-        end
+        err =
+          assert_raise {{moduleName}}.Auth.OAuth.OAuth2ServerError, fn ->
+            {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+              manager,
+              "https://auth.example.com/token",
+              %{"grant_type" => "client_credentials", "client_secret" => "topsecret"}
+            )
+          end
+
+        assert err.status_code == @redirect_status
       end
     end
 
-    test "refuses 307 from token endpoint with OAuth2TokenError" do
-      # A malicious token server could return a 307 Location: attacker.example
-      # to coerce a body+method-preserving replay of client_credentials.
-      # We surface this as OAuth2TokenError instead of following.
-      fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiHttpResponse{
-          status_code: 307,
-          headers: %{"location" => "https://attacker.example/token"},
-          body: ""
-        }
-      ])
+    # Token endpoint: a 2xx body that is not JSON is an OAuth2TokenError (never
+    # a leaked Jason.DecodeError), and a transport failure propagates as the
+    # NetworkError / NetworkTimeoutError it already is.
+    test "token endpoint failures are typed" do
+      fetch = fn response ->
+        {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
 
-      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
-      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(
+          manager,
+          FakeApiClient.new([response])
+        )
 
-      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, ~r/refusing to replay|307|redirect/i, fn ->
         {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
           manager,
           "https://auth.example.com/token",
           %{"grant_type" => "client_credentials"}
         )
       end
-    end
 
-    test "refuses 308 from token endpoint with OAuth2TokenError" do
-      fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiHttpResponse{
-          status_code: 308,
-          headers: %{"location" => "https://attacker.example/token"},
-          body: ""
-        }
-      ])
+      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, fn ->
+        fetch.(%{{moduleName}}.ApiHttpResponse{status_code: 200, body: "<html>ok</html>"})
+      end
 
-      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
-      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, fn ->
+        fetch.(%{{moduleName}}.ApiHttpResponse{status_code: 200, body: "[1, 2]"})
+      end
 
-      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, ~r/308|redirect|refusing/i, fn ->
-        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
-          manager,
-          "https://auth.example.com/token",
-          %{"grant_type" => "client_credentials"}
-        )
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        fetch.({{moduleName}}.Errors.NetworkError.exception(message: "connection refused"))
+      end
+
+      assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+        fetch.({{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out"))
       end
     end
 
@@ -653,9 +656,10 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     end
 
     # Gap 3.2: the redirect-refusal error should name the offending Location
-    # header for diagnostics. The Elixir SDK's OAuth2TokenError message embeds
-    # only the status code, not the Location target, so this cannot be asserted
-    # without fabricating behaviour the SDK does not implement.
+    # header for diagnostics. The Elixir SDK refuses the redirect with an
+    # OAuth2ServerError that carries the status code and raw body only, not the
+    # Location target, so this cannot be asserted without fabricating behaviour
+    # the SDK does not implement.
     @tag :skip
     test "redirect-refusal error includes the Location header for diagnostics" do
       fake_client = FakeApiClient.new([
@@ -669,7 +673,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
       {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
-      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, ~r/attacker\.example/, fn ->
+      assert_raise {{moduleName}}.Auth.OAuth.OAuth2ServerError, ~r/attacker\.example/, fn ->
         {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
           manager,
           "https://auth.example.com/token",
