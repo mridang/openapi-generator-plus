@@ -9,8 +9,8 @@
 
 package com.example.petstore
 
-import com.example.petstore.auth.oauth.OAuth2ServerError
-import com.example.petstore.auth.oauth.OAuth2TokenError
+import com.example.petstore.auth.oauth.OAuth2ServerException
+import com.example.petstore.auth.oauth.OAuth2TokenException
 import com.example.petstore.auth.oauth.OAuth2TokenManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -78,8 +78,9 @@ class OAuth2TokenManagerTest {
     fun `token_endpoint_redirect_is_rejected`() {
         // Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
         // manager must refuse the whole 300-399 range (302 and 307 both checked
-        // here, plus 301/303/308) with a typed OAuth2TokenError rather than
-        // replaying the credential-bearing POST.
+        // here, plus 301/303/308) rather than replaying the credential-bearing
+        // POST. A 3xx is a non-2xx answer, so it is an OAuth2ServerException
+        // carrying the redirect status.
         for (status in listOf(301, 302, 303, 307, 308)) {
             val client = FakeApiClient()
             client.enqueue("", statusCode = status)
@@ -87,7 +88,7 @@ class OAuth2TokenManagerTest {
             manager.apiClient = client
 
             val ex =
-                assertThrows(OAuth2TokenError::class.java) {
+                assertThrowsExactly(OAuth2ServerException::class.java) {
                     runBlocking {
                         manager.getAccessToken(
                             "https://auth.example.com/token",
@@ -95,7 +96,7 @@ class OAuth2TokenManagerTest {
                         )
                     }
                 }
-            assertNotNull(ex.message, "status $status must produce a redirect-refusal message")
+            assertEquals(status, ex.statusCode)
         }
     }
 
@@ -213,7 +214,7 @@ class OAuth2TokenManagerTest {
     fun throwsWhenNoApiClientInjected() {
         val manager = OAuth2TokenManager()
 
-        assertThrows(IllegalStateException::class.java) {
+        assertThrowsExactly(IllegalStateException::class.java) {
             runBlocking {
                 manager.getAccessToken(
                     "https://auth.example.com/token",
@@ -380,7 +381,28 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
-        assertThrows(OpenAPIException::class.java) {
+        val ex =
+            assertThrowsExactly(OAuth2ServerException::class.java) {
+                runBlocking {
+                    manager.getAccessToken(
+                        "https://auth.example.com/token",
+                        mapOf("grant_type" to "client_credentials"),
+                    )
+                }
+            }
+        assertEquals(401, ex.statusCode)
+        assertInstanceOf(OpenAPIException::class.java, ex)
+    }
+
+    @Test
+    fun malformedTokenResponseRaisesOAuth2TokenException() {
+        // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException.
+        val client = FakeApiClient()
+        client.enqueue("<html>not json</html>")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        assertThrowsExactly(OAuth2TokenException::class.java) {
             runBlocking {
                 manager.getAccessToken(
                     "https://auth.example.com/token",
@@ -391,16 +413,25 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun `token_response_missing_access_token_throws_typed_error`() {
-        // A 2xx response whose body omits access_token must surface as the
-        // typed OAuth2TokenError, not silently cache an empty token.
-        val client = FakeApiClient()
-        client.enqueue("""{"refresh_token":"x"}""")
+    fun tokenTransportFailurePropagatesNetworkException() {
+        // A transport failure on the token POST reaches the caller unchanged.
+        val failure =
+            com.example.petstore.errors
+                .NetworkException("connection refused", java.io.IOException("refused"))
         val manager = OAuth2TokenManager()
-        manager.apiClient = client
+        manager.apiClient =
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean,
+                ): ApiHttpResponse = throw failure
+            }
 
         val ex =
-            assertThrows(OAuth2TokenError::class.java) {
+            assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
                 runBlocking {
                     manager.getAccessToken(
                         "https://auth.example.com/token",
@@ -408,13 +439,34 @@ class OAuth2TokenManagerTest {
                     )
                 }
             }
-        assertNotNull(ex.message)
+        assertSame(failure, ex)
+    }
+
+    @Test
+    fun `token_response_missing_access_token_throws_typed_error`() {
+        // A 2xx response whose body omits access_token must surface as the
+        // typed OAuth2TokenException, not silently cache an empty token.
+        val client = FakeApiClient()
+        client.enqueue("""{"refresh_token":"x"}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex =
+            assertThrowsExactly(OAuth2TokenException::class.java) {
+                runBlocking {
+                    manager.getAccessToken(
+                        "https://auth.example.com/token",
+                        mapOf("grant_type" to "client_credentials"),
+                    )
+                }
+            }
+        assertInstanceOf(OpenAPIException::class.java, ex)
     }
 
     @Test
     fun `token_endpoint_error_response_parsed_to_typed_error`() {
         // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
-        // as a typed OAuth2ServerError carrying code/description/uri.
+        // as a typed OAuth2ServerException carrying code/description/uri.
         val client = FakeApiClient()
         client.enqueue(
             """{"error":"invalid_grant","error_description":"refresh token expired","error_uri":"https://docs.example.com/errors/invalid_grant"}""",
@@ -424,7 +476,7 @@ class OAuth2TokenManagerTest {
         manager.apiClient = client
 
         val ex =
-            assertThrows(OAuth2ServerError::class.java) {
+            assertThrowsExactly(OAuth2ServerException::class.java) {
                 runBlocking {
                     manager.getAccessToken(
                         "https://auth.example.com/token",
@@ -594,14 +646,14 @@ class OAuth2TokenManagerTest {
     fun redirectRefusalErrorIncludesLocationHeader() {
         // Bucket 3.2: the redirect-refusal error should name the offending
         // Location for diagnostics. The Kotlin SDK only embeds the status code
-        // and token endpoint URL in the message, not the Location target.
+        // and response body in the message, not the Location target.
         val client = FakeApiClient()
         client.enqueue("", statusCode = 307)
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
         val ex =
-            assertThrows(OAuth2TokenError::class.java) {
+            assertThrowsExactly(OAuth2ServerException::class.java) {
                 runBlocking {
                     manager.getAccessToken(
                         "https://auth.example.com/token",

@@ -177,11 +177,12 @@ class DefaultApiClientTest {
                 .timeout(1L)
                 .build()
             val client = DefaultApiClient(transport)
-            val ex = assertThrows({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {
                 runBlocking {
                     client.sendRequest("GET", "$chasmUrl/test/slow", emptyMap(), null)
                 }
             }
+            assertInstanceOf({{invokerPackage}}.errors.NetworkException::class.java, ex)
             assertEquals(0, ex.statusCode)
             assertNotNull(ex.cause, "the transport exception must be kept as the cause")
         }
@@ -847,7 +848,7 @@ class DefaultApiClientTest {
             client.close()
             // Calling close again is idempotent.
             client.close()
-            val thrown = assertThrows(ApiException::class.java) {
+            val thrown = assertThrowsExactly(IllegalStateException::class.java) {
                 runBlocking {
                     client.sendRequest("GET", "https://example.com", emptyMap(), null)
                 }

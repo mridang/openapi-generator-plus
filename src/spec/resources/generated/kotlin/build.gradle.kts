@@ -66,7 +66,6 @@ kotlin {
             kotlin.srcDirs("src/main/kotlin")
             dependencies {
                 implementation("io.ktor:ktor-client-core:3.5.0")
-                implementation("io.ktor:ktor-client-encoding:3.5.0")
                 implementation("io.ktor:ktor-http:3.5.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")

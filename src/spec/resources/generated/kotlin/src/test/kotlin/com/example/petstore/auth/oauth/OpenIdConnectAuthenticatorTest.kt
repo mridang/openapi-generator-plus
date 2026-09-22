@@ -145,9 +145,71 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrows(OpenAPIException::class.java) {
-            runBlocking { auth.buildAuthorizationUrl() }
-        }
+        // The status maps to its ApiException subclass exactly as an API
+        // operation's would.
+        val ex =
+            assertThrowsExactly(com.example.petstore.errors.InternalServerErrorException::class.java) {
+                runBlocking { auth.buildAuthorizationUrl() }
+            }
+        assertEquals(500, ex.statusCode)
+        assertInstanceOf(OpenAPIException::class.java, ex)
+    }
+
+    @Test
+    fun discovery404RaisesNotFoundException() {
+        val client = FakeApiClient()
+        client.enqueue("not found", statusCode = 404)
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val ex =
+            assertThrowsExactly(com.example.petstore.errors.NotFoundException::class.java) {
+                runBlocking { auth.buildAuthorizationUrl() }
+            }
+        assertEquals(404, ex.statusCode)
+    }
+
+    @Test
+    fun discoveryTransportFailurePropagatesNetworkException() {
+        // Discovery is an HTTP call like any other: a transport failure from
+        // the ApiClient must reach the caller unchanged, not rewrapped.
+        val failure =
+            com.example.petstore.errors
+                .NetworkException("connection refused", java.io.IOException("refused"))
+        val auth = createAuthenticator()
+        auth.setApiClient(
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean,
+                ): ApiHttpResponse = throw failure
+            },
+        )
+
+        val ex =
+            assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
+                runBlocking { auth.buildAuthorizationUrl() }
+            }
+        assertSame(failure, ex)
+    }
+
+    @Test
+    fun malformedDiscoveryDocumentRaisesSerializationException() {
+        val client = FakeApiClient()
+        client.enqueue("{not json")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val ex =
+            assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
+                runBlocking { auth.buildAuthorizationUrl() }
+            }
+        assertInstanceOf(OpenAPIException::class.java, ex)
     }
 
     @Test
@@ -160,7 +222,7 @@ class OpenIdConnectAuthenticatorTest {
 
         // Missing authorization_endpoint must throw rather than build a
         // delegate with a null/empty endpoint URL.
-        assertThrows(OpenAPIException::class.java) {
+        assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }
@@ -173,7 +235,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrows(OpenAPIException::class.java) {
+        assertThrowsExactly(com.example.petstore.SerializationException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }
@@ -182,7 +244,7 @@ class OpenIdConnectAuthenticatorTest {
     fun throwsWhenNoApiClientInjected() {
         val auth = createAuthenticator()
 
-        assertThrows(IllegalStateException::class.java) {
+        assertThrowsExactly(IllegalStateException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }

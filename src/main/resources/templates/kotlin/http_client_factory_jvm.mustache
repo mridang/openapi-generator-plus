@@ -7,7 +7,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.http.Url
 import java.io.FileInputStream
 import java.security.KeyStore
@@ -88,10 +87,10 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
             }
         }
 
-        install(ContentEncoding) {
-            gzip()
-            deflate()
-        }
+        // Response bodies are decoded by DefaultApiClient itself, not by
+        // Ktor's ContentEncoding plugin: the client must tell a corrupt
+        // Content-Encoding body (a response arrived, ApiException with its
+        // status) from an I/O failure while reading it (NetworkException).
 
         if (options.timeout != null) {
             install(HttpTimeout) {

@@ -13,7 +13,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
-import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
@@ -850,12 +849,15 @@ class DefaultApiClientUnitTest {
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            // A refused redirect is a response that arrived but could not be
+            // used: ApiException carrying the redirect's real status.
             val ex =
-                assertThrows(ApiException::class.java) {
+                assertThrowsExactly(ApiException::class.java) {
                     runBlocking {
                         apiClient.sendRequest("GET", "http://first.example.com/start", emptyMap(), null)
                     }
                 }
+            assertEquals(302, ex.statusCode)
             assertTrue(
                 ex.message!!.contains("non-HTTP", ignoreCase = true),
                 "exception should mention the refused non-HTTP(S) target, got: ${ex.message}",
@@ -1028,12 +1030,11 @@ class DefaultApiClientUnitTest {
         @DisplayName("Gap AL: Content-Encoding gzip on a non-gzip body surfaces ApiException")
         fun lyingGzipContentEncodingWrappedInApiException() {
             // A hostile/misconfigured server claims `Content-Encoding: gzip` but
-            // sends plaintext bytes. The production client installs the Ktor
-            // ContentEncoding plugin (gzip/deflate), so the gzip inflater runs
-            // over the body and fails. That decompression failure must surface as
-            // the SDK's ApiException -- never silently pass the corrupted bytes
-            // through. The mock client mirrors production by installing the same
-            // plugin so the lie is actually decoded here.
+            // sends plaintext bytes. DefaultApiClient decodes the body itself
+            // after reading it, so the gzip inflater runs over the body and
+            // fails. A response did arrive, so the failure is exactly
+            // ApiException carrying the real status (200) -- never
+            // NetworkException, and never the corrupted bytes passed through.
             val engine =
                 MockEngine { _ ->
                     respond(
@@ -1042,20 +1043,16 @@ class DefaultApiClientUnitTest {
                         headers = headersOf("Content-Encoding", "gzip"),
                     )
                 }
-            val client =
-                HttpClient(engine) {
-                    followRedirects = false
-                    install(ContentEncoding) {
-                        gzip()
-                        deflate()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val ex =
+                assertThrowsExactly(ApiException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest("GET", "http://localhost/lying-gzip", emptyMap(), null)
                     }
                 }
-            val apiClient = DefaultApiClient(client)
-            assertThrows(ApiException::class.java) {
-                runBlocking {
-                    apiClient.sendRequest("GET", "http://localhost/lying-gzip", emptyMap(), null)
-                }
-            }
+            assertEquals(200, ex.statusCode)
+            assertFalse(ex is com.example.petstore.errors.NetworkException, "a corrupt body is not a network failure")
+            assertInstanceOf(java.io.IOException::class.java, ex.cause)
         }
     }
 
@@ -1063,19 +1060,22 @@ class DefaultApiClientUnitTest {
     @DisplayName("close lifecycle")
     inner class CloseLifecycle {
         @Test
-        @DisplayName("close-lifecycle-three-way: send after close throws ApiException")
-        fun sendAfterCloseThrowsApiException() {
+        @DisplayName("close-lifecycle-three-way: send after close throws IllegalStateException")
+        fun sendAfterCloseThrowsIllegalStateException() {
+            // Using a client after close() is a wrong call order: the built-in
+            // invalid-state error, not an SDK error.
             val apiClient = DefaultApiClient(mockClient())
             apiClient.close()
             val ex =
-                assertThrows(ApiException::class.java) {
+                assertThrowsExactly(IllegalStateException::class.java) {
                     runBlocking {
                         apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
                     }
                 }
+            assertFalse(OpenAPIException::class.java.isInstance(ex), "use-after-close must not be an SDK error")
             assertTrue(
                 ex.message!!.contains("closed"),
-                "use-after-close must surface an SDK ApiException mentioning the closed state, got: ${ex.message}",
+                "use-after-close must mention the closed state, got: ${ex.message}",
             )
         }
     }
@@ -1091,9 +1091,10 @@ class DefaultApiClientUnitTest {
             // falling back to the system trust store (security theater).
             val transport = TransportOptions.builder().caCertPath("/nonexistent/ca.pem").build()
             val ex =
-                assertThrows(IllegalArgumentException::class.java) {
+                assertThrowsExactly(IllegalArgumentException::class.java) {
                     DefaultApiClient(transport)
                 }
+            assertFalse(OpenAPIException::class.java.isInstance(ex), "a configuration mistake must not be an SDK error")
             assertNotNull(ex.cause, "the read/parse failure must be kept as the cause")
         }
     }
@@ -1106,11 +1107,12 @@ class DefaultApiClientUnitTest {
         fun connectionRefusedRaisesNetworkException() {
             val apiClient = DefaultApiClient()
             val ex =
-                assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
                     runBlocking {
                         apiClient.sendRequest("GET", "http://127.0.0.1:1/never", emptyMap(), null)
                     }
                 }
+            assertInstanceOf(ApiException::class.java, ex)
             assertEquals(0, ex.statusCode)
             assertNotNull(ex.cause, "the transport exception must be kept as the cause")
             assertFalse(
@@ -1133,11 +1135,12 @@ class DefaultApiClientUnitTest {
                     install(io.ktor.client.plugins.HttpTimeout) { requestTimeoutMillis = 50 }
                 }
             val ex =
-                assertThrows(com.example.petstore.errors.NetworkTimeoutException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.NetworkTimeoutException::class.java) {
                     runBlocking {
                         DefaultApiClient(client).sendRequest("GET", "http://localhost/slow", emptyMap(), null)
                     }
                 }
+            assertInstanceOf(com.example.petstore.errors.NetworkException::class.java, ex)
             assertEquals(0, ex.statusCode)
             assertInstanceOf(io.ktor.client.plugins.HttpRequestTimeoutException::class.java, ex.cause)
         }

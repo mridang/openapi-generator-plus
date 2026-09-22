@@ -88,8 +88,14 @@ class StoreApi : BaseApi {
         pathSwatch: Swatch,
         options: GetBySwatchOptions? = null,
     ): Category =
-        getBySwatchWithHttpInfo(pathSwatch, options).data
-            ?: throw ApiException("Expected a response body for getBySwatch but the server returned an empty body")
+        getBySwatchWithHttpInfo(pathSwatch, options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getBySwatch but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getBySwatchWithHttpInfo(
         pathSwatch: Swatch,
@@ -142,8 +148,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getDefaults(): Defaults =
-        getDefaultsWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getDefaults but the server returned an empty body")
+        getDefaultsWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getDefaults but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getDefaultsWithHttpInfo(): ApiResult<Defaults> {
         var path = "/store/defaults"
@@ -169,8 +181,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getDepartment(): Department =
-        getDepartmentWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getDepartment but the server returned an empty body")
+        getDepartmentWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getDepartment but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getDepartmentWithHttpInfo(): ApiResult<Department> {
         var path = "/store/department"
@@ -196,8 +214,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getGroupedCategories(): List<Map<String, Category>> =
-        getGroupedCategoriesWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getGroupedCategories but the server returned an empty body")
+        getGroupedCategoriesWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getGroupedCategories but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getGroupedCategoriesWithHttpInfo(): ApiResult<List<Map<String, Category>>> {
         var path = "/store/grouped-categories"
@@ -223,8 +247,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getInventory(): Map<String, Int> =
-        getInventoryWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getInventory but the server returned an empty body")
+        getInventoryWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getInventory but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getInventoryWithHttpInfo(): ApiResult<Map<String, Int>> {
         var path = "/store/inventory"
@@ -250,8 +280,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getMatrix(): List<List<Int>> =
-        getMatrixWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getMatrix but the server returned an empty body")
+        getMatrixWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getMatrix but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getMatrixWithHttpInfo(): ApiResult<List<List<Int>>> {
         var path = "/store/matrix"
@@ -278,8 +314,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getOrderById(orderId: Long): Order =
-        getOrderByIdWithHttpInfo(orderId).data
-            ?: throw ApiException("Expected a response body for getOrderById but the server returned an empty body")
+        getOrderByIdWithHttpInfo(orderId).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getOrderById but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getOrderByIdWithHttpInfo(orderId: Long): ApiResult<Order> {
         requireNotNull(orderId) {
@@ -314,8 +356,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getStockItem(options: GetStockItemOptions? = null): StockItem =
-        getStockItemWithHttpInfo(options).data
-            ?: throw ApiException("Expected a response body for getStockItem but the server returned an empty body")
+        getStockItemWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getStockItem but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getStockItemWithHttpInfo(options: GetStockItemOptions? = null): ApiResult<StockItem> {
         var path = "/store/stock-item"
@@ -344,8 +392,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getSwatch(): Swatch =
-        getSwatchWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getSwatch but the server returned an empty body")
+        getSwatchWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getSwatch but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getSwatchWithHttpInfo(): ApiResult<Swatch> {
         var path = "/store/swatch"
@@ -371,8 +425,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getSwatchGroups(): List<Map<String, Swatch>> =
-        getSwatchGroupsWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getSwatchGroups but the server returned an empty body")
+        getSwatchGroupsWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getSwatchGroups but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getSwatchGroupsWithHttpInfo(): ApiResult<List<Map<String, Swatch>>> {
         var path = "/store/swatch-groups"
@@ -398,8 +458,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getTimestampGroups(): List<Map<String, OffsetDateTime>> =
-        getTimestampGroupsWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getTimestampGroups but the server returned an empty body")
+        getTimestampGroupsWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getTimestampGroups but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getTimestampGroupsWithHttpInfo(): ApiResult<List<Map<String, OffsetDateTime>>> {
         var path = "/store/timestamp-groups"
@@ -425,8 +491,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun getTree(): TreeNode =
-        getTreeWithHttpInfo().data
-            ?: throw ApiException("Expected a response body for getTree but the server returned an empty body")
+        getTreeWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getTree but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun getTreeWithHttpInfo(): ApiResult<TreeNode> {
         var path = "/store/tree"
@@ -453,8 +525,14 @@ class StoreApi : BaseApi {
      */
 
     suspend fun placeOrder(order: Order? = null): Order =
-        placeOrderWithHttpInfo(order).data
-            ?: throw ApiException("Expected a response body for placeOrder but the server returned an empty body")
+        placeOrderWithHttpInfo(order).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for placeOrder but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
 
     suspend fun placeOrderWithHttpInfo(order: Order? = null): ApiResult<Order> {
         var path = "/store/order"

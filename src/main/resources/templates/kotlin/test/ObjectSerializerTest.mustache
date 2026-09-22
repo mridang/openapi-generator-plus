@@ -136,9 +136,11 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("truncated JSON throws SerializationException not raw parse error")
         fun truncatedJsonThrowsSerializationException() {
-            val ex = assertThrows(SerializationException::class.java) {
+            // Fully qualified: the SDK type, never kotlinx's SerializationException.
+            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Category>("{")
             }
+            assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
             // The kotlinx-serialization failure is kept as the cause.
             assertTrue(
                 ex.cause is kotlinx.serialization.SerializationException,
@@ -149,9 +151,37 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("type mismatch JSON throws SerializationException")
         fun typeMismatchThrowsSerializationException() {
-            assertThrows(SerializationException::class.java) {
+            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.Category>("{\"id\":\"not-a-number\",\"name\":123}")
             }
+            assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
+        }
+
+        @Test
+        @DisplayName("unknown enum value throws SerializationException")
+        fun unknownEnumValueThrowsSerializationException() {
+            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}")
+            }
+            assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
+        }
+
+        @Test
+        @DisplayName("missing required field throws SerializationException")
+        fun missingRequiredFieldThrowsSerializationException() {
+            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"id\":1}")
+            }
+            assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
+        }
+
+        @Test
+        @DisplayName("malformed date-time throws SerializationException")
+        fun malformedDateTimeThrowsSerializationException() {
+            val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"shipDate\":\"not-a-date\"}")
+            }
+            assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
         }
 
         @Test
@@ -1153,7 +1183,7 @@ class ObjectSerializerTest {
             // NumberFormatException may escape: both become the SDK's own
             // SerializationException, which a catch on the SDK root sees.
             for (wire in listOf("90", "1.5m", "99999999999999999999s")) {
-                val ex = assertThrows({{invokerPackage}}.SerializationException::class.java) {
+                val ex = assertThrowsExactly({{invokerPackage}}.SerializationException::class.java) {
                     serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"$wire\"}")
                 }
                 assertTrue(ex is {{errorPrefix}}Exception, "must extend the SDK root, was: $ex")

@@ -18,17 +18,9 @@ import com.example.petstore.DefaultApiClient
 import com.example.petstore.HeaderSelector
 import com.example.petstore.ObjectSerializer
 import com.example.petstore.TraceContextUtil
+import com.example.petstore.apiExceptionForStatus
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
-import com.example.petstore.errors.BadRequestException
-import com.example.petstore.errors.ClientException
-import com.example.petstore.errors.ConflictException
-import com.example.petstore.errors.ForbiddenException
-import com.example.petstore.errors.InternalServerErrorException
-import com.example.petstore.errors.NotFoundException
-import com.example.petstore.errors.ServerException
-import com.example.petstore.errors.UnauthorizedException
-import com.example.petstore.errors.UnprocessableEntityException
 import io.ktor.http.encodeURLQueryComponent
 
 /**
@@ -366,24 +358,7 @@ abstract class BaseApi {
                 null
             }
 
-        when {
-            code in 400..499 ->
-                throw when (code) {
-                    400 -> BadRequestException(message, headers, body, errorBody)
-                    401 -> UnauthorizedException(message, headers, body, errorBody)
-                    403 -> ForbiddenException(message, headers, body, errorBody)
-                    404 -> NotFoundException(message, headers, body, errorBody)
-                    409 -> ConflictException(message, headers, body, errorBody)
-                    422 -> UnprocessableEntityException(message, headers, body, errorBody)
-                    else -> ClientException(code, message, headers, body, errorBody)
-                }
-            code >= 500 ->
-                throw when (code) {
-                    500 -> InternalServerErrorException(message, headers, body, errorBody)
-                    else -> ServerException(code, message, headers, body, errorBody)
-                }
-            else -> throw ApiException(code, message, headers, body, errorBody)
-        }
+        throw apiExceptionForStatus(code, message, headers, body, errorBody)
     }
 
     /**

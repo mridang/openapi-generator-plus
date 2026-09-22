@@ -236,22 +236,24 @@ class BaseApiTest {
         @DisplayName("NotFoundException is a ClientException")
         fun notFoundIsClientException() {
             val ex =
-                assertThrows(NotFoundException::class.java) {
+                assertThrowsExactly(NotFoundException::class.java) {
                     runBlocking { api().call("GET", "/test/status/404") }
                 }
             assertInstanceOf(ClientException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
+            assertInstanceOf(OpenAPIException::class.java, ex)
         }
 
         @Test
         @DisplayName("InternalServerErrorException is a ServerException")
         fun internalServerErrorIsServerException() {
             val ex =
-                assertThrows(InternalServerErrorException::class.java) {
+                assertThrowsExactly(InternalServerErrorException::class.java) {
                     runBlocking { api().call("GET", "/test/status/500") }
                 }
             assertInstanceOf(ServerException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
+            assertInstanceOf(OpenAPIException::class.java, ex)
         }
     }
 

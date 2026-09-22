@@ -74,10 +74,9 @@ class DefaultApiClient internal constructor(
     private val objectSerializer: ObjectSerializer = ObjectSerializer()
 
     /**
-     * Tracks whether [close] has been called. Use-after-close must surface
-     * the SDK's own [ApiException] rather than a foreign Ktor exception (or
-     * silently succeeding), giving callers one uniform lifecycle error across
-     * all SDKs.
+     * Tracks whether [close] has been called. Use-after-close is a wrong call
+     * order, so it surfaces as [IllegalStateException] rather than a foreign
+     * Ktor exception (or silently succeeding).
      */
     @Volatile
     private var closed: Boolean = false
@@ -123,7 +122,7 @@ class DefaultApiClient internal constructor(
         noRedirect: Boolean,
     ): ApiHttpResponse {
         if (closed) {
-            throw ApiException("ApiClient has been closed and can no longer send requests")
+            throw IllegalStateException("ApiClient has been closed and can no longer send requests")
         }
         val mergedHeaders = mutableMapOf<String, String>()
         mergedHeaders.putAll(transportOptions.defaultHeaders)
@@ -194,7 +193,12 @@ class DefaultApiClient internal constructor(
                             !redirectScheme.equals("https", ignoreCase = true)
                     )
                 ) {
-                    throw ApiException("Refusing to follow redirect to non-HTTP(S) URL: $redirectUri")
+                    throw ApiException(
+                        response.status.value,
+                        "Refusing to follow redirect to non-HTTP(S) URL: $redirectUri",
+                        null,
+                        null,
+                    )
                 }
                 val sameOrigin = sameOrigin(originalUri, redirectUri)
 
@@ -216,7 +220,10 @@ class DefaultApiClient internal constructor(
                     "http".equals(redirectUri.scheme, ignoreCase = true)
                 ) {
                     throw ApiException(
+                        response.status.value,
                         "Refusing to replay request body across HTTPS->HTTP redirect: $currentUrl -> $redirectUri",
+                        null,
+                        null,
                     )
                 }
 
@@ -288,7 +295,10 @@ class DefaultApiClient internal constructor(
             // "throw too many redirects" canonical adopted across the SDKs.
             if (response.status.value in 300..399 && redirectsRemaining == 0) {
                 throw ApiException(
+                    response.status.value,
                     "Too many redirects (exceeded maxRedirects=${transportOptions.maxRedirects ?: 20})",
+                    null,
+                    null,
                 )
             }
         }
@@ -308,15 +318,30 @@ class DefaultApiClient internal constructor(
             responseHeaders[name.lowercase(java.util.Locale.ROOT)] = values.joinToString(", ")
         }
 
-        // Read the response body inside a try/catch so a post-headers
-        // failure (connection reset, read timeout, truncated/decompression
-        // error) surfaces as the SDK's own error type rather than a raw Ktor
+        // Read the raw response body inside a try/catch so a post-headers
+        // I/O failure (connection reset, read timeout, truncated transfer)
+        // surfaces as the SDK's own error type rather than a raw Ktor
         // exception, matching how send-phase failures are wrapped.
-        val rawBytes =
+        val wireBytes =
             try {
                 response.bodyAsBytes()
             } catch (e: Exception) {
                 throw transportFailure(e)
+            }
+        // Decode the Content-Encoding here, after the body has been read, so
+        // a corrupt compressed body is told apart from an I/O failure: a
+        // response did arrive, so it is an ApiException carrying the real
+        // status, never a NetworkException.
+        val contentEncoding = responseHeaders["content-encoding"] ?: ""
+        val rawBytes =
+            try {
+                decodeContentEncoding(wireBytes, contentEncoding)
+            } catch (e: java.io.IOException) {
+                throw ApiException(
+                    response.status.value,
+                    "failed to decode $contentEncoding response body: $e",
+                    e,
+                )
             }
         val contentType = responseHeaders["content-type"] ?: ""
         val responseBody =
@@ -470,6 +495,30 @@ class DefaultApiClient internal constructor(
     override fun close() {
         closed = true
         httpClient.close()
+    }
+}
+
+/**
+ * Decodes a response body according to its `Content-Encoding` header
+ * (`gzip`, `x-gzip` and `deflate`; any other value is returned unchanged).
+ * Throws [java.io.IOException] when the body is not valid for the declared
+ * encoding.
+ */
+internal fun decodeContentEncoding(
+    data: ByteArray,
+    contentEncoding: String,
+): ByteArray {
+    if (data.isEmpty()) return data
+    return when (contentEncoding.trim().lowercase()) {
+        "gzip", "x-gzip" ->
+            java.util.zip
+                .GZIPInputStream(data.inputStream())
+                .use { it.readBytes() }
+        "deflate" ->
+            java.util.zip
+                .InflaterInputStream(data.inputStream())
+                .use { it.readBytes() }
+        else -> data
     }
 }
 

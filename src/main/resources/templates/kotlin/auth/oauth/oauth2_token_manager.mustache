@@ -69,7 +69,7 @@ class OAuth2TokenManager {
      * @param tokenUrl the OAuth2 token endpoint URL
      * @param params   the token request parameters (grant_type, client_id, etc.)
      * @return a valid access token
-     * @throws IllegalStateException if no API client has been injected or token fetch fails
+     * @throws IllegalStateException if no API client has been injected
      */
     suspend fun getAccessToken(
         tokenUrl: String,
@@ -110,7 +110,7 @@ class OAuth2TokenManager {
                 }
             }
             fetchToken(tokenUrl, params, extraHeaders)
-            accessToken ?: throw IllegalStateException("Token fetch did not return an access token")
+            accessToken ?: throw OAuth2TokenException("Token fetch did not return an access token")
         }
     }
 
@@ -169,19 +169,16 @@ class OAuth2TokenManager {
         // credentials (client_secret, refresh_token, password) in the form
         // body to a redirect target; 301/302/303 are rejected too so a
         // misconfigured or malicious server cannot bounce the request at all.
+        // A transport failure propagates unchanged as NetworkException /
+        // NetworkTimeoutException.
         val response: ApiHttpResponse = client.sendRequest("POST", tokenUrl, headers, body, noRedirect = true)
-        if (response.statusCode in 300..399) {
-            throw OAuth2TokenError(
-                "Refusing to follow ${response.statusCode} redirect on OAuth2 token " +
-                    "endpoint $tokenUrl; token POSTs carry credentials and must not be replayed.",
-            )
-        }
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
-             * `error` (required), `error_description`, `error_uri`. Parse
-             * them into a typed OAuth2ServerError so callers can recover.
-             * Fall back to the raw body when the response is not a valid
-             * error object. */
+            /* Any non-2xx answer, a refused 3xx included, is an
+             * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
+             * are JSON bodies with `error` (required), `error_description`,
+             * `error_uri`. Parse them into the typed fields so callers can
+             * recover. Fall back to the raw body when the response is not a
+             * valid error object. */
             throw parseOAuth2ServerError(response.statusCode, response.body)
         }
 
@@ -190,11 +187,11 @@ class OAuth2TokenManager {
         } catch (e: IllegalArgumentException) {
             /* kotlinx.serialization.SerializationException extends
              * IllegalArgumentException, as does .jsonObject on a non-object. */
-            throw OAuth2TokenError("Token response is not a JSON object: ${e.message}")
+            throw OAuth2TokenException("Token response is not a JSON object: ${e.message}", e)
         }
         val accessTokenValue = jsonObject["access_token"]?.jsonPrimitive?.contentOrNull
         if (accessTokenValue.isNullOrEmpty()) {
-            throw OAuth2TokenError("Token response missing or empty access_token field")
+            throw OAuth2TokenException("Token response missing or empty access_token field")
         }
         this.accessToken = accessTokenValue
         if (jsonObject.containsKey("refresh_token")) {
@@ -224,22 +221,22 @@ class OAuth2TokenManager {
 
     /**
      * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
-     * [OAuth2ServerError]. Falls back to a generic error using the raw body
+     * [OAuth2ServerException]. Falls back to a generic error using the raw body
      * when the body is not a valid OAuth2 error object.
      */
-    private fun parseOAuth2ServerError(statusCode: Int, body: String): OAuth2ServerError {
+    private fun parseOAuth2ServerError(statusCode: Int, body: String): OAuth2ServerException {
         try {
             val root = json.parseToJsonElement(body).jsonObject
             val code = root["error"]?.jsonPrimitive?.contentOrNull
             if (!code.isNullOrEmpty()) {
                 val description = root["error_description"]?.jsonPrimitive?.contentOrNull
                 val uri = root["error_uri"]?.jsonPrimitive?.contentOrNull
-                return OAuth2ServerError(statusCode, code, description, uri, body)
+                return OAuth2ServerException(statusCode, code, description, uri, body)
             }
         } catch (_: Exception) {
             /* Not a JSON body; fall through and report the raw body. */
         }
-        return OAuth2ServerError(statusCode, null, null, null, body)
+        return OAuth2ServerException(statusCode, null, null, null, body)
     }
 
     /**
@@ -269,12 +266,15 @@ class OAuth2TokenManager {
 }
 
 /**
- * Thrown when the OAuth2 token endpoint returns a 2xx response whose body
- * is missing or contains an empty `access_token` field. Distinct from
- * [OAuth2ServerError] (which represents RFC 6749 §5.2 error responses on
- * 4xx/5xx) so callers can recover differently.
+ * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
+ * be used: a body that is not a JSON object, or one whose `access_token`
+ * field is missing or empty. Distinct from [OAuth2ServerException] (which
+ * represents any non-2xx answer) so callers can recover differently.
  */
-class OAuth2TokenError(message: String) : {{errorPrefix}}Exception(message)
+class OAuth2TokenException : {{errorPrefix}}Exception {
+    constructor(message: String) : super(message)
+    constructor(message: String, cause: Throwable) : super(message, cause)
+}
 
 /**
  * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -284,7 +284,7 @@ class OAuth2TokenError(message: String) : {{errorPrefix}}Exception(message)
  * the original response payload for diagnostics when the body is not a
  * well-formed OAuth2 error object.
  */
-class OAuth2ServerError(
+class OAuth2ServerException(
     val statusCode: Int,
     val code: String?,
     val description: String?,

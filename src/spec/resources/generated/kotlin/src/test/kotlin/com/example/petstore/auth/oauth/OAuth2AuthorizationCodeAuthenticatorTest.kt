@@ -101,10 +101,10 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrowsExactly(IllegalArgumentException::class.java) {
             runBlocking { auth.exchangeCode("") }
         }
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrowsExactly(IllegalArgumentException::class.java) {
             runBlocking { auth.exchangeCode("   ") }
         }
         // No token request should have been dispatched.
@@ -120,7 +120,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrowsExactly(IllegalArgumentException::class.java) {
             runBlocking { auth.exchangeCode("   ") }
         }
         // No token request should have been dispatched.
@@ -149,7 +149,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     fun throwsBeforeExchangeCodeCalled() {
         val auth = createAuthenticator()
 
-        assertThrows(IllegalStateException::class.java) {
+        assertThrowsExactly(IllegalStateException::class.java) {
             runBlocking { auth.getAuthHeaders() }
         }
     }

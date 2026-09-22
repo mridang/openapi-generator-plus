@@ -145,8 +145,14 @@ class {{classname}} : BaseApi {
     }
 {{/-first}}{{/servers}}
     suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
-        {{#returnType}}return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}).data
-            ?: throw ApiException("Expected a response body for {{operationId}} but the server returned an empty body"){{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}
+        {{#returnType}}return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for {{operationId}} but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}
     }
 
     suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {

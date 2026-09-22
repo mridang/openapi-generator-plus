@@ -32,6 +32,19 @@ open class ApiException : OpenAPIException {
         this.errorBody = null
     }
 
+    /**
+     * Construct an exception for a response that arrived but could not be
+     * used, such as a body whose Content-Encoding cannot be decoded. The
+     * status code is the real status of the response that arrived, and the
+     * underlying failure is kept as the cause.
+     */
+    constructor(statusCode: Int, message: String, cause: Throwable) : super(message, cause) {
+        this.statusCode = statusCode
+        this.responseHeaders = null
+        this.responseBody = null
+        this.errorBody = null
+    }
+
     constructor(
         statusCode: Int,
         message: String,
@@ -54,3 +67,54 @@ open class ApiException : OpenAPIException {
                 "responseHeaders=$responseHeaders, " +
                 "responseBody='$responseBody'}"
 }
+
+/**
+ * Build the [ApiException] subclass for a non-2xx HTTP status: the typed
+ * 4xx/5xx exceptions for the statuses that have one, [ClientException] or
+ * [ServerException] for any other 4xx/5xx, and [ApiException] otherwise.
+ * Shared by the API operations and the OpenID Connect discovery request so
+ * both map a status identically.
+ */
+internal fun apiExceptionForStatus(
+    code: Int,
+    message: String,
+    headers: Map<String, String>?,
+    body: String?,
+    errorBody: Any? = null,
+): ApiException =
+    when {
+        code in 400..499 ->
+            when (code) {
+                400 ->
+                    com.example.petstore.errors
+                        .BadRequestException(message, headers, body, errorBody)
+                401 ->
+                    com.example.petstore.errors
+                        .UnauthorizedException(message, headers, body, errorBody)
+                403 ->
+                    com.example.petstore.errors
+                        .ForbiddenException(message, headers, body, errorBody)
+                404 ->
+                    com.example.petstore.errors
+                        .NotFoundException(message, headers, body, errorBody)
+                409 ->
+                    com.example.petstore.errors
+                        .ConflictException(message, headers, body, errorBody)
+                422 ->
+                    com.example.petstore.errors
+                        .UnprocessableEntityException(message, headers, body, errorBody)
+                else ->
+                    com.example.petstore.errors
+                        .ClientException(code, message, headers, body, errorBody)
+            }
+        code >= 500 ->
+            when (code) {
+                500 ->
+                    com.example.petstore.errors
+                        .InternalServerErrorException(message, headers, body, errorBody)
+                else ->
+                    com.example.petstore.errors
+                        .ServerException(code, message, headers, body, errorBody)
+            }
+        else -> ApiException(code, message, headers, body, errorBody)
+    }

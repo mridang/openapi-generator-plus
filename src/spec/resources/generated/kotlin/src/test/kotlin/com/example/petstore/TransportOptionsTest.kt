@@ -138,9 +138,12 @@ class TransportOptionsTest {
         @Test
         @DisplayName("invalid proxy URL throws IllegalArgumentException")
         fun invalidProxyUrlThrowsException() {
-            assertThrows(IllegalArgumentException::class.java) {
-                TransportOptions.builder().proxy("not a valid url ^%$")
-            }
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().proxy("not a valid url ^%$")
+                }
+            // A bad proxy URL is a configuration mistake, not an SDK error.
+            assertFalse(OpenAPIException::class.java.isInstance(ex))
         }
 
         @Test

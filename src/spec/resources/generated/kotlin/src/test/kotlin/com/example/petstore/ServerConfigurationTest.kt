@@ -64,9 +64,11 @@ class ServerConfigurationTest {
                 mapOf("env" to ServerVariable("api", null, listOf("api", "staging"))),
             )
         val ex =
-            assertThrows(IllegalArgumentException::class.java) {
+            assertThrowsExactly(IllegalArgumentException::class.java) {
                 server.getUrl(mapOf("env" to "invalid"))
             }
+        // A server variable outside its enum is a caller mistake, not an SDK error.
+        assertFalse(OpenAPIException::class.java.isInstance(ex))
         assertTrue(ex.message!!.contains("Invalid value"))
     }
 

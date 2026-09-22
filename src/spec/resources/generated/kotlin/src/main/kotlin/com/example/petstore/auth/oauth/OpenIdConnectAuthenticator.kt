@@ -10,11 +10,11 @@
 package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
-import com.example.petstore.OpenAPIException
+import com.example.petstore.SerializationException
+import com.example.petstore.apiExceptionForStatus
 import com.example.petstore.auth.HttpAwareAuthenticator
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
 
 /**
@@ -74,12 +74,17 @@ open class OpenIdConnectAuthenticator(
                     "on HttpAwareAuthenticator before making API requests.",
             )
 
+        // Discovery is an HTTP call like any other: a transport failure
+        // propagates unchanged as NetworkException / NetworkTimeoutException.
         val headers = mapOf("Accept" to "application/json")
         val response = client.sendRequest("GET", discoveryUrl, headers, null)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw OpenAPIException(
-                "OIDC discovery request failed with status ${response.statusCode}: ${response.body}",
+            throw apiExceptionForStatus(
+                response.statusCode,
+                "OIDC discovery request to $discoveryUrl failed with HTTP status ${response.statusCode}",
+                response.headers,
+                response.body,
             )
         }
 
@@ -87,14 +92,12 @@ open class OpenIdConnectAuthenticator(
             try {
                 json.parseToJsonElement(response.body).jsonObject
             } catch (e: IllegalArgumentException) {
-                throw OpenAPIException("OIDC discovery document is not a JSON object: ${e.message}", e)
+            /* kotlinx.serialization.SerializationException extends
+             * IllegalArgumentException, as does .jsonObject on a non-object. */
+                throw SerializationException("OIDC discovery document is not a JSON object: ${e.message}", e)
             }
-        val authorizationEndpoint =
-            discovery["authorization_endpoint"]?.jsonPrimitive?.content
-                ?: throw OpenAPIException("OIDC discovery document missing authorization_endpoint")
-        val tokenEndpoint =
-            discovery["token_endpoint"]?.jsonPrimitive?.content
-                ?: throw OpenAPIException("OIDC discovery document missing token_endpoint")
+        val authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint")
+        val tokenEndpoint = requireEndpoint(discovery, "token_endpoint")
 
         val resolved =
             OAuth2AuthorizationCodeAuthenticator(
@@ -110,6 +113,22 @@ open class OpenIdConnectAuthenticator(
         this.delegate = resolved
         this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
         return resolved
+    }
+
+    /**
+     * Extract a required endpoint URL from the discovery document. An absent,
+     * null, non-string or empty field makes the document unusable, which is
+     * a [SerializationException].
+     */
+    private fun requireEndpoint(
+        discovery: kotlinx.serialization.json.JsonObject,
+        field: String,
+    ): String {
+        val primitive = discovery[field] as? kotlinx.serialization.json.JsonPrimitive
+        if (primitive == null || !primitive.isString || primitive.content.isEmpty()) {
+            throw SerializationException("OIDC discovery document missing $field")
+        }
+        return primitive.content
     }
 
     /**

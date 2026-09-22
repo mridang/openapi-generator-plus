@@ -70,7 +70,7 @@ class OAuth2ImplicitAuthenticatorTest {
     fun throwsWhenAccessTokenNotSet() {
         val auth = createAuthenticator()
 
-        assertThrows(IllegalStateException::class.java) {
+        assertThrowsExactly(IllegalStateException::class.java) {
             runBlocking { auth.getAuthHeaders() }
         }
     }
