@@ -200,24 +200,13 @@ impl OAuth2TokenManager {
             )
             .await?;
 
-        if response.status_code() >= 300 && response.status_code() < 400 {
-            /* RFC 6749 §3.2 forbids redirects at the token endpoint. With
-             * NoRedirect set the transport surfaces the 3xx verbatim rather
-             * than replaying the credential-bearing POST; we refuse all 3xx
-             * explicitly so the caller fails closed instead of leaking the
-             * client_secret / refresh_token to the redirect target. */
-            return Err(Box::new(OAuth2TokenError {
-                message: format!(
-                    "refusing to follow {} redirect on OAuth2 token endpoint {}; \
-                     token POSTs carry credentials and must not be replayed",
-                    response.status_code(),
-                    token_url
-                ),
-            }) as Box<dyn std::error::Error + Send + Sync>);
-        }
-
         if response.status_code() < 200 || response.status_code() >= 300 {
-            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+            /* Any non-2xx answer is an OAuth2ServerError carrying its status,
+             * including a 3xx: RFC 6749 §3.2 forbids redirects at the token
+             * endpoint, and with no_redirect set the transport surfaces the
+             * 3xx verbatim instead of replaying the credential-bearing POST.
+             *
+             * RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
              * `error` (required), `error_description`, `error_uri`. Parse
              * them into a typed OAuth2ServerError so callers can recover
              * via downcast_ref. Fall back to the raw body when the response
@@ -298,10 +287,10 @@ impl OAuth2TokenManager {
  * `RwLock` / `Mutex` ensures interior access is synchronised; callers must
  * supply a Send + Sync `ApiClient`, which our `DefaultApiClient` is. */
 
-/// Returned when the OAuth2 token endpoint returns a 2xx response whose body
-/// is missing or contains an empty `access_token` field. Distinct from
-/// [`OAuth2ServerError`] (which represents RFC 6749 §5.2 error responses on
-/// 4xx/5xx) so callers can recover differently via `downcast_ref`.
+/// Returned when the OAuth2 token endpoint returns a 2xx response the SDK
+/// cannot use: a body that is not JSON, or one that is missing or has an empty
+/// `access_token` field. Distinct from [`OAuth2ServerError`] (which represents
+/// any non-2xx answer) so callers can recover differently via `downcast_ref`.
 #[derive(Debug)]
 pub struct OAuth2TokenError {
     message: String,
@@ -328,7 +317,9 @@ impl std::error::Error for OAuth2TokenError {}
 // satisfied by the `impl Error` above and the `String` field.
 impl crate::errors::OpenAPIError for OAuth2TokenError {}
 
-/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// Returned when the OAuth2 token endpoint answers with any non-2xx status,
+/// including a refused 3xx redirect. Typed representation of an RFC 6749
+/// §5.2 OAuth2 error response. The
 /// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
 /// `invalid_client`); `description` and `uri` are the optional
 /// human-readable description and a URL to a page describing the error.
