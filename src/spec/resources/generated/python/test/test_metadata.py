@@ -89,7 +89,7 @@ class TestMetadataTypedAdditionalProperties:
         # End-to-end: deserialize -> serialize -> deserialize keeps the
         # dict-valued `additional_properties` wire property intact. The
         # deserializing convenience method is wrapped so an unexpected
-        # SerializationError surfaces as a clear test failure.
+        # SerializationException surfaces as a clear test failure.
         try:
             wire = (
                 '{"createdAt":"2024-01-01T00:00:00Z",'

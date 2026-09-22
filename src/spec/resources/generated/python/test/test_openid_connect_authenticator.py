@@ -15,7 +15,11 @@ from urllib.parse import urlparse, parse_qs
 from petstore_client.auth.oauth.openid_connect_authenticator import (
     OpenIdConnectAuthenticator,
 )
-from petstore_client.auth.oauth.oauth2_token_manager import OAuth2TokenError
+from petstore_client.errors.internal_server_error_exception import (
+    InternalServerErrorException,
+)
+from petstore_client.errors.not_found_exception import NotFoundException
+from petstore_client.object_serializer import SerializationException
 from petstore_client.api_http_response import ApiHttpResponse
 
 
@@ -131,11 +135,9 @@ class TestOpenIdConnectAuthenticator:
     def test_throws_when_no_api_client_injected(self) -> None:
         auth = _create_authenticator()
 
-        try:
+        with pytest.raises(RuntimeError) as exc_info:
             auth.build_authorization_url()
-            assert False, "Expected RuntimeError"
-        except RuntimeError:
-            pass
+        assert type(exc_info.value) is RuntimeError
 
     def test_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()
@@ -149,19 +151,39 @@ class TestOpenIdConnectAuthenticator:
         assert "oidc_secret" not in rendered
         assert "***" in rendered
 
-    def test_discovery_non_2xx_status_raises(self) -> None:
-        # A 500-HTML error page must surface as a typed OAuth error, not a
-        # confusing "invalid JSON" from json.loads.
+    @pytest.mark.parametrize(
+        ("status", "expected"),
+        [(404, NotFoundException), (500, InternalServerErrorException)],
+    )
+    def test_discovery_non_2xx_status_raises(self, status: int, expected: type) -> None:
+        # Discovery is an HTTP call like any other: a non-2xx answer (e.g. a
+        # 500-HTML error page) raises the same status-specific error an API
+        # call would, not a confusing "invalid JSON" from json.loads.
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
-            status_code=500,
-            body="<html>Internal Server Error</html>",
+            status_code=status,
+            body="<html>Error</html>",
             headers={"content-type": "text/html"},
         )
         auth.set_api_client(mock_client)
-        with pytest.raises(OAuth2TokenError):
+        with pytest.raises(expected) as exc_info:
             auth.build_authorization_url()
+        assert type(exc_info.value) is expected
+        assert exc_info.value.status_code == status
+
+    def test_discovery_document_not_json_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body="<html>not json</html>",
+            headers={"content-type": "text/html"},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is SerializationException
 
     def test_discovery_missing_authorization_endpoint_raises(self) -> None:
         auth = _create_authenticator()
@@ -172,7 +194,7 @@ class TestOpenIdConnectAuthenticator:
             headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
-        with pytest.raises(OAuth2TokenError):
+        with pytest.raises(SerializationException):
             auth.build_authorization_url()
 
     def test_fetches_discovery_document_only_once(self) -> None:
@@ -199,5 +221,5 @@ class TestOpenIdConnectAuthenticator:
             headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
-        with pytest.raises(OAuth2TokenError):
+        with pytest.raises(SerializationException):
             auth.build_authorization_url()

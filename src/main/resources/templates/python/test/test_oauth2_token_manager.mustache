@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from {{packageName}}.auth.oauth.oauth2_token_manager import (
-    OAuth2ServerError,
-    OAuth2TokenError,
+    OAuth2ServerException,
+    OAuth2TokenException,
     OAuth2TokenManager,
 )
 from {{packageName}}.api_http_response import ApiHttpResponse
@@ -159,14 +159,15 @@ class TestOAuth2TokenManager:
     def test_throws_when_no_api_client_injected(self) -> None:
         manager = OAuth2TokenManager()
 
-        try:
+        # A wrong call order is a programming error: the invalid-state
+        # RuntimeError, not an SDK error.
+        with pytest.raises(RuntimeError) as exc_info:
             manager.get_access_token(
                 'https://auth.example.com/token',
                 {'grant_type': 'client_credentials'},
             )
-            assert False, 'Expected RuntimeError'
-        except RuntimeError:
-            pass
+        assert type(exc_info.value) is RuntimeError
+        assert not isinstance(exc_info.value, {{errorPrefix}}Exception)
 
     def test_single_flight_coalesces_concurrent_callers(self) -> None:
         # 10 threads all see no cached token and race into get_access_token.
@@ -407,7 +408,7 @@ class TestOAuth2TokenManager:
 
     def test_token_response_missing_access_token_throws_typed_error(self) -> None:
         # A 2xx response whose body omits access_token must surface as the
-        # typed OAuth2TokenError, not silently cache an empty token.
+        # typed OAuth2TokenException, not silently cache an empty token.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -422,13 +423,32 @@ class TestOAuth2TokenManager:
                 'https://auth.example.com/token',
                 {'grant_type': 'client_credentials'},
             )
-            assert False, 'Expected OAuth2TokenError'
-        except OAuth2TokenError:
+            assert False, 'Expected OAuth2TokenException'
+        except OAuth2TokenException:
             pass
+
+    def test_token_response_not_json_throws_typed_error(self) -> None:
+        # A 2xx body that is not a JSON object cannot yield a token: it
+        # surfaces as OAuth2TokenException, not a raw json decoder error.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body='<html>not json</html>',
+            headers={'content-type': 'text/html'},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2TokenException) as exc_info:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+        assert type(exc_info.value) is OAuth2TokenException
 
     def test_token_endpoint_error_response_parsed_to_typed_error(self) -> None:
         # RFC 6749 §5.2: a 4xx response with a JSON error object must surface
-        # as a typed OAuth2ServerError carrying code/description/uri.
+        # as a typed OAuth2ServerException carrying code/description/uri.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -447,8 +467,8 @@ class TestOAuth2TokenManager:
                 'https://auth.example.com/token',
                 {'grant_type': 'client_credentials'},
             )
-            assert False, 'Expected OAuth2ServerError'
-        except OAuth2ServerError as err:
+            assert False, 'Expected OAuth2ServerException'
+        except OAuth2ServerException as err:
             assert err.status_code == 400
             assert err.code == 'invalid_grant'
             assert err.description == 'refresh token expired'
@@ -484,8 +504,9 @@ class TestOAuth2TokenManager:
     def test_token_endpoint_redirect_is_rejected(self) -> None:
         """3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
         manager must refuse the whole 300-399 range (302 and 307 both checked
-        here, plus 301/303/308) with OAuth2TokenError rather than replaying
-        the credential-bearing POST to the redirect target."""
+        here, plus 301/303/308) rather than replaying the credential-bearing
+        POST to the redirect target. A 3xx is a non-2xx answer, so it raises
+        OAuth2ServerException carrying the status."""
         for status in (301, 302, 303, 307, 308):
             manager = OAuth2TokenManager()
             mock_client = MagicMock()
@@ -501,9 +522,9 @@ class TestOAuth2TokenManager:
                     'https://auth.example.com/token',
                     {'grant_type': 'client_credentials', 'client_secret': 'topsecret'},
                 )
-                assert False, f'Expected OAuth2TokenError for status {status}'
-            except OAuth2TokenError:
-                pass
+                assert False, f'Expected OAuth2ServerException for status {status}'
+            except OAuth2ServerException as err:
+                assert err.status_code == status
 
     def test_invalidate_triggers_single_refetch_under_concurrency(self) -> None:
         # After invalidation, 10 threads must coalesce into exactly ONE
@@ -561,8 +582,8 @@ class TestOAuth2TokenManager:
     )
     def test_redirect_refusal_error_includes_location(self) -> None:
         # Gap 3.2: the redirect-refusal error should name the offending Location
-        # for diagnostics. The Python SDK's OAuth2TokenError message embeds only
-        # the status code and token endpoint URL, not the Location target.
+        # for diagnostics. The Python SDK's OAuth2ServerException message embeds
+        # only the status code and response body, not the Location target.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -577,6 +598,6 @@ class TestOAuth2TokenManager:
                 'https://auth.example.com/token',
                 {'grant_type': 'client_credentials'},
             )
-            assert False, 'Expected OAuth2TokenError'
-        except OAuth2TokenError as err:
+            assert False, 'Expected OAuth2ServerException'
+        except OAuth2ServerException as err:
             assert 'attacker.example' in str(err)

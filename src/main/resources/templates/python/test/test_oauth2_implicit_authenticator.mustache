@@ -1,4 +1,5 @@
 {{>api_info}}
+import pytest
 from urllib.parse import urlparse, parse_qs
 
 from {{packageName}}.auth.oauth.oauth2_implicit_authenticator import OAuth2ImplicitAuthenticator
@@ -65,11 +66,9 @@ class TestOAuth2ImplicitAuthenticator:
     def test_throws_when_access_token_not_set(self) -> None:
         auth = _create_authenticator()
 
-        try:
+        with pytest.raises(RuntimeError) as exc_info:
             auth.get_auth_headers()
-            assert False, 'Expected RuntimeError'
-        except RuntimeError:
-            pass
+        assert type(exc_info.value) is RuntimeError
 
     def test_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()

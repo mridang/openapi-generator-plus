@@ -2,7 +2,7 @@
 # mypy: ignore-errors
 import pytest
 
-from petstore_client.object_serializer import ObjectSerializer
+from petstore_client.object_serializer import ObjectSerializer, SerializationException
 from petstore_client.models.dry_food import DryFood
 from petstore_client.models.wet_food import WetFood
 from petstore_client.models.medication import Medication
@@ -32,14 +32,14 @@ class TestOneOfPetFood:
     def test_missing_discriminator_raises(self) -> None:
         """Gap AU: missing discriminator field must raise, not silently wrap."""
         json_str = '{"weightKg":2.5}'
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, "PetFood")
         assert "Missing discriminator" in str(exc_info.value)
 
     def test_empty_discriminator_raises(self) -> None:
         """Gap AU: empty discriminator value must raise."""
         json_str = '{"foodType":"","weightKg":2.5}'
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, "PetFood")
         assert "Empty discriminator" in str(
             exc_info.value
@@ -48,7 +48,7 @@ class TestOneOfPetFood:
     def test_unknown_discriminator_raises(self) -> None:
         """Gap AU: unknown discriminator value must raise."""
         json_str = '{"foodType":"raw","calories":300}'
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, "PetFood")
         assert "Unknown discriminator" in str(exc_info.value)
 
@@ -90,7 +90,7 @@ class TestAnyOfPetTreatment:
         union.
         """
         json_str = '{"unrelatedKey":"value","anotherUnknown":123}'
-        with pytest.raises(Exception):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "PetTreatment")
 
     def test_anyof_retains_all_matching_variants_losslessly(self) -> None:

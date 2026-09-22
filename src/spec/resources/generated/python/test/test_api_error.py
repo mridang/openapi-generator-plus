@@ -12,7 +12,7 @@ from petstore_client.errors import (
     OpenAPIException,
 )
 from petstore_client.models import Category
-from petstore_client.object_serializer import SerializationError
+from petstore_client.object_serializer import SerializationException
 
 
 class TestApiErrorShape:
@@ -76,10 +76,10 @@ class TestExceptionHierarchy:
         assert NetworkException(message="refused").status_code == 0
 
     def test_serialization_error_inherits_from_branded_root(self) -> None:
-        err = SerializationError("boom")
+        err = SerializationException("boom")
 
         assert isinstance(err, OpenAPIException)
-        assert issubclass(SerializationError, OpenAPIException)
+        assert issubclass(SerializationException, OpenAPIException)
 
     def test_open_api_exception_is_branded_root_alias(self) -> None:
         # Back-compat alias: the historical root name resolves to the

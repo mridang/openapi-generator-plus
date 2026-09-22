@@ -16,7 +16,7 @@ class OpenAPIException(Exception):
     """The branded root exception for every error raised by this SDK.
 
     All SDK exceptions -- transport/HTTP errors (:class:`ApiException` and
-    its typed subclasses) and serde failures (:class:`SerializationError`)
+    its typed subclasses) and serde failures (:class:`SerializationException`)
     -- inherit from this single root, so callers can catch everything with
     one ``except OpenAPIException``.
     """
@@ -83,7 +83,7 @@ class ApiException(OpenAPIException):
             return None
         # Imported lazily so this module stays the foundational one in the
         # import graph: object_serializer imports OpenAPIException from here
-        # for SerializationError's base, so we must not import it at module
+        # for SerializationException's base, so we must not import it at module
         # top or the two modules would form an import cycle.
         from petstore_client.object_serializer import ObjectSerializer
 

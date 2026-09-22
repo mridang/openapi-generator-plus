@@ -20,7 +20,7 @@ from petstore_client.models.pet import Pet
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.auth.authenticator import Authenticator
-from petstore_client.errors import ApiException
+from petstore_client.errors import ApiException, OpenAPIException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.server_exception import ServerException
 from petstore_client.errors.bad_request_exception import BadRequestException
@@ -176,6 +176,7 @@ class TestExceptionDispatch:
                 "application/json",
                 None,
             )
+        assert type(exc_info.value) is expected_class
         assert exc_info.value.status_code == status
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
@@ -239,6 +240,7 @@ class TestExceptionHierarchy:
             )
         assert isinstance(exc_info.value, ClientException)
         assert isinstance(exc_info.value, ApiException)
+        assert isinstance(exc_info.value, OpenAPIException)
 
     async def test_internal_server_error_hierarchy(self, api: Any) -> None:
         with pytest.raises(InternalServerErrorException) as exc_info:
@@ -254,6 +256,7 @@ class TestExceptionHierarchy:
             )
         assert isinstance(exc_info.value, ServerException)
         assert isinstance(exc_info.value, ApiException)
+        assert isinstance(exc_info.value, OpenAPIException)
 
 
 class TestSuccessDeserialization:
@@ -1003,15 +1006,15 @@ class TestMalformedSuccessBodyFailsLoud:
     """Scenario 11 — a 2xx response whose JSON body is malformed must FAIL
     LOUD: the deserialize error propagates rather than silently returning the
     raw (unparsed) string. A truncated body on a `Content-Type: application/json`
-    200 must surface as the SDK's SerializationError, never as the raw text."""
+    200 must surface as the SDK's SerializationException, never as the raw text."""
 
     async def test_truncated_json_body_propagates_serialization_error(self) -> None:
-        from petstore_client.object_serializer import SerializationError
+        from petstore_client.object_serializer import SerializationException
 
         client = MalformedJsonApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             await stub.call(
                 "GET",
                 "/test/echo",
@@ -1026,7 +1029,7 @@ class TestMalformedSuccessBodyFailsLoud:
     async def test_malformed_body_not_returned_as_raw_string(self) -> None:
         # The failure mode we guard against: swallowing the parse error and
         # handing back the raw, undecoded body string. It must raise instead.
-        from petstore_client.object_serializer import SerializationError
+        from petstore_client.object_serializer import SerializationException
 
         client = MalformedJsonApiClient()
         config = Configuration(base_url="http://localhost")
@@ -1043,7 +1046,7 @@ class TestMalformedSuccessBodyFailsLoud:
                 "application/json",
                 "object",
             )
-        except SerializationError:
+        except SerializationException:
             raised = True
         assert raised, "malformed 2xx body must raise, not return the raw string"
 

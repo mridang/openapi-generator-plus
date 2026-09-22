@@ -116,12 +116,16 @@ class TestDefaultApiClientUnit:
     def test_malformed_gzip_body_raises_api_exception(self) -> None:
         """decompression-error-not-wrapped: a body that advertises
         Content-Encoding: gzip but is not valid gzip must surface as the
-        SDK's ApiException, not a raw gzip.BadGzipFile / OSError."""
-        from petstore_client.errors import ApiException
+        SDK's ApiException carrying the response's real status, not a
+        NetworkException and not a raw gzip.BadGzipFile / OSError."""
+        from petstore_client.errors import ApiException, NetworkException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as exc_info:
             client.send_request("GET", f"{self.base_url}/bad-gzip", {}, None)
+        assert type(exc_info.value) is ApiException
+        assert not isinstance(exc_info.value, NetworkException)
+        assert exc_info.value.status_code == 200
         assert "decompress" in str(exc_info.value.message or "").lower()
 
     def test_returns_non_2xx_status_code(self) -> None:
@@ -753,6 +757,10 @@ class TestBodyReplayOnTlsDowngrade:
                 '{"secret":"value"}',
             )
         assert "downgrade" in str(excinfo.value.message or "").lower()
+        # A refused redirect is a response that could not be used: an
+        # ApiException with the 3xx status, never a NetworkException.
+        assert type(excinfo.value) is ApiException
+        assert excinfo.value.status_code == 307
         # The replay over plaintext must never have happened.
         assert len(pool.calls) == 1
 
@@ -911,6 +919,8 @@ class TestRedirectExhaustion:
         with pytest.raises(ApiException) as excinfo:
             client.send_request("GET", "https://example.com/start", {}, None)
         assert "too many redirects" in str(excinfo.value.message or "").lower()
+        assert type(excinfo.value) is ApiException
+        assert excinfo.value.status_code in (301, 302, 303, 307, 308)
 
     def test_terminal_redirect_without_location_does_not_raise(self) -> None:
         # A 3xx with no Location header is a legitimate terminal response and
@@ -926,11 +936,12 @@ class TestRedirectExhaustion:
 
 
 class TestUseAfterClose:
-    """Calling ``send_request`` after ``close()`` must raise the SDK's own
-    ApiException rather than a foreign urllib3 error or silently succeeding."""
+    """Calling ``send_request`` after ``close()`` is a wrong call order: it
+    must raise the invalid-state RuntimeError rather than a foreign urllib3
+    error or silently succeeding."""
 
-    def test_send_after_close_raises_api_exception(self) -> None:
-        from petstore_client.errors import ApiException
+    def test_send_after_close_raises_runtime_error(self) -> None:
+        from petstore_client.errors import OpenAPIException
 
         class _Pool:
             def __init__(self) -> None:
@@ -946,8 +957,10 @@ class TestUseAfterClose:
         pool = _Pool()
         client = DefaultApiClient(pool_manager=pool)
         client.close()
-        with pytest.raises(ApiException):
+        with pytest.raises(RuntimeError) as excinfo:
             client.send_request("GET", "https://example.com/x", {}, None)
+        assert type(excinfo.value) is RuntimeError
+        assert not isinstance(excinfo.value, OpenAPIException)
         # The request must never have been issued against the closed client.
         assert pool.calls == 0
 
@@ -1006,14 +1019,25 @@ class TestNetworkErrors:
         client = DefaultApiClient()
         with pytest.raises(NetworkException) as excinfo:
             client.send_request("GET", f"http://127.0.0.1:{port}/x", {}, None)
+        assert type(excinfo.value) is NetworkException
         assert not isinstance(excinfo.value, NetworkTimeoutException)
         assert isinstance(excinfo.value, ApiException)
         assert excinfo.value.status_code == 0
         assert excinfo.value.__cause__ is not None
 
+    def test_unparseable_url_raises_value_error(self) -> None:
+        # A request URL urllib3 cannot parse is a caller mistake: ValueError,
+        # never a NetworkException.
+        from petstore_client.errors import OpenAPIException
+
+        client = DefaultApiClient()
+        with pytest.raises(ValueError) as excinfo:
+            client.send_request("GET", "http://[bad", {}, None)
+        assert not isinstance(excinfo.value, OpenAPIException)
+
     def test_read_timeout_raises_network_timeout_exception(self) -> None:
         import urllib3
-        from petstore_client.errors import NetworkTimeoutException
+        from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
@@ -1027,6 +1051,8 @@ class TestNetworkErrors:
         client = DefaultApiClient(pool_manager=_Pool())
         with pytest.raises(NetworkTimeoutException) as excinfo:
             client.send_request("GET", "https://example.com/x", {}, None)
+        assert type(excinfo.value) is NetworkTimeoutException
+        assert isinstance(excinfo.value, NetworkException)
         assert excinfo.value.status_code == 0
         assert isinstance(excinfo.value.__cause__, urllib3.exceptions.MaxRetryError)
 
@@ -1037,11 +1063,15 @@ class TestCaCertPathFailsFast:
     silently falling back to the system trust store (security theater)."""
 
     def test_nonexistent_ca_cert_path_raises_value_error(self) -> None:
+        from petstore_client.errors import OpenAPIException
+
         transport = (
             TransportOptions.builder().ca_cert_path("/nonexistent/ca.pem").build()
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as excinfo:
             DefaultApiClient(transport)
+        assert type(excinfo.value) is ValueError
+        assert not isinstance(excinfo.value, OpenAPIException)
 
 
 class TestApiKeyHeaderStrippedOnCrossOrigin:
@@ -1152,5 +1182,7 @@ class TestRedirectToNonHttpScheme:
         with pytest.raises(ApiException) as excinfo:
             client.send_request("GET", "https://example.com/start", {}, None)
         assert "non-http" in str(excinfo.value.message or "").lower()
+        assert type(excinfo.value) is ApiException
+        assert excinfo.value.status_code == 302
         # The non-http(s) target must never have been contacted.
         assert len(pool.calls) == 1

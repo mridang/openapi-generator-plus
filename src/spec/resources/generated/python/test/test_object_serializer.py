@@ -3,7 +3,8 @@
 import datetime
 from decimal import Decimal
 import pytest
-from petstore_client.object_serializer import ObjectSerializer, SerializationError
+from petstore_client.errors import OpenAPIException
+from petstore_client.object_serializer import ObjectSerializer, SerializationException
 from petstore_client.models.category import Category
 from petstore_client.models.order import OrderStatusEnum
 from petstore_client.models.pet import Pet
@@ -117,7 +118,7 @@ class TestContainerDatetimeAwareDecodeRule:
 
     def test_list_of_datetime_rejects_naive_element(self) -> None:
         # The container path (List[datetime]) shares the same rule element-wise.
-        with pytest.raises((ValueError, SerializationError)):
+        with pytest.raises((ValueError, SerializationException)):
             ObjectSerializer()._deserialize(["2024-01-01T12:30:45"], "List[datetime]")
 
 
@@ -136,16 +137,48 @@ class TestNonAsciiSerialization:
 
 
 class TestDeserializationErrorWrapping:
+    @pytest.mark.parametrize(
+        ("payload", "type_name"),
+        [
+            pytest.param("{", "Category", id="malformed JSON"),
+            pytest.param(
+                '{"id":"abc","name":"doggie","photoUrls":[]}',
+                "Pet",
+                id="wrong primitive type",
+            ),
+            pytest.param(
+                '{"name":"doggie","photoUrls":[],"status":"banana"}',
+                "Pet",
+                id="unknown enum value",
+            ),
+            pytest.param('{"photoUrls":[]}', "Pet", id="missing required field"),
+            pytest.param('{"retryAfter":"soon"}', "EdgeCases", id="malformed duration"),
+            pytest.param(
+                '{"expiresAt":"not-a-date"}', "EdgeCases", id="malformed date-time"
+            ),
+        ],
+    )
+    def test_wire_shape_failure_raises_exactly_serialization_exception(
+        self, payload: str, type_name: str
+    ) -> None:
+        """The error contract: every wire-shape failure raises exactly
+        SerializationException (no subclass, no library error), and that is an
+        instance of the SDK root so one except catches it."""
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize(payload, type_name)
+        assert type(exc_info.value) is SerializationException
+        assert isinstance(exc_info.value, OpenAPIException)
+
     def test_truncated_json_raises_serialization_error(self) -> None:
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize("{", "Category")
 
     def test_invalid_json_structure_raises_serialization_error(self) -> None:
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('"hello"', "int")
 
     def test_thrown_serialization_error_has_cause(self) -> None:
-        with pytest.raises(SerializationError) as exc_info:
+        with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize("{", "Category")
         assert exc_info.value.cause is not None
 
@@ -166,7 +199,7 @@ class TestStrictFloatAcceptsIntegralWireValue:
             restored = ObjectSerializer().deserialize(
                 '{"foodType": "dry", "weightKg": 5}', "DryFood"
             )
-        except SerializationError as exc:  # pragma: no cover - failure path
+        except SerializationException as exc:  # pragma: no cover - failure path
             pytest.fail(f"integral double value was rejected: {exc}")
         assert restored is not None
         assert restored.weight_kg == 5.0
@@ -177,14 +210,14 @@ class TestStrictFloatAcceptsIntegralWireValue:
             restored = ObjectSerializer().deserialize(
                 '{"foodType": "dry", "weightKg": 1.5}', "DryFood"
             )
-        except SerializationError as exc:  # pragma: no cover - failure path
+        except SerializationException as exc:  # pragma: no cover - failure path
             pytest.fail(f"fractional double value was rejected: {exc}")
         assert restored is not None
         assert restored.weight_kg == 1.5
 
     def test_string_value_still_rejected(self) -> None:
         # LaxFloat only widens int -> float; a string is still a wire-type bug.
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(
                 '{"foodType": "dry", "weightKg": "5"}', "DryFood"
             )
@@ -204,7 +237,7 @@ class TestUriRoundTripsByteIdentical:
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "https://example.com"}'
         try:
             restored = ObjectSerializer().deserialize(wire, "Pet")
-        except SerializationError as exc:  # pragma: no cover - failure path
+        except SerializationException as exc:  # pragma: no cover - failure path
             pytest.fail(f"absolute URL was rejected: {exc}")
         assert restored is not None
         # HttpUrl would have mutated this to 'https://example.com/'.
@@ -218,7 +251,7 @@ class TestUriRoundTripsByteIdentical:
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "' + url + '"}'
         try:
             restored = ObjectSerializer().deserialize(wire, "Pet")
-        except SerializationError as exc:  # pragma: no cover - failure path
+        except SerializationException as exc:  # pragma: no cover - failure path
             pytest.fail(f"absolute URL was rejected: {exc}")
         assert restored is not None
         # HttpUrl would lowercase the host and strip the :80 default port.
@@ -227,7 +260,7 @@ class TestUriRoundTripsByteIdentical:
     def test_non_url_string_rejected(self) -> None:
         # UrlStr still validates: a non-URL value is a real error.
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "not a url"}'
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(wire, "Pet")
 
 
@@ -588,23 +621,23 @@ class TestRequiredFieldNullRejection:
 
     def test_null_on_required_field_raises(self) -> None:
         json_str = '{"name": null, "photoUrls": ["x"]}'
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "Pet")
 
     def test_missing_required_field_raises(self) -> None:
         json_str = '{"photoUrls": ["x"]}'
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "Pet")
 
 
 class TestUnknownEnumRejection:
     """unknown-enum-deserialize-throws: an enum value not declared in the
-    schema must raise the SDK's SerializationError on deserialize, never fall
+    schema must raise the SDK's SerializationException on deserialize, never fall
     back to a silent default or an 'unknown' member. All 12 SDKs converge here.
     """
 
     def test_unknown_enum_value_on_scalar_raises(self) -> None:
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('"teleported"', OrderStatusEnum)
 
     def test_known_enum_value_on_scalar_round_trips(self) -> None:
@@ -615,7 +648,7 @@ class TestUnknownEnumRejection:
         # The enum field lives on a model; an out-of-schema value must fail the
         # whole deserialize rather than coerce to the field default.
         json_str = '{"id": 1, "petId": 1, "quantity": 1, "status": "teleported"}'
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "Order")
 
 
@@ -628,27 +661,27 @@ class TestNanInfinityRejection:
     def test_serialize_nan_raises(self) -> None:
         import math
 
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().serialize({"val": math.nan})
 
     def test_serialize_infinity_raises(self) -> None:
         import math
 
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().serialize({"val": math.inf})
 
     def test_serialize_negative_infinity_raises(self) -> None:
         import math
 
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().serialize({"val": -math.inf})
 
     def test_deserialize_nan_raises(self) -> None:
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"val": NaN}', "object")
 
     def test_deserialize_infinity_raises(self) -> None:
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"val": Infinity}', "object")
 
 
@@ -754,7 +787,7 @@ class TestDurationFormat:
             ObjectSerializer()._deserialize("\u0663s", "datetime.timedelta")
 
     def test_malformed_duration_raises_serialization_error(self) -> None:
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('"PT1H"', datetime.timedelta)
 
 
@@ -849,9 +882,9 @@ class TestDiscriminatorAutoInjection:
         # discriminator must raise, not wrap the raw dict in the union
         # container's `actual_instance`. get_discriminator_value raises a
         # ValueError on the missing field, which the composed deserializer
-        # surfaces as a SerializationError. Matches the 10 SDKs that throw.
+        # surfaces as a SerializationException. Matches the 10 SDKs that throw.
         json_str = '{"weightKg": 5.0}'
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "PetFood")
 
 
@@ -895,7 +928,7 @@ class TestIntegerBackedEnum:
     def test_unknown_int_value_rejected(self) -> None:
         from petstore_client.models.priority import Priority
 
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize("99", Priority)
 
     def test_round_trip_preserves_member(self) -> None:
@@ -937,7 +970,7 @@ class TestNonLowercaseStringEnum:
     def test_unknown_value_rejected(self) -> None:
         from petstore_client.models.availability import Availability
 
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('"unavailable"', Availability)
 
 
@@ -1139,7 +1172,7 @@ class TestReferencedEnumFieldRejection:
     inline enum). An out-of-schema value fails the whole deserialize."""
 
     def test_unknown_referenced_enum_value_rejected(self) -> None:
-        with pytest.raises(SerializationError):
+        with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(
                 '{"priority":1,"availability":"teleported"}', "StockItem"
             )

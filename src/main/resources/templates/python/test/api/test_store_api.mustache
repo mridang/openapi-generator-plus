@@ -9,6 +9,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.configuration import Configuration
+from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
+from {{packageName}}.errors.not_found_exception import NotFoundException
 from {{packageName}}.models.category import Category
 from {{packageName}}.models.order import Order, OrderStatusEnum
 
@@ -121,7 +123,7 @@ class TestStoreApiErrorHandling:
 
     async def test_get_order_not_found(self) -> None:
         api, server = _create_mock_server(404, 'application/json', '{"message":"Order not found"}')
-        with pytest.raises(Exception):
+        with pytest.raises(NotFoundException):
             await api.get_order_by_id(99999)
 
     async def test_place_order_server_error(self) -> None:
@@ -133,12 +135,12 @@ class TestStoreApiErrorHandling:
             status=OrderStatusEnum.PLACED,
             complete=False
         )
-        with pytest.raises(Exception):
+        with pytest.raises(InternalServerErrorException):
             await api.place_order(order)
 
     async def test_delete_order_not_found(self) -> None:
         api, server = _create_mock_server(404, 'application/json', '{"message":"Order not found"}')
-        with pytest.raises(Exception):
+        with pytest.raises(NotFoundException):
             await api.delete_order(99999)
 
 

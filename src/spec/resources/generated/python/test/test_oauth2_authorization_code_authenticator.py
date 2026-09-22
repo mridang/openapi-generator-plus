@@ -16,6 +16,7 @@ from petstore_client.auth.oauth.oauth2_authorization_code_authenticator import (
     OAuth2AuthorizationCodeAuthenticator,
 )
 from petstore_client.api_http_response import ApiHttpResponse
+from petstore_client.errors import OpenAPIException
 
 
 def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
@@ -136,13 +137,14 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert headers["Authorization"] == "Bearer access_2"
 
     def test_throws_before_exchange_code_called(self) -> None:
+        # Requesting a token before the code exchange is a wrong call order:
+        # the invalid-state RuntimeError, not an SDK error.
         auth = _create_authenticator()
 
-        try:
+        with pytest.raises(RuntimeError) as exc_info:
             auth.get_auth_headers()
-            assert False, "Expected RuntimeError"
-        except RuntimeError:
-            pass
+        assert type(exc_info.value) is RuntimeError
+        assert not isinstance(exc_info.value, OpenAPIException)
 
     def test_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()

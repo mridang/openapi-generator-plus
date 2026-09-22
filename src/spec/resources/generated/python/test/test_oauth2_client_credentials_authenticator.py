@@ -19,6 +19,7 @@ from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import (
     OAuth2ClientCredentialsAuthenticator,
 )
 from petstore_client.api_http_response import ApiHttpResponse
+from petstore_client.auth.oauth.oauth2_token_manager import OAuth2ServerException
 
 
 def _create_authenticator() -> OAuth2ClientCredentialsAuthenticator:
@@ -129,8 +130,9 @@ class TestOAuth2ClientCredentialsAuthenticator:
         )
         auth.set_api_client(mock_client)
 
-        with pytest.raises(Exception):
+        with pytest.raises(OAuth2ServerException) as exc_info:
             auth.get_auth_headers()
+        assert exc_info.value.status_code == 401
 
     def test_caches_token_across_calls(self) -> None:
         # The token manager caches the access token until expiry, so two

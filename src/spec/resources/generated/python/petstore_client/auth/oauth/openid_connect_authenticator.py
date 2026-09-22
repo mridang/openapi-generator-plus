@@ -17,7 +17,18 @@ from ..http_aware_authenticator import HttpAwareAuthenticator
 from .oauth2_authorization_code_authenticator import (
     OAuth2AuthorizationCodeAuthenticator,
 )
-from .oauth2_token_manager import OAuth2TokenError
+from ...api_http_response import ApiHttpResponse
+from ...errors import ApiException
+from ...errors.bad_request_exception import BadRequestException
+from ...errors.client_exception import ClientException
+from ...errors.conflict_exception import ConflictException
+from ...errors.forbidden_exception import ForbiddenException
+from ...errors.internal_server_error_exception import InternalServerErrorException
+from ...errors.not_found_exception import NotFoundException
+from ...errors.server_exception import ServerException
+from ...errors.unauthorized_exception import UnauthorizedException
+from ...errors.unprocessable_entity_exception import UnprocessableEntityException
+from ...object_serializer import SerializationException
 
 # RFC 8414 recommended default max-age for OIDC discovery documents.
 _DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
@@ -106,8 +117,10 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             The authorization code authenticator delegate.
 
         Raises:
-            RuntimeError: If no API client has been injected or the
-                discovery request fails.
+            RuntimeError: If no API client has been injected.
+            ApiException: If the discovery request answers with a non-2xx
+                status (the status-specific subclass where there is one).
+            SerializationException: If the discovery document is unusable.
         """
         if self._delegate is not None and time.monotonic() < self._discovery_expiry:
             return self._delegate
@@ -123,25 +136,32 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         )
         # Guard the HTTP status before parsing: a 500-HTML error page would
         # otherwise surface as a confusing "invalid JSON" error instead of
-        # the real discovery failure.
+        # the real discovery failure. Discovery is an HTTP call like any
+        # other, so it raises the same typed error an API call would.
         if response.status_code < 200 or response.status_code >= 300:
-            raise OAuth2TokenError(
-                f"OpenID Connect discovery request to {self._openid_connect_url} "
-                f"failed with HTTP status {response.status_code}"
+            raise self._discovery_error(response)
+        try:
+            discovery = json.loads(response.body)
+        except ValueError as e:
+            raise SerializationException(
+                f"OpenID Connect discovery document is not valid JSON: {e}", e
+            ) from e
+        if not isinstance(discovery, dict):
+            raise SerializationException(
+                "OpenID Connect discovery document is not a JSON object"
             )
-        discovery = json.loads(response.body)
         # Validate the endpoints are present and non-empty before building the
         # delegate. A missing/blank endpoint would otherwise raise a KeyError
         # or silently produce a delegate with empty endpoint URLs.
         authorization_endpoint = discovery.get("authorization_endpoint")
         if not authorization_endpoint:
-            raise OAuth2TokenError(
+            raise SerializationException(
                 "OpenID Connect discovery document is missing a non-empty "
                 "'authorization_endpoint'"
             )
         token_endpoint = discovery.get("token_endpoint")
         if not token_endpoint:
-            raise OAuth2TokenError(
+            raise SerializationException(
                 "OpenID Connect discovery document is missing a non-empty "
                 "'token_endpoint'"
             )
@@ -159,6 +179,49 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             getattr(response, "headers", None)
         )
         return self._delegate
+
+    def _discovery_error(self, response: ApiHttpResponse) -> ApiException:
+        """The error an API call answered with the discovery response's
+        status would raise: the status-specific subclass where there is one,
+        else ClientException / ServerException / ApiException."""
+        message = (
+            f"OpenID Connect discovery request to {self._openid_connect_url} failed"
+        )
+        headers = dict(response.headers)
+        code = response.status_code
+        by_status = {
+            400: BadRequestException,
+            401: UnauthorizedException,
+            403: ForbiddenException,
+            404: NotFoundException,
+            409: ConflictException,
+            422: UnprocessableEntityException,
+            500: InternalServerErrorException,
+        }
+        if code in by_status:
+            return by_status[code](
+                message=message, response_body=response.body, response_headers=headers
+            )
+        if 400 <= code < 500:
+            return ClientException(
+                status_code=code,
+                message=message,
+                response_body=response.body,
+                response_headers=headers,
+            )
+        if code >= 500:
+            return ServerException(
+                status_code=code,
+                message=message,
+                response_body=response.body,
+                response_headers=headers,
+            )
+        return ApiException(
+            status_code=code,
+            message=message,
+            response_body=response.body,
+            response_headers=headers,
+        )
 
     def build_authorization_url(self, state: Optional[str] = None) -> str:
         """Build the authorization URL using the discovered authorization endpoint.

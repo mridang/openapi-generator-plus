@@ -20,6 +20,8 @@ from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
 from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator
 from {{packageName}}.auth.api_key_location import ApiKeyLocation
 from {{packageName}}.configuration import Configuration
+from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
+from {{packageName}}.errors.not_found_exception import NotFoundException
 from {{packageName}}.models.api_response import ApiResponse
 from {{packageName}}.models.pet import Pet, PetStatusEnum
 from {{packageName}}.models.pet_passport import PetPassport
@@ -480,12 +482,12 @@ class TestPetApiErrorHandling:
 
     async def test_error_handling_not_found(self) -> None:
         api, server = _create_mock_server(404, 'application/json', '{"message":"Pet not found"}')
-        with pytest.raises(Exception):
+        with pytest.raises(NotFoundException):
             await api.get_pet_by_id(99999)
 
     async def test_error_handling_server_error(self) -> None:
         api, server = _create_mock_server(500, 'application/json', '{"message":"Internal server error"}')
-        with pytest.raises(Exception):
+        with pytest.raises(InternalServerErrorException):
             await api.get_pet_by_id(1)
 
     async def test_empty_body_for_body_returning_op_raises(self) -> None:

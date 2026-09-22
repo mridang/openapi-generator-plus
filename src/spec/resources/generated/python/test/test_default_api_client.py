@@ -708,7 +708,7 @@ class TestMultipartBody:
         name must be rejected to prevent Content-Disposition smuggling."""
         client = DefaultApiClient()
         bad_fields = {"name\r\nInjected: yes": "string-value"}
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             client.send_request("POST", chasm_http_url + "/test/echo", {}, bad_fields)
 
 
@@ -769,17 +769,16 @@ class TestNullBodyContentLength:
 
 class TestClientLifecycle:
     # Gap T6: close() releases the underlying urllib3 PoolManager and is
-    # idempotent. A request issued on a closed client must surface the SDK's
-    # own ApiException (closed-flag guard), not a leaked transport error,
-    # matching the uniform use-after-close contract across SDKs.
+    # idempotent. A request issued on a closed client must raise the
+    # invalid-state RuntimeError (closed-flag guard), not a leaked transport
+    # error, matching the uniform use-after-close contract across SDKs.
     def test_close_releases_underlying_client(self) -> None:
-        from petstore_client.errors import ApiException
-
         client = DefaultApiClient()
         client.close()
         # close() is idempotent.
         client.close()
 
-        with pytest.raises(ApiException) as excinfo:
+        with pytest.raises(RuntimeError) as excinfo:
             client.send_request("GET", "https://example.com", {}, None)
+        assert type(excinfo.value) is RuntimeError
         assert "closed" in str(excinfo.value)

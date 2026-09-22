@@ -29,7 +29,7 @@ from petstore_client._duration import (
     _parse_timedelta_protobuf,
 )
 
-# SerializationError inherits from the branded SDK root so callers can catch
+# SerializationException inherits from the branded SDK root so callers can catch
 # every SDK error (transport + serde) with one `except OpenAPIException`.
 # The errors module imports ObjectSerializer lazily (inside a method), so this
 # top-level import does not create a cycle.
@@ -67,7 +67,7 @@ def _dict_adapter(inner: Any) -> TypeAdapter[Any]:
     return cached
 
 
-class SerializationError(OpenAPIException):
+class SerializationException(OpenAPIException):
     """Exception raised when serialization or deserialization fails."""
 
     def __init__(self, message: str, cause: Optional[Exception] = None):
@@ -174,14 +174,14 @@ class ObjectSerializer:
                 allow_nan=False,
             )
         except Exception as e:
-            raise SerializationError(f"Failed to serialize object to JSON: {e}", e)
+            raise SerializationException(f"Failed to serialize object to JSON: {e}", e)
 
     @staticmethod
     def _reject_nonfinite_constant(name: str) -> Any:
         # Raised when json.loads encounters NaN/Infinity/-Infinity literals.
         # The default parse_constant accepts them silently; we reject so
         # non-spec-compliant JSON from a misbehaving server fails loudly.
-        raise SerializationError(
+        raise SerializationException(
             f"Non-finite JSON number '{name}' is forbidden by RFC 8259", None
         )
 
@@ -208,9 +208,9 @@ class ObjectSerializer:
             # to the declared Optional[T] for callers without an inline override.
             return cast(Optional[T], self._deserialize(data, target_type))
         except json.JSONDecodeError as e:
-            raise SerializationError(f"Failed to parse JSON: {e}", e)
+            raise SerializationException(f"Failed to parse JSON: {e}", e)
         except Exception as e:
-            raise SerializationError(
+            raise SerializationException(
                 f"Failed to deserialize JSON to {target_type}: {e}", e
             )
 
@@ -264,7 +264,7 @@ class ObjectSerializer:
                 _visited = set()
             obj_id = id(obj)
             if obj_id in _visited:
-                raise SerializationError(
+                raise SerializationException(
                     "Circular reference detected during serialization"
                 )
             _visited.add(obj_id)

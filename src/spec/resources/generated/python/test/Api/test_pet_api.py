@@ -26,6 +26,10 @@ from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.configuration import Configuration
+from petstore_client.errors.internal_server_error_exception import (
+    InternalServerErrorException,
+)
+from petstore_client.errors.not_found_exception import NotFoundException
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet, PetStatusEnum
 from petstore_client.models.pet_passport import PetPassport
@@ -507,14 +511,14 @@ class TestPetApiErrorHandling:
         api, server = _create_mock_server(
             404, "application/json", '{"message":"Pet not found"}'
         )
-        with pytest.raises(Exception):
+        with pytest.raises(NotFoundException):
             await api.get_pet_by_id(99999)
 
     async def test_error_handling_server_error(self) -> None:
         api, server = _create_mock_server(
             500, "application/json", '{"message":"Internal server error"}'
         )
-        with pytest.raises(Exception):
+        with pytest.raises(InternalServerErrorException):
             await api.get_pet_by_id(1)
 
     async def test_empty_body_for_body_returning_op_raises(self) -> None:
