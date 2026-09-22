@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use crate::configuration_error::ConfigurationError;
+use crate::errors::configuration_error::ConfigurationError;
 
 /// ServerVariable represents a server variable from the OpenAPI specification.
 ///

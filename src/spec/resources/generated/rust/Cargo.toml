@@ -2,7 +2,7 @@
 name = "petstore"
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.85"
 license = "MIT"
 description = "A simplified Pet Store API for integration testing."
 
@@ -30,6 +30,10 @@ version = "0.32"
 optional = true
 
 [dev-dependencies]
+# The in-crate trace-context tests install the OpenTelemetry SDK with an
+# in-memory exporter and a current span. They are compiled with the
+# `opentelemetry` feature, so run the tests with `--all-features`.
+opentelemetry_sdk = { version = "0.32", features = ["testing"] }
 # reusable-containers lets every integration binary share one set of fixture
 # containers. Cargo compiles each file under tests/ separately, so without it
 # each of them starts its own Squid and Chasm; see tests/testcontainers_helper.rs.

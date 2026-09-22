@@ -10,12 +10,12 @@ impl ApiKeyHeaderAuthenticator {
     /// # Errors
     ///
     /// Returns the [`ApiKeyAuthenticator`] constructor's
-    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// [`ConfigurationError`](crate::errors::configuration_error::ConfigurationError)
     /// when the credentials are invalid.
     pub fn new(
         host: &str,
         api_key: &str,
-    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+    ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
         Ok(Self(ApiKeyAuthenticator::new(host, "X-API-Key", api_key, ApiKeyLocation::Header)?))
     }
 }

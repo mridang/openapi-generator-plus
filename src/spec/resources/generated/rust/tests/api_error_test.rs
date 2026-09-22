@@ -7,7 +7,6 @@
 
 use std::collections::HashMap;
 
-use petstore::auth::oauth::{OAuth2AuthorizationCodeError, OAuth2ServerError, OAuth2TokenError};
 use petstore::errors::{
     BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NetworkError,
     NetworkTimeoutError, NotFoundError, ServerError, UnauthorizedError, UnprocessableEntityError,
@@ -16,6 +15,7 @@ use petstore::models::Category;
 use petstore::ApiError;
 use petstore::OpenAPIError;
 use petstore::SerializationError;
+use petstore::{OAuth2AuthorizationCodeError, OAuth2ServerError, OAuth2TokenError};
 
 #[test]
 fn test_api_error_exposes_status_message_body_headers() {
@@ -31,10 +31,7 @@ fn test_api_error_exposes_status_message_body_headers() {
 
     assert_eq!(err.status_code(), 404);
     assert_eq!(err.message(), "not found");
-    assert_eq!(
-        err.response_body().as_deref(),
-        Some(r#"{"id":7,"name":"missing"}"#)
-    );
+    assert_eq!(err.response_body(), Some(r#"{"id":7,"name":"missing"}"#));
     assert_eq!(
         err.response_headers()
             .as_ref()
@@ -172,8 +169,7 @@ fn test_api_error_is_open_api_error() {
 #[test]
 fn test_api_error_kind_is_open_api_error() {
     // ApiErrorKind is the pattern-matching enum view of an ApiError.
-    let kind =
-        petstore::api_error::ApiErrorKind::from(ApiError::new(400, "bad".to_string(), None, None));
+    let kind = petstore::ApiErrorKind::from(ApiError::new(400, "bad".to_string(), None, None));
     let branded = assert_is_open_api_error(&kind);
     assert_eq!(kind.status_code(), 400);
     assert!(!branded.to_string().is_empty());
@@ -301,13 +297,9 @@ fn test_heterogeneous_errors_collect_as_open_api_trait_objects() {
 
 // -- Branded error hierarchy: auth-layer errors ----------------------------
 //
-// The OAuth2 / HTTP-Basic authenticators surface their own typed errors. They
-// live outside `crate::errors` (gated on which auth schemes the spec declares)
-// but are equally part of the branded hierarchy: every SDK-thrown error must be
-// reachable as `&dyn OpenAPIError`. `OAuth2TokenError` / `OAuth2ServerError`
-// have no public constructor (they only arise from a real token exchange), so
-// their brand is proven at compile time via the bound on this helper rather
-// than by constructing an instance.
+// The token-endpoint errors live in `crate::errors` beside the HTTP errors and
+// are generated whatever security schemes the spec declares: every SDK-thrown
+// error must be reachable as `&dyn OpenAPIError`.
 
 /// Compile-time proof that `T: OpenAPIError`. The body never runs; the bound
 /// alone fails to compile if the brand is missing.
@@ -348,8 +340,97 @@ fn test_network_errors_wrap_a_status_zero_api_error() {
 
 #[test]
 fn test_oauth2_token_and_server_errors_are_open_api_errors() {
-    // These have private fields and no public constructor, so assert the brand
-    // at the type level: the call only compiles when the bound is satisfied.
-    assert_type_is_open_api_error::<OAuth2TokenError>();
-    assert_type_is_open_api_error::<OAuth2ServerError>();
+    let token = OAuth2TokenError::new("token response missing".to_string());
+    let server = OAuth2ServerError::new(
+        400,
+        Some("invalid_grant".to_string()),
+        None,
+        None,
+        r#"{"error":"invalid_grant"}"#.to_string(),
+    );
+    assert_eq!(
+        assert_is_open_api_error(&token).to_string(),
+        "token response missing"
+    );
+    assert_eq!(server.status_code(), 400);
+    assert_eq!(server.code(), Some("invalid_grant"));
+    assert!(!assert_is_open_api_error(&server).to_string().is_empty());
+}
+
+/// Whether `err`, or any error in its `source()` chain, is a `T`: each error's
+/// `source()` is its parent in the hierarchy, so this is the "is a" check.
+fn is_a<T: std::error::Error + 'static>(err: &(dyn std::error::Error + 'static)) -> bool {
+    std::iter::successors(Some(err), |&e| e.source()).any(|e| e.is::<T>())
+}
+
+/// Checks that an error is of the one type a status maps to.
+type IsExpectedType = fn(&(dyn std::error::Error + 'static)) -> bool;
+
+#[test]
+fn test_from_response_maps_every_status_to_its_type() {
+    let mut headers = HashMap::new();
+    headers.insert("x-request-id".to_string(), "abc".to_string());
+    let cases: [(u16, IsExpectedType); 10] = [
+        (400, |e| e.is::<BadRequestError>()),
+        (401, |e| e.is::<UnauthorizedError>()),
+        (403, |e| e.is::<ForbiddenError>()),
+        (404, |e| e.is::<NotFoundError>()),
+        (409, |e| e.is::<ConflictError>()),
+        (422, |e| e.is::<UnprocessableEntityError>()),
+        (418, |e| e.is::<ClientError>()),
+        (500, |e| e.is::<InternalServerError>()),
+        (503, |e| e.is::<ServerError>()),
+        (302, |e| e.is::<ApiError>()),
+    ];
+    for (status, is_expected_type) in cases {
+        let err = ApiError::from_response(status, &headers, r#"{"k":"v"}"#);
+        assert!(
+            is_expected_type(&*err),
+            "status {status}: unexpected type {err:?}"
+        );
+        assert!(
+            is_a::<ApiError>(&*err),
+            "status {status}: must chain to ApiError"
+        );
+        assert_eq!(is_a::<ClientError>(&*err), (400..500).contains(&status));
+        assert_eq!(is_a::<ServerError>(&*err), status >= 500);
+
+        let api_error =
+            std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| {
+                e.source()
+            })
+            .find_map(|e| e.downcast_ref::<ApiError>())
+            .expect("every HTTP error chains to an ApiError");
+        assert_eq!(api_error.status_code(), status);
+        assert_eq!(api_error.response_body(), Some(r#"{"k":"v"}"#));
+        assert_eq!(
+            api_error
+                .response_headers()
+                .and_then(|h| h.get("x-request-id"))
+                .map(String::as_str),
+            Some("abc")
+        );
+    }
+}
+
+#[test]
+fn test_package_root_exports_the_whole_error_tree() {
+    assert_type_is_open_api_error::<petstore::ApiError>();
+    assert_type_is_open_api_error::<petstore::ApiErrorKind>();
+    assert_type_is_open_api_error::<petstore::ClientError>();
+    assert_type_is_open_api_error::<petstore::BadRequestError>();
+    assert_type_is_open_api_error::<petstore::UnauthorizedError>();
+    assert_type_is_open_api_error::<petstore::ForbiddenError>();
+    assert_type_is_open_api_error::<petstore::NotFoundError>();
+    assert_type_is_open_api_error::<petstore::ConflictError>();
+    assert_type_is_open_api_error::<petstore::UnprocessableEntityError>();
+    assert_type_is_open_api_error::<petstore::ServerError>();
+    assert_type_is_open_api_error::<petstore::InternalServerError>();
+    assert_type_is_open_api_error::<petstore::NetworkError>();
+    assert_type_is_open_api_error::<petstore::NetworkTimeoutError>();
+    assert_type_is_open_api_error::<petstore::SerializationError>();
+    assert_type_is_open_api_error::<petstore::OAuth2ServerError>();
+    assert_type_is_open_api_error::<petstore::OAuth2TokenError>();
+    let _: fn(&petstore::ConfigurationError) = |_| {};
+    let _: fn(&petstore::OAuth2AuthorizationCodeError) = |_| {};
 }

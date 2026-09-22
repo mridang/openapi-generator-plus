@@ -7,21 +7,12 @@ use base64::Engine;
 use serde::de::DeserializeOwned;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody};
-use crate::api_error::ApiError;
+use crate::errors::api_error::ApiError;
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
-use crate::configuration_error::ConfigurationError;
-use crate::errors::bad_request_error::BadRequestError;
-use crate::errors::client_error::ClientError;
-use crate::errors::conflict_error::ConflictError;
-use crate::errors::forbidden_error::ForbiddenError;
-use crate::errors::internal_server_error::InternalServerError;
-use crate::errors::not_found_error::NotFoundError;
-use crate::errors::server_error::ServerError;
-use crate::errors::unauthorized_error::UnauthorizedError;
-use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
+use crate::errors::configuration_error::ConfigurationError;
 use crate::header_selector::HeaderSelector;
 use crate::trace_context_util;
 use crate::utils::form_url_encode;
@@ -262,7 +253,11 @@ impl BaseApi {
 
         /* Check for errors */
         if response.status_code() < 200 || response.status_code() >= 300 {
-            return Err(throw_api_error(&response));
+            return Err(ApiError::from_response(
+                response.status_code(),
+                response.headers(),
+                response.body(),
+            ));
         }
 
         Ok(response)
@@ -475,46 +470,6 @@ fn form_scalar_to_string(value: &serde_json::Value) -> String {
         serde_json::Value::Null => String::new(),
         other => other.to_string(),
     }
-}
-
-/// Builds the typed error for a non-2xx response: the concrete 4xx/5xx type
-/// for a recognised status, [`ClientError`] or [`ServerError`] otherwise.
-/// Shared with the OpenID Connect discovery request, which is an HTTP call like
-/// any other.
-pub(crate) fn throw_api_error(response: &ApiHttpResponse) -> Box<dyn std::error::Error + Send + Sync> {
-    let code = response.status_code();
-    let msg = format!("API returned status code {}", code);
-    let body = response.body().to_string();
-
-    let base_err = ApiError::new(
-        code,
-        msg,
-        Some(body),
-        Some(response.headers().clone()),
-    );
-
-    if code >= 400 && code < 500 {
-        let client_err = ClientError::from(base_err);
-        return match code {
-            400 => Box::new(BadRequestError::from(client_err)),
-            401 => Box::new(UnauthorizedError::from(client_err)),
-            403 => Box::new(ForbiddenError::from(client_err)),
-            404 => Box::new(NotFoundError::from(client_err)),
-            409 => Box::new(ConflictError::from(client_err)),
-            422 => Box::new(UnprocessableEntityError::from(client_err)),
-            _ => Box::new(client_err),
-        };
-    }
-
-    if code >= 500 {
-        let server_err = ServerError::from(base_err);
-        return match code {
-            500 => Box::new(InternalServerError::from(server_err)),
-            _ => Box::new(server_err),
-        };
-    }
-
-    Box::new(base_err)
 }
 
 /// RFC 6265 cookie-name validation (RFC 7230 token).

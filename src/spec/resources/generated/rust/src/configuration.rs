@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use crate::configuration_error::ConfigurationError;
+use crate::errors::configuration_error::ConfigurationError;
 use crate::server_configuration::ServerConfiguration;
 
 /// Configuration holds API-level configuration for generated client classes.

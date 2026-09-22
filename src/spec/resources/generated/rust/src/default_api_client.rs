@@ -18,9 +18,9 @@ use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
-use crate::api_error::{ApiError, TransportFailure};
 use crate::api_http_response::ApiHttpResponse;
-use crate::configuration_error::ConfigurationError;
+use crate::errors::api_error::{ApiError, TransportFailure};
+use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::{NetworkError, NetworkTimeoutError};
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
@@ -1376,7 +1376,7 @@ mod tests {
             MultipartValue::Text("value".to_string()),
         );
         match serialize_multipart_body(&fields, "boundary") {
-            Err(crate::configuration_error::ConfigurationError::InvalidArgument(_)) => {}
+            Err(crate::errors::configuration_error::ConfigurationError::InvalidArgument(_)) => {}
             other => panic!(
                 "expected ConfigurationError::InvalidArgument, got {:?}",
                 other
@@ -1481,17 +1481,17 @@ mod tests {
     fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
         assert!(
-            names.iter().any(|n| *n == "authorization"),
+            names.contains(&"authorization"),
             "expected 'authorization' in {:?}",
             names
         );
         assert!(
-            names.iter().any(|n| *n == "cookie"),
+            names.contains(&"cookie"),
             "expected 'cookie' in {:?}",
             names
         );
         assert!(
-            names.iter().any(|n| *n == "proxy-authorization"),
+            names.contains(&"proxy-authorization"),
             "expected 'proxy-authorization' in {:?}",
             names
         );
@@ -1506,12 +1506,12 @@ mod tests {
     fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
         assert!(
-            names.iter().any(|n| *n == "x-api-key"),
+            names.contains(&"x-api-key"),
             "expected spec apiKey header 'x-api-key' in {:?}",
             names
         );
         assert!(
-            names.iter().any(|n| *n == "x-internal-key"),
+            names.contains(&"x-internal-key"),
             "expected spec apiKey header 'x-internal-key' in {:?}",
             names
         );

@@ -10,8 +10,8 @@ use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
 use crate::auth::Authenticator;
-use crate::configuration_error::ConfigurationError;
-use crate::object_serializer::SerializationError;
+use crate::errors::configuration_error::ConfigurationError;
+use crate::errors::serialization_error::SerializationError;
 
 /// OpenIdConnectAuthenticator provides OpenID Connect authentication.
 ///
@@ -180,7 +180,11 @@ impl OpenIdConnectAuthenticator {
         // its status. Otherwise a 500-HTML or 404 error page surfaces to the
         // caller as a misleading "invalid JSON" error.
         if response.status_code() < 200 || response.status_code() >= 300 {
-            return Err(crate::api::throw_api_error(&response));
+            return Err(crate::errors::ApiError::from_response(
+                response.status_code(),
+                response.headers(),
+                response.body(),
+            ));
         }
 
         /* An unparseable or incomplete document is a SerializationError. */

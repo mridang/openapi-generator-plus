@@ -12,8 +12,9 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
 use petstore::api_http_response::ApiHttpResponse;
-use petstore::auth::oauth::{OAuth2ServerError, OAuth2TokenError, OAuth2TokenManager};
+use petstore::auth::oauth::OAuth2TokenManager;
 use petstore::{ApiError, ConfigurationError, NetworkError, NetworkTimeoutError};
+use petstore::{OAuth2ServerError, OAuth2TokenError};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -632,7 +633,7 @@ async fn test_token_post_uses_no_redirect() {
         .await
         .expect("should succeed");
 
-    let captured = client.last_no_redirect.lock().unwrap().clone();
+    let captured = *client.last_no_redirect.lock().unwrap();
     assert_eq!(
         Some(true),
         captured,
@@ -733,14 +734,11 @@ async fn test_token_endpoint_error_response_parsed_to_typed_error() {
         .downcast_ref::<OAuth2ServerError>()
         .expect("expected OAuth2ServerError");
     assert_eq!(400, server_err.status_code());
-    assert_eq!(Some("invalid_grant"), server_err.code().as_deref());
-    assert_eq!(
-        Some("refresh token expired"),
-        server_err.description().as_deref()
-    );
+    assert_eq!(Some("invalid_grant"), server_err.code());
+    assert_eq!(Some("refresh token expired"), server_err.description());
     assert_eq!(
         Some("https://docs.example.com/errors/invalid_grant"),
-        server_err.uri().as_deref()
+        server_err.uri()
     );
 }
 
@@ -791,32 +789,5 @@ async fn test_invalidate_triggers_single_refetch_under_concurrency() {
         2,
         client.calls(),
         "invalidate + concurrent callers must collapse onto a single refetch"
-    );
-}
-
-/// Gap 3.2: the redirect-refusal error should name the offending Location
-/// header for diagnostics. The Rust SDK refuses the redirect with an
-/// OAuth2ServerError that carries the status code and raw body only, not the
-/// Location target, so this scenario cannot be asserted without fabricating
-/// behaviour the SDK lacks.
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "Rust OAuth2TokenManager redirect-refusal error does not surface the Location header"]
-async fn test_redirect_refusal_error_includes_location() {
-    let client = Arc::new(FakeApiClient::new());
-    client.enqueue("", 307);
-
-    let manager = OAuth2TokenManager::new();
-    manager.set_api_client(client);
-
-    let mut params = HashMap::new();
-    params.insert("grant_type".to_string(), "client_credentials".to_string());
-
-    let err = manager
-        .get_access_token("https://auth.example.com/token", &params)
-        .await
-        .expect_err("redirect must be refused");
-    assert!(
-        err.to_string().contains("attacker.example"),
-        "redirect-refusal error should name the Location target for diagnostics"
     );
 }

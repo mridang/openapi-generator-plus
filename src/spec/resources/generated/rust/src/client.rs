@@ -13,8 +13,8 @@ use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
 use crate::auth::BearerAuthenticator;
 use crate::configuration::ConfigurationBuilder;
-use crate::configuration_error::ConfigurationError;
 use crate::default_api_client::DefaultApiClient;
+use crate::errors::configuration_error::ConfigurationError;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
 

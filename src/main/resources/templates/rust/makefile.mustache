@@ -15,7 +15,7 @@ build:
 	cargo build
 
 test:
-	cargo llvm-cov nextest --cobertura --output-path .out/coverage.xml --profile ci
+	cargo llvm-cov nextest --all-features --cobertura --output-path .out/coverage.xml --profile ci
 
 docs:
 	RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --target-dir .out/cargo-doc

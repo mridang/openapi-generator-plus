@@ -67,12 +67,10 @@
 pub mod api;
 pub mod api_client;
 pub mod client;
-pub mod api_error;
 pub mod auth;
 pub mod api_http_response;
 pub mod api_result;
 pub mod configuration;
-pub mod configuration_error;
 // Internal transport implementation. The public seam is the `ApiClient` trait
 // (re-exported below) plus `DefaultApiClient` (re-exported below); the module's
 // free functions traffic in `reqwest` types and must not leak into the public
@@ -104,17 +102,14 @@ pub(crate) mod value_serializer;
 
 pub use api_client::ApiClient;
 pub use client::{{clientClassName}};
-pub use api_error::ApiError;
 pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
 pub use configuration::{Configuration, ConfigurationBuilder};
-pub use configuration_error::ConfigurationError;
 pub use default_api_client::DefaultApiClient;
+// The whole SDK error tree, from the root trait down to the OAuth2 and
+// configuration errors, is declared in `errors` and re-exported here.
 pub use errors::*;
 pub use json_value::JsonValue;
-// `SerializationError` is part of the public error surface even though its
-// defining module (`object_serializer`) is crate-private.
-pub use object_serializer::SerializationError;
 pub use server_configuration::{ServerConfiguration, ServerVariable};
 pub use transport_options::{TransportOptions, TransportOptionsBuilder};

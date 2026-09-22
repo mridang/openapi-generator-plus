@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.generators.rust;
 
+import com.google.common.collect.ImmutableMap;
 import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
@@ -368,11 +369,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "value_serializer_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/trace_context_util_test.mustache",
-                            "tests",
-                            "trace_context_util_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/configuration_test.mustache",
                             "tests",
                             "configuration_test.rs"));
@@ -436,36 +432,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api_result_test.mustache",
                             "tests",
                             "api_result_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_token_manager_test.mustache",
-                            "tests",
-                            "oauth2_token_manager_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_auth_code_authenticator_test.mustache",
-                            "tests",
-                            "oauth2_authorization_code_authenticator_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_implicit_authenticator_test.mustache",
-                            "tests",
-                            "oauth2_implicit_authenticator_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_client_credentials_authenticator_test.mustache",
-                            "tests",
-                            "oauth2_client_credentials_authenticator_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_password_authenticator_test.mustache",
-                            "tests",
-                            "oauth2_password_authenticator_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/openid_connect_authenticator_test.mustache",
-                            "tests",
-                            "openid_connect_authenticator_test.rs"));
         }
     }
 
@@ -479,13 +445,31 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
                 new SupportingFileSpec("configuration.mustache", "src", "configuration.rs"),
                 new SupportingFileSpec(
-                        "configuration_error.mustache", "src", "configuration_error.rs"),
+                        "errors/configuration_error.mustache",
+                        "src/errors",
+                        "configuration_error.rs"),
                 new SupportingFileSpec(
                         "transport_options.mustache", "src", "transport_options.rs"),
                 new SupportingFileSpec(
                         "server_configuration.mustache", "src", "server_configuration.rs"),
                 new SupportingFileSpec("servers.mustache", "src", "servers.rs"),
-                new SupportingFileSpec("api_error.mustache", "src", "api_error.rs"),
+                new SupportingFileSpec("errors/api_error.mustache", "src/errors", "api_error.rs"),
+                new SupportingFileSpec(
+                        "errors/serialization_error.mustache",
+                        "src/errors",
+                        "serialization_error.rs"),
+                new SupportingFileSpec(
+                        "errors/oauth2_server_error.mustache",
+                        "src/errors",
+                        "oauth2_server_error.rs"),
+                new SupportingFileSpec(
+                        "errors/oauth2_token_error.mustache",
+                        "src/errors",
+                        "oauth2_token_error.rs"),
+                new SupportingFileSpec(
+                        "errors/oauth2_authorization_code_error.mustache",
+                        "src/errors",
+                        "oauth2_authorization_code_error.rs"),
                 new SupportingFileSpec(
                         "errors/root_error.mustache", "src/errors", errorPrefixSnake() + "_error.rs"),
                 new SupportingFileSpec(
@@ -802,6 +786,27 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return "src/auth";
     }
 
+    /**
+     * Adds the {@code rustdoc} lambda. Spec descriptions are prose, but rustdoc
+     * reads a doc comment as Markdown: {@code <admin>} becomes an unclosed HTML
+     * tag and {@code [items]} an unresolved intra-doc link, both warnings that
+     * {@code RUSTDOCFLAGS="-D warnings" cargo doc} turns into errors. Escaping
+     * the brackets keeps the text exactly as written.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "rustdoc",
+                        (fragment, writer) ->
+                                writer.write(
+                                        fragment.execute()
+                                                .replace("<", "\\<")
+                                                .replace(">", "\\>")
+                                                .replace("[", "\\[")
+                                                .replace("]", "\\]")));
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getOAuthDir() {
@@ -851,6 +856,46 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "api_key_authenticator_test.rs"));
             }
         }
+    }
+
+    /**
+     * The OAuth2 and OpenID Connect tests, each gated on the scheme it
+     * exercises. Like the Basic, Bearer and API-key tests they are registered
+     * once the spec has been read, never from processOpts.
+     */
+    @Override
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of(
+                new OAuthTestFileSpec(
+                        "test/oauth2_token_manager_test.mustache",
+                        "tests",
+                        "oauth2_token_manager_test.rs",
+                        OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec(
+                        "test/oauth2_auth_code_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_authorization_code_authenticator_test.rs",
+                        OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec(
+                        "test/oauth2_implicit_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_implicit_authenticator_test.rs",
+                        OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec(
+                        "test/oauth2_client_credentials_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_client_credentials_authenticator_test.rs",
+                        OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec(
+                        "test/oauth2_password_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_password_authenticator_test.rs",
+                        OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec(
+                        "test/openid_connect_authenticator_test.mustache",
+                        "tests",
+                        "openid_connect_authenticator_test.rs",
+                        OAuthTestCondition.OIDC));
     }
 
     /** {@inheritDoc} */

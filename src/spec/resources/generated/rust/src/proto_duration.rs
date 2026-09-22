@@ -17,7 +17,7 @@
 use chrono::Duration;
 use serde::{de, Deserialize, Deserializer, Serializer};
 
-use crate::object_serializer::SerializationError;
+use crate::errors::serialization_error::SerializationError;
 
 const NANOS_PER_SECOND: i64 = 1_000_000_000;
 

@@ -210,7 +210,7 @@ async fn test_auth_headers_collapses_error_to_empty_map() {
 
     let headers = auth.auth_headers().await;
     assert!(
-        headers.get("Authorization").is_none(),
+        !headers.contains_key("Authorization"),
         "collapsed error path must not produce an Authorization header"
     );
 }

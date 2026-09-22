@@ -39,6 +39,10 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
          * cargo-nextest` (a few minutes to compile). The .config dir +
          * nextest.toml below tells nextest where to write the XML. */
         return List.of(
+                /* The snapshot every spec restores is taken from the host's
+                 * golden directory, which still holds the previous run's JUnit
+                 * report; drop it so no later spec copies it back. */
+                "rm -rf .out/reports",
                 /* rust:slim omits curl + ca-certificates that the full image
                  * ships via buildpack-deps; the nextest download below needs
                  * both (curl for the fetch, CA certs for its TLS verify). */

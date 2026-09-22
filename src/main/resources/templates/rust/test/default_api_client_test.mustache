@@ -63,27 +63,36 @@ async fn test_default_api_client_makes_http_request_through_proxy() {
     assert!(resp.body().contains("\"method\""));
 }
 
-// Gap AK: userinfo embedded in the proxy URL must be base64-encoded
-// and surfaced as Proxy-Authorization so the proxy can authenticate
-// the tunnel — otherwise the proxy 407s. reqwest's `Proxy::all` reads
-// userinfo natively from the URL; we assert TransportOptions preserves
-// the userinfo end-to-end.
+// Gap AK: userinfo embedded in the proxy URL must reach the proxy as
+// Proxy-Authorization. The Squid fixture's second port demands Basic proxy
+// credentials: without them it answers 407, with them it forwards the request
+// to the mock server.
 #[tokio::test]
 async fn test_default_api_client_proxy_with_credentials_injects_basic_authorization() {
-    use base64::{engine::general_purpose::STANDARD, Engine as _};
-    use reqwest::Url;
+    let chasm_url = testcontainers_helper::chasm_internal_http_url();
+    let auth_proxy = testcontainers_helper::auth_proxy_url();
+    let send = |proxy: String| async move {
+        let transport = TransportOptionsBuilder::new()
+            .proxy(&proxy)
+            .build()
+            .expect("valid transport options");
+        let client = DefaultApiClient::new(Some(transport));
+        client
+            .send_request(
+                "GET",
+                &format!("{}/test/echo", chasm_url),
+                &HashMap::new(),
+                None,
+            )
+            .await
+            .expect("unexpected error")
+    };
 
-    let transport = TransportOptionsBuilder::new()
-        .proxy("http://alice:s3cret@127.0.0.1:3128")
-        .build().expect("valid transport options");
+    let with_credentials = send(auth_proxy.replacen("http://", "http://user:pass@", 1)).await;
+    assert_eq!(with_credentials.status_code(), 200);
 
-    let proxy = transport.proxy().expect("proxy must be set");
-    let parsed = Url::parse(proxy).expect("proxy url must parse");
-    assert_eq!(parsed.username(), "alice");
-    assert_eq!(parsed.password(), Some("s3cret"));
-    let raw = format!("{}:{}", parsed.username(), parsed.password().unwrap_or(""));
-    let encoded = STANDARD.encode(raw.as_bytes());
-    assert_eq!(format!("Basic {}", encoded), "Basic YWxpY2U6czNjcmV0");
+    let without_credentials = send(auth_proxy.to_string()).await;
+    assert_eq!(without_credentials.status_code(), 407);
 }
 
 // Gap AK (fleet-wide regression guard) — a proxy URL carrying inline userinfo
@@ -490,12 +499,18 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
 
 #[tokio::test]
 async fn test_default_api_client_respects_max_redirects_limit() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .max_redirects(Some(5))
-        .build().expect("valid transport options");
+        .max_redirects(Some(0))
+        .build()
+        .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
-    assert!(client.send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None).await.is_err() || true);
+    let err = client
+        .send_request("GET", &format!("{}/test/redirect/302", chasm_url), &HashMap::new(), None)
+        .await
+        .expect_err("a redirect beyond the cap must be refused");
+    assert!(err.to_string().contains("too many redirects"), "got: {}", err);
 }
 
 // WAVE E (per-request redirect state): redirect counting and the

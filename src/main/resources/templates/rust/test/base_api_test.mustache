@@ -1,5 +1,9 @@
 {{>api_info}}
 
+// The spec marks some operations and parameters deprecated; these tests must
+// still call them, so the deprecation warnings are expected here.
+#![allow(deprecated)]
+
 mod testcontainers_helper;
 
 use std::collections::{HashMap, HashSet};
@@ -503,8 +507,8 @@ async fn test_base_api_auth_code_not_exchanged_fails_the_call() {
         .await
         .expect_err("an unexchanged authorization code must fail the call");
     assert_eq!(
-        err.downcast_ref::<{{packageName}}::auth::oauth::OAuth2AuthorizationCodeError>(),
-        Some(&{{packageName}}::auth::oauth::OAuth2AuthorizationCodeError::CodeNotExchanged),
+        err.downcast_ref::<{{packageName}}::OAuth2AuthorizationCodeError>(),
+        Some(&{{packageName}}::OAuth2AuthorizationCodeError::CodeNotExchanged),
         "expected CodeNotExchanged, got: {}",
         err
     );
@@ -1090,9 +1094,9 @@ fn test_cross_origin_redirect_drops_authorization() {
         .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
         .collect();
 
-    assert!(forwarded.get("Authorization").is_none(),
+    assert!(!forwarded.contains_key("Authorization"),
         "Authorization should be dropped on cross-origin redirect");
-    assert!(forwarded.get("Accept").is_some(),
+    assert!(forwarded.contains_key("Accept"),
         "Accept should be forwarded on cross-origin redirect");
 }
 
@@ -1109,9 +1113,9 @@ fn test_cross_origin_redirect_drops_cookie() {
         .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
         .collect();
 
-    assert!(forwarded.get("Cookie").is_none(),
+    assert!(!forwarded.contains_key("Cookie"),
         "Cookie should be dropped on cross-origin redirect");
-    assert!(forwarded.get("Accept").is_some(),
+    assert!(forwarded.contains_key("Accept"),
         "Accept should be forwarded on cross-origin redirect");
 }
 
@@ -1163,7 +1167,7 @@ async fn test_null_body_post_does_not_send_content_type() {
     // delete_pet sends no body -- Content-Type should not be present
     let _ = api.delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(headers.get("Content-Type").is_none(),
+    assert!(!headers.contains_key("Content-Type"),
         "Content-Type must NOT be sent when body is None");
 }
 
@@ -1176,7 +1180,7 @@ async fn test_body_present_includes_content_type() {
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let _ = api.add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth)))).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(headers.get("Content-Type").is_some(),
+    assert!(headers.contains_key("Content-Type"),
         "Content-Type must be sent when body is non-None");
 }
 
@@ -1187,7 +1191,7 @@ async fn test_get_request_with_no_body_omits_content_type() {
     let api = PetApi::new(client.clone(), config, None);
     let _ = api.get_pet_by_id(1, None).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(headers.get("Content-Type").is_none(),
+    assert!(!headers.contains_key("Content-Type"),
         "Content-Type must NOT be sent when body is None (GET request)");
 }
 
@@ -1228,8 +1232,8 @@ async fn test_base_api_routes_through_proxy_with_basic_auth() {
 
 // -- ApiErrorKind: per-status enum variants --
 
-fn make_api_error(code: u16) -> {{packageName}}::api_error::ApiError {
-    {{packageName}}::api_error::ApiError::new(
+fn make_api_error(code: u16) -> {{packageName}}::ApiError {
+    {{packageName}}::ApiError::new(
         code,
         format!("status {}", code),
         Some(format!("{{\"code\":{}}}", code)),
@@ -1239,73 +1243,73 @@ fn make_api_error(code: u16) -> {{packageName}}::api_error::ApiError {
 
 #[test]
 fn test_api_error_kind_bad_request_variant() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(400).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::BadRequest(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(400).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::BadRequest(_)));
     assert_eq!(kind.status_code(), 400);
 }
 
 #[test]
 fn test_api_error_kind_unauthorized_variant() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(401).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::Unauthorized(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(401).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::Unauthorized(_)));
 }
 
 #[test]
 fn test_api_error_kind_forbidden_variant() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(403).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::Forbidden(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(403).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::Forbidden(_)));
 }
 
 #[test]
 fn test_api_error_kind_not_found_variant() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(404).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::NotFound(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(404).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::NotFound(_)));
 }
 
 #[test]
 fn test_api_error_kind_conflict_variant() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(409).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::Conflict(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(409).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::Conflict(_)));
 }
 
 #[test]
 fn test_api_error_kind_unprocessable_entity_variant() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(422).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::UnprocessableEntity(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(422).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::UnprocessableEntity(_)));
 }
 
 #[test]
 fn test_api_error_kind_internal_server_error_variant() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(500).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::InternalServerError(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(500).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::InternalServerError(_)));
 }
 
 #[test]
 fn test_api_error_kind_client_error_fallback() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(418).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::ClientError(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(418).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::ClientError(_)));
 }
 
 #[test]
 fn test_api_error_kind_server_error_fallback() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(503).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::ServerError(_)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(503).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::ServerError(_)));
 }
 
 #[test]
 fn test_api_error_kind_other_for_unrecognized_status() {
-    let kind: {{packageName}}::api_error::ApiErrorKind = make_api_error(0).into();
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::Other(_, _)));
+    let kind: {{packageName}}::ApiErrorKind = make_api_error(0).into();
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::Other(_, _)));
 }
 
 #[test]
 fn test_api_error_kind_network_variants_have_status_zero() {
-    let fields = {{packageName}}::api_error::ApiErrorFields::from(make_api_error(0));
-    let kind = {{packageName}}::api_error::ApiErrorKind::Network(fields.clone());
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::Network(_)));
+    let fields = {{packageName}}::ApiErrorFields::from(make_api_error(0));
+    let kind = {{packageName}}::ApiErrorKind::Network(fields.clone());
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::Network(_)));
     assert_eq!(kind.status_code(), 0);
-    let kind = {{packageName}}::api_error::ApiErrorKind::NetworkTimeout(fields);
-    assert!(matches!(kind, {{packageName}}::api_error::ApiErrorKind::NetworkTimeout(_)));
+    let kind = {{packageName}}::ApiErrorKind::NetworkTimeout(fields);
+    assert!(matches!(kind, {{packageName}}::ApiErrorKind::NetworkTimeout(_)));
     assert_eq!(kind.status_code(), 0);
 }
 
@@ -1321,7 +1325,7 @@ fn test_api_error_typed_body_parses_into_target_type() {
 
     let mut headers = HashMap::new();
     headers.insert("Content-Type".to_string(), "application/json".to_string());
-    let err = {{packageName}}::api_error::ApiError::new(
+    let err = {{packageName}}::ApiError::new(
         400,
         "bad request".to_string(),
         Some(r#"{"title":"Bad Input","status":400}"#.to_string()),
@@ -1333,7 +1337,7 @@ fn test_api_error_typed_body_parses_into_target_type() {
 
 #[test]
 fn test_api_error_typed_body_returns_none_when_no_body() {
-    let err = {{packageName}}::api_error::ApiError::new(
+    let err = {{packageName}}::ApiError::new(
         500,
         "boom".to_string(),
         None,
@@ -1351,7 +1355,7 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
     // while `serde(rename)` preserves the on-the-wire field name `id`.
     #[derive(serde::Deserialize, Debug)]
     struct Strict { #[serde(rename = "id")] _id: i64 }
-    let err = {{packageName}}::api_error::ApiError::new(
+    let err = {{packageName}}::ApiError::new(
         400,
         "bad".to_string(),
         Some("not json at all".to_string()),
@@ -1398,7 +1402,7 @@ fn test_api_result_and_response_accessor_only() {
 // state). Walk the full BadRequest -> ClientError -> ApiError accessor chain.
 #[test]
 fn test_typed_error_wrappers_accessor_only() {
-    let api_error = {{packageName}}::api_error::ApiError::new(
+    let api_error = {{packageName}}::ApiError::new(
         400,
         "bad request".to_string(),
         Some("{}".to_string()),
@@ -1535,17 +1539,17 @@ async fn test_base_api_security_none_op_suppresses_client_authenticator() {
     let url = client.captured_url.lock().unwrap();
 
     assert!(
-        headers.get("Authorization").is_none(),
+        !headers.contains_key("Authorization"),
         "security: [] op must NOT carry an Authorization header, got: {:?}",
         headers.get("Authorization")
     );
     assert!(
-        headers.get("X-API-Key").is_none(),
+        !headers.contains_key("X-API-Key"),
         "security: [] op must NOT carry an api-key header, got: {:?}",
         headers.get("X-API-Key")
     );
     assert!(
-        headers.get("Cookie").is_none(),
+        !headers.contains_key("Cookie"),
         "security: [] op must NOT carry an auth cookie, got: {:?}",
         headers.get("Cookie")
     );

@@ -13,8 +13,8 @@ use reqwest::Proxy;
 use uuid::Uuid;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
-use crate::api_error::{ApiError, TransportFailure};
-use crate::configuration_error::ConfigurationError;
+use crate::errors::api_error::{ApiError, TransportFailure};
+use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::{NetworkError, NetworkTimeoutError};
 use crate::api_http_response::ApiHttpResponse;
 use crate::transport_options::TransportOptions;
@@ -1310,7 +1310,7 @@ mod tests {
             MultipartValue::Text("value".to_string()),
         );
         match serialize_multipart_body(&fields, "boundary") {
-            Err(crate::configuration_error::ConfigurationError::InvalidArgument(_)) => {}
+            Err(crate::errors::configuration_error::ConfigurationError::InvalidArgument(_)) => {}
             other => panic!("expected ConfigurationError::InvalidArgument, got {:?}", other),
         }
     }
@@ -1411,15 +1411,15 @@ mod tests {
     fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
         assert!(
-            names.iter().any(|n| *n == "authorization"),
+            names.contains(&"authorization"),
             "expected 'authorization' in {:?}", names
         );
         assert!(
-            names.iter().any(|n| *n == "cookie"),
+            names.contains(&"cookie"),
             "expected 'cookie' in {:?}", names
         );
         assert!(
-            names.iter().any(|n| *n == "proxy-authorization"),
+            names.contains(&"proxy-authorization"),
             "expected 'proxy-authorization' in {:?}", names
         );
         for n in SENSITIVE_HEADER_NAMES {
@@ -1434,7 +1434,7 @@ mod tests {
     fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
 {{#apiKeyHeaderNames}}        assert!(
-            names.iter().any(|n| *n == "{{nameLower}}"),
+            names.contains(&"{{nameLower}}"),
             "expected spec apiKey header '{{nameLower}}' in {:?}",
             names
         );

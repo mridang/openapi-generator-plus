@@ -10,7 +10,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 use super::Authenticator;
-use crate::configuration_error::ConfigurationError;
+use crate::errors::configuration_error::ConfigurationError;
 
 /// BearerAuthenticator provides HTTP Bearer token authentication.
 pub struct BearerAuthenticator {

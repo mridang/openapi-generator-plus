@@ -10,13 +10,13 @@ impl PetStoreBasicAuthenticator {
     /// # Errors
     ///
     /// Returns the [`BasicAuthenticator`] constructor's
-    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// [`ConfigurationError`](crate::errors::configuration_error::ConfigurationError)
     /// when the credentials are invalid.
     pub fn new(
         host: &str,
         username: &str,
         password: &str,
-    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+    ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
         Ok(Self(BasicAuthenticator::new(host, username, password)?))
     }
 }

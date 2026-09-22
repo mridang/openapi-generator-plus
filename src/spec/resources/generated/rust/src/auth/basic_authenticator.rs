@@ -13,7 +13,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 
 use super::Authenticator;
-use crate::configuration_error::ConfigurationError;
+use crate::errors::configuration_error::ConfigurationError;
 
 /// BasicAuthenticator provides HTTP Basic authentication.
 pub struct BasicAuthenticator {

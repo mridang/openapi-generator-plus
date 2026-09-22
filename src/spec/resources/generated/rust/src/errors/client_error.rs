@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-use crate::api_error::ApiError;
+use crate::errors::api_error::ApiError;
 
 /// ClientError represents an HTTP 4xx client error.
 #[derive(Debug, Clone)]

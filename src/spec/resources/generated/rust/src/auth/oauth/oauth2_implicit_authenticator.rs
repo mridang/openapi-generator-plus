@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::Authenticator;
-use crate::configuration_error::ConfigurationError;
+use crate::errors::configuration_error::ConfigurationError;
 
 /// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
 ///

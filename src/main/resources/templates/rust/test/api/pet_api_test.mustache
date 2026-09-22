@@ -1,5 +1,9 @@
 {{>api_info}}
 
+// The spec marks some operations and parameters deprecated; these tests must
+// still call them, so the deprecation warnings are expected here.
+#![allow(deprecated)]
+
 mod testcontainers_helper;
 
 use std::collections::{HashMap, HashSet};
@@ -79,7 +83,7 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
     let body = body.to_string();
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
@@ -92,7 +96,6 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
                 body
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-            break;
         }
     });
 
@@ -290,11 +293,24 @@ async fn test_pet_api_get_pet_tag() {
     let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
 }
 
+/// Points the operation's own server at the mock server, which serves every
+/// path in the spec.
+struct MockExternalPetInfoServer;
+
+impl GetExternalPetInfoServer for MockExternalPetInfoServer {
+    fn get_url(&self) -> String {
+        testcontainers_helper::chasm_url().to_string()
+    }
+}
+
 #[tokio::test]
-#[ignore = "Per-operation server URL points to external host"]
 async fn test_pet_api_get_external_pet_info() {
     let api = new_pet_api_for_integration();
-    let _ = api.get_external_pet_info(1, None).await;
+    let pet = api
+        .get_external_pet_info(1, Some(&MockExternalPetInfoServer))
+        .await
+        .expect("get_external_pet_info failed");
+    let _ = pet;
 }
 
 #[tokio::test]
@@ -325,7 +341,7 @@ async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
     );
     let err = result.unwrap_err();
     assert!(
-        err.downcast_ref::<{{packageName}}::api_error::ApiError>().is_some(),
+        err.downcast_ref::<{{packageName}}::ApiError>().is_some(),
         "empty-body error must be the typed ApiError, got: {}",
         err
     );
@@ -340,7 +356,7 @@ fn new_pet_api_for_capture() -> (PetApi, std::sync::mpsc::Receiver<String>, Stri
     let (tx, rx) = std::sync::mpsc::channel::<String>();
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let n = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
@@ -352,7 +368,6 @@ fn new_pet_api_for_capture() -> (PetApi, std::sync::mpsc::Receiver<String>, Stri
                 body
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-            break;
         }
     });
 
@@ -379,7 +394,7 @@ fn new_pet_api_for_byte_capture() -> (PetApi, std::sync::mpsc::Receiver<Vec<u8>>
     let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let n = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
@@ -391,7 +406,6 @@ fn new_pet_api_for_byte_capture() -> (PetApi, std::sync::mpsc::Receiver<Vec<u8>>
                 body
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-            break;
         }
     });
 

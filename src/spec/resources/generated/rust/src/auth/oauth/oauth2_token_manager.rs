@@ -12,7 +12,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
 use crate::api_client::{ApiClient, RequestBody, RequestOptions};
-use crate::configuration_error::ConfigurationError;
+use crate::errors::configuration_error::ConfigurationError;
+use crate::errors::oauth2_server_error::OAuth2ServerError;
+use crate::errors::oauth2_token_error::OAuth2TokenError;
 use crate::utils::form_url_encode;
 
 /// OAuth2TokenManager manages the OAuth2 token lifecycle: fetching, caching,
@@ -220,9 +222,10 @@ impl OAuth2TokenManager {
         /* A 2xx answer the SDK cannot use is an OAuth2TokenError, never a
          * leaked serde_json::Error. */
         let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
-            Box::new(OAuth2TokenError {
-                message: format!("failed to parse token response: {}", e),
-            }) as Box<dyn std::error::Error + Send + Sync>
+            Box::new(OAuth2TokenError::new(format!(
+                "failed to parse token response: {}",
+                e
+            ))) as Box<dyn std::error::Error + Send + Sync>
         })?;
 
         let token = parsed
@@ -230,9 +233,9 @@ impl OAuth2TokenManager {
             .and_then(|v| v.as_str())
             .filter(|s| !s.is_empty())
             .ok_or_else(|| {
-                Box::new(OAuth2TokenError {
-                    message: "token response missing or empty access_token field".to_string(),
-                }) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(OAuth2TokenError::new(
+                    "token response missing or empty access_token field".to_string(),
+                )) as Box<dyn std::error::Error + Send + Sync>
             })?;
         inner.access_token = token.to_string();
         if let Some(refresh) = parsed.get("refresh_token").and_then(|v| v.as_str()) {
@@ -287,110 +290,6 @@ impl OAuth2TokenManager {
  * `RwLock` / `Mutex` ensures interior access is synchronised; callers must
  * supply a Send + Sync `ApiClient`, which our `DefaultApiClient` is. */
 
-/// Returned when the OAuth2 token endpoint returns a 2xx response the SDK
-/// cannot use: a body that is not JSON, or one that is missing or has an empty
-/// `access_token` field. Distinct from [`OAuth2ServerError`] (which represents
-/// any non-2xx answer) so callers can recover differently via `downcast_ref`.
-#[derive(Debug)]
-pub struct OAuth2TokenError {
-    message: String,
-}
-
-impl OAuth2TokenError {
-    /// Returns the human-readable error message.
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-}
-
-impl std::fmt::Display for OAuth2TokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
-    }
-}
-
-impl std::error::Error for OAuth2TokenError {}
-
-// Brands this SDK-thrown error as part of the `OpenAPIError` hierarchy so a
-// single `&dyn OpenAPIError` / `Box<dyn OpenAPIError>` can hold it alongside
-// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
-// satisfied by the `impl Error` above and the `String` field.
-impl crate::errors::OpenAPIError for OAuth2TokenError {}
-
-/// Returned when the OAuth2 token endpoint answers with any non-2xx status,
-/// including a refused 3xx redirect. Typed representation of an RFC 6749
-/// §5.2 OAuth2 error response. The
-/// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
-/// `invalid_client`); `description` and `uri` are the optional
-/// human-readable description and a URL to a page describing the error.
-/// `raw_body` preserves the original response payload for diagnostics when
-/// the body is not a well-formed OAuth2 error object.
-#[derive(Debug)]
-pub struct OAuth2ServerError {
-    status_code: u16,
-    code: Option<String>,
-    description: Option<String>,
-    uri: Option<String>,
-    raw_body: String,
-}
-
-impl OAuth2ServerError {
-    /// Returns the HTTP status code of the failed token request.
-    pub fn status_code(&self) -> u16 {
-        self.status_code
-    }
-
-    /// Returns the RFC 6749 §5.2 OAuth2 error code, if present.
-    pub fn code(&self) -> Option<&str> {
-        self.code.as_deref()
-    }
-
-    /// Returns the human-readable error description, if present.
-    pub fn description(&self) -> Option<&str> {
-        self.description.as_deref()
-    }
-
-    /// Returns the URL to a page describing the error, if present.
-    pub fn uri(&self) -> Option<&str> {
-        self.uri.as_deref()
-    }
-
-    /// Returns the original response payload preserved for diagnostics.
-    pub fn raw_body(&self) -> &str {
-        &self.raw_body
-    }
-}
-
-impl std::fmt::Display for OAuth2ServerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match (&self.code, &self.description) {
-            (None, _) => write!(
-                f,
-                "token request failed with status {}: {}",
-                self.status_code, self.raw_body
-            ),
-            (Some(code), Some(desc)) => write!(
-                f,
-                "token request failed with status {}: {} — {}",
-                self.status_code, code, desc
-            ),
-            (Some(code), None) => write!(
-                f,
-                "token request failed with status {}: {}",
-                self.status_code, code
-            ),
-        }
-    }
-}
-
-impl std::error::Error for OAuth2ServerError {}
-
-// Brands this SDK-thrown error as part of the `OpenAPIError` hierarchy so a
-// single `&dyn OpenAPIError` / `Box<dyn OpenAPIError>` can hold it alongside
-// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
-// satisfied by the `impl Error` above and the owned scalar/`String` fields.
-impl crate::errors::OpenAPIError for OAuth2ServerError {}
-
 /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
 /// [`OAuth2ServerError`]. Falls back to a generic error using the raw body
 /// when the body is not a valid OAuth2 error object.
@@ -398,29 +297,23 @@ fn parse_oauth2_server_error(status_code: u16, body: &str) -> OAuth2ServerError 
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) {
         if let Some(code) = parsed.get("error").and_then(|v| v.as_str()) {
             if !code.is_empty() {
-                return OAuth2ServerError {
+                return OAuth2ServerError::new(
                     status_code,
-                    code: Some(code.to_string()),
-                    description: parsed
+                    Some(code.to_string()),
+                    parsed
                         .get("error_description")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string()),
-                    uri: parsed
+                    parsed
                         .get("error_uri")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string()),
-                    raw_body: body.to_string(),
-                };
+                    body.to_string(),
+                );
             }
         }
     }
-    OAuth2ServerError {
-        status_code,
-        code: None,
-        description: None,
-        uri: None,
-        raw_body: body.to_string(),
-    }
+    OAuth2ServerError::new(status_code, None, None, None, body.to_string())
 }
 
 /// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.

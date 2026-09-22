@@ -29,14 +29,13 @@ fn start_echo_server() -> String {
     let base_url = format!("http://{}", addr);
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
 
             let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-            break;
         }
     });
 
@@ -273,7 +272,7 @@ fn start_method_echo_server() -> String {
     let base_url = format!("http://{}", addr);
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 8192];
             let n = stream.read(&mut buf).unwrap_or(0);
@@ -303,7 +302,6 @@ fn start_method_echo_server() -> String {
                 json_body
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-            break;
         }
     });
 
@@ -318,7 +316,7 @@ fn start_404_server() -> String {
     let base_url = format!("http://{}", addr);
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
@@ -329,7 +327,6 @@ fn start_404_server() -> String {
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
             let _ = std::io::Write::write_all(&mut stream, body);
-            break;
         }
     });
 
@@ -344,7 +341,7 @@ fn start_vendor_json_server() -> String {
     let base_url = format!("http://{}", addr);
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
@@ -355,7 +352,6 @@ fn start_vendor_json_server() -> String {
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
             let _ = std::io::Write::write_all(&mut stream, body);
-            break;
         }
     });
 
@@ -652,7 +648,7 @@ fn start_multi_header_server() -> String {
     let base_url = format!("http://{}", addr);
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
@@ -663,7 +659,6 @@ fn start_multi_header_server() -> String {
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
             let _ = std::io::Write::write_all(&mut stream, body);
-            break;
         }
     });
 
@@ -1080,8 +1075,8 @@ async fn test_transport_error_preserves_underlying_cause() {
     );
     assert!(
         matches!(
-            petstore::api_error::ApiErrorKind::from(api_err.clone()),
-            petstore::api_error::ApiErrorKind::Network(_)
+            petstore::ApiErrorKind::from(api_err.clone()),
+            petstore::ApiErrorKind::Network(_)
         ),
         "a transport failure must map to ApiErrorKind::Network"
     );
@@ -1127,8 +1122,8 @@ async fn test_timeout_returns_network_timeout_error() {
     );
     assert!(
         matches!(
-            petstore::api_error::ApiErrorKind::from(api_err.clone()),
-            petstore::api_error::ApiErrorKind::NetworkTimeout(_)
+            petstore::ApiErrorKind::from(api_err.clone()),
+            petstore::ApiErrorKind::NetworkTimeout(_)
         ),
         "a timeout must map to ApiErrorKind::NetworkTimeout"
     );

@@ -33,7 +33,12 @@ public class RustClientSpec extends AbstractClientSpec implements RustSpec {
          * `.out/reports/` so AbstractIntegrationSpec's post-step picks
          * it up alongside the other languages' JUnit output. */
         return new String[] {
-            "mkdir -p .out/reports",
+            /* The report printed after this run is read from the host's golden
+             * directory; clear the previous run's there, so a run that fails
+             * before writing one does not print stale results. */
+            "rm -rf /app/.out/reports && mkdir -p .out/reports",
+            /* --all-features compiles the `opentelemetry` feature in, so the
+             * in-crate trace-context tests run against the OpenTelemetry SDK. */
             /* Compile ALL test binaries (lib in its `--cfg test` variant plus
              * every integration-test crate) in a single bounded build BEFORE the
              * run. Unit tests live in-crate (`#[cfg(test)] mod tests`), so the
@@ -47,8 +52,8 @@ public class RustClientSpec extends AbstractClientSpec implements RustSpec {
              * step finds every artifact cached and never rebuilds concurrently.
              * CARGO_BUILD_JOBS=2 bounds the build graph's parallelism (matching
              * RustBuildSpec) so the rlib lands before its dependents compile. */
-            "CARGO_BUILD_JOBS=2 cargo nextest run --profile=ci --no-run",
-            "CARGO_BUILD_JOBS=2 cargo nextest run --profile=ci",
+            "CARGO_BUILD_JOBS=2 cargo nextest run --all-features --profile=ci --no-run",
+            "CARGO_BUILD_JOBS=2 cargo nextest run --all-features --profile=ci",
             "cp target/nextest/ci/junit.xml .out/reports/junit.xml"
         };
     }

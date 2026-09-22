@@ -2,53 +2,14 @@
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::fmt;
-
-/// SerializationError is returned when serialization or deserialization fails.
-#[derive(Debug)]
-pub struct SerializationError {
-    message: String,
-    cause: Option<Box<dyn std::error::Error + Send + Sync>>,
-}
-
-impl SerializationError {
-    /// Creates a new serialization error with an optional underlying cause.
-    pub fn new(message: String, cause: Option<Box<dyn std::error::Error + Send + Sync>>) -> Self {
-        Self { message, cause }
-    }
-
-    /// Returns the human-readable error message.
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-
-    /// Returns the underlying cause, if any.
-    pub fn cause(&self) -> Option<&(dyn std::error::Error + Send + Sync)> {
-        self.cause.as_deref()
-    }
-}
-
-impl fmt::Display for SerializationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.cause {
-            Some(cause) => write!(f, "{}: {}", self.message, cause),
-            None => write!(f, "{}", self.message),
-        }
-    }
-}
-
-impl std::error::Error for SerializationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.cause.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
-    }
-}
+use crate::errors::serialization_error::SerializationError;
 
 /// Serializes an object to a JSON string.
 pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> {
-    serde_json::to_string(value).map_err(|e| SerializationError {
-        message: format!("failed to serialize object to JSON: {}", e),
-        cause: Some(Box::new(e)),
-    })
+    serde_json::to_string(value).map_err(|e| SerializationError::new(
+        format!("failed to serialize object to JSON: {}", e),
+        Some(Box::new(e)),
+    ))
 }
 
 /// Deserializes a JSON byte slice into the target type.
@@ -68,10 +29,10 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
     };
     serde_json::from_slice(stripped)
         .map(Some)
-        .map_err(|e| SerializationError {
-            message: format!("failed to deserialize JSON: {}", e),
-            cause: Some(Box::new(e)),
-        })
+        .map_err(|e| SerializationError::new(
+            format!("failed to deserialize JSON: {}", e),
+            Some(Box::new(e)),
+        ))
 }
 
 /// Converts a single scalar value to its string representation.
@@ -720,7 +681,7 @@ mod tests {
             object_serializer::deserialize(b"{");
         assert!(result.is_err(), "expected error for truncated JSON");
         let err = result.unwrap_err();
-        assert!(!err.message.is_empty(), "error should have a message");
+        assert!(!err.message().is_empty(), "error should have a message");
     }
 
     #[test]
@@ -735,7 +696,7 @@ mod tests {
         let result: Result<Option<serde_json::Value>, SerializationError> =
             object_serializer::deserialize(b"{");
         let err = result.unwrap_err();
-        assert!(err.cause.is_some(), "error should have a cause");
+        assert!(err.cause().is_some(), "error should have a cause");
     }
 
     // UuidSerializationTests

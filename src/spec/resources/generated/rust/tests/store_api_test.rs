@@ -36,7 +36,7 @@ fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreA
     let body = body.to_string();
 
     thread::spawn(move || {
-        for stream in listener.incoming() {
+        if let Some(stream) = listener.incoming().next() {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
@@ -49,7 +49,6 @@ fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreA
                 body
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-            break;
         }
     });
 

@@ -15,7 +15,7 @@ pub struct EdgeCases {
     pub free_form_any: Option<crate::json_value::JsonValue>,
     #[serde(rename = "favoriteColor", skip_serializing_if = "Option::is_none")]
     pub favorite_color: Option<Color>,
-    /// Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
+    /// Required permission is "user.grant.write" for \<admin\> & owner roles (don't skip it)
     #[serde(rename = "permissionsNote", skip_serializing_if = "Option::is_none")]
     pub permissions_note: Option<String>,
     #[serde(rename = "and", skip_serializing_if = "Option::is_none")]

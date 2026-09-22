@@ -11,7 +11,7 @@ use std::pin::Pin;
 
 use super::Authenticator;
 use crate::auth::api_key_location::ApiKeyLocation;
-use crate::configuration_error::ConfigurationError;
+use crate::errors::configuration_error::ConfigurationError;
 
 /// ApiKeyAuthenticator provides API key authentication.
 ///

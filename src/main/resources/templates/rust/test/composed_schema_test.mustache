@@ -1,5 +1,9 @@
 {{>api_info}}
 
+// The spec marks some model fields deprecated; these tests must still read
+// them, so the deprecation warnings are expected here.
+#![allow(deprecated)]
+
 use std::collections::HashSet;
 
 use {{packageName}}::models::*;

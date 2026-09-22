@@ -46,7 +46,11 @@ fn inject_trace_context_impl(headers: &mut HashMap<String, String>) {
 
     impl opentelemetry::propagation::Injector for HeaderInjector<'_> {
         fn set(&mut self, key: &str, value: String) {
-            self.0.insert(key.to_string(), value);
+            /* The W3C propagator always sets tracestate, even when the span
+             * carries none; an empty header is omitted. */
+            if !value.is_empty() {
+                self.0.insert(key.to_string(), value);
+            }
         }
     }
 
@@ -158,27 +162,110 @@ mod tests {
         assert_eq!(headers.get("X-Request-ID").unwrap(), "abc-123");
     }
 
-    /* .NET-specific scenario: Rust has no ambient tracer like .NET Activity.Current;
-     * injecting a real active span requires a fully configured OpenTelemetry SDK. */
-    #[test]
-    #[ignore = "no ambient tracer; active-span injection requires a configured OpenTelemetry SDK"]
-    fn test_inject_trace_context_injects_traceparent_when_span_active() {}
+    /* The four tests below install the OpenTelemetry SDK with an in-memory
+     * exporter and make a span current, so they are compiled with the
+     * `opentelemetry` feature: run the suite with `--all-features`. */
+    #[cfg(feature = "opentelemetry")]
+    mod with_active_span {
+        use super::inject_trace_context;
+        use opentelemetry::trace::{
+            SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState, Tracer,
+            TracerProvider as _,
+        };
+        use opentelemetry::Context;
+        use opentelemetry_sdk::propagation::TraceContextPropagator;
+        use opentelemetry_sdk::trace::{InMemorySpanExporter, Sampler, SdkTracerProvider};
+        use std::collections::HashMap;
 
-    /* .NET-specific scenario: setting tracestate on an active span requires a fully
-     * configured OpenTelemetry SDK, which is out of scope for this unit test. */
-    #[test]
-    #[ignore = "no ambient tracer; tracestate-present requires a configured OpenTelemetry SDK"]
-    fn test_inject_trace_context_includes_tracestate_when_present() {}
+        /// Installs the W3C propagator and a tracer provider that exports to
+        /// memory, starts a span under `parent`, and injects the headers while
+        /// that span is current. Returns the headers, the span's context and
+        /// the finished spans the exporter received.
+        fn inject_with_span(
+            sampler: Sampler,
+            parent: Context,
+        ) -> (HashMap<String, String>, SpanContext, usize) {
+            opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
+            let exporter = InMemorySpanExporter::default();
+            let provider = SdkTracerProvider::builder()
+                .with_simple_exporter(exporter.clone())
+                .with_sampler(sampler)
+                .build();
+            let span = provider
+                .tracer("trace-context-test")
+                .start_with_context("request", &parent);
+            let cx = parent.with_span(span);
+            let mut headers = HashMap::new();
+            {
+                let _guard = cx.clone().attach();
+                inject_trace_context(&mut headers);
+            }
+            let span_context = cx.span().span_context().clone();
+            cx.span().end();
+            let exported = exporter.get_finished_spans().unwrap().len();
+            (headers, span_context, exported)
+        }
 
-    /* .NET-specific scenario: exercising an empty tracestate on an active span
-     * requires a fully configured OpenTelemetry SDK, which is out of scope here. */
-    #[test]
-    #[ignore = "no ambient tracer; empty-tracestate requires a configured OpenTelemetry SDK"]
-    fn test_inject_trace_context_omits_tracestate_when_empty() {}
+        fn traceparent(span_context: &SpanContext, flags: &str) -> String {
+            format!(
+                "00-{}-{}-{}",
+                span_context.trace_id(),
+                span_context.span_id(),
+                flags
+            )
+        }
 
-    /* .NET-specific scenario: verifying the recorded trace-flags byte requires a
-     * fully configured OpenTelemetry SDK with an active span. */
-    #[test]
-    #[ignore = "no ambient tracer; trace-flags formatting requires a configured OpenTelemetry SDK"]
-    fn test_inject_trace_context_formats_trace_flags_correctly() {}
+        #[test]
+        fn test_inject_trace_context_injects_traceparent_when_span_active() {
+            let (headers, span_context, exported) =
+                inject_with_span(Sampler::AlwaysOn, Context::new());
+
+            assert_eq!(
+                headers.get("traceparent"),
+                Some(&traceparent(&span_context, "01"))
+            );
+            assert_eq!(exported, 1);
+        }
+
+        #[test]
+        fn test_inject_trace_context_includes_tracestate_when_present() {
+            let parent = Context::new().with_remote_span_context(SpanContext::new(
+                TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap(),
+                SpanId::from_hex("00f067aa0ba902b7").unwrap(),
+                TraceFlags::SAMPLED,
+                true,
+                TraceState::from_key_value([("vendor", "value")]).unwrap(),
+            ));
+            let (headers, _, _) = inject_with_span(Sampler::AlwaysOn, parent);
+
+            assert_eq!(
+                headers.get("tracestate").map(String::as_str),
+                Some("vendor=value")
+            );
+        }
+
+        #[test]
+        fn test_inject_trace_context_omits_tracestate_when_empty() {
+            let (headers, _, _) = inject_with_span(Sampler::AlwaysOn, Context::new());
+
+            assert!(headers.contains_key("traceparent"));
+            assert!(!headers.contains_key("tracestate"));
+        }
+
+        #[test]
+        fn test_inject_trace_context_formats_trace_flags_correctly() {
+            let (sampled, sampled_context, _) = inject_with_span(Sampler::AlwaysOn, Context::new());
+            let (unsampled, unsampled_context, _) =
+                inject_with_span(Sampler::AlwaysOff, Context::new());
+
+            assert_eq!(
+                sampled.get("traceparent"),
+                Some(&traceparent(&sampled_context, "01"))
+            );
+            assert_eq!(
+                unsampled.get("traceparent"),
+                Some(&traceparent(&unsampled_context, "00"))
+            );
+        }
+    }
 }

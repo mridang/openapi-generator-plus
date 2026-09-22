@@ -11,12 +11,12 @@ impl {{className}} {
     /// # Errors
     ///
     /// Returns the [`{{baseClass}}`] constructor's
-    /// [`ConfigurationError`](crate::configuration_error::ConfigurationError)
+    /// [`ConfigurationError`](crate::errors::configuration_error::ConfigurationError)
     /// when the credentials are invalid.
     pub fn new(
         {{#constructorParams}}{{name}}: {{type}},{{^-last}}
         {{/-last}}{{/constructorParams}}
-    ) -> Result<Self, crate::configuration_error::ConfigurationError> {
+    ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
         Ok(Self({{baseClass}}::new({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})?))
     }
 {{/fallible}}

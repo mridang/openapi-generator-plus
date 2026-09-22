@@ -7,7 +7,6 @@
 
 use std::collections::HashMap;
 use std::error::Error;
-use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -17,38 +16,7 @@ use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
 use crate::auth::Authenticator;
-
-/// Error returned when the authorization code flow is used out of order:
-/// requesting auth headers before
-/// [`exchange_code`](OAuth2AuthorizationCodeAuthenticator::exchange_code), or
-/// exchanging an empty code.
-///
-/// Callers can downcast to this type so they can distinguish a usage error
-/// from a network/token-endpoint failure and recover instead of being
-/// terminated by a `panic!`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OAuth2AuthorizationCodeError {
-    /// Auth headers were requested before `exchange_code` was called.
-    CodeNotExchanged,
-    /// `exchange_code` was called with an empty or whitespace-only code.
-    EmptyCode,
-}
-
-impl fmt::Display for OAuth2AuthorizationCodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::CodeNotExchanged => f.write_str(
-                "oauth2 authorization code: must call exchange_code before requesting auth headers",
-            ),
-            Self::EmptyCode => f.write_str("oauth2 authorization code: code must not be empty"),
-        }
-    }
-}
-
-// A caller mistake, not an API failure: like `ConfigurationError` it is a
-// plain `std::error::Error` and deliberately not part of the SDK error
-// hierarchy rooted at `OpenAPIError`.
-impl Error for OAuth2AuthorizationCodeError {}
+use crate::errors::oauth2_authorization_code_error::OAuth2AuthorizationCodeError;
 
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
 /// flow authentication.

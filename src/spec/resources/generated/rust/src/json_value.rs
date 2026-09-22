@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// declared properties, `additionalProperties`, or `AnyType`).
 ///
 /// The crate's public API must never expose `serde_json` types directly (the
-/// same stance documented on [`crate::api_error::ApiError`], whose parsed
+/// same stance documented on [`crate::errors::api_error::ApiError`], whose parsed
 /// `error_body` is kept crate-private precisely so a `serde_json::Value` AST
 /// does not leak into the public surface). `JsonValue` keeps the underlying
 /// `serde_json::Value` **private** so `serde_json` never appears in a public

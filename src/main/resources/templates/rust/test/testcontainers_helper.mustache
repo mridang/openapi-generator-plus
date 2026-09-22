@@ -22,6 +22,7 @@ use testcontainers::{GenericImage, ImageExt, ReuseDirective};
 /// Shared test infrastructure URLs, populated once when first accessed.
 struct TestContainers {
     proxy_url: String,
+    auth_proxy_url: String,
     chasm_url: String,
     chasm_http_url: String,
     chasm_https_url: String,
@@ -41,7 +42,7 @@ fn init_containers() -> &'static TestContainers {
         // Spawn a separate OS thread for container initialization because
         // SyncRunner uses block_on internally, which panics if called from
         // within an existing tokio runtime (e.g. #[tokio::test]).
-        std::thread::spawn(|| init_containers_inner())
+        std::thread::spawn(init_containers_inner)
             .join()
             .expect("container initialization thread panicked")
     })
@@ -137,6 +138,7 @@ fn init_containers_inner() -> TestContainers {
         // Start Squid
         let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
             .with_exposed_port(ContainerPort::Tcp(3128))
+            .with_exposed_port(ContainerPort::Tcp(3129))
             .with_label("io.openapi-generator.fixture", "squid")
             .with_reuse(ReuseDirective::Always)
             .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
@@ -146,6 +148,9 @@ fn init_containers_inner() -> TestContainers {
 
         let squid_host = resolve_host(&squid);
         let squid_port = port_when_mapped(&squid, 3128, "Squid");
+        // 3129 is the same proxy but answers 407 unless the request carries
+        // Proxy-Authorization credentials.
+        let squid_auth_port = port_when_mapped(&squid, 3129, "Squid (auth)");
 
         // Start Chasm
         let chasm_cert_path = fixtures.join("certs").join("server.pem");
@@ -194,6 +199,7 @@ fn init_containers_inner() -> TestContainers {
 
         TestContainers {
             proxy_url: format!("http://{}:{}", squid_host, squid_port),
+            auth_proxy_url: format!("http://{}:{}", squid_host, squid_auth_port),
             chasm_url: format!("http://{}:{}", chasm_host, chasm_port),
             chasm_http_url: format!("http://{}:{}", chasm_host, chasm_port),
             chasm_https_url: format!("https://{}:{}", chasm_host, chasm_https_port),
@@ -206,6 +212,10 @@ fn init_containers_inner() -> TestContainers {
 
 pub fn proxy_url() -> &'static str {
     &init_containers().proxy_url
+}
+
+pub fn auth_proxy_url() -> &'static str {
+    &init_containers().auth_proxy_url
 }
 
 pub fn chasm_url() -> &'static str {

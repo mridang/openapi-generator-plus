@@ -203,14 +203,22 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```rust
-use petstore::errors::*;
+use std::error::Error;
 
-match client.pet.add_pet(/* params */).await {
+use petstore::{ClientError, NetworkTimeoutError, NotFoundError, ServerError};
+
+/// Whether `err` is a `T`. Rust has no inheritance: each error's `source()` is
+/// its parent in the hierarchy above, so the check walks that chain.
+fn is_a<T: Error + 'static>(err: &(dyn Error + 'static)) -> bool {
+    std::iter::successors(Some(err), |&e| e.source()).any(|e| e.is::<T>())
+}
+
+match client.pet.add_pet(pet, None).await {
     Ok(value) => println!("Found: {:?}", value),
-    Err(e) if e.downcast_ref::<NotFoundError>().is_some() => println!("Not found: {}", e),
-    Err(e) if e.downcast_ref::<ClientError>().is_some() => println!("Client error: {}", e),
-    Err(e) if e.downcast_ref::<ServerError>().is_some() => println!("Server error: {}", e),
-    Err(e) if e.downcast_ref::<NetworkTimeoutError>().is_some() => println!("Timed out: {}", e),
+    Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {}", e),
+    Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {}", e),
+    Err(e) if is_a::<ServerError>(&*e) => println!("Server error: {}", e),
+    Err(e) if is_a::<NetworkTimeoutError>(&*e) => println!("Timed out: {}", e),
     Err(e) => println!("Error: {}", e),
 }
 ```

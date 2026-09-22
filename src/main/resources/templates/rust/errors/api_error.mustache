@@ -4,7 +4,16 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
-use crate::object_serializer::SerializationError;
+use crate::errors::bad_request_error::BadRequestError;
+use crate::errors::client_error::ClientError;
+use crate::errors::conflict_error::ConflictError;
+use crate::errors::forbidden_error::ForbiddenError;
+use crate::errors::internal_server_error::InternalServerError;
+use crate::errors::not_found_error::NotFoundError;
+use crate::errors::serialization_error::SerializationError;
+use crate::errors::server_error::ServerError;
+use crate::errors::unauthorized_error::UnauthorizedError;
+use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
 
 /// Parses a raw response body into a JSON AST for the crate-internal
 /// `error_body` cache. Returns `None` when the body is absent or not valid
@@ -146,6 +155,48 @@ impl ApiError {
             source: Some(source),
             transport_failure: Some(failure),
         }
+    }
+
+    /// Builds the error for a non-2xx HTTP response: the concrete 4xx/5xx type
+    /// for a recognised status ([`NotFoundError`], [`InternalServerError`], ...),
+    /// [`ClientError`] or [`ServerError`] for any other 4xx or 5xx, and a plain
+    /// `ApiError` for anything else. Every generated operation and the OpenID
+    /// Connect discovery request build their HTTP errors here, so this is the
+    /// one place the status-to-error mapping lives.
+    pub fn from_response(
+        status_code: u16,
+        headers: &HashMap<String, String>,
+        body: &str,
+    ) -> Box<dyn std::error::Error + Send + Sync> {
+        let base_err = Self::new(
+            status_code,
+            format!("API returned status code {}", status_code),
+            Some(body.to_string()),
+            Some(headers.clone()),
+        );
+
+        if (400..500).contains(&status_code) {
+            let client_err = ClientError::from(base_err);
+            return match status_code {
+                400 => Box::new(BadRequestError::from(client_err)),
+                401 => Box::new(UnauthorizedError::from(client_err)),
+                403 => Box::new(ForbiddenError::from(client_err)),
+                404 => Box::new(NotFoundError::from(client_err)),
+                409 => Box::new(ConflictError::from(client_err)),
+                422 => Box::new(UnprocessableEntityError::from(client_err)),
+                _ => Box::new(client_err),
+            };
+        }
+
+        if status_code >= 500 {
+            let server_err = ServerError::from(base_err);
+            return match status_code {
+                500 => Box::new(InternalServerError::from(server_err)),
+                _ => Box::new(server_err),
+            };
+        }
+
+        Box::new(base_err)
     }
 
     /// Returns the HTTP status code.
