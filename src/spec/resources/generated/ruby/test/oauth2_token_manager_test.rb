@@ -362,7 +362,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     # A failed token request surfaces as the typed OAuth2ServerError, which
     # subclasses the SDK's branded root so a rescue on the root catches it
     # alongside every other SDK error.
-    error = assert_raises(PetstoreClient::OpenAPIError) do
+    error = assert_raises(::PetstoreClient::OpenAPIError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
     _(error).must_be_kind_of PetstoreClient::Auth::OAuth::OAuth2ServerError

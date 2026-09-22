@@ -116,7 +116,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
 
     # The failed token exchange surfaces as the typed OAuth2ServerError,
     # which subclasses the SDK's branded root, not ApiError.
-    error = _(-> { error_auth.auth_headers }).must_raise PetstoreClient::OpenAPIError
+    error = _(-> { error_auth.auth_headers }).must_raise ::PetstoreClient::OpenAPIError
     _(error).must_be_kind_of PetstoreClient::Auth::OAuth::OAuth2ServerError
     _(error).wont_be_kind_of PetstoreClient::ApiError
   end

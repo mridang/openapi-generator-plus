@@ -88,7 +88,7 @@ module PetstoreClient
   class OpenAPIError < StandardError
   end
 
-  class ApiError < PetstoreClient::OpenAPIError
+  class ApiError < ::PetstoreClient::OpenAPIError
     attr_reader status_code: Integer?
     attr_reader response_headers: Hash[String, String]?
     attr_reader response_body: String?
@@ -175,7 +175,7 @@ module PetstoreClient
 
   UUID_REGEX: Regexp
 
-  class SerializationError < PetstoreClient::OpenAPIError
+  class SerializationError < ::PetstoreClient::OpenAPIError
     attr_reader cause: Exception?
     def initialize: (String, ?Exception?) -> void
   end
@@ -347,10 +347,10 @@ module PetstoreClient
         def parse_expires_in: (untyped) -> Integer
       end
 
-      class OAuth2TokenError < PetstoreClient::OpenAPIError
+      class OAuth2TokenError < ::PetstoreClient::OpenAPIError
       end
 
-      class OAuth2ServerError < PetstoreClient::OpenAPIError
+      class OAuth2ServerError < ::PetstoreClient::OpenAPIError
         attr_reader status_code: Integer?
         attr_reader code: String?
         attr_reader description: String?

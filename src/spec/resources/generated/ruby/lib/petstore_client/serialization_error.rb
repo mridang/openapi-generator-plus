@@ -14,7 +14,7 @@ module PetstoreClient
   #
   # Declared in its own file so an autoloader that maps each file to the
   # one constant named after it can resolve this class directly.
-  class SerializationError < PetstoreClient::OpenAPIError
+  class SerializationError < ::PetstoreClient::OpenAPIError
     attr_reader :cause
 
     def initialize(message, cause = nil)

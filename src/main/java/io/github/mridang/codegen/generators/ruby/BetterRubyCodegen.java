@@ -330,8 +330,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 !DEFAULT_API_ERROR_PARENT.equals(apiErrorParent);
         if (!customApiErrorParent) {
             // No hand-written base supplied: brand our own root rather than
-            // leaving the tree at the bare StandardError.
-            apiErrorParent = moduleName + "::" + additionalProperties.get("errorPrefix") + "Error";
+            // leaving the tree at the bare StandardError. The name is absolute:
+            // the error files open the gem's module, so a relative
+            // `Zitadel::Client::ZitadelError` resolves its first segment
+            // lexically and finds the client class `Zitadel::Client::Zitadel`
+            // when clientClassName repeats the top-level module's name.
+            apiErrorParent =
+                    "::" + moduleName + "::" + additionalProperties.get("errorPrefix") + "Error";
         }
         additionalProperties.put("apiErrorParent", apiErrorParent);
 

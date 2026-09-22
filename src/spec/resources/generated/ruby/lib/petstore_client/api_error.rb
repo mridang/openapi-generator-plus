@@ -12,7 +12,7 @@ require_relative 'open_api_error'
 module PetstoreClient
   # Represents an error returned by the API, including the HTTP status code,
   # response headers, and response body.
-  class ApiError < PetstoreClient::OpenAPIError
+  class ApiError < ::PetstoreClient::OpenAPIError
     attr_reader :status_code, :response_headers, :response_body, :error_body
 
     # Usage examples:

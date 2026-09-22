@@ -240,7 +240,7 @@ module PetstoreClient
       # body is missing or contains an empty +access_token+ field. Distinct
       # from {OAuth2ServerError} (which represents RFC 6749 §5.2 error
       # responses on 4xx/5xx) so callers can rescue them separately.
-      class OAuth2TokenError < PetstoreClient::OpenAPIError
+      class OAuth2TokenError < ::PetstoreClient::OpenAPIError
       end
 
       # Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -249,7 +249,7 @@ module PetstoreClient
       # human-readable description and a URL to a page describing the error.
       # +raw_body+ preserves the original response payload for diagnostics
       # when the body is not a well-formed OAuth2 error object.
-      class OAuth2ServerError < PetstoreClient::OpenAPIError
+      class OAuth2ServerError < ::PetstoreClient::OpenAPIError
         attr_reader :status_code, :code, :description, :uri, :raw_body
 
         def initialize(status_code, code, description, uri, raw_body)

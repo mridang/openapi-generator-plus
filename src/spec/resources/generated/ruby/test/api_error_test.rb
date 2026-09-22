@@ -44,11 +44,11 @@ describe PetstoreClient::ApiError do
   end
 
   # Unified exception hierarchy: every SDK-thrown error must reach the
-  # branded root (PetstoreClient::OpenAPIError) so a single rescue catches them all.
+  # branded root (::PetstoreClient::OpenAPIError) so a single rescue catches them all.
   it 'roots ApiError at the branded base' do
     err = PetstoreClient::ApiError.new(status_code: 500, message: 'boom')
 
-    _(err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(err).must_be_kind_of(::PetstoreClient::OpenAPIError)
   end
 
   it 'chains a typed status error up through ClientError, ApiError and the branded base' do
@@ -56,7 +56,7 @@ describe PetstoreClient::ApiError do
 
     _(err).must_be_kind_of(PetstoreClient::Errors::ClientError)
     _(err).must_be_kind_of(PetstoreClient::ApiError)
-    _(err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(err).must_be_kind_of(::PetstoreClient::OpenAPIError)
   end
 
   it 'chains NetworkTimeoutError up through NetworkError and ApiError with status 0' do
@@ -64,7 +64,7 @@ describe PetstoreClient::ApiError do
 
     _(err).must_be_kind_of(PetstoreClient::Errors::NetworkError)
     _(err).must_be_kind_of(PetstoreClient::ApiError)
-    _(err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(err).must_be_kind_of(::PetstoreClient::OpenAPIError)
     _(err.status_code).must_equal(0)
     _(PetstoreClient::Errors::NetworkError.new(message: 'refused').status_code).must_equal(0)
   end
@@ -76,16 +76,16 @@ describe PetstoreClient::ApiError do
   it 'roots SerializationError at the branded base' do
     err = PetstoreClient::SerializationError.new('boom')
 
-    _(err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(err).must_be_kind_of(::PetstoreClient::OpenAPIError)
   end
 
   it 'roots OAuth2 token-manager errors at the branded base' do
     token_err = PetstoreClient::Auth::OAuth::OAuth2TokenError.new('missing access_token')
     server_err = PetstoreClient::Auth::OAuth::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
 
-    _(token_err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(token_err).must_be_kind_of(::PetstoreClient::OpenAPIError)
     _(token_err).wont_be_kind_of(PetstoreClient::ApiError)
-    _(server_err).must_be_kind_of(PetstoreClient::OpenAPIError)
+    _(server_err).must_be_kind_of(::PetstoreClient::OpenAPIError)
     _(server_err).wont_be_kind_of(PetstoreClient::ApiError)
   end
 
