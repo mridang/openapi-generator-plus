@@ -15,7 +15,7 @@ import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
-import '../errors/api_error.dart';
+import '../errors/api_exception.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/department.dart';
@@ -100,10 +100,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Category` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getBySwatch but none was returned',
@@ -185,10 +185,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Defaults` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getDefaults but none was returned',
@@ -232,10 +232,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Department` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getDepartment but none was returned',
@@ -280,10 +280,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as List<Map<String, Category>>` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getGroupedCategories but none was returned',
@@ -336,10 +336,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Map<String, int>` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getInventory but none was returned',
@@ -382,10 +382,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as List<List<int>>` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message: 'Expected a response body for getMatrix but none was returned',
         responseBody: result.rawBody,
@@ -434,10 +434,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Order` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getOrderById but none was returned',
@@ -502,10 +502,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as StockItem` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getStockItem but none was returned',
@@ -562,10 +562,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Swatch` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message: 'Expected a response body for getSwatch but none was returned',
         responseBody: result.rawBody,
@@ -608,10 +608,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as List<Map<String, Swatch>>` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getSwatchGroups but none was returned',
@@ -661,10 +661,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as List<Map<String, DateTime>>` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getTimestampGroups but none was returned',
@@ -714,10 +714,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as TreeNode` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message: 'Expected a response body for getTree but none was returned',
         responseBody: result.rawBody,
@@ -760,10 +760,10 @@ class StoreApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Order` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for placeOrder but none was returned',

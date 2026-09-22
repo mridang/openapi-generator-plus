@@ -23,7 +23,7 @@
 ///   * Negative durations parse and format with a leading `-`.
 library;
 
-import 'object_serializer.dart' show SerializationError;
+import 'object_serializer.dart' show SerializationException;
 
 /// Regex matching the `google.protobuf.Duration` JSON grammar.
 ///
@@ -35,15 +35,15 @@ final RegExp _protobufDurationPattern = RegExp(r'^(-)?(\d+)(?:\.(\d{1,9}))?s$');
 /// Accepts the `google.protobuf.Duration` JSON form
 /// `-?\d+(\.\d{1,9})?s`. The fractional part is right-padded to nine
 /// digits to recover nanoseconds; sub-microsecond digits are truncated
-/// to fit [Duration]'s resolution. Throws [SerializationError] for
+/// to fit [Duration]'s resolution. Throws [SerializationException] for
 /// malformed input.
 Duration parseProtobufDuration(String input) {
   if (input.isEmpty) {
-    throw const SerializationError('empty duration string');
+    throw const SerializationException('empty duration string');
   }
   final match = _protobufDurationPattern.firstMatch(input);
   if (match == null) {
-    throw SerializationError('not a protobuf-JSON duration: $input');
+    throw SerializationException('not a protobuf-JSON duration: $input');
   }
 
   final negative = match.group(1) == '-';
@@ -106,7 +106,7 @@ String formatProtobufDuration(Duration duration) {
 
 /// Validates an RFC 3339 partial-time string (`HH:MM:SS` with
 /// optional fractional seconds). Returns the input unchanged on
-/// success; throws [FormatException] on malformed input.
+/// success; throws [ArgumentError] on malformed input.
 ///
 /// Provided as a convenience for call sites that want construction-
 /// time validation of `format: time` string values without lifting
@@ -115,7 +115,7 @@ final RegExp _partialTimePattern = RegExp(r'^\d{2}:\d{2}:\d{2}(\.\d+)?$');
 
 String validatePartialTime(String input) {
   if (!_partialTimePattern.hasMatch(input)) {
-    throw FormatException('not an RFC 3339 partial-time', input);
+    throw ArgumentError.value(input, 'input', 'not an RFC 3339 partial-time');
   }
   return input;
 }

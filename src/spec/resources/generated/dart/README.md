@@ -20,7 +20,7 @@ everywhere:
 - **Flutter Web** (and any `dart2js`/`wasm` target) uses `package:http`'s
   `BrowserClient`, importing no `dart:io`, so the package compiles and runs in
   the browser. Proxy / custom-CA / TLS-off are not expressible through the
-  browser's `fetch`, so requesting one throws a typed `ApiError` at construction
+  browser's `fetch`, so requesting one throws an `ArgumentError` at construction
   rather than being silently ignored; everything else works unchanged. The
   gzip-lie response hardening is a native-only extra (the browser already
   decodes `Content-Encoding`).
@@ -90,6 +90,14 @@ Fixing this end-to-end would require switching generated model
 fields to `BigInt` and a custom JSON parser, which breaks the
 arithmetic operators on every existing consumer. Documented as a
 known limitation.
+
+### `ClientException` shares its name with `package:http`
+
+The SDK's `ClientException` (every 4xx response) has the same name as
+`package:http`'s `ClientException`. A file that imports both must import
+`package:http` with a prefix, for example
+`import 'package:http/http.dart' as http;`, and refer to its type as
+`http.ClientException`. The SDK itself imports `package:http` that way.
 
 ## Not supported
 

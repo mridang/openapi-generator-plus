@@ -15,7 +15,7 @@ import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
-import '../errors/api_error.dart';
+import '../errors/api_exception.dart';
 import '../models/api_response.dart';
 import '../models/pet.dart';
 import '../models/pet_passport.dart';
@@ -177,10 +177,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message: 'Expected a response body for addPet but none was returned',
         responseBody: result.rawBody,
@@ -232,10 +232,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as List<Photo>` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for addPetPhotos but none was returned',
@@ -329,10 +329,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as PetTreatment` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for addPetTreatment but none was returned',
@@ -488,10 +488,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Uint8List` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for downloadPetDocument but none was returned',
@@ -592,10 +592,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as List<Pet>` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for findPetsByStatus but none was returned',
@@ -663,10 +663,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getExternalPetInfo but none was returned',
@@ -742,10 +742,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getMultiServerPetInfo but none was returned',
@@ -819,10 +819,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Uint8List` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getPetAvatar but none was returned',
@@ -886,10 +886,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Uint8List` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getPetAvatarThumbnail but none was returned',
@@ -969,10 +969,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getPetById but none was returned',
@@ -1045,10 +1045,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getPetByName but none was returned',
@@ -1131,10 +1131,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as PetPassport` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getPetPassport but none was returned',
@@ -1200,10 +1200,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Uint8List` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getPetPhoto but none was returned',
@@ -1293,10 +1293,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message: 'Expected a response body for getPetTag but none was returned',
         responseBody: result.rawBody,
@@ -1419,10 +1419,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for getStagingPetInfo but none was returned',
@@ -1616,10 +1616,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as ApiResponse` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for setPetPreferences but none was returned',
@@ -1713,10 +1713,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as Pet` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message: 'Expected a response body for updatePet but none was returned',
         responseBody: result.rawBody,
@@ -1783,10 +1783,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as ApiResponse` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for uploadPetCertificate but none was returned',
@@ -1878,10 +1878,10 @@ class PetApi extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as ApiResponse` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message:
             'Expected a response body for uploadPetDocument but none was returned',

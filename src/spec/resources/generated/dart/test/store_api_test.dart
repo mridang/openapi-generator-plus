@@ -101,7 +101,7 @@ void main() {
       try {
         await api.getOrderById(99999);
         fail('Expected error for non-existent order');
-      } on NotFoundError {
+      } on NotFoundException {
         // Expected
       }
     });
@@ -115,7 +115,7 @@ void main() {
       try {
         await api.getOrderById(1);
         fail('Expected error for server error response');
-      } on InternalServerError {
+      } on InternalServerErrorException {
         // Expected
       }
     });
@@ -138,7 +138,7 @@ void main() {
 
         await api.placeOrder(Order());
         fail('Expected error for server error response');
-      } on InternalServerError {
+      } on InternalServerErrorException {
         // Expected
       } finally {
         await server.close();
@@ -296,7 +296,7 @@ void main() {
 
         await api.deleteOrder(99999);
         fail('Expected error for deleting non-existent order');
-      } on NotFoundError {
+      } on NotFoundException {
         // Expected
       } finally {
         await server.close();

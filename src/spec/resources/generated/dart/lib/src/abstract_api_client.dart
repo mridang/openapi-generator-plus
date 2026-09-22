@@ -16,7 +16,7 @@ import 'dart:math';
 
 import 'api_client.dart';
 import 'api_http_response.dart';
-import 'errors/api_error.dart';
+import 'errors/api_exception.dart';
 import 'errors/network_exception.dart';
 import 'errors/network_timeout_exception.dart';
 import 'transport_options.dart';
@@ -52,7 +52,7 @@ abstract class AbstractApiClient implements ApiClient {
   final String? _proxyAuthHeader;
 
   /* Cross-cutting `close-lifecycle-three-way`: track a closed flag so that
-   * a request issued after [close] surfaces a uniform SDK error (ApiError)
+   * a request issued after [close] surfaces a uniform SDK error (ApiException)
    * instead of leaking the underlying `http` package's "Client is already
    * closed" ClientException. */
   bool _closed = false;
@@ -74,7 +74,7 @@ abstract class AbstractApiClient implements ApiClient {
   /// Platform seam: decompress [bytes] according to [contentEncoding].
   ///
   /// The native transport decodes `gzip`/`deflate` with dart:io codecs and
-  /// raises an [ApiError] on a Content-Encoding lie; the web transport relies
+  /// raises an [ApiException] on a Content-Encoding lie; the web transport relies
   /// on the browser having already decoded the response and returns [bytes]
   /// unchanged. An empty encoding passes bytes through on both.
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding);
@@ -109,11 +109,10 @@ abstract class AbstractApiClient implements ApiClient {
     Object? body, {
     bool noRedirect = false,
   }) async {
+    /* Using a client after close() is a wrong call order: the invalid-state
+     * built-in StateError, not an SDK exception. */
     if (_closed) {
-      throw ApiError(
-        statusCode: 0,
-        message: 'Cannot send request: the API client has been closed',
-      );
+      throw StateError('Cannot send request: the API client has been closed');
     }
     final merged = <String, String>{};
 
@@ -141,7 +140,35 @@ abstract class AbstractApiClient implements ApiClient {
       merged['Proxy-Authorization'] = proxyAuth;
     }
 
-    final uri = Uri.parse(url);
+    /* A malformed request URL or a header value the transport would refuse
+     * is a caller mistake: an ArgumentError, raised here before the
+     * transport handler below could mistake it for a network failure. */
+    final Uri uri;
+    try {
+      uri = Uri.parse(url);
+    } on FormatException catch (e) {
+      throw ArgumentError.value(
+        url,
+        'url',
+        'Invalid request URL: ${e.message}',
+      );
+    }
+    if (!uri.hasScheme || uri.host.isEmpty) {
+      throw ArgumentError.value(url, 'url', 'Request URL must be absolute');
+    }
+    merged.forEach((name, value) {
+      if (name.isEmpty ||
+          RegExp(r"[^!#$%&'*+\-.^_`|~0-9A-Za-z]").hasMatch(name)) {
+        throw ArgumentError.value(name, 'headers', 'Invalid header name');
+      }
+      if (RegExp(r'[\r\n\x00]').hasMatch(value)) {
+        throw ArgumentError.value(
+          value,
+          'headers',
+          'Header "$name" contains CR, LF, or NUL',
+        );
+      }
+    });
     http.BaseRequest request;
 
     /* Gap BH: package:http's auto-redirect re-sends Authorization /
@@ -252,8 +279,8 @@ abstract class AbstractApiClient implements ApiClient {
              * smuggling vector. Refuse it loudly with a typed SDK error
              * instead of silently returning the 3xx, matching the other
              * SDKs that surface the offending URL. */
-            throw ApiError(
-              statusCode: 0,
+            throw ApiException(
+              statusCode: streamedResponse.statusCode,
               message:
                   'Refusing to follow redirect to non-http(s) URL: $nextUri',
             );
@@ -298,8 +325,8 @@ abstract class AbstractApiClient implements ApiClient {
            * distinguishes the two: it is null after a 301/302/303 body-drop
            * and non-null only when the body would actually cross the wire. */
           if (downgrade && nextBody != null) {
-            throw ApiError(
-              statusCode: 0,
+            throw ApiException(
+              statusCode: streamedResponse.statusCode,
               message:
                   'Refusing to replay request body across HTTPS->HTTP '
                   'downgrade redirect to: $nextUri',
@@ -347,8 +374,8 @@ abstract class AbstractApiClient implements ApiClient {
         if (hops >= maxRedirects &&
             _isRedirectStatus(streamedResponse.statusCode)) {
           await streamedResponse.stream.drain<void>();
-          throw ApiError(
-            statusCode: 0,
+          throw ApiException(
+            statusCode: streamedResponse.statusCode,
             message: 'Exceeded maximum number of redirects ($maxRedirects)',
           );
         }
@@ -357,20 +384,24 @@ abstract class AbstractApiClient implements ApiClient {
        * response body INSIDE the transport try/catch so a connection
        * reset, read timeout, or truncated-chunked failure that occurs
        * AFTER the response headers arrive is wrapped in the uniform
-       * ApiError (statusCode 0, underlying preserved) — the same error
+       * ApiException (statusCode 0, underlying preserved) — the same error
        * type a send-phase failure produces. */
       rawBytes = await streamedResponse.stream.toBytes();
-    } on ApiError {
+    } on ApiException {
       /* SDK-typed errors raised inside the redirect loop (unsupported
        * scheme, refused downgrade, too many redirects) already carry the
        * right type — surface them unchanged rather than re-wrapping. */
+      rethrow;
+    } on ArgumentError {
+      /* A caller mistake the transport itself rejected is not a network
+       * failure. */
       rethrow;
     } on http.ClientException catch (e) {
       /* package:http surfaces send-phase failures and post-header body-read
        * failures (truncated/malformed chunked body, connection reset
        * mid-stream) — and wraps native socket/TLS errors from its IOClient —
        * as ClientException. No HTTP response arrived, so it is a
-       * NetworkException (an ApiError with status 0). */
+       * NetworkException (an ApiException with status 0). */
       throw NetworkException(message: e.message, underlyingError: e);
     } on TimeoutException catch (e) {
       /* `Future.timeout` throws dart:async's TimeoutException, which is
@@ -384,17 +415,34 @@ abstract class AbstractApiClient implements ApiClient {
       /* A raw dart:io SocketException / HandshakeException that surfaces
        * from the body-read stream on the native transport is a
        * NetworkException; the transport decides via [isNetworkError]. Any
-       * other error is wrapped as a plain ApiError so no foreign exception
+       * other error is wrapped as a plain ApiException so no foreign exception
        * type escapes the SDK surface. */
       if (isNetworkError(e)) {
         throw NetworkException(message: e.toString(), underlyingError: e);
       }
-      throw ApiError(statusCode: 0, message: e.toString(), underlyingError: e);
+      throw ApiException(
+        statusCode: 0,
+        message: e.toString(),
+        underlyingError: e,
+      );
     }
     final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '')
         .toLowerCase()
         .trim();
-    final responseBytes = decompressBytes(rawBytes, contentEncoding);
+    /* A body that arrived but cannot be decompressed is a response that
+     * could not be used: an ApiException carrying the response's real
+     * status, never a NetworkException. */
+    final Uint8List responseBytes;
+    try {
+      responseBytes = decompressBytes(rawBytes, contentEncoding);
+    } on ApiException catch (e) {
+      throw ApiException(
+        statusCode: streamedResponse.statusCode,
+        message: e.message,
+        responseHeaders: streamedResponse.headers,
+        underlyingError: e.underlyingError,
+      );
+    }
     final contentType = streamedResponse.headers['content-type'] ?? '';
     final responseBody = _isTextContentType(contentType)
         ? _decodeText(responseBytes, contentType)
@@ -474,7 +522,7 @@ abstract class AbstractApiClient implements ApiClient {
   }
 
   /// Closes the underlying HTTP client. After this call any further
-  /// [sendRequest] raises a typed [ApiError] rather than the underlying
+  /// [sendRequest] raises a typed [ApiException] rather than the underlying
   /// `http` package's closed-client exception. Idempotent.
   void close() {
     _closed = true;

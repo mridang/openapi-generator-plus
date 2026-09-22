@@ -7,9 +7,9 @@
 
 /// OpenAPIException is the branded root of the generated exception hierarchy.
 ///
-/// Every exception thrown by this client — transport/API errors ([ApiError]
+/// Every exception thrown by this client — transport/API errors ([ApiException]
 /// and its typed subclasses) as well as serialization failures
-/// ([SerializationError]) — is a [OpenAPIException]. Catching this single
+/// ([SerializationException]) — is a [OpenAPIException]. Catching this single
 /// type therefore catches everything this client can throw, while the more
 /// specific subclasses remain available for narrower `catch` clauses and
 /// `is`-checks.
@@ -20,7 +20,7 @@
 /// `is OpenAPIException` holds up the whole chain.
 abstract class OpenAPIException implements Exception {
   /// Const constructor so `const` subclass constructors (e.g. the typed
-  /// [ApiError] leaves) remain valid.
+  /// [ApiException] leaves) remain valid.
   const OpenAPIException();
 
   /// A human-readable description of what went wrong.

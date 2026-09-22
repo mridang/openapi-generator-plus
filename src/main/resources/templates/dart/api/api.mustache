@@ -9,7 +9,7 @@ import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
-import '../errors/api_error.dart';
+import '../errors/api_exception.dart';
 {{#imports}}
 import '../models/{{filename}}.dart';
 {{/imports}}
@@ -103,10 +103,10 @@ class {{classname}} extends BaseApi {
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
        * TypeError that `null as {{{returnType}}}` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiError(
+      throw ApiException(
         statusCode: result.statusCode,
         message: 'Expected a response body for {{operationId}} but none was returned',
         responseBody: result.rawBody,

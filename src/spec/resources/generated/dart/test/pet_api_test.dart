@@ -535,9 +535,9 @@ void main() {
 
     /* Cross-cutting `convenience-empty-body-handling`: a body-returning
      * operation that receives a 200 with an empty body must throw the
-     * typed ApiError from the plain convenience method (parity with
+     * typed ApiException from the plain convenience method (parity with
      * C#/Swift), not a Dart runtime TypeError from `null as Pet`. */
-    test('emptyBodyMock throws ApiError from convenience method', () async {
+    test('emptyBodyMock throws ApiException from convenience method', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -552,7 +552,10 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await expectLater(api.getPetById(1, null), throwsA(isA<ApiError>()));
+        await expectLater(
+          api.getPetById(1, null),
+          throwsA(isA<ApiException>()),
+        );
       } finally {
         await server.close();
       }
@@ -591,7 +594,7 @@ void main() {
 
     /* malformed-2xx-body-fails-loud (canonical scenario 11): a 200 response
      * carrying a JSON content-type but an undecodable body must propagate the
-     * deserialize failure (SerializationError) rather than silently handing
+     * deserialize failure (SerializationException) rather than silently handing
      * back the raw string. getPetById deserializes into Pet, so a garbage body
      * must surface loudly. */
     test('malformed 2xx JSON body propagates a deserialize error', () async {
@@ -612,7 +615,7 @@ void main() {
 
         await expectLater(
           api.getPetById(1, null),
-          throwsA(isA<SerializationError>()),
+          throwsA(isA<SerializationException>()),
         );
       } finally {
         await server.close();
@@ -876,7 +879,7 @@ void main() {
       try {
         await api.getPetById(99999, null);
         fail('Expected error for non-existent pet');
-      } on NotFoundError {
+      } on NotFoundException {
         // Expected
       }
     });
@@ -890,7 +893,7 @@ void main() {
       try {
         await api.getPetById(1, null);
         fail('Expected error for server error response');
-      } on InternalServerError {
+      } on InternalServerErrorException {
         // Expected
       }
     });

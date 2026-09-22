@@ -47,10 +47,10 @@ class PetFood {
         return PetFood._(WetFood.fromJson(json));
       default:
         /* 4.7 — discriminator value not in the listed mappings.
-           Throw a SerializationError instead of falling through, so
+           Throw a SerializationException instead of falling through, so
            callers can distinguish wire-shape failures from generic
            argument errors. */
-        throw SerializationError(
+        throw SerializationException(
           'Unknown discriminator value for PetFood: $disc',
         );
     }

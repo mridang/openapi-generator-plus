@@ -45,9 +45,9 @@ class SetPetAvatarThumbnailRequest {
       );
     } catch (_) {}
     /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
-       matched the wire shape. Throw a SerializationError rather than
+       matched the wire shape. Throw a SerializationException rather than
        returning a silently-empty union that drops the payload. */
-    throw SerializationError(
+    throw SerializationException(
       'Data does not match any oneOf schemas for SetPetAvatarThumbnailRequest',
     );
   }

@@ -442,9 +442,9 @@ void main() {
           'cannot be verified end-to-end.',
     );
 
-    // -- Gap AL: Content-Encoding mismatch surfaces ApiError, no process crash --
+    // -- Gap AL: Content-Encoding mismatch surfaces ApiException, no process crash --
     test(
-      'gzip Content-Encoding with non-gzip body surfaces ApiError, not crash',
+      'gzip Content-Encoding with non-gzip body surfaces ApiException, not crash',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -464,9 +464,12 @@ void main() {
               {},
               null,
             ),
+            // A response arrived, so this is an ApiException carrying its
+            // real status, never a NetworkException with status 0.
             throwsA(
-              isA<ApiError>()
-                  .having((e) => e.statusCode, 'statusCode', 0)
+              isA<ApiException>()
+                  .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                  .having((e) => e.statusCode, 'statusCode', 200)
                   .having(
                     (e) => e.message,
                     'message',
@@ -481,7 +484,7 @@ void main() {
     );
 
     test(
-      'deflate Content-Encoding with non-deflate body surfaces ApiError, not crash',
+      'deflate Content-Encoding with non-deflate body surfaces ApiException, not crash',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -501,9 +504,12 @@ void main() {
               {},
               null,
             ),
+            // A response arrived, so this is an ApiException carrying its
+            // real status, never a NetworkException with status 0.
             throwsA(
-              isA<ApiError>()
-                  .having((e) => e.statusCode, 'statusCode', 0)
+              isA<ApiException>()
+                  .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                  .having((e) => e.statusCode, 'statusCode', 200)
                   .having(
                     (e) => e.message,
                     'message',
@@ -715,7 +721,8 @@ void main() {
         final transport = TransportOptionsBuilder().verifySsl(false).build();
         final client = DefaultApiClient(transportOptions: transport);
         // T-D2: the downgrade-replay refusal must surface as a typed
-        // ApiError (statusCode 0), not a silently-returned 3xx.
+        // ApiException carrying the 3xx status, not a silently-returned
+        // 3xx and never a NetworkException.
         await expectLater(
           client.sendRequest(
             'POST',
@@ -724,8 +731,9 @@ void main() {
             Uint8List.fromList(utf8.encode('client_secret=hunter2')),
           ),
           throwsA(
-            isA<ApiError>()
-                .having((e) => e.statusCode, 'statusCode', 0)
+            isA<ApiException>()
+                .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                .having((e) => e.statusCode, 'statusCode', 307)
                 .having((e) => e.message, 'message', contains('downgrade')),
           ),
         );
@@ -743,9 +751,9 @@ void main() {
       }
     });
 
-    /* T-D1: exceeding maxRedirects must raise a typed ApiError, not
+    /* T-D1: exceeding maxRedirects must raise a typed ApiException, not
      * silently return the last 3xx as a normal response. */
-    test('throws ApiError when maxRedirects is exceeded', () async {
+    test('throws ApiException when maxRedirects is exceeded', () async {
       late HttpServer server;
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -768,8 +776,9 @@ void main() {
             null,
           ),
           throwsA(
-            isA<ApiError>()
-                .having((e) => e.statusCode, 'statusCode', 0)
+            isA<ApiException>()
+                .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                .having((e) => e.statusCode, 'statusCode', 302)
                 .having((e) => e.message, 'message', contains('redirect')),
           ),
         );
@@ -779,8 +788,8 @@ void main() {
     });
 
     /* T-D3: a Location header pointing at a non-http(s) scheme must be
-     * refused with a typed ApiError, not silently returned as a 3xx. */
-    test('throws ApiError on redirect to non-http(s) scheme', () async {
+     * refused with a typed ApiException, not silently returned as a 3xx. */
+    test('throws ApiException on redirect to non-http(s) scheme', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -799,8 +808,9 @@ void main() {
             null,
           ),
           throwsA(
-            isA<ApiError>()
-                .having((e) => e.statusCode, 'statusCode', 0)
+            isA<ApiException>()
+                .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                .having((e) => e.statusCode, 'statusCode', 302)
                 .having((e) => e.message, 'message', contains('non-http(s)')),
           ),
         );
@@ -809,19 +819,47 @@ void main() {
       }
     });
 
-    /* close-lifecycle-three-way: a request issued after close() must
-     * surface the uniform ApiError, never the http package's own
-     * closed-client exception. */
-    test('throws ApiError when used after close()', () async {
+    /* close-lifecycle-three-way: a request issued after close() is a
+     * wrong call order, so it throws the invalid-state StateError, never
+     * the http package's own closed-client exception. */
+    test('throws StateError when used after close()', () async {
       final client = DefaultApiClient();
       client.close();
       await expectLater(
         client.sendRequest('GET', 'http://127.0.0.1:1/after-close', {}, null),
         throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 0)
+          isA<StateError>()
+              .having(
+                (e) => e,
+                'not an SDK exception',
+                isNot(isA<OpenAPIException>()),
+              )
               .having((e) => e.message, 'message', contains('closed')),
         ),
+      );
+    });
+
+    /* A malformed request URL or a header value with CR/LF is a caller
+     * mistake: an ArgumentError, never a NetworkException. */
+    test('throws ArgumentError for a malformed request URL', () async {
+      final client = DefaultApiClient();
+      await expectLater(
+        client.sendRequest('GET', 'not a url', {}, null),
+        throwsA(isA<ArgumentError>()),
+      );
+      await expectLater(
+        client.sendRequest('GET', 'http://[bad', {}, null),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('throws ArgumentError for a header value with CR/LF', () async {
+      final client = DefaultApiClient();
+      await expectLater(
+        client.sendRequest('GET', 'http://127.0.0.1:1/x', {
+          'X-Bad': 'a\r\nInjected: yes',
+        }, null),
+        throwsA(isA<ArgumentError>()),
       );
     });
 
@@ -987,11 +1025,8 @@ void main() {
         client.sendRequest('GET', 'http://127.0.0.1:$port/refused', {}, null),
         throwsA(
           isA<NetworkException>()
-              .having(
-                (e) => e,
-                'not a timeout',
-                isNot(isA<NetworkTimeoutException>()),
-              )
+              .having((e) => e.runtimeType, 'runtimeType', NetworkException)
+              .having((e) => e, 'is an ApiException', isA<ApiException>())
               .having((e) => e.statusCode, 'statusCode', 0)
               .having((e) => e.underlyingError, 'underlyingError', isNotNull),
         ),
@@ -1032,7 +1067,7 @@ void main() {
     /* T-CA-ERRTYPE: an explicitly configured CA certificate path that cannot
      * be read or parsed must fail fast at construction with an ArgumentError
      * (a configuration error) — NOT a raw dart:io FileSystemException /
-     * TlsException, and not an ApiError. */
+     * TlsException, and not an ApiException. */
     test('non-existent caCertPath throws ArgumentError at construction', () {
       final transport = TransportOptionsBuilder()
           .caCertPath('/nonexistent/ca.pem')
@@ -1047,10 +1082,15 @@ void main() {
           ),
         ),
       );
-      // It must NOT leak the raw dart:io exception type.
+      // It must NOT leak the raw dart:io exception type, and it is a
+      // configuration mistake, not an SDK exception.
       expect(
         () => DefaultApiClient(transportOptions: transport),
         throwsA(isNot(isA<FileSystemException>())),
+      );
+      expect(
+        () => DefaultApiClient(transportOptions: transport),
+        throwsA(isNot(isA<OpenAPIException>())),
       );
     });
 

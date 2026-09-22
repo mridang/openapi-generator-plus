@@ -180,31 +180,31 @@ final client = Client(authenticator: FakeAuthenticator());
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+All API errors derive from `ApiException`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
+- `ApiException` (base)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
   - `NetworkException` (no HTTP response, status 0)
     - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```dart
 try {
   final result = await client.pet.addPet(/* parameters */);
-} on NotFoundError catch (e) {
+} on NotFoundException catch (e) {
   print('Not found: $e');
-} on ClientError catch (e) {
+} on ClientException catch (e) {
   print('Client error ${e.statusCode}: $e');
-} on ServerError catch (e) {
+} on ServerException catch (e) {
   print('Server error: $e');
-} on ApiError catch (e) {
+} on ApiException catch (e) {
   print('API error: $e');
 }
 ```

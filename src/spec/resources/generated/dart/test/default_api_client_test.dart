@@ -121,6 +121,11 @@ void main() {
         client.sendRequest('GET', '$chasmHttpUrl/test/slow', {}, null),
         throwsA(
           isA<NetworkTimeoutException>()
+              .having(
+                (e) => e,
+                'is a NetworkException',
+                isA<NetworkException>(),
+              )
               .having((e) => e.statusCode, 'statusCode', 0)
               .having(
                 (e) => e.underlyingError,
@@ -391,8 +396,13 @@ void main() {
             Uint8List.fromList(utf8.encode('client_secret=hunter2')),
           ),
           throwsA(
-            isA<ApiError>()
-                .having((e) => e.statusCode, 'statusCode', 0)
+            isA<ApiException>()
+                .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                .having(
+                  (e) => e.statusCode,
+                  'statusCode',
+                  inInclusiveRange(307, 308),
+                )
                 .having((e) => e.message, 'message', contains('downgrade')),
           ),
         );
@@ -448,8 +458,13 @@ void main() {
             Uint8List.fromList(utf8.encode('client_secret=hunter2')),
           ),
           throwsA(
-            isA<ApiError>()
-                .having((e) => e.statusCode, 'statusCode', 0)
+            isA<ApiException>()
+                .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                .having(
+                  (e) => e.statusCode,
+                  'statusCode',
+                  inInclusiveRange(307, 308),
+                )
                 .having((e) => e.message, 'message', contains('downgrade')),
           ),
         );
@@ -592,8 +607,9 @@ void main() {
           await expectLater(
             refusedFuture,
             throwsA(
-              isA<ApiError>()
-                  .having((e) => e.statusCode, 'statusCode', 0)
+              isA<ApiException>()
+                  .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                  .having((e) => e.statusCode, 'statusCode', 302)
                   .having((e) => e.message, 'message', contains('redirect')),
             ),
           );
@@ -743,16 +759,17 @@ void main() {
 
     // Gap T6: close() releases the underlying HTTP client and is
     // idempotent. A request issued on a closed client must surface a
-    // uniform SDK error (ApiError) rather than the dart:http package's
+    // uniform SDK error (ApiException) rather than the dart:http package's
     // "Client is already closed" exception.
     test('close releases underlying client', () async {
       final client = DefaultApiClient();
       client.close();
       // close() is idempotent.
       client.close();
+      // Use after close is a wrong call order: the invalid-state StateError.
       expect(
         () => client.sendRequest('GET', 'https://example.com', {}, null),
-        throwsA(isA<ApiError>()),
+        throwsA(isA<StateError>()),
       );
     });
   });

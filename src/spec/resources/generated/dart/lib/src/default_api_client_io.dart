@@ -12,7 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
 import 'abstract_api_client.dart';
-import 'errors/api_error.dart';
+import 'errors/api_exception.dart';
 import 'transport_options.dart';
 
 export 'abstract_api_client.dart';
@@ -119,7 +119,7 @@ class DefaultApiClient extends AbstractApiClient {
   /// [GZipCodec] and [ZLibDecoder]. An empty encoding passes bytes through;
   /// an unknown encoding (`identity`, `br`, `zstd`) is passed through unchanged
   /// to match the canonical Java/Go/Ruby/PHP decompressors. A body advertised
-  /// as gzip/deflate that fails to decode surfaces a typed [ApiError] (Gap AL).
+  /// as gzip/deflate that fails to decode surfaces a typed [ApiException] (Gap AL).
   @override
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding) {
     if (bytes.isEmpty) return bytes;
@@ -130,7 +130,7 @@ class DefaultApiClient extends AbstractApiClient {
         try {
           return Uint8List.fromList(GZipCodec().decode(bytes));
         } catch (e) {
-          throw ApiError(
+          throw ApiException(
             statusCode: 0,
             message:
                 'Server claimed Content-Encoding: gzip but body is not valid gzip: $e',
@@ -141,7 +141,7 @@ class DefaultApiClient extends AbstractApiClient {
         try {
           return Uint8List.fromList(ZLibDecoder().convert(bytes));
         } catch (e) {
-          throw ApiError(
+          throw ApiException(
             statusCode: 0,
             message:
                 'Server claimed Content-Encoding: deflate but body is not valid deflate: $e',

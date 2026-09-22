@@ -350,10 +350,10 @@ class {{classname}} {
     /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
        non-null on the wire. An absent key reads as null in Dart, so this
        single guard covers both the missing and explicitly-null cases. We
-       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       raise the SDK's own SerializationException (not an incidental cast/TypeError)
        so callers see a uniform, catchable wire-shape failure. */
     if (json['{{baseName}}'] == null) {
-      throw SerializationError(
+      throw SerializationException(
           "Missing required field '{{baseName}}' for {{classname}}");
     }
 {{/required}}
@@ -873,9 +873,9 @@ class {{classname}} {
 {{/oneOf}}
 {{/composedSchemas}}
     /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
-       matched the wire shape. Throw a SerializationError rather than
+       matched the wire shape. Throw a SerializationException rather than
        returning a silently-empty union that drops the payload. */
-    throw SerializationError('Data does not match any oneOf schemas for {{classname}}');
+    throw SerializationException('Data does not match any oneOf schemas for {{classname}}');
   }
 
   /// Re-encodes a decoded value to its JSON wire form. Byte values are
@@ -979,9 +979,9 @@ class {{classname}} {
 {{/anyOf}}
 {{/composedSchemas}}
     /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
-       matched the wire shape — surface a SerializationError rather than
+       matched the wire shape — surface a SerializationException rather than
        a silently-empty union that drops the payload. */
-    throw SerializationError('Data does not match any anyOf schemas for {{classname}}');
+    throw SerializationException('Data does not match any anyOf schemas for {{classname}}');
   }
 
   /// Re-encodes a decoded value to its JSON wire form. Byte values are
@@ -1060,10 +1060,10 @@ class {{classname}} {
 {{/mappedModels}}
       default:
         /* 4.7 — discriminator value not in the listed mappings.
-           Throw a SerializationError instead of falling through, so
+           Throw a SerializationException instead of falling through, so
            callers can distinguish wire-shape failures from generic
            argument errors. */
-        throw SerializationError(
+        throw SerializationException(
             'Unknown discriminator value for {{classname}}: $disc');
     }
 {{/discriminator}}
@@ -1074,10 +1074,10 @@ class {{classname}} {
     } catch (_) {}
 {{/oneOf}}
     /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
-       matched the wire shape. Throw a SerializationError (the same family
+       matched the wire shape. Throw a SerializationException (the same family
        as the discriminator no-match above) so the caller sees a wire-shape
        failure instead of a silently-empty union. */
-    throw SerializationError('Data does not match any oneOf schemas for {{classname}}');
+    throw SerializationException('Data does not match any oneOf schemas for {{classname}}');
 {{/discriminator}}
   }
 }
@@ -1168,9 +1168,9 @@ class {{classname}} {
 {{/anyOf}}
     if (decoded.isEmpty) {
       /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
-         matched the wire shape — surface a SerializationError rather than
+         matched the wire shape — surface a SerializationException rather than
          a silently-empty union. */
-      throw SerializationError('Data does not match any anyOf schemas for {{classname}}');
+      throw SerializationException('Data does not match any anyOf schemas for {{classname}}');
     }
     return {{classname}}._(decoded);
   }

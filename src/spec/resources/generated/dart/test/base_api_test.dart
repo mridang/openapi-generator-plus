@@ -76,14 +76,14 @@ void main() {
   group('BaseApi', () {
     test('error dispatch', () async {
       final testCases = <int, Type>{
-        400: BadRequestError,
-        401: UnauthorizedError,
-        403: ForbiddenError,
-        404: NotFoundError,
-        409: ConflictError,
-        422: UnprocessableEntityError,
-        500: InternalServerError,
-        502: ServerError,
+        400: BadRequestException,
+        401: UnauthorizedException,
+        403: ForbiddenException,
+        404: NotFoundException,
+        409: ConflictException,
+        422: UnprocessableEntityException,
+        500: InternalServerErrorException,
+        502: ServerException,
       };
 
       for (final entry in testCases.entries) {
@@ -98,7 +98,7 @@ void main() {
         try {
           await api.getPetById(1, null);
           fail('Expected error for status $status');
-        } on ApiError catch (e) {
+        } on ApiException catch (e) {
           expect(
             e.runtimeType,
             equals(errType),
@@ -110,24 +110,32 @@ void main() {
     });
 
     /* Cross-cutting `apierror-responsebody-headers-nullable-split`:
-     * ApiError.responseBody and responseHeaders are nullable so a
+     * ApiException.responseBody and responseHeaders are nullable so a
      * transport-phase failure (no body/headers ever produced) is
      * distinguishable from an empty body / no headers. A transport
-     * ApiError carries null for both. The `== null` assertions below
+     * ApiException carries null for both. The `== null` assertions below
      * only compile when the fields are typed as nullable. */
-    test('ApiError responseBody and responseHeaders are nullable', () async {
-      final client = DefaultApiClient();
-      client.close();
-      try {
-        await client.sendRequest('GET', 'http://127.0.0.1:1/closed', {}, null);
-        fail('Expected ApiError after close()');
-      } on ApiError catch (e) {
-        expect(e.statusCode, equals(0));
-        // Nullable contract: a transport-phase error has no body/headers.
-        expect(e.responseBody, isNull);
-        expect(e.responseHeaders, isNull);
-      }
-    });
+    test(
+      'ApiException responseBody and responseHeaders are nullable',
+      () async {
+        final client = DefaultApiClient();
+        try {
+          // Nothing listens on port 1: the request gets no HTTP response.
+          await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:1/refused',
+            {},
+            null,
+          );
+          fail('Expected NetworkException for a refused connection');
+        } on ApiException catch (e) {
+          expect(e.statusCode, equals(0));
+          // Nullable contract: a transport-phase error has no body/headers.
+          expect(e.responseBody, isNull);
+          expect(e.responseHeaders, isNull);
+        }
+      },
+    );
 
     // Cross-cutting `bearer-no-empty-token-guard`: BearerAuthenticator must
     // reject an empty / whitespace-only token at construction so it can
@@ -159,7 +167,7 @@ void main() {
       try {
         await api.getPetById(1, null);
         fail('Expected error for status 400');
-      } on BadRequestError catch (e) {
+      } on BadRequestException catch (e) {
         expect(
           e.errorBody,
           isNotNull,
@@ -265,7 +273,7 @@ void main() {
 
     // -- TypedErrorBodyTests --
     //
-    // ApiError exposes typedErrorBody<T>(fromJson) which deserialises the
+    // ApiException exposes typedErrorBody<T>(fromJson) which deserialises the
     // response body into a typed model when the server returned JSON.
     test('typedErrorBody parses JSON body into a typed model', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -285,8 +293,8 @@ void main() {
 
         try {
           await api.getPetById(1, null);
-          fail('expected BadRequestError');
-        } on BadRequestError catch (e) {
+          fail('expected BadRequestException');
+        } on BadRequestException catch (e) {
           final typed = e.typedErrorBody<ApiResponse>(ApiResponse.fromJson);
           expect(typed, isNotNull);
           expect(typed!.code, equals(400));
@@ -313,8 +321,8 @@ void main() {
 
         try {
           await api.getPetById(1, null);
-          fail('expected BadRequestError');
-        } on BadRequestError catch (e) {
+          fail('expected BadRequestException');
+        } on BadRequestException catch (e) {
           final typed = e.typedErrorBody<ApiResponse>(ApiResponse.fromJson);
           expect(typed, isNull);
         }
@@ -1552,7 +1560,7 @@ void main() {
       expect(resp.statusCode, equals(200));
     });
 
-    test('NotFoundError is a ClientError', () async {
+    test('NotFoundException is a ClientException', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/404')
           .build();
@@ -1561,13 +1569,14 @@ void main() {
       try {
         await api.getPetById(1, null);
         fail('Expected error for status 404');
-      } on NotFoundError catch (e) {
-        expect(e, isA<ClientError>());
-        expect(e, isA<ApiError>());
+      } on NotFoundException catch (e) {
+        expect(e, isA<ClientException>());
+        expect(e, isA<ApiException>());
+        expect(e, isA<OpenAPIException>());
       }
     });
 
-    test('InternalServerError is a ServerError', () async {
+    test('InternalServerErrorException is a ServerException', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
@@ -1576,13 +1585,14 @@ void main() {
       try {
         await api.getPetById(1, null);
         fail('Expected error for status 500');
-      } on InternalServerError catch (e) {
-        expect(e, isA<ServerError>());
-        expect(e, isA<ApiError>());
+      } on InternalServerErrorException catch (e) {
+        expect(e, isA<ServerException>());
+        expect(e, isA<ApiException>());
+        expect(e, isA<OpenAPIException>());
       }
     });
 
-    test('418 throws ClientError', () async {
+    test('418 throws ClientException', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/418')
           .build();
@@ -1591,7 +1601,7 @@ void main() {
       try {
         await api.getPetById(1, null);
         fail('Expected error for status 418');
-      } on ClientError catch (e) {
+      } on ClientException catch (e) {
         expect(e.statusCode, equals(418));
       }
     });

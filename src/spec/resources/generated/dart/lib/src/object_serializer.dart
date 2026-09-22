@@ -25,7 +25,7 @@ final RegExp _uuidPattern = RegExp(
 /// OpenAPI `format: uuid` values are surfaced as [UuidValue] rather than a
 /// raw `String`, so the public API is typed and construction validates the
 /// wire shape. The canonical 8-4-4-4-12 hex form is enforced in
-/// [UuidValue.fromString], which throws [FormatException] on malformed input
+/// [UuidValue.fromString], which throws [ArgumentError] on malformed input
 /// — matching how the other SDKs validate UUID strings before letting them
 /// into the typed surface.
 ///
@@ -39,10 +39,10 @@ class UuidValue {
   const UuidValue._(this.uuid);
 
   /// Parses [source] into a [UuidValue], validating the canonical RFC 4122
-  /// 8-4-4-4-12 hex form. Throws [FormatException] on malformed input.
+  /// 8-4-4-4-12 hex form. Throws [ArgumentError] on malformed input.
   factory UuidValue.fromString(String source) {
     if (!_uuidPattern.hasMatch(source)) {
-      throw FormatException('not a valid RFC 4122 UUID', source);
+      throw ArgumentError.value(source, 'source', 'not a valid RFC 4122 UUID');
     }
     return UuidValue._(source.toLowerCase());
   }
@@ -58,24 +58,24 @@ class UuidValue {
   int get hashCode => uuid.hashCode;
 }
 
-/// SerializationError is thrown when serialization or deserialization fails.
+/// SerializationException is thrown when serialization or deserialization fails.
 ///
 /// Extends [OpenAPIException], the branded root of the exception hierarchy, so
 /// that `serializationError is OpenAPIException` holds alongside the API
 /// errors.
-class SerializationError extends OpenAPIException {
+class SerializationException extends OpenAPIException {
   @override
   final String message;
   final Object? cause;
 
-  const SerializationError(this.message, [this.cause]);
+  const SerializationException(this.message, [this.cause]);
 
   @override
   String toString() {
     if (cause != null) {
-      return 'SerializationError: $message: $cause';
+      return 'SerializationException: $message: $cause';
     }
-    return 'SerializationError: $message';
+    return 'SerializationException: $message';
   }
 }
 
@@ -84,7 +84,7 @@ String serialize(Object object) {
   try {
     return jsonEncode(object);
   } catch (e) {
-    throw SerializationError('Failed to serialize object to JSON: $e', e);
+    throw SerializationException('Failed to serialize object to JSON: $e', e);
   }
 }
 
@@ -141,15 +141,15 @@ int _jsonMaxDepth(String s) {
 dynamic parseJson(String data) {
   final depth = _jsonMaxDepth(data);
   if (depth > _kMaxJsonDepth) {
-    throw SerializationError(
+    throw SerializationException(
       'JSON nesting depth $depth exceeds limit $_kMaxJsonDepth',
     );
   }
   try {
     return jsonDecode(data);
   } catch (e) {
-    if (e is SerializationError) rethrow;
-    throw SerializationError('Failed to parse JSON: $e', e);
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to parse JSON: $e', e);
   }
 }
 
@@ -166,12 +166,12 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
     if (decoded is Map<String, dynamic>) {
       return fromJson(decoded);
     }
-    throw SerializationError(
+    throw SerializationException(
       'Expected JSON object, got ${decoded.runtimeType}',
     );
   } catch (e) {
-    if (e is SerializationError) rethrow;
-    throw SerializationError('Failed to deserialize JSON: $e', e);
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
   }
 }
 
@@ -193,10 +193,12 @@ List<T>? deserializeList<T>(
           .map((item) => fromJson(item as Map<String, dynamic>))
           .toList();
     }
-    throw SerializationError('Expected JSON array, got ${decoded.runtimeType}');
+    throw SerializationException(
+      'Expected JSON array, got ${decoded.runtimeType}',
+    );
   } catch (e) {
-    if (e is SerializationError) rethrow;
-    throw SerializationError('Failed to deserialize JSON list: $e', e);
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON list: $e', e);
   }
 }
 
@@ -215,7 +217,9 @@ List<T> deserializeArray<T>(
   T Function(dynamic) deserializeElement,
 ) {
   if (json is! List) {
-    throw SerializationError('Expected JSON array, got ${json.runtimeType}');
+    throw SerializationException(
+      'Expected JSON array, got ${json.runtimeType}',
+    );
   }
   return json.map((item) => deserializeElement(item)).toList();
 }
@@ -231,7 +235,9 @@ Map<String, T> deserializeMap<T>(
   T Function(dynamic) deserializeValue,
 ) {
   if (json is! Map) {
-    throw SerializationError('Expected JSON object, got ${json.runtimeType}');
+    throw SerializationException(
+      'Expected JSON object, got ${json.runtimeType}',
+    );
   }
   return json.map((k, v) => MapEntry(k as String, deserializeValue(v)));
 }
@@ -252,8 +258,8 @@ Map<String, T>? deserializeMapFromJson<T>(
   try {
     return deserializeMap(parseJson(data), deserializeValue);
   } catch (e) {
-    if (e is SerializationError) rethrow;
-    throw SerializationError('Failed to deserialize JSON map: $e', e);
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON map: $e', e);
   }
 }
 
@@ -276,8 +282,8 @@ List<T>? deserializeArrayFromJson<T>(
   try {
     return deserializeArray(parseJson(data), deserializeElement);
   } catch (e) {
-    if (e is SerializationError) rethrow;
-    throw SerializationError('Failed to deserialize JSON list: $e', e);
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON list: $e', e);
   }
 }
 
@@ -288,8 +294,8 @@ dynamic deserializeRaw(String data) {
   try {
     return parseJson(data);
   } catch (e) {
-    if (e is SerializationError) rethrow;
-    throw SerializationError('Failed to deserialize JSON: $e', e);
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
   }
 }
 
@@ -364,7 +370,7 @@ String toFormValue(Object? value) {
 /// deserialize the given map. Returns the first successful result.
 ///
 /// Cross-cutting `oneof-nondiscriminator-no-match-silent`: when no candidate
-/// matches, throw a [SerializationError] rather than returning null. A silent
+/// matches, throw a [SerializationException] rather than returning null. A silent
 /// null is a data-loss / type-confusion hazard — the wire shape did not match
 /// any declared variant and the caller must learn about it, matching the
 /// validate-each-variant-then-throw behaviour of the other SDKs.
@@ -379,13 +385,13 @@ T resolveOneOf<T>(
       continue;
     }
   }
-  throw SerializationError('Data does not match any oneOf schema variant');
+  throw SerializationException('Data does not match any oneOf schema variant');
 }
 
 /// Resolve an anyOf schema by attempting deserialization against each candidate.
 /// Each entry in [fromJsonCandidates] is a factory function that attempts to
 /// deserialize the given map. Returns the first successful result, or throws a
-/// [SerializationError] when no variant matches.
+/// [SerializationException] when no variant matches.
 T resolveAnyOf<T>(
   Map<String, dynamic> data,
   List<T Function(Map<String, dynamic>)> fromJsonCandidates,

@@ -39,7 +39,7 @@ void main() {
     test('deserializeRaw invalid JSON', () {
       expect(
         () => deserializeRaw('not json'),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
 
@@ -354,26 +354,76 @@ void main() {
 
     // DeserializationErrorWrappingTests
 
-    test('truncated JSON throws SerializationError not raw parse error', () {
-      expect(() => deserializeRaw('{'), throwsA(isA<SerializationError>()));
-    });
-
-    test('incomplete JSON object throws SerializationError', () {
-      expect(
-        () => deserializeRaw('{"name":'),
-        throwsA(isA<SerializationError>()),
+    // The error contract: every wire-shape failure throws exactly
+    // SerializationException (no subclass, no library error), and that is an
+    // instance of the SDK root so one `on` clause catches it.
+    final wireShapeFailures = <String, Object? Function()>{
+      'malformed JSON': () => deserialize('{', Category.fromJson),
+      'wrong primitive type': () => deserialize(
+        '{"id":"abc","name":"doggie","photoUrls":[]}',
+        Pet.fromJson,
+      ),
+      'unknown enum value': () => deserialize(
+        '{"name":"doggie","photoUrls":[],"status":"banana"}',
+        Pet.fromJson,
+      ),
+      'missing required field': () =>
+          deserialize('{"photoUrls":[]}', Pet.fromJson),
+      'malformed duration': () =>
+          deserialize('{"retryAfter":"soon"}', EdgeCases.fromJson),
+      'malformed date-time': () =>
+          deserialize('{"expiresAt":"not-a-date"}', EdgeCases.fromJson),
+    };
+    wireShapeFailures.forEach((failure, decode) {
+      test(
+        'throws exactly SerializationException, a root exception, for $failure',
+        () {
+          expect(
+            decode,
+            throwsA(
+              isA<SerializationException>()
+                  .having(
+                    (e) => e.runtimeType,
+                    'runtimeType',
+                    SerializationException,
+                  )
+                  .having(
+                    (e) => e,
+                    'is a root exception',
+                    isA<OpenAPIException>(),
+                  ),
+            ),
+          );
+        },
       );
     });
 
     test(
-      'thrown SerializationError has a cause referencing original error',
+      'truncated JSON throws SerializationException not raw parse error',
+      () {
+        expect(
+          () => deserializeRaw('{'),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test('incomplete JSON object throws SerializationException', () {
+      expect(
+        () => deserializeRaw('{"name":'),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test(
+      'thrown SerializationException has a cause referencing original error',
       () {
         try {
           deserializeRaw('{');
-          fail('Expected SerializationError');
+          fail('Expected SerializationException');
         } catch (e) {
-          expect(e, isA<SerializationError>());
-          final serErr = e as SerializationError;
+          expect(e, isA<SerializationException>());
+          final serErr = e as SerializationException;
           expect(serErr.cause, isNotNull);
         }
       },
@@ -421,12 +471,15 @@ void main() {
     //
     // A PetFood payload that omits the `foodType` discriminator property
     // (e.g. {"weightKg": 5.0}) must hard-fail with the SDK's
-    // SerializationError, NOT silently wrap the raw dict in a union
+    // SerializationException, NOT silently wrap the raw dict in a union
     // container. With no discriminator value the switch lands on the
     // `default:` branch (disc == null) and throws.
     test('fromJson throws when the discriminator property is missing', () {
       final input = <String, dynamic>{'weightKg': 5.0};
-      expect(() => PetFood.fromJson(input), throwsA(isA<SerializationError>()));
+      expect(
+        () => PetFood.fromJson(input),
+        throwsA(isA<SerializationException>()),
+      );
     });
 
     // -- DiscardNullsOnSerializeTests --
@@ -500,7 +553,7 @@ void main() {
     // -- RequiredFieldHardFailTests (DIVERGENCE #10) --
     //
     // Deserialising a model whose required, non-nullable field is MISSING or
-    // explicitly NULL must hard-fail with the SDK's SerializationError rather
+    // explicitly NULL must hard-fail with the SDK's SerializationException rather
     // than silently building a partial object. Pet requires both `name` and
     // `photoUrls`.
     test('fromJson throws when a required field is absent', () {
@@ -509,7 +562,7 @@ void main() {
         // 'name' omitted entirely
         'photoUrls': <String>['http://x/y.jpg'],
       };
-      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationException>()));
     });
 
     test('fromJson throws when a required field is explicitly null', () {
@@ -518,7 +571,7 @@ void main() {
         'name': null,
         'photoUrls': <String>['http://x/y.jpg'],
       };
-      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationException>()));
     });
 
     test('fromJson throws when a required array field is absent', () {
@@ -527,7 +580,7 @@ void main() {
         'name': 'Fido',
         // 'photoUrls' omitted entirely
       };
-      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationException>()));
     });
 
     test('fromJson throws when a required array field is explicitly null', () {
@@ -536,7 +589,7 @@ void main() {
         'name': 'Fido',
         'photoUrls': null,
       };
-      expect(() => Pet.fromJson(input), throwsA(isA<SerializationError>()));
+      expect(() => Pet.fromJson(input), throwsA(isA<SerializationException>()));
     });
 
     test('fromJson succeeds when all required fields are present', () {
@@ -604,7 +657,7 @@ void main() {
       // Constructor-side validation is the whole reason we wrap.
       expect(
         () => UuidValue.fromString('not-a-uuid'),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<ArgumentError>()),
       );
     });
 
@@ -672,21 +725,21 @@ void main() {
     test('parseProtobufDuration rejects malformed input', () {
       expect(
         () => parseProtobufDuration('not-a-duration'),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
       expect(
         () => parseProtobufDuration(''),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
       // Missing the trailing `s` suffix.
       expect(
         () => parseProtobufDuration('3600'),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
       // ISO-8601 form is no longer accepted.
       expect(
         () => parseProtobufDuration('PT1H30M'),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
 
@@ -763,9 +816,11 @@ void main() {
     });
 
     test('validatePartialTime rejects malformed input', () {
-      expect(() => validatePartialTime('2pm'), throwsFormatException);
-      expect(() => validatePartialTime('14:30'), throwsFormatException);
-      expect(() => validatePartialTime(''), throwsFormatException);
+      // A bad argument to a public helper is an ArgumentError, never a raw
+      // FormatException.
+      expect(() => validatePartialTime('2pm'), throwsArgumentError);
+      expect(() => validatePartialTime('14:30'), throwsArgumentError);
+      expect(() => validatePartialTime(''), throwsArgumentError);
     });
 
     test('fromJson then toJson does not leak unknown fields back to wire', () {
@@ -983,37 +1038,46 @@ void main() {
     );
 
     // Cross-cutting `oneof-nondiscriminator-no-match-silent`: resolveOneOf
-    // returns the first matching variant, and throws a SerializationError
+    // returns the first matching variant, and throws a SerializationException
     // (never returns null) when no variant matches.
     test('resolveOneOf returns first matching variant', () {
       final result = resolveOneOf<String>(
         <String, dynamic>{'k': 'v'},
-        [(j) => throw const SerializationError('first miss'), (j) => 'matched'],
+        [
+          (j) => throw const SerializationException('first miss'),
+          (j) => 'matched',
+        ],
       );
       expect(result, equals('matched'));
     });
 
-    test('resolveOneOf throws SerializationError when no variant matches', () {
-      expect(
-        () => resolveOneOf<String>(
-          <String, dynamic>{'k': 'v'},
-          [
-            (j) => throw const SerializationError('miss 1'),
-            (j) => throw const SerializationError('miss 2'),
-          ],
-        ),
-        throwsA(isA<SerializationError>()),
-      );
-    });
+    test(
+      'resolveOneOf throws SerializationException when no variant matches',
+      () {
+        expect(
+          () => resolveOneOf<String>(
+            <String, dynamic>{'k': 'v'},
+            [
+              (j) => throw const SerializationException('miss 1'),
+              (j) => throw const SerializationException('miss 2'),
+            ],
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
 
-    test('resolveAnyOf throws SerializationError when no variant matches', () {
-      expect(
-        () => resolveAnyOf<String>(
-          <String, dynamic>{'k': 'v'},
-          [(j) => throw const SerializationError('miss')],
-        ),
-        throwsA(isA<SerializationError>()),
-      );
-    });
+    test(
+      'resolveAnyOf throws SerializationException when no variant matches',
+      () {
+        expect(
+          () => resolveAnyOf<String>(
+            <String, dynamic>{'k': 'v'},
+            [(j) => throw const SerializationException('miss')],
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
   });
 }

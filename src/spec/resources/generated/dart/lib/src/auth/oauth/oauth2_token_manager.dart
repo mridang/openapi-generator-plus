@@ -166,33 +166,40 @@ class OAuth2TokenManager {
      * on a credential endpoint is a credential-leak primitive; we surface it
      * instead. We also pass `noRedirect: true` above so the ApiClient does
      * not strip the body or otherwise mutate the request before we get to
-     * see the status code. */
-    if (response.statusCode >= 300 && response.statusCode < 400) {
-      throw OAuth2TokenError(
-        'Token endpoint returned ${response.statusCode} redirect. '
-        'Refusing to replay credentials to a redirected URL.',
-      );
-    }
-
+     * see the status code. A 3xx then fails below like every other non-2xx
+     * status. */
     if (response.statusCode < 200 || response.statusCode >= 300) {
       /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
        * `error` (required), `error_description`, `error_uri`. Parse them
-       * into a typed OAuth2ServerError so callers can recover via
-       * `on OAuth2ServerError`. Fall back to the raw body when the
+       * into a typed OAuth2ServerException so callers can recover via
+       * `on OAuth2ServerException`. Fall back to the raw body when the
        * response is not a valid error object. */
       throw _parseOAuth2ServerError(response.statusCode, response.body);
     }
 
-    final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+    /* A 2xx body that is not a JSON object cannot yield a token: surface it
+     * as OAuth2TokenException rather than a raw FormatException. */
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } on FormatException catch (e) {
+      throw OAuth2TokenException(
+        'Token response is not valid JSON: ${e.message}',
+      );
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw OAuth2TokenException('Token response is not a JSON object');
+    }
+    final parsed = decoded;
     final accessTokenValue = parsed['access_token'];
     if (accessTokenValue is! String || accessTokenValue.isEmpty) {
-      throw OAuth2TokenError(
+      throw OAuth2TokenException(
         'Token response missing or empty access_token field',
       );
     }
     _accessToken = accessTokenValue;
-    final newRefreshToken = parsed['refresh_token'] as String?;
-    if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+    final newRefreshToken = parsed['refresh_token'];
+    if (newRefreshToken is String && newRefreshToken.isNotEmpty) {
       _refreshToken = newRefreshToken;
     }
     if (parsed.containsKey('expires_in') && parsed['expires_in'] != null) {
@@ -215,21 +222,21 @@ class OAuth2TokenManager {
   }
 
   /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
-  /// [OAuth2ServerError]. Falls back to a generic error using the raw body
+  /// [OAuth2ServerException]. Falls back to a generic error using the raw body
   /// when the body is not a valid OAuth2 error object.
-  OAuth2ServerError _parseOAuth2ServerError(int statusCode, String body) {
+  OAuth2ServerException _parseOAuth2ServerError(int statusCode, String body) {
     dynamic parsed;
     try {
       parsed = jsonDecode(body);
     } catch (_) {
-      return OAuth2ServerError(statusCode, null, null, null, body);
+      return OAuth2ServerException(statusCode, null, null, null, body);
     }
     if (parsed is Map<String, dynamic>) {
       final code = parsed['error'];
       if (code is String && code.isNotEmpty) {
         final description = parsed['error_description'];
         final uri = parsed['error_uri'];
-        return OAuth2ServerError(
+        return OAuth2ServerException(
           statusCode,
           code,
           description is String ? description : null,
@@ -238,7 +245,7 @@ class OAuth2TokenManager {
         );
       }
     }
-    return OAuth2ServerError(statusCode, null, null, null, body);
+    return OAuth2ServerException(statusCode, null, null, null, body);
   }
 
   /// Defensive parse of the `expires_in` field per RFC 6749 §5.1.
@@ -273,29 +280,32 @@ class OAuth2TokenManager {
   }
 }
 
-/// Thrown when the token endpoint returns a 2xx response whose body is
-/// missing or contains an empty `access_token` field.
+/// Thrown when the token endpoint returns a 2xx response that cannot be
+/// used: a body that is not a JSON object, or one whose `access_token`
+/// field is missing or empty.
 ///
-/// A token-endpoint HTTP error (4xx/5xx) instead throws the sibling
-/// [OAuth2ServerError] (RFC 6749 §5.2), matching the other SDKs where the
+/// A non-2xx token-endpoint response instead throws the sibling
+/// [OAuth2ServerException] (RFC 6749 §5.2), matching the other SDKs where the
 /// two are independent error types.
-class OAuth2TokenError extends OpenAPIException {
+class OAuth2TokenException extends OpenAPIException {
   @override
   final String message;
 
-  OAuth2TokenError(this.message);
+  OAuth2TokenException(this.message);
 
   @override
-  String toString() => 'OAuth2TokenError: $message';
+  String toString() => 'OAuth2TokenException: $message';
 }
 
+/// Thrown when the token endpoint answers with a non-2xx status, including a
+/// 3xx redirect, which the token POST never follows.
 /// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
 /// [code] field carries the OAuth2 error code (e.g. `invalid_grant`,
 /// `invalid_client`); [description] and [uri] are the optional
 /// human-readable description and a URL to a page describing the error.
 /// [rawBody] preserves the original response payload for diagnostics when
 /// the body is not a well-formed OAuth2 error object.
-class OAuth2ServerError extends OpenAPIException {
+class OAuth2ServerException extends OpenAPIException {
   final int statusCode;
   final String? code;
   final String? description;
@@ -304,7 +314,7 @@ class OAuth2ServerError extends OpenAPIException {
   @override
   final String message;
 
-  OAuth2ServerError(
+  OAuth2ServerException(
     this.statusCode,
     this.code,
     this.description,
@@ -328,5 +338,5 @@ class OAuth2ServerError extends OpenAPIException {
   }
 
   @override
-  String toString() => 'OAuth2ServerError: $message';
+  String toString() => 'OAuth2ServerException: $message';
 }

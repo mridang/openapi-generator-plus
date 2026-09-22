@@ -143,7 +143,7 @@ void main() {
 
       await expectLater(
         auth.buildAuthorizationUrl(),
-        throwsA(isA<StateError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
 
@@ -158,9 +158,31 @@ void main() {
 
       await expectLater(
         auth.buildAuthorizationUrl(),
-        throwsA(isA<StateError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
+
+    test(
+      'throws SerializationException when the discovery document is not JSON',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('<html>not json</html>');
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.runtimeType,
+              'runtimeType',
+              SerializationException,
+            ),
+          ),
+        );
+      },
+    );
 
     test('throws when no ApiClient injected', () {
       final auth = _createAuthenticator();
@@ -175,8 +197,9 @@ void main() {
     });
 
     // oauth-oidc-discovery-no-status-check: a non-2xx discovery response (e.g.
-    // a 500 HTML error page) must surface as a clear error, not a downstream
-    // "invalid JSON" parse failure of the body.
+    // a 500 HTML error page) must surface as the same status-specific
+    // exception an API call would throw, not a downstream "invalid JSON"
+    // parse failure of the body.
     test('throws when discovery returns a non-2xx status', () async {
       final client = _FakeApiClient();
       client.enqueue('<html>internal server error</html>', statusCode: 500);
@@ -186,7 +209,32 @@ void main() {
 
       await expectLater(
         auth.buildAuthorizationUrl(),
-        throwsA(isA<StateError>()),
+        throwsA(
+          isA<InternalServerErrorException>()
+              .having(
+                (e) => e.runtimeType,
+                'runtimeType',
+                InternalServerErrorException,
+              )
+              .having((e) => e.statusCode, 'statusCode', 500),
+        ),
+      );
+    });
+
+    test('throws NotFoundException when discovery answers 404', () async {
+      final client = _FakeApiClient();
+      client.enqueue('<html>not found</html>', statusCode: 404);
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(
+          isA<NotFoundException>()
+              .having((e) => e.runtimeType, 'runtimeType', NotFoundException)
+              .having((e) => e.statusCode, 'statusCode', 404),
+        ),
       );
     });
 

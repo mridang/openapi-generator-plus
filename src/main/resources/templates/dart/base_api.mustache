@@ -14,16 +14,16 @@ import '../default_api_client.dart';
 import '../header_selector.dart';
 import '../object_serializer.dart';
 import '../trace_context_util.dart';
-import '../errors/api_error.dart';
-import '../errors/client_error.dart';
-import '../errors/server_error.dart';
-import '../errors/bad_request_error.dart';
-import '../errors/unauthorized_error.dart';
-import '../errors/forbidden_error.dart';
-import '../errors/not_found_error.dart';
-import '../errors/conflict_error.dart';
-import '../errors/unprocessable_entity_error.dart';
-import '../errors/internal_server_error.dart';
+import '../errors/api_exception.dart';
+import '../errors/client_exception.dart';
+import '../errors/server_exception.dart';
+import '../errors/bad_request_exception.dart';
+import '../errors/unauthorized_exception.dart';
+import '../errors/forbidden_exception.dart';
+import '../errors/not_found_exception.dart';
+import '../errors/conflict_exception.dart';
+import '../errors/unprocessable_entity_exception.dart';
+import '../errors/internal_server_error_exception.dart';
 
 /// BaseApi provides common functionality for all API classes.
 class BaseApi {
@@ -431,7 +431,7 @@ class BaseApi {
         '${hex.substring(20, 32)}';
   }
 
-  ApiError _throwApiError(ApiHttpResponse response) {
+  ApiException _throwApiError(ApiHttpResponse response) {
     final code = response.statusCode;
     final msg = 'API returned status code $code';
     final body = response.body;
@@ -445,7 +445,7 @@ class BaseApi {
       } catch (_) {}
     }
 
-    final baseErr = ApiError(
+    final baseErr = ApiException(
       statusCode: code,
       message: msg,
       responseBody: body,
@@ -454,7 +454,7 @@ class BaseApi {
     );
 
     if (code >= 400 && code < 500) {
-      final clientErr = ClientError(
+      final clientErr = ClientException(
         statusCode: code,
         message: msg,
         responseBody: body,
@@ -463,32 +463,32 @@ class BaseApi {
       );
       switch (code) {
         case 400:
-          return BadRequestError(
+          return BadRequestException(
             statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 401:
-          return UnauthorizedError(
+          return UnauthorizedException(
             statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 403:
-          return ForbiddenError(
+          return ForbiddenException(
             statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 404:
-          return NotFoundError(
+          return NotFoundException(
             statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 409:
-          return ConflictError(
+          return ConflictException(
             statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 422:
-          return UnprocessableEntityError(
+          return UnprocessableEntityException(
             statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
@@ -498,7 +498,7 @@ class BaseApi {
     }
 
     if (code >= 500) {
-      final serverErr = ServerError(
+      final serverErr = ServerException(
         statusCode: code,
         message: msg,
         responseBody: body,
@@ -507,7 +507,7 @@ class BaseApi {
       );
       switch (code) {
         case 500:
-          return InternalServerError(
+          return InternalServerErrorException(
             statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );

@@ -26,36 +26,36 @@ void main() {
       expect(food.value, isA<WetFood>());
     });
 
-    test('PetFood unknown discriminator throws SerializationError', () {
+    test('PetFood unknown discriminator throws SerializationException', () {
       // 4.7 — discriminator value not in the listed $ref mappings must
-      // surface as a SerializationError, not silently fall through nor
+      // surface as a SerializationException, not silently fall through nor
       // bubble a generic ArgumentError.
       final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
 
       expect(
         () => PetFood.fromJson(json),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
 
-    test('PetFood missing discriminator throws SerializationError', () {
+    test('PetFood missing discriminator throws SerializationException', () {
       // No foodType key at all — disc is null, still not a listed value.
       final json = <String, dynamic>{'calories': 300};
 
       expect(
         () => PetFood.fromJson(json),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
 
-    test('PetFood empty discriminator throws SerializationError', () {
+    test('PetFood empty discriminator throws SerializationException', () {
       // An empty discriminator value matches no listed mapping and must
-      // surface as a SerializationError, not route to a fitting variant.
+      // surface as a SerializationException, not route to a fitting variant.
       final json = <String, dynamic>{'foodType': '', 'weightKg': 2.5};
 
       expect(
         () => PetFood.fromJson(json),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
 
@@ -67,7 +67,7 @@ void main() {
       expect(
         () => PetFood.fromJson(json),
         throwsA(
-          isA<SerializationError>().having(
+          isA<SerializationException>().having(
             (e) => e.toString(),
             'message',
             contains('raw'),
@@ -109,15 +109,15 @@ void main() {
       expect(treatment.value, isA<Surgery>());
     });
 
-    test('PetTreatment no matching variant throws SerializationError', () {
+    test('PetTreatment no matching variant throws SerializationException', () {
       // Cross-cutting `oneof-nondiscriminator-no-match-silent`: a body
       // that matches none of the anyOf variants must surface a
-      // SerializationError, not a silently-empty union (data loss).
+      // SerializationException, not a silently-empty union (data loss).
       final json = <String, dynamic>{'completelyUnrelated': 'value'};
 
       expect(
         () => PetTreatment.fromJson(json),
-        throwsA(isA<SerializationError>()),
+        throwsA(isA<SerializationException>()),
       );
     });
 

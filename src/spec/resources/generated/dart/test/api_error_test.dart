@@ -9,11 +9,11 @@ import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
 
 void main() {
-  group('ApiError', () {
+  group('ApiException', () {
     test(
       'exposes statusCode, message, responseBody, responseHeaders, errorBody',
       () {
-        const err = ApiError(
+        const err = ApiException(
           statusCode: 404,
           message: 'not found',
           responseBody: '{"id":7,"name":"missing"}',
@@ -36,7 +36,7 @@ void main() {
       // apierror-responsebody-headers-nullable-split: null is distinct from an
       // empty header map / empty body so a pre-response transport failure can
       // be encoded.
-      const err = ApiError(
+      const err = ApiException(
         statusCode: 0,
         message: 'connection reset',
         responseBody: null,
@@ -48,7 +48,7 @@ void main() {
     });
 
     test('implements Exception', () {
-      const err = ApiError(statusCode: 500, message: 'boom');
+      const err = ApiException(statusCode: 500, message: 'boom');
 
       expect(err, isA<Exception>());
       expect(err, isA<OpenAPIException>());
@@ -56,14 +56,14 @@ void main() {
     });
 
     test('is a OpenAPIException (branded root)', () {
-      const err = ApiError(statusCode: 500, message: 'boom');
+      const err = ApiException(statusCode: 500, message: 'boom');
 
       expect(err, isA<OpenAPIException>());
       expect(err, isA<Exception>());
     });
 
     test('typedErrorBody deserializes the body into the requested type', () {
-      const err = ApiError(
+      const err = ApiException(
         statusCode: 400,
         message: 'bad request',
         responseBody: '{"id":42,"name":"Dogs"}',
@@ -76,7 +76,7 @@ void main() {
     });
 
     test('typedErrorBody returns null when there is no response body', () {
-      const err = ApiError(
+      const err = ApiException(
         statusCode: 500,
         message: 'oops',
         responseBody: null,
@@ -86,7 +86,7 @@ void main() {
     });
 
     test('typedErrorBody ignores extraneous fields not on the model', () {
-      const err = ApiError(
+      const err = ApiException(
         statusCode: 422,
         message: 'unprocessable',
         responseBody: '{"id":1,"name":"Cat","extra":"drop-me"}',
@@ -100,34 +100,43 @@ void main() {
   });
 
   group('exception hierarchy', () {
-    test('BadRequestError is ClientError, ApiError and OpenAPIException', () {
-      const err = BadRequestError(statusCode: 400, message: 'bad request');
+    test(
+      'BadRequestException is ClientException, ApiException and OpenAPIException',
+      () {
+        const err = BadRequestException(
+          statusCode: 400,
+          message: 'bad request',
+        );
 
-      expect(err, isA<BadRequestError>());
-      expect(err, isA<ClientError>());
-      expect(err, isA<ApiError>());
-      expect(err, isA<OpenAPIException>());
-      expect(err, isA<Exception>());
-    });
+        expect(err, isA<BadRequestException>());
+        expect(err, isA<ClientException>());
+        expect(err, isA<ApiException>());
+        expect(err, isA<OpenAPIException>());
+        expect(err, isA<Exception>());
+      },
+    );
 
     test(
-      'InternalServerError is ServerError, ApiError and OpenAPIException',
+      'InternalServerErrorException is ServerException, ApiException and OpenAPIException',
       () {
-        const err = InternalServerError(statusCode: 500, message: 'boom');
+        const err = InternalServerErrorException(
+          statusCode: 500,
+          message: 'boom',
+        );
 
-        expect(err, isA<ServerError>());
-        expect(err, isA<ApiError>());
+        expect(err, isA<ServerException>());
+        expect(err, isA<ApiException>());
         expect(err, isA<OpenAPIException>());
       },
     );
 
     test(
-      'NetworkTimeoutException is NetworkException and ApiError with status 0',
+      'NetworkTimeoutException is NetworkException and ApiException with status 0',
       () {
         const err = NetworkTimeoutException(message: 'timed out');
 
         expect(err, isA<NetworkException>());
-        expect(err, isA<ApiError>());
+        expect(err, isA<ApiException>());
         expect(err, isA<OpenAPIException>());
         expect(err.statusCode, equals(0));
         expect(
@@ -137,10 +146,10 @@ void main() {
       },
     );
 
-    test('SerializationError is a OpenAPIException', () {
-      const err = SerializationError('nope');
+    test('SerializationException is a OpenAPIException', () {
+      const err = SerializationException('nope');
 
-      expect(err, isA<SerializationError>());
+      expect(err, isA<SerializationException>());
       expect(err, isA<OpenAPIException>());
       expect(err, isA<Exception>());
     });

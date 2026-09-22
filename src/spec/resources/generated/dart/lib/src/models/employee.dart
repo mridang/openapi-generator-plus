@@ -28,10 +28,12 @@ class Employee {
     /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
        non-null on the wire. An absent key reads as null in Dart, so this
        single guard covers both the missing and explicitly-null cases. We
-       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       raise the SDK's own SerializationException (not an incidental cast/TypeError)
        so callers see a uniform, catchable wire-shape failure. */
     if (json['name'] == null) {
-      throw SerializationError("Missing required field 'name' for Employee");
+      throw SerializationException(
+        "Missing required field 'name' for Employee",
+      );
     }
     return Employee(
       name: json['name'] as String,

@@ -370,7 +370,8 @@ void main() {
      * host. RFC 6749 §3.2 forbids redirects at the token endpoint, so
      * 302 and 307 (plus 301/303/308) are all rejected. The token manager
      * also passes `noRedirect: true` to the underlying ApiClient so the
-     * raw 3xx status surfaces here. */
+     * raw 3xx status surfaces here. A 3xx is a non-2xx answer, so it throws
+     * OAuth2ServerException carrying the status. */
     for (final status in [301, 302, 303, 307, 308]) {
       test('refuses $status redirect on token endpoint', () async {
         final client = _FakeApiClient();
@@ -384,7 +385,13 @@ void main() {
             'grant_type': 'client_credentials',
             'client_secret': 'topsecret',
           }),
-          throwsA(isA<OAuth2TokenError>()),
+          throwsA(
+            isA<OAuth2ServerException>().having(
+              (e) => e.statusCode,
+              'statusCode',
+              status,
+            ),
+          ),
         );
       });
     }
@@ -397,23 +404,23 @@ void main() {
       manager.setApiClient(client);
 
       /* The token manager maps a 4xx/5xx token-endpoint response to a
-       * typed OAuth2ServerError (RFC 6749 §5.2), the same canonical type
+       * typed OAuth2ServerException (RFC 6749 §5.2), the same canonical type
        * the other SDKs throw and assert for an HTTP-error token response.
-       * OAuth2ServerError and OAuth2TokenError are siblings (both wrap an
+       * OAuth2ServerException and OAuth2TokenException are siblings (both wrap an
        * SDK error), matching the 11 sibling SDKs. */
       await expectLater(
         () => manager.getAccessToken('https://auth.example.com/token', {
           'grant_type': 'client_credentials',
         }),
-        throwsA(isA<OAuth2ServerError>()),
+        throwsA(isA<OAuth2ServerException>()),
       );
     });
 
     test(
-      'missing access_token in 2xx response throws typed OAuth2TokenError',
+      'missing access_token in 2xx response throws typed OAuth2TokenException',
       () async {
         // A 2xx response whose body omits access_token must surface as the typed
-        // OAuth2TokenError, not silently cache an empty token.
+        // OAuth2TokenException, not silently cache an empty token.
         final client = _FakeApiClient();
         client.enqueue('{"refresh_token":"x"}');
 
@@ -424,16 +431,40 @@ void main() {
           () => manager.getAccessToken('https://auth.example.com/token', {
             'grant_type': 'client_credentials',
           }),
-          throwsA(isA<OAuth2TokenError>()),
+          throwsA(isA<OAuth2TokenException>()),
         );
       },
     );
 
     test(
-      'token endpoint error response parsed to typed OAuth2ServerError',
+      'a 2xx token response that is not JSON throws OAuth2TokenException',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('<html>not json</html>');
+
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await expectLater(
+          () => manager.getAccessToken('https://auth.example.com/token', {
+            'grant_type': 'client_credentials',
+          }),
+          throwsA(
+            isA<OAuth2TokenException>().having(
+              (e) => e.runtimeType,
+              'runtimeType',
+              OAuth2TokenException,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'token endpoint error response parsed to typed OAuth2ServerException',
       () async {
         // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as
-        // a typed OAuth2ServerError carrying code/description/uri.
+        // a typed OAuth2ServerException carrying code/description/uri.
         final client = _FakeApiClient();
         client.enqueue(
           '{"error":"invalid_grant","error_description":"refresh token expired",'
@@ -449,7 +480,7 @@ void main() {
             'grant_type': 'client_credentials',
           }),
           throwsA(
-            isA<OAuth2ServerError>()
+            isA<OAuth2ServerException>()
                 .having((e) => e.statusCode, 'statusCode', 400)
                 .having((e) => e.code, 'code', 'invalid_grant')
                 .having(
@@ -529,8 +560,8 @@ void main() {
       'redirect-refusal error includes the Location header for diagnostics',
       () async {
         // Gap 3.2: the redirect-refusal error should name the offending Location
-        // for diagnostics. The Dart SDK's OAuth2TokenError message embeds only
-        // the status code, not the Location target, so this cannot be asserted
+        // for diagnostics. The Dart SDK's OAuth2ServerException message embeds only
+        // the status code and body, not the Location target, so this cannot be asserted
         // without fabricating behaviour the SDK does not implement.
         final client = _FakeApiClient();
         client.enqueue('', statusCode: 307);
@@ -543,7 +574,7 @@ void main() {
             'grant_type': 'client_credentials',
           }),
           throwsA(
-            isA<OAuth2TokenError>().having(
+            isA<OAuth2ServerException>().having(
               (e) => e.toString(),
               'message',
               contains('attacker.example'),
@@ -555,19 +586,19 @@ void main() {
           'Dart OAuth2TokenManager redirect-refusal error does not surface the Location header',
     );
 
-    test('OAuth2TokenError is a OpenAPIException (branded root)', () {
-      final err = OAuth2TokenError('boom');
+    test('OAuth2TokenException is a OpenAPIException (branded root)', () {
+      final err = OAuth2TokenException('boom');
 
-      expect(err, isA<OAuth2TokenError>());
+      expect(err, isA<OAuth2TokenException>());
       expect(err, isA<OpenAPIException>());
       expect(err, isA<Exception>());
       expect(err.message, equals('boom'));
     });
 
-    test('OAuth2ServerError is a OpenAPIException (branded root)', () {
-      final err = OAuth2ServerError(400, 'invalid_grant', null, null, '{}');
+    test('OAuth2ServerException is a OpenAPIException (branded root)', () {
+      final err = OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
 
-      expect(err, isA<OAuth2ServerError>());
+      expect(err, isA<OAuth2ServerException>());
       expect(err, isA<OpenAPIException>());
       expect(err, isA<Exception>());
     });

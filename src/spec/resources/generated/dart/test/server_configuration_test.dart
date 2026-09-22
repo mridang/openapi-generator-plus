@@ -73,7 +73,16 @@ void main() {
         },
       );
 
-      expect(() => config.url({'env': 'dev'}), throwsArgumentError);
+      expect(
+        () => config.url({'env': 'dev'}),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e,
+            'not an SDK exception',
+            isNot(isA<OpenAPIException>()),
+          ),
+        ),
+      );
     });
   });
 }

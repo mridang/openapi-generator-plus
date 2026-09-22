@@ -8,6 +8,18 @@
 import 'dart:convert';
 
 import '../../api_client.dart';
+import '../../api_http_response.dart';
+import '../../errors/api_exception.dart';
+import '../../errors/bad_request_exception.dart';
+import '../../errors/client_exception.dart';
+import '../../errors/conflict_exception.dart';
+import '../../errors/forbidden_exception.dart';
+import '../../errors/internal_server_error_exception.dart';
+import '../../errors/not_found_exception.dart';
+import '../../errors/server_exception.dart';
+import '../../errors/unauthorized_exception.dart';
+import '../../errors/unprocessable_entity_exception.dart';
+import '../../object_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
 import 'oauth2_authorization_code_authenticator.dart';
@@ -91,6 +103,89 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     return delegate.authHeadersAsync();
   }
 
+  /// The exception an API call answered with the discovery response's
+  /// status would throw: the status-specific subclass where there is one,
+  /// else [ClientException] / [ServerException] / [ApiException].
+  ApiException _discoveryException(ApiHttpResponse response) {
+    final code = response.statusCode;
+    final message = 'OIDC discovery request to $_openIdConnectUrl failed';
+    final body = response.body;
+    final headers = response.headers;
+    switch (code) {
+      case 400:
+        return BadRequestException(
+          statusCode: code,
+          message: message,
+          responseBody: body,
+          responseHeaders: headers,
+        );
+      case 401:
+        return UnauthorizedException(
+          statusCode: code,
+          message: message,
+          responseBody: body,
+          responseHeaders: headers,
+        );
+      case 403:
+        return ForbiddenException(
+          statusCode: code,
+          message: message,
+          responseBody: body,
+          responseHeaders: headers,
+        );
+      case 404:
+        return NotFoundException(
+          statusCode: code,
+          message: message,
+          responseBody: body,
+          responseHeaders: headers,
+        );
+      case 409:
+        return ConflictException(
+          statusCode: code,
+          message: message,
+          responseBody: body,
+          responseHeaders: headers,
+        );
+      case 422:
+        return UnprocessableEntityException(
+          statusCode: code,
+          message: message,
+          responseBody: body,
+          responseHeaders: headers,
+        );
+      case 500:
+        return InternalServerErrorException(
+          statusCode: code,
+          message: message,
+          responseBody: body,
+          responseHeaders: headers,
+        );
+    }
+    if (code >= 400 && code < 500) {
+      return ClientException(
+        statusCode: code,
+        message: message,
+        responseBody: body,
+        responseHeaders: headers,
+      );
+    }
+    if (code >= 500) {
+      return ServerException(
+        statusCode: code,
+        message: message,
+        responseBody: body,
+        responseHeaders: headers,
+      );
+    }
+    return ApiException(
+      statusCode: code,
+      message: message,
+      responseBody: body,
+      responseHeaders: headers,
+    );
+  }
+
   Future<OAuth2AuthorizationCodeAuthenticator> _resolveDelegate() async {
     if (_delegate != null && DateTime.now().isBefore(_discoveryExpiry)) {
       return _delegate!;
@@ -109,29 +204,43 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       'Accept': 'application/json',
     }, null);
 
+    /* Discovery is an HTTP call like any other: a non-2xx answer throws the
+     * same status-specific exception an API call would. */
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw StateError(
-        'Failed to fetch OIDC discovery document: status ${response.statusCode}',
-      );
+      throw _discoveryException(response);
     }
 
-    final discovery = jsonDecode(response.body) as Map<String, dynamic>;
-    final authorizationEndpoint =
-        discovery['authorization_endpoint'] as String? ?? '';
-    final tokenEndpoint = discovery['token_endpoint'] as String? ?? '';
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } on FormatException catch (e) {
+      throw SerializationException(
+        'OIDC discovery document is not valid JSON: ${e.message}',
+        e,
+      );
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw SerializationException(
+        'OIDC discovery document is not a JSON object',
+      );
+    }
+    final authorizationEndpoint = decoded['authorization_endpoint'];
+    final tokenEndpoint = decoded['token_endpoint'];
 
     /* Cross-cutting `oauth-oidc-missing-endpoint-guard`: a discovery
      * document missing `authorization_endpoint` or `token_endpoint` must
      * fail loudly. Building a delegate with empty endpoint URLs would
      * otherwise silently produce malformed authorization/token requests
      * far from the real cause. */
-    if (authorizationEndpoint.isEmpty) {
-      throw StateError(
+    if (authorizationEndpoint is! String || authorizationEndpoint.isEmpty) {
+      throw SerializationException(
         'OIDC discovery document is missing authorization_endpoint',
       );
     }
-    if (tokenEndpoint.isEmpty) {
-      throw StateError('OIDC discovery document is missing token_endpoint');
+    if (tokenEndpoint is! String || tokenEndpoint.isEmpty) {
+      throw SerializationException(
+        'OIDC discovery document is missing token_endpoint',
+      );
     }
 
     _delegate = OAuth2AuthorizationCodeAuthenticator(

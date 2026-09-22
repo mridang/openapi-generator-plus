@@ -138,9 +138,20 @@ void main() {
     });
 
     test('throws before exchange code called', () {
+      // Requesting a token before the code exchange is a wrong call order:
+      // the invalid-state StateError, not an SDK exception.
       final auth = _createAuthenticator();
 
-      expect(() => auth.authHeaders(), throwsA(isA<StateError>()));
+      expect(
+        () => auth.authHeaders(),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e,
+            'not an SDK exception',
+            isNot(isA<OpenAPIException>()),
+          ),
+        ),
+      );
     });
 
     test('getHost returns configured host', () {

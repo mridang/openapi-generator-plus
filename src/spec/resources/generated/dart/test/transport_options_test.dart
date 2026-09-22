@@ -95,7 +95,13 @@ void main() {
     test('invalid proxy URL throws exception', () {
       expect(
         () => TransportOptionsBuilder().proxy('not a valid url'),
-        throwsA(isA<ArgumentError>()),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e,
+            'not an SDK exception',
+            isNot(isA<OpenAPIException>()),
+          ),
+        ),
       );
     });
 

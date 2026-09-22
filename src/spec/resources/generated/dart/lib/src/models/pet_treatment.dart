@@ -92,9 +92,9 @@ class PetTreatment {
     } catch (_) {}
     if (decoded.isEmpty) {
       /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
-         matched the wire shape — surface a SerializationError rather than
+         matched the wire shape — surface a SerializationException rather than
          a silently-empty union. */
-      throw SerializationError(
+      throw SerializationException(
         'Data does not match any anyOf schemas for PetTreatment',
       );
     }
