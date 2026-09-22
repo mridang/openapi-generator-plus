@@ -10,7 +10,7 @@
   import Testing
   @testable import PetstoreClient
 
-  @Suite final class DefaultApiClientUnitTests {
+  @Suite(.serialized) final class DefaultApiClientUnitTests {
 
     // MARK: - Helpers
 
@@ -290,7 +290,8 @@
     @Test func testMultipartUsesPngMimeForPngFilename() throws {
       let formParts: [String: Any] = ["photo.png": Data([0x89, 0x50, 0x4e, 0x47])]
       let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
-      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      /* The PNG signature is not valid UTF-8, so decode leniently. */
+      let bodyStr = String(decoding: body, as: UTF8.self)
       #expect(
         bodyStr.contains("Content-Type: image/png"),
         "expected image/png Content-Type for .png filename, got: \(bodyStr)")
@@ -565,9 +566,49 @@
           ["Content-Type": "application/json", "Content-Encoding": "gzip"]
         )
       }
-      await #expect(throws: ApiError.self) {
+      let error = await #expect(throws: ApiError.self) {
         _ = try await client.sendRequest(
           method: "GET", url: "http://localhost/bad-gzip", headers: [:], body: nil)
+      }
+      /* The response arrived, so the error carries its real status code and
+         is never a NetworkError. */
+      #expect(error?.statusCode == 200)
+      #expect(!(error is NetworkError))
+    }
+
+    // A body URLSession itself cannot decode (it reports
+    // URLError.cannotDecodeContentData after the response arrived) is likewise
+    // an ApiError with the real status, never a NetworkError.
+    @Test func testUndecodableBodyReportedByURLSessionThrowsApiErrorWithStatus() async throws {
+      let client = makeClient { _ in
+        (
+          Data("ignored".utf8), 502,
+          [
+            "Content-Type": "application/json",
+            UnitStubURLProtocol.failWithHeader: "cannotDecodeContentData",
+          ]
+        )
+      }
+      let error = await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "GET", url: "http://localhost/undecodable", headers: [:], body: nil)
+      }
+      #expect(error?.statusCode == 502)
+      #expect(!(error is NetworkError))
+    }
+
+    // A malformed or non-HTTP request URL is a caller mistake:
+    // ConfigurationError.invalidArgument, never a NetworkError.
+    @Test(arguments: ["http://[::1", "file:///etc/passwd"])
+    func testMalformedRequestUrlThrowsInvalidArgument(url: String) async throws {
+      let client = makeClient { _ in (self.body(), 200, [:]) }
+      let error = await #expect(throws: ConfigurationError.self) {
+        _ = try await client.sendRequest(method: "GET", url: url, headers: [:], body: nil)
+      }
+      guard case .invalidArgument? = error else {
+        Issue.record(
+          "expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+        return
       }
     }
 
@@ -659,6 +700,9 @@
 
   private final class UnitStubURLProtocol: URLProtocol {
     nonisolated(unsafe) static var handler: ((URLRequest) -> (Data, Int, [String: String]))?
+    /// A response header naming a URLError code makes the stub fail the load
+    /// with that error after the response is delivered.
+    static let failWithHeader = "X-Stub-Fail-With"
 
     static func session(handler: @escaping (URLRequest) -> (Data, Int, [String: String]))
       -> URLSession
@@ -672,12 +716,33 @@
     override class func canInit(with request: URLRequest) -> Bool { return true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
 
+    /// URLSession hands a protocol the body as `httpBodyStream`, not
+    /// `httpBody`; read it back so handlers can inspect what was sent.
+    static func withBody(_ request: URLRequest) -> URLRequest {
+      guard request.httpBody == nil, let stream = request.httpBodyStream else { return request }
+      var copy = request
+      var data = Data()
+      stream.open()
+      defer { stream.close() }
+      let bufferSize = 4096
+      let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+      defer { buffer.deallocate() }
+      while stream.hasBytesAvailable {
+        let read = stream.read(buffer, maxLength: bufferSize)
+        if read <= 0 { break }
+        data.append(buffer, count: read)
+      }
+      copy.httpBody = data
+      return copy
+    }
+
     override func startLoading() {
       guard let handler = UnitStubURLProtocol.handler else {
         client?.urlProtocolDidFinishLoading(self)
         return
       }
-      let (data, statusCode, headers) = handler(request)
+      var (data, statusCode, headers) = handler(UnitStubURLProtocol.withBody(request))
+      let failWith = headers.removeValue(forKey: UnitStubURLProtocol.failWithHeader)
       let response = HTTPURLResponse(
         url: request.url!,
         statusCode: statusCode,
@@ -685,6 +750,10 @@
         headerFields: headers
       )!
       client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      if failWith == "cannotDecodeContentData" {
+        client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))
+        return
+      }
       client?.urlProtocol(self, didLoad: data)
       client?.urlProtocolDidFinishLoading(self)
     }

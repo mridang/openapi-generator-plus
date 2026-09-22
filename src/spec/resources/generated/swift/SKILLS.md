@@ -17,7 +17,7 @@ Then add `PetstoreClient` as a dependency of your target.
 ```swift
 import PetstoreClient
 
-let client = Client(host: "https://api.example.com", accessToken: "your-token")
+let client = try Client(host: "https://api.example.com", accessToken: "your-token")
 ```
 
 ## Authentication
@@ -27,22 +27,23 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```swift
-let authenticator = BearerAuthenticator(host: "https://api.example.com", token: "your-token")
-let client = Client(authenticator: authenticator)
+let authenticator = try BearerAuthenticator(host: "https://api.example.com", token: "your-token")
+let client = try Client(authenticator: authenticator)
 ```
 
 ### Basic Auth
 
 ```swift
-let authenticator = BasicAuthenticator(host: "https://api.example.com", username: "username", password: "password")
-let client = Client(authenticator: authenticator)
+let authenticator = try BasicAuthenticator(host: "https://api.example.com", username: "username", password: "password")
+let client = try Client(authenticator: authenticator)
 ```
 
 ### API Key
 
 ```swift
-let authenticator = ApiKeyAuthenticator(host: "https://api.example.com", keyName: "key-name", keyValue: "key-value", location: .header)
-let client = Client(authenticator: authenticator)
+let authenticator = try ApiKeyAuthenticator(
+    host: "https://api.example.com", keyParamName: "key-name", apiKey: "key-value", location: .header)
+let client = try Client(authenticator: authenticator)
 ```
 
 ### OAuth2 Client Credentials
@@ -53,7 +54,7 @@ let authenticator = OAuth2ClientCredentialsAuthenticator(
     clientID: "client-id",
     clientSecret: "client-secret",
     tokenURL: "https://auth.example.com/token")
-let client = Client(authenticator: authenticator)
+let client = try Client(authenticator: authenticator)
 ```
 
 ### OAuth2 Authorization Code
@@ -66,7 +67,7 @@ let authenticator = OAuth2AuthorizationCodeAuthenticator(
     authorizationURL: "https://auth.example.com/authorize",
     tokenURL: "https://auth.example.com/token",
     redirectURI: "https://app.example.com/callback")
-let client = Client(authenticator: authenticator)
+let client = try Client(authenticator: authenticator)
 ```
 
 ### OAuth2 Password
@@ -79,7 +80,7 @@ let authenticator = OAuth2PasswordAuthenticator(
     tokenURL: "https://auth.example.com/token",
     username: "username",
     password: "password")
-let client = Client(authenticator: authenticator)
+let client = try Client(authenticator: authenticator)
 ```
 
 ### OAuth2 Implicit
@@ -91,7 +92,8 @@ let authenticator = OAuth2ImplicitAuthenticator(
     host: "https://api.example.com",
     clientID: "client-id",
     authorizationURL: "https://auth.example.com/authorize")
-let client = Client(authenticator: authenticator)
+try authenticator.setAccessToken("your-access-token")
+let client = try Client(authenticator: authenticator)
 ```
 
 ### OpenID Connect
@@ -103,7 +105,7 @@ let authenticator = OpenIdConnectAuthenticator(
     clientID: "client-id",
     clientSecret: "client-secret",
     redirectURI: "https://app.example.com/callback")
-let client = Client(authenticator: authenticator)
+let client = try Client(authenticator: authenticator)
 ```
 
 ### OAuth2 token lifecycle
@@ -143,7 +145,7 @@ let authenticator = OAuth2ClientCredentialsAuthenticator(
 If the OpenAPI spec defines multiple servers, the generated `Servers` enum exposes each as a `ServerConfiguration` static property (e.g., `Servers.server0`, `Servers.server1`, ...) plus a `Servers.all` array. Pass the desired server's URL to the client:
 
 ```swift
-let client = Client(host: Servers.server0.url(), accessToken: "your-token")
+let client = try Client(host: Servers.server0.url(), accessToken: "your-token")
 ```
 
 ## Testing
@@ -152,13 +154,15 @@ The `Authenticator` protocol is the seam for tests: substitute a fake authentica
 
 ```swift
 struct FakeAuthenticator: Authenticator {
-    var host: String { "https://api.example.com" }
+    func host() -> String { "https://api.example.com" }
     func authHeaders() async throws -> [String: String] {
         ["Authorization": "Bearer test-token"]
     }
+    func queryParams() -> [String: String] { [:] }
+    func cookieParams() -> [String: String] { [:] }
 }
 
-let client = Client(authenticator: FakeAuthenticator())
+let client = try Client(authenticator: FakeAuthenticator())
 ```
 
 ## Error Handling
@@ -197,12 +201,12 @@ do {
 ### Custom Transport Options
 
 ```swift
-let transport = TransportOptionsBuilder()
+let transport = try TransportOptionsBuilder()
     .proxy("http://proxy:3128")
-    .timeout(5)
+    .timeout(5000)
     .build()
 
-let client = Client(authenticator: authenticator, transportOptions: transport)
+let client = try Client(authenticator: authenticator, transportOptions: transport)
 ```
 
 ## API Methods

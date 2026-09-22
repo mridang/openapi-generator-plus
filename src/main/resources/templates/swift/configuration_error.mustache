@@ -2,10 +2,13 @@
 import Foundation
 
 /// ConfigurationError is thrown when the SDK is configured or called with an
-/// invalid value: a proxy URL that does not parse or is not http(s), a server
-/// variable outside its enum, a CA certificate file that cannot be read, a
-/// proxy on a platform that cannot route through one, or a request value that
-/// would corrupt the HTTP message.
+/// invalid value, or called in the wrong order: a proxy URL that does not
+/// parse or is not http(s), a server variable outside its enum, a CA
+/// certificate file that cannot be read, a proxy on a platform that cannot
+/// route through one, a malformed argument (bad credentials, a missing
+/// required parameter, a value that would corrupt the HTTP message), or a
+/// call made in the wrong state (a closed client, an authenticator used
+/// before its API client or access token is set).
 ///
 /// This is a programming error, not an API failure, so it conforms to plain
 /// `Error` and is deliberately not part of the SDK error hierarchy rooted at
@@ -19,9 +22,13 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
     case invalidCACertificate(String)
     /// A proxy is configured on a platform whose URLSession cannot use one.
     case proxyUnsupported
-    /// A request URL, header value or multipart name is malformed, or holds
-    /// CR, LF or NUL characters that would corrupt the HTTP message.
+    /// An argument is malformed: bad credentials, a missing required
+    /// parameter, a malformed URL, or a header, cookie or multipart value
+    /// holding characters that would corrupt the HTTP message.
     case invalidArgument(String)
+    /// The call was made in the wrong state: the client was closed, or an
+    /// authenticator was used before its API client or access token was set.
+    case invalidState(String)
 
     public var errorDescription: String? {
         switch self {
@@ -35,6 +42,8 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
             return "Proxy configuration is not supported on this platform"
         case .invalidArgument(let reason):
             return "Invalid argument: \(reason)"
+        case .invalidState(let reason):
+            return "Invalid state: \(reason)"
         }
     }
 }

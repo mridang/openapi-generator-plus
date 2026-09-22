@@ -30,6 +30,40 @@ final class PetApiTests {
     return PetApi(apiClient: client, config: config)
   }
 
+  // MARK: - Transport failures
+
+  /* A request that gets no HTTP response (connection refused) is a
+     NetworkError: an ApiError with status 0 in the OpenAPIError hierarchy. */
+  @Test func testConnectionRefusedThrowsNetworkError() async throws {
+    let client = DefaultApiClient()
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://127.0.0.1:1/unreachable", headers: [:], body: nil)
+    }
+    guard let error else { return }
+    #expect(!(error is NetworkTimeoutError))
+    /* Compile-time proof that a NetworkError is an ApiError and an
+       OpenAPIError. */
+    let apiError: ApiError = error
+    let _: any OpenAPIError = error
+    #expect(apiError.statusCode == 0)
+  }
+
+  /* A request that exceeds the configured timeout is a NetworkTimeoutError,
+     which is a NetworkError with status 0. */
+  @Test func testTimeoutThrowsNetworkTimeoutError() async throws {
+    let transport = TransportOptionsBuilder().timeout(200).build()
+    let client = try DefaultApiClient(transportOptions: transport)
+    let error = await #expect(throws: NetworkTimeoutError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "\(chasmHttpUrl)/test/slow", headers: [:], body: nil)
+    }
+    guard let error else { return }
+    /* Compile-time proof that a NetworkTimeoutError is a NetworkError. */
+    let networkError: NetworkError = error
+    #expect(networkError.statusCode == 0)
+  }
+
   // MARK: - Integration Tests
 
   @Test func testAddPet() async throws {
@@ -602,12 +636,14 @@ final class PetApiTests {
     #expect(!body.contains("%20"), "space must not encode as %20, got: \(body)")
   }
 
-  // required-nested-param-validation: a missing (empty) REQUIRED query/header/
-  // form/cookie param must be rejected before the request goes out, the same
-  // way a missing required string path param already is. getPetByName.category
-  // is a required string query param; an empty value must throw an ApiError and
-  // never reach the transport.
-  @Test func testRequiredQueryParamEmptyThrows() async throws {
+  // required-nested-param-validation: a missing (empty) REQUIRED path, query,
+  // header, form or cookie param must be rejected before the request goes
+  // out with ConfigurationError.invalidArgument. getPetByName.name is a
+  // required string path param and getPetByName.category a required string
+  // query param; an empty value for either must throw and never reach the
+  // transport.
+  @Test(arguments: [("Fido", ""), ("", "dog")])
+  func testRequiredParamEmptyThrows(name: String, category: String) async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -615,16 +651,13 @@ final class PetApiTests {
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
 
-    var caught: ApiError? = nil
-    do {
-      _ = try await api.getPetByName(name: "Fido", options: GetPetByNameOptions(category: ""))
-      Issue.record("expected ApiError for an empty required query param")
-    } catch let error as ApiError {
-      caught = error
-    } catch {
-      Issue.record("expected ApiError, got \(error)")
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(name: name, options: GetPetByNameOptions(category: category))
     }
-    #expect(caught != nil)
+    guard case .invalidArgument? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
     #expect(
       mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
   }

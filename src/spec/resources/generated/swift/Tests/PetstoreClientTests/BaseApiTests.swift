@@ -492,6 +492,25 @@ import Testing
     }
   }
 
+  /* An authenticator cookie holding characters RFC 6265 forbids is a caller
+   * mistake: ConfigurationError.invalidArgument before any request is sent. */
+  @Test func testInvalidAuthCookieThrowsInvalidArgument() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let auth = MockAuth(cookies: ["session": "a;b"])
+    let pet = Pet(name: "TestPet", photoUrls: [])
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
+    }
+    guard case .invalidArgument? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(mockClient.lastURL.isEmpty, "transport must NOT be called")
+  }
+
   // MARK: - Query parameter serialization
 
   @Test func testQueryParamSerialization() async throws {
@@ -884,7 +903,7 @@ import Testing
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let auth = BearerAuthenticator(host: "https://example.com", token: "secret-jwt")
+    let auth = try BearerAuthenticator(host: "https://example.com", token: "secret-jwt")
     let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
     let pet = Pet(name: "TestPet", photoUrls: [])
     _ = try? await api.addPet(pet: pet)
@@ -897,7 +916,7 @@ import Testing
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let auth = ApiKeyAuthenticator(
+    let auth = try ApiKeyAuthenticator(
       host: "https://example.com",
       keyParamName: "X-API-Key",
       apiKey: "secret-key",
@@ -1087,51 +1106,25 @@ import Testing
 
   // cookie-param-rfc6265-fail-closed: the deletePet api_key cookie param is
   // interpolated straight into the Cookie request header. A value carrying
-  // CR/LF (or any control char) would smuggle extra header lines (header
-  // injection), so the operation must FAIL CLOSED with the same RFC-6265
-  // ApiError the auth-cookie validation path raises — and the transport must
-  // never be reached. Mirrors how BaseApi.isValidCookieValue guards the
-  // auth-provided cookies.
-  @Test func testOperationCookieParamWithCrlfFailsClosed() async throws {
+  // CR/LF, NUL or any control char would smuggle extra header lines (header
+  // injection), so the operation must FAIL CLOSED with the same
+  // ConfigurationError.invalidArgument the auth-cookie validation path
+  // raises — and the transport must never be reached. Mirrors how
+  // BaseApi.isValidCookieValue guards the auth-provided cookies.
+  @Test(arguments: ["abc\r\nInjected: yes", "abc\u{0000}def"])
+  func testOperationCookieParamWithControlCharFailsClosed(value: String) async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
 
-    var caught: ApiError? = nil
-    do {
-      try await api.deletePet(petId: 1, options: DeletePetOptions(apiKey: "abc\r\nInjected: yes"))
-      Issue.record("expected an RFC-6265 ApiError for a CR/LF cookie value")
-    } catch let error as ApiError {
-      caught = error
-    } catch {
-      Issue.record("expected ApiError, got \(error)")
+    let error = await #expect(throws: ConfigurationError.self) {
+      try await api.deletePet(petId: 1, options: DeletePetOptions(apiKey: value))
     }
-    #expect(caught != nil)
-    #expect(
-      caught?.message.contains("6265") == true,
-      "error must cite RFC 6265, got: \(caught?.message ?? "nil")")
-    #expect(
-      mockClient.lastURL.isEmpty,
-      "transport must NOT be called when a cookie value fails the RFC-6265 check")
-  }
-
-  // A control character (NUL) in the same operation cookie param must also
-  // fail closed with the RFC-6265 ApiError, not just CR/LF.
-  @Test func testOperationCookieParamWithControlCharFailsClosed() async throws {
-    let mockClient = MockApiClient()
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    var caught: ApiError? = nil
-    do {
-      try await api.deletePet(petId: 1, options: DeletePetOptions(apiKey: "abc\u{0000}def"))
-      Issue.record("expected an RFC-6265 ApiError for a NUL cookie value")
-    } catch let error as ApiError {
-      caught = error
-    } catch {
-      Issue.record("expected ApiError, got \(error)")
+    guard case .invalidArgument(let reason)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
     }
-    #expect(caught?.message.contains("6265") == true)
+    #expect(reason.contains("6265"), "error must cite RFC 6265, got: \(reason)")
     #expect(
       mockClient.lastURL.isEmpty,
       "transport must NOT be called when a cookie value fails the RFC-6265 check")

@@ -50,10 +50,10 @@ import Testing
 
   // MARK: - Tests
 
-  @Test func testBuildsAuthorizationURLWithRequiredParams() {
+  @Test func testBuildsAuthorizationURLWithRequiredParams() throws {
     let auth = createAuthenticator()
 
-    let url = auth.buildAuthorizationURL()
+    let url = try auth.buildAuthorizationURL()
 
     #expect(url.contains("response_type=code"))
     #expect(url.contains("client_id=my-client-id"))
@@ -62,10 +62,10 @@ import Testing
     #expect(url.hasPrefix("https://auth.example.com/authorize?"))
   }
 
-  @Test func testBuildsAuthorizationURLWithState() {
+  @Test func testBuildsAuthorizationURLWithState() throws {
     let auth = createAuthenticator()
 
-    let url = auth.buildAuthorizationURL(state: "csrf-state-123")
+    let url = try auth.buildAuthorizationURL(state: "csrf-state-123")
 
     #expect(url.contains("state=csrf-state-123"))
   }
@@ -178,7 +178,7 @@ import Testing
     #expect(auth.host() == "https://api.example.com")
   }
 
-  @Test func testAuthorizeURLWithExistingQueryStringUsesAmpSeparator() {
+  @Test func testAuthorizeURLWithExistingQueryStringUsesAmpSeparator() throws {
     let auth = OAuth2AuthorizationCodeAuthenticator(
       host: "https://api.example.com",
       clientID: "my-client-id",
@@ -189,7 +189,7 @@ import Testing
       scopes: ["read"]
     )
 
-    let url = auth.buildAuthorizationURL()
+    let url = try auth.buildAuthorizationURL()
 
     #expect(url.contains("audience=api"))
     #expect(url.contains("response_type=code"))

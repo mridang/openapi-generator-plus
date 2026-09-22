@@ -133,15 +133,13 @@ public class BaseApi: @unchecked Sendable {
             if !cookies.isEmpty {
                 let cookieStr = try cookies.map { (k, v) -> String in
                     if !BaseApi.isValidCookieName(k) {
-                        throw ApiError(
-                            statusCode: 0,
-                            message: "Cookie name '\(k)' contains characters forbidden by RFC 6265"
+                        throw ConfigurationError.invalidArgument(
+                            "Cookie name '\(k)' contains characters forbidden by RFC 6265"
                         )
                     }
                     if !BaseApi.isValidCookieValue(v) {
-                        throw ApiError(
-                            statusCode: 0,
-                            message: "Cookie value for '\(k)' contains characters forbidden by RFC 6265"
+                        throw ConfigurationError.invalidArgument(
+                            "Cookie value for '\(k)' contains characters forbidden by RFC 6265"
                         )
                     }
                     return "\(k)=\(v)"

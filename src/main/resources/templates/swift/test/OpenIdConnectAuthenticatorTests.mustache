@@ -8,7 +8,7 @@ import Testing
     // MARK: - Mock ApiClient
 
     private final class MockApiClient: ApiClient, @unchecked Sendable {
-        var responses: [ApiHttpResponse] = []
+        var responses: [Result<ApiHttpResponse, Error>] = []
         var lastMethod: String = ""
         var lastURL: String = ""
         var lastHeaders: [String: String] = [:]
@@ -23,7 +23,7 @@ import Testing
             if method == "GET" {
                 getCount += 1
             }
-            return responses.removeFirst()
+            return try responses.removeFirst().get()
         }
     }
 
@@ -50,7 +50,7 @@ import Testing
 
     @Test func testBuildsAuthorizationURLFromDiscovery() async throws {
         let client = MockApiClient()
-        client.responses.append(makeResponse(body: Self.discoveryJSON))
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
@@ -65,7 +65,7 @@ import Testing
 
     @Test func testFetchesDiscoveryDocument() async throws {
         let client = MockApiClient()
-        client.responses.append(makeResponse(body: Self.discoveryJSON))
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
@@ -78,8 +78,8 @@ import Testing
 
     @Test func testObtainsTokenAfterCodeExchange() async throws {
         let client = MockApiClient()
-        client.responses.append(makeResponse(body: Self.discoveryJSON))
-        client.responses.append(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+        client.responses.append(.success(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}")))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
@@ -93,9 +93,9 @@ import Testing
 
     @Test func testGetAuthHeadersReturnsBearerAfterExchange() async throws {
         let client = MockApiClient()
-        client.responses.append(makeResponse(body: Self.discoveryJSON))
-        client.responses.append(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
-        client.responses.append(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+        client.responses.append(.success(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}")))
+        client.responses.append(.success(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}")))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
@@ -109,11 +109,51 @@ import Testing
     @Test func testThrowsWhenNoApiClientInjected() async {
         let auth = createAuthenticator()
 
-        do {
+        let error = await #expect(throws: ConfigurationError.self) {
             _ = try await auth.buildAuthorizationURL()
-            Issue.record("Expected error when no ApiClient injected")
-        } catch {
-            #expect(error != nil)
+        }
+        guard case .invalidState? = error else {
+            Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
+            return
+        }
+    }
+
+    /* OIDC discovery is an HTTP call like any other: a 404 is a NotFoundError,
+     * a transport failure passes through as the NetworkError /
+     * NetworkTimeoutError it already is, and an unparseable document is a
+     * SerializationError. */
+    @Test func testDiscoveryFailuresAreTyped() async {
+        let notFound = MockApiClient()
+        notFound.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
+        var auth = createAuthenticator()
+        auth.setApiClient(notFound)
+        await #expect(throws: NotFoundError.self) {
+            _ = try await auth.buildAuthorizationURL()
+        }
+
+        let refused = MockApiClient()
+        refused.responses.append(.failure(NetworkError(statusCode: 0, message: "connection refused")))
+        auth = createAuthenticator()
+        auth.setApiClient(refused)
+        let network = await #expect(throws: NetworkError.self) {
+            _ = try await auth.buildAuthorizationURL()
+        }
+        #expect(network?.statusCode == 0)
+
+        let timedOut = MockApiClient()
+        timedOut.responses.append(.failure(NetworkTimeoutError(statusCode: 0, message: "timed out")))
+        auth = createAuthenticator()
+        auth.setApiClient(timedOut)
+        await #expect(throws: NetworkTimeoutError.self) {
+            _ = try await auth.authHeaders()
+        }
+
+        let malformed = MockApiClient()
+        malformed.responses.append(.success(makeResponse(body: "{not json")))
+        auth = createAuthenticator()
+        auth.setApiClient(malformed)
+        await #expect(throws: SerializationError.self) {
+            _ = try await auth.buildAuthorizationURL()
         }
     }
 
@@ -124,62 +164,52 @@ import Testing
     @Test func testDiscoveryNon2xxStatusThrowsBeforeJsonDecode() async {
         let client = MockApiClient()
         // A 500 with an HTML body that is NOT valid discovery JSON.
-        client.responses.append(makeResponse(
+        client.responses.append(.success(makeResponse(
             body: "<html><body>Internal Server Error</body></html>",
-            statusCode: 500))
+            statusCode: 500)))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        var caught: ApiError? = nil
-        do {
+        let error = await #expect(throws: InternalServerError.self) {
             _ = try await auth.buildAuthorizationURL()
-            Issue.record("expected discovery to throw on a 500 response")
-        } catch let error as ApiError {
-            caught = error
-        } catch {
-            Issue.record("expected ApiError on non-2xx discovery, got \(error)")
         }
-        #expect(caught?.statusCode == 500)
+        #expect(error?.statusCode == 500)
     }
 
     @Test func testThrowsWhenDiscoveryMissingAuthorizationEndpoint() async {
         let client = MockApiClient()
         // Missing authorization_endpoint must throw rather than build a
         // delegate with a null/empty endpoint URL.
-        client.responses.append(makeResponse(
-            body: "{\"token_endpoint\":\"https://auth.example.com/token\"}"))
+        client.responses.append(.success(makeResponse(
+            body: "{\"token_endpoint\":\"https://auth.example.com/token\"}")))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        do {
+        /* An incomplete discovery document is a SerializationError. */
+        await #expect(throws: SerializationError.self) {
             _ = try await auth.buildAuthorizationURL()
-            Issue.record("expected discovery to throw when authorization_endpoint is missing")
-        } catch {
-            #expect(error != nil)
         }
     }
 
     @Test func testThrowsWhenDiscoveryMissingTokenEndpoint() async {
         let client = MockApiClient()
-        client.responses.append(makeResponse(
-            body: "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}"))
+        client.responses.append(.success(makeResponse(
+            body: "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}")))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        do {
+        /* An incomplete discovery document is a SerializationError. */
+        await #expect(throws: SerializationError.self) {
             _ = try await auth.buildAuthorizationURL()
-            Issue.record("expected discovery to throw when token_endpoint is missing")
-        } catch {
-            #expect(error != nil)
         }
     }
 
     @Test func testFetchesDiscoveryDocumentOnlyOnce() async throws {
         let client = MockApiClient()
-        client.responses.append(makeResponse(body: Self.discoveryJSON))
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)

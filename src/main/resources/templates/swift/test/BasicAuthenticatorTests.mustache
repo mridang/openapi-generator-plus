@@ -3,29 +3,25 @@ import Foundation
 import Testing
 @testable import {{packageName}}
 
-/* Credentials are validated eagerly in BasicAuthenticator.init.
- * Negative scenarios (CR/LF/NUL/colon) trip `preconditionFailure`,
- * which traps the test process and cannot be exercised under Swift
- * Testing without `exitTest` (Swift 6.1+, not adopted here). The
- * positive path locks in the encoding contract; the validator's
- * construction-time trap behavior is documented in
- * BasicAuthenticator.init. */
+/* Credentials are validated eagerly in BasicAuthenticator.init. Negative
+ * scenarios (CR/LF/NUL/colon) throw ConfigurationError.invalidArgument, a
+ * caller mistake that is not part of the SDK error hierarchy. */
 @Suite final class BasicAuthenticatorTests {
 
-    @Test func validCredentialsProduceBasicHeader() async {
-        let auth = BasicAuthenticator(
+    @Test func validCredentialsProduceBasicHeader() async throws {
+        let auth = try BasicAuthenticator(
             host: "https://api.example.com",
             username: "alice",
             password: "s3cret"
         )
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
         #expect(headers["Authorization"] == "Basic YWxpY2U6czNjcmV0")
     }
 
     /* authenticator-secret-in-default-string-repr: the default string
      * representation must never expose the stored password. */
-    @Test func passwordIsNotLeakedInDefaultStringRepr() async {
-        let auth = BasicAuthenticator(
+    @Test func passwordIsNotLeakedInDefaultStringRepr() async throws {
+        let auth = try BasicAuthenticator(
             host: "https://api.example.com",
             username: "alice",
             password: "s3cret"
@@ -33,8 +29,8 @@ import Testing
         #expect(!String(describing: auth).contains("s3cret"))
     }
 
-    @Test func redactsSecret() async {
-        let auth = BasicAuthenticator(
+    @Test func redactsSecret() async throws {
+        let auth = try BasicAuthenticator(
             host: "https://api.example.com",
             username: "alice",
             password: "s3cret"
@@ -44,39 +40,25 @@ import Testing
         #expect(description.contains("***"))
     }
 
-    /* CR/LF in the username trips preconditionFailure in init, which traps the
-     * process and cannot be caught under Swift Testing; disabled so the
-     * scenario count matches the other SDKs. */
-    @Test(.disabled("preconditionFailure traps the process; not catchable"))
-    func rejectsUsernameWithCrlfAtConstruction() async {
-        _ = BasicAuthenticator(
-            host: "https://api.example.com",
-            username: "alice\r\n",
-            password: "s3cret"
-        )
-    }
-
-    /* NUL in the password trips preconditionFailure in init, which traps the
-     * process and cannot be caught under Swift Testing; disabled so the
-     * scenario count matches the other SDKs. */
-    @Test(.disabled("preconditionFailure traps the process; not catchable"))
-    func rejectsPasswordWithNulAtConstruction() async {
-        _ = BasicAuthenticator(
-            host: "https://api.example.com",
-            username: "alice",
-            password: "s3c\u{0}ret"
-        )
-    }
-
-    /* ':' in the username trips preconditionFailure in init, which traps the
-     * process and cannot be caught under Swift Testing; disabled so the
-     * scenario count matches the other SDKs. */
-    @Test(.disabled("preconditionFailure traps the process; not catchable"))
-    func rejectsUsernameWithColonAtConstruction() async {
-        _ = BasicAuthenticator(
-            host: "https://api.example.com",
-            username: "ali:ce",
-            password: "s3cret"
-        )
+    /* Malformed credentials would corrupt the Authorization header (RFC 7617
+     * §2): each is rejected at construction with
+     * ConfigurationError.invalidArgument, never a trap. */
+    @Test(arguments: [
+        ("alice\r\n", "s3cret"),
+        ("alice", "s3c\u{0}ret"),
+        ("ali:ce", "s3cret"),
+    ])
+    func rejectsMalformedCredentialsAtConstruction(username: String, password: String) {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com",
+                username: username,
+                password: password
+            )
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
     }
 }

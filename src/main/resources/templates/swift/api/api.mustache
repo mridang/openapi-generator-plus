@@ -118,9 +118,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
-        guard !{{paramName}}.isEmpty else {
-            throw ApiError(statusCode: 0, message: "Missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
-        }
+        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, operation: "{{classname}}.{{operationId}}")
 {{/isString}}
 {{/required}}
 {{/pathParams}}
@@ -129,7 +127,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}
@@ -138,7 +136,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}
@@ -147,7 +145,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}
@@ -156,7 +154,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}
@@ -331,15 +329,15 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
          * BaseApi. Without it a value containing CR, LF, or other control
          * characters would smuggle extra header lines into the request
          * (header injection). Fail closed with the identical RFC 6265
-         * ApiError the auth-cookie path raises so behaviour is consistent. */
+         * ConfigurationError the auth-cookie path raises so behaviour is
+         * consistent. */
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
         let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
         if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
-            throw ApiError(
-                statusCode: 0,
-                message: "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+            throw ConfigurationError.invalidArgument(
+                "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
             )
         }
         cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
@@ -348,9 +346,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         if let val = options.{{paramName}} {
             let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
-                throw ApiError(
-                    statusCode: 0,
-                    message: "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                throw ConfigurationError.invalidArgument(
+                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
                 )
             }
             cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
@@ -361,9 +358,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         if let options = options, let val = options.{{paramName}} {
             let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
-                throw ApiError(
-                    statusCode: 0,
-                    message: "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                throw ConfigurationError.invalidArgument(
+                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
                 )
             }
             cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")

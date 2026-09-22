@@ -443,13 +443,6 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTests.mustache",
                             testDir,
                             "ComposedSchemaTests.swift"));
-            if (hasBasicAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/BasicAuthenticatorTests.mustache",
-                                testDir,
-                                "BasicAuthenticatorTests.swift"));
-            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/BearerAuthenticatorTests.mustache",
@@ -592,6 +585,24 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return pascalAuthFilename(stem, ".swift");
     }
 
+    /**
+     * Registers the Basic authenticator test. It must be added here rather than
+     * in processOpts: the security-scheme flags are only set once the spec has
+     * been read, so a check in processOpts always saw them false and the test
+     * was never generated.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (generateTests && hasBasicAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/BasicAuthenticatorTests.mustache",
+                            Path.of("Tests", packageName + "Tests").toString(),
+                            "BasicAuthenticatorTests.swift"));
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
@@ -603,6 +614,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         ctx.put("needsOverride", needsOverride);
         ctx.put("constructorSignature", buildSwiftConstructorSignature(spec));
         ctx.put("superCall", buildSwiftSuperCall(spec));
+        // Basic, Bearer and API-key initializers validate their credentials and
+        // throw ConfigurationError; the scheme subclass rethrows.
+        ctx.put("fallible", java.util.Set.of(
+                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                .contains(spec.baseClass()));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 

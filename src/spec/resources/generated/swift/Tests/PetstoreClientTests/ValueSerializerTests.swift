@@ -617,14 +617,18 @@ import Testing
     #expect((slash as? String)?.contains("%252F") == false)
   }
 
-  // Empty-string path values are rejected by the serializer via
-  // preconditionFailure, which traps the process and cannot be caught by
-  // Swift Testing. Disabled so the scenario stays counted for parity with
-  // the other SDKs without crashing the test runner.
-  @Test(.disabled("preconditionFailure traps the process; uncatchable by Swift Testing"))
-  func testEmptyStringPathParamThrows() {
-    _ = ValueSerializer.serializeStyled(
-      "id", value: "", location: "path", schemaType: "string", collectionFormat: "",
-      style: "simple", explode: false)
+  // Empty-string path values are rejected before the request is built with
+  // ConfigurationError.invalidArgument: a caller mistake, never a trap.
+  @Test func testEmptyStringPathParamThrows() {
+    let error = #expect(throws: ConfigurationError.self) {
+      try ValueSerializer.requirePathParam("id", "", operation: "PetApi.getPetById")
+    }
+    guard case .invalidArgument? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(throws: Never.self) {
+      try ValueSerializer.requirePathParam("id", "5", operation: "PetApi.getPetById")
+    }
   }
 }

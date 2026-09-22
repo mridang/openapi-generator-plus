@@ -54,12 +54,14 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
   /// §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
   /// only fail at the next API call via the Authorization-header concat,
   /// allowing HTTP header injection from a redirect-fragment-derived value.
-  /// preconditionFailure is consistent with BearerAuthenticator.
-  public func setAccessToken(_ token: String) {
+  ///
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` on invalid input;
+  ///   the previous token is kept.
+  public func setAccessToken(_ token: String) throws {
     for scalar in token.unicodeScalars {
       let v = scalar.value
       if v != 0x09 && (v < 0x20 || v >= 0x7F) {
-        preconditionFailure(
+        throw ConfigurationError.invalidArgument(
           "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
         )
       }
@@ -71,8 +73,12 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
   ///
   /// - Parameter state: Optional state parameter for CSRF protection.
   /// - Returns: The authorization URL string.
-  public func buildAuthorizationURL(state: String = "") -> String {
-    var components = URLComponents(string: authorizationURL)!
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the
+  ///   configured authorization URL is malformed.
+  public func buildAuthorizationURL(state: String = "") throws -> String {
+    guard var components = URLComponents(string: authorizationURL) else {
+      throw ConfigurationError.invalidArgument("malformed authorization URL: \(authorizationURL)")
+    }
     /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
      * a query component. Preserve existing query items instead of
      * overwriting them. */
@@ -86,13 +92,19 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
       items.append(URLQueryItem(name: "state", value: state))
     }
     components.queryItems = items
-    return components.url!.absoluteString
+    guard let url = components.url else {
+      throw ConfigurationError.invalidArgument("malformed authorization URL: \(authorizationURL)")
+    }
+    return url.absoluteString
   }
 
   /// Returns the Bearer authentication header.
-  override public func authHeaders() async -> [String: String] {
+  ///
+  /// - Throws: ``ConfigurationError/invalidState(_:)`` when no access token
+  ///   has been set yet.
+  override public func authHeaders() async throws -> [String: String] {
     guard !accessToken.isEmpty else {
-      fatalError("Must set access token before making API requests")
+      throw ConfigurationError.invalidState("Must set access token before making API requests")
     }
     return ["Authorization": "Bearer \(accessToken)"]
   }

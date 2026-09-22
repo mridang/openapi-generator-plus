@@ -61,7 +61,7 @@ import Testing
       responseBody: #"{"id":42,"name":"Dogs"}"#
     )
 
-    let typed = try err.getTypedErrorBody(Category.self)
+    let typed = try err.getTypedErrorBody(PetstoreClient.Category.self)
     #expect(typed != nil)
     #expect(typed?.id == 42)
     #expect(typed?.name == "Dogs")
@@ -70,7 +70,7 @@ import Testing
   @Test func testGetTypedErrorBodyReturnsNilWhenNoBody() throws {
     let err = ApiError(statusCode: 500, message: "oops", responseBody: nil)
 
-    let typed = try err.getTypedErrorBody(Category.self)
+    let typed = try err.getTypedErrorBody(PetstoreClient.Category.self)
     #expect(typed == nil)
   }
 
@@ -81,6 +81,27 @@ import Testing
 
     #expect(err is OpenAPIError)
     #expect(err as? OpenAPIError != nil)
+  }
+
+  /* A 404 is a NotFoundError and a 500 an InternalServerError; each is an
+   * ApiError of the right family and part of the OpenAPIError hierarchy. */
+  @Test func testStatusCodesMapToTypedErrors() {
+    let notFound: any Error = BaseApi.throwAPIError(
+      ApiHttpResponse(statusCode: 404, body: "", headers: [:]))
+    #expect(notFound is NotFoundError)
+    #expect(notFound is ClientError)
+    #expect(!(notFound is ServerError))
+    #expect(!(notFound is NetworkError))
+    #expect(notFound is OpenAPIError)
+    #expect((notFound as? ApiError)?.statusCode == 404)
+
+    let serverError: any Error = BaseApi.throwAPIError(
+      ApiHttpResponse(statusCode: 500, body: "", headers: [:]))
+    #expect(serverError is InternalServerError)
+    #expect(serverError is ServerError)
+    #expect(!(serverError is ClientError))
+    #expect(serverError is OpenAPIError)
+    #expect((serverError as? ApiError)?.statusCode == 500)
   }
 
   @Test func testTypedErrorConformsToApiErrorAndOpenAPIError() {
@@ -109,7 +130,7 @@ import Testing
       responseBody: #"{"id":1,"name":"Cat","extra":"drop-me"}"#
     )
 
-    let typed = try err.getTypedErrorBody(Category.self)
+    let typed = try err.getTypedErrorBody(PetstoreClient.Category.self)
     #expect(typed != nil)
     #expect(typed?.id == 1)
     #expect(typed?.name == "Cat")
@@ -124,7 +145,6 @@ import Testing
       SerializationError(message: "not a duration"),
       NetworkError(statusCode: 0, message: "connection refused"),
       NetworkTimeoutError(statusCode: 0, message: "timed out"),
-      OAuth2AuthorizationCodeError.codeNotExchanged,
       OAuth2TokenError.missingAccessToken("empty access_token"),
       OAuth2ServerError(
         statusCode: 400,
@@ -142,8 +162,9 @@ import Testing
   }
 
   @Test func testConfigurationErrorIsNotAnOpenAPIError() {
-    // A configuration mistake is a programming error, not an API failure,
-    // so ConfigurationError conforms to plain Error only.
+    // A configuration mistake or a wrong call order is a programming error,
+    // not an API failure, so ConfigurationError and
+    // OAuth2AuthorizationCodeError conform to plain Error only.
     let errors: [any Error] = [
       ConfigurationError.invalidProxyURL("://bad"),
       ConfigurationError.invalidServerVariable(
@@ -151,6 +172,9 @@ import Testing
       ConfigurationError.invalidCACertificate("missing"),
       ConfigurationError.proxyUnsupported,
       ConfigurationError.invalidArgument("bad"),
+      ConfigurationError.invalidState("closed"),
+      OAuth2AuthorizationCodeError.codeNotExchanged,
+      OAuth2AuthorizationCodeError.emptyCode,
     ]
     for err in errors {
       #expect(!(err is OpenAPIError))

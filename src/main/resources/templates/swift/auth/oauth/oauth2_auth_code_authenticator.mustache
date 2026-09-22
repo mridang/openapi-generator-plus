@@ -5,7 +5,11 @@ import Foundation
 /// violates the documented usage contract (e.g. requesting headers before
 /// exchanging an authorization code). Callers can catch this to recover
 /// gracefully instead of being terminated by a `fatalError`.
-public enum OAuth2AuthorizationCodeError: {{errorPrefix}}Error, Equatable {
+///
+/// This is a caller mistake, not an API failure, so like
+/// ``ConfigurationError`` it conforms to plain `Error` and is deliberately not
+/// part of the SDK error hierarchy rooted at ``{{errorPrefix}}Error``.
+public enum OAuth2AuthorizationCodeError: Error, Equatable {
     /// Auth headers were requested before `exchangeCode(_:)`.
     case codeNotExchanged
     /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
@@ -74,8 +78,13 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
     ///
     /// - Parameter state: Optional state parameter for CSRF protection.
     /// - Returns: The authorization URL string.
-    public func buildAuthorizationURL(state: String = "") -> String {
-        var components = URLComponents(string: authorizationURL)!
+    ///
+    /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the
+    ///   configured authorization URL is malformed.
+    public func buildAuthorizationURL(state: String = "") throws -> String {
+        guard var components = URLComponents(string: authorizationURL) else {
+            throw ConfigurationError.invalidArgument("malformed authorization URL: \(authorizationURL)")
+        }
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component (e.g. tenant-scoped Auth0 URLs like
          * https://x.auth0.com/authorize?audience=api). Preserve existing
@@ -91,7 +100,10 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
             items.append(URLQueryItem(name: "state", value: state))
         }
         components.queryItems = items
-        return components.url!.absoluteString
+        guard let url = components.url else {
+            throw ConfigurationError.invalidArgument("malformed authorization URL: \(authorizationURL)")
+        }
+        return url.absoluteString
     }
 
     /// Exchanges an authorization code for an access token.

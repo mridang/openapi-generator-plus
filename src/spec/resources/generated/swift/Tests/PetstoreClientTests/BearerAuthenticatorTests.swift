@@ -11,62 +11,58 @@ import Testing
 @testable import PetstoreClient
 
 /* Bearer token handling is validated here. Negative scenarios
- * (empty/whitespace token, non-ASCII control characters) trip
- * `preconditionFailure` in BearerAuthenticator.init, which traps the
- * test process and cannot be exercised under Swift Testing without
- * `exitTest` (Swift 6.1+, not adopted here). The positive paths lock in
- * the "Bearer " prefix-dedupe contract and the redaction guarantee; the
- * construction-time trap behavior is documented in
- * BearerAuthenticator.init. */
+ * (empty/whitespace token, CR/LF and non-ASCII characters) throw
+ * ConfigurationError.invalidArgument from BearerAuthenticator.init. The
+ * positive paths lock in the "Bearer " prefix-dedupe contract and the
+ * redaction guarantee. */
 @Suite final class BearerAuthenticatorTests {
 
-  @Test func rawTokenIsPrefixedWithBearer() async {
-    let auth = BearerAuthenticator(host: "https://api.example.com", token: "xyz")
-    let headers = await auth.authHeaders()
+  @Test func rawTokenIsPrefixedWithBearer() async throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
+    let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func alreadyPrefixedTokenIsNotDoubled() async {
-    let auth = BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
-    let headers = await auth.authHeaders()
+  @Test func alreadyPrefixedTokenIsNotDoubled() async throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
+    let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func lowercaseBearerPrefixIsStripped() async {
-    let auth = BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
-    let headers = await auth.authHeaders()
+  @Test func lowercaseBearerPrefixIsStripped() async throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
+    let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func mixedCaseBearerPrefixIsStripped() async {
-    let auth = BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
-    let headers = await auth.authHeaders()
+  @Test func mixedCaseBearerPrefixIsStripped() async throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
+    let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
   /* authenticator-secret-in-default-string-repr: the default string
    * representation must never expose the stored token and must show the
    * `***` redaction marker. */
-  @Test func redactsSecret() async {
-    let auth = BearerAuthenticator(host: "https://api.example.com", token: "xyz")
+  @Test func redactsSecret() async throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
     let description = String(describing: auth)
     #expect(!description.contains("token=xyz"))
     #expect(description.contains("***"))
   }
 
-  /* An empty token trips preconditionFailure in init, which traps the
-   * process and cannot be caught under Swift Testing; disabled so the
-   * scenario count matches the other SDKs. */
-  @Test(.disabled("preconditionFailure traps the process; not catchable"))
-  func emptyTokenIsRejectedAtConstruction() async {
-    _ = BearerAuthenticator(host: "https://api.example.com", token: "")
-  }
-
-  /* A whitespace-only token trips preconditionFailure in init, which traps
-   * the process and cannot be caught under Swift Testing; disabled so the
-   * scenario count matches the other SDKs. */
-  @Test(.disabled("preconditionFailure traps the process; not catchable"))
-  func whitespaceOnlyTokenIsRejectedAtConstruction() async {
-    _ = BearerAuthenticator(host: "https://api.example.com", token: "   ")
+  /* An empty or whitespace-only token would emit a bare
+   * `Authorization: Bearer ` header, and CR/LF or non-ASCII bytes would
+   * inject or mangle it: each is rejected at construction with
+   * ConfigurationError.invalidArgument, never a trap. */
+  @Test(arguments: ["", "   ", "tok\r\nInjected: yes", "ñoño"])
+  func invalidTokenIsRejectedAtConstruction(token: String) {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
+    }
+    guard case .invalidArgument? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
   }
 }

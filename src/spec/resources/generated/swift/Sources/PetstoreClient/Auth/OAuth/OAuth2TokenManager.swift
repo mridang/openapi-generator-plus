@@ -183,13 +183,11 @@ public final class OAuth2TokenManager: @unchecked Sendable {
   ) async throws {
     let client: ApiClient = try lock.withLock {
       guard let client = apiClient else {
-        throw NSError(
-          domain: "OAuth2TokenManager", code: -1,
-          userInfo: [
-            NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-              + "Ensure the Client constructor calls setApiClient "
-              + "on HttpAwareAuthenticator before making API requests"
-          ])
+        throw ConfigurationError.invalidState(
+          "ApiClient has not been injected. "
+            + "Ensure the Client constructor calls setApiClient "
+            + "on HttpAwareAuthenticator before making API requests"
+        )
       }
       return client
     }
@@ -238,22 +236,16 @@ public final class OAuth2TokenManager: @unchecked Sendable {
       noRedirect: true
     )
 
-    if response.statusCode >= 300 && response.statusCode < 400 {
-      /* RFC 6749 §3.2 forbids redirects at the token endpoint. With
-       * noRedirect=true the transport surfaces the 3xx verbatim rather
-       * than replaying the credential-bearing POST; we refuse all 3xx
-       * explicitly so the caller fails closed instead of leaking the
-       * client secret / refresh_token to the redirect target. */
-      throw OAuth2TokenError.redirectRefused(
-        "Refusing to follow \(response.statusCode) redirect on OAuth2 token "
-          + "endpoint \(tokenURL); token POSTs carry credentials and must not be replayed."
-      )
-    }
-
     guard response.statusCode >= 200 && response.statusCode < 300 else {
-      /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+      /* Any non-2xx answer is an OAuth2ServerError carrying its status,
+       * including a 3xx: RFC 6749 §3.2 forbids redirects at the token
+       * endpoint, and with noRedirect=true the transport surfaces the
+       * 3xx verbatim rather than replaying the credential-bearing POST
+       * to the redirect target.
+       *
+       * RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
        * `error` (required), `error_description`, `error_uri`. Parse
-       * them into a typed OAuth2ServerError so callers can catch
+       * them into the typed OAuth2ServerError so callers can catch
        * them specifically. Fall back to the raw body when the
        * response is not a valid error object. */
       throw Self.parseOAuth2ServerError(statusCode: response.statusCode, body: response.body)
@@ -372,22 +364,21 @@ public final class OAuth2TokenManager: @unchecked Sendable {
   }
 }
 
-/// Thrown when the OAuth2 token endpoint returns a 2xx response whose body
-/// is missing or contains an empty `access_token` field. Distinct from
-/// ``OAuth2ServerError`` (which represents RFC 6749 §5.2 error responses
-/// on 4xx/5xx) so callers can recover differently via `catch`.
+/// Thrown when the OAuth2 token endpoint returns a 2xx response the SDK
+/// cannot use: a body that is missing or has an empty `access_token` field,
+/// or that is not a token JSON object. Distinct from ``OAuth2ServerError``
+/// (which represents any non-2xx answer) so callers can recover differently
+/// via `catch`.
 public enum OAuth2TokenError: OpenAPIError, Equatable {
   case missingAccessToken(String)
-  /// Thrown when the token endpoint responds with a 3xx redirect. RFC 6749
-  /// §3.2 forbids redirects there; following one would replay the
-  /// credential-bearing POST body to the redirect target.
-  case redirectRefused(String)
   /// Thrown when the token endpoint's 2xx body is not UTF-8 or not a
   /// token JSON object.
   case invalidResponse(String)
 }
 
-/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// Thrown when the OAuth2 token endpoint answers with any non-2xx status,
+/// including a refused 3xx redirect. Typed representation of an RFC 6749
+/// §5.2 OAuth2 error response. The
 /// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
 /// `invalid_client`); `description` and `uri` are the optional
 /// human-readable description and a URL to a page describing the error.

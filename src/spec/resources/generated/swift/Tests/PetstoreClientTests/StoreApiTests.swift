@@ -135,11 +135,11 @@ import Testing
     )
     let result = try await mockApi.getGroupedCategories()
     #expect(result.count == 2)
-    let first: Category? = result[0]["a"]
+    let first: PetstoreClient.Category? = result[0]["a"]
     #expect(first != nil)
     #expect(first?.id == 1)
     #expect(first?.name == "Dogs")
-    let second: Category? = result[1]["b"]
+    let second: PetstoreClient.Category? = result[1]["b"]
     #expect(second?.id == 2)
     #expect(second?.name == "Cats")
   }

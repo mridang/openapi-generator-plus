@@ -62,7 +62,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
   /// Builds the authorization URL using the discovered authorization endpoint.
   public func buildAuthorizationURL(state: String = "") async throws -> String {
     let delegate = try await resolveDelegate()
-    return delegate.buildAuthorizationURL(state: state)
+    return try delegate.buildAuthorizationURL(state: state)
   }
 
   /// Exchanges an authorization code for tokens using the discovered token endpoint.
@@ -98,33 +98,27 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
 
     let client: ApiClient = try lock.withLock {
       guard let client = apiClient else {
-        throw NSError(
-          domain: "OpenIdConnectAuthenticator", code: -1,
-          userInfo: [
-            NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-              + "Ensure the Client constructor calls setApiClient "
-              + "on HttpAwareAuthenticator before making API requests"
-          ])
+        throw ConfigurationError.invalidState(
+          "ApiClient has not been injected. "
+            + "Ensure the Client constructor calls setApiClient "
+            + "on HttpAwareAuthenticator before making API requests"
+        )
       }
       return client
     }
 
+    /* Discovery is an HTTP call like any other: a transport failure is
+     * already a NetworkError or NetworkTimeoutError and passes through. */
     let headers = ["Accept": "application/json"]
     let response = try await client.sendRequest(
       method: "GET", url: openIDConnectURL, headers: headers, body: nil)
 
     /* Guard on the HTTP status before attempting to JSON-decode the
-     * discovery document. A 5xx HTML error page or a 404 would
-     * otherwise surface as a misleading "invalid JSON" decode failure
-     * instead of the real transport error the caller needs to see. */
+     * discovery document. A 5xx HTML error page or a 404 surfaces as the
+     * typed ApiError for its status rather than a misleading "invalid
+     * JSON" decode failure. */
     guard response.statusCode >= 200 && response.statusCode < 300 else {
-      throw ApiError(
-        statusCode: response.statusCode,
-        message:
-          "OIDC discovery request to \(openIDConnectURL) failed with status \(response.statusCode)",
-        responseBody: response.body,
-        responseHeaders: response.headers
-      )
+      throw BaseApi.throwAPIError(response)
     }
 
     guard let data = response.body.data(using: .utf8) else {
@@ -142,6 +136,13 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     } catch {
       throw SerializationError(
         message: "Failed to decode the OIDC discovery document", cause: error)
+    }
+    /* A document naming an empty endpoint is as incomplete as one that
+     * omits it. */
+    guard !discovery.authorization_endpoint.trimmingCharacters(in: .whitespaces).isEmpty,
+      !discovery.token_endpoint.trimmingCharacters(in: .whitespaces).isEmpty
+    else {
+      throw SerializationError(message: "OIDC discovery document names an empty endpoint")
     }
 
     let newDelegate = OAuth2AuthorizationCodeAuthenticator(

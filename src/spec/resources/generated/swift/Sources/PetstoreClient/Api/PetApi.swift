@@ -318,14 +318,14 @@ public final class PetApi: BaseApi, @unchecked Sendable {
      * BaseApi. Without it a value containing CR, LF, or other control
      * characters would smuggle extra header lines into the request
      * (header injection). Fail closed with the identical RFC 6265
-     * ApiError the auth-cookie path raises so behaviour is consistent. */
+     * ConfigurationError the auth-cookie path raises so behaviour is
+     * consistent. */
     if let options = options, let val = options.apiKey {
       let apiKeyCookieValue =
         "\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
       if !BaseApi.isValidCookieValue(apiKeyCookieValue) {
-        throw ApiError(
-          statusCode: 0,
-          message: "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+        throw ConfigurationError.invalidArgument(
+          "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
         )
       }
       cookieParts.append("api_key=\(apiKeyCookieValue)")
@@ -778,15 +778,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
     -> ApiResult<Pet>
   {
-    guard !name.isEmpty else {
-      throw ApiError(
-        statusCode: 0, message: "Missing required parameter 'name' when calling PetApi.getPetByName"
-      )
-    }
+    try ValueSerializer.requirePathParam("name", name, operation: "PetApi.getPetByName")
     guard !options.category.isEmpty else {
-      throw ApiError(
-        statusCode: 0,
-        message: "Missing required parameter 'options.category' when calling PetApi.getPetByName")
+      throw ConfigurationError.invalidArgument(
+        "Missing required parameter 'options.category' when calling PetApi.getPetByName")
     }
 
     var path = "/pet/byName/{name}"
@@ -947,11 +942,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   public func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
     async throws -> ApiResult<Pet>
   {
-    guard !tagName.isEmpty else {
-      throw ApiError(
-        statusCode: 0, message: "Missing required parameter 'tagName' when calling PetApi.getPetTag"
-      )
-    }
+    try ValueSerializer.requirePathParam("tagName", tagName, operation: "PetApi.getPetTag")
 
     var path = "/pet/{petId}/tag/{tagName}"
     path = path.replacingOccurrences(
@@ -1182,10 +1173,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     async throws -> ApiResult<ApiResponse>
   {
     guard !options.nickname.isEmpty else {
-      throw ApiError(
-        statusCode: 0,
-        message:
-          "Missing required parameter 'options.nickname' when calling PetApi.setPetPreferences")
+      throw ConfigurationError.invalidArgument(
+        "Missing required parameter 'options.nickname' when calling PetApi.setPetPreferences")
     }
 
     var path = "/pet/{petId}/preferences"

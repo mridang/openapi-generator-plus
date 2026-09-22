@@ -185,10 +185,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /* Gap T-D4: using the client after close() must surface a uniform
        SDK error, not a foreign URLSession invalidation exception. */
     if closedFlag.isSet {
-      throw ApiError(
-        statusCode: 0, message: "ApiClient has been closed and can no longer send requests")
+      throw ConfigurationError.invalidState(
+        "ApiClient has been closed and can no longer send requests")
     }
-    guard let requestURL = URL(string: url) else {
+    guard let requestURL = URL(string: url),
+      let scheme = requestURL.scheme?.lowercased(),
+      scheme == "http" || scheme == "https"
+    else {
       throw ConfigurationError.invalidArgument("malformed request URL: \(url)")
     }
 
@@ -203,7 +206,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       merged["User-Agent"] = ua
     }
     if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
-      merged["X-Request-ID"] = UUID().uuidString
+      merged["X-Request-ID"] = UUID().uuidString.lowercased()
     }
     /*
      * Intentionally do NOT set a default Accept-Encoding. URLSession
@@ -238,6 +241,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       let upperMethod = method.uppercased()
       if upperMethod == "POST" || upperMethod == "PUT" || upperMethod == "PATCH" {
         request.httpBody = Data()
+        merged["Content-Length"] = "0"
       }
     }
 
@@ -249,7 +253,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     let response: URLResponse
     /* The URLSessionTask backing this single call. Redirect counting and
        the redirect-refusal error are scoped to THIS task inside the
-       shared ``SessionDelegate`` (keyed by the task's ObjectIdentifier),
+       shared ``SessionDelegate`` (keyed by the task's taskIdentifier),
        so concurrent requests through the same client never share a
        redirect counter or corrupt each other's refusal error. We hold the
        task here so the post-completion `takeRedirectError(for:)` retrieves
@@ -269,6 +273,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         : session
       (data, response, task) = try await DefaultApiClient.performDataTask(
         on: activeSession, for: request)
+    } catch let undecodable as UndecodableBody {
+      /* The server answered but its body cannot be decoded: an ApiError
+         carrying the real status code, never a NetworkError. */
+      throw ApiError(
+        statusCode: undecodable.response.statusCode,
+        message: "Failed to decode response body: \(undecodable.urlError.localizedDescription)",
+        underlyingError: undecodable.urlError
+      )
     } catch let urlError as URLError {
       throw DefaultApiClient.transportError(urlError)
     } catch let cancellation as CancellationError {
@@ -282,7 +294,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     }
 
     guard let httpResponse = response as? HTTPURLResponse else {
-      throw ApiError(statusCode: 0, message: "Unexpected non-HTTP response from server")
+      throw NetworkError(statusCode: 0, message: "Unexpected non-HTTP response from server")
     }
 
     /* The redirect delegate cannot throw, so a redirect refusal (too
@@ -693,6 +705,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// task cancels the URLSession task, preserving structured-concurrency
   /// cancellation semantics. Available on both Apple Foundation and Linux
   /// swift-corelibs-foundation (FoundationNetworking).
+  /// A response whose body URLSession could not decode.
+  private struct UndecodableBody: Error {
+    let response: HTTPURLResponse
+    let urlError: URLError
+  }
+
   private static func performDataTask(
     on session: URLSession,
     for request: URLRequest
@@ -734,6 +752,17 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         (continuation: CheckedContinuation<(Data, URLResponse, URLSessionTask), Error>) in
         let task = session.dataTask(with: request) { data, response, error in
           if let error = error {
+            /* A body URLSession could not decode arrived with a
+               response; keep that response so the caller can
+               report its real status code. */
+            if let urlError = error as? URLError,
+              urlError.code == .cannotDecodeContentData
+                || urlError.code == .cannotDecodeRawData,
+              let http = (response ?? box.current?.response) as? HTTPURLResponse
+            {
+              continuation.resume(throwing: UndecodableBody(response: http, urlError: urlError))
+              return
+            }
             continuation.resume(throwing: error)
             return
           }
@@ -878,7 +907,9 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
      let two CONCURRENT requests corrupt each other's redirect handling — one
      request's redirects would inflate the other's count, or a refusal from
      one would surface on the other. Keying both by the task's
-     ``ObjectIdentifier`` isolates each request; entries are cleared when the
+     ``URLSessionTask/taskIdentifier`` (unique within the session, never
+     reused the way a deallocated task's address can be) isolates each
+     request; entries are cleared when the
      call side takes the error (or, for the count, when the task completes via
      `didCompleteWithError`). */
   private let redirectCounts = LockedTaskCounters()
@@ -903,7 +934,11 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
   /// task, if any. Scoped to a single request so a sibling request's refusal
   /// never surfaces on this one.
   func takeRedirectError(for task: URLSessionTask) -> ApiError? {
-    return redirectErrors.take(for: ObjectIdentifier(task))
+    /* The call side also drops the hop count here: a task created with a
+       completion handler is not guaranteed a `didCompleteWithError`
+       callback, and a leaked count would otherwise follow the key. */
+    redirectCounts.clear(for: task.taskIdentifier)
+    return redirectErrors.take(for: task.taskIdentifier)
   }
 
   #if canImport(Security)
@@ -967,7 +1002,7 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
        follows up to its built-in cap of 16, but the explicit cap
        makes the limit observable and consistent across languages. */
     let limit = maxRedirects ?? 20
-    let taskKey = ObjectIdentifier(task)
+    let taskKey = task.taskIdentifier
     let count = redirectCounts.increment(for: taskKey)
     if count > limit {
       /* Surface redirect exhaustion as a typed error rather than
@@ -1079,7 +1114,7 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
     task: URLSessionTask,
     didCompleteWithError error: Error?
   ) {
-    redirectCounts.clear(for: ObjectIdentifier(task))
+    redirectCounts.clear(for: task.taskIdentifier)
   }
 }
 
@@ -1134,16 +1169,16 @@ private final class LockedFlag: @unchecked Sendable {
 ///
 /// One ``SessionDelegate`` backs a single ``URLSession`` shared across every
 /// request a client makes, so the hop count MUST be scoped to the individual
-/// ``URLSessionTask`` (keyed by its ``ObjectIdentifier``) rather than stored as
+/// ``URLSessionTask`` (keyed by its ``URLSessionTask/taskIdentifier``) rather than stored as
 /// a single shared integer. A shared counter would let two concurrent requests
 /// inflate each other's redirect count and trip the limit spuriously. Entries
 /// are removed when the task completes (`didCompleteWithError`).
 private final class LockedTaskCounters: @unchecked Sendable {
-  private var counts: [ObjectIdentifier: Int] = [:]
+  private var counts: [Int: Int] = [:]
   private let lock = NSLock()
 
   /// Increments and returns this task's hop count.
-  func increment(for key: ObjectIdentifier) -> Int {
+  func increment(for key: Int) -> Int {
     lock.withLock {
       let next = (counts[key] ?? 0) + 1
       counts[key] = next
@@ -1152,7 +1187,7 @@ private final class LockedTaskCounters: @unchecked Sendable {
   }
 
   /// Drops this task's entry once the task has finished.
-  func clear(for key: ObjectIdentifier) {
+  func clear(for key: Int) {
     lock.withLock { counts[key] = nil }
   }
 }
@@ -1161,20 +1196,20 @@ private final class LockedTaskCounters: @unchecked Sendable {
 /// inside the (non-throwing) URLSession redirect delegate and re-raised on the
 /// call side by ``DefaultApiClient/sendRequest(method:url:headers:body:noRedirect:)``.
 ///
-/// Keyed by the ``URLSessionTask``'s ``ObjectIdentifier`` so a refusal recorded
+/// Keyed by the ``URLSessionTask``'s ``URLSessionTask/taskIdentifier`` so a refusal recorded
 /// for one in-flight request can never surface on a concurrent sibling request
 /// sharing the same delegate/session. The call side `take(for:)`s its own
 /// task's error, which also removes the entry.
 private final class LockedTaskErrors: @unchecked Sendable {
-  private var errors: [ObjectIdentifier: ApiError] = [:]
+  private var errors: [Int: ApiError] = [:]
   private let lock = NSLock()
 
-  func set(_ error: ApiError, for key: ObjectIdentifier) {
+  func set(_ error: ApiError, for key: Int) {
     lock.withLock { errors[key] = error }
   }
 
   /// Returns this task's stored error and clears its slot.
-  func take(for key: ObjectIdentifier) -> ApiError? {
+  func take(for key: Int) -> ApiError? {
     lock.withLock {
       let v = errors[key]
       errors[key] = nil

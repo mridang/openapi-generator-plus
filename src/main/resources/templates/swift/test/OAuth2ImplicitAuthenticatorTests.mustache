@@ -16,27 +16,27 @@ import Testing
 
     // MARK: - Tests
 
-    @Test func testBuildsAuthorizationUrlWithResponseTypeToken() {
+    @Test func testBuildsAuthorizationUrlWithResponseTypeToken() throws {
         let auth = createAuthenticator()
 
-        let url = auth.buildAuthorizationURL()
+        let url = try auth.buildAuthorizationURL()
 
         #expect(url.contains("response_type=token"))
         #expect(url.hasPrefix("https://auth.example.com/authorize?"))
     }
 
-    @Test func testBuildsAuthorizationUrlWithClientId() {
+    @Test func testBuildsAuthorizationUrlWithClientId() throws {
         let auth = createAuthenticator()
 
-        let url = auth.buildAuthorizationURL()
+        let url = try auth.buildAuthorizationURL()
 
         #expect(url.contains("client_id=my-client-id"))
     }
 
-    @Test func testBuildsAuthorizationUrlWithScopes() {
+    @Test func testBuildsAuthorizationUrlWithScopes() throws {
         let auth = createAuthenticator()
 
-        let url = auth.buildAuthorizationURL()
+        let url = try auth.buildAuthorizationURL()
 
         #expect(
             url.contains("scope=read%20write")
@@ -44,31 +44,52 @@ import Testing
                 || url.contains("scope=read write"))
     }
 
-    @Test func testBuildsAuthorizationUrlWithState() {
+    @Test func testBuildsAuthorizationUrlWithState() throws {
         let auth = createAuthenticator()
 
-        let url = auth.buildAuthorizationURL(state: "my-state")
+        let url = try auth.buildAuthorizationURL(state: "my-state")
 
         #expect(url.contains("state=my-state"))
     }
 
-    @Test func testGetAuthHeadersReturnsBearerAfterSetAccessToken() async {
+    @Test func testGetAuthHeadersReturnsBearerAfterSetAccessToken() async throws {
         let auth = createAuthenticator()
-        auth.setAccessToken("implicit-tok")
+        try auth.setAccessToken("implicit-tok")
 
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
 
         #expect(headers["Authorization"] == "Bearer implicit-tok")
     }
 
-    @Test func testThrowsWhenAccessTokenNotSet() {
+    /* A request made before setAccessToken is a wrong call order: authHeaders
+     * throws ConfigurationError.invalidState, never a trap. */
+    @Test func testThrowsWhenAccessTokenNotSet() async {
         let auth = createAuthenticator()
 
-        // authHeaders() calls fatalError when no token is set.
-        // We verify the authenticator is in unset state.
-        #expect(auth.host() == "https://api.example.com")
-        // Note: In Swift, fatalError cannot be caught in Swift Testing without a custom harness.
-        // We verify the precondition state is correct.
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await auth.authHeaders()
+        }
+        guard case .invalidState? = error else {
+            Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
+            return
+        }
+    }
+
+    /* F-A5-04: a token that would inject a header is rejected with
+     * ConfigurationError.invalidArgument, never a trap, and is not stored. */
+    @Test(arguments: ["tok\r\nInjected: yes", "ñoño", "tok\u{0}"])
+    func testSetAccessTokenRejectsInvalidToken(token: String) async {
+        let auth = createAuthenticator()
+        let error = #expect(throws: ConfigurationError.self) {
+            try auth.setAccessToken(token)
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        await #expect(throws: ConfigurationError.self) {
+            _ = try await auth.authHeaders()
+        }
     }
 
     @Test func testGetHostReturnsConfiguredHost() {
@@ -77,9 +98,9 @@ import Testing
         #expect(auth.host() == "https://api.example.com")
     }
 
-    @Test func redactsSecret() async {
+    @Test func redactsSecret() async throws {
         let auth = createAuthenticator()
-        auth.setAccessToken("implicit-tok")
+        try auth.setAccessToken("implicit-tok")
         let description = String(describing: auth)
         #expect(!description.contains("implicit-tok"))
         #expect(description.contains("***"))

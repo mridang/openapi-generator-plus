@@ -14,6 +14,8 @@ import Testing
         var lastHeaders: [String: String] = [:]
         var lastBody: Data? = nil
         var lastNoRedirect: Bool = false
+        /// When set, every request fails with this error instead of answering.
+        var failure: Error? = nil
 
         func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
             lastMethod = method
@@ -21,6 +23,9 @@ import Testing
             lastHeaders = headers
             lastBody = body as? Data
             lastNoRedirect = noRedirect
+            if let failure = failure {
+                throw failure
+            }
             return responses.removeFirst()
         }
     }
@@ -163,8 +168,52 @@ import Testing
                 params: ["grant_type": "client_credentials"]
             )
             Issue.record("Expected error when no ApiClient injected")
+        } catch ConfigurationError.invalidState {
+            /* A token requested before the ApiClient is injected is a wrong
+               call order, not an API failure. */
         } catch {
-            #expect(error != nil)
+            Issue.record("expected ConfigurationError.invalidState, got \(error)")
+        }
+    }
+
+    /* Token endpoint: a 2xx body that is not JSON is an OAuth2TokenError, a
+     * non-2xx answer an OAuth2ServerError, and a transport failure passes
+     * through as the NetworkError / NetworkTimeoutError it already is. */
+    @Test func testTokenEndpointFailuresAreTyped() async {
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let notJson = MockApiClient()
+        notJson.responses = [ApiHttpResponse(statusCode: 200, body: "<html>ok</html>", headers: [:])]
+        var manager = OAuth2TokenManager()
+        manager.setApiClient(notJson)
+        await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        }
+
+        let unavailable = MockApiClient()
+        unavailable.responses = [ApiHttpResponse(statusCode: 503, body: "down", headers: [:])]
+        manager = OAuth2TokenManager()
+        manager.setApiClient(unavailable)
+        let serverError = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        }
+        #expect(serverError?.statusCode == 503)
+
+        let refused = MockApiClient()
+        refused.failure = NetworkError(statusCode: 0, message: "connection refused")
+        manager = OAuth2TokenManager()
+        manager.setApiClient(refused)
+        await #expect(throws: NetworkError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        }
+
+        let timedOut = MockApiClient()
+        timedOut.failure = NetworkTimeoutError(statusCode: 0, message: "timed out")
+        manager = OAuth2TokenManager()
+        manager.setApiClient(timedOut)
+        await #expect(throws: NetworkTimeoutError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
         }
     }
 
@@ -393,8 +442,9 @@ import Testing
 
     /// Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
     /// manager must refuse the whole 300-399 range (302 and 307 both exercised
-    /// here, plus 301/303/308) with an OAuth2TokenError rather than replaying
-    /// the credential-bearing POST to the redirect target.
+    /// here, plus 301/303/308) rather than replaying the credential-bearing
+    /// POST to the redirect target. Like any non-2xx answer, the refusal is an
+    /// OAuth2ServerError carrying that status.
     @Test(arguments: [301, 302, 303, 307, 308])
     func testTokenEndpointRedirectIsRejected(status: Int) async {
         let client = MockApiClient()
@@ -403,22 +453,13 @@ import Testing
         let manager = OAuth2TokenManager()
         manager.setApiClient(client)
 
-        do {
+        let error = await #expect(throws: OAuth2ServerError.self) {
             _ = try await manager.getAccessToken(
                 tokenURL: "https://auth.example.com/token",
                 params: ["grant_type": "client_credentials", "client_secret": "topsecret"]
             )
-            Issue.record("Expected OAuth2TokenError for status \(status)")
-        } catch let error as OAuth2TokenError {
-            switch error {
-            case .redirectRefused:
-                break
-            default:
-                Issue.record("status \(status): expected .redirectRefused, got \(error)")
-            }
-        } catch {
-            Issue.record("status \(status): expected OAuth2TokenError, got \(error)")
         }
+        #expect(error?.statusCode == status)
     }
 
     @Test func testThrowsWhenTokenRequestFails() async {
@@ -586,10 +627,10 @@ import Testing
     }
 
     /// Gap 3.2: the redirect-refusal error should name the offending Location
-    /// header for diagnostics. The Swift SDK's OAuth2TokenError.redirectRefused
-    /// carries the status code and token endpoint URL only, not the Location
-    /// target, so this scenario cannot be asserted without fabricating
-    /// behaviour the SDK does not implement.
+    /// header for diagnostics. The Swift SDK refuses the redirect with an
+    /// OAuth2ServerError that carries the status code and raw body only, not
+    /// the Location target, so this scenario cannot be asserted without
+    /// fabricating behaviour the SDK does not implement.
     @Test(.disabled("Swift OAuth2TokenManager redirect-refusal error does not surface the Location header"))
     func testRedirectRefusalErrorIncludesLocation() async {
         let client = MockApiClient()
@@ -603,12 +644,12 @@ import Testing
                 tokenURL: "https://auth.example.com/token",
                 params: ["grant_type": "client_credentials"]
             )
-            Issue.record("Expected OAuth2TokenError for 307")
-        } catch let error as OAuth2TokenError {
+            Issue.record("Expected OAuth2ServerError for 307")
+        } catch let error as OAuth2ServerError {
             #expect("\(error)".contains("attacker.example"),
                 "redirect-refusal error should name the Location target for diagnostics")
         } catch {
-            Issue.record("expected OAuth2TokenError, got \(error)")
+            Issue.record("expected OAuth2ServerError, got \(error)")
         }
     }
 }

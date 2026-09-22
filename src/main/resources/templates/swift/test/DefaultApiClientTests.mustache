@@ -4,7 +4,7 @@ import Foundation
 import Testing
 @testable import {{packageName}}
 
-@Suite final class DefaultApiClientTests {
+@Suite(.serialized) final class DefaultApiClientTests {
 
     // MARK: - Helpers
 
@@ -12,8 +12,10 @@ import Testing
         transport: TransportOptions? = nil,
         handler: @escaping (URLRequest) -> (Data, Int, [String: String])
     ) -> DefaultApiClient {
-        let session = StubURLProtocol.session(handler: handler)
-        return DefaultApiClient(transportOptions: transport, session: session)
+        /* Route through the SDK's own session (and so its redirect delegate)
+           with only the transport swapped for the stub. */
+        StubURLProtocol.handler = handler
+        return DefaultApiClient(transportOptions: transport, protocolClasses: [StubURLProtocol.self])
     }
 
     private func jsonBody(_ s: String = #"{"userId":1,"id":1}"#) -> Data {
@@ -351,22 +353,20 @@ import Testing
     }
 
     // close-lifecycle-three-way (Gap T-D4): sending a request after close()
-    // must surface a uniform SDK ApiError (statusCode 0) rather than a foreign
-    // URLSession "session invalidated" exception or a silent success.
-    @Test func testSendAfterCloseThrowsApiError() async throws {
+    // is a wrong call order. It must surface ConfigurationError.invalidState
+    // rather than a foreign URLSession "session invalidated" exception, an
+    // SDK error, or a silent success.
+    @Test func testSendAfterCloseThrowsInvalidState() async throws {
         let client = makeClient { _ in (self.jsonBody(), 200, [:]) }
         client.close()
-        var caught: ApiError? = nil
-        do {
+        let error = await #expect(throws: ConfigurationError.self) {
             _ = try await client.sendRequest(
                 method: "GET", url: "https://example.com", headers: [:], body: nil)
-            Issue.record("expected ApiError after close()")
-        } catch let error as ApiError {
-            caught = error
-        } catch {
-            Issue.record("expected ApiError after close(), got \(error)")
         }
-        #expect(caught?.statusCode == 0)
+        guard case .invalidState? = error else {
+            Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
+            return
+        }
     }
 
     @Test func testDecompressesGzipResponse() async throws {
@@ -418,12 +418,12 @@ import Testing
         _ = try await client.sendRequest(
             method: "POST", url: "https://example.com",
             headers: [:], body: nil)
-        // URLSession derives Content-Length from httpBody.count, so the
-        // presence of an empty Data on the request is what we assert
-        // (the URLProtocol stub does not echo the on-wire headers
-        // back, but httpBody.count drives the header value).
-        #expect(capturedBody != nil, "POST with null body must attach an empty Data")
-        #expect(capturedBody?.count == 0, "attached body must be zero-length")
+        // A URLProtocol never sees an empty httpBody, so the explicit
+        // Content-Length: 0 header the client sets is what we assert; any
+        // body that did reach the stub must be zero-length.
+        #expect(capturedRequest?.value(forHTTPHeaderField: "Content-Length") == "0",
+            "POST with null body must send Content-Length: 0")
+        #expect((capturedBody?.count ?? 0) == 0, "attached body must be zero-length")
         #expect(capturedRequest?.httpMethod == "POST")
     }
 
@@ -658,13 +658,11 @@ import Testing
                failed by the concurrent /loop request's redirects, and the
                "too many redirects" refusal must not surface on it. */
             #expect(one.statusCode == 200,
-                "single-redirect request must succeed independently of a "
-                    + "concurrent over-limit request")
+                "single-redirect request must not fail because of a concurrent over-limit one")
             #expect(one.body.contains("ok"))
             /* A request with no redirects must likewise be unaffected. */
             #expect(none.statusCode == 200,
-                "no-redirect request must succeed independently of a "
-                    + "concurrent over-limit request")
+                "no-redirect request must not fail because of a concurrent over-limit one")
             #expect(none.body.contains("ok"))
         }
     }
@@ -695,18 +693,63 @@ private final class StubURLProtocol: URLProtocol {
     override class func canInit(with request: URLRequest) -> Bool { return true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
 
+    /// URLSession hands a protocol the body as `httpBodyStream`, not
+    /// `httpBody`; read it back so handlers can inspect what was sent.
+    static func withBody(_ request: URLRequest) -> URLRequest {
+        guard request.httpBody == nil, let stream = request.httpBodyStream else { return request }
+        var copy = request
+        var data = Data()
+        stream.open()
+        defer { stream.close() }
+        let bufferSize = 4096
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        copy.httpBody = data
+        return copy
+    }
+
     override func startLoading() {
         guard let handler = StubURLProtocol.handler else {
             client?.urlProtocolDidFinishLoading(self)
             return
         }
-        let (data, statusCode, headers) = handler(request)
+        let sent = StubURLProtocol.withBody(request)
+        let (data, statusCode, headers) = handler(sent)
         let response = HTTPURLResponse(
             url: request.url!,
             statusCode: statusCode,
             httpVersion: "HTTP/1.1",
             headerFields: headers
         )!
+        /* A custom protocol must perform redirects itself: hand the follow-up
+           request to the loading system (and so to the SDK's redirect
+           delegate) with the method and body a real HTTP loader would use —
+           307/308 keep both, 303 and a 301/302 after a non-GET switch to a
+           bodyless GET. */
+        if (300..<400).contains(statusCode),
+           let location = headers["Location"],
+           let target = URL(string: location, relativeTo: request.url)?.absoluteURL {
+            var next = URLRequest(url: target)
+            next.allHTTPHeaderFields = request.allHTTPHeaderFields
+            let method = request.httpMethod ?? "GET"
+            if statusCode == 307 || statusCode == 308 {
+                next.httpMethod = method
+                next.httpBody = sent.httpBody
+            } else if statusCode == 303 || !(method == "GET" || method == "HEAD") {
+                next.httpMethod = "GET"
+            } else {
+                next.httpMethod = method
+            }
+            client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocolDidFinishLoading(self)
+            return
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)

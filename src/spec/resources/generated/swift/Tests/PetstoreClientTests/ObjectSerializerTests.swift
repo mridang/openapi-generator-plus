@@ -334,9 +334,13 @@ import Testing
   }
 
   @Test func testDateOnlyStringIsIso8601() {
-    // Test that a Date at midnight serializes with date component
+    // Test that a Date at UTC midnight serializes with date component.
+    // The calendar is pinned to UTC: the wire form is UTC, so a local
+    // midnight east of Greenwich would serialize as the previous day.
+    var utc = Calendar(identifier: .gregorian)
+    utc.timeZone = TimeZone(identifier: "UTC")!
     let components = DateComponents(
-      calendar: .current, year: 2024, month: 1, day: 1, hour: 0, minute: 0, second: 0)
+      calendar: utc, year: 2024, month: 1, day: 1, hour: 0, minute: 0, second: 0)
     let date = components.date!
     let result = ObjectSerializer.stringify(date)
     #expect(result.contains("2024-01-01"), "should contain date: \(result)")
@@ -437,20 +441,20 @@ import Testing
   // to Equatable + Hashable so `==` compiles and instances can be used as
   // Set members / dictionary keys, matching the other 10 SDKs.
   @Test func testModelIsEquatableAndHashable() {
-    let a = Category(id: 7, name: "Birds")
-    let b = Category(id: 7, name: "Birds")
-    let c = Category(id: 8, name: "Cats")
+    let a = PetstoreClient.Category(id: 7, name: "Birds")
+    let b = PetstoreClient.Category(id: 7, name: "Birds")
+    let c = PetstoreClient.Category(id: 8, name: "Cats")
     // Equatable
     #expect(a == b)
     #expect(a != c)
     // Hashable — usable as a Set element / dictionary key
-    let set: Set<Category> = [a, b, c]
+    let set: Set<PetstoreClient.Category> = [a, b, c]
     #expect(set.count == 2)
-    #expect(set.contains(Category(id: 7, name: "Birds")))
+    #expect(set.contains(PetstoreClient.Category(id: 7, name: "Birds")))
   }
 
   @Test func testSerializeIncludesFieldsSetToDefaultValues() throws {
-    let category = Category(id: 0, name: "")
+    let category = PetstoreClient.Category(id: 0, name: "")
     let json = try ObjectSerializer.serialize(category)
     #expect(json.contains("\"id\":0"), "serialized JSON should include id=0, got: \(json)")
     #expect(
@@ -462,7 +466,7 @@ import Testing
   @Test func testNilFieldsOmittedOnSerialize() throws {
     // Category encodes optional fields with encodeIfPresent, so a field
     // left nil must be dropped from the payload rather than emitted as null.
-    let category = Category(id: nil, name: "Dogs")
+    let category = PetstoreClient.Category(id: nil, name: "Dogs")
     let json = try ObjectSerializer.serialize(category)
     #expect(!json.contains("\"id\""), "nil id must be omitted, got: \(json)")
     #expect(json.contains("\"name\":\"Dogs\""), "name should be present, got: \(json)")
@@ -490,6 +494,31 @@ import Testing
 
     let food = try JSONDecoder().decode(PetFood.self, from: Data(payload.utf8))
     #expect(food.value() is DryFood)
+  }
+
+  // MARK: - Every wire-shape failure is a SerializationError
+
+  /* Malformed JSON, a wrong primitive type, a missing required field, an
+     unknown enum value and a malformed date-time or duration all surface as
+     the SDK's SerializationError, part of the OpenAPIError hierarchy. */
+  @Test(arguments: [
+    ("{", "Pet"),
+    ("{\"name\":7,\"photoUrls\":[]}", "Pet"),
+    ("{\"photoUrls\":[]}", "Pet"),
+    ("{\"status\":\"lost\"}", "Order"),
+    ("{\"shipDate\":\"not-a-date\"}", "Order"),
+    ("{\"retryAfter\":\"PT1H\"}", "EdgeCases"),
+  ])
+  func testWireShapeFailuresAreSerializationErrors(json: String, model: String) {
+    let error = #expect(throws: SerializationError.self) {
+      switch model {
+      case "Pet": _ = try ObjectSerializer.deserialize(json, as: Pet.self)
+      case "Order": _ = try ObjectSerializer.deserialize(json, as: Order.self)
+      default: _ = try ObjectSerializer.deserialize(json, as: EdgeCases.self)
+      }
+    }
+    guard let error else { return }
+    let _: any OpenAPIError = error
   }
 
   // MARK: - Gap AU-residual — missing discriminator field must throw
@@ -533,7 +562,7 @@ import Testing
   /// handles this natively when the value type conforms to Codable.
   @Test func testDeserializeMapOfModelDeepDecodes() throws {
     let json = "{\"first\":{\"id\":1,\"name\":\"Dogs\"},\"second\":{\"id\":2,\"name\":\"Cats\"}}"
-    let result = try ObjectSerializer.deserialize(json, as: [String: Category].self)
+    let result = try ObjectSerializer.deserialize(json, as: [String: PetstoreClient.Category].self)
     #expect(result != nil)
     #expect(result?.count == 2)
     #expect(result?["first"]?.id == 1)
@@ -543,8 +572,8 @@ import Testing
   }
 
   @Test func testSerializeMapOfModelDeepEncodes() throws {
-    let map: [String: Category] = [
-      "a": Category(id: 7, name: "Birds")
+    let map: [String: PetstoreClient.Category] = [
+      "a": PetstoreClient.Category(id: 7, name: "Birds")
     ]
     let json = try ObjectSerializer.serialize(map)
     #expect(json.contains("\"id\":7"))
@@ -579,12 +608,12 @@ import Testing
   }
 
   @Test func testMapOfModelRoundTrip() throws {
-    let original: [String: Category] = [
-      "k1": Category(id: 1, name: "A"),
-      "k2": Category(id: 2, name: "B"),
+    let original: [String: PetstoreClient.Category] = [
+      "k1": PetstoreClient.Category(id: 1, name: "A"),
+      "k2": PetstoreClient.Category(id: 2, name: "B"),
     ]
     let json = try ObjectSerializer.serialize(original)
-    let decoded = try ObjectSerializer.deserialize(json, as: [String: Category].self)
+    let decoded = try ObjectSerializer.deserialize(json, as: [String: PetstoreClient.Category].self)
     #expect(decoded?["k1"]?.id == 1)
     #expect(decoded?["k2"]?.name == "B")
   }
@@ -856,7 +885,7 @@ import Testing
   // it must decode into a Category with id == 1 and name == "Dogs".
   @Test func testDeserializeStripsLeadingByteOrderMark() throws {
     let json = "\u{FEFF}{\"id\":1,\"name\":\"Dogs\"}"
-    let category = try ObjectSerializer.deserialize(json, as: Category.self)
+    let category = try ObjectSerializer.deserialize(json, as: PetstoreClient.Category.self)
     #expect(category?.id == 1)
     #expect(category?.name == "Dogs")
   }

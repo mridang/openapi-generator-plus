@@ -13,27 +13,27 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
   private let token: String
 
   /// Creates a new Bearer authenticator.
-  public init(host: String, token: String) {
+  ///
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the token is
+  ///   empty or holds a character that cannot be sent in a header.
+  public init(host: String, token: String) throws {
     /* Reject an empty or whitespace-only token: it would otherwise be
      * sent as the literal header `Authorization: Bearer ` and the
      * request would go out effectively unauthenticated. This mirrors
-     * the empty-value guard the api-key authenticator already enforces.
-     * preconditionFailure is appropriate because this is a programmer
-     * error, not a recoverable runtime condition. */
+     * the empty-value guard the api-key authenticator already enforces. */
     if token.isEmpty || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-      preconditionFailure(
+      throw ConfigurationError.invalidArgument(
         "Bearer token must not be empty or whitespace"
       )
     }
     /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
      * Reject anything outside printable ASCII + TAB so callers see
      * a clear error rather than HTTP header injection from CR/LF or
-     * silently-mangled non-ASCII bytes. preconditionFailure is
-     * appropriate because this is a programmer error. */
+     * silently-mangled non-ASCII bytes. */
     if token.unicodeScalars.contains(where: { s in
       s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
     }) {
-      preconditionFailure(
+      throw ConfigurationError.invalidArgument(
         "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
       )
     }

@@ -24,21 +24,21 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
   ///   - keyParamName: Name of the key parameter
   ///   - apiKey: The API key value
   ///   - location: Where to send the key (header, query, or cookie)
-  public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) {
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the key
+  ///   cannot be sent safely.
+  public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) throws {
     /* Validation applies to ALL locations: empty/whitespace API keys
-     * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
-     * printable-ASCII rule still applies to HEADER values.
-     * preconditionFailure is appropriate because the failure is a
-     * programmer error, not a recoverable runtime condition. */
+     * and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
+     * printable-ASCII rule still applies to HEADER values. */
     if apiKey.isEmpty || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-      preconditionFailure(
+      throw ConfigurationError.invalidArgument(
         "API key value for '\(keyParamName)' must not be empty"
       )
     }
     if apiKey.unicodeScalars.contains(where: { s in
       s.value == 0x0D || s.value == 0x0A || s.value == 0x00
     }) {
-      preconditionFailure(
+      throw ConfigurationError.invalidArgument(
         "API key value for '\(keyParamName)' contains forbidden control characters (CR/LF/NUL)"
       )
     }
@@ -47,7 +47,7 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
         s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
       })
     {
-      preconditionFailure(
+      throw ConfigurationError.invalidArgument(
         "API key for header '\(keyParamName)' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
       )
     }

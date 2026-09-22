@@ -10,29 +10,26 @@ import Testing
 
 @testable import PetstoreClient
 
-/* API key handling is validated here. Negative scenarios
- * (empty/whitespace key, CR/LF/NUL control characters) trip
- * `preconditionFailure` in ApiKeyAuthenticator.init, which traps the test
- * process and cannot be exercised under Swift Testing without `exitTest`
- * (Swift 6.1+, not adopted here). The positive paths lock in the
- * per-location emission contract and the redaction guarantee; the
- * construction-time trap behavior is documented in
- * ApiKeyAuthenticator.init. */
+/* API key handling is validated here. Negative scenarios (empty/whitespace
+ * key, CR/LF/NUL control characters, non-ASCII in a header key) throw
+ * ConfigurationError.invalidArgument from ApiKeyAuthenticator.init. The
+ * positive paths lock in the per-location emission contract and the
+ * redaction guarantee. */
 @Suite final class ApiKeyAuthenticatorTests {
 
-  @Test func validHeaderKeyPasses() async {
-    let auth = ApiKeyAuthenticator(
+  @Test func validHeaderKeyPasses() async throws {
+    let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "X-API-Key",
       apiKey: "abc123",
       location: .header
     )
-    let headers = await auth.authHeaders()
+    let headers = try await auth.authHeaders()
     #expect(headers["X-API-Key"] == "abc123")
   }
 
-  @Test func validQueryKeyPasses() {
-    let auth = ApiKeyAuthenticator(
+  @Test func validQueryKeyPasses() throws {
+    let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "api_key",
       apiKey: "abc123",
@@ -41,8 +38,8 @@ import Testing
     #expect(auth.queryParams() == ["api_key": "abc123"])
   }
 
-  @Test func validCookieKeyPasses() {
-    let auth = ApiKeyAuthenticator(
+  @Test func validCookieKeyPasses() throws {
+    let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "session",
       apiKey: "abc123",
@@ -54,8 +51,8 @@ import Testing
   /* authenticator-secret-in-default-string-repr: the default string
    * representation must never expose the stored API key and must show the
    * `***` redaction marker. */
-  @Test func redactsSecret() async {
-    let auth = ApiKeyAuthenticator(
+  @Test func redactsSecret() async throws {
+    let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "X-API-Key",
       apiKey: "abc123",
@@ -66,42 +63,28 @@ import Testing
     #expect(description.contains("***"))
   }
 
-  /* An empty key trips preconditionFailure in init, which traps the
-   * process and cannot be caught under Swift Testing; disabled so the
-   * scenario count matches the other SDKs. */
-  @Test(.disabled("preconditionFailure traps the process; not catchable"))
-  func emptyKeyIsRejectedAtConstruction() async {
-    _ = ApiKeyAuthenticator(
-      host: "https://api.example.com",
-      keyParamName: "X-API-Key",
-      apiKey: "",
-      location: .header
-    )
-  }
-
-  /* A whitespace-only key trips preconditionFailure in init, which traps
-   * the process and cannot be caught under Swift Testing; disabled so the
-   * scenario count matches the other SDKs. */
-  @Test(.disabled("preconditionFailure traps the process; not catchable"))
-  func whitespaceOnlyKeyIsRejectedAtConstruction() async {
-    _ = ApiKeyAuthenticator(
-      host: "https://api.example.com",
-      keyParamName: "X-API-Key",
-      apiKey: "   ",
-      location: .header
-    )
-  }
-
-  /* CR/LF in the key trips preconditionFailure in init, which traps the
-   * process and cannot be caught under Swift Testing; disabled so the
-   * scenario count matches the other SDKs. */
-  @Test(.disabled("preconditionFailure traps the process; not catchable"))
-  func crlfInQueryKeyIsRejectedAtConstruction() async {
-    _ = ApiKeyAuthenticator(
-      host: "https://api.example.com",
-      keyParamName: "api_key",
-      apiKey: "abc\r\n",
-      location: .query
-    )
+  /* Empty or whitespace-only keys and CR/LF/NUL are rejected at every
+   * location, and RFC 7230 §3.2.6 rejects non-ASCII in a header key: each
+   * with ConfigurationError.invalidArgument, never a trap. */
+  @Test(arguments: [
+    ("", ApiKeyLocation.header),
+    ("   ", ApiKeyLocation.header),
+    ("abc\r\n", ApiKeyLocation.query),
+    ("abc\n", ApiKeyLocation.cookie),
+    ("kéy", ApiKeyLocation.header),
+  ])
+  func invalidKeyIsRejectedAtConstruction(apiKey: String, location: ApiKeyLocation) {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try ApiKeyAuthenticator(
+        host: "https://api.example.com",
+        keyParamName: "X-API-Key",
+        apiKey: apiKey,
+        location: location
+      )
+    }
+    guard case .invalidArgument? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
   }
 }
