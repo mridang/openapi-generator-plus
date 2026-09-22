@@ -12,23 +12,23 @@ from typing import Any, Optional, Type, TypeVar
 T = TypeVar("T")
 
 
-class ZitadelException(Exception):
+class OpenAPIException(Exception):
     """The branded root exception for every error raised by this SDK.
 
     All SDK exceptions -- transport/HTTP errors (:class:`ApiException` and
     its typed subclasses) and serde failures (:class:`SerializationError`)
     -- inherit from this single root, so callers can catch everything with
-    one ``except ZitadelException``.
+    one ``except OpenAPIException``.
     """
 
 
 # Back-compat alias for consumers that still import the historical root
-# name. ``ZitadelException`` is the canonical branded root; this keeps
+# name. ``OpenAPIException`` is the canonical branded root; this keeps
 # ``from <pkg>.errors import OpenApiException`` working unchanged.
-OpenApiException = ZitadelException
+OpenApiException = OpenAPIException
 
 
-class ApiException(ZitadelException):
+class ApiException(OpenAPIException):
     def __init__(
         self,
         status_code: Optional[int] = None,
@@ -82,7 +82,7 @@ class ApiException(ZitadelException):
         if not self.response_body:
             return None
         # Imported lazily so this module stays the foundational one in the
-        # import graph: object_serializer imports ZitadelException from here
+        # import graph: object_serializer imports OpenAPIException from here
         # for SerializationError's base, so we must not import it at module
         # top or the two modules would form an import cycle.
         from petstore_client.object_serializer import ObjectSerializer
@@ -119,7 +119,7 @@ from petstore_client.errors.internal_server_error_exception import (
 )
 
 __all__ = [
-    "ZitadelException",
+    "OpenAPIException",
     "OpenApiException",
     "ApiException",
     "ClientException",

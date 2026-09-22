@@ -41,14 +41,14 @@ void main() {
       const err = ApiError(statusCode: 500, message: 'boom');
 
       expect(err, isA<Exception>());
-      expect(err, isA<ZitadelException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
       expect(err.toString(), isNotEmpty);
     });
 
-    test('is a ZitadelException (branded root)', () {
+    test('is a {{errorPrefix}}Exception (branded root)', () {
       const err = ApiError(statusCode: 500, message: 'boom');
 
-      expect(err, isA<ZitadelException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
       expect(err, isA<Exception>());
     });
 
@@ -90,30 +90,30 @@ void main() {
   });
 
   group('exception hierarchy', () {
-    test('BadRequestError is ClientError, ApiError and ZitadelException', () {
+    test('BadRequestError is ClientError, ApiError and {{errorPrefix}}Exception', () {
       const err = BadRequestError(statusCode: 400, message: 'bad request');
 
       expect(err, isA<BadRequestError>());
       expect(err, isA<ClientError>());
       expect(err, isA<ApiError>());
-      expect(err, isA<ZitadelException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
       expect(err, isA<Exception>());
     });
 
-    test('InternalServerError is ServerError, ApiError and ZitadelException',
+    test('InternalServerError is ServerError, ApiError and {{errorPrefix}}Exception',
         () {
       const err = InternalServerError(statusCode: 500, message: 'boom');
 
       expect(err, isA<ServerError>());
       expect(err, isA<ApiError>());
-      expect(err, isA<ZitadelException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
     });
 
-    test('SerializationError is a ZitadelException', () {
+    test('SerializationError is a {{errorPrefix}}Exception', () {
       const err = SerializationError('nope');
 
       expect(err, isA<SerializationError>());
-      expect(err, isA<ZitadelException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
       expect(err, isA<Exception>());
     });
   });

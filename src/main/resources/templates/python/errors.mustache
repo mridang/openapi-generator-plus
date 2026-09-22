@@ -5,23 +5,23 @@ from typing import Any, Optional, Type, TypeVar
 T = TypeVar('T')
 
 
-class ZitadelException(Exception):
+class {{errorPrefix}}Exception(Exception):
     """The branded root exception for every error raised by this SDK.
 
     All SDK exceptions -- transport/HTTP errors (:class:`ApiException` and
     its typed subclasses) and serde failures (:class:`SerializationError`)
     -- inherit from this single root, so callers can catch everything with
-    one ``except ZitadelException``.
+    one ``except {{errorPrefix}}Exception``.
     """
 
 
 # Back-compat alias for consumers that still import the historical root
-# name. ``ZitadelException`` is the canonical branded root; this keeps
+# name. ``{{errorPrefix}}Exception`` is the canonical branded root; this keeps
 # ``from <pkg>.errors import OpenApiException`` working unchanged.
-OpenApiException = ZitadelException
+OpenApiException = {{errorPrefix}}Exception
 
 
-class ApiException(ZitadelException):
+class ApiException({{errorPrefix}}Exception):
     def __init__(
         self,
         status_code: Optional[int] = None,
@@ -75,7 +75,7 @@ class ApiException(ZitadelException):
         if not self.response_body:
             return None
         # Imported lazily so this module stays the foundational one in the
-        # import graph: object_serializer imports ZitadelException from here
+        # import graph: object_serializer imports {{errorPrefix}}Exception from here
         # for SerializationError's base, so we must not import it at module
         # top or the two modules would form an import cycle.
         from {{packageName}}.object_serializer import ObjectSerializer
@@ -106,7 +106,7 @@ from {{packageName}}.errors.unprocessable_entity_exception import UnprocessableE
 from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
 
 __all__ = [
-    'ZitadelException',
+    '{{errorPrefix}}Exception',
     'OpenApiException',
     'ApiException',
     'ClientException',

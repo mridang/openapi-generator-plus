@@ -13,7 +13,7 @@ import time
 from typing import Dict, Optional
 
 from ...api_client import ApiClient
-from ...errors import ZitadelException
+from ...errors import OpenAPIException
 
 
 class OAuth2TokenManager:
@@ -268,20 +268,20 @@ class OAuth2TokenManager:
         return self._refresh_token
 
 
-class OAuth2TokenError(ZitadelException):
+class OAuth2TokenError(OpenAPIException):
     """Raised when the OAuth2 token endpoint returns a 2xx response whose
     body is missing or contains an empty ``access_token`` field. Distinct
     from :class:`OAuth2ServerError` (which represents RFC 6749 §5.2 error
     responses on 4xx/5xx) so callers can recover differently.
 
     A sibling of :class:`ApiException` under the branded
-    :class:`ZitadelException` root -- it is an OAuth2 token-acquisition
+    :class:`OpenAPIException` root -- it is an OAuth2 token-acquisition
     failure rather than an HTTP-status error, so it does not extend
     ``ApiException``. Callers can still catch every SDK error with one
-    ``except ZitadelException``."""
+    ``except OpenAPIException``."""
 
 
-class OAuth2ServerError(ZitadelException):
+class OAuth2ServerError(OpenAPIException):
     """Typed representation of an RFC 6749 §5.2 OAuth2 error response.
 
     Attributes:

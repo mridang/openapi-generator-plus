@@ -1,13 +1,13 @@
 {{>api_info}}
 
-defmodule {{moduleName}}.Error do
+defmodule {{moduleName}}.{{errorPrefix}}Error do
   @moduledoc """
   Branded grouping for every exception this SDK can raise.
 
   Elixir exceptions are plain `defexception` structs and have no
   inheritance, so there is no literal "root" class the way the
   object-oriented SDKs express it. Instead, membership in the
-  "Zitadel SDK error" family is expressed explicitly and
+  SDK error family is expressed explicitly and
   idiomatically:
 
     * `exceptions/0` returns the canonical list of every SDK
@@ -17,22 +17,22 @@ defmodule {{moduleName}}.Error do
           try do
             {{moduleName}}.SomeApi.some_call(client)
           rescue
-            e in {{moduleName}}.Error.exceptions() ->
-              # `e` is guaranteed to be a Zitadel SDK error
+            e in {{moduleName}}.{{errorPrefix}}Error.exceptions() ->
+              # `e` is guaranteed to be an SDK error
               handle(e)
           end
 
-    * `zitadel_error?/1` is a membership predicate that returns
+    * `{{errorPrefixSnake}}_error?/1` is a membership predicate that returns
       `true` for any SDK exception struct and `false` for anything
       else (including unrelated `RuntimeError`/`ArgumentError`
       raised by the BEAM itself):
 
           rescue
-            e -> if {{moduleName}}.Error.zitadel_error?(e), do: ..., else: reraise(e, __STACKTRACE__)
+            e -> if {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(e), do: ..., else: reraise(e, __STACKTRACE__)
 
   The taxonomy mirrors the object-oriented SDKs:
 
-      Zitadel SDK error  (this grouping)
+      Any SDK error  (this grouping)
        ├─ {{moduleName}}.ApiError  (message, status_code, response_headers,
        │                            response_body, error_body, cause)
        │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
@@ -81,16 +81,16 @@ defmodule {{moduleName}}.Error do
   @doc """
   Returns the canonical list of every exception module this SDK can
   raise. Suitable for use directly in a `rescue e in ... ->` clause
-  to catch any Zitadel SDK error.
+  to catch any SDK error.
   """
   @spec exceptions() :: [module()]
   def exceptions, do: @exceptions
 
   @doc """
-  Returns `true` if `term` is an instance of any Zitadel SDK
-  exception, `false` otherwise.
+  Returns `true` if `term` is an instance of any SDK exception,
+  `false` otherwise.
   """
-  @spec zitadel_error?(term()) :: boolean()
-  def zitadel_error?(%module{}), do: module in @exceptions
-  def zitadel_error?(_term), do: false
+  @spec {{errorPrefixSnake}}_error?(term()) :: boolean()
+  def {{errorPrefixSnake}}_error?(%module{}), do: module in @exceptions
+  def {{errorPrefixSnake}}_error?(_term), do: false
 end

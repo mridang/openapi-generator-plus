@@ -30,10 +30,10 @@ from petstore_client._duration import (
 )
 
 # SerializationError inherits from the branded SDK root so callers can catch
-# every SDK error (transport + serde) with one `except ZitadelException`.
+# every SDK error (transport + serde) with one `except OpenAPIException`.
 # The errors module imports ObjectSerializer lazily (inside a method), so this
 # top-level import does not create a cycle.
-from petstore_client.errors import ZitadelException
+from petstore_client.errors import OpenAPIException
 
 import petstore_client.models
 
@@ -67,7 +67,7 @@ def _dict_adapter(inner: Any) -> TypeAdapter[Any]:
     return cached
 
 
-class SerializationError(ZitadelException):
+class SerializationError(OpenAPIException):
     """Exception raised when serialization or deserialization fails."""
 
     def __init__(self, message: str, cause: Optional[Exception] = None):

@@ -6,7 +6,7 @@ package {{invokerPackage}};
  * Root of the SDK exception hierarchy.
  *
  * <p>Every error the SDK raises ultimately extends this single branded base, so
- * a caller can write one {@code catch ({{invokerPackage}}.ZitadelException e)}
+ * a caller can write one {@code catch ({{invokerPackage}}.{{errorPrefix}}Exception e)}
  * and be certain it covers all SDK-originated failures — API/HTTP errors
  * ({@link ApiException} and its typed subclasses), serialization failures, and
  * OAuth2 token/server errors raised during authentication.
@@ -14,9 +14,12 @@ package {{invokerPackage}};
  * unchecked: callers are never forced to declare or catch SDK exceptions. The
  * chain for a typed HTTP error is, for example:
  * {@code UnauthorizedException → ClientException → ApiException →
- * ZitadelException → RuntimeException}.
+ * {{errorPrefix}}Exception → RuntimeException}.
  */
-public class ZitadelException extends RuntimeException {
+{{! The class name comes from the errorPrefix option, whose default is an }}
+{{! acronym, so Checkstyle's abbreviation rule cannot apply to it. }}
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+public class {{errorPrefix}}Exception extends RuntimeException {
     @java.io.Serial
     private static final long serialVersionUID = 1L;
 
@@ -25,7 +28,7 @@ public class ZitadelException extends RuntimeException {
      *
      * @param message the detail message
      */
-    public ZitadelException(String message) {
+    public {{errorPrefix}}Exception(String message) {
         super(message);
     }
 
@@ -35,7 +38,7 @@ public class ZitadelException extends RuntimeException {
      * @param message the detail message
      * @param cause   the underlying cause
      */
-    public ZitadelException(String message, Throwable cause) {
+    public {{errorPrefix}}Exception(String message, Throwable cause) {
         super(message, cause);
     }
 }

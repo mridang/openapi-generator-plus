@@ -12,7 +12,7 @@ import {
   durationToProtoJson,
   durationFromProtoJson,
 } from "../src/object-serializer.js";
-import { ZitadelError } from "../src/errors/index.js";
+import { OpenAPIError } from "../src/errors/index.js";
 import {
   Category,
   DryFood,
@@ -43,20 +43,20 @@ import { Temporal } from "temporal-polyfill";
 describe("ObjectSerializer", () => {
   describe("unified exception hierarchy", () => {
     // SerializationError and its DeserializationError subclass must extend
-    // the branded ZitadelError root so callers can catch every SDK-originated
+    // the branded OpenAPIError root so callers can catch every SDK-originated
     // error — transport and serde alike — with a single `instanceof
-    // ZitadelError` check.
-    test("SerializationError extends ZitadelError and Error", () => {
+    // OpenAPIError` check.
+    test("SerializationError extends OpenAPIError and Error", () => {
       const err = new SerializationError("boom");
-      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(OpenAPIError);
       expect(err).toBeInstanceOf(Error);
       expect(err.name).toBe("SerializationError");
     });
 
-    test("DeserializationError extends SerializationError and ZitadelError", () => {
+    test("DeserializationError extends SerializationError and OpenAPIError", () => {
       const err = new DeserializationError("boom");
       expect(err).toBeInstanceOf(SerializationError);
-      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(OpenAPIError);
       expect(err).toBeInstanceOf(Error);
       expect(err.name).toBe("DeserializationError");
     });
@@ -1011,7 +1011,7 @@ describe("ObjectSerializer", () => {
     // #4 — `format: duration` is a google.protobuf.Duration. The native
     // type stays Temporal.Duration, but the wire form is protobuf-JSON
     // (a decimal number of seconds suffixed with "s", e.g. "3600s"), NOT
-    // ISO-8601 ("PT1H"). Empirically confirmed against the live Zitadel
+    // ISO-8601 ("PT1H"). Empirically confirmed against a live gRPC-gateway
     // server: "3600s" -> 201, "3600.000000001s" -> 201, "PT1H" -> 400,
     // 3600 -> 400.
     describe("Temporal.Duration (protobuf-JSON)", () => {

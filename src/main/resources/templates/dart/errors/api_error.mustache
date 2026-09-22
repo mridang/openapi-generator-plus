@@ -1,16 +1,16 @@
 {{>api_info}}
 import 'dart:convert';
 
-import 'zitadel_exception.dart';
+import '{{errorPrefixSnake}}_exception.dart';
 
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
 ///
-/// Extends [ZitadelException], the branded root of the exception hierarchy, so
-/// that `apiError is ZitadelException` holds. The typed subclasses
+/// Extends [{{errorPrefix}}Exception], the branded root of the exception hierarchy, so
+/// that `apiError is {{errorPrefix}}Exception` holds. The typed subclasses
 /// ([ClientError], [ServerError] and their leaves) extend [ApiError] and are
-/// therefore [ZitadelException]s as well.
-class ApiError extends ZitadelException {
+/// therefore [{{errorPrefix}}Exception]s as well.
+class ApiError extends {{errorPrefix}}Exception {
   /// The HTTP status code.
   final int statusCode;
 

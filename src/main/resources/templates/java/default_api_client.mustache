@@ -79,7 +79,7 @@ public final class DefaultApiClient implements ApiClient {
      * Intentional all-trusting trust manager. Installed ONLY when the caller
      * explicitly opts out of TLS verification via TransportOptions#verifySsl
      * (false) — the documented curl -k equivalent used against local/dev
-     * Zitadel stacks with self-signed certificates. SpotBugs/find-sec-bugs
+     * servers with self-signed certificates. SpotBugs/find-sec-bugs
      * correctly flags this as a MITM risk in general, but here it is a
      * deliberate, opt-in feature mirrored across all 12 SDKs, so the warning
      * is suppressed on the empty trust-check methods rather than removed.

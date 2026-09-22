@@ -315,7 +315,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("server_configuration.mustache", srcDir, "ServerConfiguration.swift"),
             new SupportingFileSpec("servers.mustache", srcDir, "Servers.swift"),
             new SupportingFileSpec("indirect.mustache", srcDir, "Indirect.swift"),
-            new SupportingFileSpec("errors/zitadel_error.mustache", errorsDir, "ZitadelError.swift"),
+            new SupportingFileSpec("errors/root_error.mustache", errorsDir, rootErrorName("Error") + ".swift"),
             new SupportingFileSpec("api_error.mustache", srcDir, "ApiError.swift"),
             new SupportingFileSpec("errors/client_error.mustache", errorsDir, "ClientError.swift"),
             new SupportingFileSpec("errors/server_error.mustache", errorsDir, "ServerError.swift"),

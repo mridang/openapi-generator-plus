@@ -759,8 +759,8 @@ describe PetstoreClient::ObjectSerializer do
 
   describe 'format: duration round-tripping' do
     # The native surface stays ISO8601::Duration, but the wire form is
-    # protobuf-JSON duration ("3600s") -- the form Zitadel and other
-    # protobuf-derived APIs require. The ISO-8601 form ("PT1H") is rejected.
+    # protobuf-JSON duration ("3600s") -- the form protobuf-derived APIs
+    # require. The ISO-8601 form ("PT1H") is rejected.
     it 'stringify emits protobuf-JSON seconds for an ISO8601::Duration' do
       d = ISO8601::Duration.new('PT1H30M')
       out = PetstoreClient::ObjectSerializer.stringify(d)
@@ -782,7 +782,7 @@ describe PetstoreClient::ObjectSerializer do
     it 'serialize emits protobuf-JSON seconds for a duration field on a model body' do
       # Request-body path: a dry-struct model carrying an ISO8601::Duration
       # field must serialize that field as protobuf-JSON ("3600s"), not the
-      # native ISO-8601 form ("PT1H") which Zitadel rejects. `duration` is
+      # native ISO-8601 form ("PT1H") which protobuf-derived APIs reject. `duration` is
       # intentionally absent from OPENAPI_FORMATS, so this exercises the
       # type-dispatch route through duration_to_protobuf_json rather than
       # apply_format_on_serialize.

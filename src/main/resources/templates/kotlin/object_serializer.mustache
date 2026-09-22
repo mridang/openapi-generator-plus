@@ -547,7 +547,7 @@ internal class ObjectSerializer(
         /* OpenAPI `format: duration` is wire-encoded as a protobuf-JSON
          * google.protobuf.Duration: a decimal second count suffixed with
          * `s` (e.g. "3600s", "3.000000001s", "-1.5s") — NOT ISO-8601.
-         * Zitadel's server validates exactly this grammar
+         * A protobuf-JSON server validates exactly this grammar
          * (`-?\d+(\.\d{1,9})?s`). The fractional part is emitted with 3, 6,
          * or 9 digits (the smallest grouping that preserves every non-zero
          * nanosecond digit). java.time.Duration carries nanosecond precision,
@@ -733,9 +733,9 @@ internal class ObjectSerializer(
  * Declared at the top level (rather than nested inside [ObjectSerializer])
  * so it remains part of the public API even though [ObjectSerializer] itself
  * is internal transport machinery. Catchable by callers alongside the typed
- * [ApiException] hierarchy; both share the branded [ZitadelException] root.
+ * [ApiException] hierarchy; both share the branded [{{errorPrefix}}Exception] root.
  */
-class SerializationException : ZitadelException {
+class SerializationException : {{errorPrefix}}Exception {
     constructor(message: String, cause: Throwable) : super(message, cause)
     constructor(message: String) : super(message)
 }

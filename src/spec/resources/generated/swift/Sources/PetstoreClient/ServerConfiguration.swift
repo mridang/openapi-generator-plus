@@ -31,7 +31,7 @@ public struct ServerVariable: Sendable {
 }
 
 /// An error thrown when a server variable override is not in the allowed enum values.
-public enum ServerConfigurationError: ZitadelError, LocalizedError {
+public enum ServerConfigurationError: OpenAPIError, LocalizedError {
   /// The provided value is not allowed for the given variable.
   case invalidVariableValue(variable: String, value: String, allowed: [String])
 

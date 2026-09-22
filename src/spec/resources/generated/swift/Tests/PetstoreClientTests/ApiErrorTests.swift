@@ -70,32 +70,32 @@ import Testing
     #expect(typed == nil)
   }
 
-  @Test func testApiErrorConformsToZitadelError() {
-    // Branded root: every SDK-thrown error reaches ZitadelError, so a
-    // caller can catch the whole hierarchy with one `as? ZitadelError`.
+  @Test func testApiErrorConformsToOpenAPIError() {
+    // Branded root: every SDK-thrown error reaches OpenAPIError, so a
+    // caller can catch the whole hierarchy with one `as? OpenAPIError`.
     let err: any Error = ApiError(statusCode: 500, message: "boom")
 
-    #expect(err is ZitadelError)
-    #expect(err as? ZitadelError != nil)
+    #expect(err is OpenAPIError)
+    #expect(err as? OpenAPIError != nil)
   }
 
-  @Test func testTypedErrorConformsToApiErrorAndZitadelError() {
+  @Test func testTypedErrorConformsToApiErrorAndOpenAPIError() {
     // A typed HTTP error subclasses ApiError and therefore conforms to
-    // ZitadelError transitively.
+    // OpenAPIError transitively.
     let err: any Error = BadRequestError(statusCode: 400, message: "bad")
 
     #expect(err is ApiError)
-    #expect(err is ZitadelError)
-    #expect(err as? ZitadelError != nil)
+    #expect(err is OpenAPIError)
+    #expect(err as? OpenAPIError != nil)
   }
 
-  @Test func testSerializationErrorConformsToZitadelError() {
+  @Test func testSerializationErrorConformsToOpenAPIError() {
     // The serialization failure value type is branded too, so a single
-    // ZitadelError catch covers transport, HTTP, and (de)serialization.
+    // OpenAPIError catch covers transport, HTTP, and (de)serialization.
     let err: any Error = SerializationError(message: "decode failed")
 
-    #expect(err is ZitadelError)
-    #expect(err as? ZitadelError != nil)
+    #expect(err is OpenAPIError)
+    #expect(err as? OpenAPIError != nil)
   }
 
   @Test func testGetTypedErrorBodyIgnoresExtraneousFields() throws {
@@ -111,10 +111,10 @@ import Testing
     #expect(typed?.name == "Cat")
   }
 
-  @Test func testAuthAndConfigAndDurationErrorsConformToZitadelError() {
+  @Test func testAuthAndConfigAndDurationErrorsConformToOpenAPIError() {
     // INVARIANT: every SDK-thrown error type — including the auth, config,
     // and duration value types that do not subclass ApiError — is branded
-    // with ZitadelError, so a single `as? ZitadelError` catch covers the
+    // with OpenAPIError, so a single `as? OpenAPIError` catch covers the
     // entire surface the SDK can throw.
     let errors: [any Error] = [
       ProtobufDurationError("not a duration"),
@@ -136,8 +136,8 @@ import Testing
     ]
 
     for err in errors {
-      #expect(err is ZitadelError)
-      #expect(err as? ZitadelError != nil)
+      #expect(err is OpenAPIError)
+      #expect(err as? OpenAPIError != nil)
     }
   }
 }

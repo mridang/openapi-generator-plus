@@ -1811,7 +1811,7 @@ components:
         - blue
 
     # Collected real-world shapes that the petstore previously lacked, each of
-    # which broke at least one generator against the Zitadel spec.
+    # which broke at least one generator against a real protobuf-derived spec.
     EdgeCases:
       type: object
       description: >-

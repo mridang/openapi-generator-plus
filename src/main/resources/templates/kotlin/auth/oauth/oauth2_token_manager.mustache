@@ -5,7 +5,7 @@ package {{invokerPackage}}.auth.oauth
 
 import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.ApiHttpResponse
-import {{invokerPackage}}.ZitadelException
+import {{invokerPackage}}.{{errorPrefix}}Exception
 import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -264,7 +264,7 @@ class OAuth2TokenManager {
  * [OAuth2ServerError] (which represents RFC 6749 §5.2 error responses on
  * 4xx/5xx) so callers can recover differently.
  */
-class OAuth2TokenError(message: String) : ZitadelException(message)
+class OAuth2TokenError(message: String) : {{errorPrefix}}Exception(message)
 
 /**
  * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -280,7 +280,7 @@ class OAuth2ServerError(
     val description: String?,
     val uri: String?,
     val rawBody: String,
-) : ZitadelException(buildMessage(statusCode, code, description, rawBody)) {
+) : {{errorPrefix}}Exception(buildMessage(statusCode, code, description, rawBody)) {
     private companion object {
         fun buildMessage(statusCode: Int, code: String?, description: String?, rawBody: String): String =
             when {

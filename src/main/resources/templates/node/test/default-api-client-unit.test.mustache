@@ -617,7 +617,7 @@ describe('cross-origin redirect strips API-key headers', () => {
 {{#hasApiKeyHeaderNames}}
     // The spec's apiKey-in-header scheme names are also stripped; they are
     // derived from the spec at codegen time, so a spec without such schemes
-    // (e.g. Zitadel) renders this block empty and asserts nothing here.
+    // renders this block empty and asserts nothing here.
 {{#apiKeyHeaderNames}}
     expect(lastReceivedHeaders['{{nameLower}}']).toBeUndefined();
 {{/apiKeyHeaderNames}}

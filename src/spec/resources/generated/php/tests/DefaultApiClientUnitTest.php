@@ -678,7 +678,7 @@ test('cross origin redirect strips api key header', function (): void {
      * NOT be present on the follow-up request (cross-origin sensitive-header
      * strip extended to API-key names per 3.1). The header names are derived
      * from the spec's apiKey-in-header security schemes at codegen time, so a
-     * spec without such schemes (e.g. Zitadel) omits this test entirely. */
+     * spec without such schemes omits this test entirely. */
     $hop1 = new MockResponse('', [
         'http_code' => 302,
         'response_headers' => ['Location' => 'https://other.example.com/final'],

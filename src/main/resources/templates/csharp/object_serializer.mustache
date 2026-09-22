@@ -305,7 +305,7 @@ internal class ObjectSerializer
          * any other language SDK. Register the protobuf-JSON duration
          * converter so format:duration values are emitted as
          * "3600s"-style strings matching protobuf's canonical JSON
-         * mapping (the wire format Zitadel's gRPC-gateway expects). */
+         * mapping (the wire format a gRPC-gateway expects). */
         options.Converters.Add(new ProtobufDurationConverter());
         return options;
     }
@@ -555,7 +555,7 @@ internal class ObjectSerializer
 /// language clients, all of which throw an SDK-owned serialization error.
 /// The original native exception is preserved as <see cref="Exception.InnerException"/>.
 /// </summary>
-public class SerializationException : ZitadelException
+public class SerializationException : {{errorPrefix}}Exception
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SerializationException"/> class.
@@ -584,7 +584,7 @@ public class SerializationException : ZitadelException
 /// Serializes <see cref="TimeSpan"/> values as protobuf-JSON duration strings
 /// (the canonical JSON mapping of <c>google.protobuf.Duration</c>) so that
 /// <c>format:duration</c> schema values are accepted by protobuf/gRPC-gateway
-/// backends such as Zitadel. The wire form is a decimal number of seconds
+/// backends. The wire form is a decimal number of seconds
 /// suffixed with <c>s</c> — e.g. <c>"3600s"</c> or <c>"3600.000000001s"</c> —
 /// NOT the ISO-8601 <c>PT1H</c> form (which such servers reject with 400).
 ///

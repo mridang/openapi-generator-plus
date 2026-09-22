@@ -11,14 +11,15 @@ package com.example.petstore;
  * Root of the SDK exception hierarchy.
  *
  * <p>Every error the SDK raises ultimately extends this single branded base, so a caller can write
- * one {@code catch (com.example.petstore.ZitadelException e)} and be certain it covers all
+ * one {@code catch (com.example.petstore.OpenAPIException e)} and be certain it covers all
  * SDK-originated failures — API/HTTP errors ({@link ApiException} and its typed subclasses),
  * serialization failures, and OAuth2 token/server errors raised during authentication. Because the
  * root extends {@link RuntimeException} the whole hierarchy is unchecked: callers are never forced
  * to declare or catch SDK exceptions. The chain for a typed HTTP error is, for example: {@code
- * UnauthorizedException → ClientException → ApiException → ZitadelException → RuntimeException}.
+ * UnauthorizedException → ClientException → ApiException → OpenAPIException → RuntimeException}.
  */
-public class ZitadelException extends RuntimeException {
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+public class OpenAPIException extends RuntimeException {
   @java.io.Serial private static final long serialVersionUID = 1L;
 
   /**
@@ -26,7 +27,7 @@ public class ZitadelException extends RuntimeException {
    *
    * @param message the detail message
    */
-  public ZitadelException(String message) {
+  public OpenAPIException(String message) {
     super(message);
   }
 
@@ -36,7 +37,7 @@ public class ZitadelException extends RuntimeException {
    * @param message the detail message
    * @param cause the underlying cause
    */
-  public ZitadelException(String message, Throwable cause) {
+  public OpenAPIException(String message, Throwable cause) {
     super(message, cause);
   }
 }

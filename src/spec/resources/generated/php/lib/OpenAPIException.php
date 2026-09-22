@@ -19,17 +19,17 @@ use Exception;
  * Root of the SDK exception hierarchy.
  *
  * Every error the SDK raises ultimately extends this single base, so a
- * caller can write one `catch (PetstoreClient\ZitadelException $e)` and
+ * caller can write one `catch (PetstoreClient\OpenAPIException $e)` and
  * be certain it covers all SDK-originated failures — API/HTTP errors
  * ({@see ApiException} and its typed subclasses), serialization failures, and
  * cancellation. This gives PHP the same one-root design the other language
  * clients expose. The chain for a typed HTTP error is, for example:
- * UnauthorizedException → ClientException → ApiException → ZitadelException
+ * UnauthorizedException → ClientException → ApiException → OpenAPIException
  * → \Exception.
  *
  * @category Class
  * @package  PetstoreClient
  */
-class ZitadelException extends Exception
+class OpenAPIException extends Exception
 {
 }

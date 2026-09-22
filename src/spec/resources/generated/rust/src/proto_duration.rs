@@ -9,7 +9,7 @@
 // protobuf-JSON `google.protobuf.Duration` string (e.g. `3600s`, `1.5s`,
 // `3600.000000001s`). chrono's own serde impl encodes `Duration` as
 // integer milliseconds, not a string, so it cannot satisfy a
-// google.protobuf.Duration field. Zitadel's API (and any
+// google.protobuf.Duration field. A protobuf-JSON API (any
 // google.protobuf.Duration field) rejects ISO-8601 durations like `PT1H`,
 // so this module hand-rolls the protobuf-JSON grammar against the stdlib
 // + chrono rather than adding an ISO-8601 crate.

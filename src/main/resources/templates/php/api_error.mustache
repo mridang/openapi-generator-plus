@@ -6,13 +6,13 @@ use Throwable;
 /**
  * Represents an error response from the API.
  *
- * Extends {@see ZitadelException}, the single SDK exception root, so the full
+ * Extends {@see {{errorPrefix}}Exception}, the single SDK exception root, so the full
  * chain for a typed HTTP error reads
- * UnauthorizedException → ClientException → ApiException → ZitadelException
- * → \Exception. A caller catching {@see ZitadelException} therefore catches
+ * UnauthorizedException → ClientException → ApiException → {{errorPrefix}}Exception
+ * → \Exception. A caller catching {@see {{errorPrefix}}Exception} therefore catches
  * every API/HTTP error the SDK throws.
  */
-class ApiException extends ZitadelException
+class ApiException extends {{errorPrefix}}Exception
 {
     /**
      * The HTTP status code.

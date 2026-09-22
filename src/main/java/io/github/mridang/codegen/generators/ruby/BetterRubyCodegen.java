@@ -132,9 +132,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         cliOptions.add(CliOption.newString("apiErrorParent",
                 "Fully-qualified superclass for the generated ApiError, and the SDK-wide "
                         + "error base under which all serialization/HTTP errors are rooted. "
-                        + "Set this to a hand-written base (e.g. a gem's ZitadelError) so a "
-                        + "single `rescue <base>` catches every SDK error. Defaults to "
-                        + "StandardError.")
+                        + "Set this to a hand-written base so a single `rescue <base>` "
+                        + "catches every SDK error. Defaults to a generated "
+                        + "<moduleName>::<errorPrefix>Error root.")
                 .defaultValue(DEFAULT_API_ERROR_PARENT));
     }
 
@@ -313,13 +313,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         // SDK-wide error base. ApiError (and through it the whole HTTP/OAuth
         // error tree) and the serializer errors all subclass this, so a single
         // `rescue <apiErrorParent>` catches every SDK error. When unset, the
-        // generator emits its own branded root `<moduleName>::Error < StandardError`
-        // unconditionally and roots the whole error tree (ApiError,
-        // SerializationError, SchemaMismatchError, OAuth) under it — so callers
-        // can `rescue <moduleName>::Error` to catch HTTP *and* serialization
-        // failures, mirroring the branded root every other SDK provides. An SDK
-        // with a hand-written base (e.g. ZitadelError) points this at that class
-        // so the two roots collapse into one.
+        // generator emits its own branded root
+        // `<moduleName>::<errorPrefix>Error < StandardError` unconditionally and
+        // roots the whole error tree (ApiError, SerializationError,
+        // SchemaMismatchError, OAuth) under it — so callers can rescue that one
+        // class to catch HTTP *and* serialization failures, under the same name
+        // every other SDK gives its root. An SDK with a hand-written base points
+        // this at that class so the two roots collapse into one.
         String apiErrorParent =
                 getPropertyOrDefault("apiErrorParent", DEFAULT_API_ERROR_PARENT);
         final boolean customApiErrorParent =
@@ -327,17 +327,18 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         if (!customApiErrorParent) {
             // No hand-written base supplied: brand our own root rather than
             // leaving the tree at the bare StandardError.
-            apiErrorParent = moduleName + "::Error";
+            apiErrorParent = moduleName + "::" + additionalProperties.get("errorPrefix") + "Error";
         }
         additionalProperties.put("apiErrorParent", apiErrorParent);
 
-        // The error base (whether our branded `<moduleName>::Error` or a custom
+        // The error base (whether our branded `<moduleName>::<errorPrefix>Error` or a custom
         // hand-written class) lives outside the entrypoint's fixed-order requires,
         // so api_error.rb must load it before evaluating `class ApiError < <parent>`.
         // Make api_error.rb self-sufficient with a `require_relative`. The base
         // lives in the same dir as api_error.rb, so the relative file name is the
         // snake_case of the parent's unqualified class name (Zitadel::Client::
-        // ZitadelError -> zitadel_error; PetstoreClient::Error -> error).
+        // ZitadelError -> zitadel_error; PetstoreClient::OpenAPIError ->
+        // open_api_error).
         final int sep = apiErrorParent.lastIndexOf("::");
         final String parentSimpleName =
                 sep < 0 ? apiErrorParent : apiErrorParent.substring(sep + 2);
@@ -396,8 +397,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
 
         // The generator owns the SDK-wide error base file in both cases: the
-        // branded default `<moduleName>::Error` and a custom hand-written base
-        // (e.g. ZitadelError). Emitting it unconditionally guarantees a single
+        // branded default `<moduleName>::<errorPrefix>Error` and a custom
+        // hand-written base (e.g. ZitadelError). Emitting it unconditionally guarantees a single
         // branded root the whole error tree (ApiError, SerializationError,
         // SchemaMismatchError, OAuth) parents under, so one `rescue` catches
         // every SDK error.

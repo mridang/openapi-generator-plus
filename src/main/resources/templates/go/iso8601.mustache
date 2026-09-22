@@ -29,8 +29,8 @@ var protoDurationPattern = regexp.MustCompile(`^-?\d+(\.\d{1,9})?s$`)
 
 // MarshalDurationProtoJSON formats a time.Duration as a protobuf-JSON
 // google.protobuf.Duration string: a decimal number of seconds suffixed
-// with "s", e.g. "3600s", "1.5s", or "3600.000000001s". Zitadel's API
-// (and any google.protobuf.Duration field) rejects ISO-8601 durations
+// with "s", e.g. "3600s", "1.5s", or "3600.000000001s". A protobuf-JSON
+// API (any google.protobuf.Duration field) rejects ISO-8601 durations
 // like "PT1H"; this is the only accepted shape.
 //
 // The fractional part is trimmed to 3, 6, or 9 digits (the smallest width

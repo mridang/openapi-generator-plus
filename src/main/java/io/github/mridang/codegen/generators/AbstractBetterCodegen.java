@@ -98,6 +98,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBetterCodegen.class);
 
+    /** Default {@code errorPrefix}: the root error is OpenAPIException / OpenAPIError. */
+    static final String DEFAULT_ERROR_PREFIX = "OpenAPI";
+
     private final Set<String> globalAuthOperationIds = new HashSet<>();
 
     /** Accumulates Options file metadata across per-tag postProcessOperationsWithModels calls. */
@@ -196,6 +199,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         cliOptions.add(CliOption.newString("clientClassName",
                 "Name of the generated API client class (default: Client).")
                 .defaultValue("Client"));
+        cliOptions.add(CliOption.newString("errorPrefix",
+                "Prefix of the root error type every SDK error descends from. The "
+                        + "language's own suffix is appended, so the default yields "
+                        + "OpenAPIException or OpenAPIError (default: OpenAPI).")
+                .defaultValue(DEFAULT_ERROR_PREFIX));
         cliOptions.add(CliOption.newBoolean("generateTests",
                 "Whether to generate the full test suite — spec-independent unit "
                         + "tests plus the petstore-coupled API/model tests used to "
@@ -504,6 +512,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("generateUnitTests", generateUnitTests);
 
         getPropertyOrDefault("clientClassName", "Client");
+
+        /* The root error type is named from this prefix plus each language's
+           own suffix (OpenAPIException, OpenAPIError), so no one client's name
+           is baked into every SDK. File names and snake/kebab identifiers need
+           the other casings; derive them once here so all twelve agree. The
+           snake form splits an acronym off the word before it: OpenAPI ->
+           open_api, Zitadel -> zitadel. */
+        final String errorPrefix = errorPrefix(getPropertyOrDefault("errorPrefix", DEFAULT_ERROR_PREFIX));
+        additionalProperties.put("errorPrefix", errorPrefix);
+        additionalProperties.put("errorPrefixSnake", NamingConvention.SNAKE_CASE.apply(errorPrefix));
+        additionalProperties.put("errorPrefixKebab", NamingConvention.KEBAB_CASE.apply(errorPrefix));
 
         /* Every package manifest used to declare MIT as a literal, whatever the
            package was actually licensed under — Zitadel's Ruby SDK shipped a
@@ -1315,6 +1334,55 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return base + "ImplicitAuthenticator";
         }
         return base + "Authenticator";
+    }
+
+    /**
+     * The configured root-error prefix in the PascalCase form every language
+     * names a type with: surrounding whitespace dropped and the first letter
+     * capitalised, the rest kept as written so an acronym survives.
+     *
+     * @param configured the {@code errorPrefix} option as supplied
+     * @return the prefix, ready to have a language's error suffix appended
+     */
+    static String errorPrefix(String configured) {
+        final String trimmed = configured.strip();
+        if (trimmed.isEmpty()) {
+            return DEFAULT_ERROR_PREFIX;
+        }
+        return Character.toUpperCase(trimmed.charAt(0)) + trimmed.substring(1);
+    }
+
+    /**
+     * Returns the SDK's root error type name: the {@code errorPrefix} option
+     * followed by {@code suffix}. Only valid once {@link #processOpts()} has
+     * resolved the option.
+     *
+     * @param suffix the language's error suffix, {@code Error} or {@code Exception}
+     * @return the root error type name, e.g. {@code OpenAPIException}
+     */
+    protected String rootErrorName(String suffix) {
+        return additionalProperties.get("errorPrefix") + suffix;
+    }
+
+    /**
+     * Returns the snake_case form of the {@code errorPrefix} option, for file
+     * names and identifiers. Only valid once {@link #processOpts()} has
+     * resolved the option.
+     *
+     * @return the snake_case prefix, e.g. {@code open_api}
+     */
+    protected String errorPrefixSnake() {
+        return (String) Objects.requireNonNull(additionalProperties.get("errorPrefixSnake"));
+    }
+
+    /**
+     * Returns the kebab-case form of the {@code errorPrefix} option, for file
+     * names. Only valid once {@link #processOpts()} has resolved the option.
+     *
+     * @return the kebab-case prefix, e.g. {@code open-api}
+     */
+    protected String errorPrefixKebab() {
+        return (String) Objects.requireNonNull(additionalProperties.get("errorPrefixKebab"));
     }
 
     /**

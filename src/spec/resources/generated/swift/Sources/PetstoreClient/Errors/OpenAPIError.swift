@@ -7,13 +7,13 @@
 
 import Foundation
 
-/// ZitadelError is the branded root of the SDK's error hierarchy.
+/// OpenAPIError is the branded root of the SDK's error hierarchy.
 ///
-/// Every error thrown by the generated SDK conforms to `ZitadelError`, so a
+/// Every error thrown by the generated SDK conforms to `OpenAPIError`, so a
 /// caller can catch any SDK-originated failure with a single
-/// `catch let error as ZitadelError` (or `error is ZitadelError`) without
+/// `catch let error as OpenAPIError` (or `error is OpenAPIError`) without
 /// having to enumerate the concrete error types. It refines Swift's `Error`
 /// and adds no requirements of its own: it is a marker protocol used purely to
 /// brand the hierarchy. Both the `ApiError` class tree (and its typed HTTP
 /// subclasses) and the `SerializationError` value type conform to it.
-public protocol ZitadelError: Error {}
+public protocol OpenAPIError: Error {}

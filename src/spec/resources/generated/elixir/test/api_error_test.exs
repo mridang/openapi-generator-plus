@@ -84,19 +84,19 @@ defmodule PetstoreClient.ApiErrorTest do
     assert body.name == "Cat"
   end
 
-  describe "Zitadel SDK error grouping" do
+  describe "SDK error grouping" do
     test "ApiError, a typed error and the Serialization error are all recognised" do
       api_error = PetstoreClient.ApiError.exception(status_code: 500, message: "boom")
       typed_error = PetstoreClient.Errors.BadRequestError.exception(%{message: "nope"})
       serialization_error = %PetstoreClient.SerializationError{message: "bad json"}
 
-      assert PetstoreClient.Error.zitadel_error?(api_error)
-      assert PetstoreClient.Error.zitadel_error?(typed_error)
-      assert PetstoreClient.Error.zitadel_error?(serialization_error)
+      assert PetstoreClient.OpenAPIError.open_api_error?(api_error)
+      assert PetstoreClient.OpenAPIError.open_api_error?(typed_error)
+      assert PetstoreClient.OpenAPIError.open_api_error?(serialization_error)
     end
 
     test "every SDK exception module is listed in exceptions/0" do
-      modules = PetstoreClient.Error.exceptions()
+      modules = PetstoreClient.OpenAPIError.exceptions()
 
       assert PetstoreClient.ApiError in modules
       assert PetstoreClient.Errors.BadRequestError in modules
@@ -115,15 +115,15 @@ defmodule PetstoreClient.ApiErrorTest do
           e -> e
         end
 
-      assert caught.__struct__ in PetstoreClient.Error.exceptions()
-      assert PetstoreClient.Error.zitadel_error?(caught)
+      assert caught.__struct__ in PetstoreClient.OpenAPIError.exceptions()
+      assert PetstoreClient.OpenAPIError.open_api_error?(caught)
     end
 
     test "non-SDK exceptions are not recognised" do
-      refute PetstoreClient.Error.zitadel_error?(%RuntimeError{message: "unrelated"})
-      refute PetstoreClient.Error.zitadel_error?(%ArgumentError{message: "unrelated"})
-      refute PetstoreClient.Error.zitadel_error?(:not_an_exception)
-      refute PetstoreClient.Error.zitadel_error?(%{message: "plain map"})
+      refute PetstoreClient.OpenAPIError.open_api_error?(%RuntimeError{message: "unrelated"})
+      refute PetstoreClient.OpenAPIError.open_api_error?(%ArgumentError{message: "unrelated"})
+      refute PetstoreClient.OpenAPIError.open_api_error?(:not_an_exception)
+      refute PetstoreClient.OpenAPIError.open_api_error?(%{message: "plain map"})
     end
   end
 end

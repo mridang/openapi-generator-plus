@@ -7,7 +7,7 @@
 
 import { ApiError } from "../src/api-error.js";
 import {
-  ZitadelError,
+  OpenAPIError,
   ClientError,
   BadRequestError,
 } from "../src/errors/index.js";
@@ -45,21 +45,21 @@ describe("ApiError", () => {
       expect(err).toBeInstanceOf(Error);
     });
 
-    test("ApiError extends the branded ZitadelError root", () => {
+    test("ApiError extends the branded OpenAPIError root", () => {
       const err = new ApiError(500, "boom");
-      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(OpenAPIError);
       expect(err).toBeInstanceOf(Error);
     });
   });
 
   describe("unified exception hierarchy", () => {
     // The full extends chain a BadRequestError must satisfy:
-    //   BadRequestError -> ClientError -> ApiError -> ZitadelError -> Error
-    test("a BadRequestError is a ClientError, ApiError, ZitadelError and Error", () => {
+    //   BadRequestError -> ClientError -> ApiError -> OpenAPIError -> Error
+    test("a BadRequestError is a ClientError, ApiError, OpenAPIError and Error", () => {
       const err = new BadRequestError("bad input");
       expect(err).toBeInstanceOf(ClientError);
       expect(err).toBeInstanceOf(ApiError);
-      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(OpenAPIError);
       expect(err).toBeInstanceOf(Error);
       expect(err.statusCode).toBe(400);
       expect(err.name).toBe("BadRequestError");

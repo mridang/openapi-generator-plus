@@ -66,12 +66,12 @@ class ApiExceptionTest {
   @Test
   void isAnUncheckedExceptionWithStatusInMessage() {
     // Unified hierarchy: ApiException extends the branded root
-    // ZitadelException, which extends RuntimeException — so the whole SDK
-    // error tree is unchecked and a single catch on ZitadelException covers
+    // OpenAPIException, which extends RuntimeException — so the whole SDK
+    // error tree is unchecked and a single catch on OpenAPIException covers
     // every API/HTTP failure.
     ApiException ex = new ApiException(500, "boom", null, null);
 
-    assertInstanceOf(ZitadelException.class, ex);
+    assertInstanceOf(OpenAPIException.class, ex);
     assertInstanceOf(RuntimeException.class, ex);
     assertTrue(ex.getMessage().contains("500"));
   }
@@ -111,13 +111,13 @@ class ApiExceptionTest {
     // single catch / assertThrows(ApiException) catches every concrete
     // subtype. The full chain for a 4xx leaf is:
     // BadRequestException → ClientException → ApiException →
-    // ZitadelException → RuntimeException.
+    // OpenAPIException → RuntimeException.
     com.example.petstore.errors.BadRequestException badRequest =
         new com.example.petstore.errors.BadRequestException("bad request", Map.of(), null, null);
 
     assertInstanceOf(com.example.petstore.errors.ClientException.class, badRequest);
     assertInstanceOf(ApiException.class, badRequest);
-    assertInstanceOf(ZitadelException.class, badRequest);
+    assertInstanceOf(OpenAPIException.class, badRequest);
     assertInstanceOf(RuntimeException.class, badRequest);
 
     ApiException caught =
@@ -132,11 +132,11 @@ class ApiExceptionTest {
   @Test
   void serializationExceptionExtendsTheSdkRoot() {
     // The serializer's failure type lives under the same branded root, so a
-    // single catch on ZitadelException covers serialization errors too.
+    // single catch on OpenAPIException covers serialization errors too.
     ObjectSerializer.SerializationException ex =
         new ObjectSerializer.SerializationException("bad json");
 
-    assertInstanceOf(ZitadelException.class, ex);
+    assertInstanceOf(OpenAPIException.class, ex);
     assertInstanceOf(RuntimeException.class, ex);
   }
 }

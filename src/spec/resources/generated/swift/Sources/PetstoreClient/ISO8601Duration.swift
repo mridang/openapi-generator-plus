@@ -8,7 +8,7 @@
 import Foundation
 
 /// ProtobufDurationError signals an invalid protobuf-JSON duration literal.
-public struct ProtobufDurationError: ZitadelError, LocalizedError {
+public struct ProtobufDurationError: OpenAPIError, LocalizedError {
   public let message: String
 
   public init(_ message: String) {

@@ -746,7 +746,7 @@ describe("cross-origin redirect strips API-key headers", () => {
     expect(lastReceivedHeaders["cookie"]).toBeUndefined();
     // The spec's apiKey-in-header scheme names are also stripped; they are
     // derived from the spec at codegen time, so a spec without such schemes
-    // (e.g. Zitadel) renders this block empty and asserts nothing here.
+    // renders this block empty and asserts nothing here.
     expect(lastReceivedHeaders["x-api-key"]).toBeUndefined();
     expect(lastReceivedHeaders["x-internal-key"]).toBeUndefined();
     // Non-sensitive headers should still be forwarded.

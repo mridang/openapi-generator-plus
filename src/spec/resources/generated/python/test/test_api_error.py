@@ -7,7 +7,7 @@ from petstore_client.errors import (
     BadRequestException,
     ClientException,
     OpenApiException,
-    ZitadelException,
+    OpenAPIException,
 )
 from petstore_client.models import Category
 from petstore_client.object_serializer import SerializationError
@@ -53,26 +53,26 @@ class TestApiErrorShape:
 
 class TestExceptionHierarchy:
     def test_typed_error_inherits_through_to_branded_root(self) -> None:
-        # BadRequest -> ClientException -> ApiException -> ZitadelException
+        # BadRequest -> ClientException -> ApiException -> OpenAPIException
         err = BadRequestException(message="bad request")
 
         assert isinstance(err, ClientException)
         assert isinstance(err, ApiException)
-        assert isinstance(err, ZitadelException)
+        assert isinstance(err, OpenAPIException)
         assert issubclass(BadRequestException, ClientException)
         assert issubclass(ClientException, ApiException)
-        assert issubclass(ApiException, ZitadelException)
+        assert issubclass(ApiException, OpenAPIException)
 
     def test_serialization_error_inherits_from_branded_root(self) -> None:
         err = SerializationError("boom")
 
-        assert isinstance(err, ZitadelException)
-        assert issubclass(SerializationError, ZitadelException)
+        assert isinstance(err, OpenAPIException)
+        assert issubclass(SerializationError, OpenAPIException)
 
     def test_open_api_exception_is_branded_root_alias(self) -> None:
         # Back-compat alias: the historical root name resolves to the
         # branded root so existing `import OpenApiException` keeps working.
-        assert OpenApiException is ZitadelException
+        assert OpenApiException is OpenAPIException
 
 
 class TestApiErrorImmutability:

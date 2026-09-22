@@ -20,7 +20,7 @@ module PetstoreClient
   # NOTE: ObjectSerializer is declared first on purpose. Zeitwerk resolves
   # this file to the first constant it declares, so a helper class above
   # this point would take the file's name and leave ObjectSerializer
-  # unreachable — `Zitadel::Client::ObjectSerializer` raised NameError.
+  # unreachable — `PetstoreClient::ObjectSerializer` raised NameError.
   # Handles JSON serialization and deserialization for API requests and responses.
   #
   # All serde operations in the generated client route through this class.
@@ -141,7 +141,7 @@ module PetstoreClient
         value.strftime('%H:%M:%S')
       when ISO8601::Duration
         # format: duration → protobuf-JSON duration ("3600s"), the wire
-        # form Zitadel (and other protobuf-derived APIs) require. The
+        # form protobuf-derived APIs require. The
         # native ISO-8601 #to_s ("PT1H") is rejected by the server.
         duration_to_protobuf_json(value)
       else
@@ -524,7 +524,7 @@ module PetstoreClient
     # Protobuf-JSON encodes durations as total seconds with a trailing
     # "s" — "3600s" or, when sub-second precision is present, fractional
     # seconds trimmed to 3, 6, or 9 digits ("3600.000000001s"). This is
-    # the form Zitadel and other protobuf-derived APIs require; the
+    # the form protobuf-derived APIs require; the
     # native ISO-8601 form ("PT1H") is rejected by the server.
     def self.duration_to_protobuf_json(duration)
       total = duration.to_seconds
@@ -625,7 +625,7 @@ module PetstoreClient
   end
 
   # Exception raised when serialization or deserialization fails.
-  class SerializationError < PetstoreClient::Error
+  class SerializationError < PetstoreClient::OpenAPIError
     attr_reader :cause
     def initialize(message, cause = nil)
       super(message)
@@ -633,7 +633,7 @@ module PetstoreClient
     end
   end
   # Exception raised when data does not match a schema during oneOf/anyOf resolution.
-  class SchemaMismatchError < PetstoreClient::Error; end
+  class SchemaMismatchError < PetstoreClient::OpenAPIError; end
   # Canonical RFC 4122 UUID textual form. Validated on both the
   # deserialize and serialize paths for any `format: uuid` property.
   # Stdlib-only — no `uuid` gem dependency required.

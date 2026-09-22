@@ -10,7 +10,7 @@
 package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
-import com.example.petstore.ZitadelException
+import com.example.petstore.OpenAPIException
 import com.example.petstore.auth.HttpAwareAuthenticator
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -78,7 +78,7 @@ open class OpenIdConnectAuthenticator(
         val response = client.sendRequest("GET", discoveryUrl, headers, null)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw ZitadelException(
+            throw OpenAPIException(
                 "OIDC discovery request failed with status ${response.statusCode}: ${response.body}",
             )
         }
@@ -86,10 +86,10 @@ open class OpenIdConnectAuthenticator(
         val discovery = json.parseToJsonElement(response.body).jsonObject
         val authorizationEndpoint =
             discovery["authorization_endpoint"]?.jsonPrimitive?.content
-                ?: throw ZitadelException("OIDC discovery document missing authorization_endpoint")
+                ?: throw OpenAPIException("OIDC discovery document missing authorization_endpoint")
         val tokenEndpoint =
             discovery["token_endpoint"]?.jsonPrimitive?.content
-                ?: throw ZitadelException("OIDC discovery document missing token_endpoint")
+                ?: throw OpenAPIException("OIDC discovery document missing token_endpoint")
 
         val resolved =
             OAuth2AuthorizationCodeAuthenticator(

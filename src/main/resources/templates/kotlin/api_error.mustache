@@ -6,7 +6,7 @@ package {{invokerPackage}}
 /**
  * Exception thrown when an API call fails.
  */
-open class ApiException : ZitadelException {
+open class ApiException : {{errorPrefix}}Exception {
     val statusCode: Int
     val responseHeaders: Map<String, String>?
     val responseBody: String?

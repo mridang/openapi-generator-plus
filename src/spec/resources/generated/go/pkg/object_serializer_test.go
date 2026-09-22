@@ -20,12 +20,12 @@ import (
 	"petstore/pkg/models"
 )
 
-// Compile-time proof that *SerializationError satisfies the branded ZitadelError
-// root. SerializationError lives in this (main) package while ZitadelError lives
+// Compile-time proof that *SerializationError satisfies the branded OpenAPIError
+// root. SerializationError lives in this (main) package while OpenAPIError lives
 // in the imported errors package; this assertion guarantees the brand spans the
 // package boundary. If SerializationError stops implementing error, the test
 // package fails to compile.
-var _ apierrors.ZitadelError = (*SerializationError)(nil)
+var _ apierrors.OpenAPIError = (*SerializationError)(nil)
 
 func TestSerialize_MapToJSON(t *testing.T) {
 	t.Parallel()
@@ -670,11 +670,11 @@ func TestSerializationError_IsCatchableViaErrorsAs(t *testing.T) {
 	}
 }
 
-// TestSerializationError_SatisfiesZitadelError confirms a real
-// *SerializationError resolves to the branded ZitadelError root at runtime via
+// TestSerializationError_SatisfiesOpenAPIError confirms a real
+// *SerializationError resolves to the branded OpenAPIError root at runtime via
 // errors.As, so callers can treat a serialization failure uniformly alongside
 // ApiError and the typed HTTP errors as "an error this SDK threw".
-func TestSerializationError_SatisfiesZitadelError(t *testing.T) {
+func TestSerializationError_SatisfiesOpenAPIError(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte("not json"), &result)
@@ -682,13 +682,13 @@ func TestSerializationError_SatisfiesZitadelError(t *testing.T) {
 		t.Fatal("expected error for invalid JSON")
 	}
 
-	if _, ok := err.(apierrors.ZitadelError); !ok {
-		t.Errorf("expected *SerializationError to satisfy ZitadelError, got %T", err)
+	if _, ok := err.(apierrors.OpenAPIError); !ok {
+		t.Errorf("expected *SerializationError to satisfy OpenAPIError, got %T", err)
 	}
 
-	var ze apierrors.ZitadelError
+	var ze apierrors.OpenAPIError
 	if !errors.As(err, &ze) {
-		t.Error("expected errors.As to match *SerializationError against ZitadelError")
+		t.Error("expected errors.As to match *SerializationError against OpenAPIError")
 	}
 }
 

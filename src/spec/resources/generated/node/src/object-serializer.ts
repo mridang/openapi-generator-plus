@@ -9,14 +9,14 @@ import "reflect-metadata";
 import { plainToInstance, type ClassConstructor } from "class-transformer";
 import { Temporal } from "temporal-polyfill";
 import * as models from "./models/index.js";
-import { ZitadelError } from "./errors/zitadel-error.js";
+import { OpenAPIError } from "./errors/open-api-error.js";
 
 /**
  * Exception raised when serialization or deserialization fails. Extends the
- * branded {@link ZitadelError} root so it shares a common `instanceof
- * ZitadelError` ancestor with the transport-level {@link ApiError} hierarchy.
+ * branded {@link OpenAPIError} root so it shares a common `instanceof
+ * OpenAPIError` ancestor with the transport-level {@link ApiError} hierarchy.
  */
-export class SerializationError extends ZitadelError {
+export class SerializationError extends OpenAPIError {
   public readonly cause?: Error;
 
   constructor(message: string, cause?: Error) {
@@ -85,7 +85,7 @@ function durationTotalNanos(d: Temporal.Duration): bigint {
  * (https://protobuf.dev/programming-guides/json/): a decimal number of
  * seconds suffixed with `s`, e.g. `"3600s"` or `"3600.000000001s"`.
  *
- * Zitadel (and any google.protobuf.Duration field) rejects ISO-8601
+ * A protobuf-JSON API (any google.protobuf.Duration field) rejects ISO-8601
  * durations like `"PT1H"`; this is the only accepted shape. Computed via
  * BigInt nanosecond arithmetic so large durations do not lose precision,
  * with the fractional part trimmed to 3, 6, or 9 digits (the smallest
@@ -333,8 +333,8 @@ export class ObjectSerializer {
          * 4.8 — `format: time` maps to Temporal.PlainTime and serialises to
          * its canonical ISO 8601 string. `format: duration` maps to
          * Temporal.Duration but must serialise to the protobuf-JSON wire
-         * shape (`"3600s"`, not ISO-8601 `"PT1H"`) — Zitadel and any
-         * google.protobuf.Duration field reject the ISO form. Without these
+         * shape (`"3600s"`, not ISO-8601 `"PT1H"`) — every
+         * google.protobuf.Duration field rejects the ISO form. Without these
          * branches JSON.stringify would emit the polyfill's internal object.
          */
         if (this[_key] instanceof Temporal.PlainTime)
@@ -776,7 +776,7 @@ export class ObjectSerializer {
      * 4.8 — Temporal types. PlainTime emits its canonical ISO 8601 form
      * (e.g. "14:30:00"). Duration emits the protobuf-JSON wire shape
      * (e.g. "3600s") rather than ISO-8601 ("PT15M"); google.protobuf.Duration
-     * fields (Zitadel) accept only the seconds-suffixed form.
+     * fields accept only the seconds-suffixed form.
      */
     if (value instanceof Temporal.PlainTime) {
       return value.toString();

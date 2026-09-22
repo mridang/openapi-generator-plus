@@ -518,7 +518,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "server_configuration.mustache", "pkg", "server_configuration.go"),
                 new SupportingFileSpec("servers.mustache", "pkg", "servers.go"),
                 new SupportingFileSpec(
-                        "errors/zitadel_error.mustache", "pkg/errors", "zitadel_error.go"),
+                        "errors/root_error.mustache", "pkg/errors", errorPrefixSnake() + "_error.go"),
                 new SupportingFileSpec("api_error.mustache", "pkg/errors", "api_error.go"),
                 new SupportingFileSpec(
                         "errors/client_error.mustache", "pkg/errors", "client_error.go"),

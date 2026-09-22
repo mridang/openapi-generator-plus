@@ -9,7 +9,7 @@ from pydantic import BeforeValidator, PlainSerializer
 
 # protobuf-JSON duration strings are an optional-sign integer second count
 # with an optional fractional part of up to nine digits, suffixed with 's'
-# (e.g. "3600s", "3600.000000001s", "-1.5s"). Zitadel's server validates
+# (e.g. "3600s", "3600.000000001s", "-1.5s"). A protobuf-JSON server validates
 # google.protobuf.Duration with exactly this grammar.
 _DURATION_RE = re.compile(r'-?\d+(\.\d{1,9})?s')
 

@@ -23,10 +23,10 @@ from {{packageName}}._duration import (
 )
 
 # SerializationError inherits from the branded SDK root so callers can catch
-# every SDK error (transport + serde) with one `except ZitadelException`.
+# every SDK error (transport + serde) with one `except {{errorPrefix}}Exception`.
 # The errors module imports ObjectSerializer lazily (inside a method), so this
 # top-level import does not create a cycle.
-from {{packageName}}.errors import ZitadelException
+from {{packageName}}.errors import {{errorPrefix}}Exception
 
 import {{packageName}}.models
 
@@ -62,7 +62,7 @@ def _dict_adapter(inner: Any) -> TypeAdapter[Any]:
     return cached
 
 
-class SerializationError(ZitadelException):
+class SerializationError({{errorPrefix}}Exception):
     """Exception raised when serialization or deserialization fails."""
 
     def __init__(self, message: str, cause: Optional[Exception] = None):

@@ -54,6 +54,18 @@ class FixtureVocabularyLeakTest {
     private static final Set<String> DISTINCTIVE_EXTRAS = Set.of("petstore", "swatch", "fido", "doggie");
 
     /**
+     * Names of the clients the generator was developed for.
+     *
+     * <p>The fixture is not the only source of vocabulary that reads as correct
+     * during development: the generator was built alongside real client SDKs,
+     * and a client's name typed into a template ships to every other customer
+     * just as a petstore name does. The root error class was branded
+     * {@code ZitadelException} in every SDK this way. No spec supplies these
+     * words, so they are forbidden outright rather than derived.
+     */
+    private static final Set<String> CLIENT_NAMES = Set.of("zitadel");
+
+    /**
      * Property names the fixture happens to share with the vocabulary of HTTP
      * and OAuth itself.
      *
@@ -79,9 +91,9 @@ class FixtureVocabularyLeakTest {
 
         assertTrue(
                 violations.isEmpty(),
-                "Fixture-spec vocabulary leaked into generated SDKs. Each line is a template\n"
-                        + "literal that ships to every customer, including those whose spec has no\n"
-                        + "such type. Derive the value from the spec instead.\n\n"
+                "Fixture-spec or client-name vocabulary leaked into generated SDKs. Each line\n"
+                        + "is a template literal that ships to every customer, including those whose spec has\n"
+                        + "no such type. Derive the value from the spec or an option instead.\n\n"
                         + String.join("\n", violations));
     }
 
@@ -118,6 +130,7 @@ class FixtureVocabularyLeakTest {
            than leaks. What cannot occur by accident is the fixture's own subject
            matter, so keep the names that spell "pet" plus a few named extras. */
         final Set<String> words = new LinkedHashSet<>(DISTINCTIVE_EXTRAS);
+        words.addAll(CLIENT_NAMES);
         for (final String candidate : candidates) {
             if (lower(candidate).contains("pet")) {
                 words.add(candidate);

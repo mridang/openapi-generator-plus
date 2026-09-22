@@ -12,7 +12,7 @@ package com.example.petstore
 /**
  * Exception thrown when an API call fails.
  */
-open class ApiException : ZitadelException {
+open class ApiException : OpenAPIException {
     val statusCode: Int
     val responseHeaders: Map<String, String>?
     val responseBody: String?

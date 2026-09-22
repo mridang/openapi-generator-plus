@@ -312,11 +312,11 @@ impl std::fmt::Display for OAuth2TokenError {
 
 impl std::error::Error for OAuth2TokenError {}
 
-// Brands this SDK-thrown error as part of the `ZitadelError` hierarchy so a
-// single `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold it alongside
+// Brands this SDK-thrown error as part of the `OpenAPIError` hierarchy so a
+// single `&dyn OpenAPIError` / `Box<dyn OpenAPIError>` can hold it alongside
 // the transport/API errors. The supertrait bounds (Error + Send + Sync) are
 // satisfied by the `impl Error` above and the `String` field.
-impl crate::errors::ZitadelError for OAuth2TokenError {}
+impl crate::errors::OpenAPIError for OAuth2TokenError {}
 
 /// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
 /// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
@@ -384,11 +384,11 @@ impl std::fmt::Display for OAuth2ServerError {
 
 impl std::error::Error for OAuth2ServerError {}
 
-// Brands this SDK-thrown error as part of the `ZitadelError` hierarchy so a
-// single `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold it alongside
+// Brands this SDK-thrown error as part of the `OpenAPIError` hierarchy so a
+// single `&dyn OpenAPIError` / `Box<dyn OpenAPIError>` can hold it alongside
 // the transport/API errors. The supertrait bounds (Error + Send + Sync) are
 // satisfied by the `impl Error` above and the owned scalar/`String` fields.
-impl crate::errors::ZitadelError for OAuth2ServerError {}
+impl crate::errors::OpenAPIError for OAuth2ServerError {}
 
 /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
 /// [`OAuth2ServerError`]. Falls back to a generic error using the raw body

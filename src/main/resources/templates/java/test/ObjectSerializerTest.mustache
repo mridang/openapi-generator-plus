@@ -680,9 +680,9 @@ class ObjectSerializerTest {
     @DisplayName("DurationSerializationTests")
     class DurationSerializationTests {
 
-        {{! Zitadel (protobuf-JSON) requires google.protobuf.Duration's decimal- }}
+        {{! A protobuf-JSON API requires google.protobuf.Duration's decimal- }}
         {{! seconds string form ("3600s", "3600.000000001s"), NOT ISO-8601 or a }}
-        {{! bare number. Confirmed against the live server: "3600s" -> 201, }}
+        {{! bare number. Confirmed against a live gRPC-gateway server: "3600s" -> 201, }}
         {{! "PT1H" -> 400, 3600 -> 400. This applies to BOTH the path/query }}
         {{! stringify() form and the Jackson model/body form. }}
         @Test

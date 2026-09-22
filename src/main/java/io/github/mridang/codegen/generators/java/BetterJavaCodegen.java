@@ -307,7 +307,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("reflect_config.mustache", nativeImageFolder, "reflect-config.json"),
-            new SupportingFileSpec("zitadel_exception.mustache", invokerFolder, "ZitadelException.java"),
+            new SupportingFileSpec("root_exception.mustache", invokerFolder, rootErrorName("Exception") + ".java"),
             new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.java"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.java"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.java"),

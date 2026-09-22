@@ -20,7 +20,7 @@ __all__ = [
     "TransportOptions",
     "ServerConfiguration",
     "ServerVariable",
-    "ZitadelException",
+    "OpenAPIException",
     "OpenApiException",
     "ApiException",
     "ApiResponse",
@@ -70,7 +70,7 @@ from petstore_client.server_configuration import (
     ServerConfiguration as ServerConfiguration,
 )
 from petstore_client.server_configuration import ServerVariable as ServerVariable
-from petstore_client.errors import ZitadelException as ZitadelException
+from petstore_client.errors import OpenAPIException as OpenAPIException
 from petstore_client.errors import OpenApiException as OpenApiException
 from petstore_client.errors import ApiException as ApiException
 

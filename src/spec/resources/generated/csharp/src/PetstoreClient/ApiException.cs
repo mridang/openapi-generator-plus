@@ -12,7 +12,7 @@ namespace PetstoreClient;
 /// <summary>
 /// Exception thrown when an API call fails.
 /// </summary>
-public class ApiException : ZitadelException
+public class ApiException : OpenAPIException
 {
     public int StatusCode { get; }
     public string? ResponseBody { get; }

@@ -101,19 +101,19 @@ public class ApiExceptionTest
         // branded root so one catch covers every SDK-originated failure.
         var ex = new ApiException(500, "boom");
 
-        Assert.IsAssignableFrom<ZitadelException>(ex);
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
         Assert.IsAssignableFrom<Exception>(ex);
     }
 
     [Fact]
     public void TypedClientErrorWalksTheFullChain()
     {
-        // BadRequest → ClientException → ApiException → ZitadelException.
+        // BadRequest → ClientException → ApiException → OpenAPIException.
         var ex = new BadRequestException("bad request");
 
         Assert.IsAssignableFrom<ClientException>(ex);
         Assert.IsAssignableFrom<ApiException>(ex);
-        Assert.IsAssignableFrom<ZitadelException>(ex);
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
         Assert.IsAssignableFrom<Exception>(ex);
         Assert.Equal(400, ex.StatusCode);
     }
@@ -123,7 +123,7 @@ public class ApiExceptionTest
     {
         var ex = new SerializationException("nope");
 
-        Assert.IsAssignableFrom<ZitadelException>(ex);
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
         Assert.IsAssignableFrom<Exception>(ex);
     }
 }

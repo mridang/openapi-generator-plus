@@ -63,32 +63,32 @@ import Testing
         #expect(typed == nil)
     }
 
-    @Test func testApiErrorConformsToZitadelError() {
-        // Branded root: every SDK-thrown error reaches ZitadelError, so a
-        // caller can catch the whole hierarchy with one `as? ZitadelError`.
+    @Test func testApiErrorConformsTo{{errorPrefix}}Error() {
+        // Branded root: every SDK-thrown error reaches {{errorPrefix}}Error, so a
+        // caller can catch the whole hierarchy with one `as? {{errorPrefix}}Error`.
         let err: any Error = ApiError(statusCode: 500, message: "boom")
 
-        #expect(err is ZitadelError)
-        #expect(err as? ZitadelError != nil)
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
     }
 
-    @Test func testTypedErrorConformsToApiErrorAndZitadelError() {
+    @Test func testTypedErrorConformsToApiErrorAnd{{errorPrefix}}Error() {
         // A typed HTTP error subclasses ApiError and therefore conforms to
-        // ZitadelError transitively.
+        // {{errorPrefix}}Error transitively.
         let err: any Error = BadRequestError(statusCode: 400, message: "bad")
 
         #expect(err is ApiError)
-        #expect(err is ZitadelError)
-        #expect(err as? ZitadelError != nil)
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
     }
 
-    @Test func testSerializationErrorConformsToZitadelError() {
+    @Test func testSerializationErrorConformsTo{{errorPrefix}}Error() {
         // The serialization failure value type is branded too, so a single
-        // ZitadelError catch covers transport, HTTP, and (de)serialization.
+        // {{errorPrefix}}Error catch covers transport, HTTP, and (de)serialization.
         let err: any Error = SerializationError(message: "decode failed")
 
-        #expect(err is ZitadelError)
-        #expect(err as? ZitadelError != nil)
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
     }
 
     @Test func testGetTypedErrorBodyIgnoresExtraneousFields() throws {
@@ -104,10 +104,10 @@ import Testing
         #expect(typed?.name == "Cat")
     }
 
-    @Test func testAuthAndConfigAndDurationErrorsConformToZitadelError() {
+    @Test func testAuthAndConfigAndDurationErrorsConformTo{{errorPrefix}}Error() {
         // INVARIANT: every SDK-thrown error type — including the auth, config,
         // and duration value types that do not subclass ApiError — is branded
-        // with ZitadelError, so a single `as? ZitadelError` catch covers the
+        // with {{errorPrefix}}Error, so a single `as? {{errorPrefix}}Error` catch covers the
         // entire surface the SDK can throw.
         let errors: [any Error] = [
             ProtobufDurationError("not a duration"),
@@ -129,8 +129,8 @@ import Testing
         ]
 
         for err in errors {
-            #expect(err is ZitadelError)
-            #expect(err as? ZitadelError != nil)
+            #expect(err is {{errorPrefix}}Error)
+            #expect(err as? {{errorPrefix}}Error != nil)
         }
     }
 }

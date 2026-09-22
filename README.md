@@ -84,6 +84,7 @@ All generators support the following option in the config file:
 | Option | Default | Description |
 |---|---|---|
 | `clientClassName` | `Client` | The name of the main entrypoint class that users instantiate. For example, setting `clientClassName: Zitadel` produces a class named `Zitadel` instead of `Client`. |
+| `errorPrefix` | `OpenAPI` | The prefix of the root error type that every SDK error descends from. Each language appends its own suffix, so the default produces `OpenAPIException` (Java, Kotlin, C#, PHP, Python, Dart) or `OpenAPIError` (Go, Node, Ruby, Rust, Swift, Elixir). For example, setting `errorPrefix: Acme` produces `AcmeException` / `AcmeError`. File names and snake-case identifiers follow the prefix (`acme_error`, `acme-error`). |
 
 ## Configuration
 

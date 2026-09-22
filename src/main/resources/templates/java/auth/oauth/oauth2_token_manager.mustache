@@ -5,7 +5,7 @@ package {{invokerPackage}}.auth.oauth;
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.ApiHttpResponse;
-import {{invokerPackage}}.ZitadelException;
+import {{invokerPackage}}.{{errorPrefix}}Exception;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -300,7 +300,7 @@ public class OAuth2TokenManager {
      * a malformed-server-response bug needs operator attention rather than a
      * client-side retry.
      */
-    public static class OAuth2TokenError extends ZitadelException {
+    public static class OAuth2TokenError extends {{errorPrefix}}Exception {
         @java.io.Serial
         private static final long serialVersionUID = 1L;
 
@@ -323,7 +323,7 @@ public class OAuth2TokenManager {
      * response payload for diagnostics when the body is not a well-formed
      * OAuth2 error object.
      */
-    public static class OAuth2ServerError extends ZitadelException {
+    public static class OAuth2ServerError extends {{errorPrefix}}Exception {
         @java.io.Serial
         private static final long serialVersionUID = 1L;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use PetstoreClient\ApiException;
 use PetstoreClient\CancellationException;
 use PetstoreClient\SerializationException;
-use PetstoreClient\ZitadelException;
+use PetstoreClient\OpenAPIException;
 use PetstoreClient\Models\Category;
 
 test('exposes status code, message, body, headers and error body', function (): void {
@@ -46,47 +46,47 @@ test('is an Exception subclass', function (): void {
     expect($ex->getMessage())->not->toBeEmpty();
 });
 
-test('ApiException extends the SDK root ZitadelException', function (): void {
-    /* One SDK root: ApiException extends ZitadelException, so a single
-     * catch on ZitadelException covers every API/HTTP error. */
+test('ApiException extends the SDK root OpenAPIException', function (): void {
+    /* One SDK root: ApiException extends OpenAPIException, so a single
+     * catch on OpenAPIException covers every API/HTTP error. */
     $ex = new ApiException(500, 'boom');
 
-    expect($ex)->toBeInstanceOf(ZitadelException::class);
+    expect($ex)->toBeInstanceOf(OpenAPIException::class);
     expect($ex)->toBeInstanceOf(Exception::class);
 });
 
-test('a thrown typed error is caught by a ZitadelException catch', function (): void {
+test('a thrown typed error is caught by a OpenAPIException catch', function (): void {
     /* Full chain: UnauthorizedException → ClientException → ApiException
-     * → ZitadelException → \Exception. Catching the root must catch the
+     * → OpenAPIException → \Exception. Catching the root must catch the
      * 401 typed error. */
     $caught = null;
     try {
         throw new \PetstoreClient\Errors\UnauthorizedException('unauthorized');
-    } catch (ZitadelException $e) {
+    } catch (OpenAPIException $e) {
         $caught = $e;
     }
 
     expect($caught)->toBeInstanceOf(\PetstoreClient\Errors\UnauthorizedException::class);
     expect($caught)->toBeInstanceOf(ApiException::class);
-    expect($caught)->toBeInstanceOf(ZitadelException::class);
+    expect($caught)->toBeInstanceOf(OpenAPIException::class);
     expect($caught->getStatusCode())->toBe(401);
 });
 
-test('SerializationException reaches the SDK root ZitadelException', function (): void {
+test('SerializationException reaches the SDK root OpenAPIException', function (): void {
     /* Unified hierarchy: serialization failures must also be catchable via
-     * the single ZitadelException root, not just the native \RuntimeException. */
+     * the single OpenAPIException root, not just the native \RuntimeException. */
     $ex = new SerializationException('serialize failed');
 
-    expect($ex)->toBeInstanceOf(ZitadelException::class);
+    expect($ex)->toBeInstanceOf(OpenAPIException::class);
     expect($ex)->toBeInstanceOf(Exception::class);
 });
 
-test('CancellationException reaches the SDK root ZitadelException', function (): void {
+test('CancellationException reaches the SDK root OpenAPIException', function (): void {
     /* Unified hierarchy: cancellation must also be catchable via the single
-     * ZitadelException root, not just the native \RuntimeException. */
+     * OpenAPIException root, not just the native \RuntimeException. */
     $ex = new CancellationException('operation cancelled');
 
-    expect($ex)->toBeInstanceOf(ZitadelException::class);
+    expect($ex)->toBeInstanceOf(OpenAPIException::class);
     expect($ex)->toBeInstanceOf(Exception::class);
 });
 

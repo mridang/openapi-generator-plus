@@ -19,6 +19,6 @@ namespace PetstoreClient;
  * @category Class
  * @package  PetstoreClient
  */
-final class CancellationException extends ZitadelException
+final class CancellationException extends OpenAPIException
 {
 }

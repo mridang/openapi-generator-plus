@@ -9,7 +9,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../api_client.dart';
-import '../../errors/zitadel_exception.dart';
+import '../../errors/open_api_exception.dart';
 
 /// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and
 /// refreshing.
@@ -279,7 +279,7 @@ class OAuth2TokenManager {
 /// A token-endpoint HTTP error (4xx/5xx) instead throws the sibling
 /// [OAuth2ServerError] (RFC 6749 §5.2), matching the other SDKs where the
 /// two are independent error types.
-class OAuth2TokenError extends ZitadelException {
+class OAuth2TokenError extends OpenAPIException {
   @override
   final String message;
 
@@ -295,7 +295,7 @@ class OAuth2TokenError extends ZitadelException {
 /// human-readable description and a URL to a page describing the error.
 /// [rawBody] preserves the original response payload for diagnostics when
 /// the body is not a well-formed OAuth2 error object.
-class OAuth2ServerError extends ZitadelException {
+class OAuth2ServerError extends OpenAPIException {
   final int statusCode;
   final String? code;
   final String? description;

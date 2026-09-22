@@ -85,19 +85,19 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert body.name == "Cat"
   end
 
-  describe "Zitadel SDK error grouping" do
+  describe "SDK error grouping" do
     test "ApiError, a typed error and the Serialization error are all recognised" do
       api_error = {{moduleName}}.ApiError.exception(status_code: 500, message: "boom")
       typed_error = {{moduleName}}.Errors.BadRequestError.exception(%{message: "nope"})
       serialization_error = %{{moduleName}}.SerializationError{message: "bad json"}
 
-      assert {{moduleName}}.Error.zitadel_error?(api_error)
-      assert {{moduleName}}.Error.zitadel_error?(typed_error)
-      assert {{moduleName}}.Error.zitadel_error?(serialization_error)
+      assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(api_error)
+      assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(typed_error)
+      assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(serialization_error)
     end
 
     test "every SDK exception module is listed in exceptions/0" do
-      modules = {{moduleName}}.Error.exceptions()
+      modules = {{moduleName}}.{{errorPrefix}}Error.exceptions()
 
       assert {{moduleName}}.ApiError in modules
       assert {{moduleName}}.Errors.BadRequestError in modules
@@ -116,15 +116,15 @@ defmodule {{moduleName}}.ApiErrorTest do
           e -> e
         end
 
-      assert caught.__struct__ in {{moduleName}}.Error.exceptions()
-      assert {{moduleName}}.Error.zitadel_error?(caught)
+      assert caught.__struct__ in {{moduleName}}.{{errorPrefix}}Error.exceptions()
+      assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(caught)
     end
 
     test "non-SDK exceptions are not recognised" do
-      refute {{moduleName}}.Error.zitadel_error?(%RuntimeError{message: "unrelated"})
-      refute {{moduleName}}.Error.zitadel_error?(%ArgumentError{message: "unrelated"})
-      refute {{moduleName}}.Error.zitadel_error?(:not_an_exception)
-      refute {{moduleName}}.Error.zitadel_error?(%{message: "plain map"})
+      refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%RuntimeError{message: "unrelated"})
+      refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%ArgumentError{message: "unrelated"})
+      refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(:not_an_exception)
+      refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%{message: "plain map"})
     end
   end
 end

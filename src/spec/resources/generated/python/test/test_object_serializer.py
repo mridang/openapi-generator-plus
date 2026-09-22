@@ -685,7 +685,7 @@ class TestTimeFormat:
 class TestDurationFormat:
     """4.8: ``format: duration`` round-trips through ``datetime.timedelta``
     using the protobuf-JSON duration grammar (``-?\\d+(\\.\\d{1,9})?s``).
-    Zitadel validates google.protobuf.Duration, so the wire form is a
+    A protobuf-JSON API validates google.protobuf.Duration, so the wire form is a
     decimal second count with an ``s`` suffix, not ISO-8601."""
 
     def test_stringify_simple_duration(self) -> None:
@@ -738,8 +738,8 @@ class TestDurationFormat:
         assert parsed == original
 
     def test_iso8601_duration_is_rejected(self) -> None:
-        # ISO-8601 durations are not valid protobuf-JSON and Zitadel
-        # rejects them with 400; surface the mismatch as a ValueError.
+        # ISO-8601 durations are not valid protobuf-JSON and a protobuf-JSON
+        # API rejects them with 400; surface the mismatch as a ValueError.
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize("PT1H", "datetime.timedelta")
 
@@ -753,7 +753,7 @@ class TestModelDurationField:
     """4.8 (model level): a pydantic model carrying a ``format: duration``
     field must itself emit the protobuf-JSON wire form. The request *body*
     is a pydantic model serialized via ``model_dump_json``; pydantic's own
-    default would emit ISO-8601 ("PT1H"), which Zitadel rejects with 400.
+    default would emit ISO-8601 ("PT1H"), which protobuf-JSON APIs reject with 400.
     The ``ProtobufDuration`` annotated alias forces "3600s" on the model
     path too, so these tests guard the path that the helper-only tests above
     do not cover."""

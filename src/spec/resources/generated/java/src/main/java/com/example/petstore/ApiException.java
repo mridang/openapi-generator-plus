@@ -11,7 +11,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /** Exception thrown when an API call fails. */
-public class ApiException extends ZitadelException {
+public class ApiException extends OpenAPIException {
   @java.io.Serial private static final long serialVersionUID = 1L;
 
   /** The HTTP status code. */

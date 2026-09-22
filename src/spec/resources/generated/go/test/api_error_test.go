@@ -19,23 +19,23 @@ import (
 )
 
 // Compile-time proof that every SDK-thrown error type satisfies the branded
-// ZitadelError root. Go has no inheritance, so the hierarchy is expressed
+// OpenAPIError root. Go has no inheritance, so the hierarchy is expressed
 // through interface conformance: *ApiError and the typed 4xx/5xx subclasses
 // (which embed ApiError) plus *SerializationError all implement error and
-// therefore ZitadelError. If any of these stops satisfying the brand, the
+// therefore OpenAPIError. If any of these stops satisfying the brand, the
 // package fails to compile rather than failing a test at runtime.
 var (
-	_ apierrors.ZitadelError = (*apierrors.ApiError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.ClientError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.ServerError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.BadRequestError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.UnauthorizedError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.ForbiddenError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.NotFoundError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.ConflictError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.UnprocessableEntityError)(nil)
-	_ apierrors.ZitadelError = (*apierrors.InternalServerError)(nil)
-	_ apierrors.ZitadelError = (*petstore.SerializationError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.ApiError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.ClientError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.ServerError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.BadRequestError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.UnauthorizedError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.ForbiddenError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.NotFoundError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.ConflictError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.UnprocessableEntityError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.InternalServerError)(nil)
+	_ apierrors.OpenAPIError = (*petstore.SerializationError)(nil)
 )
 
 func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
@@ -216,19 +216,19 @@ func TestApiError_TypedFactoryProducesSubclassesWithSharedState(t *testing.T) {
 	}
 }
 
-// TestApiError_SatisfiesZitadelError confirms a plain *ApiError is recognised as
+// TestApiError_SatisfiesOpenAPIError confirms a plain *ApiError is recognised as
 // the branded root, both by direct assertion and via errors.As.
-func TestApiError_SatisfiesZitadelError(t *testing.T) {
+func TestApiError_SatisfiesOpenAPIError(t *testing.T) {
 	t.Parallel()
 	var err error = apierrors.NewApiError(500, "boom", "", nil, nil, nil)
 
-	if _, ok := err.(apierrors.ZitadelError); !ok {
-		t.Errorf("expected *ApiError to satisfy ZitadelError, got %T", err)
+	if _, ok := err.(apierrors.OpenAPIError); !ok {
+		t.Errorf("expected *ApiError to satisfy OpenAPIError, got %T", err)
 	}
 
-	var ze apierrors.ZitadelError
+	var ze apierrors.OpenAPIError
 	if !errors.As(err, &ze) {
-		t.Error("expected errors.As to match *ApiError against ZitadelError")
+		t.Error("expected errors.As to match *ApiError against OpenAPIError")
 	}
 
 	var apiErr *apierrors.ApiError
@@ -237,22 +237,22 @@ func TestApiError_SatisfiesZitadelError(t *testing.T) {
 	}
 }
 
-// TestTypedError_SatisfiesZitadelErrorAndApiError confirms a typed 4xx/5xx error
-// is matchable as ZitadelError and as the specific typed error through
+// TestTypedError_SatisfiesOpenAPIErrorAndApiError confirms a typed 4xx/5xx error
+// is matchable as OpenAPIError and as the specific typed error through
 // errors.As, and — because it embeds ApiError — promotes the ApiError getters.
 // This preserves how consumers currently narrow typed errors while adding the
 // branded root.
-func TestTypedError_SatisfiesZitadelErrorAndApiError(t *testing.T) {
+func TestTypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewTypedApiError(404, "missing", `{"k":"v"}`, nil, nil, nil)
 
-	if _, ok := err.(apierrors.ZitadelError); !ok {
-		t.Errorf("expected typed error to satisfy ZitadelError, got %T", err)
+	if _, ok := err.(apierrors.OpenAPIError); !ok {
+		t.Errorf("expected typed error to satisfy OpenAPIError, got %T", err)
 	}
 
-	var ze apierrors.ZitadelError
+	var ze apierrors.OpenAPIError
 	if !errors.As(err, &ze) {
-		t.Error("expected errors.As to match *NotFoundError against ZitadelError")
+		t.Error("expected errors.As to match *NotFoundError against OpenAPIError")
 	}
 
 	var notFound *apierrors.NotFoundError
@@ -270,6 +270,6 @@ func TestTypedError_SatisfiesZitadelErrorAndApiError(t *testing.T) {
 
 // The *SerializationError type lives in the main package and is constructed
 // internally (unexported constructor), so it cannot be instantiated from this
-// black-box test. Its ZitadelError conformance is proven at compile time by the
+// black-box test. Its OpenAPIError conformance is proven at compile time by the
 // var block above, and exercised at runtime via errors.As in the white-box
 // object_serializer_test.go where a real *SerializationError is available.
