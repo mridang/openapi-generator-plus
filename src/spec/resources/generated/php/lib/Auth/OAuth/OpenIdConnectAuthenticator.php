@@ -14,8 +14,20 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth\OAuth;
 
 use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\BaseAuthenticator;
 use PetstoreClient\Auth\HttpAwareAuthenticator;
+use PetstoreClient\Errors\BadRequestException;
+use PetstoreClient\Errors\ClientException;
+use PetstoreClient\Errors\ConflictException;
+use PetstoreClient\Errors\ForbiddenException;
+use PetstoreClient\Errors\InternalServerErrorException;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ServerException;
+use PetstoreClient\Errors\UnauthorizedException;
+use PetstoreClient\Errors\UnprocessableEntityException;
+use PetstoreClient\SerializationException;
 
 /**
  * Authenticator for OpenID Connect.
@@ -105,7 +117,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
      * @return OAuth2AuthorizationCodeAuthenticator the delegate
      *
      * @throws \LogicException if the API client has not been injected
-     * @throws \RuntimeException if discovery fails
+     * @throws ApiException if the discovery request fails or returns a non-2xx status
+     * @throws SerializationException if the discovery document is unusable
      */
     private function getDelegate(): OAuth2AuthorizationCodeAuthenticator
     {
@@ -124,6 +137,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             );
         }
 
+        /* Discovery is an HTTP call like any other: a transport failure
+         * propagates unchanged as NetworkException / NetworkTimeoutException. */
         $response = $this->apiClient->sendRequest(
             'GET',
             $this->openIdConnectUrl,
@@ -132,13 +147,13 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         );
 
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            throw new \RuntimeException(
-                'Failed to fetch OpenID Connect discovery document: HTTP ' . $response->statusCode
-            );
+            throw self::statusError($response, $this->openIdConnectUrl);
         }
 
-        /** @var array{authorization_endpoint?: string, token_endpoint?: string} $discovery */
         $discovery = json_decode($response->body, true);
+        if (!is_array($discovery)) {
+            throw new SerializationException('OIDC discovery document is not a JSON object');
+        }
 
         /* Reject a malformed/partial discovery document before building the
          * delegate: an absent/null/empty authorization_endpoint or
@@ -147,11 +162,11 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
          * SDKs which fail loudly here. */
         $authorizationEndpoint = $discovery['authorization_endpoint'] ?? null;
         if (!is_string($authorizationEndpoint) || $authorizationEndpoint === '') {
-            throw new \RuntimeException('OIDC discovery document is missing authorization_endpoint');
+            throw new SerializationException('OIDC discovery document is missing authorization_endpoint');
         }
         $tokenEndpoint = $discovery['token_endpoint'] ?? null;
         if (!is_string($tokenEndpoint) || $tokenEndpoint === '') {
-            throw new \RuntimeException('OIDC discovery document is missing token_endpoint');
+            throw new SerializationException('OIDC discovery document is missing token_endpoint');
         }
 
         $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
@@ -167,6 +182,31 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         $this->discoveryExpiry = time() + $this->parseMaxAge($response->headers);
 
         return $this->delegate;
+    }
+
+    /**
+     * Map a non-2xx discovery response to the ApiException subclass for its
+     * status, exactly as an API operation would.
+     */
+    private static function statusError(ApiHttpResponse $response, string $url): ApiException
+    {
+        $code = $response->statusCode;
+        $message = "OpenID Connect discovery request to $url failed with HTTP status $code";
+        $headers = $response->headers;
+        $body = $response->body;
+
+        return match (true) {
+            $code === 400 => new BadRequestException($message, $headers, $body),
+            $code === 401 => new UnauthorizedException($message, $headers, $body),
+            $code === 403 => new ForbiddenException($message, $headers, $body),
+            $code === 404 => new NotFoundException($message, $headers, $body),
+            $code === 409 => new ConflictException($message, $headers, $body),
+            $code === 422 => new UnprocessableEntityException($message, $headers, $body),
+            $code === 500 => new InternalServerErrorException($message, $headers, $body),
+            $code >= 400 && $code < 500 => new ClientException($code, $message, $headers, $body),
+            $code >= 500 => new ServerException($code, $message, $headers, $body),
+            default => new ApiException($code, $message, $headers, $body),
+        };
     }
 
     /**

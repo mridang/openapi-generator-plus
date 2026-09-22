@@ -281,7 +281,10 @@ test('psr18 https to http downgrade refuses body replay on 307', function (): vo
     $client = newPsr18Client($stub, $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(ApiException::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(307);
+        });
 });
 
 test('psr18 N1 302 https to http downgrade with body proceeds as get', function (): void {
@@ -307,7 +310,10 @@ test('psr18 exceeding max redirects throws', function (): void {
     $client = newPsr18Client(new StubPsr18Client(...$loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(ApiException::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(302);
+        });
 });
 
 test('psr18 redirect to non http scheme throws', function (): void {
@@ -318,16 +324,21 @@ test('psr18 redirect to non http scheme throws', function (): void {
     $client = newPsr18Client($stub, $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(ApiException::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(302);
+        });
 });
 
-test('psr18 send after close throws api exception', function (): void {
+test('psr18 send after close throws logic exception', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, 'ok'));
     $client = newPsr18Client($stub);
     $client->close();
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
-        ->toThrow(ApiException::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\LogicException::class);
+        });
 });
 
 test('psr18 transport failure raises NetworkException', function (): void {
@@ -390,7 +401,11 @@ test('psr18 AL content-encoding gzip lie with plaintext body surfaces ApiExcepti
     $client = newPsr18Client($stub);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/lie', [], null))
-        ->toThrow(ApiException::class);
+        ->toThrow(function (\Exception $e): void {
+            // A response did arrive: ApiException with the real status, never NetworkException.
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(200);
+        });
 });
 
 test('psr18 multipart png file gets image png content type', function (): void {

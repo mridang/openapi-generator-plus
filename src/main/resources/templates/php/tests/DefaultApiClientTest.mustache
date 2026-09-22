@@ -152,7 +152,10 @@ test('times out on slow endpoint', function (): void {
     $client = new DefaultApiClient($transport);
 
     expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null))
-        ->toThrow(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkException::class);
+        });
 });
 
 // -- User-Agent header --
@@ -491,7 +494,7 @@ test('multipart field name with crlf rejected on string value', function (): voi
     $badFields = ["name\r\nInjected: yes" => 'string-value'];
 
     expect(fn () => $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $badFields))
-        ->toThrow(\Exception::class);
+        ->toThrow(\InvalidArgumentException::class);
 });
 
 // -- HTTP compression --
@@ -569,14 +572,13 @@ test('post with null body sends content length zero', function (): void {
 // -- Client lifecycle (Gap T6) --
 
 // Gap T6: close() releases the underlying HTTP client and is idempotent.
-// Once closed, any subsequent sendRequest() must raise the SDK-typed
-// ApiException (closed-flag guard), giving a uniform use-after-close
-// contract across SDKs.
+// Once closed, any subsequent sendRequest() is a wrong call order and must
+// raise \LogicException (closed-flag guard), not an SDK error.
 test('close releases underlying client', function (): void {
     $client = new DefaultApiClient();
     $client->close();
     $client->close();
 
     expect(fn () => $client->sendRequest('GET', 'https://example.com', [], null))
-        ->toThrow(\{{invokerPackage}}\ApiException::class, 'closed');
+        ->toThrow(\LogicException::class, 'closed');
 });

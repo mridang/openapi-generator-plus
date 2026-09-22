@@ -57,8 +57,12 @@ test('override not in enum is rejected', function (): void {
         ],
     );
 
+    // A server variable outside its enum is a caller mistake, not an SDK error.
     expect(fn () => $server->getUrl(['env' => 'invalid']))
-        ->toThrow(\InvalidArgumentException::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\InvalidArgumentException::class);
+            expect($e)->not->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+        });
 });
 
 test('unconstrained variable accepts any override', function (): void {

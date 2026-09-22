@@ -25,6 +25,7 @@ import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -687,6 +688,27 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 new OAuthTestFileSpec("tests/OpenIdConnectAuthenticatorTest.mustache", "tests", "OpenIdConnectAuthenticatorTest.php", OAuthTestCondition.OIDC));
     }
 
+    /**
+     * Registers the shared auth files, then gives each OAuth2 exception its
+     * own file: PSR-4 autoloads a class only from a file named after it, so
+     * a class declared alongside {@code OAuth2TokenManager} could not be
+     * loaded until the token manager itself had been.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_token_exception.mustache",
+                    getOAuthDir(),
+                    "OAuth2TokenException.php"));
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_server_exception.mustache",
+                    getOAuthDir(),
+                    "OAuth2ServerException.php"));
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getAuthDir() {
@@ -1197,8 +1219,96 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 (Map<String, Object>) processed.get("operations");
         if (processedOps != null) {
             processed.put("hasServerTypeDefs", processedOps.get("hasServerTypeDefs"));
+            final List<Map<String, Object>> serverTypeDefs =
+                    (List<Map<String, Object>>) processedOps.get("serverTypeDefs");
+            if (serverTypeDefs != null) {
+                writeServerTypeFiles(serverTypeDefs);
+            }
         }
         return processed;
+    }
+
+    /**
+     * Writes each per-operation server class, server-variable enum and
+     * server variant into its own file named after the class. PSR-4 loads a
+     * class only from a file named after it, so a class declared inside the
+     * API group's file could not be loaded before the API class itself.
+     */
+    @SuppressWarnings("unchecked")
+    private void writeServerTypeFiles(List<Map<String, Object>> serverTypeDefs) {
+        for (final Map<String, Object> typeDef : serverTypeDefs) {
+            final String serverTypeName = String.valueOf(typeDef.get("serverTypeName"));
+            writePhpClassFile(apiFileFolder(), serverTypeName, "api/server_type.mustache",
+                    new HashMap<>(typeDef));
+            final List<Map<String, Object>> variants =
+                    (List<Map<String, Object>>) typeDef.get("variants");
+            if (variants == null) {
+                continue;
+            }
+            for (final Map<String, Object> variant : variants) {
+                final List<Map<String, Object>> vars =
+                        (List<Map<String, Object>>) variant.get("serverVariables");
+                if (vars != null) {
+                    for (final Map<String, Object> var : vars) {
+                        if (Boolean.TRUE.equals(var.get("hasEnumValues"))) {
+                            final Map<String, Object> ctx = new HashMap<>(var);
+                            ctx.put("serverTypeName", serverTypeName);
+                            writePhpClassFile(apiFileFolder(),
+                                    serverTypeName + var.get("pascalName"),
+                                    "api/server_variable_enum.mustache", ctx);
+                        }
+                    }
+                }
+                final Map<String, Object> ctx = new HashMap<>(variant);
+                ctx.put("serverTypeName", serverTypeName);
+                writePhpClassFile(apiFileFolder(),
+                        serverTypeName + variant.get("variantName"),
+                        "api/server_variant.mustache", ctx);
+            }
+        }
+    }
+
+    /**
+     * Renders each inline (property-level) enum of every model into its own
+     * file named after the enum. PSR-4 loads a class only from a file named
+     * after it, so an enum declared inside its model's file could not be
+     * referenced before the model itself had been loaded.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model == null || model.isEnum || model.vars == null) {
+                continue;
+            }
+            for (final CodegenProperty var : model.vars) {
+                if (!var.isEnum || var.allowableValues == null) {
+                    continue;
+                }
+                final String enumClassName = model.classname + var.enumName;
+                final Map<String, Object> ctx = new HashMap<>();
+                ctx.put("modelPackage", modelPackage);
+                ctx.put("modelClassname", model.classname);
+                ctx.put("baseName", var.baseName);
+                ctx.put("enumClassName", enumClassName);
+                ctx.put("backingType", var.isInteger || var.isLong ? "int" : "string");
+                ctx.put("enumVars", var.allowableValues.get("enumVars"));
+                writePhpClassFile(modelFileFolder(), enumClassName,
+                        "models/inline_enum.mustache", ctx);
+            }
+        }
+        return result;
+    }
+
+    /** Renders {@code template} with {@code ctx} into {@code folder/className.php}. */
+    private void writePhpClassFile(
+            String folder, String className, String template, Map<String, Object> ctx) {
+        ctx.putIfAbsent("apiPackage", apiPackage);
+        ctx.putIfAbsent("modelPackage", modelPackage);
+        final String filePath = Path.of(folder, className + ".php").toString();
+        writeFile(filePath, renderOptionsTemplate(template, ctx));
+        postProcessFile(Path.of(filePath).toFile(), "source");
     }
 
     /**

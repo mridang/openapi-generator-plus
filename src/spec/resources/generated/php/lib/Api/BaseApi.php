@@ -170,6 +170,14 @@ class BaseApi
         TraceContextUtil::injectTraceContext($headers);
 
         $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);
+        if ($serializedBody === null) {
+            /* No body means no entity: never announce a Content-Type for it. */
+            foreach (array_keys($headers) as $name) {
+                if (strtolower((string) $name) === 'content-type') {
+                    unset($headers[$name]);
+                }
+            }
+        }
 
         $response = $this->apiClient->sendRequest($method, $url, $headers, $serializedBody);
 
@@ -188,10 +196,16 @@ class BaseApi
                 }
             }
 
-            $isBinary = $respContentType !== null
+            $isNonJson = $respContentType !== null
                 && !$this->headerSelector->isJsonMime($respContentType);
 
-            if ($isBinary) {
+            if ($isNonJson && self::isTextMediaType((string) $respContentType)) {
+                /* A text response (text/plain, XML, ...) crosses the
+                 * transport as its decoded string, never base64: hand it
+                 * back unchanged. Base64-decoding it would corrupt any text
+                 * that happens to be valid base64 ("hello world"). */
+                $data = $response->body;
+            } elseif ($isNonJson) {
                 /* The transport (DefaultApiClient) base64-encodes every
                  * non-text response body so it survives transit as a UTF-8
                  * string. A binary operation's return type is the raw byte
@@ -201,10 +215,8 @@ class BaseApi
                  * when return_type == 'bytes'). Strict decoding rejects any
                  * non-base64 input; if a test server wrote raw bytes instead
                  * of base64 (so strict decode returns false), fall back to
-                 * the untouched body. No non-binary text response reaches
-                 * this branch — every non-JSON producible content type in the
-                 * surface is image/* or application/octet-stream — so the
-                 * decode can never corrupt a legitimate text/plain payload. */
+                 * the untouched body. Text responses are handled above, so
+                 * the decode never touches a text/plain payload. */
                 $decoded = base64_decode($response->body, true);
                 $data = $decoded === false ? $response->body : $decoded;
             } elseif ($returnType !== null) {
@@ -257,6 +269,20 @@ class BaseApi
             $returnType,
             $auth
         )->data;
+    }
+
+    /**
+     * Whether a response media type is text the transport hands over as a
+     * decoded string (the same rule the transport uses), as opposed to a
+     * binary body it base64-encodes.
+     */
+    private static function isTextMediaType(string $mediaType): bool
+    {
+        $mediaType = strtolower($mediaType);
+        return str_starts_with($mediaType, 'text/')
+            || in_array($mediaType, ['application/json', 'application/xml', 'application/javascript'], true)
+            || str_ends_with($mediaType, '+json')
+            || str_ends_with($mediaType, '+xml');
     }
 
     /**

@@ -10,7 +10,6 @@
  */
 
 declare(strict_types=1);
-/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 

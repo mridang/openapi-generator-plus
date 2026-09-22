@@ -173,7 +173,12 @@ test('throws before exchange code called', function (): void {
     );
     $authenticator->setApiClient($client);
 
-    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\LogicException::class);
+    // Asking for a token before the code was exchanged is a wrong call
+    // order: exactly the built-in \LogicException.
+    expect(fn () => $authenticator->getAuthHeaders())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\LogicException::class);
+        });
 });
 
 test('auth code get host returns configured host', function (): void {
@@ -255,8 +260,7 @@ test('authorize url with existing query string uses ampersand separator', functi
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-function testRedactsSecret(): void
-{
+test('print_r() redacts the secret and shows ***', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -271,4 +275,4 @@ function testRedactsSecret(): void
 
     expect($printR)->not->toContain('my-client-secret');
     expect($printR)->toContain('***');
-}
+});

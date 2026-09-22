@@ -210,8 +210,10 @@ test('not found hierarchy', function (): void {
         );
         test()->fail('Expected exception not thrown');
     } catch (NotFoundException $e) {
+        expect($e::class)->toBe(NotFoundException::class);
         expect($e)->toBeInstanceOf(ClientException::class);
         expect($e)->toBeInstanceOf(ApiException::class);
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
     }
 });
 
@@ -229,8 +231,10 @@ test('internal server error hierarchy', function (): void {
         );
         test()->fail('Expected exception not thrown');
     } catch (InternalServerErrorException $e) {
+        expect($e::class)->toBe(InternalServerErrorException::class);
         expect($e)->toBeInstanceOf(ServerException::class);
         expect($e)->toBeInstanceOf(ApiException::class);
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
     }
 });
 
@@ -243,7 +247,7 @@ test('deserializes json response', function (): void {
         null,
         ['application/json'],
         'application/json',
-        'array'
+        'object'
     );
     expect($result)->toBeArray();
     expect($result['method'])->toBe('GET');
@@ -302,7 +306,7 @@ test('forwards auth headers', function (): void {
         null,
         ['application/json'],
         'application/json',
-        'array',
+        'object',
         $auth
     );
     expect($result)->toBeArray();
@@ -510,7 +514,7 @@ test('serializes json body', function (): void {
         ['key' => 'value'],
         ['application/json'],
         'application/json',
-        'array'
+        'object'
     );
     expect($result)->toBeArray();
     /** @var array<string, mixed> $parsedBody */
@@ -734,7 +738,7 @@ test('deserializes vendor json mime types', function (): void {
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
     $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/json'], 'application/json', 'array');
+        ['application/json'], 'application/json', 'object');
     expect($result)->toBeArray();
     expect($result['title'])->toBe('Not Found');
 });
@@ -789,7 +793,7 @@ test('empty content type defaults to json', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('GET', '/test/echo', [], [], null,
+    $testApi->call('POST', '/test/echo', [], [], [],
         ['application/json'], '', null);
     expect($client->capturedHeaders['Content-Type'] ?? '')->toBe('application/json');
 });
@@ -798,7 +802,7 @@ test('all headers from selector flow through', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('GET', '/test/echo', [], [], null,
+    $testApi->call('POST', '/test/echo', [], [], [],
         ['application/json'], 'application/json', null);
     expect($client->capturedHeaders)->toHaveKey('Accept');
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
@@ -932,8 +936,8 @@ test('json response parsed to object', function (): void {
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
     $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/json'], null, null);
-    expect($result)->not->toBeNull();
+        ['application/json'], null, 'object');
+    expect($result)->toBe(['id' => 42, 'name' => 'test']);
 });
 
 test('text plain response returns string', function (): void {

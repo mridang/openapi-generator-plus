@@ -10,18 +10,10 @@
  */
 
 declare(strict_types=1);
-/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
-
-enum DefaultsModeEnum: string
-{
-    case LOW = 'low';
-    case MEDIUM = 'medium';
-    case HIGH = 'high';
-}
 
 class Defaults
 {

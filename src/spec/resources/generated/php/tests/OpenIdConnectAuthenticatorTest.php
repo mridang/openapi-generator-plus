@@ -185,7 +185,66 @@ test('oidc throws when discovery returns non-2xx status', function (): void {
     );
     $authenticator->setApiClient($client);
 
-    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\RuntimeException::class);
+    // The status maps to its ApiException subclass exactly as an API
+    // operation's would.
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\PetstoreClient\Errors\InternalServerErrorException::class);
+            expect($e->getCode())->toBe(500);
+            expect($e)->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+        });
+});
+
+function makeOpenIdConnectAuthenticatorForErrors(MockTokenApiClient $client): OpenIdConnectAuthenticator
+{
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    return $authenticator;
+}
+
+test('oidc discovery 404 raises NotFoundException', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(404, 'not found', []));
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\PetstoreClient\Errors\NotFoundException::class);
+            expect($e->getCode())->toBe(404);
+        });
+});
+
+test('oidc discovery transport failure propagates NetworkException', function (): void {
+    /* Discovery is an HTTP call like any other: a transport failure from
+     * the ApiClient must reach the caller unchanged, not rewrapped. */
+    $failure = new \PetstoreClient\Errors\NetworkException('connection refused', new \RuntimeException('refused'));
+    $client = new MockTokenApiClient();
+    $client->enqueueFailure($failure);
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e) use ($failure): void {
+            expect($e)->toBe($failure);
+        });
+});
+
+test('oidc malformed discovery document raises SerializationException', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, '{not json', []));
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\PetstoreClient\SerializationException::class);
+            expect($e)->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+        });
 });
 
 test('oidc throws when no api client injected', function (): void {
@@ -198,7 +257,10 @@ test('oidc throws when no api client injected', function (): void {
         []
     );
 
-    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\LogicException::class);
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\LogicException::class);
+        });
 });
 
 test('oidc get host returns configured host', function (): void {
@@ -232,7 +294,7 @@ test('oidc throws when discovery omits authorization_endpoint', function (): voi
     $authenticator->setApiClient($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(\RuntimeException::class, 'OIDC discovery document is missing authorization_endpoint');
+        ->toThrow(\PetstoreClient\SerializationException::class, 'OIDC discovery document is missing authorization_endpoint');
 });
 
 test('oidc throws when discovery omits token_endpoint', function (): void {
@@ -253,7 +315,7 @@ test('oidc throws when discovery omits token_endpoint', function (): void {
     $authenticator->setApiClient($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(\RuntimeException::class, 'OIDC discovery document is missing token_endpoint');
+        ->toThrow(\PetstoreClient\SerializationException::class, 'OIDC discovery document is missing token_endpoint');
 });
 
 /**
@@ -261,8 +323,7 @@ test('oidc throws when discovery omits token_endpoint', function (): void {
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-function testRedactsSecret(): void
-{
+test('print_r() redacts the secret and shows ***', function (): void {
     $authenticator = new OpenIdConnectAuthenticator(
         'https://api.example.com',
         'https://auth.example.com/.well-known/openid-configuration',
@@ -276,4 +337,4 @@ function testRedactsSecret(): void
 
     expect($printR)->not->toContain('my-client-secret');
     expect($printR)->toContain('***');
-}
+});

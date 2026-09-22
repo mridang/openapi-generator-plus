@@ -10,18 +10,10 @@
  */
 
 declare(strict_types=1);
-/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
-
-enum OrderStatusEnum: string
-{
-    case PLACED = 'placed';
-    case APPROVED = 'approved';
-    case DELIVERED = 'delivered';
-}
 
 class Order
 {

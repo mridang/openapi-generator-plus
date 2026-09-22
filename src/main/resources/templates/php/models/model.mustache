@@ -1,13 +1,10 @@
 {{#models}}
 {{#model}}
 {{>api_info}}
-{{! Generated co-located inline enums (PSR1.MultipleClasses) and oneOf/anyOf
-    deserializer factories with fully-qualified call expressions (line length)
-    are inherent to the generated model; suppress at the file level. }}
-{{#hasEnums}}
-/* phpcs:ignoreFile */
-
-{{/hasEnums}}
+{{! Generated oneOf/anyOf deserializer factories with fully-qualified call
+    expressions (line length) are inherent to the generated model; suppress at
+    the file level. Inline enums are rendered one per file (PSR-4) by
+    BetterPHPCodegen from models/inline_enum.mustache. }}
 {{#oneOf}}
 {{#-first}}
 /* phpcs:ignoreFile */
@@ -445,47 +442,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-{{#hasEnums}}
-{{#vars}}
-{{#isEnum}}
-{{#isInteger}}
-enum {{classname}}{{enumName}}: int
-{
-{{#allowableValues}}
-{{#enumVars}}
-    case {{{name}}} = {{{value}}};
-{{/enumVars}}
-{{/allowableValues}}
-}
-
-{{/isInteger}}
-{{^isInteger}}
-{{#isLong}}
-enum {{classname}}{{enumName}}: int
-{
-{{#allowableValues}}
-{{#enumVars}}
-    case {{{name}}} = {{{value}}};
-{{/enumVars}}
-{{/allowableValues}}
-}
-
-{{/isLong}}
-{{^isLong}}
-enum {{classname}}{{enumName}}: string
-{
-{{#allowableValues}}
-{{#enumVars}}
-    case {{{name}}} = {{{value}}};
-{{/enumVars}}
-{{/allowableValues}}
-}
-
-{{/isLong}}
-{{/isInteger}}
-{{/isEnum}}
-{{/vars}}
-{{/hasEnums}}
 class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {
 {{#vars}}

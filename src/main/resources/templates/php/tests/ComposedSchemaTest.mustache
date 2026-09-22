@@ -51,7 +51,7 @@ test('one of unknown discriminator throws', function (): void {
 test('one of serializes dry food', function (): void {
     $data = ['foodType' => 'dry', 'weightKg' => 2.5];
     $result = PetFood::build($data);
-    $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+    $serialized = ObjectSerializer::serialize($result->getActualInstance());
     expect($serialized)->not->toBeFalse();
     expect($serialized)->toContain('dry');
 });
@@ -74,7 +74,7 @@ test('any of deserializes surgery', function (): void {
 test('any of serialize round trip', function (): void {
     $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
     $result = PetTreatment::build($data);
-    $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+    $serialized = ObjectSerializer::serialize($result->getActualInstance());
     expect($serialized)->not->toBeFalse();
     expect($serialized)->not->toBeEmpty();
 });
@@ -172,7 +172,7 @@ test('all of serializes pet with owner', function (): void {
     $json = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}';
     /** @var PetWithOwner $result */
     $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
-    $serialized = json_encode(ObjectSerializer::serialize($result));
+    $serialized = ObjectSerializer::serialize($result);
     expect($serialized)->not->toBeFalse();
     expect($serialized)->toContain('Fido');
     expect($serialized)->toContain('John Doe');
@@ -182,7 +182,7 @@ test('all of round trip', function (): void {
     $json = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}';
     /** @var PetWithOwner $original */
     $original = ObjectSerializer::deserialize($json, PetWithOwner::class);
-    $serialized = json_encode(ObjectSerializer::serialize($original));
+    $serialized = ObjectSerializer::serialize($original);
     /** @var PetWithOwner $restored */
     $restored = ObjectSerializer::deserialize($serialized, PetWithOwner::class);
     expect($restored->name)->toBe($original->name);

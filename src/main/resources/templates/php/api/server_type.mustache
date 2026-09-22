@@ -1,0 +1,11 @@
+{{>api_info}}
+
+namespace {{apiPackage}};
+
+/**
+ * Server type for the {{operationId}} operation.
+ */
+abstract class {{serverTypeName}}
+{
+    abstract public function getUrl(): string;
+}

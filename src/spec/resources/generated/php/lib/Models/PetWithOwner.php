@@ -10,7 +10,6 @@
  */
 
 declare(strict_types=1);
-/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
@@ -19,13 +18,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 /**
  * A pet record extended with owner information
  */
-enum PetWithOwnerStatusEnum: string
-{
-    case AVAILABLE = 'available';
-    case PENDING = 'pending';
-    case SOLD = 'sold';
-}
-
 class PetWithOwner
 {
     /** @example 10 */

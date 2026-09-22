@@ -19,7 +19,7 @@ use PetstoreClient\ApiHttpResponse;
 
 class MockTokenApiClient implements ApiClient
 {
-    /** @var ApiHttpResponse[] */
+    /** @var array<int, ApiHttpResponse|\Throwable> */
     private array $responses = [];
     private int $callIndex = 0;
 
@@ -29,6 +29,12 @@ class MockTokenApiClient implements ApiClient
     public function enqueueResponse(ApiHttpResponse $response): void
     {
         $this->responses[] = $response;
+    }
+
+    /** Queue a transport failure: the next sendRequest() throws it. */
+    public function enqueueFailure(\Throwable $failure): void
+    {
+        $this->responses[] = $failure;
     }
 
     /** @param array<string, string> $headers */
@@ -46,6 +52,10 @@ class MockTokenApiClient implements ApiClient
             'body' => is_string($body) ? $body : null,
             'noRedirect' => $noRedirect,
         ];
-        return $this->responses[$this->callIndex++] ?? new ApiHttpResponse(500, '{}', []);
+        $next = $this->responses[$this->callIndex++] ?? new ApiHttpResponse(500, '{}', []);
+        if ($next instanceof \Throwable) {
+            throw $next;
+        }
+        return $next;
     }
 }

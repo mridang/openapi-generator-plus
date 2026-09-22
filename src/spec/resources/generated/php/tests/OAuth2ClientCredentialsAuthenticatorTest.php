@@ -196,7 +196,7 @@ test('client credentials token fetch error is surfaced not swallowed', function 
     $authenticator->setApiClient($client);
 
     expect(fn (): mixed => $authenticator->getAuthHeaders())
-        ->toThrow(\PetstoreClient\Auth\OAuth\OAuth2ServerError::class);
+        ->toThrow(\PetstoreClient\Auth\OAuth\OAuth2ServerException::class);
 });
 
 /**
@@ -204,8 +204,7 @@ test('client credentials token fetch error is surfaced not swallowed', function 
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-function testRedactsSecret(): void
-{
+test('print_r() redacts the secret and shows ***', function (): void {
     $authenticator = new OAuth2ClientCredentialsAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -218,4 +217,4 @@ function testRedactsSecret(): void
 
     expect($printR)->not->toContain('my-client-secret');
     expect($printR)->toContain('***');
-}
+});

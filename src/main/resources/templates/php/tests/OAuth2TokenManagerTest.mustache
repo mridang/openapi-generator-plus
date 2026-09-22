@@ -5,8 +5,8 @@
 namespace {{invokerPackage}}\Test;
 
 use {{invokerPackage}}\ApiHttpResponse;
-use {{invokerPackage}}\Auth\OAuth\OAuth2ServerError;
-use {{invokerPackage}}\Auth\OAuth\OAuth2TokenError;
+use {{invokerPackage}}\Auth\OAuth\OAuth2ServerException;
+use {{invokerPackage}}\Auth\OAuth\OAuth2TokenException;
 use {{invokerPackage}}\Auth\OAuth\OAuth2TokenManager;
 
 function makeOAuth2TokenManagerResponse(
@@ -111,7 +111,9 @@ test('token manager throws when no api client injected', function (): void {
     $manager = new OAuth2TokenManager();
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(\LogicException::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\LogicException::class);
+        });
 });
 
 test('expires in short lived token does not storm', function (): void {
@@ -264,13 +266,44 @@ test('throws when token request fails', function (): void {
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(OAuth2ServerError::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(OAuth2ServerException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        });
+});
+
+test('malformed 2xx token response throws OAuth2TokenException', function (): void {
+    // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, '<html>not json</html>', ['Content-Type' => 'text/html']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(OAuth2TokenException::class);
+        });
+});
+
+test('token transport failure propagates NetworkException', function (): void {
+    // A transport failure on the token POST reaches the caller unchanged.
+    $failure = new \{{invokerPackage}}\Errors\NetworkException('connection refused', new \RuntimeException('refused'));
+    $client = new MockTokenApiClient();
+    $client->enqueueFailure($failure);
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(function (\Exception $e) use ($failure): void {
+            expect($e)->toBe($failure);
+        });
 });
 
 test('rejected refresh token falls back to the original grant', function (): void {
-    // OAuth2ServerError extends the SDK root, which extends \Exception rather
-    // than \RuntimeException: the refresh fallback must still catch it and
-    // re-run the original grant instead of letting it escape.
+    // OAuth2ServerException extends the SDK root: the refresh fallback must
+    // catch it and re-run the original grant instead of letting it escape.
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
     $client->enqueueResponse(new ApiHttpResponse(
@@ -292,9 +325,9 @@ test('rejected refresh token falls back to the original grant', function (): voi
     expect($client->capturedRequests[2]['body'] ?? '')->toContain('grant_type=client_credentials');
 });
 
-test('missing access_token in 2xx response throws typed OAuth2TokenError', function (): void {
+test('missing access_token in 2xx response throws typed OAuth2TokenException', function (): void {
     // A 2xx response whose body omits access_token must surface as the typed
-    // OAuth2TokenError, not silently cache an empty token.
+    // OAuth2TokenException, not silently cache an empty token.
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -306,12 +339,14 @@ test('missing access_token in 2xx response throws typed OAuth2TokenError', funct
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(OAuth2TokenError::class);
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(OAuth2TokenException::class);
+        });
 });
 
-test('server error response parsed to typed OAuth2ServerError', function (): void {
+test('server error response parsed to typed OAuth2ServerException', function (): void {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
-    // typed OAuth2ServerError carrying code/description/uri.
+    // typed OAuth2ServerException carrying code/description/uri.
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         400,
@@ -328,8 +363,8 @@ test('server error response parsed to typed OAuth2ServerError', function (): voi
 
     try {
         $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        expect(false)->toBeTrue('Expected OAuth2ServerError');
-    } catch (OAuth2ServerError $error) {
+        expect(false)->toBeTrue('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
         expect($error->statusCode)->toBe(400);
         expect($error->errorCode)->toBe('invalid_grant');
         expect($error->description)->toBe('refresh token expired');
@@ -354,7 +389,8 @@ test('token post requests no redirect from transport', function (): void {
 
 // RFC 6749 §3.2 forbids redirects at the token endpoint; the manager must
 // refuse the whole 300-399 range (302 and 307 both covered here, plus
-// 301/303/308) rather than only the body-preserving 307/308.
+// 301/303/308) rather than only the body-preserving 307/308. A 3xx is a
+// non-2xx answer, so it is an OAuth2ServerException carrying the status.
 test('token post refuses 3xx redirect', function (int $status): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse($status, '', ['Location' => 'https://attacker.example.com/token']));
@@ -365,7 +401,10 @@ test('token post refuses 3xx redirect', function (int $status): void {
     expect(fn () => $manager->getAccessToken(
         'https://auth.example.com/token',
         ['grant_type' => 'client_credentials', 'client_secret' => 'topsecret']
-    ))->toThrow(OAuth2TokenError::class);
+    ))->toThrow(function (\Exception $e) use ($status): void {
+        expect($e::class)->toBe(OAuth2ServerException::class);
+        expect($e->statusCode)->toBe($status);
+    });
 })->with([301, 302, 303, 307, 308]);
 
 test('single-flight refresh coalesces concurrent callers', function (): void {
@@ -382,7 +421,7 @@ test('invalidate access token triggers a single refetch under concurrency', func
 
 test('redirect-refusal error includes the Location header for diagnostics', function (): void {
     // Gap 3.2: the redirect-refusal error should name the offending Location
-    // for diagnostics. The PHP SDK's OAuth2TokenError message embeds only the
+    // for diagnostics. The PHP SDK's OAuth2ServerException message embeds only the
     // status code, not the Location target, so this cannot be asserted without
     // fabricating behaviour the SDK does not implement.
 })->skip('PHP OAuth2TokenManager redirect-refusal error does not surface the Location header');

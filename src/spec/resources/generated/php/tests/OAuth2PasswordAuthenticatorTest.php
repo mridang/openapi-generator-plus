@@ -201,8 +201,7 @@ test('password basic auth url encodes client id and secret', function (): void {
  * leaks through print_r()'s use of __debugInfo(): both literal secrets are
  * absent and the masked '***' placeholder is present.
  */
-function testRedactsSecret(): void
-{
+test('print_r() redacts the secret and shows ***', function (): void {
     $authenticator = new OAuth2PasswordAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -218,4 +217,4 @@ function testRedactsSecret(): void
     expect($printR)->not->toContain('my-client-secret');
     expect($printR)->not->toContain('testpass');
     expect($printR)->toContain('***');
-}
+});

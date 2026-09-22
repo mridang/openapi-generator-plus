@@ -85,8 +85,7 @@ test('get host returns configured host', function (): void {
  * __debugInfo(): once set, the literal token is absent and the masked
  * '***' placeholder is present.
  */
-function testRedactsSecret(): void
-{
+test('print_r() redacts the secret and shows ***', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
     $authenticator->setAccessToken('my-access-token');
 
@@ -94,4 +93,4 @@ function testRedactsSecret(): void
 
     expect($printR)->not->toContain('my-access-token');
     expect($printR)->toContain('***');
-}
+});

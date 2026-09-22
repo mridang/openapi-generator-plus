@@ -1,8 +1,8 @@
 {{>api_info}}
-{{! Operations with per-operation server overrides emit co-located abstract
-    server-variant base classes plus concrete variants (PSR1.MultipleClasses)
-    and long fully-qualified call expressions; these are inherent to the
-    generated API group, so suppress at the file level. }}
+{{! Operations with per-operation server overrides emit long fully-qualified
+    call expressions; these are inherent to the generated API group, so
+    suppress at the file level. The server-variant classes themselves are
+    rendered one class per file (PSR-4) by BetterPHPCodegen. }}
 {{#hasServerTypeDefs}}
 /* phpcs:ignoreFile */
 
@@ -35,69 +35,6 @@ use {{invokerPackage}}\Models\{{.}};
  * @see {{url}} {{{description}}}
 {{/tagExternalDocs}}
  */
-{{#serverTypeDefs}}
-
-/**
- * Server type for the {{operationId}} operation.
- */
-abstract class {{serverTypeName}}
-{
-    abstract public function getUrl(): string;
-}
-{{#variants}}
-{{#serverVariables}}{{#hasEnumValues}}
-
-enum {{serverTypeName}}{{pascalName}}: string
-{
-{{#enumValues}}
-    case {{name}} = '{{value}}';
-{{/enumValues}}
-}
-{{/hasEnumValues}}{{/serverVariables}}
-{{/variants}}
-{{#variants}}
-
-{{#hasDescription}}
-/**
- * {{{description}}}
- */
-{{/hasDescription}}
-final class {{serverTypeName}}{{variantName}} extends {{serverTypeName}}
-{
-{{#hasVariables}}
-{{#serverVariables}}
-    private readonly {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}};
-{{/serverVariables}}
-
-    public function __construct({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}})
-    {
-{{#serverVariables}}
-        $this->{{camelName}} = ${{camelName}};
-{{/serverVariables}}
-    }
-
-{{/hasVariables}}
-    public function getUrl(): string
-    {
-{{#hasVariables}}
-        $url = '{{url}}';
-{{#serverVariables}}
-{{^-last}}
-        $url = str_replace('{' . '{{name}}' . '}', {{#hasEnumValues}}$this->{{camelName}}->value{{/hasEnumValues}}{{^hasEnumValues}}$this->{{camelName}}{{/hasEnumValues}}, $url);
-{{/-last}}
-{{#-last}}
-        return str_replace('{' . '{{name}}' . '}', {{#hasEnumValues}}$this->{{camelName}}->value{{/hasEnumValues}}{{^hasEnumValues}}$this->{{camelName}}{{/hasEnumValues}}, $url);
-{{/-last}}
-{{/serverVariables}}
-{{/hasVariables}}
-{{^hasVariables}}
-        return '{{url}}';
-{{/hasVariables}}
-    }
-}
-{{/variants}}
-{{/serverTypeDefs}}
-
 class {{classname}} extends BaseApi
 {
 {{#operation}}

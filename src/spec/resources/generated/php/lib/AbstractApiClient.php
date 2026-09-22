@@ -131,11 +131,11 @@ abstract class AbstractApiClient implements ApiClient
         mixed $body,
         bool $noRedirect = false,
     ): ApiHttpResponse {
-        /* Gap T-D4: refuse to send on a closed client. The other SDKs raise
-         * an SDK-typed error here; PHP matches by throwing ApiException
-         * rather than silently re-using a reset transport. */
+        /* Gap T-D4: refuse to send on a closed client. Using a client after
+         * close() is a wrong call order, so it raises \LogicException rather
+         * than silently re-using a reset transport. */
         if ($this->closed) {
-            throw new ApiException(0, 'ApiClient has been closed and can no longer send requests');
+            throw new \LogicException('ApiClient has been closed and can no longer send requests');
         }
 
         $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
@@ -201,7 +201,7 @@ abstract class AbstractApiClient implements ApiClient
                          * attack vector. Refuse loudly instead of silently
                          * returning the 3xx, matching the throwing SDKs. */
                         throw new ApiException(
-                            0,
+                            $response->statusCode,
                             "Redirect to unsupported scheme '$scheme' in Location: $nextUrl"
                         );
                     }
@@ -230,7 +230,7 @@ abstract class AbstractApiClient implements ApiClient
                          * the 3xx so the caller sees the refused downgrade,
                          * matching the SDKs that throw on a refused replay. */
                         throw new ApiException(
-                            0,
+                            $statusCode,
                             "Refusing to replay request body across HTTPS->HTTP downgrade redirect to $nextUrl"
                         );
                     }
@@ -282,7 +282,7 @@ abstract class AbstractApiClient implements ApiClient
                  * response — matching the throwing SDKs. */
                 if ($hops >= $maxRedirects && self::isRedirectStatus($response->statusCode)) {
                     throw new ApiException(
-                        0,
+                        $response->statusCode,
                         "Too many redirects (exceeded maxRedirects=$maxRedirects)"
                     );
                 }
@@ -305,7 +305,21 @@ abstract class AbstractApiClient implements ApiClient
                 $responseHeaders[strtolower((string) $name)] = implode(', ', $values);
             }
             $contentEncoding = $response->headers['content-encoding'][0] ?? '';
-            $responseBody = $this->decompressBody($responseBody, $contentEncoding);
+            try {
+                $responseBody = $this->decompressBody($responseBody, $contentEncoding);
+            } catch (\RuntimeException $e) {
+                /* A corrupt or truncated compressed body is not a transport
+                 * failure: a response did arrive, so it is an ApiException
+                 * carrying the real status, never a NetworkException. */
+                throw new ApiException(
+                    $response->statusCode,
+                    "Failed to decode $contentEncoding response body: {$e->getMessage()}",
+                    $responseHeaders,
+                    null,
+                    null,
+                    $e
+                );
+            }
             $contentType = $response->headers['content-type'][0] ?? '';
             if (!$this->isTextContentType($contentType)) {
                 $responseBody = base64_encode($responseBody);
@@ -320,25 +334,10 @@ abstract class AbstractApiClient implements ApiClient
             );
         } catch (ApiException $e) {
             /* SDK-typed errors raised inside the redirect loop (unsupported
-             * scheme, refused downgrade, too many redirects) and by the
-             * transport's execute() already carry the right type — surface
-             * them unchanged rather than re-wrapping. */
+             * scheme, refused downgrade, too many redirects), by the body
+             * decoding above, and by the transport's execute() already carry
+             * the right type — surface them unchanged rather than re-wrapping. */
             throw $e;
-        } catch (\RuntimeException $e) {
-            /* Response post-processing (notably decompressBody's gzip /
-             * deflate / brotli / zstd failures) throws a plain
-             * \RuntimeException. Without this branch a corrupt or truncated
-             * compressed body would leak that raw runtime error past the SDK
-             * surface; wrap it as the SDK's ApiException so callers catch a
-             * single, documented exception type. */
-            throw new ApiException(
-                0,
-                "API Request failed: {$e->getMessage()}",
-                null,
-                null,
-                null,
-                $e
-            );
         }
     }
 
@@ -631,16 +630,19 @@ abstract class AbstractApiClient implements ApiClient
         }
 
         return match (strtolower($encoding)) {
-            'gzip', 'x-gzip' => gzdecode($body)
+            /* The @ keeps zlib's E_WARNING for a corrupt body from escaping
+             * (an error handler could turn it into an \ErrorException); the
+             * false return is what signals the failure. */
+            'gzip', 'x-gzip' => @gzdecode($body)
                 ?: throw new \RuntimeException('Failed to gzip-decompress response body'),
-            'deflate' => gzuncompress($body)
+            'deflate' => @gzuncompress($body)
                 ?: throw new \RuntimeException('Failed to deflate-decompress response body'),
             'br' => function_exists('brotli_uncompress')
-                ? (brotli_uncompress($body)
+                ? (@brotli_uncompress($body)
                     ?: throw new \RuntimeException('Failed to brotli-decompress response body'))
                 : $body,
             'zstd' => function_exists('zstd_uncompress')
-                ? (zstd_uncompress($body)
+                ? (@zstd_uncompress($body)
                     ?: throw new \RuntimeException('Failed to zstd-decompress response body'))
                 : $body,
             default => $body,
