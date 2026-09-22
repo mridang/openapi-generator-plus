@@ -27,21 +27,6 @@ export class SerializationError extends OpenAPIError {
 }
 
 /**
- * Exception raised specifically during deserialization. Used for wire-shape
- * failures the caller may want to catch distinctly from general serde
- * errors — currently raised when a polymorphic envelope's discriminator
- * value resolves to a class that is not declared in the `oneOf`/`anyOf`
- * mapping (4.7). Extending {@link SerializationError} preserves existing
- * catch-blocks that match on the base type.
- */
-export class DeserializationError extends SerializationError {
-  constructor(message: string, cause?: Error) {
-    super(message, cause);
-    this.name = "DeserializationError";
-  }
-}
-
-/**
  * Number of nanoseconds in one second, as a BigInt, for exact
  * protobuf-JSON duration arithmetic without floating-point loss.
  */
@@ -428,7 +413,7 @@ export class ObjectSerializer {
              * through; that hides spec/codegen drift. Surface it so callers
              * see a real error instead of an inexplicable null.
              */
-            throw new DeserializationError(
+            throw new SerializationError(
               `Discriminator '${discProp}=${discValue}' maps to '${targetName}', ` +
                 `which is not a generated model.`,
             );
@@ -440,7 +425,7 @@ export class ObjectSerializer {
            * parse of an empty object. Throw so callers know the payload
            * doesn't match any declared variant.
            */
-          throw new DeserializationError(
+          throw new SerializationError(
             `Discriminator value '${discValue}' on '${discProp}' is not listed in ` +
               `the schema mapping (allowed: ${Object.keys(discMapping).join(", ") || "<empty>"}).`,
           );
@@ -451,7 +436,7 @@ export class ObjectSerializer {
            * here; Node previously fell through to structural variant-matching
            * and could silently mis-route to the wrong variant. Throw to match.
            */
-          throw new DeserializationError(
+          throw new SerializationError(
             `Missing discriminator property '${discProp}' in payload.`,
           );
         }
@@ -522,7 +507,7 @@ export class ObjectSerializer {
          * so the caller sees the payload matches no declared variant,
          * matching the validate-each-variant-then-throw canonical.
          */
-        throw new DeserializationError(
+        throw new SerializationError(
           `Value does not match any of the declared schemas ` +
             `(${schemas.join(", ")}).`,
         );
@@ -550,7 +535,7 @@ export class ObjectSerializer {
       ) {
         for (const key of Object.keys(json as Record<string, unknown>)) {
           if (!strictKeys.has(key)) {
-            throw new DeserializationError(
+            throw new SerializationError(
               `Unknown property '${key}' on ${cls.name} ` +
                 `(unevaluatedProperties:false).`,
             );

@@ -10,6 +10,8 @@ import {
   OpenAPIError,
   ClientError,
   BadRequestError,
+  NetworkError,
+  NetworkTimeoutError,
 } from "../src/errors/index.js";
 import { Category } from "../src/models/index.js";
 
@@ -63,6 +65,18 @@ describe("ApiError", () => {
       expect(err).toBeInstanceOf(Error);
       expect(err.statusCode).toBe(400);
       expect(err.name).toBe("BadRequestError");
+    });
+
+    test("a NetworkTimeoutError is a NetworkError and ApiError with status 0", () => {
+      const cause = new Error("socket hang up");
+      const err = new NetworkTimeoutError("timed out", { cause });
+      expect(err).toBeInstanceOf(NetworkError);
+      expect(err).toBeInstanceOf(ApiError);
+      expect(err).toBeInstanceOf(OpenAPIError);
+      expect(err.statusCode).toBe(0);
+      expect(err.cause).toBe(cause);
+      expect(err.name).toBe("NetworkTimeoutError");
+      expect(new NetworkError("refused").statusCode).toBe(0);
     });
   });
 

@@ -3,7 +3,6 @@
 import {
   ObjectSerializer,
   SerializationError,
-  DeserializationError,
   durationToProtoJson,
   durationFromProtoJson,
 } from '../src/object-serializer{{importFileExtension}}';
@@ -17,23 +16,14 @@ import { Temporal } from 'temporal-polyfill';
 
 describe('ObjectSerializer', () => {
   describe('unified exception hierarchy', () => {
-    // SerializationError and its DeserializationError subclass must extend
-    // the branded {{errorPrefix}}Error root so callers can catch every SDK-originated
-    // error — transport and serde alike — with a single `instanceof
-    // {{errorPrefix}}Error` check.
+    // SerializationError must extend the branded {{errorPrefix}}Error root so
+    // callers can catch every SDK-originated error — transport and serde
+    // alike — with a single `instanceof {{errorPrefix}}Error` check.
     test('SerializationError extends {{errorPrefix}}Error and Error', () => {
       const err = new SerializationError('boom');
       expect(err).toBeInstanceOf({{errorPrefix}}Error);
       expect(err).toBeInstanceOf(Error);
       expect(err.name).toBe('SerializationError');
-    });
-
-    test('DeserializationError extends SerializationError and {{errorPrefix}}Error', () => {
-      const err = new DeserializationError('boom');
-      expect(err).toBeInstanceOf(SerializationError);
-      expect(err).toBeInstanceOf({{errorPrefix}}Error);
-      expect(err).toBeInstanceOf(Error);
-      expect(err.name).toBe('DeserializationError');
     });
   });
 
@@ -128,7 +118,7 @@ describe('ObjectSerializer', () => {
     });
   });
 
-  describe('DeserializationErrorWrappingTests', () => {
+  describe('SerializationErrorWrappingTests', () => {
     test('truncated JSON throws SerializationError not raw parse error', () => {
       expect(() => {
         JSON.parse('{');
@@ -563,7 +553,7 @@ describe('ObjectSerializer', () => {
         unexpected: 'reject-me',
       };
       expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
-        DeserializationError,
+        SerializationError,
       );
       expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
         /Unknown property 'unexpected'/,

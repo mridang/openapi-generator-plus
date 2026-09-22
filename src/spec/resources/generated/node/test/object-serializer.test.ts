@@ -8,7 +8,6 @@
 import {
   ObjectSerializer,
   SerializationError,
-  DeserializationError,
   durationToProtoJson,
   durationFromProtoJson,
 } from "../src/object-serializer.js";
@@ -42,23 +41,14 @@ import { Temporal } from "temporal-polyfill";
 
 describe("ObjectSerializer", () => {
   describe("unified exception hierarchy", () => {
-    // SerializationError and its DeserializationError subclass must extend
-    // the branded OpenAPIError root so callers can catch every SDK-originated
-    // error — transport and serde alike — with a single `instanceof
-    // OpenAPIError` check.
+    // SerializationError must extend the branded OpenAPIError root so
+    // callers can catch every SDK-originated error — transport and serde
+    // alike — with a single `instanceof OpenAPIError` check.
     test("SerializationError extends OpenAPIError and Error", () => {
       const err = new SerializationError("boom");
       expect(err).toBeInstanceOf(OpenAPIError);
       expect(err).toBeInstanceOf(Error);
       expect(err.name).toBe("SerializationError");
-    });
-
-    test("DeserializationError extends SerializationError and OpenAPIError", () => {
-      const err = new DeserializationError("boom");
-      expect(err).toBeInstanceOf(SerializationError);
-      expect(err).toBeInstanceOf(OpenAPIError);
-      expect(err).toBeInstanceOf(Error);
-      expect(err.name).toBe("DeserializationError");
     });
   });
 
@@ -153,7 +143,7 @@ describe("ObjectSerializer", () => {
     });
   });
 
-  describe("DeserializationErrorWrappingTests", () => {
+  describe("SerializationErrorWrappingTests", () => {
     test("truncated JSON throws SerializationError not raw parse error", () => {
       expect(() => {
         JSON.parse("{");
@@ -620,7 +610,7 @@ describe("ObjectSerializer", () => {
         unexpected: "reject-me",
       };
       expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
-        DeserializationError,
+        SerializationError,
       );
       expect(() => ObjectSerializer.deserialize(json, StrictTag)).toThrow(
         /Unknown property 'unexpected'/,

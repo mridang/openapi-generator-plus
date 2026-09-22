@@ -55,10 +55,7 @@ export type { UUID } from "./brand.js";
 export { OpenAPIError } from "./errors/open-api-error.js";
 export { ApiError } from "./api-error.js";
 export * from "./errors/index.js";
-export {
-  SerializationError,
-  DeserializationError,
-} from "./object-serializer.js";
+export { SerializationError } from "./object-serializer.js";
 
 /*
  * Authentication: the interface, the HTTP-aware extension, and every

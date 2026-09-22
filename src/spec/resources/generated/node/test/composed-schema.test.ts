@@ -7,7 +7,7 @@
 
 import {
   ObjectSerializer,
-  DeserializationError,
+  SerializationError,
 } from "../src/object-serializer.js";
 import {
   PetWithOwner,
@@ -40,14 +40,14 @@ describe("Composed Schema", () => {
     expect(instance).toBeInstanceOf(WetFood);
   });
 
-  test("oneOf: unknown discriminator throws DeserializationError (4.7)", () => {
+  test("oneOf: unknown discriminator throws SerializationError (4.7)", () => {
     // 4.7 — A discriminator value that is not listed in the schema mapping
     // used to silently fall through to the base envelope. We now surface
     // the wire/spec mismatch so callers see the bug instead of an
     // inexplicable empty object.
     const data = { foodType: "raw", calories: 300 };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
-      DeserializationError,
+      SerializationError,
     );
   });
 
@@ -57,13 +57,13 @@ describe("Composed Schema", () => {
       ObjectSerializer.deserialize(data, PetFood);
       fail("expected throw");
     } catch (e) {
-      expect(e).toBeInstanceOf(DeserializationError);
+      expect(e).toBeInstanceOf(SerializationError);
       expect((e as Error).message).toContain("raw");
       expect((e as Error).message).toContain("foodType");
     }
   });
 
-  test("oneOf: discriminator maps to unresolvable class throws DeserializationError (4.7)", () => {
+  test("oneOf: discriminator maps to unresolvable class throws SerializationError (4.7)", () => {
     // Simulate a misconfigured spec where the discriminator mapping names a
     // class that does not exist in the generated models index. Previously
     // we returned null and silently fell through; now we throw so
@@ -84,17 +84,17 @@ describe("Composed Schema", () => {
     };
     const data = { foodType: "dry", weightKg: 2.5 };
     expect(() => ObjectSerializer.deserialize(data, FakePetFood)).toThrow(
-      DeserializationError,
+      SerializationError,
     );
   });
 
-  test("oneOf: missing discriminator throws DeserializationError", () => {
+  test("oneOf: missing discriminator throws SerializationError", () => {
     // A payload omitting the discriminator property entirely cannot route to
     // any variant; the deserializer throws rather than structurally guessing
     // a variant. Aligns Node with Python / Swift / PHP / Ruby / Dart / Rust.
     const data = { weightKg: 2.5 };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
-      DeserializationError,
+      SerializationError,
     );
   });
 
@@ -104,18 +104,18 @@ describe("Composed Schema", () => {
       ObjectSerializer.deserialize(data, PetFood);
       fail("expected throw");
     } catch (e) {
-      expect(e).toBeInstanceOf(DeserializationError);
+      expect(e).toBeInstanceOf(SerializationError);
       expect((e as Error).message).toContain("foodType");
     }
   });
 
-  test("oneOf: empty discriminator throws DeserializationError", () => {
+  test("oneOf: empty discriminator throws SerializationError", () => {
     // An empty discriminator value is present but not listed in the schema
     // mapping; it must throw rather than route to a structurally-fitting
     // variant. Aligns Node with Python / PHP on empty-discriminator rejection.
     const data = { foodType: "", weightKg: 2.5 };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
-      DeserializationError,
+      SerializationError,
     );
   });
 
@@ -151,15 +151,15 @@ describe("Composed Schema", () => {
     expect(result!.getActualInstance()).toBeInstanceOf(Surgery);
   });
 
-  test("anyOf: PetTreatment with no matching variant throws DeserializationError", () => {
+  test("anyOf: PetTreatment with no matching variant throws SerializationError", () => {
     // oneof-nondiscriminator-no-match-silent: a payload matching neither
     // Medication nor Surgery used to fall through to a generic
     // plainToInstance that stored the raw bag-of-keys (type confusion).
-    // It must now surface as a DeserializationError so callers see the
+    // It must now surface as a SerializationError so callers see the
     // payload matches no declared variant.
     const data = { unrelatedKey: "value", anotherUnknown: 123 };
     expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(
-      DeserializationError,
+      SerializationError,
     );
   });
 
@@ -173,7 +173,7 @@ describe("Composed Schema", () => {
     // resolution falls through to the no-match throw.
     const data = { procedureName: "Spay", durationMinutes: "forty-five" };
     expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(
-      DeserializationError,
+      SerializationError,
     );
   });
 

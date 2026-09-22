@@ -7,6 +7,7 @@
 
 import { DefaultApiClient } from "../src/default-api-client.js";
 import { ApiError } from "../src/api-error.js";
+import { NetworkTimeoutError } from "../src/errors/index.js";
 import { TransportOptions } from "../src/transport-options.js";
 import {
   OAuth2TokenManager,
@@ -179,9 +180,12 @@ describe("DefaultApiClient", () => {
       const transport = TransportOptions.builder().timeout(1).build();
 
       const client = new DefaultApiClient(transport);
-      await expect(
-        client.sendRequest("GET", `${chasmUrl}/test/slow`, {}, null),
-      ).rejects.toThrow();
+      const error = await client
+        .sendRequest("GET", `${chasmUrl}/test/slow`, {}, null)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(NetworkTimeoutError);
+      expect((error as NetworkTimeoutError).statusCode).toBe(0);
+      expect((error as NetworkTimeoutError).cause).toBeDefined();
     });
   });
 

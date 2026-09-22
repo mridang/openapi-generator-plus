@@ -2,6 +2,7 @@
 
 import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
 import { ApiError } from '../src/api-error{{importFileExtension}}';
+import { NetworkTimeoutError } from '../src/errors/index{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 import { OAuth2TokenManager, OAuth2TokenError } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
 import * as zlib from 'node:zlib';
@@ -177,9 +178,12 @@ describe('DefaultApiClient', () => {
         .build();
 
       const client = new DefaultApiClient(transport);
-      await expect(
-        client.sendRequest('GET', `${chasmUrl}/test/slow`, {}, null)
-      ).rejects.toThrow();
+      const error = await client
+        .sendRequest('GET', `${chasmUrl}/test/slow`, {}, null)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(NetworkTimeoutError);
+      expect((error as NetworkTimeoutError).statusCode).toBe(0);
+      expect((error as NetworkTimeoutError).cause).toBeDefined();
     });
   });
 
