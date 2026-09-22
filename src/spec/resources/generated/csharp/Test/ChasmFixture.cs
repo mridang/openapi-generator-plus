@@ -27,6 +27,12 @@ public class ChasmFixture : IAsyncLifetime
     public string InternalHttpsUrl { get; } = "https://chasm:8443";
     public string ProxyUrl { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// URL of the proxy port that answers 407 unless the request carries Basic
+    /// proxy credentials. Any user name and password are accepted.
+    /// </summary>
+    public string AuthProxyUrl { get; private set; } = string.Empty;
+
     public async ValueTask InitializeAsync()
     {
         var hostAppPath = Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
@@ -53,6 +59,7 @@ public class ChasmFixture : IAsyncLifetime
 
         _squid = new ContainerBuilder("ubuntu/squid:5.2-22.04_beta")
             .WithPortBinding(3128, true)
+            .WithPortBinding(3129, true)
             .WithBindMount(squidConfPath, "/etc/squid/squid.conf", AccessMode.ReadOnly)
             .WithNetwork(_network)
             .Build();
@@ -62,6 +69,7 @@ public class ChasmFixture : IAsyncLifetime
         BaseUrl = $"http://{_chasm.Hostname}:{_chasm.GetMappedPublicPort(4010)}";
         HttpsBaseUrl = $"https://{_chasm.Hostname}:{_chasm.GetMappedPublicPort(8443)}";
         ProxyUrl = $"http://{_squid.Hostname}:{_squid.GetMappedPublicPort(3128)}";
+        AuthProxyUrl = $"http://{_squid.Hostname}:{_squid.GetMappedPublicPort(3129)}";
         Environment.SetEnvironmentVariable("API_BASE_URL", BaseUrl);
     }
 

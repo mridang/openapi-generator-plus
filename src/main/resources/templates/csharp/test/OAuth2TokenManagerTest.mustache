@@ -1,5 +1,6 @@
 {{>api_info}}
 
+using {{packageName}}.Errors;
 using {{packageName}};
 using {{packageName}}.Auth.OAuth;
 using Xunit;
@@ -608,25 +609,5 @@ public class OAuth2TokenManagerTest
             return new ApiHttpResponse(
                 200, "{\"access_token\":\"tok" + n + "\",\"expires_in\":3600}", new Dictionary<string, string>());
         }
-    }
-
-    {{! Bucket 3.2: the redirect-refusal error should name the offending }}
-    {{! Location header for diagnostics. The C# SDK raises OAuth2ServerException }}
-    {{! but does not surface the Location target, so this scenario cannot be }}
-    {{! asserted without fabricating behaviour. }}
-    [Fact(Skip = "C# OAuth2TokenManager redirect-refusal error does not surface the Location header")]
-    public async Task RedirectRefusalErrorIncludesLocationHeader()
-    {
-        var client = new FakeApiClient();
-        client.Enqueue("", statusCode: 307);
-
-        var manager = new OAuth2TokenManager();
-        manager.SetApiClient(client);
-
-        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(
-            () => manager.GetAccessTokenAsync(
-                new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
-        Assert.Contains("attacker.example", ex.Message);
     }
 }

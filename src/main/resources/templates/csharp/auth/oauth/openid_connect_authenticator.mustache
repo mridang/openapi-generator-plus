@@ -1,5 +1,6 @@
 {{>api_info}}
 
+using {{packageName}}.Errors;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -90,12 +91,7 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
 
         if (response.StatusCode < 200 || response.StatusCode >= 300)
         {
-            throw ApiException.ForStatus(
-                response.StatusCode,
-                $"OIDC discovery request to {_openIdConnectUrl} failed with HTTP status {response.StatusCode}",
-                new Dictionary<string, string>(response.Headers),
-                response.Body
-            );
+            throw ApiException.FromResponse(response.StatusCode, response.Headers, response.Body);
         }
 
         using JsonDocument doc = ParseDiscoveryDocument(response.Body);

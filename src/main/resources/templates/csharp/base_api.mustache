@@ -1,5 +1,6 @@
 {{>api_info}}
 
+using {{packageName}}.Errors;
 using {{packageName}}.Auth;
 
 namespace {{packageName}}.{{apiPackage}};
@@ -274,7 +275,7 @@ public abstract class BaseApi
 
         if (response.StatusCode is < 200 or >= 300)
         {
-            ThrowApiException(response);
+            throw ApiException.FromResponse(response.StatusCode, response.Headers, response.Body);
         }
 
         T? data = default;
@@ -361,34 +362,6 @@ public abstract class BaseApi
             )
             .ConfigureAwait(false);
         return result.Data;
-    }
-
-    /// <summary>
-    /// Attempts to deserialize the response body as JSON so that structured
-    /// error data (e.g. from a <c>default</c> response schema) is available
-    /// via <see cref="ApiException.ErrorBody"/>.
-    /// </summary>
-    private void ThrowApiException(ApiHttpResponse response)
-    {
-        int code = response.StatusCode;
-        string message = $"API returned status code {code}";
-        Dictionary<string, string>? headers = new(response.Headers);
-        string? body = response.Body;
-
-        object? errorBody = null;
-        if (!string.IsNullOrEmpty(body))
-        {
-            try
-            {
-                errorBody = Serializer.Deserialize<object>(body);
-            }
-            catch (SerializationException)
-            {
-                /* non-JSON body, errorBody stays null */
-            }
-        }
-
-        throw ApiException.ForStatus(code, message, headers, body, errorBody);
     }
 
     /// <summary>

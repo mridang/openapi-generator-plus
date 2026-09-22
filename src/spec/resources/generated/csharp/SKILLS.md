@@ -31,6 +31,8 @@ var client = new global::PetstoreClient.Client(authenticator);
 ### Basic Auth
 
 ```csharp
+using PetstoreClient.Auth;
+
 var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
 var client = new global::PetstoreClient.Client(authenticator);
 ```
@@ -38,6 +40,8 @@ var client = new global::PetstoreClient.Client(authenticator);
 ### API Key
 
 ```csharp
+using PetstoreClient.Auth;
+
 var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.Header);
 var client = new global::PetstoreClient.Client(authenticator);
 ```
@@ -48,7 +52,8 @@ var client = new global::PetstoreClient.Client(authenticator);
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
+    "https://api.example.com", "client-id", "client-secret",
+    new Uri("https://auth.example.com/token"), []);
 var client = new global::PetstoreClient.Client(authenticator);
 ```
 
@@ -59,8 +64,10 @@ using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+    new Uri("https://auth.example.com/authorize"), new Uri("https://auth.example.com/token"),
+    null, new Uri("https://app.example.com/callback"), []);
 var client = new global::PetstoreClient.Client(authenticator);
+await authenticator.ExchangeCodeAsync("authorization-code");
 ```
 
 ### OAuth2 Password
@@ -70,7 +77,7 @@ using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password");
+    new Uri("https://auth.example.com/token"), null, "username", "password", []);
 var client = new global::PetstoreClient.Client(authenticator);
 ```
 
@@ -81,7 +88,9 @@ The implicit flow obtains the access token out of band (typically in the browser
 ```csharp
 using PetstoreClient.Auth.OAuth;
 
-var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
+var authenticator = new OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", new Uri("https://auth.example.com/authorize"), []);
+authenticator.SetAccessToken("your-access-token");
 var client = new global::PetstoreClient.Client(authenticator);
 ```
 
@@ -91,9 +100,10 @@ var client = new global::PetstoreClient.Client(authenticator);
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration");
+    "https://api.example.com", new Uri("https://auth.example.com/.well-known/openid-configuration"),
+    "client-id", "client-secret", new Uri("https://app.example.com/callback"), []);
 var client = new global::PetstoreClient.Client(authenticator);
+await authenticator.ExchangeCodeAsync("authorization-code");
 ```
 
 ### OAuth2 token lifecycle
@@ -123,8 +133,8 @@ Override the default if your authorization server only accepts one form:
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token",
-    clientAuthMethod: ClientAuthMethod.Basic);
+    "https://api.example.com", "client-id", "client-secret",
+    new Uri("https://auth.example.com/token"), [], clientAuthMethod: ClientAuthMethod.Basic);
 ```
 
 ## Servers
@@ -144,6 +154,8 @@ The `IAuthenticator` interface is the seam for tests: substitute a fake authenti
 ```csharp
 using PetstoreClient.Auth;
 
+var client = new global::PetstoreClient.Client(new FakeAuthenticator());
+
 public sealed class FakeAuthenticator : IAuthenticator
 {
     public string GetHost() => "https://api.example.com";
@@ -151,8 +163,6 @@ public sealed class FakeAuthenticator : IAuthenticator
     public Dictionary<string, string> GetAuthHeaders() =>
         new() { ["Authorization"] = "Bearer test-token" };
 }
-
-var client = new global::PetstoreClient.Client(new FakeAuthenticator());
 ```
 
 ## Error Handling
@@ -175,26 +185,30 @@ All API errors derive from `ApiException`. The error hierarchy is:
 ```csharp
 using PetstoreClient;
 using PetstoreClient.Errors;
+using PetstoreClient.Models;
 
-try
+async Task AddPetOrReportAsync(global::PetstoreClient.Client client, Pet pet)
 {
-    var result = await client.Pet.AddPetAsync(/* parameters */);
-}
-catch (NotFoundException e)
-{
-    Console.WriteLine($"Not found: {e.Message}");
-}
-catch (ClientException e)
-{
-    Console.WriteLine($"Client error {e.StatusCode}: {e.Message}");
-}
-catch (ServerException e)
-{
-    Console.WriteLine($"Server error: {e.Message}");
-}
-catch (ApiException e)
-{
-    Console.WriteLine($"API error: {e.Message}");
+    try
+    {
+        await client.Pet.AddPetAsync(pet);
+    }
+    catch (NotFoundException e)
+    {
+        Console.WriteLine($"Not found: {e.Message}");
+    }
+    catch (ClientException e)
+    {
+        Console.WriteLine($"Client error {e.StatusCode}: {e.Message}");
+    }
+    catch (ServerException e)
+    {
+        Console.WriteLine($"Server error: {e.Message}");
+    }
+    catch (ApiException e)
+    {
+        Console.WriteLine($"API error: {e.Message}");
+    }
 }
 ```
 
@@ -203,6 +217,8 @@ catch (ApiException e)
 ### Custom Transport Options
 
 ```csharp
+using PetstoreClient;
+
 var transport = TransportOptions.Builder()
     .Proxy("http://proxy:3128")
     .Timeout(5000)

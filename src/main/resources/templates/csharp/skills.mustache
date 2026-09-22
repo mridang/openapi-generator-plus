@@ -32,6 +32,8 @@ var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ### Basic Auth
 
 ```csharp
+using {{packageName}}.Auth;
+
 var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
 var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
@@ -41,6 +43,8 @@ var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ### API Key
 
 ```csharp
+using {{packageName}}.Auth;
+
 var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.Header);
 var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
@@ -53,7 +57,8 @@ var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 using {{packageName}}.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
+    "https://api.example.com", "client-id", "client-secret",
+    new Uri("https://auth.example.com/token"), []);
 var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
@@ -66,8 +71,10 @@ using {{packageName}}.Auth.OAuth;
 
 var authenticator = new OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+    new Uri("https://auth.example.com/authorize"), new Uri("https://auth.example.com/token"),
+    null, new Uri("https://app.example.com/callback"), []);
 var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
+await authenticator.ExchangeCodeAsync("authorization-code");
 ```
 
 {{/hasOAuth2AuthorizationCode}}
@@ -79,7 +86,7 @@ using {{packageName}}.Auth.OAuth;
 
 var authenticator = new OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password");
+    new Uri("https://auth.example.com/token"), null, "username", "password", []);
 var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
@@ -92,7 +99,9 @@ The implicit flow obtains the access token out of band (typically in the browser
 ```csharp
 using {{packageName}}.Auth.OAuth;
 
-var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
+var authenticator = new OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", new Uri("https://auth.example.com/authorize"), []);
+authenticator.SetAccessToken("your-access-token");
 var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 ```
 
@@ -104,9 +113,10 @@ var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
 using {{packageName}}.Auth.OAuth;
 
 var authenticator = new OpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration");
+    "https://api.example.com", new Uri("https://auth.example.com/.well-known/openid-configuration"),
+    "client-id", "client-secret", new Uri("https://app.example.com/callback"), []);
 var client = new global::{{packageName}}.{{clientClassName}}(authenticator);
+await authenticator.ExchangeCodeAsync("authorization-code");
 ```
 
 {{/hasOpenIdConnect}}
@@ -138,8 +148,8 @@ Override the default if your authorization server only accepts one form:
 using {{packageName}}.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token",
-    clientAuthMethod: ClientAuthMethod.Basic);
+    "https://api.example.com", "client-id", "client-secret",
+    new Uri("https://auth.example.com/token"), [], clientAuthMethod: ClientAuthMethod.Basic);
 ```
 
 {{/hasAnyOAuth2}}
@@ -163,6 +173,8 @@ The `IAuthenticator` interface is the seam for tests: substitute a fake authenti
 ```csharp
 using {{packageName}}.Auth;
 
+var client = new global::{{packageName}}.{{clientClassName}}(new FakeAuthenticator());
+
 public sealed class FakeAuthenticator : IAuthenticator
 {
     public string GetHost() => "https://api.example.com";
@@ -170,8 +182,6 @@ public sealed class FakeAuthenticator : IAuthenticator
     public Dictionary<string, string> GetAuthHeaders() =>
         new() { ["Authorization"] = "Bearer test-token" };
 }
-
-var client = new global::{{packageName}}.{{clientClassName}}(new FakeAuthenticator());
 ```
 
 ## Error Handling
@@ -194,27 +204,32 @@ All API errors derive from `ApiException`. The error hierarchy is:
 ```csharp
 using {{packageName}};
 using {{packageName}}.Errors;
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}using {{packageName}}.Models;
+{{/isModel}}{{/bodyParam}}
 
-try
+async Task {{operationId}}OrReportAsync(global::{{packageName}}.{{clientClassName}} client{{#pathParams}}, {{{dataType}}} {{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} {{paramName}}{{/bodyParam}})
 {
-    var result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}Async(/* parameters */);
-}
-catch (NotFoundException e)
-{
-    Console.WriteLine($"Not found: {e.Message}");
-}
-catch (ClientException e)
-{
-    Console.WriteLine($"Client error {e.StatusCode}: {e.Message}");
-}
-catch (ServerException e)
-{
-    Console.WriteLine($"Server error: {e.Message}");
-}
-catch (ApiException e)
-{
-    Console.WriteLine($"API error: {e.Message}");
-}
+    try
+    {
+        await client.{{clientPropertyName}}.{{operationId}}Async({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}});
+    }
+    catch (NotFoundException e)
+    {
+        Console.WriteLine($"Not found: {e.Message}");
+    }
+    catch (ClientException e)
+    {
+        Console.WriteLine($"Client error {e.StatusCode}: {e.Message}");
+    }
+    catch (ServerException e)
+    {
+        Console.WriteLine($"Server error: {e.Message}");
+    }
+    catch (ApiException e)
+    {
+        Console.WriteLine($"API error: {e.Message}");
+    }
+}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 ```
 
 ## Configuration
@@ -222,6 +237,8 @@ catch (ApiException e)
 ### Custom Transport Options
 
 ```csharp
+using {{packageName}};
+
 var transport = TransportOptions.Builder()
     .Proxy("http://proxy:3128")
     .Timeout(5000)

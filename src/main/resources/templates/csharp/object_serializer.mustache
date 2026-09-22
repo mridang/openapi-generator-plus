@@ -1,5 +1,6 @@
 {{>api_info}}
 
+using {{packageName}}.Errors;
 using System.Collections;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -570,39 +571,6 @@ internal class ObjectSerializer
         return remaining.Count == 0;
     }
 
-}
-
-/// <summary>
-/// Raised when serialization or deserialization fails. This SDK-owned type
-/// shields callers from the underlying <c>System.Text.Json.JsonException</c>
-/// (and other native serializer exceptions), keeping internal serde types
-/// off the public surface and giving cross-SDK parity with the other
-/// language clients, all of which throw an SDK-owned serialization error.
-/// The original native exception is preserved as <see cref="Exception.InnerException"/>.
-/// </summary>
-public class SerializationException : {{errorPrefix}}Exception
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SerializationException"/> class.
-    /// </summary>
-    public SerializationException() { }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SerializationException"/> class
-    /// with a detail message.
-    /// </summary>
-    /// <param name="message">The detail message.</param>
-    public SerializationException(string message)
-        : base(message) { }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SerializationException"/> class
-    /// with a detail message and the underlying cause.
-    /// </summary>
-    /// <param name="message">The detail message.</param>
-    /// <param name="innerException">The underlying native serializer exception.</param>
-    public SerializationException(string message, Exception innerException)
-        : base(message, innerException) { }
 }
 
 /// <summary>

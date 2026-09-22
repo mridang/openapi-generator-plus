@@ -284,8 +284,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.cs"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"),
-            new SupportingFileSpec("root_exception.mustache", invokerFolder, rootErrorName("Exception") + ".cs"),
-            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.cs"),
+            new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".cs"),
+            new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.cs"),
+            new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.cs"),
+            new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.cs"),
+            new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.cs"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.cs"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.cs"),
             new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.cs"),
@@ -445,19 +448,31 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "ClientTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/BearerAuthenticatorTest.mustache",
-                            "Test",
-                            "BearerAuthenticatorTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/ApiKeyAuthenticatorTest.mustache",
-                            "Test",
-                            "ApiKeyAuthenticatorTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/ApiExceptionTest.mustache",
                             "Test",
                             "ApiExceptionTest.cs"));
+        }
+    }
+
+    /**
+     * Registers the Bearer and API-key authenticator tests once the spec has
+     * been parsed, so each is emitted only when the spec declares that scheme.
+     * The scheme flags are set in {@code processOpenAPI}, after
+     * {@code processOpts}, so they cannot be read there.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (!generateTests) {
+            return;
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "test/BearerAuthenticatorTest.mustache", "Test", "BearerAuthenticatorTest.cs"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "test/ApiKeyAuthenticatorTest.mustache", "Test", "ApiKeyAuthenticatorTest.cs"));
         }
     }
 

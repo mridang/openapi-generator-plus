@@ -1,5 +1,6 @@
 {{>api_info}}
 
+using {{packageName}}.Errors;
 using System.Net;
 using System.Text.Json;
 using {{packageName}};
@@ -539,7 +540,7 @@ public class DefaultApiClientTest
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
             "GET",
-            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Uri(_fixture.BaseUrl + "/test/compressed/gzip"),
             new Dictionary<string, string> { { "Accept-Encoding", "gzip" } },
             null
         );
@@ -554,7 +555,7 @@ public class DefaultApiClientTest
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
             "GET",
-            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Uri(_fixture.BaseUrl + "/test/compressed/br"),
             new Dictionary<string, string> { { "Accept-Encoding", "br" } },
             null
         );
@@ -563,13 +564,13 @@ public class DefaultApiClientTest
         Assert.Contains("userId", response.Body);
     }
 
-    [Fact(Skip = "zstd decompression is not natively supported by the .NET HttpClient")]
+    [Fact(Skip = "zstd is not supported by the platform: .NET has no built-in zstd decoder")]
     public async Task DecompressesZstdResponse()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
             "GET",
-            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Uri(_fixture.BaseUrl + "/test/compressed/zstd"),
             new Dictionary<string, string> { { "Accept-Encoding", "zstd" } },
             null
         );

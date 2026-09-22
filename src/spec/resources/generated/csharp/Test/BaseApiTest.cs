@@ -838,18 +838,14 @@ public class BaseApiTest
         Assert.Contains("{}", client.CapturedBody!.ToString()!);
     }
 
-    // Gap #29 — proxy authentication propagation.
-    // Embeds basic-auth credentials in the proxy URL (RFC 3986 userinfo) and
-    // sends a request through the bundled Squid proxy targeting chasm's
-    // container-internal URL. The Squid fixture is intentionally configured
-    // to allow all (no auth required), so a successful response confirms the
-    // credential-bearing proxy code path executes end-to-end without the
-    // proxy rejecting the connection — the only signal available without a
-    // basic-auth-enforcing proxy.
+    // Gap #29 — proxy authentication propagation. The Squid fixture's
+    // second port answers 407 unless the request carries Basic proxy
+    // credentials, so a success through it proves the credentials embedded in
+    // the proxy URL (RFC 3986 userinfo) reached the proxy.
     [Fact]
     public async Task ProxyAuthenticationCredentialsAreSentToProxy()
     {
-        var proxyUri = new Uri(_fixture.ProxyUrl);
+        var proxyUri = new Uri(_fixture.AuthProxyUrl);
         var proxyWithAuth = $"{proxyUri.Scheme}://testuser:testpass@{proxyUri.Host}:{proxyUri.Port}";
         var transport = TransportOptions.Builder()
             .Proxy(proxyWithAuth)
@@ -865,6 +861,24 @@ public class BaseApiTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Contains("\"method\"", response.Body);
+    }
+
+    [Fact]
+    public async Task ProxyThatRequiresCredentialsAnswers407WhenNoneAreSent()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.AuthProxyUrl)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(407, response.StatusCode);
     }
 
     [Fact]

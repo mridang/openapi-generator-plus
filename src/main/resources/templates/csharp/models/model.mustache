@@ -509,7 +509,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
         {
             if (value is not null && value.Count > 0)
             {
-                throw new global::{{packageName}}.SerializationException(
+                throw new global::{{packageName}}.Errors.SerializationException(
                     "Unknown property '" + value.Keys.First()
                         + "' on {{classname}} (unevaluatedProperties:false)");
             }
@@ -662,7 +662,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
         {
             if (value is not null && value.Count > 0)
             {
-                throw new global::{{packageName}}.SerializationException(
+                throw new global::{{packageName}}.Errors.SerializationException(
                     "Unknown property '" + value.Keys.First()
                         + "' on {{classname}} (unevaluatedProperties:false)");
             }

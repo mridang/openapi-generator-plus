@@ -1,12 +1,12 @@
 {{>api_info}}
 
-namespace {{packageName}};
+namespace {{packageName}}.Errors;
 
 /// <summary>
 /// Root of the SDK exception hierarchy.
 ///
 /// Every error the SDK raises ultimately derives from this single base, so a
-/// caller can write one <c>catch ({{packageName}}.{{errorPrefix}}Exception)</c> and be
+/// caller can write one <c>catch ({{packageName}}.Errors.{{errorPrefix}}Exception)</c> and be
 /// certain it covers all SDK-originated failures: API/HTTP errors
 /// (<see cref="ApiException"/> and its typed subclasses) and serialization
 /// failures (<see cref="SerializationException"/>). This gives C# the same

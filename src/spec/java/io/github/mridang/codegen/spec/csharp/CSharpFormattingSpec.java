@@ -19,7 +19,13 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"dotnet tool restore", "dotnet csharpier check ."};
+    return new String[] {
+      "dotnet tool restore",
+      "dotnet csharpier check .",
+      /* The client's `make lint` runs dotnet format as well: the .editorconfig
+       * analyzers at warning severity, over the SDK and the test project. */
+      "dotnet format --verify-no-changes --severity warn"
+    };
   }
 
   @Override

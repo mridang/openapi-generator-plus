@@ -145,4 +145,69 @@ public class ApiExceptionTest
         Assert.IsAssignableFrom<OpenAPIException>(ex);
         Assert.IsAssignableFrom<Exception>(ex);
     }
+
+    [Theory]
+    [InlineData(400, typeof(BadRequestException))]
+    [InlineData(401, typeof(UnauthorizedException))]
+    [InlineData(403, typeof(ForbiddenException))]
+    [InlineData(404, typeof(NotFoundException))]
+    [InlineData(409, typeof(ConflictException))]
+    [InlineData(422, typeof(UnprocessableEntityException))]
+    [InlineData(418, typeof(ClientException))]
+    [InlineData(500, typeof(InternalServerErrorException))]
+    [InlineData(503, typeof(ServerException))]
+    [InlineData(302, typeof(ApiException))]
+    public void FromResponseMapsEveryStatusToItsException(int status, Type expected)
+    {
+        var ex = ApiException.FromResponse(
+            status,
+            new Dictionary<string, string> { { "x-request-id", "abc" } },
+            "{\"code\":\"denied\"}"
+        );
+
+        Assert.Equal(expected, ex.GetType());
+        Assert.Equal(status, ex.StatusCode);
+        Assert.Equal("abc", ex.ResponseHeaders!["x-request-id"]);
+        Assert.Equal("{\"code\":\"denied\"}", ex.ResponseBody);
+        var body = Assert.IsType<System.Text.Json.JsonElement>(ex.ErrorBody);
+        Assert.Equal("denied", body.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public void FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson()
+    {
+        var ex = ApiException.FromResponse(
+            502,
+            new Dictionary<string, string>(),
+            "<html>bad gateway</html>"
+        );
+
+        Assert.IsType<ServerException>(ex);
+        Assert.Equal("<html>bad gateway</html>", ex.ResponseBody);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Theory]
+    [InlineData(typeof(OpenAPIException))]
+    [InlineData(typeof(ApiException))]
+    [InlineData(typeof(ClientException))]
+    [InlineData(typeof(ServerException))]
+    [InlineData(typeof(BadRequestException))]
+    [InlineData(typeof(UnauthorizedException))]
+    [InlineData(typeof(ForbiddenException))]
+    [InlineData(typeof(NotFoundException))]
+    [InlineData(typeof(ConflictException))]
+    [InlineData(typeof(UnprocessableEntityException))]
+    [InlineData(typeof(InternalServerErrorException))]
+    [InlineData(typeof(NetworkException))]
+    [InlineData(typeof(NetworkTimeoutException))]
+    [InlineData(typeof(SerializationException))]
+    [InlineData(typeof(OAuth2ServerException))]
+    [InlineData(typeof(OAuth2TokenException))]
+    public void EveryErrorTypeLivesInTheErrorsNamespaceUnderTheRoot(Type error)
+    {
+        Assert.Equal("PetstoreClient.Errors", error.Namespace);
+        Assert.False(error.IsNested);
+        Assert.True(typeof(OpenAPIException).IsAssignableFrom(error));
+    }
 }

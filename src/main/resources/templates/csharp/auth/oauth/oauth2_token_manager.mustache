@@ -1,5 +1,6 @@
 {{>api_info}}
 
+using {{packageName}}.Errors;
 using System.Text.Json;
 
 namespace {{packageName}}.Auth.OAuth;
@@ -403,83 +404,4 @@ public sealed class OAuth2TokenManager
 
     /// <summary>Gets the refresh token returned by the token endpoint, if any.</summary>
     public string? RefreshToken { get; private set; }
-}
-
-/// <summary>
-/// Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
-/// be used: a body that is not a JSON object, or one whose
-/// <c>access_token</c> field is missing or empty. Distinct from
-/// <see cref="OAuth2ServerException"/> (which represents any non-2xx answer)
-/// so callers can recover differently.
-/// </summary>
-/* CA1032: the parameterless constructor is unused. */
-/* IDE0290: primary-constructor form makes the XML doc less natural. */
-/* CA1032/IDE0290 are silenced project-wide in .editorconfig. */
-public sealed class OAuth2TokenException : {{errorPrefix}}Exception
-{
-    /// <summary>Creates a new <see cref="OAuth2TokenException"/> with the given message.</summary>
-    public OAuth2TokenException(string message) : base(message) { }
-
-    /// <summary>Creates a new <see cref="OAuth2TokenException"/> with the given message and cause.</summary>
-    public OAuth2TokenException(string message, Exception innerException)
-        : base(message, innerException) { }
-}
-
-/// <summary>
-/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
-/// <see cref="Code"/> property carries the OAuth2 error code (e.g.
-/// <c>invalid_grant</c>, <c>invalid_client</c>); <see cref="Description"/>
-/// and <see cref="Uri"/> are the optional human-readable description and a
-/// URL to a page describing the error. <see cref="RawBody"/> preserves the
-/// original response payload for diagnostics when the body is not a
-/// well-formed OAuth2 error object.
-/// </summary>
-/* CA1032: only thrown from one site; extra constructors are unused. */
-/* CA1054/CA1056: error_uri in RFC 6749 §5.2 is a freeform URI string from
-   the OAuth2 server response — keep as `string` to round-trip verbatim
-   what the server sent without forcing System.Uri's stricter parsing. */
-/* IDE0290: primary-constructor form is awkward with the BuildMessage call. */
-/* CA1032/CA1054/CA1056/IDE0290 are silenced project-wide in .editorconfig. */
-public sealed class OAuth2ServerException : {{errorPrefix}}Exception
-{
-    /// <summary>HTTP status code returned by the token endpoint.</summary>
-    public int StatusCode { get; }
-    /// <summary>OAuth2 error code from the response body (RFC 6749 §5.2).</summary>
-    public string? Code { get; }
-    /// <summary>Optional human-readable error description.</summary>
-    public string? Description { get; }
-    /// <summary>Optional URL to a page describing the error.</summary>
-    public string? Uri { get; }
-    /// <summary>Raw response body for diagnostics.</summary>
-    public string RawBody { get; }
-
-    /// <summary>Creates a new <see cref="OAuth2ServerException"/>.</summary>
-    public OAuth2ServerException(
-        int statusCode,
-        string? code,
-        string? description,
-        string? uri,
-        string rawBody
-    )
-        : base(BuildMessage(statusCode, code, description, rawBody))
-    {
-        StatusCode = statusCode;
-        Code = code;
-        Description = description;
-        Uri = uri;
-        RawBody = rawBody;
-    }
-
-    private static string BuildMessage(int statusCode, string? code, string? description, string rawBody)
-    {
-        if (code is null)
-        {
-            return $"Token request failed with status {statusCode}: {rawBody}";
-        }
-        if (description is not null)
-        {
-            return $"Token request failed with status {statusCode}: {code} — {description}";
-        }
-        return $"Token request failed with status {statusCode}: {code}";
-    }
 }

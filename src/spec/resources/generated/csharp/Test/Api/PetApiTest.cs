@@ -8,6 +8,7 @@
 #nullable enable
 
 #pragma warning disable CS0618 // tests deliberately exercise [Obsolete] spec members
+using PetstoreClient.Errors;
 using PetstoreClient;
 using PetstoreClient.Api;
 using PetstoreClient.Api.Options;
@@ -22,15 +23,19 @@ public class PetApiTest
 {
     private readonly PetApi _api;
     private readonly IAuthenticator _auth;
+    private readonly string _baseUrl;
+    private readonly Configuration _config;
 
     public PetApiTest(Test.ChasmFixture chasm)
     {
         var baseUrl = chasm.BaseUrl;
+        _baseUrl = baseUrl;
         _auth = new BearerAuthenticator(baseUrl, "test-token");
         var config = Configuration.Builder()
             .BaseUrl(baseUrl)
             .DefaultHeader("Authorization", "Bearer test-token")
             .Build();
+        _config = config;
         _api = new PetApi(new DefaultApiClient(), config);
     }
 
@@ -447,12 +452,38 @@ public class PetApiTest
         Assert.NotNull(result);
     }
 
-    [Fact(Skip = "Per-operation server URL is external and not reachable in test")]
+    [Fact]
     public async Task TestGetExternalPetInfoUsesPerOperationServer()
     {
-        var result = await _api.GetExternalPetInfoAsync(1L);
+        const string externalServer = "https://external-api.example.com/v1";
+        var redirecting = new RedirectingApiClient(externalServer, _baseUrl);
+        var externalApi = new PetApi(redirecting, _config);
+
+        var result = await externalApi.GetExternalPetInfoAsync(1L, new Server0());
 
         Assert.NotNull(result);
+        var requested = Assert.Single(redirecting.RequestedUrls);
+        Assert.StartsWith(externalServer + "/", requested.ToString(), StringComparison.Ordinal);
+    }
+
+    private sealed class RedirectingApiClient(string from, string to) : IApiClient
+    {
+        private readonly DefaultApiClient _transport = new();
+
+        public List<Uri> RequestedUrls { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect = false
+        )
+        {
+            RequestedUrls.Add(url);
+            var target = new Uri(url.ToString().Replace(from, to, StringComparison.Ordinal));
+            return _transport.SendRequestAsync(method, target, headers, body, noRedirect);
+        }
     }
 
     private sealed class FakeApiClient : IApiClient
@@ -698,7 +729,7 @@ public class PetApiTest
         // ApiException (not a silent null nor a non-SDK exception type).
         var mockApi = NewPetApiForMock(200, "application/json", "");
 
-        var ex = await Assert.ThrowsAsync<PetstoreClient.ApiException>(
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.ApiException>(
             () => mockApi.GetPetByIdAsync(1L));
         Assert.Equal(200, ex.StatusCode);
     }
@@ -714,7 +745,7 @@ public class PetApiTest
         // caller. Canonical across all 12 SDKs.
         var mockApi = NewPetApiForMock(200, "application/json", "{not valid json");
 
-        await Assert.ThrowsAsync<PetstoreClient.SerializationException>(
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(
             () => mockApi.GetPetByIdAsync(1L));
     }
 
