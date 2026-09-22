@@ -2,6 +2,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -13,32 +14,34 @@ type BearerAuthenticator struct {
 	token string
 }
 
+// ErrInvalidBearerToken is returned by NewBearerAuthenticator when the token is
+// empty, whitespace-only, or contains a character outside printable ASCII and
+// TAB (RFC 7230 §3.2.6). Match it with errors.Is.
+var ErrInvalidBearerToken = errors.New("invalid bearer token")
+
 // NewBearerAuthenticator creates a new Bearer authenticator.
 //
-// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. Panics on
-// any value outside printable ASCII + TAB so callers see a clear error
-// rather than HTTP header injection from CR/LF or silently-mangled
-// non-ASCII bytes. panic is appropriate because this is a programmer
-// error, not a recoverable runtime condition.
-func NewBearerAuthenticator(host, token string) *BearerAuthenticator {
+// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. A value
+// outside printable ASCII + TAB would allow HTTP header injection from CR/LF
+// or silently-mangled non-ASCII bytes, so the constructor returns
+// ErrInvalidBearerToken instead.
+func NewBearerAuthenticator(host, token string) (*BearerAuthenticator, error) {
 	// bearer-no-empty-token-guard: an empty or whitespace-only token would
 	// produce the literal `Authorization: Bearer ` header and silently send
-	// the request unauthenticated. Reject it as a programmer error, matching
-	// the api-key authenticator's own empty guard.
-	if token == "" || strings.TrimSpace(token) == "" {
-		panic("Bearer token must not be empty")
+	// the request unauthenticated. Reject it, matching the api-key
+	// authenticator's own empty guard.
+	if strings.TrimSpace(token) == "" {
+		return nil, fmt.Errorf("%w: token must not be empty", ErrInvalidBearerToken)
 	}
 	for _, c := range token {
 		if c != '\t' && (c < 0x20 || c >= 0x7F) {
-			panic(fmt.Sprintf(
-				"Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-			))
+			return nil, fmt.Errorf("%w: token must contain only printable ASCII characters (RFC 7230 §3.2.6)", ErrInvalidBearerToken)
 		}
 	}
 	return &BearerAuthenticator{
 		host:  host,
 		token: token,
-	}
+	}, nil
 }
 
 // Host returns the API base URL.

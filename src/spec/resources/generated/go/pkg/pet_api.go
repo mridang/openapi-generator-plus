@@ -248,11 +248,14 @@ func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*
 
 // AddPetPhotosWithHTTPInfo performs the AddPetPhotos operation and returns the full API result.
 func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.AddPetPhotos", err)
+	}
 	if options == nil {
-		return nil, fmt.Errorf("missing required options when calling PetApi.AddPetPhotos")
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.AddPetPhotos", ErrMissingRequiredParameter)
 	}
 	if options.Files == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.AddPetPhotos", "files")
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.AddPetPhotos", ErrMissingRequiredParameter, "files")
 	}
 
 	path := "/pet/{petId}/photos"
@@ -350,6 +353,9 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 	if options != nil {
 		auth = options.Auth
 	}
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.AddPetTreatment", err)
+	}
 
 	path := "/pet/{petId}/treatment"
 	/* Path params route through serializeStyled so OAS path styles
@@ -437,6 +443,9 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 	if options != nil {
 		auth = options.Auth
 	}
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.DeletePet", err)
+	}
 
 	path := "/pet/{petId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -455,7 +464,7 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 		 * control-char value cannot be injected into the Cookie header. */
 		cookieValue := fmt.Sprintf("%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true))
 		if !isValidCookieValue(cookieValue) {
-			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling PetApi.DeletePet", "api_key")
+			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265 when calling PetApi.DeletePet", ErrInvalidCookie, "api_key")
 		}
 		cookieParts = append(cookieParts, fmt.Sprintf("api_key=%s", cookieValue))
 	}
@@ -508,6 +517,12 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (*[]byte, er
 
 // DownloadPetDocumentWithHTTPInfo performs the DownloadPetDocument operation and returns the full API result.
 func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[[]byte], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.DownloadPetDocument", err)
+	}
+	if err := requirePathParam("documentId", documentId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.DownloadPetDocument", err)
+	}
 
 	path := "/pet/{petId}/documents/{documentId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -699,6 +714,9 @@ func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer
 
 // GetExternalPetInfoWithHTTPInfo performs the GetExternalPetInfo operation and returns the full API result.
 func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalPetInfoServer) (*ApiResult[Pet], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetExternalPetInfo", err)
+	}
 
 	path := "/pet/{petId}/external"
 	/* Path params route through serializeStyled so OAS path styles
@@ -790,6 +808,9 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfo
 
 // GetMultiServerPetInfoWithHTTPInfo performs the GetMultiServerPetInfo operation and returns the full API result.
 func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiServerPetInfoServer) (*ApiResult[Pet], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetMultiServerPetInfo", err)
+	}
 
 	path := "/pet/{petId}/multi"
 	/* Path params route through serializeStyled so OAS path styles
@@ -882,6 +903,9 @@ func (a *PetApi) GetPetAvatar(petId int64) (*[]byte, error) {
 
 // GetPetAvatarWithHTTPInfo performs the GetPetAvatar operation and returns the full API result.
 func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetAvatar", err)
+	}
 
 	path := "/pet/{petId}/avatar"
 	/* Path params route through serializeStyled so OAS path styles
@@ -968,6 +992,9 @@ func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 
 // GetPetAvatarThumbnailWithHTTPInfo performs the GetPetAvatarThumbnail operation and returns the full API result.
 func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetAvatarThumbnail", err)
+	}
 
 	path := "/pet/{petId}/avatar/thumbnail"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1060,6 +1087,9 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 
 // GetPetByIdWithHTTPInfo performs the GetPetById operation and returns the full API result.
 func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[Pet], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetById", err)
+	}
 
 	path := "/pet/{petId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1151,14 +1181,14 @@ func (a *PetApi) GetPetByName(name string, options *opts.GetPetByNameOptions) (*
 
 // GetPetByNameWithHTTPInfo performs the GetPetByName operation and returns the full API result.
 func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNameOptions) (*ApiResult[Pet], error) {
-	if name == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "name")
+	if err := requirePathParam("name", name); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetByName", err)
 	}
 	if options == nil {
-		return nil, fmt.Errorf("missing required options when calling PetApi.GetPetByName")
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.GetPetByName", ErrMissingRequiredParameter)
 	}
 	if options.Category == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "category")
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.GetPetByName", ErrMissingRequiredParameter, "category")
 	}
 
 	path := "/pet/byName/{name}"
@@ -1249,6 +1279,9 @@ func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 
 // GetPetPassportWithHTTPInfo performs the GetPetPassport operation and returns the full API result.
 func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetPassport", err)
+	}
 
 	path := "/pet/{petId}/passport"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1335,6 +1368,12 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (*[]byte, error) {
 
 // GetPetPhotoWithHTTPInfo performs the GetPetPhoto operation and returns the full API result.
 func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[[]byte], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetPhoto", err)
+	}
+	if err := requirePathParam("photoId", photoId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetPhoto", err)
+	}
 
 	path := "/pet/{petId}/photos/{photoId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1425,8 +1464,11 @@ func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagO
 
 // GetPetTagWithHTTPInfo performs the GetPetTag operation and returns the full API result.
 func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opts.GetPetTagOptions) (*ApiResult[Pet], error) {
-	if tagName == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetTag", "tagName")
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetTag", err)
+	}
+	if err := requirePathParam("tagName", tagName); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetTag", err)
 	}
 
 	path := "/pet/{petId}/tag/{tagName}"
@@ -1532,6 +1574,9 @@ func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) 
 
 // GetStagingPetInfoWithHTTPInfo performs the GetStagingPetInfo operation and returns the full API result.
 func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPetInfoServer) (*ApiResult[Pet], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetStagingPetInfo", err)
+	}
 
 	path := "/pet/{petId}/staging"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1618,6 +1663,9 @@ func (a *PetApi) SetPetAvatar(petId int64, body *os.File, requestContentType ...
 
 // SetPetAvatarWithHTTPInfo performs the SetPetAvatar operation and returns the full API result.
 func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestContentType ...string) (*ApiResult[any], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.SetPetAvatar", err)
+	}
 
 	path := "/pet/{petId}/avatar"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1691,6 +1739,9 @@ func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest
 
 // SetPetAvatarThumbnailWithHTTPInfo performs the SetPetAvatarThumbnail operation and returns the full API result.
 func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (*ApiResult[any], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.SetPetAvatarThumbnail", err)
+	}
 
 	path := "/pet/{petId}/avatar/thumbnail"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1748,11 +1799,14 @@ func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesO
 
 // SetPetPreferencesWithHTTPInfo performs the SetPetPreferences operation and returns the full API result.
 func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResult[ApiResponse], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.SetPetPreferences", err)
+	}
 	if options == nil {
-		return nil, fmt.Errorf("missing required options when calling PetApi.SetPetPreferences")
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.SetPetPreferences", ErrMissingRequiredParameter)
 	}
 	if options.Nickname == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.SetPetPreferences", "nickname")
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.SetPetPreferences", ErrMissingRequiredParameter, "nickname")
 	}
 
 	path := "/pet/{petId}/preferences"
@@ -1851,6 +1905,9 @@ func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 
 // UpdatePetWithHTTPInfo performs the UpdatePet operation and returns the full API result.
 func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.UpdatePet", err)
+	}
 
 	path := "/pet/{petId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1937,11 +1994,14 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertif
 
 // UploadPetCertificateWithHTTPInfo performs the UploadPetCertificate operation and returns the full API result.
 func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.UploadPetCertificate", err)
+	}
 	if options == nil {
-		return nil, fmt.Errorf("missing required options when calling PetApi.UploadPetCertificate")
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.UploadPetCertificate", ErrMissingRequiredParameter)
 	}
 	if options.File == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.UploadPetCertificate", "file")
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.UploadPetCertificate", ErrMissingRequiredParameter, "file")
 	}
 
 	path := "/pet/{petId}/certificate"
@@ -2033,11 +2093,14 @@ func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentO
 
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
 func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResult[ApiResponse], error) {
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.UploadPetDocument", err)
+	}
 	if options == nil {
-		return nil, fmt.Errorf("missing required options when calling PetApi.UploadPetDocument")
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.UploadPetDocument", ErrMissingRequiredParameter)
 	}
 	if options.File == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.UploadPetDocument", "file")
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.UploadPetDocument", ErrMissingRequiredParameter, "file")
 	}
 
 	path := "/pet/{petId}/documents"

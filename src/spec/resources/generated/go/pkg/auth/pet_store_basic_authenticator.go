@@ -6,9 +6,14 @@ type PetStoreBasicAuthenticator struct {
 	*BasicAuthenticator
 }
 
-func NewPetStoreBasicAuthenticator(host string, username string, password string) *PetStoreBasicAuthenticator {
-	inner := NewBasicAuthenticator(host, username, password)
+// NewPetStoreBasicAuthenticator returns the BasicAuthenticator constructor's error when the
+// credentials are invalid. Match it with errors.Is.
+func NewPetStoreBasicAuthenticator(host string, username string, password string) (*PetStoreBasicAuthenticator, error) {
+	inner, err := NewBasicAuthenticator(host, username, password)
+	if err != nil {
+		return nil, err
+	}
 	return &PetStoreBasicAuthenticator{
 		BasicAuthenticator: inner,
-	}
+	}, nil
 }

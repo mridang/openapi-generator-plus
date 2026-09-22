@@ -33,8 +33,8 @@ package errors
 // The interface carries an unexported marker method, so an arbitrary error does
 // not satisfy it: only the SDK's own error types do. Types declared in this
 // package implement the marker directly; SDK error types declared in other
-// packages (SerializationError, OAuth2TokenError, OAuth2ServerError) embed
-// ErrorMarker, which promotes the marker to them.
+// packages (OAuth2TokenError, OAuth2ServerError) embed ErrorMarker, which
+// promotes the marker to them.
 type {{errorPrefix}}Error interface {
 	error
 	is{{errorPrefix}}Error()

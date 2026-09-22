@@ -20,11 +20,10 @@ import (
 	"petstore/pkg/models"
 )
 
-// Compile-time proof that *SerializationError satisfies the branded OpenAPIError
-// root. SerializationError lives in this (main) package while OpenAPIError lives
-// in the imported errors package; this assertion guarantees the brand spans the
-// package boundary. If SerializationError stops implementing error, the test
-// package fails to compile.
+// Compile-time proof that the *SerializationError re-exported by this (main)
+// package satisfies the branded OpenAPIError root declared in the errors
+// package. If SerializationError stops implementing it, the test package fails
+// to compile.
 var _ apierrors.OpenAPIError = (*SerializationError)(nil)
 
 func TestSerialize_MapToJSON(t *testing.T) {
@@ -722,6 +721,35 @@ func TestDeserialize_MalformedDurationIsSerializationError(t *testing.T) {
 		var serErr *SerializationError
 		if !errors.As(err, &serErr) {
 			t.Errorf("expected *SerializationError for %s, got %T: %v", wire, err, err)
+		}
+	}
+}
+
+// Every wire-shape failure is a *SerializationError and satisfies the
+// OpenAPIError root: a wrong primitive type, an unknown enum value, a
+// missing or null required field and a malformed date-time.
+func TestDeserialize_WireShapeFailuresAreSerializationErrors(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		wire   string
+		target func() any
+	}{
+		"wrong primitive type":   {`{"name":7,"photoUrls":[]}`, func() any { return &models.Pet{} }},
+		"unknown enum":           {`{"status":"lost"}`, func() any { return &models.Order{} }},
+		"missing required field": {`{"photoUrls":[]}`, func() any { return &models.Pet{} }},
+		"null required field":    {`{"name":null,"photoUrls":[]}`, func() any { return &models.Pet{} }},
+		"malformed date-time":    {`{"shipDate":"not-a-date"}`, func() any { return &models.Order{} }},
+	}
+	for name, c := range cases {
+		err := deserialize([]byte(c.wire), c.target())
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%s: expected *SerializationError, got %T: %v", name, err, err)
+			continue
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(err, &root) {
+			t.Errorf("%s: expected *SerializationError to satisfy OpenAPIError", name)
 		}
 	}
 }

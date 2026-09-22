@@ -110,6 +110,33 @@ func serializeDeepObject(paramName string, value any) map[string]string {
 	return result
 }
 
+// requirePathParam returns ErrMissingRequiredParameter when a path parameter is
+// nil or an empty string.
+//
+// Path parameters are required components of the URL — accepting an empty
+// string would silently produce a malformed URL like `/resource//details`,
+// which most servers route to 404 instead of surfacing the bug at the call
+// site. A named string enum path param has its own dynamic type rather than
+// string, so a plain `value.(string)` assertion misses an empty zero-value
+// enum. Dereference any pointer and inspect the underlying kind via
+// reflection so a string-kinded value of any named type is caught.
+func requirePathParam(paramName string, value any) error {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() {
+		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+	}
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.String && rv.String() == "" {
+		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+	}
+	return nil
+}
+
 // serializeStyled serializes a parameter value according to OAS 3.0 style and explode rules.
 //
 // Parameters:
@@ -121,31 +148,6 @@ func serializeDeepObject(paramName string, value any) map[string]string {
 //   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
 //   - explode: whether to explode array values
 func serializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
-	/* Path parameters are required components of the URL — accepting an
-	 * empty string would silently produce a malformed URL like
-	 * `/resource//details`, which most servers route to 404 instead of
-	 * surfacing the bug at the call site. The required-non-nil check
-	 * lives in the operation method; here we catch the empty-string
-	 * case that slips through it. panic is appropriate because this
-	 * is a programmer error, not a recoverable runtime condition. */
-	if location == "path" {
-		/* A named string enum path param has its own dynamic type rather than
-		 * string, so a plain `value.(string)` assertion misses an empty
-		 * zero-value enum. Dereference any pointer and inspect the underlying
-		 * kind via reflection so a string-kinded value of any named type is
-		 * caught. */
-		rv := reflect.ValueOf(value)
-		if rv.Kind() == reflect.Ptr {
-			if rv.IsNil() {
-				panic(fmt.Sprintf("path parameter '%s' must not be empty", paramName))
-			}
-			rv = rv.Elem()
-		}
-		if rv.Kind() == reflect.String && rv.String() == "" {
-			panic(fmt.Sprintf("path parameter '%s' must not be empty", paramName))
-		}
-	}
-
 	if style == "" {
 		return serializeValue(value, location, schemaType, collectionFormat)
 	}

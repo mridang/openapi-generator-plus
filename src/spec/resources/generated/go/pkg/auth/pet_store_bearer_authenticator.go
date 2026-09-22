@@ -6,9 +6,14 @@ type PetStoreBearerAuthenticator struct {
 	*BearerAuthenticator
 }
 
-func NewPetStoreBearerAuthenticator(host string, token string) *PetStoreBearerAuthenticator {
-	inner := NewBearerAuthenticator(host, token)
+// NewPetStoreBearerAuthenticator returns the BearerAuthenticator constructor's error when the
+// credentials are invalid. Match it with errors.Is.
+func NewPetStoreBearerAuthenticator(host string, token string) (*PetStoreBearerAuthenticator, error) {
+	inner, err := NewBearerAuthenticator(host, token)
+	if err != nil {
+		return nil, err
+	}
 	return &PetStoreBearerAuthenticator{
 		BearerAuthenticator: inner,
-	}
+	}, nil
 }

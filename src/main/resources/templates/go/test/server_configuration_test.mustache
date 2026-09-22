@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"{{packageName}}/pkg"
+	apierrors "{{packageName}}/pkg/errors"
 )
 
 func TestServerConfiguration_URLSubstitutesOverrides(t *testing.T) {
@@ -81,6 +82,10 @@ func TestServerConfiguration_URLRejectsValueOutsideEnum(t *testing.T) {
 	_, err := server.URL(map[string]string{"env": "invalid"})
 	if !errors.Is(err, {{packageName}}.ErrInvalidServerVariable) {
 		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
+	}
+	var root apierrors.{{errorPrefix}}Error
+	if errors.As(err, &root) {
+		t.Errorf("a server variable outside its enum must not be a {{errorPrefix}}Error, got %T", err)
 	}
 }
 

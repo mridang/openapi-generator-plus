@@ -69,8 +69,15 @@ func New{{clientClassName}}(authenticator Authenticator, transportOptions *Trans
 }
 
 // New{{clientClassName}}WithToken creates a client authenticated with a static Bearer token.
-func New{{clientClassName}}WithToken(host, accessToken string, transportOptions *TransportOptions) *{{clientClassName}} {
-	return New{{clientClassName}}(auth.NewBearerAuthenticator(host, accessToken), transportOptions)
+//
+// Returns auth.ErrInvalidBearerToken when the token is empty or contains a
+// character that cannot be sent in a header.
+func New{{clientClassName}}WithToken(host, accessToken string, transportOptions *TransportOptions) (*{{clientClassName}}, error) {
+	authenticator, err := auth.NewBearerAuthenticator(host, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	return New{{clientClassName}}(authenticator, transportOptions), nil
 }
 
 // New{{clientClassName}}WithAuthenticator creates a client from a ready-made Authenticator.

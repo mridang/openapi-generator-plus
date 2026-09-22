@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -68,7 +69,9 @@ func TestOAuth2Implicit_BuildsAuthorizationUrlWithState(t *testing.T) {
 func TestOAuth2Implicit_GetAuthHeadersReturnsBearerAfterSetAccessToken(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
-	auth.SetAccessToken("implicit-tok")
+	if err := auth.SetAccessToken("implicit-tok"); err != nil {
+		t.Fatalf("unexpected error from SetAccessToken: %v", err)
+	}
 
 	headers := auth.AuthHeaders()
 
@@ -77,23 +80,45 @@ func TestOAuth2Implicit_GetAuthHeadersReturnsBearerAfterSetAccessToken(t *testin
 	}
 }
 
-func TestOAuth2Implicit_ThrowsWhenAccessTokenNotSet(t *testing.T) {
+// A request made before SetAccessToken is a wrong call order: the sentinel is
+// returned, never a panic, and AuthHeaders degrades to an empty map.
+func TestOAuth2Implicit_ReturnsErrAccessTokenNotSetBeforeSetAccessToken(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic when access token not set")
-		}
-	}()
+	headers, err := auth.AuthHeadersOrError()
+	if !errors.Is(err, oauth.ErrAccessTokenNotSet) {
+		t.Fatalf("expected ErrAccessTokenNotSet, got %v", err)
+	}
+	if headers != nil {
+		t.Errorf("expected no headers, got %v", headers)
+	}
+	if got := auth.AuthHeaders(); len(got) != 0 {
+		t.Errorf("expected AuthHeaders to be empty before SetAccessToken, got %v", got)
+	}
+}
 
-	auth.AuthHeaders()
+// F-A5-04: a token that would inject a header is rejected with
+// ErrInvalidAccessToken, never a panic, and the previous token is kept.
+func TestOAuth2Implicit_SetAccessTokenRejectsInvalidToken(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño", "tok\x00"} {
+		if err := auth.SetAccessToken(bad); !errors.Is(err, oauth.ErrInvalidAccessToken) {
+			t.Errorf("expected ErrInvalidAccessToken for %q, got %v", bad, err)
+		}
+	}
+	if _, err := auth.AuthHeadersOrError(); !errors.Is(err, oauth.ErrAccessTokenNotSet) {
+		t.Errorf("an invalid token must not be stored, got %v", err)
+	}
 }
 
 func TestOAuth2ImplicitRedactsSecret(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
-	auth.SetAccessToken("implicit-tok")
+	if err := auth.SetAccessToken("implicit-tok"); err != nil {
+		t.Fatalf("unexpected error from SetAccessToken: %v", err)
+	}
 	for _, s := range []string{auth.String(), fmt.Sprintf("%v", auth), fmt.Sprintf("%+v", auth), fmt.Sprintf("%s", auth)} {
 		if strings.Contains(s, "implicit-tok") {
 			t.Errorf("expected access token to be redacted, got %q", s)

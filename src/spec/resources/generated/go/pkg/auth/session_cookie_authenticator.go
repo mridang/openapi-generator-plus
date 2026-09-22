@@ -6,9 +6,14 @@ type SessionCookieAuthenticator struct {
 	*ApiKeyAuthenticator
 }
 
-func NewSessionCookieAuthenticator(host string, apiKey string) *SessionCookieAuthenticator {
-	inner := NewApiKeyAuthenticator(host, "SESSION_ID", apiKey, ApiKeyLocationCookie)
+// NewSessionCookieAuthenticator returns the ApiKeyAuthenticator constructor's error when the
+// credentials are invalid. Match it with errors.Is.
+func NewSessionCookieAuthenticator(host string, apiKey string) (*SessionCookieAuthenticator, error) {
+	inner, err := NewApiKeyAuthenticator(host, "SESSION_ID", apiKey, ApiKeyLocationCookie)
+	if err != nil {
+		return nil, err
+	}
 	return &SessionCookieAuthenticator{
 		ApiKeyAuthenticator: inner,
-	}
+	}, nil
 }

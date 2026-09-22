@@ -6,9 +6,14 @@ type InternalApiKeyAuthenticator struct {
 	*ApiKeyAuthenticator
 }
 
-func NewInternalApiKeyAuthenticator(host string, apiKey string) *InternalApiKeyAuthenticator {
-	inner := NewApiKeyAuthenticator(host, "X-Internal-Key", apiKey, ApiKeyLocationHeader)
+// NewInternalApiKeyAuthenticator returns the ApiKeyAuthenticator constructor's error when the
+// credentials are invalid. Match it with errors.Is.
+func NewInternalApiKeyAuthenticator(host string, apiKey string) (*InternalApiKeyAuthenticator, error) {
+	inner, err := NewApiKeyAuthenticator(host, "X-Internal-Key", apiKey, ApiKeyLocationHeader)
+	if err != nil {
+		return nil, err
+	}
 	return &InternalApiKeyAuthenticator{
 		ApiKeyAuthenticator: inner,
-	}
+	}, nil
 }

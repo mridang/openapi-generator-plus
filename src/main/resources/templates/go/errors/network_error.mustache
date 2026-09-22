@@ -6,3 +6,13 @@ package errors
 type NetworkError struct {
 	ApiError
 }
+
+// As lets errors.As match a subclass such as *NetworkTimeoutError against *NetworkError,
+// and a *NetworkError against *ApiError.
+func (e *NetworkError) As(target any) bool {
+	if t, ok := target.(**NetworkError); ok {
+		*t = e
+		return true
+	}
+	return e.ApiError.As(target)
+}

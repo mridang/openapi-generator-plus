@@ -6,9 +6,14 @@ type ApiKeyHeaderAuthenticator struct {
 	*ApiKeyAuthenticator
 }
 
-func NewApiKeyHeaderAuthenticator(host string, apiKey string) *ApiKeyHeaderAuthenticator {
-	inner := NewApiKeyAuthenticator(host, "X-API-Key", apiKey, ApiKeyLocationHeader)
+// NewApiKeyHeaderAuthenticator returns the ApiKeyAuthenticator constructor's error when the
+// credentials are invalid. Match it with errors.Is.
+func NewApiKeyHeaderAuthenticator(host string, apiKey string) (*ApiKeyHeaderAuthenticator, error) {
+	inner, err := NewApiKeyAuthenticator(host, "X-API-Key", apiKey, ApiKeyLocationHeader)
+	if err != nil {
+		return nil, err
+	}
 	return &ApiKeyHeaderAuthenticator{
 		ApiKeyAuthenticator: inner,
-	}
+	}, nil
 }

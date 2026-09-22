@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"petstore/pkg/auth"
+	errors_pkg "petstore/pkg/errors"
 )
 
 // defaultDiscoveryMaxAgeSeconds is the RFC 8414 recommended default max-age
@@ -122,13 +123,26 @@ func (a *OpenIdConnectAuthenticator) ExchangeCode(code string) error {
 	return delegate.ExchangeCode(code)
 }
 
-// AuthHeaders returns the Bearer authentication header.
-func (a *OpenIdConnectAuthenticator) AuthHeaders() map[string]string {
+// AuthHeadersOrError returns the Bearer authentication header, or the error
+// that prevented it: a failed discovery request, ErrAuthCodeNotExchanged, or a
+// token-endpoint failure. base_api prefers this method, so the real error
+// surfaces instead of an unauthenticated request.
+func (a *OpenIdConnectAuthenticator) AuthHeadersOrError() (map[string]string, error) {
 	delegate, err := a.resolveDelegate()
+	if err != nil {
+		return nil, err
+	}
+	return delegate.AuthHeadersOrError()
+}
+
+// AuthHeaders returns the Bearer authentication header, or an empty map when
+// it cannot be obtained. Use AuthHeadersOrError to see why.
+func (a *OpenIdConnectAuthenticator) AuthHeaders() map[string]string {
+	headers, err := a.AuthHeadersOrError()
 	if err != nil {
 		return map[string]string{}
 	}
-	return delegate.AuthHeaders()
+	return headers
 }
 
 // resolveDelegate lazily resolves the delegate by fetching the OIDC discovery
@@ -145,25 +159,31 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 
 	client := a.apiClient
 	if client == nil {
-		return nil, fmt.Errorf("API client has not been injected. " +
-			"Ensure the Client constructor calls SetApiClient " +
-			"on HttpAwareAuthenticator before making API requests")
+		return nil, ErrApiClientNotInjected
 	}
 
 	headers := map[string]string{
 		"Accept": "application/json",
 	}
 
+	/* Discovery is an HTTP call like any other: a transport failure is
+	 * already a *NetworkError or *NetworkTimeoutError and is returned
+	 * unchanged. */
 	resp, err := client.SendRequest("GET", a.openIDConnectURL, headers, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch OIDC discovery document: %w", err)
+		return nil, err
 	}
 
 	/* oauth-oidc-discovery-no-status-check: a non-2xx discovery response
-	 * (e.g. a 500 HTML error page) must surface as a clear status error
-	 * rather than a misleading "invalid JSON" parse failure downstream. */
+	 * (e.g. a 500 HTML error page) surfaces as the typed *ApiError for its
+	 * status rather than a misleading "invalid JSON" parse failure
+	 * downstream. */
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("OIDC discovery request failed with status %d", resp.StatusCode)
+		return nil, errors_pkg.NewTypedApiError(
+			resp.StatusCode,
+			fmt.Sprintf("OIDC discovery request failed with status %d", resp.StatusCode),
+			resp.Body, resp.Headers, nil, nil,
+		)
 	}
 
 	var discovery struct {
@@ -171,18 +191,19 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		TokenEndpoint         string `json:"token_endpoint"`
 	}
 	if err := json.Unmarshal([]byte(resp.Body), &discovery); err != nil {
-		return nil, fmt.Errorf("failed to parse OIDC discovery document: %w", err)
+		return nil, errors_pkg.NewSerializationError("failed to parse OIDC discovery document", err)
 	}
 
 	/* oauth-oidc-missing-endpoint-guard: a discovery document missing
 	 * authorization_endpoint or token_endpoint must fail loud. Building the
 	 * delegate with empty endpoint URLs would silently produce malformed
-	 * authorization/token requests against the wrong (empty) URL. */
+	 * authorization/token requests against the wrong (empty) URL. An
+	 * incomplete document is a *SerializationError. */
 	if strings.TrimSpace(discovery.AuthorizationEndpoint) == "" {
-		return nil, fmt.Errorf("OIDC discovery document is missing 'authorization_endpoint'")
+		return nil, errors_pkg.NewSerializationError("OIDC discovery document is missing 'authorization_endpoint'", nil)
 	}
 	if strings.TrimSpace(discovery.TokenEndpoint) == "" {
-		return nil, fmt.Errorf("OIDC discovery document is missing 'token_endpoint'")
+		return nil, errors_pkg.NewSerializationError("OIDC discovery document is missing 'token_endpoint'", nil)
 	}
 
 	a.delegate = NewOAuth2AuthorizationCodeAuthenticator(

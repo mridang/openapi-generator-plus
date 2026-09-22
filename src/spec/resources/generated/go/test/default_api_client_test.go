@@ -594,8 +594,12 @@ func TestDefaultApiClient_CloseReleasesUnderlyingClient(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error after Close, got nil")
 	}
-	if !strings.Contains(err.Error(), "closed") {
-		t.Errorf("expected a closed-client error, got %q", err.Error())
+	if !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed, got %v", err)
+	}
+	var root pkgerrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("use after close is a caller mistake and must not be a OpenAPIError, got %T", err)
 	}
 }
 
@@ -665,6 +669,20 @@ func TestDefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), "HTTPS") || !strings.Contains(err.Error(), "HTTP") {
 				t.Errorf("expected downgrade-refusal message for %d, got %q", status, err.Error())
+			}
+			// A refused redirect is a response that arrived but cannot be
+			// used: an *ApiError with the redirect's real status, never a
+			// *NetworkError.
+			var apiErr *pkgerrors.ApiError
+			if !errors.As(err, &apiErr) {
+				t.Fatalf("expected *ApiError for a refused %d redirect, got %T: %v", status, err, err)
+			}
+			if apiErr.StatusCode() != status {
+				t.Errorf("expected StatusCode %d, got %d", status, apiErr.StatusCode())
+			}
+			var netErr *pkgerrors.NetworkError
+			if errors.As(err, &netErr) {
+				t.Errorf("a refused redirect must not be a *NetworkError, got %v", err)
 			}
 		})
 	}
@@ -762,6 +780,10 @@ func TestDefaultApiClient_ConcurrentRedirectCountIsPerRequest(t *testing.T) {
 			}
 			if !strings.Contains(errs[i].Error(), strconv.Itoa(maxRedirects)) {
 				t.Errorf("case %d (%d hops): expected limit error mentioning %d, got %q", i, c.hops, maxRedirects, errs[i].Error())
+			}
+			var apiErr *pkgerrors.ApiError
+			if !errors.As(errs[i], &apiErr) || apiErr.StatusCode() != http.StatusFound {
+				t.Errorf("case %d (%d hops): expected *ApiError with status 302, got %T: %v", i, c.hops, errs[i], errs[i])
 			}
 		} else {
 			// A shallow request stays well under the limit and must succeed —

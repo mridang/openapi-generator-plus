@@ -14,7 +14,14 @@ public class GoClientSpec extends AbstractClientSpec implements GoSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"go test -parallel=8 ./..."};
+        /* gotestsum runs `go test` unchanged and also writes a JUnit XML into
+         * `.out/reports/`, so the per-test counts are reported like the other
+         * languages'. Its exit code is the `go test` exit code. */
+        return new String[] {
+            "mkdir -p .out/reports",
+            "go run gotest.tools/gotestsum@v1.13.0 --format=standard-quiet"
+                + " --junitfile .out/reports/junit.xml -- -parallel=8 ./..."
+        };
     }
 
     @Override

@@ -13,6 +13,7 @@ import (
 
 	"{{packageName}}/pkg/auth"
 	"{{packageName}}/pkg/auth/oauth"
+	apierrors "{{packageName}}/pkg/errors"
 )
 
 // fakeTokenClient implements auth.ApiClient for token manager tests.
@@ -27,6 +28,7 @@ type fakeTokenClient struct {
 type fakeResponse struct {
 	body       string
 	statusCode int
+	err        error
 }
 
 func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
@@ -47,6 +49,9 @@ func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map
 	}
 	idx := atomic.AddInt32(&c.index, 1) - 1
 	resp := c.responses[idx]
+	if resp.err != nil {
+		return nil, resp.err
+	}
 	return &auth.ApiHttpResponse{
 		StatusCode: resp.statusCode,
 		Body:       resp.body,
@@ -341,8 +346,54 @@ func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
 		"grant_type": "client_credentials",
 	})
-	if err == nil {
-		t.Fatal("expected error when no API client injected, got nil")
+	if !errors.Is(err, oauth.ErrApiClientNotInjected) {
+		t.Fatalf("expected ErrApiClientNotInjected, got %v", err)
+	}
+	var root apierrors.{{errorPrefix}}Error
+	if errors.As(err, &root) {
+		t.Errorf("a wrong call order must not be a {{errorPrefix}}Error, got %T", err)
+	}
+}
+
+// Token endpoint: a 2xx body that is not JSON is an *OAuth2TokenError, and a
+// transport failure is returned unchanged as the *NetworkError /
+// *NetworkTimeoutError it already is.
+func TestOAuth2TokenManager_UnusableAnswersAndTransportFailuresAreTyped(t *testing.T) {
+	t.Parallel()
+	params := map[string]string{"grant_type": "client_credentials"}
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(newFakeTokenClient(fakeResponse{body: `<html>ok</html>`, statusCode: 200}))
+	_, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	var tokenErr *oauth.OAuth2TokenError
+	if !errors.As(err, &tokenErr) {
+		t.Errorf("expected *OAuth2TokenError for a non-JSON 2xx body, got %T: %v", err, err)
+	}
+
+	refused := apierrors.NewNetworkError("request failed", errors.New("connection refused"))
+	manager = oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(newFakeTokenClient(fakeResponse{err: refused}))
+	_, err = manager.GetAccessToken("https://auth.example.com/token", params)
+	var netErr *apierrors.NetworkError
+	if !errors.As(err, &netErr) || netErr.StatusCode() != 0 {
+		t.Errorf("expected *NetworkError with status 0, got %T: %v", err, err)
+	}
+
+	timeout := apierrors.NewNetworkTimeoutError("request timed out", errors.New("deadline exceeded"))
+	manager = oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(newFakeTokenClient(fakeResponse{err: timeout}))
+	_, err = manager.GetAccessToken("https://auth.example.com/token", params)
+	var timeoutErr *apierrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Errorf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+
+	manager = oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(newFakeTokenClient(fakeResponse{body: `upstream down`, statusCode: 503}))
+	_, err = manager.GetAccessToken("https://auth.example.com/token", params)
+	var serverErr *oauth.OAuth2ServerError
+	if !errors.As(err, &serverErr) || serverErr.StatusCode() != 503 {
+		t.Errorf("expected *OAuth2ServerError with status 503, got %T: %v", err, err)
 	}
 }
 

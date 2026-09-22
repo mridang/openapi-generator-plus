@@ -11,8 +11,10 @@ package petstore_test
 
 import (
 	"errors"
-	petstore "petstore/pkg"
 	"testing"
+
+	petstore "petstore/pkg"
+	apierrors "petstore/pkg/errors"
 )
 
 func TestServerConfiguration_URLSubstitutesOverrides(t *testing.T) {
@@ -88,6 +90,10 @@ func TestServerConfiguration_URLRejectsValueOutsideEnum(t *testing.T) {
 	_, err := server.URL(map[string]string{"env": "invalid"})
 	if !errors.Is(err, petstore.ErrInvalidServerVariable) {
 		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
+	}
+	var root apierrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a server variable outside its enum must not be a OpenAPIError, got %T", err)
 	}
 }
 

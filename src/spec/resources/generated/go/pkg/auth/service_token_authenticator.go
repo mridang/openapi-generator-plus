@@ -6,9 +6,14 @@ type ServiceTokenAuthenticator struct {
 	*BearerAuthenticator
 }
 
-func NewServiceTokenAuthenticator(host string, token string) *ServiceTokenAuthenticator {
-	inner := NewBearerAuthenticator(host, token)
+// NewServiceTokenAuthenticator returns the BearerAuthenticator constructor's error when the
+// credentials are invalid. Match it with errors.Is.
+func NewServiceTokenAuthenticator(host string, token string) (*ServiceTokenAuthenticator, error) {
+	inner, err := NewBearerAuthenticator(host, token)
+	if err != nil {
+		return nil, err
+	}
 	return &ServiceTokenAuthenticator{
 		BearerAuthenticator: inner,
-	}
+	}, nil
 }

@@ -13,3 +13,13 @@ package errors
 type ServerError struct {
 	ApiError
 }
+
+// As lets errors.As match a subclass such as *InternalServerError against *ServerError,
+// and a *ServerError against *ApiError.
+func (e *ServerError) As(target any) bool {
+	if t, ok := target.(**ServerError); ok {
+		*t = e
+		return true
+	}
+	return e.ApiError.As(target)
+}

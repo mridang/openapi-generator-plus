@@ -10,6 +10,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -26,6 +27,12 @@ type ApiKeyAuthenticator struct {
 	location     ApiKeyLocation
 }
 
+// ErrInvalidApiKey is returned by NewApiKeyAuthenticator when the key is empty,
+// whitespace-only, contains CR, LF or NUL, or — for a header key — contains a
+// character outside printable ASCII and TAB (RFC 7230 §3.2.6). Match it with
+// errors.Is.
+var ErrInvalidApiKey = errors.New("invalid API key")
+
 // NewApiKeyAuthenticator creates a new API key authenticator.
 //
 // Parameters:
@@ -33,33 +40,24 @@ type ApiKeyAuthenticator struct {
 //   - keyParamName: name of the key parameter
 //   - apiKey: the API key value
 //   - location: where to send the key (header, query, or cookie)
-func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLocation) *ApiKeyAuthenticator {
+//
+// Returns ErrInvalidApiKey when the key cannot be sent safely.
+func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLocation) (*ApiKeyAuthenticator, error) {
 	// Validation applies to ALL locations: empty/whitespace API keys
-	// and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
-	// printable-ASCII rule still applies to HEADER values. panic is
-	// appropriate because this is a programmer error, not a recoverable
-	// runtime condition.
-	if apiKey == "" || strings.TrimSpace(apiKey) == "" {
-		panic(fmt.Sprintf(
-			"API key value for '%s' must not be empty",
-			keyParamName,
-		))
+	// and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
+	// printable-ASCII rule still applies to HEADER values.
+	if strings.TrimSpace(apiKey) == "" {
+		return nil, fmt.Errorf("%w: value for '%s' must not be empty", ErrInvalidApiKey, keyParamName)
 	}
 	for _, c := range apiKey {
 		if c == '\r' || c == '\n' || c == 0 {
-			panic(fmt.Sprintf(
-				"API key value for '%s' contains forbidden control characters (CR/LF/NUL)",
-				keyParamName,
-			))
+			return nil, fmt.Errorf("%w: value for '%s' contains forbidden control characters (CR/LF/NUL)", ErrInvalidApiKey, keyParamName)
 		}
 	}
 	if location == ApiKeyLocationHeader {
 		for _, c := range apiKey {
 			if c != '\t' && (c < 0x20 || c >= 0x7F) {
-				panic(fmt.Sprintf(
-					"API key for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-					keyParamName,
-				))
+				return nil, fmt.Errorf("%w: value for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)", ErrInvalidApiKey, keyParamName)
 			}
 		}
 	}
@@ -68,7 +66,7 @@ func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLo
 		keyParamName: keyParamName,
 		apiKey:       apiKey,
 		location:     location,
-	}
+	}, nil
 }
 
 // Host returns the API base URL.

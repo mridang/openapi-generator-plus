@@ -44,6 +44,9 @@ func (a *StoreApi) DeleteOrder(orderId int64) error {
 
 // DeleteOrderWithHTTPInfo performs the DeleteOrder operation and returns the full API result.
 func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], error) {
+	if err := requirePathParam("orderId", orderId); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.DeleteOrder", err)
+	}
 
 	path := "/store/order/{orderId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -100,6 +103,9 @@ func (a *StoreApi) GetBySwatch(pathSwatch Swatch, options *opts.GetBySwatchOptio
 
 // GetBySwatchWithHTTPInfo performs the GetBySwatch operation and returns the full API result.
 func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetBySwatchOptions) (*ApiResult[Category], error) {
+	if err := requirePathParam("pathSwatch", pathSwatch); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.GetBySwatch", err)
+	}
 
 	path := "/store/by-swatch/{pathSwatch}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -592,6 +598,9 @@ func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 
 // GetOrderByIdWithHTTPInfo performs the GetOrderById operation and returns the full API result.
 func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], error) {
+	if err := requirePathParam("orderId", orderId); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.GetOrderById", err)
+	}
 
 	path := "/store/order/{orderId}"
 	/* Path params route through serializeStyled so OAS path styles

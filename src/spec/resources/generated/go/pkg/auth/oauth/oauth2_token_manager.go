@@ -11,6 +11,7 @@ package oauth
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -27,6 +28,13 @@ import (
 // slightly before the token actually expires, avoiding a race against the
 // server clock.
 const expirySafetyMargin = 60 * time.Second
+
+// ErrApiClientNotInjected is returned when an OAuth2 or OpenID Connect
+// authenticator makes an HTTP call before the Client constructor
+// injected the shared ApiClient via SetApiClient. Match it with errors.Is.
+var ErrApiClientNotInjected = errors.New("API client has not been injected; " +
+	"ensure the Client constructor calls SetApiClient on " +
+	"HttpAwareAuthenticator before making API requests")
 
 // OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
 //
@@ -125,9 +133,7 @@ func (m *OAuth2TokenManager) InvalidateAccessToken() {
 func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]string, extraHeaders map[string]string) error {
 	client := m.apiClient
 	if client == nil {
-		return fmt.Errorf("API client has not been injected. " +
-			"Ensure the Client constructor calls SetApiClient " +
-			"on HttpAwareAuthenticator before making API requests")
+		return ErrApiClientNotInjected
 	}
 
 	values := url.Values{}
@@ -157,7 +163,9 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		"POST", tokenURL, headers, []byte(values.Encode()),
 		&auth.RequestOptions{NoRedirect: true})
 	if err != nil {
-		return fmt.Errorf("token request failed: %w", err)
+		/* A transport failure is already a *NetworkError or
+		 * *NetworkTimeoutError; return it unchanged. */
+		return err
 	}
 
 	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
@@ -190,7 +198,8 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		ExpiresIn    json.RawMessage `json:"expires_in"`
 	}
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
-		return fmt.Errorf("failed to parse token response: %w", err)
+		/* A 2xx answer the SDK cannot use is an *OAuth2TokenError. */
+		return newOAuth2TokenError(fmt.Sprintf("failed to parse token response: %v", err))
 	}
 
 	if parsed.AccessToken == "" {

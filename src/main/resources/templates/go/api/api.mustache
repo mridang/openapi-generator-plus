@@ -143,13 +143,9 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	}
 {{/hasAuthMethods}}
 {{#pathParams}}
-{{#required}}
-{{#isString}}
-	if {{paramName}} == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	if err := requirePathParam("{{paramName}}", {{paramName}}); err != nil {
+		return nil, fmt.Errorf("%w when calling {{classname}}.{{operationId}}", err)
 	}
-{{/isString}}
-{{/required}}
 {{/pathParams}}
 {{! required-nested-param-validation: query/header/form/cookie params live on
     the Options object. A required one is a non-pointer field, so a nil options
@@ -163,14 +159,14 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
     checks below run after it, so they can safely dereference `options`. }}
 {{#vendorExtensions.hasRequiredOptionsParam}}
 	if options == nil {
-		return nil, fmt.Errorf("missing required options when calling {{classname}}.{{operationId}}")
+		return nil, fmt.Errorf("%w: options are required when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter)
 	}
 {{/vendorExtensions.hasRequiredOptionsParam}}
 {{#queryParams}}
 {{#required}}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
 {{/required}}
@@ -179,7 +175,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#required}}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
 {{/required}}
@@ -193,19 +189,19 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
     above is the only check that applies. }}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
 {{^isString}}
 {{#isFile}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == nil {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isFile}}
 {{^isFile}}
 {{#isArray}}
 	if len(options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) == 0 {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isArray}}
 {{/isFile}}
@@ -216,7 +212,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#required}}
 {{#isString}}
 	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
-		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
 {{/required}}
@@ -306,15 +302,13 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	 * The serialized value is routed through isValidCookieValue (the same
 	 * RFC 6265 cookie-octet check the auth-cookie path in base_api applies)
 	 * so a CR/LF/control-char value fails closed before it can be folded
-	 * into the Cookie request header, preventing header injection. Unlike
-	 * the auth path (which panics on a programmer-supplied bad cookie),
-	 * an operation cookie is caller input, so we fail closed by returning
-	 * an error here, matching how this function reports every other
-	 * invalid-parameter condition. */
+	 * into the Cookie request header, preventing header injection. Like
+	 * the auth path, it fails closed by returning ErrInvalidCookie, matching
+	 * how this function reports every other invalid-parameter condition. */
 	{
 		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 		if !isValidCookieValue(cookieValue) {
-			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", "{{baseName}}")
+			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", ErrInvalidCookie, "{{baseName}}")
 		}
 		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
 	}
@@ -326,7 +320,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		 * control-char value cannot be injected into the Cookie header. */
 		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 		if !isValidCookieValue(cookieValue) {
-			return nil, fmt.Errorf("cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", "{{baseName}}")
+			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}", ErrInvalidCookie, "{{baseName}}")
 		}
 		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
 	}

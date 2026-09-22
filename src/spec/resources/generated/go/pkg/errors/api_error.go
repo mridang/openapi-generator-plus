@@ -43,6 +43,17 @@ func NewApiError(statusCode int, msg, responseBody string, responseHeaders map[s
 	}
 }
 
+// As lets errors.As match a subclass (for example a *NotFoundError or a
+// *NetworkError) against *ApiError, so the Go hierarchy reads like the other
+// SDKs: every HTTP-level failure is an *ApiError.
+func (e *ApiError) As(target any) bool {
+	if t, ok := target.(**ApiError); ok {
+		*t = e
+		return true
+	}
+	return false
+}
+
 // StatusCode returns the HTTP status code, or 0 for a pre-response transport failure.
 func (e *ApiError) StatusCode() int {
 	return e.statusCode

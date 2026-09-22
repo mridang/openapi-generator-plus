@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	petstore "petstore/pkg"
-	"petstore/pkg/auth"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 	"petstore/pkg/options"
@@ -285,6 +284,27 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 	}
 }
 
+// An authenticator cookie containing characters RFC 6265 forbids is a caller
+// mistake: the request is refused with ErrInvalidCookie, never a panic.
+func TestBaseApi_InvalidCookieReturnsErrInvalidCookie(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	auth := &baseApiAuth{
+		headers: map[string]string{},
+		query:   map[string]string{},
+		cookies: map[string]string{"session": "a;b"},
+	}
+	_, err := api.AddPet(*models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: auth})
+	if !errors.Is(err, petstore.ErrInvalidCookie) {
+		t.Fatalf("expected ErrInvalidCookie, got %v", err)
+	}
+	if client.capturedURL != "" {
+		t.Errorf("expected no HTTP call with an invalid cookie, got URL %q", client.capturedURL)
+	}
+}
+
 // ── Configured authenticator is actually applied (AUTH-APPLIED) ──
 
 // auth-applied-regression-guard: a client constructed with a configured
@@ -300,7 +320,7 @@ func TestBaseApi_ConfiguredAuthenticatorIsAppliedToSecuredRequest(t *testing.T) 
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
 
 	// Bearer is one of the schemes the petstore spec defines (petStoreBearer).
-	bearer := auth.NewBearerAuthenticator("https://api.example.com", "secret-jwt")
+	bearer := mustBearer(t, "https://api.example.com", "secret-jwt")
 	api := petstore.NewPetApi(client, config, bearer)
 
 	// Secured operation with no per-operation Auth override: the configured
@@ -780,11 +800,31 @@ func TestBaseApi_MissingRequiredQueryParam_NilOptions(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for nil options with a required query param, got nil")
 	}
-	if !strings.Contains(err.Error(), "missing required") {
-		t.Errorf("expected a missing-required error, got %q", err.Error())
+	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
+		t.Errorf("expected ErrMissingRequiredParameter, got %v", err)
 	}
 	if client.capturedURL != "" {
 		t.Errorf("expected no HTTP call when required param is missing, got URL %q", client.capturedURL)
+	}
+}
+
+// A missing required path parameter is a caller mistake: the sentinel is
+// returned before any HTTP call, never a panic and never an SDK error.
+func TestBaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, err := api.GetPetByName("", &options.GetPetByNameOptions{Category: "dog"})
+	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter, got %v", err)
+	}
+	var root apierrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a caller mistake must not be a OpenAPIError, got %T", err)
+	}
+	if client.capturedURL != "" {
+		t.Errorf("expected no HTTP call when a path param is empty, got URL %q", client.capturedURL)
 	}
 }
 
@@ -798,6 +838,9 @@ func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
 	_, err := api.GetPetByName("rex", &options.GetPetByNameOptions{Category: ""})
 	if err == nil {
 		t.Fatal("expected error for empty required query param 'category', got nil")
+	}
+	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
+		t.Errorf("expected ErrMissingRequiredParameter, got %v", err)
 	}
 	if !strings.Contains(err.Error(), "category") {
 		t.Errorf("expected error to mention 'category', got %q", err.Error())

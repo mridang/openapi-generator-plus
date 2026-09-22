@@ -28,6 +28,15 @@ import (
 	errors_pkg "{{packageName}}/pkg/errors"
 )
 
+// ErrClientClosed is returned by a request sent through a DefaultApiClient
+// after Close. Match it with errors.Is.
+var ErrClientClosed = errors.New("API client has been closed and can no longer send requests")
+
+// ErrInvalidRequest is returned when a request cannot be built from its
+// arguments: a malformed URL or an unsupported body type. Match it with
+// errors.Is.
+var ErrInvalidRequest = errors.New("invalid request")
+
 // noRedirectContextKey is the unexported context key under which
 // SendRequestWithOptions stashes a true bool when the caller wants the
 // transport to refuse every 3xx redirect. The shared CheckRedirect
@@ -90,11 +99,7 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 // replay the form-encoded client_secret onto an attacker host.
 func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
 	if c.closed.Load() {
-		return nil, errors_pkg.NewApiError(
-			0,
-			"API client has been closed and can no longer send requests",
-			"", nil, nil, nil,
-		)
+		return nil, ErrClientClosed
 	}
 	merged := make(map[string]string)
 	for k, v := range c.transportOptions.DefaultHeaders() {
@@ -128,7 +133,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		bodyReader = buf
 		merged["Content-Type"] = contentType
 	default:
-		return nil, fmt.Errorf("unsupported body type: %T", body)
+		return nil, fmt.Errorf("%w: unsupported body type %T", ErrInvalidRequest, body)
 	}
 
 	// Some servers / WAFs treat POST/PUT/PATCH with no body and no
@@ -149,7 +154,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
 	}
 
 	for k, v := range merged {
@@ -158,6 +163,17 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		if resp != nil {
+			// A refused redirect (too many hops, a non-HTTP scheme, an
+			// HTTPS→HTTP downgrade): a response arrived but cannot be used,
+			// so it is an *ApiError carrying that response's real status.
+			_ = resp.Body.Close()
+			return nil, errors_pkg.NewApiError(
+				resp.StatusCode,
+				fmt.Sprintf("redirect refused: %s", err.Error()),
+				"", lowerCaseHeaders(resp.Header), nil, err,
+			)
+		}
 		// No HTTP response: a timeout surfaces as *NetworkTimeoutError, any
 		// other transport failure (connection refused, DNS, TLS, reset) as
 		// *NetworkError. Both carry status 0 and keep the net/http error as
@@ -166,27 +182,26 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	}
 	defer resp.Body.Close()
 
-	respBody, err := decompressBody(resp)
+	// response-body-read-error-not-wrapped: a failure reading the body AFTER
+	// headers were received (connection reset, truncated chunked encoding, a
+	// timeout) is a transport failure like a send-phase one.
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// response-body-read-error-not-wrapped: a failure reading or
-		// decompressing the body (connection reset / truncated chunked /
-		// decompression error AFTER headers were received) is wrapped just
-		// like a send-phase failure, so callers get one error type for the
-		// entire transport phase.
 		return nil, newTransportError(fmt.Sprintf("failed to read response body: %s", err.Error()), err)
 	}
 
-	// Gap BE+BF: response header keys are normalised to lowercase so callers
-	// can look them up consistently regardless of the casing the server used
-	// (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
-	// HTTP/2 mandates lowercase on the wire). Repeated header lines (for
-	// example multiple Link or Set-Cookie headers) are joined with ", " to
-	// preserve order per RFC 7230 section 3.2.2. The joined form is not
-	// directly parseable for Set-Cookie; callers needing structured cookie
-	// access should use resp.Cookies() on the underlying *http.Response.
-	respHeaders := make(map[string]string, len(resp.Header))
-	for k, vs := range resp.Header {
-		respHeaders[strings.ToLower(k)] = strings.Join(vs, ", ")
+	respHeaders := lowerCaseHeaders(resp.Header)
+
+	// A body that arrived but cannot be decompressed is not a network
+	// failure: the server answered, so it is an *ApiError carrying the
+	// response's real status code.
+	respBody, err := decompressBody(resp.Header.Get("Content-Encoding"), rawBody)
+	if err != nil {
+		return nil, errors_pkg.NewApiError(
+			resp.StatusCode,
+			fmt.Sprintf("failed to decompress response body: %s", err.Error()),
+			"", respHeaders, nil, err,
+		)
 	}
 
 	contentType := resp.Header.Get("Content-Type")
@@ -202,6 +217,24 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		Body:       responseBody,
 		Headers:    respHeaders,
 	}, nil
+}
+
+// lowerCaseHeaders flattens response headers into a map.
+//
+// Gap BE+BF: response header keys are normalised to lowercase so callers
+// can look them up consistently regardless of the casing the server used
+// (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+// HTTP/2 mandates lowercase on the wire). Repeated header lines (for
+// example multiple Link or Set-Cookie headers) are joined with ", " to
+// preserve order per RFC 7230 section 3.2.2. The joined form is not
+// directly parseable for Set-Cookie; callers needing structured cookie
+// access should use resp.Cookies() on the underlying *http.Response.
+func lowerCaseHeaders(header http.Header) map[string]string {
+	respHeaders := make(map[string]string, len(header))
+	for k, vs := range header {
+		respHeaders[strings.ToLower(k)] = strings.Join(vs, ", ")
+	}
+	return respHeaders
 }
 
 // newTransportError classifies a net/http transport failure. An error that
@@ -286,6 +319,9 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 			}
 			if len(via) >= maxRedirects {
 				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			if !strings.EqualFold(req.URL.Scheme, "http") && !strings.EqualFold(req.URL.Scheme, "https") {
+				return fmt.Errorf("refusing to follow redirect to non-HTTP scheme %q", req.URL.Scheme)
 			}
 			if len(via) == 0 {
 				return nil
@@ -383,35 +419,37 @@ func supportedEncodings() string {
 	return "br, gzip, deflate, zstd"
 }
 
-func decompressBody(resp *http.Response) ([]byte, error) {
-	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
+// decompressBody decodes a response body that was already read in full, so a
+// failure here is always a corrupt body and never a transport failure.
+func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
+	encoding := strings.ToLower(contentEncoding)
 
 	switch encoding {
 	case "gzip", "x-gzip":
-		reader, err := gzip.NewReader(resp.Body)
+		reader, err := gzip.NewReader(bytes.NewReader(raw))
 		if err != nil {
 			return nil, err
 		}
 		defer reader.Close()
 		return io.ReadAll(reader)
 	case "deflate":
-		reader, err := zlib.NewReader(resp.Body)
+		reader, err := zlib.NewReader(bytes.NewReader(raw))
 		if err != nil {
 			return nil, err
 		}
 		defer reader.Close()
 		return io.ReadAll(reader)
 	case "br":
-		return io.ReadAll(brotli.NewReader(resp.Body))
+		return io.ReadAll(brotli.NewReader(bytes.NewReader(raw)))
 	case "zstd":
-		reader, err := zstd.NewReader(resp.Body)
+		reader, err := zstd.NewReader(bytes.NewReader(raw))
 		if err != nil {
 			return nil, err
 		}
 		defer reader.Close()
 		return io.ReadAll(reader)
 	default:
-		return io.ReadAll(resp.Body)
+		return raw, nil
 	}
 }
 

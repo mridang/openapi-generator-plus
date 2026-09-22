@@ -55,42 +55,14 @@ func stringifyDate(value any) string {
 
 // SerializationError is returned when serialization or deserialization fails.
 //
-// It is exported so callers can identify a serialization failure by type via
-// errors.As(err, new(*SerializationError)), matching the public error types the
-// other SDKs expose. It satisfies the error interface.
-//
-// Its state is immutable: fields are set once at construction via
-// newSerializationError and read through the Message and Cause getters.
-type SerializationError struct {
-	errors_pkg.ErrorMarker
-	message string
-	cause   error
-}
+// It is declared in the errors package beside the rest of the SDK error
+// hierarchy and re-exported here, so errors.As(err, new(*SerializationError))
+// works from either package.
+type SerializationError = errors_pkg.SerializationError
 
 // newSerializationError constructs a SerializationError with fixed state.
 func newSerializationError(message string, cause error) *SerializationError {
-	return &SerializationError{message: message, cause: cause}
-}
-
-// Message returns the error message.
-func (e *SerializationError) Message() string {
-	return e.message
-}
-
-// Cause returns the underlying error, if any.
-func (e *SerializationError) Cause() error {
-	return e.cause
-}
-
-func (e *SerializationError) Error() string {
-	if e.cause != nil {
-		return fmt.Sprintf("%s: %v", e.message, e.cause)
-	}
-	return e.message
-}
-
-func (e *SerializationError) Unwrap() error {
-	return e.cause
+	return errors_pkg.NewSerializationError(message, cause)
 }
 
 // oneOfUnwrapper is implemented by oneOf/anyOf wrapper types.

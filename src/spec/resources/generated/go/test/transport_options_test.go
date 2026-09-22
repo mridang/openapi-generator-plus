@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	petstore "petstore/pkg"
+	apierrors "petstore/pkg/errors"
 )
 
 func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
@@ -218,12 +219,16 @@ func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *t
 
 func TestTransportOptions_InvalidProxyUrlThrowsException(t *testing.T) {
 	t.Parallel()
-	for _, proxy := range []string{"not-a-valid-url", "ftp://proxy.example.com:21", "http://"} {
+	for _, proxy := range []string{"not-a-valid-url", "ftp://proxy.example.com:21", "http://", "socks5://proxy.example.com:1080"} {
 		opts, err := petstore.NewTransportOptionsBuilder().
 			Proxy(proxy).
 			Build()
 		if !errors.Is(err, petstore.ErrInvalidProxyURL) {
 			t.Errorf("expected ErrInvalidProxyURL for %q, got %v", proxy, err)
+		}
+		var root apierrors.OpenAPIError
+		if errors.As(err, &root) {
+			t.Errorf("a bad proxy URL must not be a OpenAPIError, got %T", err)
 		}
 		if opts != nil {
 			t.Errorf("expected nil TransportOptions for %q", proxy)
@@ -238,6 +243,10 @@ func TestTransportOptions_MissingCaCertFileIsRejected(t *testing.T) {
 		Build()
 	if !errors.Is(err, petstore.ErrInvalidCACertificate) {
 		t.Errorf("expected ErrInvalidCACertificate, got %v", err)
+	}
+	var root apierrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a missing CA file must not be a OpenAPIError, got %T", err)
 	}
 	if opts != nil {
 		t.Error("expected nil TransportOptions")

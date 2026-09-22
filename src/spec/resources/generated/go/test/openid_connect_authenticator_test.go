@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -17,6 +18,7 @@ import (
 
 	"petstore/pkg/auth"
 	"petstore/pkg/auth/oauth"
+	apierrors "petstore/pkg/errors"
 )
 
 // fakeOIDCClient implements auth.ApiClient for OpenID Connect tests.
@@ -32,6 +34,7 @@ type fakeOIDCClient struct {
 type fakeOIDCResponse struct {
 	body       string
 	statusCode int
+	err        error
 }
 
 func (c *fakeOIDCClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
@@ -52,6 +55,9 @@ func (c *fakeOIDCClient) SendRequestWithOptions(method, url string, headers map[
 	}
 	idx := atomic.AddInt32(&c.index, 1) - 1
 	resp := c.responses[idx]
+	if resp.err != nil {
+		return nil, resp.err
+	}
 	return &auth.ApiHttpResponse{
 		StatusCode: resp.statusCode,
 		Body:       resp.body,
@@ -184,8 +190,54 @@ func TestOpenIdConnect_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	authObj := createOpenIdConnectAuthenticator()
 
 	_, err := authObj.BuildAuthorizationURL("")
-	if err == nil {
-		t.Fatal("expected error when no API client injected, got nil")
+	if !errors.Is(err, oauth.ErrApiClientNotInjected) {
+		t.Fatalf("expected ErrApiClientNotInjected, got %v", err)
+	}
+	var root apierrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a wrong call order must not be a OpenAPIError, got %T", err)
+	}
+}
+
+// OIDC discovery is an HTTP call like any other: an unparseable document is a
+// *SerializationError, a transport failure is returned unchanged as the
+// *NetworkError / *NetworkTimeoutError it already is, and AuthHeadersOrError
+// surfaces the same error instead of sending the request unauthenticated.
+func TestOpenIdConnect_DiscoveryErrorsFollowTheStandard(t *testing.T) {
+	t.Parallel()
+	malformed := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{not json`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(malformed)
+	_, err := authObj.AuthHeadersOrError()
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a malformed discovery document, got %T: %v", err, err)
+	}
+
+	timeout := apierrors.NewNetworkTimeoutError("request timed out", errors.New("deadline exceeded"))
+	unreachable := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{err: timeout},
+	}}
+	authObj = createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(unreachable)
+	_, err = authObj.BuildAuthorizationURL("")
+	var timeoutErr *apierrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Errorf("expected *NetworkTimeoutError for a discovery timeout, got %T: %v", err, err)
+	}
+
+	refused := apierrors.NewNetworkError("request failed", errors.New("connection refused"))
+	unreachable = &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{err: refused},
+	}}
+	authObj = createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(unreachable)
+	_, err = authObj.BuildAuthorizationURL("")
+	var netErr *apierrors.NetworkError
+	if !errors.As(err, &netErr) || netErr.StatusCode() != 0 {
+		t.Errorf("expected *NetworkError with status 0 for a refused discovery request, got %T: %v", err, err)
 	}
 }
 
@@ -209,6 +261,10 @@ func TestOpenIdConnect_MissingAuthorizationEndpointErrors(t *testing.T) {
 	if !strings.Contains(err.Error(), "authorization_endpoint") {
 		t.Errorf("expected error to mention authorization_endpoint, got %v", err)
 	}
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for an incomplete discovery document, got %T", err)
+	}
 }
 
 func TestOpenIdConnect_MissingTokenEndpointErrors(t *testing.T) {
@@ -227,6 +283,10 @@ func TestOpenIdConnect_MissingTokenEndpointErrors(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "token_endpoint") {
 		t.Errorf("expected error to mention token_endpoint, got %v", err)
+	}
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for an incomplete discovery document, got %T", err)
 	}
 }
 
@@ -248,6 +308,21 @@ func TestOpenIdConnect_DiscoveryNon2xxErrors(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "status 500") {
 		t.Errorf("expected error to mention status 500, got %v", err)
+	}
+	var internal *apierrors.InternalServerError
+	if !errors.As(err, &internal) || internal.StatusCode() != 500 {
+		t.Errorf("expected *InternalServerError with status 500, got %T: %v", err, err)
+	}
+
+	notFound := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `missing`, statusCode: 404},
+	}}
+	authObj = createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(notFound)
+	_, err = authObj.BuildAuthorizationURL("")
+	var notFoundErr *apierrors.NotFoundError
+	if !errors.As(err, &notFoundErr) {
+		t.Errorf("expected *NotFoundError for a 404 discovery response, got %T: %v", err, err)
 	}
 }
 

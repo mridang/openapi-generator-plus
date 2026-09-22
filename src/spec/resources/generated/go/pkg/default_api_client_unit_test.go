@@ -946,9 +946,10 @@ func TestDefaultApiClient_StripsApiKeyHeaderAcrossCrossOriginRedirect(t *testing
 	}
 }
 
-// close-lifecycle-three-way: sending a request after Close() must fail with the
-// uniform SDK error type, not silently succeed or leak a foreign library error.
-func TestDefaultApiClient_UseAfterCloseReturnsApiError(t *testing.T) {
+// close-lifecycle-three-way: sending a request after Close() is a caller
+// mistake. It fails with the ErrClientClosed sentinel, not an SDK error, and
+// never silently succeeds or leaks a foreign library error.
+func TestDefaultApiClient_UseAfterCloseReturnsErrClientClosed(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -961,26 +962,37 @@ func TestDefaultApiClient_UseAfterCloseReturnsApiError(t *testing.T) {
 	}
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
-	if err == nil {
-		t.Fatal("expected an error when sending a request after Close()")
+	if !errors.Is(err, ErrClientClosed) {
+		t.Fatalf("expected ErrClientClosed, got %T: %v", err, err)
 	}
-	var apiErr *pkgerrors.ApiError
-	if !errors.As(err, &apiErr) {
-		t.Fatalf("expected use-after-close to return *ApiError, got %T: %v", err, err)
-	}
-	if !strings.Contains(strings.ToLower(apiErr.Msg()), "closed") {
-		t.Errorf("expected error message to mention the client is closed, got %q", apiErr.Msg())
+	var root pkgerrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("use after close must not be a OpenAPIError, got %T", err)
 	}
 }
 
-// response-body-read-error-not-wrapped: a body-read/decompression failure that
-// occurs AFTER headers are received must be wrapped in the uniform NetworkError
-// (StatusCode 0, underlying error preserved on .Cause), matching send-phase
-// failures — not surfaced as a bare error.
-func TestDefaultApiClient_BodyReadErrorWrappedInNetworkError(t *testing.T) {
+// A malformed request URL is a caller mistake: ErrInvalidRequest, not an SDK
+// error.
+func TestDefaultApiClient_MalformedUrlReturnsErrInvalidRequest(t *testing.T) {
 	t.Parallel()
-	// Advertise gzip but send bytes that are not valid gzip, so the body-read
-	// (decompression) step fails after the 200 headers are received.
+	client := NewDefaultApiClient(nil)
+	_, err := client.SendRequest("GET", "http://[::1", map[string]string{}, nil)
+	if !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %T: %v", err, err)
+	}
+	var root pkgerrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a malformed URL must not be a OpenAPIError, got %T", err)
+	}
+}
+
+// A body that arrived but cannot be decompressed is not a network failure: the
+// server answered, so the error is an *ApiError carrying the real status code
+// with the decompression error preserved as the cause.
+func TestDefaultApiClient_CorruptCompressedBodyIsApiErrorWithStatus(t *testing.T) {
+	t.Parallel()
+	// Advertise gzip but send bytes that are not valid gzip, so decompression
+	// fails after the 200 headers and body are received.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Encoding", "gzip")
 		w.WriteHeader(200)
@@ -990,18 +1002,48 @@ func TestDefaultApiClient_BodyReadErrorWrappedInNetworkError(t *testing.T) {
 
 	client := NewDefaultApiClient(nil)
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
-	if err == nil {
-		t.Fatal("expected an error when the response body cannot be decompressed")
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for a corrupt compressed body, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode() != 200 {
+		t.Errorf("expected the real StatusCode 200, got %d", apiErr.StatusCode())
 	}
 	var netErr *pkgerrors.NetworkError
-	if !errors.As(err, &netErr) {
-		t.Fatalf("expected body-read failure to be wrapped in *NetworkError, got %T: %v", err, err)
+	if errors.As(err, &netErr) {
+		t.Errorf("a corrupt compressed body must not be a *NetworkError, got %v", err)
 	}
-	if netErr.StatusCode() != 0 {
-		t.Errorf("expected StatusCode 0 for a body-read failure, got %d", netErr.StatusCode())
-	}
-	if netErr.Cause() == nil {
+	if apiErr.Cause() == nil {
 		t.Error("expected the underlying decompression error to be preserved on .Cause")
+	}
+}
+
+// A redirect to a non-HTTP scheme is refused: the redirect response arrived,
+// so the error is an *ApiError with its real status, never a *NetworkError.
+func TestDefaultApiClient_RedirectToNonHttpSchemeIsApiErrorWithStatus(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "ftp://example.com/file")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err = client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for a refused redirect, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode() != http.StatusFound {
+		t.Errorf("expected StatusCode 302, got %d", apiErr.StatusCode())
+	}
+	var netErr *pkgerrors.NetworkError
+	if errors.As(err, &netErr) {
+		t.Errorf("a refused redirect must not be a *NetworkError, got %v", err)
 	}
 }
 
@@ -1017,9 +1059,9 @@ func TestDefaultApiClient_NonexistentCaCertPathFailsFast(t *testing.T) {
 	if !errors.Is(err, ErrInvalidCACertificate) {
 		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
 	}
-	var apiErr *pkgerrors.ApiError
-	if errors.As(err, &apiErr) {
-		t.Errorf("a missing CA file must not be an *ApiError, got %v", err)
+	var root pkgerrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a missing CA file must not be a OpenAPIError, got %v", err)
 	}
 	if transport != nil {
 		t.Error("expected nil TransportOptions")
@@ -1084,6 +1126,10 @@ func TestDefaultApiClient_TimeoutReturnsNetworkTimeoutError(t *testing.T) {
 	}
 	if timeoutErr.Cause() == nil {
 		t.Error("expected the transport error to be preserved on .Cause")
+	}
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Errorf("expected *NetworkTimeoutError to be a *NetworkError, got %T", err)
 	}
 }
 

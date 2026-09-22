@@ -6,9 +6,14 @@ type AdminBasicAuthenticator struct {
 	*BasicAuthenticator
 }
 
-func NewAdminBasicAuthenticator(host string, username string, password string) *AdminBasicAuthenticator {
-	inner := NewBasicAuthenticator(host, username, password)
+// NewAdminBasicAuthenticator returns the BasicAuthenticator constructor's error when the
+// credentials are invalid. Match it with errors.Is.
+func NewAdminBasicAuthenticator(host string, username string, password string) (*AdminBasicAuthenticator, error) {
+	inner, err := NewBasicAuthenticator(host, username, password)
+	if err != nil {
+		return nil, err
+	}
 	return &AdminBasicAuthenticator{
 		BasicAuthenticator: inner,
-	}
+	}, nil
 }

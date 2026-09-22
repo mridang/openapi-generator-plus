@@ -2,12 +2,22 @@
 package oauth
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"{{packageName}}/pkg/auth"
 )
+
+// ErrInvalidAccessToken is returned by SetAccessToken when the token contains a
+// character outside printable ASCII and TAB (RFC 7230 §3.2.6). Match it with
+// errors.Is.
+var ErrInvalidAccessToken = errors.New("invalid access token")
+
+// ErrAccessTokenNotSet is returned by AuthHeadersOrError when it is called
+// before SetAccessToken. Match it with errors.Is.
+var ErrAccessTokenNotSet = errors.New("oauth2 implicit: must set access token before making API requests")
 
 // OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
 //
@@ -57,17 +67,17 @@ func (a *OAuth2ImplicitAuthenticator) SetApiClient(_ auth.ApiClient) {
 // §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
 // only fail at the next API call via the Authorization-header concat,
 // allowing HTTP header injection from a redirect-fragment-derived value.
-// Panics on invalid input — consistent with BearerAuthenticator.
-func (a *OAuth2ImplicitAuthenticator) SetAccessToken(token string) {
+// Returns ErrInvalidAccessToken on invalid input and leaves the previous
+// token in place.
+func (a *OAuth2ImplicitAuthenticator) SetAccessToken(token string) error {
 	for i := 0; i < len(token); i++ {
 		c := token[i]
 		if c != '\t' && (c < 0x20 || c >= 0x7F) {
-			panic(fmt.Sprintf(
-				"access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-			))
+			return fmt.Errorf("%w: token must contain only printable ASCII characters (RFC 7230 §3.2.6)", ErrInvalidAccessToken)
 		}
 	}
 	a.accessToken = token
+	return nil
 }
 
 // BuildAuthorizationURL builds the authorization URL to redirect the user to.
@@ -110,13 +120,26 @@ func (a *OAuth2ImplicitAuthenticator) String() string {
 	)
 }
 
-// AuthHeaders returns the Bearer authentication header.
-func (a *OAuth2ImplicitAuthenticator) AuthHeaders() map[string]string {
+// AuthHeadersOrError returns the Bearer authentication header, or
+// ErrAccessTokenNotSet when SetAccessToken has not been called yet. base_api
+// prefers this method, so a request sent too early fails with the sentinel
+// instead of going out unauthenticated.
+func (a *OAuth2ImplicitAuthenticator) AuthHeadersOrError() (map[string]string, error) {
 	if a.accessToken == "" {
-		panic(fmt.Sprintf("must set access token before making API requests"))
+		return nil, ErrAccessTokenNotSet
 	}
-
 	return map[string]string{
 		"Authorization": "Bearer " + a.accessToken,
+	}, nil
+}
+
+// AuthHeaders returns the Bearer authentication header, or an empty map when
+// SetAccessToken has not been called yet. Use AuthHeadersOrError to tell the
+// two apart.
+func (a *OAuth2ImplicitAuthenticator) AuthHeaders() map[string]string {
+	headers, err := a.AuthHeadersOrError()
+	if err != nil {
+		return map[string]string{}
 	}
+	return headers
 }

@@ -13,3 +13,13 @@ package errors
 type ClientError struct {
 	ApiError
 }
+
+// As lets errors.As match a subclass such as *BadRequestError against *ClientError,
+// and a *ClientError against *ApiError.
+func (e *ClientError) As(target any) bool {
+	if t, ok := target.(**ClientError); ok {
+		*t = e
+		return true
+	}
+	return e.ApiError.As(target)
+}

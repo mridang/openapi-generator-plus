@@ -87,6 +87,56 @@ func TestNetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
 	if errors.As(netErr, &asTimeout) {
 		t.Error("a *NetworkError must not match *NetworkTimeoutError")
 	}
+	var asNetwork *apierrors.NetworkError
+	if !errors.As(timeoutErr, &asNetwork) {
+		t.Error("a *NetworkTimeoutError must match *NetworkError")
+	}
+	for _, err := range []error{netErr, timeoutErr} {
+		var asApi *apierrors.ApiError
+		if !errors.As(err, &asApi) || asApi.StatusCode() != 0 {
+			t.Errorf("expected %T to match *ApiError with status 0", err)
+		}
+	}
+}
+
+// TestTypedErrors_MatchTheirParentsViaErrorsAs confirms the hierarchy reads the
+// same as in the other SDKs: a *NotFoundError is a *ClientError and an
+// *ApiError, and an *InternalServerError is a *ServerError and an *ApiError.
+func TestTypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
+	t.Parallel()
+	notFound := apierrors.NewTypedApiError(404, "not found", "", nil, nil, nil)
+	if _, ok := notFound.(*apierrors.NotFoundError); !ok {
+		t.Fatalf("expected *NotFoundError for 404, got %T", notFound)
+	}
+	var asClient *apierrors.ClientError
+	if !errors.As(notFound, &asClient) {
+		t.Error("expected *NotFoundError to match *ClientError")
+	}
+	var asServer *apierrors.ServerError
+	if errors.As(notFound, &asServer) {
+		t.Error("a *NotFoundError must not match *ServerError")
+	}
+	internal := apierrors.NewTypedApiError(500, "boom", "", nil, nil, nil)
+	if _, ok := internal.(*apierrors.InternalServerError); !ok {
+		t.Fatalf("expected *InternalServerError for 500, got %T", internal)
+	}
+	if !errors.As(internal, &asServer) {
+		t.Error("expected *InternalServerError to match *ServerError")
+	}
+	for _, err := range []error{notFound, internal} {
+		var asApi *apierrors.ApiError
+		if !errors.As(err, &asApi) {
+			t.Errorf("expected %T to match *ApiError", err)
+		}
+		var asNetwork *apierrors.NetworkError
+		if errors.As(err, &asNetwork) {
+			t.Errorf("a %T must not match *NetworkError", err)
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(err, &root) {
+			t.Errorf("expected %T to satisfy OpenAPIError", err)
+		}
+	}
 }
 
 func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
@@ -319,8 +369,26 @@ func TestTypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 	}
 }
 
-// The *SerializationError type lives in the main package and is constructed
-// internally (unexported constructor), so it cannot be instantiated from this
-// black-box test. Its OpenAPIError conformance is proven at compile time by the
-// var block above, and exercised at runtime via errors.As in the white-box
-// object_serializer_test.go where a real *SerializationError is available.
+// TestSerializationError_SatisfiesOpenAPIErrorAndKeepsCause confirms
+// *SerializationError is declared beside the rest of the hierarchy, satisfies
+// the brand, is re-exported by the main package and keeps its cause.
+func TestSerializationError_SatisfiesOpenAPIErrorAndKeepsCause(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("unexpected end of JSON input")
+	var err error = apierrors.NewSerializationError("failed to decode", cause)
+	var ze apierrors.OpenAPIError
+	if !errors.As(err, &ze) {
+		t.Errorf("expected %T to satisfy OpenAPIError", err)
+	}
+	var viaMain *petstore.SerializationError
+	if !errors.As(err, &viaMain) {
+		t.Errorf("expected %T to match the main package's *SerializationError", err)
+	}
+	if !errors.Is(err, cause) {
+		t.Error("expected *SerializationError to unwrap to its cause")
+	}
+	var apiErr *apierrors.ApiError
+	if errors.As(err, &apiErr) {
+		t.Error("a *SerializationError must not match *ApiError")
+	}
+}

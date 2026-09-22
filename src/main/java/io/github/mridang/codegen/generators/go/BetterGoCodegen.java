@@ -401,27 +401,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/api_error_test.mustache",
                             "test",
                             "api_error_test.go"));
-            if (hasBasicAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/basic_authenticator_test.mustache",
-                                "test",
-                                "basic_authenticator_test.go"));
-            }
-            if (hasBearerAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/bearer_authenticator_test.mustache",
-                                "test",
-                                "bearer_authenticator_test.go"));
-            }
-            if (hasApiKeyAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/api_key_authenticator_test.mustache",
-                                "test",
-                                "api_key_authenticator_test.go"));
-            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/server_configuration_test.mustache",
@@ -550,6 +529,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "errors/network_timeout_error.mustache",
                         "pkg/errors",
                         "network_timeout_error.go"),
+                new SupportingFileSpec(
+                        "errors/serialization_error.mustache",
+                        "pkg/errors",
+                        "serialization_error.go"),
                 new SupportingFileSpec("header_selector.mustache", "pkg", "header_selector.go"),
                 new SupportingFileSpec(
                         "object_serializer.mustache", "pkg", "object_serializer.go"),
@@ -769,6 +752,41 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return stem + ".go";
     }
 
+    /**
+     * Registers the Basic, Bearer and API-key authenticator tests. They must be
+     * added here rather than in processOpts: the security-scheme flags are only
+     * set once the spec has been read, so a check in processOpts always saw
+     * them false and the tests were never generated.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (!generateTests) {
+            return;
+        }
+        if (hasBasicAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/basic_authenticator_test.mustache",
+                            "test",
+                            "basic_authenticator_test.go"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer_authenticator_test.mustache",
+                            "test",
+                            "bearer_authenticator_test.go"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_key_authenticator_test.mustache",
+                            "test",
+                            "api_key_authenticator_test.go"));
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
@@ -784,6 +802,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildGoSuperArgs(spec));
+        // Basic, Bearer and API-key constructors validate their credentials and
+        // return (T, error); the scheme wrapper forwards that error.
+        ctx.put("fallible", Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                .contains(spec.baseClass()));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 

@@ -15,15 +15,15 @@ import (
 	"fmt"
 )
 
-// ErrBasicAuthUsernameControlChar is returned by AuthHeadersOrError when the
+// ErrBasicAuthUsernameControlChar is returned by NewBasicAuthenticator when the
 // username contains CR, LF, or NUL (RFC 7617 §2 header-injection / smuggling).
 var ErrBasicAuthUsernameControlChar = errors.New("basic auth username must not contain CR, LF, or NUL characters")
 
-// ErrBasicAuthUsernameColon is returned by AuthHeadersOrError when the
+// ErrBasicAuthUsernameColon is returned by NewBasicAuthenticator when the
 // username contains ':' (the RFC 7617 §2 field separator).
 var ErrBasicAuthUsernameColon = errors.New("basic auth username must not contain ':' (RFC 7617 §2)")
 
-// ErrBasicAuthPasswordControlChar is returned by AuthHeadersOrError when the
+// ErrBasicAuthPasswordControlChar is returned by NewBasicAuthenticator when the
 // password contains CR, LF, or NUL (RFC 7617 §2 header-injection / smuggling).
 var ErrBasicAuthPasswordControlChar = errors.New("basic auth password must not contain CR, LF, or NUL characters")
 
@@ -38,21 +38,29 @@ type BasicAuthenticator struct {
 // NewBasicAuthenticator creates a new Basic authenticator.
 //
 // Credentials are validated eagerly at construction, so a malformed
-// credential panics where it is supplied rather than lazily at first use —
-// matching the fail-fast behaviour of the Bearer and API-key
-// authenticators. Use AuthHeadersOrError on the returned value when you
-// need to recover from malformed credentials instead of crashing; note
-// that this constructor itself panics on the same conditions.
-func NewBasicAuthenticator(host, username, password string) *BasicAuthenticator {
-	a := &BasicAuthenticator{
+// credential is reported where it is supplied rather than lazily at first
+// use. A colon in the username or CR, LF or NUL in either field would corrupt
+// the header (RFC 7617 §2); the constructor returns one of the
+// ErrBasicAuth* sentinels instead. Match them with errors.Is.
+func NewBasicAuthenticator(host, username, password string) (*BasicAuthenticator, error) {
+	for _, c := range username {
+		if c == '\r' || c == '\n' || c == '\x00' {
+			return nil, ErrBasicAuthUsernameControlChar
+		}
+		if c == ':' {
+			return nil, ErrBasicAuthUsernameColon
+		}
+	}
+	for _, c := range password {
+		if c == '\r' || c == '\n' || c == '\x00' {
+			return nil, ErrBasicAuthPasswordControlChar
+		}
+	}
+	return &BasicAuthenticator{
 		host:     host,
 		username: username,
 		password: password,
-	}
-	if _, err := a.AuthHeadersOrError(); err != nil {
-		panic(err)
-	}
-	return a
+	}, nil
 }
 
 // Host returns the API base URL.
@@ -66,45 +74,10 @@ func (a *BasicAuthenticator) String() string {
 	return fmt.Sprintf("BasicAuthenticator{host: %q, username: %q, password: ***}", a.host, a.username)
 }
 
-// AuthHeadersOrError returns the Basic Authorization header, or a typed
-// error when the supplied credentials would corrupt the header per
-// RFC 7617 §2 (colon in user-id or CR/LF/NUL in either field). Use this
-// variant when you need to distinguish "credentials are malformed" from a
-// network failure and recover (e.g. re-prompt) instead of being terminated
-// by a panic. Callers can compare with errors.Is on the exported sentinels.
-func (a *BasicAuthenticator) AuthHeadersOrError() (map[string]string, error) {
-	for _, c := range a.username {
-		if c == '\r' || c == '\n' || c == '\x00' {
-			return nil, ErrBasicAuthUsernameControlChar
-		}
-		if c == ':' {
-			return nil, ErrBasicAuthUsernameColon
-		}
-	}
-	for _, c := range a.password {
-		if c == '\r' || c == '\n' || c == '\x00' {
-			return nil, ErrBasicAuthPasswordControlChar
-		}
-	}
+// AuthHeaders returns the Basic authentication header.
+func (a *BasicAuthenticator) AuthHeaders() map[string]string {
 	encoded := base64.StdEncoding.EncodeToString([]byte(a.username + ":" + a.password))
 	return map[string]string{
 		"Authorization": "Basic " + encoded,
-	}, nil
-}
-
-// AuthHeaders returns the Basic authentication header.
-//
-// RFC 7617 §2 violations (colon in user-id, CR/LF/NUL in either field) are
-// header-injection / smuggling vectors that always indicate a programmer
-// error, so this panics — matching the fail-fast behaviour of the other
-// SDKs (which raise/throw). Shipping an unauthenticated request instead
-// would surface as a confusing 401 and silently drop the credential. Use
-// AuthHeadersOrError when you need to recover programmatically (e.g.
-// re-prompt the user) rather than crash.
-func (a *BasicAuthenticator) AuthHeaders() map[string]string {
-	headers, err := a.AuthHeadersOrError()
-	if err != nil {
-		panic(err)
 	}
-	return headers
 }

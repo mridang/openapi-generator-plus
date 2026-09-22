@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -20,7 +21,7 @@ import (
 
 func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
 	t.Parallel()
-	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
+	authenticator := mustBearer(t, "/api/v3", "test-token")
 
 	client := petstore.NewClient(authenticator, nil)
 
@@ -33,7 +34,7 @@ func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
 	t.Parallel()
 	// A nil transport must fall back to the default builder output, so the
 	// constructor stays usable when callers do not customise transport.
-	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
+	authenticator := mustBearer(t, "/api/v3", "test-token")
 
 	client := petstore.NewClient(authenticator, nil)
 
@@ -44,7 +45,7 @@ func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
 
 func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	t.Parallel()
-	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
+	authenticator := mustBearer(t, "/api/v3", "test-token")
 	transport, buildErr := petstore.NewTransportOptionsBuilder().Build()
 	if buildErr != nil {
 		t.Fatal(buildErr)
@@ -57,37 +58,23 @@ func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	}
 }
 
-func TestClient_BearerRejectsCrlfAndNonAscii(t *testing.T) {
+// RFC 7230 §3.2.6 and bearer-no-empty-token-guard: NewClientWithToken
+// forwards the Bearer constructor's ErrInvalidBearerToken for an empty,
+// whitespace-only, CRLF-bearing or non-ASCII token instead of panicking.
+func TestClient_WithTokenRejectsInvalidToken(t *testing.T) {
 	t.Parallel()
-	// RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
-	// newlines from .env / file reads; CRLF would inject the
-	// Authorization header. The check panics on invalid input.
-	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño"} {
-		func(val string) {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Fatalf("expected panic for invalid bearer token %q", val)
-				}
-			}()
-			_ = auth.NewBearerAuthenticator("/api/v3", val)
-		}(bad)
+	for _, bad := range []string{"", "   ", "\t", "tok\r\nInjected: yes", "ñoño"} {
+		client, err := petstore.NewClientWithToken("/api/v3", bad, nil)
+		if !errors.Is(err, auth.ErrInvalidBearerToken) {
+			t.Errorf("expected ErrInvalidBearerToken for %q, got %v", bad, err)
+		}
+		if client != nil {
+			t.Errorf("expected a nil client for %q", bad)
+		}
 	}
-}
-
-// bearer-no-empty-token-guard: an empty or whitespace-only Bearer token would
-// emit the literal `Authorization: Bearer ` header and send the request
-// unauthenticated. The constructor must reject it, like the api-key guard.
-func TestClient_BearerRejectsEmptyToken(t *testing.T) {
-	t.Parallel()
-	for _, bad := range []string{"", "   ", "\t"} {
-		func(val string) {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Fatalf("expected panic for empty/whitespace bearer token %q", val)
-				}
-			}()
-			_ = auth.NewBearerAuthenticator("/api/v3", val)
-		}(bad)
+	client, err := petstore.NewClientWithToken("/api/v3", "test-token", nil)
+	if err != nil || client == nil {
+		t.Fatalf("expected a client for a valid token, got %v", err)
 	}
 }
 
@@ -95,7 +82,7 @@ func TestClient_BearerRejectsEmptyToken(t *testing.T) {
 // through the default string/format representation.
 func TestClient_BearerStringRedactsToken(t *testing.T) {
 	t.Parallel()
-	a := auth.NewBearerAuthenticator("/api/v3", "super-secret-token")
+	a := mustBearer(t, "/api/v3", "super-secret-token")
 	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
 		if strings.Contains(s, "super-secret-token") {
 			t.Errorf("expected token to be redacted, got %q", s)
@@ -110,7 +97,7 @@ func TestClient_BearerStringRedactsToken(t *testing.T) {
 // through the default string/format representation.
 func TestClient_ApiKeyStringRedactsKey(t *testing.T) {
 	t.Parallel()
-	a := auth.NewApiKeyAuthenticator("/api/v3", "X-Api-Key", "super-secret-key", auth.ApiKeyLocationHeader)
+	a := mustApiKey(t, "/api/v3", "X-Api-Key", "super-secret-key", auth.ApiKeyLocationHeader)
 	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
 		if strings.Contains(s, "super-secret-key") {
 			t.Errorf("expected api key to be redacted, got %q", s)
@@ -126,21 +113,14 @@ func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
 	// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
 	// reject anything outside printable ASCII + TAB to prevent header
 	// injection (\r\n) and silent UTF-8 mangling that varies per
-	// HTTP lib. The check panics on invalid input.
+	// HTTP lib. The constructor returns ErrInvalidApiKey on invalid input.
 	cases := []string{"abc\r\nInjected: yes", "kéy"}
 	for _, bad := range cases {
-		func(val string) {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Fatalf("expected panic for invalid header api key %q", val)
-				}
-			}()
-			_ = auth.NewApiKeyAuthenticator("/api/v3", "X-Api-Key", val, auth.ApiKeyLocationHeader)
-		}(bad)
+		expectInvalidApiKey(t, bad, auth.ApiKeyLocationHeader)
 	}
 
 	// Non-header locations accept arbitrary chars.
-	queryAuth := auth.NewApiKeyAuthenticator("/api/v3", "api_key", "kéy", auth.ApiKeyLocationQuery)
+	queryAuth := mustApiKey(t, "/api/v3", "api_key", "kéy", auth.ApiKeyLocationQuery)
 	got := queryAuth.QueryParams()
 	if got["api_key"] != "kéy" {
 		t.Fatalf("expected query param 'kéy', got %v", got)
@@ -149,7 +129,7 @@ func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
 
 func TestClient_ApiGroupsAreAccessible(t *testing.T) {
 	t.Parallel()
-	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
+	authenticator := mustBearer(t, "/api/v3", "test-token")
 
 	client := petstore.NewClient(authenticator, nil)
 
@@ -167,7 +147,7 @@ func TestClient_ApiGroupsAreAccessible(t *testing.T) {
 // a regression in the field naming is caught regardless of the generic loop above.
 func TestClient_SubApiAccessorsUseShortGroupNames(t *testing.T) {
 	t.Parallel()
-	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
+	authenticator := mustBearer(t, "/api/v3", "test-token")
 
 	client := petstore.NewClient(authenticator, nil)
 

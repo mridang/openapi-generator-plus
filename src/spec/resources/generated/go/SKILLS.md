@@ -9,9 +9,12 @@ go get petstore
 ## Quick Start
 
 ```go
-import "petstore/pkg/auth"
+import "petstore/pkg"
 
-client := petstore.NewClientWithToken("https://api.example.com", "your-token", nil)
+client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil)
+if err != nil {
+    return err
+}
 ```
 
 ## Authentication
@@ -23,21 +26,30 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ```go
 import "petstore/pkg/auth"
 
-authenticator := auth.NewBearerAuthenticator("https://api.example.com", "your-token")
+authenticator, err := auth.NewBearerAuthenticator("https://api.example.com", "your-token")
+if err != nil {
+    return err
+}
 client := petstore.NewClient(authenticator, nil)
 ```
 
 ### Basic Auth
 
 ```go
-authenticator := auth.NewBasicAuthenticator("https://api.example.com", "username", "password")
+authenticator, err := auth.NewBasicAuthenticator("https://api.example.com", "username", "password")
+if err != nil {
+    return err
+}
 client := petstore.NewClient(authenticator, nil)
 ```
 
 ### API Key
 
 ```go
-authenticator := auth.NewApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", auth.ApiKeyLocationHeader)
+authenticator, err := auth.NewApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", auth.ApiKeyLocationHeader)
+if err != nil {
+    return err
+}
 client := petstore.NewClient(authenticator, nil)
 ```
 
@@ -47,7 +59,7 @@ client := petstore.NewClient(authenticator, nil)
 import "petstore/pkg/auth/oauth"
 
 authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil)
 client := petstore.NewClient(authenticator, nil)
 ```
 
@@ -56,7 +68,8 @@ client := petstore.NewClient(authenticator, nil)
 ```go
 authenticator := oauth.NewOAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", nil, "")
 client := petstore.NewClient(authenticator, nil)
 ```
 
@@ -65,7 +78,7 @@ client := petstore.NewClient(authenticator, nil)
 ```go
 authenticator := oauth.NewOAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password")
+    "https://auth.example.com/token", "username", "password", nil, "")
 client := petstore.NewClient(authenticator, nil)
 ```
 
@@ -74,7 +87,11 @@ client := petstore.NewClient(authenticator, nil)
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```go
-authenticator := oauth.NewOAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token")
+authenticator := oauth.NewOAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", nil)
+if err := authenticator.SetAccessToken("your-access-token"); err != nil {
+    return err
+}
 client := petstore.NewClient(authenticator, nil)
 ```
 
@@ -82,8 +99,8 @@ client := petstore.NewClient(authenticator, nil)
 
 ```go
 authenticator := oauth.NewOpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration")
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", nil)
 client := petstore.NewClient(authenticator, nil)
 ```
 
@@ -112,7 +129,7 @@ Override the default if your authorization server only accepts one form:
 
 ```go
 authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token").
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil).
     WithClientAuthMethod(oauth.ClientAuthMethodBasic)
 ```
 
@@ -126,7 +143,10 @@ if err != nil {
 	log.Fatal(err)
 }
 
-client := petstore.NewClientWithToken(url, "your-token", nil)
+client, err := petstore.NewClientWithToken(url, "your-token", nil)
+if err != nil {
+	log.Fatal(err)
+}
 ```
 
 ## Testing

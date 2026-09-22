@@ -10,9 +10,12 @@
 package petstore
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	pkgerrors "petstore/pkg/errors"
 )
 
 // ── SerializeValue by location ──
@@ -858,17 +861,27 @@ func TestPathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
 	}
 }
 
-func TestEmptyStringPathParamPanics(t *testing.T) {
+func TestEmptyStringPathParamIsMissingRequiredParameter(t *testing.T) {
 	t.Parallel()
 	// Gap W — empty-string path values silently produce malformed
-	// URLs like `/resource//details`; reject at serialization time so
-	// callers see the real error rather than a downstream 404.
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic for empty-string path param")
+	// URLs like `/resource//details`; reject them before the request is
+	// built so callers see the real error rather than a downstream 404.
+	// A caller mistake is a returned sentinel, never a panic.
+	type color string
+	var nilString *string
+	for _, value := range []any{"", color(""), nilString, nil} {
+		err := requirePathParam("id", value)
+		if !errors.Is(err, ErrMissingRequiredParameter) {
+			t.Errorf("expected ErrMissingRequiredParameter for %#v, got %v", value, err)
 		}
-	}()
-	_ = serializeStyled("id", "", "path", "string", "", "simple", false)
+		var root pkgerrors.OpenAPIError
+		if errors.As(err, &root) {
+			t.Errorf("a caller mistake must not be a OpenAPIError, got %T", err)
+		}
+	}
+	if err := requirePathParam("id", "5"); err != nil {
+		t.Errorf("expected no error for a non-empty path param, got %v", err)
+	}
 }
 
 // ── N3/W3 parity: format:date path parameter emits YYYY-MM-DD ──
