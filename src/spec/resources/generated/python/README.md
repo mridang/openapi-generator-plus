@@ -129,8 +129,8 @@ OpenAPI keywords `minLength`, `maxLength`, `pattern`, `minimum`,
 generated models via pydantic 2's native `Field(...)` constraints
 (`min_length`, `max_length`, `pattern`, `ge`/`gt`, `le`/`lt`,
 `multiple_of`). Constraint violations raise `pydantic.ValidationError`,
-which the `ObjectSerializer` surfaces as a `SerializationError` /
-`DeserializationError` to the caller. The server remains the
+which the `ObjectSerializer` surfaces as a `SerializationError` to
+the caller. The server remains the
 authoritative validator; the client-side check is a fast-fail
 convenience before the network round trip.
 
