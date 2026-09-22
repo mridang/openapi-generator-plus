@@ -196,7 +196,7 @@ test('client credentials token fetch error is surfaced not swallowed', function 
     $authenticator->setApiClient($client);
 
     expect(fn (): mixed => $authenticator->getAuthHeaders())
-        ->toThrow(\RuntimeException::class);
+        ->toThrow(\PetstoreClient\Auth\OAuth\OAuth2ServerError::class);
 });
 
 /**

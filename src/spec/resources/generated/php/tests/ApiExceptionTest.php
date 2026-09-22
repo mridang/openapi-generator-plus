@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use PetstoreClient\ApiException;
-use PetstoreClient\CancellationException;
 use PetstoreClient\SerializationException;
 use PetstoreClient\OpenAPIException;
 use PetstoreClient\Models\Category;
@@ -81,13 +80,21 @@ test('SerializationException reaches the SDK root OpenAPIException', function ()
     expect($ex)->toBeInstanceOf(Exception::class);
 });
 
-test('CancellationException reaches the SDK root OpenAPIException', function (): void {
-    /* Unified hierarchy: cancellation must also be catchable via the single
-     * OpenAPIException root, not just the native \RuntimeException. */
-    $ex = new CancellationException('operation cancelled');
+test('NetworkException and NetworkTimeoutException extend ApiException with status 0', function (): void {
+    /* No HTTP response arrived, so the status is 0 and the transport failure
+     * is kept as the previous exception. Both sit under ApiException so an
+     * existing catch on ApiException keeps catching them. */
+    $cause = new \RuntimeException('connection refused');
+    $network = new \PetstoreClient\Errors\NetworkException('connection refused', $cause);
+    $timeout = new \PetstoreClient\Errors\NetworkTimeoutException('timed out', $cause);
 
-    expect($ex)->toBeInstanceOf(OpenAPIException::class);
-    expect($ex)->toBeInstanceOf(Exception::class);
+    expect($network)->toBeInstanceOf(ApiException::class);
+    expect($network->getStatusCode())->toBe(0);
+    expect($network->getPrevious())->toBe($cause);
+    expect($timeout)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
+    expect($timeout)->toBeInstanceOf(ApiException::class);
+    expect($timeout->getStatusCode())->toBe(0);
+    expect($timeout->getPrevious())->toBe($cause);
 });
 
 test('every typed API error extends the base ApiException', function (): void {

@@ -71,7 +71,7 @@ test('get auth headers returns bearer after set access token', function (): void
 test('throws when access token not set', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
-    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\RuntimeException::class);
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\LogicException::class);
 });
 
 test('get host returns configured host', function (): void {

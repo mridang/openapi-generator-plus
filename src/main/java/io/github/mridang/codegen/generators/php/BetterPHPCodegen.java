@@ -265,12 +265,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.php"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.php"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.php"),
+            new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.php"),
+            new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.php"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.php"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.php"),
-            new SupportingFileSpec("cancellation_token.mustache", invokerFolder, "CancellationToken.php"),
-            new SupportingFileSpec("cancellation_exception.mustache", invokerFolder, "CancellationException.php"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("abstract_api_client.mustache", invokerFolder, "AbstractApiClient.php"),
@@ -427,11 +427,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/DefaultApiClientTest.mustache",
                             "tests",
                             "DefaultApiClientTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "tests/CancellationTokenTest.mustache",
-                            "tests",
-                            "CancellationTokenTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/ObjectSerializerTest.mustache",

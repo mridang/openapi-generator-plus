@@ -173,7 +173,7 @@ test('throws before exchange code called', function (): void {
     );
     $authenticator->setApiClient($client);
 
-    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\RuntimeException::class);
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\LogicException::class);
 });
 
 test('auth code get host returns configured host', function (): void {
@@ -223,7 +223,7 @@ test('auth headers before exchange returns recoverable error', function (): void
     $caught = null;
     try {
         $authenticator->getAuthHeaders();
-    } catch (\RuntimeException $e) {
+    } catch (\LogicException $e) {
         $caught = $e;
     }
     expect($caught)->not->toBeNull();

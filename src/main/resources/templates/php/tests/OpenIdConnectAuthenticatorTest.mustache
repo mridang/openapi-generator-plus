@@ -188,7 +188,7 @@ test('oidc throws when no api client injected', function (): void {
         []
     );
 
-    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\RuntimeException::class);
+    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\LogicException::class);
 });
 
 test('oidc get host returns configured host', function (): void {

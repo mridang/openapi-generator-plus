@@ -131,12 +131,12 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAware
      *
      * @return array<string, string> the authorization headers
      *
-     * @throws \RuntimeException if setAccessToken() has not been called
+     * @throws \LogicException if setAccessToken() has not been called
      */
     public function getAuthHeaders(): array
     {
         if ($this->accessToken === null) {
-            throw new \RuntimeException('Must call setAccessToken() before making API requests');
+            throw new \LogicException('Must call setAccessToken() before making API requests');
         }
 
         return ['Authorization' => 'Bearer ' . $this->accessToken];

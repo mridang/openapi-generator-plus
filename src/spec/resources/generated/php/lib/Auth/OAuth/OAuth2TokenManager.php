@@ -77,7 +77,8 @@ final class OAuth2TokenManager
      * @param array<string, string> $params   the token request parameters (grant_type, client_id, etc.)
      * @return string a valid access token
      *
-     * @throws \RuntimeException if no API client has been injected or token fetch fails
+     * @throws \LogicException if no API client has been injected
+     * @throws OpenAPIException if the token fetch fails
      */
     /**
      * @param string                $tokenUrl     the token endpoint URL
@@ -108,9 +109,12 @@ final class OAuth2TokenManager
                 if ($this->accessToken !== null) {
                     return $this->accessToken;
                 }
-            } catch (\RuntimeException) {
+            } catch (OpenAPIException | \RuntimeException) {
                 /* Refresh failed (e.g. refresh token revoked or expired).
-                 * Fall back to re-running the original grant below. */
+                 * OAuth2ServerError / OAuth2TokenError extend the SDK root,
+                 * which extends \Exception rather than \RuntimeException, so
+                 * the root must be caught explicitly. Fall back to re-running
+                 * the original grant below. */
             }
         }
         $this->fetchToken($tokenUrl, $params, $extraHeaders);
@@ -159,7 +163,10 @@ final class OAuth2TokenManager
      * @param string               $tokenUrl the OAuth2 token endpoint URL
      * @param array<string, string> $params   the token request parameters
      *
-     * @throws \RuntimeException if the API client has not been injected or the request fails
+     * @throws \LogicException if the API client has not been injected
+     * @throws ApiException if the token request fails at the transport level
+     * @throws OAuth2ServerError if the token endpoint returns an error response
+     * @throws OAuth2TokenError if the token endpoint answers unusably
      */
     /**
      * @param array<string, string> $params       the request body parameters
@@ -168,7 +175,7 @@ final class OAuth2TokenManager
     private function fetchToken(string $tokenUrl, array $params, array $extraHeaders = []): void
     {
         if (!$this->apiClient instanceof ApiClient) {
-            throw new \RuntimeException(
+            throw new \LogicException(
                 'ApiClient has not been injected. '
                 . 'Ensure the Client constructor calls setApiClient() '
                 . 'on HttpAwareAuthenticator before making API requests.'
@@ -181,63 +188,59 @@ final class OAuth2TokenManager
         );
         $body = http_build_query($params);
 
-        try {
-            /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
-             * redirect (RFC 6749 §3.2 forbids redirects at the token
-             * endpoint). A malicious upstream proxy that rewrites a token
-             * endpoint Location to an attacker-controlled host would
-             * otherwise harvest client credentials (or a refresh token)
-             * sent in the body. We disable redirect following on the
-             * transport via $noRedirect=true and additionally refuse any
-             * 3xx response explicitly so callers get a clear failure
-             * mode instead of a silent token-endpoint hijack. */
-            $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body, noRedirect: true);
-            if ($response->statusCode >= 300 && $response->statusCode < 400) {
-                throw new OAuth2TokenError(
-                    'Refusing to follow ' . $response->statusCode
-                    . ' redirect on OAuth2 token endpoint; '
-                    . 'token POSTs must not be replayed across redirects.'
-                );
-            }
-            if ($response->statusCode < 200 || $response->statusCode >= 300) {
-                /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
-                 * `error` (required), `error_description`, `error_uri`. Parse
-                 * them into a typed OAuth2ServerError so callers can recover.
-                 * Fall back to the raw body when the response is not a valid
-                 * error object. */
-                throw self::parseOAuth2ServerError($response->statusCode, $response->body);
-            }
+        /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
+         * redirect (RFC 6749 §3.2 forbids redirects at the token
+         * endpoint). A malicious upstream proxy that rewrites a token
+         * endpoint Location to an attacker-controlled host would
+         * otherwise harvest client credentials (or a refresh token)
+         * sent in the body. We disable redirect following on the
+         * transport via $noRedirect=true and additionally refuse any
+         * 3xx response explicitly so callers get a clear failure
+         * mode instead of a silent token-endpoint hijack. */
+        $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body, noRedirect: true);
+        if ($response->statusCode >= 300 && $response->statusCode < 400) {
+            throw new OAuth2TokenError(
+                'Refusing to follow ' . $response->statusCode
+                . ' redirect on OAuth2 token endpoint; '
+                . 'token POSTs must not be replayed across redirects.'
+            );
+        }
+        if ($response->statusCode < 200 || $response->statusCode >= 300) {
+            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+             * `error` (required), `error_description`, `error_uri`. Parse
+             * them into a typed OAuth2ServerError so callers can recover.
+             * Fall back to the raw body when the response is not a valid
+             * error object. */
+            throw self::parseOAuth2ServerError($response->statusCode, $response->body);
+        }
 
-            /** @var array<string, mixed>|null $responseBody */
-            $responseBody = json_decode($response->body, true);
-            if (!is_array($responseBody)
-                || !isset($responseBody['access_token'])
-                || !is_string($responseBody['access_token'])
-                || $responseBody['access_token'] === ''
-            ) {
-                throw new OAuth2TokenError('Token response missing or empty access_token field');
+        /** @var array<string, mixed>|null $responseBody */
+        $responseBody = json_decode($response->body, true);
+        if (!is_array($responseBody)
+            || !isset($responseBody['access_token'])
+            || !is_string($responseBody['access_token'])
+            || $responseBody['access_token'] === ''
+        ) {
+            throw new OAuth2TokenError('Token response missing or empty access_token field');
+        }
+        $this->accessToken = $responseBody['access_token'];
+        if (isset($responseBody['refresh_token']) && is_string($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
+            $this->refreshToken = $responseBody['refresh_token'];
+        }
+        if (array_key_exists('expires_in', $responseBody) && $responseBody['expires_in'] !== null) {
+            /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+             * providers (Salesforce, some Apigee deployments) send a quoted
+             * string and others send a JSON float. Accept ints, floor floats,
+             * parse digit strings; on anything unparseable or non-positive,
+             * mark the token as immediately stale so the next call refetches
+             * (preferable to caching a token of unknown lifetime forever). */
+            $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
+            if ($expiresIn > 0) {
+                $bufferSecs = min($expiresIn, 30);
+                $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
+            } else {
+                $this->tokenExpiry = microtime(true);
             }
-            $this->accessToken = $responseBody['access_token'];
-            if (isset($responseBody['refresh_token']) && is_string($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
-                $this->refreshToken = $responseBody['refresh_token'];
-            }
-            if (array_key_exists('expires_in', $responseBody) && $responseBody['expires_in'] !== null) {
-                /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
-                 * providers (Salesforce, some Apigee deployments) send a quoted
-                 * string and others send a JSON float. Accept ints, floor floats,
-                 * parse digit strings; on anything unparseable or non-positive,
-                 * mark the token as immediately stale so the next call refetches
-                 * (preferable to caching a token of unknown lifetime forever). */
-                $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
-                if ($expiresIn > 0) {
-                    $bufferSecs = min($expiresIn, 30);
-                    $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
-                } else {
-                    $this->tokenExpiry = microtime(true);
-                }
-            }
-        } catch (ApiException $e) {
-            throw new \RuntimeException('Failed to fetch OAuth2 token', 0, $e);
         }
     }
 

@@ -121,7 +121,7 @@ test('token manager throws when no api client injected', function (): void {
     $manager = new OAuth2TokenManager();
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(\RuntimeException::class);
+        ->toThrow(\LogicException::class);
 });
 
 test('expires in short lived token does not storm', function (): void {
@@ -274,7 +274,32 @@ test('throws when token request fails', function (): void {
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(\RuntimeException::class);
+        ->toThrow(OAuth2ServerError::class);
+});
+
+test('rejected refresh token falls back to the original grant', function (): void {
+    // OAuth2ServerError extends the SDK root, which extends \Exception rather
+    // than \RuntimeException: the refresh fallback must still catch it and
+    // re-run the original grant instead of letting it escape.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    $client->enqueueResponse(new ApiHttpResponse(
+        400,
+        (string) json_encode(['error' => 'invalid_grant']),
+        ['Content-Type' => 'application/json']
+    ));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('fresh_access', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($token)->toBe('fresh_access');
+    expect($client->capturedRequests)->toHaveCount(3);
+    expect($client->capturedRequests[1]['body'] ?? '')->toContain('grant_type=refresh_token');
+    expect($client->capturedRequests[2]['body'] ?? '')->toContain('grant_type=client_credentials');
 });
 
 test('missing access_token in 2xx response throws typed OAuth2TokenError', function (): void {

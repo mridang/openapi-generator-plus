@@ -179,12 +179,12 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
      *
      * @return array<string, string> the authorization headers
      *
-     * @throws \RuntimeException if exchangeCode() has not been called
+     * @throws \LogicException if exchangeCode() has not been called
      */
     public function getAuthHeaders(): array
     {
         if (!$this->tokenExchanged) {
-            throw new \RuntimeException('Must call exchangeCode() before making API requests');
+            throw new \LogicException('Must call exchangeCode() before making API requests');
         }
         $params = [
             'grant_type' => 'refresh_token',

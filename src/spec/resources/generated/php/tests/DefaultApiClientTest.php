@@ -152,7 +152,7 @@ test('times out on slow endpoint', function (): void {
     $client = new DefaultApiClient($transport);
 
     expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null))
-        ->toThrow(\Exception::class);
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
 });
 
 // -- User-Agent header --

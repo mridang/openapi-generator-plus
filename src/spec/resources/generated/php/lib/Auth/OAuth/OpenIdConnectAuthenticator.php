@@ -104,7 +104,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
      *
      * @return OAuth2AuthorizationCodeAuthenticator the delegate
      *
-     * @throws \RuntimeException if the API client has not been injected or discovery fails
+     * @throws \LogicException if the API client has not been injected
+     * @throws \RuntimeException if discovery fails
      */
     private function getDelegate(): OAuth2AuthorizationCodeAuthenticator
     {
@@ -116,7 +117,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         }
 
         if (!$this->apiClient instanceof ApiClient) {
-            throw new \RuntimeException(
+            throw new \LogicException(
                 'ApiClient has not been injected. '
                 . 'Ensure the Client constructor calls setApiClient() '
                 . 'on HttpAwareAuthenticator before making API requests.'
