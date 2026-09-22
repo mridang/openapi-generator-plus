@@ -661,19 +661,19 @@ import Testing
   }
 
   @Test func testDurationParseRejectsEmpty() {
-    #expect(throws: (any Error).self) {
+    #expect(throws: SerializationError.self) {
       try ObjectSerializer.decodeDuration("")
     }
   }
 
   @Test func testDurationParseRejectsMissingSuffix() {
-    #expect(throws: (any Error).self) {
+    #expect(throws: SerializationError.self) {
       try ObjectSerializer.decodeDuration("3600")
     }
   }
 
   @Test func testDurationParseRejectsIso8601() {
-    #expect(throws: (any Error).self) {
+    #expect(throws: SerializationError.self) {
       try ObjectSerializer.decodeDuration("PT1H30M")
     }
   }
@@ -684,30 +684,39 @@ import Testing
     }
   }
 
-  @Test func testDurationFormatZero() {
-    #expect(ObjectSerializer.encodeDuration(0) == "0s")
+  @Test func testDurationFormatZero() throws {
+    #expect(try ObjectSerializer.encodeDuration(0) == "0s")
   }
 
-  @Test func testDurationFormatWholeSeconds() {
-    #expect(ObjectSerializer.encodeDuration(3_725) == "3725s")
+  @Test func testDurationFormatWholeSeconds() throws {
+    #expect(try ObjectSerializer.encodeDuration(3_725) == "3725s")
   }
 
-  @Test func testDurationFormatLargeWholeSeconds() {
-    #expect(ObjectSerializer.encodeDuration(2 * 86_400) == "172800s")
+  @Test func testDurationFormatLargeWholeSeconds() throws {
+    #expect(try ObjectSerializer.encodeDuration(2 * 86_400) == "172800s")
   }
 
-  @Test func testDurationFormatNegative() {
-    #expect(ObjectSerializer.encodeDuration(-300) == "-300s")
+  @Test func testDurationFormatNegative() throws {
+    #expect(try ObjectSerializer.encodeDuration(-300) == "-300s")
   }
 
-  @Test func testDurationFormatFractionalSeconds() {
-    let out = ObjectSerializer.encodeDuration(1.5)
+  @Test func testDurationFormatFractionalSeconds() throws {
+    let out = try ObjectSerializer.encodeDuration(1.5)
     #expect(out == "1.500s")
+  }
+
+  @Test func testDurationFormatRejectsNonFiniteAndOutOfRange() {
+    // formatProtobufDuration used to trap on these; it must throw instead.
+    for value in [TimeInterval.nan, .infinity, -.infinity, Double(Int.max), -Double(Int.max) * 2] {
+      #expect(throws: SerializationError.self) {
+        _ = try ObjectSerializer.encodeDuration(value)
+      }
+    }
   }
 
   @Test func testDurationRoundTrip() throws {
     let original: TimeInterval = 86_400 + 7_200 + 180 + 4
-    let literal = ObjectSerializer.encodeDuration(original)
+    let literal = try ObjectSerializer.encodeDuration(original)
     let parsed = try ObjectSerializer.decodeDuration(literal)
     #expect(parsed == original)
   }
@@ -1107,7 +1116,7 @@ import Testing
   // and whole/fractional cases are covered above; this pins the small-
   // magnitude formatting that a naive %g/String(describing:) would corrupt.
   @Test func testDurationFormatSubTenThousandthNoScientificNotation() throws {
-    let out = ObjectSerializer.encodeDuration(0.00005)
+    let out = try ObjectSerializer.encodeDuration(0.00005)
     #expect(
       !out.lowercased().contains("e"),
       "sub-0.0001s duration must not use scientific notation, got: \(out)")
@@ -1119,7 +1128,7 @@ import Testing
   }
 
   @Test func testDurationFormatNegativeSubTenThousandthNoScientificNotation() throws {
-    let out = ObjectSerializer.encodeDuration(-0.00005)
+    let out = try ObjectSerializer.encodeDuration(-0.00005)
     #expect(out.hasPrefix("-"), "negative magnitude must keep its sign, got: \(out)")
     #expect(
       !out.lowercased().contains("e"),

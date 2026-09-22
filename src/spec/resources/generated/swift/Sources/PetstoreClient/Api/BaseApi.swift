@@ -419,12 +419,12 @@ public class BaseApi: @unchecked Sendable {
 
   /// Validates and escapes a value destined for a quoted multipart header.
   ///
-  /// Throws ``URLError/badURL`` if the value contains CR, LF, or NUL (header
+  /// Throws ``ConfigurationError/invalidArgument(_:)`` if the value contains CR, LF, or NUL (header
   /// injection risk); otherwise backslash-escapes `\` and `"`.
   static func sanitizeQuotedHeaderValue(_ value: String) throws -> String {
     for scalar in value.unicodeScalars {
       if scalar == "\r" || scalar == "\n" || scalar.value == 0 {
-        throw URLError(.badURL)
+        throw ConfigurationError.invalidArgument("value contains CR, LF, or NUL characters")
       }
     }
     var escaped = ""

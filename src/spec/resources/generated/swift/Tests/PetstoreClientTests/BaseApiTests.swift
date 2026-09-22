@@ -833,6 +833,30 @@ import Testing
       "Client-level authenticator should be applied when op-level auth is omitted")
   }
 
+  @Test func testUnexchangedAuthorizationCodeFailsTheCall() async throws {
+    // An authorization-code authenticator whose code was never exchanged
+    // must fail the call with codeNotExchanged; the request must NOT go
+    // out unauthenticated.
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let auth = OAuth2AuthorizationCodeAuthenticator(
+      host: "https://example.com",
+      clientID: "client-id",
+      clientSecret: "client-secret",
+      authorizationURL: "https://example.com/authorize",
+      tokenURL: "https://example.com/token",
+      redirectURI: "https://example.com/callback"
+    )
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+    let pet = Pet(name: "TestPet", photoUrls: [])
+    await #expect(throws: OAuth2AuthorizationCodeError.codeNotExchanged) {
+      _ = try await api.addPet(pet: pet)
+    }
+    #expect(
+      mockClient.lastURL.isEmpty,
+      "transport must NOT be called when the authenticator cannot produce credentials")
+  }
+
   @Test func testOpLevelAuthOverridesClientLevel() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"

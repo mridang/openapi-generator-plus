@@ -260,7 +260,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     }
 
     guard let data = response.body.data(using: .utf8) else {
-      throw URLError(.badServerResponse)
+      throw OAuth2TokenError.invalidResponse("Token response body is not valid UTF-8")
     }
 
     /* expires_in is decoded via JSONSerialization rather than Decodable so
@@ -271,13 +271,18 @@ public final class OAuth2TokenManager: @unchecked Sendable {
       let refresh_token: String?
     }
 
-    let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
+    let parsed: TokenResponse
+    do {
+      parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
+    } catch {
+      throw OAuth2TokenError.invalidResponse("Token response is not a valid token JSON object")
+    }
     guard let accessTokenValue = parsed.access_token, !accessTokenValue.isEmpty else {
       throw OAuth2TokenError.missingAccessToken(
         "Token response missing or empty access_token field"
       )
     }
-    let rawJson = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    let rawJson = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     let rawExpiresIn = rawJson?["expires_in"]
     let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
     let expiresIn = Self.parseExpiresIn(rawExpiresIn)
@@ -377,6 +382,9 @@ public enum OAuth2TokenError: OpenAPIError, Equatable {
   /// §3.2 forbids redirects there; following one would replay the
   /// credential-bearing POST body to the redirect target.
   case redirectRefused(String)
+  /// Thrown when the token endpoint's 2xx body is not UTF-8 or not a
+  /// token JSON object.
+  case invalidResponse(String)
 }
 
 /// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The

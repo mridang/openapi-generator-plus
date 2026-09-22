@@ -1,0 +1,6 @@
+{{>api_info}}
+import Foundation
+
+/// NetworkTimeoutError represents a request that timed out. The status code
+/// is 0 and the `URLError` is kept as ``ApiError/underlyingError``.
+public class NetworkTimeoutError: NetworkError, @unchecked Sendable {}

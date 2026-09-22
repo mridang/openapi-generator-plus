@@ -190,21 +190,21 @@ import Testing
 
     @Test func testMultipartFilenameWithCRLFThrows() {
         let formParts: [String: Any] = ["a\r\nX-Injected: yes": Data([0x01, 0x02])]
-        #expect(throws: URLError.self) {
+        #expect(throws: ConfigurationError.self) {
             _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         }
     }
 
     @Test func testMultipartFilenameWithNewlineThrows() {
         let formParts: [String: Any] = ["foo\nbar": Data([0x01])]
-        #expect(throws: URLError.self) {
+        #expect(throws: ConfigurationError.self) {
             _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         }
     }
 
     @Test func testMultipartFilenameWithNullThrows() {
         let formParts: [String: Any] = ["foo\u{0000}bar": Data([0x01])]
-        #expect(throws: URLError.self) {
+        #expect(throws: ConfigurationError.self) {
             _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         }
     }
@@ -562,11 +562,12 @@ import Testing
 
     @Test func testNonexistentCaCertPathFailsFast() {
         // ca-cert-fail-fast: an explicitly configured CA certificate path that
-        // cannot be read or parsed must fail fast at construction with the
-        // SDK's ApiError rather than silently falling back to the system trust
-        // store (security theater).
+        // cannot be read or parsed must fail fast at construction with
+        // ConfigurationError rather than silently falling back to the system
+        // trust store (security theater). It is a configuration mistake, not
+        // an ApiError.
         let transport = TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
-        #expect(throws: ApiError.self) {
+        #expect(throws: ConfigurationError.invalidCACertificate("failed to read \"/nonexistent/ca.pem\"")) {
             _ = try DefaultApiClient(transportOptions: transport)
         }
     }

@@ -87,7 +87,7 @@ import Testing
 
         try await auth.exchangeCode("auth-code-xyz")
 
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
 
         let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
         #expect(bodyString.contains("refresh_token=ref1"))
@@ -98,12 +98,12 @@ import Testing
     @Test func testThrowsBeforeExchangeCodeCalled() async {
         let auth = createAuthenticator()
 
-        // authHeaders() (the protocol method) must NOT crash if exchangeCode
-        // was never called -- it now soft-fails to an empty dictionary so
-        // the resulting request surfaces as a 401 instead of terminating the
-        // process. Callers that want a precise error use authHeadersOrThrow.
-        let headers = await auth.authHeaders()
-        #expect(headers.isEmpty)
+        // authHeaders() (the protocol method the API client calls) must throw
+        // codeNotExchanged if exchangeCode was never called, so the request is
+        // never sent unauthenticated.
+        await #expect(throws: OAuth2AuthorizationCodeError.codeNotExchanged) {
+            _ = try await auth.authHeaders()
+        }
     }
 
     @Test func test_auth_headers_before_exchange_returns_recoverable_error() async {

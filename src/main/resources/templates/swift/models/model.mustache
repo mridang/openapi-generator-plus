@@ -191,10 +191,10 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
-        try container.encode(ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+        try container.encode(try ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
 {{/required}}
 {{^required}}
-        try container.encodeIfPresent({{name}}.map { ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+        try container.encodeIfPresent(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
 {{/required}}
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}
@@ -289,10 +289,10 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
-        try container.encode(ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+        try container.encode(try ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
 {{/required}}
 {{^required}}
-        try container.encodeIfPresent({{name}}.map { ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+        try container.encodeIfPresent(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
 {{/required}}
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}

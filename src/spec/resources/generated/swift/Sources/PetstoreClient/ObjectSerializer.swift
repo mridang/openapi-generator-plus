@@ -320,23 +320,16 @@ internal enum ObjectSerializer {
   /// models when a property's OpenAPI schema is ``format: duration`` —
   /// the underlying wire type is a String even though the Swift type is
   /// TimeInterval. See ``ISO8601Duration.swift`` for the formatter.
-  static func encodeDuration(_ interval: TimeInterval) -> String {
-    return formatProtobufDuration(interval)
+  /// Throws ``SerializationError`` when the interval is NaN, infinite or
+  /// out of range.
+  static func encodeDuration(_ interval: TimeInterval) throws -> String {
+    return try formatProtobufDuration(interval)
   }
 
   /// Decodes a protobuf-JSON duration literal into a ``TimeInterval``.
-  /// Throws ``SerializationError`` (wrapping ``ProtobufDurationError``)
-  /// when the literal is malformed, so the call site only needs to
-  /// catch a single error type.
+  /// Throws ``SerializationError`` when the literal is malformed.
   static func decodeDuration(_ literal: String) throws -> TimeInterval {
-    do {
-      return try parseProtobufDuration(literal)
-    } catch {
-      throw SerializationError(
-        message: "Failed to decode protobuf duration",
-        cause: error
-      )
-    }
+    return try parseProtobufDuration(literal)
   }
 
   /// Converts a value to a representation suitable for use as a query parameter.

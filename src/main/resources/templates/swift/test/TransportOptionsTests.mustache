@@ -85,7 +85,7 @@ import Testing
     }
 
     @Test func testInvalidProxyUrlThrowsException() {
-        #expect(throws: TransportOptionsError.self) { try TransportOptionsBuilder().proxy("not a valid url") }
+        #expect(throws: ConfigurationError.self) { try TransportOptionsBuilder().proxy("not a valid url") }
     }
 
     @Test func testNullProxyUrlIsAccepted() throws {
@@ -196,15 +196,16 @@ import Testing
 #if os(Linux)
     @Test func testSettingProxyRaisesOnLinux() throws {
         // On Linux, URLSession does not support proxy configuration.
-        // DefaultApiClient.buildSession throws ApiError when a proxy is set on Linux.
-        // We verify that TransportOptions accepts the proxy value (no error at options level),
-        // and document that constructing DefaultApiClient with this opts on Linux will crash
-        // (via try! in the initializer) rather than silently ignoring the proxy setting.
+        // TransportOptions accepts the proxy value; DefaultApiClient's init
+        // rejects it with ConfigurationError.proxyUnsupported rather than
+        // silently ignoring the proxy setting.
         let opts = try TransportOptionsBuilder()
             .proxy("http://proxy.example.com:8080")
             .build()
-        // The proxy is recorded in TransportOptions; it is DefaultApiClient's init that rejects it.
         #expect(opts.proxy != nil)
+        #expect(throws: ConfigurationError.proxyUnsupported) {
+            _ = try DefaultApiClient(transportOptions: opts)
+        }
     }
 #else
     @Test func testSettingProxyIsSupportedOnNonLinux() throws {

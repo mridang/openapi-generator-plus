@@ -10,6 +10,10 @@ import Testing
 
 @testable import PetstoreClient
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 @Suite final class ApiErrorTests {
 
   @Test func testExposesStatusMessageBodyHeadersErrorBody() {
@@ -111,19 +115,15 @@ import Testing
     #expect(typed?.name == "Cat")
   }
 
-  @Test func testAuthAndConfigAndDurationErrorsConformToOpenAPIError() {
-    // INVARIANT: every SDK-thrown error type — including the auth, config,
-    // and duration value types that do not subclass ApiError — is branded
+  @Test func testAuthAndSerializationErrorsConformToOpenAPIError() {
+    // INVARIANT: every SDK-thrown error type — including the auth and
+    // serialization value types that do not subclass ApiError — is branded
     // with OpenAPIError, so a single `as? OpenAPIError` catch covers the
     // entire surface the SDK can throw.
     let errors: [any Error] = [
-      ProtobufDurationError("not a duration"),
-      TransportOptionsError.invalidProxyURL("://bad"),
-      ServerConfigurationError.invalidVariableValue(
-        variable: "region",
-        value: "mars",
-        allowed: ["us", "eu"]
-      ),
+      SerializationError(message: "not a duration"),
+      NetworkError(statusCode: 0, message: "connection refused"),
+      NetworkTimeoutError(statusCode: 0, message: "timed out"),
       OAuth2AuthorizationCodeError.codeNotExchanged,
       OAuth2TokenError.missingAccessToken("empty access_token"),
       OAuth2ServerError(
@@ -139,5 +139,90 @@ import Testing
       #expect(err is OpenAPIError)
       #expect(err as? OpenAPIError != nil)
     }
+  }
+
+  @Test func testConfigurationErrorIsNotAnOpenAPIError() {
+    // A configuration mistake is a programming error, not an API failure,
+    // so ConfigurationError conforms to plain Error only.
+    let errors: [any Error] = [
+      ConfigurationError.invalidProxyURL("://bad"),
+      ConfigurationError.invalidServerVariable(
+        variable: "region", value: "mars", allowed: ["us", "eu"]),
+      ConfigurationError.invalidCACertificate("missing"),
+      ConfigurationError.proxyUnsupported,
+      ConfigurationError.invalidArgument("bad"),
+    ]
+    for err in errors {
+      #expect(!(err is OpenAPIError))
+      #expect(!(err is ApiError))
+    }
+  }
+
+  @Test func testTransportFailuresAreClassified() {
+    // URLError(.timedOut) is a NetworkTimeoutError; any other failure with
+    // no HTTP response is a NetworkError. Both keep the URLError.
+    let timeout = DefaultApiClient.transportError(URLError(.timedOut))
+    #expect(timeout is NetworkTimeoutError)
+    #expect(((timeout as? ApiError)?.underlyingError as? URLError)?.code == .timedOut)
+    for code in [
+      URLError.Code.cannotConnectToHost, .cannotFindHost, .secureConnectionFailed,
+      .networkConnectionLost, .dnsLookupFailed, .notConnectedToInternet,
+    ] {
+      let error = DefaultApiClient.transportError(URLError(code))
+      #expect(error is NetworkError)
+      #expect(!(error is NetworkTimeoutError))
+      #expect((error as? ApiError)?.statusCode == 0)
+      #expect(((error as? ApiError)?.underlyingError as? URLError)?.code == code)
+    }
+    // A cancelled URLSession task outside a cancelled Swift Task (e.g. the
+    // session was invalidated) is still a transport failure.
+    #expect(DefaultApiClient.transportError(URLError(.cancelled)) is NetworkError)
+  }
+
+  @Test func testCancelledTaskSurfacesCancellationError() async throws {
+    // The SDK does not wrap the platform's cancellation: a request made
+    // from a Swift Task that is already cancelled throws CancellationError
+    // and is never started, instead of an ApiError with status 0.
+    let client = DefaultApiClient()
+    let task = Task { () -> ApiHttpResponse in
+      withUnsafeCurrentTask { $0?.cancel() }
+      return try await client.sendRequest(
+        method: "GET", url: "http://127.0.0.1:9/cancelled", headers: [:], body: nil)
+    }
+    do {
+      _ = try await task.value
+      Issue.record("expected CancellationError")
+    } catch is CancellationError {
+      // expected
+    } catch {
+      Issue.record("expected CancellationError, got \(error)")
+    }
+  }
+
+  @Test func testConnectionRefusedIsNetworkError() async throws {
+    // Port 9 (discard) on loopback is not listening, so the connection is
+    // refused and no HTTP response exists.
+    let client = DefaultApiClient()
+    do {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://127.0.0.1:9/refused", headers: [:], body: nil)
+      Issue.record("expected NetworkError")
+    } catch let error as NetworkError {
+      #expect(error.statusCode == 0)
+      #expect(error.underlyingError is URLError)
+    } catch {
+      Issue.record("expected NetworkError, got \(error)")
+    }
+  }
+
+  @Test func testNetworkErrorsAreApiErrorsWithStatusZero() {
+    let cause = URLError(.cannotConnectToHost)
+    let network: ApiError = NetworkError(statusCode: 0, message: "refused", underlyingError: cause)
+    let timeout: ApiError = NetworkTimeoutError(statusCode: 0, message: "timed out")
+    #expect(network.statusCode == 0)
+    #expect(timeout.statusCode == 0)
+    #expect(timeout is NetworkError)
+    #expect(!(network is NetworkTimeoutError))
+    #expect((network.underlyingError as? URLError)?.code == .cannotConnectToHost)
   }
 }

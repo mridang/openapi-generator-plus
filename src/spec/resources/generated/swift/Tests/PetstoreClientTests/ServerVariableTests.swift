@@ -54,7 +54,7 @@ import Testing
         "env": ServerVariable(defaultValue: "dev", enumValues: ["prod", "staging"])
       ]
     )
-    #expect(throws: ServerConfigurationError.self) {
+    #expect(throws: ConfigurationError.self) {
       _ = try server.url()
     }
   }

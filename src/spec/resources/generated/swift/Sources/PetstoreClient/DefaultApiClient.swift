@@ -66,9 +66,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   ///
   /// Gap T4: when ``TransportOptions/caCertPath`` is set, the certificate
   /// is read and parsed eagerly here. If it cannot be read or parsed, this
-  /// initializer throws an ``ApiError`` rather than silently falling back
-  /// to the system trust store — if the caller explicitly asked for SSL
-  /// pinning we must not pretend it succeeded.
+  /// initializer throws ``ConfigurationError/invalidCACertificate(_:)``
+  /// rather than silently falling back to the system trust store — if the
+  /// caller explicitly asked for SSL pinning we must not pretend it
+  /// succeeded. A proxy on a platform that cannot route through one throws
+  /// ``ConfigurationError/proxyUnsupported``.
   public init(transportOptions: TransportOptions?) throws {
     let opts = transportOptions ?? TransportOptionsBuilder().build()
     try DefaultApiClient.validateCaCertPath(opts.caCertPath)
@@ -80,22 +82,18 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   }
 
   /// Validates that a user-supplied CA certificate path can be read and
-  /// parsed as a DER/PEM certificate, throwing a typed ``ApiError`` when it
-  /// cannot. A nil path is a no-op (the system trust store is used).
+  /// parsed as a DER/PEM certificate, throwing
+  /// ``ConfigurationError/invalidCACertificate(_:)`` when it cannot. A nil
+  /// path is a no-op (the system trust store is used).
   static func validateCaCertPath(_ caCertPath: String?) throws {
     guard let path = caCertPath else { return }
     guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
-      throw ApiError(
-        statusCode: 0,
-        message: "failed to read CA certificate from \"\(path)\""
-      )
+      throw ConfigurationError.invalidCACertificate("failed to read \"\(path)\"")
     }
     #if canImport(Security)
       guard SecCertificateCreateWithData(nil, certData as CFData) != nil else {
-        throw ApiError(
-          statusCode: 0,
-          message:
-            "failed to parse CA certificate from \"\(path)\": no PEM blocks found or unparseable"
+        throw ConfigurationError.invalidCACertificate(
+          "failed to parse \"\(path)\": no PEM blocks found or unparseable"
         )
       }
     #endif
@@ -139,6 +137,31 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     self.sessionDelegate = delegate
   }
 
+  /// Classifies a URLSession transport failure.
+  ///
+  /// A request cancelled because its Swift `Task` was cancelled surfaces as
+  /// the platform's own `CancellationError`, unwrapped. `.timedOut` becomes
+  /// ``NetworkTimeoutError``; any other failure with no HTTP response
+  /// (connection refused, DNS, TLS, reset) becomes ``NetworkError``. Both
+  /// carry status 0 and keep the `URLError` as ``ApiError/underlyingError``.
+  static func transportError(_ urlError: URLError) -> Error {
+    if urlError.code == .cancelled && Task.isCancelled {
+      return CancellationError()
+    }
+    if urlError.code == .timedOut {
+      return NetworkTimeoutError(
+        statusCode: 0,
+        message: urlError.localizedDescription,
+        underlyingError: urlError
+      )
+    }
+    return NetworkError(
+      statusCode: 0,
+      message: urlError.localizedDescription,
+      underlyingError: urlError
+    )
+  }
+
   /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
   /// embedded in the proxy URL, or returns nil when no credentials are
   /// present. Percent-encoded userinfo is decoded before encoding.
@@ -166,7 +189,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         statusCode: 0, message: "ApiClient has been closed and can no longer send requests")
     }
     guard let requestURL = URL(string: url) else {
-      throw URLError(.badURL)
+      throw ConfigurationError.invalidArgument("malformed request URL: \(url)")
     }
 
     var merged: [String: String] = [:]
@@ -247,10 +270,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       (data, response, task) = try await DefaultApiClient.performDataTask(
         on: activeSession, for: request)
     } catch let urlError as URLError {
-      throw ApiError(
+      throw DefaultApiClient.transportError(urlError)
+    } catch let cancellation as CancellationError {
+      throw cancellation
+    } catch {
+      throw NetworkError(
         statusCode: 0,
-        message: urlError.localizedDescription,
-        underlyingError: urlError
+        message: error.localizedDescription,
+        underlyingError: error
       )
     }
 
@@ -368,7 +395,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// a text part), `[Any]` (each element is added as a separate part with the same name),
   /// or any other Encodable type (JSON-serialized).
   ///
-  /// Throws ``URLError/badURL`` if a filename contains CR, LF, or NUL bytes
+  /// Throws ``ConfigurationError/invalidArgument(_:)`` if a filename contains CR, LF, or NUL bytes
   /// (which would allow header injection).
   static func buildMultipartBody(_ formParts: [String: Any], boundary: String) throws -> Data {
     var body = Data()
@@ -424,12 +451,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
   /// Validates and escapes a value destined for a quoted multipart header.
   ///
-  /// Throws ``URLError/badURL`` if the value contains CR, LF, or NUL (header
+  /// Throws ``ConfigurationError/invalidArgument(_:)`` if the value contains CR, LF, or NUL (header
   /// injection risk); otherwise backslash-escapes `\` and `"`.
   static func sanitizeQuotedHeaderValue(_ value: String) throws -> String {
     for scalar in value.unicodeScalars {
       if scalar == "\r" || scalar == "\n" || scalar.value == 0 {
-        throw URLError(.badURL)
+        throw ConfigurationError.invalidArgument("value contains CR, LF, or NUL characters")
       }
     }
     var escaped = ""
@@ -670,10 +697,36 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     on session: URLSession,
     for request: URLRequest
   ) async throws -> (Data, URLResponse, URLSessionTask) {
-    /* Box the task so the completion handler and the continuation body
-       refer to the same instance once `dataTask` has created it. */
+    /* Box the task so the completion handler, the continuation body and
+       the cancellation handler refer to the same instance. The lock and
+       the `cancelled` flag close the race where the surrounding Swift
+       task is cancelled before `dataTask` exists: `onCancel` then runs
+       first, finds no task to cancel, and records the cancellation so the
+       task is never started. */
     final class TaskBox: @unchecked Sendable {
-      var task: URLSessionTask?
+      private let lock = NSLock()
+      private var task: URLSessionTask?
+      private var cancelled = false
+
+      /// Records the task; returns false when cancellation came first.
+      func install(_ newTask: URLSessionTask) -> Bool {
+        lock.withLock {
+          task = newTask
+          return !cancelled
+        }
+      }
+
+      func cancel() {
+        let current: URLSessionTask? = lock.withLock {
+          cancelled = true
+          return task
+        }
+        current?.cancel()
+      }
+
+      var current: URLSessionTask? {
+        lock.withLock { task }
+      }
     }
     let box = TaskBox()
     return try await withTaskCancellationHandler {
@@ -684,20 +737,23 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             continuation.resume(throwing: error)
             return
           }
-          guard let data = data, let response = response else {
+          guard let data = data, let response = response, let task = box.current else {
             continuation.resume(throwing: URLError(.badServerResponse))
             return
           }
-          /* Force-unwrap is safe: `box.task` is set immediately below,
-             before `resume()`, and this handler runs only after the
-             task has started. */
-          continuation.resume(returning: (data, response, box.task!))
+          continuation.resume(returning: (data, response, task))
         }
-        box.task = task
+        /* A task that is never resumed never calls its completion
+           handler, so resuming the continuation here is the only
+           resume on this path. */
+        guard box.install(task) else {
+          continuation.resume(throwing: CancellationError())
+          return
+        }
         task.resume()
       }
     } onCancel: {
-      box.task?.cancel()
+      box.cancel()
     }
   }
 
@@ -714,7 +770,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     #if os(Linux)
       if opts.proxy != nil {
-        throw ApiError(message: "Proxy configuration is not supported on Linux")
+        throw ConfigurationError.proxyUnsupported
       }
     #else
       if let proxy = opts.proxy {

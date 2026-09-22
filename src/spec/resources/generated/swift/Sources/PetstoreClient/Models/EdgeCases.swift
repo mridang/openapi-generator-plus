@@ -96,7 +96,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(_class, forKey: ._class)
     try container.encodeIfPresent(_return, forKey: ._return)
     try container.encodeIfPresent(
-      retryAfter.map { ObjectSerializer.encodeDuration($0) }, forKey: .retryAfter)
+      try retryAfter.map { try ObjectSerializer.encodeDuration($0) }, forKey: .retryAfter)
     try container.encodeIfPresent(expiresAt, forKey: .expiresAt)
   }
 }

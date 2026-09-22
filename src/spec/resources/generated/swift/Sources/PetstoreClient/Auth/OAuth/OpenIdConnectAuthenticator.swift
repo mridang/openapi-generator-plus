@@ -78,7 +78,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
   /// request unauthenticated.
   override public func authHeaders() async throws -> [String: String] {
     let delegate = try await resolveDelegate()
-    return await delegate.authHeaders()
+    return try await delegate.authHeaders()
   }
 
   /// Lazily resolves the delegate by fetching the OIDC discovery document
@@ -128,7 +128,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     }
 
     guard let data = response.body.data(using: .utf8) else {
-      throw URLError(.badServerResponse)
+      throw SerializationError(message: "OIDC discovery document is not valid UTF-8")
     }
 
     struct DiscoveryDocument: Decodable {
@@ -136,7 +136,13 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
       let token_endpoint: String
     }
 
-    let discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
+    let discovery: DiscoveryDocument
+    do {
+      discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
+    } catch {
+      throw SerializationError(
+        message: "Failed to decode the OIDC discovery document", cause: error)
+    }
 
     let newDelegate = OAuth2AuthorizationCodeAuthenticator(
       host: _host,

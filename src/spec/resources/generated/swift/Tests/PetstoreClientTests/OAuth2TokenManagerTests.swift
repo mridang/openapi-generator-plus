@@ -493,6 +493,33 @@ import Testing
     }
   }
 
+  /// A 2xx response whose body is not a token JSON object must surface as
+  /// OAuth2TokenError.invalidResponse, not a foreign DecodingError.
+  @Test func testTokenResponseThatIsNotJsonThrowsTypedError() async {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "<html>not json</html>"))
+
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    do {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+      Issue.record("Expected OAuth2TokenError for a non-JSON token response")
+    } catch let error as OAuth2TokenError {
+      switch error {
+      case .invalidResponse:
+        break
+      default:
+        Issue.record("expected .invalidResponse, got \(error)")
+      }
+    } catch {
+      Issue.record("expected OAuth2TokenError, got \(error)")
+    }
+  }
+
   /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
   /// typed OAuth2ServerError carrying code/description/uri.
   @Test func testTokenEndpointErrorResponseParsedToTypedError() async {
