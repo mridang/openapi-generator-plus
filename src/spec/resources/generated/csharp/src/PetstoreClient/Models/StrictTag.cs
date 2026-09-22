@@ -30,7 +30,7 @@ public class StrictTag : IEquatable<StrictTag>
         {
             if (value is not null && value.Count > 0)
             {
-                throw new ArgumentException(
+                throw new global::PetstoreClient.SerializationException(
                     "Unknown property '" + value.Keys.First()
                         + "' on StrictTag (unevaluatedProperties:false)");
             }

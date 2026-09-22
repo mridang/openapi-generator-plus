@@ -984,6 +984,17 @@ public class ObjectSerializerTest
             TimeSpan parsed = _serializer.Deserialize<TimeSpan>(json);
             Assert.Equal(original, parsed);
         }
+
+        [Theory]
+        [InlineData("\"99999999999999999999s\"")] // does not fit a long
+        [InlineData("\"999999999999s\"")] // fits a long, overflows TimeSpan ticks
+        [InlineData("\"\u0661\u0662s\"")] // non-ASCII digits
+        public void MalformedOrOverflowingDurationRaisesSerializationException(string json)
+        {
+            // Neither a raw FormatException/OverflowException nor a silently
+            // wrapped tick count: the caller sees the SDK's own error.
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<TimeSpan>(json));
+        }
     }
 
     {{! Gap K — a subtype constructed without the discriminator must still emit }}

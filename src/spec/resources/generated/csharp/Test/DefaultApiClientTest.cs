@@ -152,7 +152,7 @@ public class DefaultApiClientTest
 
         var client = new DefaultApiClient(transport);
 
-        await Assert.ThrowsAsync<ApiException>(() =>
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
             client.SendRequestAsync(
                 "GET",
                 new Uri(_fixture.BaseUrl + "/test/slow"),
@@ -160,6 +160,8 @@ public class DefaultApiClientTest
                 null
             )
         );
+        Assert.Equal(0, ex.StatusCode);
+        Assert.NotNull(ex.InnerException);
     }
 
     // -- User-Agent header --

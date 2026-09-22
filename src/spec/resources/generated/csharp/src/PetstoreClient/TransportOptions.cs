@@ -181,21 +181,24 @@ public sealed class TransportOptionsBuilder
     /// <summary>Set the HTTP/HTTPS proxy URL.</summary>
     /// <param name="proxy">Proxy URL (e.g. <c>"http://proxy:3128"</c>), or <c>null</c>.</param>
     /// <returns>This builder.</returns>
-    /// <exception cref="UriFormatException">Thrown when the proxy URL is not valid.</exception>
+    /// <exception cref="ArgumentException">Thrown when the proxy URL is not valid.</exception>
     public TransportOptionsBuilder Proxy(string? proxy)
     {
         if (proxy != null)
         {
-            Uri uri = new(proxy);
+            if (!Uri.TryCreate(proxy, UriKind.Absolute, out Uri? uri))
+            {
+                throw new ArgumentException($"Invalid proxy URL: {proxy}", nameof(proxy));
+            }
             if (uri.Scheme is not "http" and not "https")
             {
-                throw new UriFormatException(
-                    $"Invalid proxy URL (must use http or https scheme): {proxy}");
+                throw new ArgumentException(
+                    $"Invalid proxy URL (must use http or https scheme): {proxy}", nameof(proxy));
             }
             if (string.IsNullOrEmpty(uri.Host))
             {
-                throw new UriFormatException(
-                    $"Invalid proxy URL (missing host): {proxy}");
+                throw new ArgumentException(
+                    $"Invalid proxy URL (missing host): {proxy}", nameof(proxy));
             }
         }
         _proxy = proxy;

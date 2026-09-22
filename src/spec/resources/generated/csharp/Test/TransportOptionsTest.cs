@@ -125,8 +125,10 @@ public class TransportOptionsTest
     [Fact]
     public void InvalidProxyUrlThrowsException()
     {
-        Assert.Throws<UriFormatException>(() =>
+        Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().Proxy("not a valid url").Build());
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("socks5://proxy:1080").Build());
     }
 
     [Fact]

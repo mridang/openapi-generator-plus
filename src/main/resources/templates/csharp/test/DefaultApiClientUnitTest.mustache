@@ -885,14 +885,14 @@ public class DefaultApiClientUnitTest
     // ---- response-body-read-error-not-wrapped ----
 
     [Fact]
-    public async Task WrapsBodyReadFailureInApiException()
+    public async Task WrapsBodyReadFailureInNetworkException()
     {
         // A failure that happens AFTER headers (during body read) must surface
-        // as the uniform ApiException, not the raw IOException leaked by
-        // HttpClient — matching the send-phase error treatment so callers have
-        // one error type for the whole transport phase.
+        // as NetworkException, not the raw IOException leaked by HttpClient —
+        // matching the send-phase error treatment so callers have one error
+        // type for the whole transport phase.
         var client = new DefaultApiClient(new HttpClient(new FailingBodyHandler()));
-        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => client.SendRequestAsync(
             "GET",
             new Uri("http://example.com/truncated"),
             new Dictionary<string, string>(),
@@ -964,14 +964,61 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void NonexistentCaCertPathThrowsApiExceptionAtConstruction()
+    public void NonexistentCaCertPathThrowsArgumentExceptionAtConstruction()
     {
         // ca-cert-fail-fast: an explicitly configured CA certificate path that
-        // cannot be read or parsed must fail fast at construction with the
-        // SDK's ApiException rather than silently falling back to the system
-        // trust store (security theater).
+        // cannot be read or parsed must fail fast at construction rather than
+        // silently falling back to the system trust store (security theater).
+        // It is a configuration mistake, so the type is ArgumentException.
         var transport = TransportOptions.Builder().CaCertPath("/nonexistent/ca.pem").Build();
-        Assert.Throws<ApiException>(() => new DefaultApiClient(transport));
+        var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
+        Assert.NotNull(ex.InnerException);
+    }
+
+    // ---- network failures: no HTTP response ----
+
+    [Fact]
+    public async Task ConnectionRefusedRaisesNetworkException()
+    {
+        var client = new DefaultApiClient();
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://127.0.0.1:1/never"),
+            new Dictionary<string, string>(),
+            null
+        ));
+        Assert.Equal(0, ex.StatusCode);
+        Assert.IsType<HttpRequestException>(ex.InnerException);
+        Assert.IsNotType<{{packageName}}.Errors.NetworkTimeoutException>(ex);
+    }
+
+    [Fact]
+    public async Task RequestTimeoutRaisesNetworkTimeoutException()
+    {
+        var httpClient = new HttpClient(new HangingHandler())
+        {
+            Timeout = TimeSpan.FromMilliseconds(50),
+        };
+        var client = new DefaultApiClient(httpClient);
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkTimeoutException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null
+        ));
+        Assert.Equal(0, ex.StatusCode);
+        Assert.IsType<TaskCanceledException>(ex.InnerException);
+    }
+
+    private sealed class HangingHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
     }
 
     // ---- multipart-text-part-contenttype-csharp ----

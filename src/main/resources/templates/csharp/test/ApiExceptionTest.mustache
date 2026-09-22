@@ -112,6 +112,25 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void NetworkExceptionsDeriveFromApiExceptionWithStatusZero()
+    {
+        // No HTTP response arrived, so the status is 0 and the transport
+        // failure is kept as the inner exception. Both sit under ApiException
+        // so an existing catch on ApiException keeps catching them.
+        var cause = new HttpRequestException("connection refused");
+        var network = new {{packageName}}.Errors.NetworkException("connection refused", cause);
+        var timeout = new {{packageName}}.Errors.NetworkTimeoutException("timed out", cause);
+
+        Assert.IsAssignableFrom<ApiException>(network);
+        Assert.Equal(0, network.StatusCode);
+        Assert.Same(cause, network.InnerException);
+        Assert.IsAssignableFrom<{{packageName}}.Errors.NetworkException>(timeout);
+        Assert.IsAssignableFrom<ApiException>(timeout);
+        Assert.Equal(0, timeout.StatusCode);
+        Assert.Same(cause, timeout.InnerException);
+    }
+
+    [Fact]
     public void SerializationExceptionDerivesFromBrandedRoot()
     {
         var ex = new SerializationException("nope");

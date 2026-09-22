@@ -133,6 +133,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// redirect, and max-redirect settings to the underlying HttpClient.
     /// </summary>
     /// <param name="transportOptions">Transport configuration to apply.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the configured CA certificate cannot be read or parsed.
+    /// </exception>
     public DefaultApiClient(TransportOptions transportOptions)
     {
         ArgumentNullException.ThrowIfNull(transportOptions);
@@ -164,15 +167,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             }
             catch (Exception ex) when (ex is System.IO.IOException or System.Security.Cryptography.CryptographicException or UnauthorizedAccessException)
             {
-                throw new ApiException(
+                throw new ArgumentException(
                     $"failed to load CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
+                    nameof(transportOptions),
                     ex);
             }
 
             if (caCerts.Count == 0)
             {
-                throw new ApiException(
-                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found or unparseable");
+                throw new ArgumentException(
+                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found or unparseable",
+                    nameof(transportOptions));
             }
             handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
             {
@@ -537,16 +542,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         }
         catch (HttpRequestException ex)
         {
-            throw new ApiException(ex.Message, ex);
+            /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
+            throw new Errors.NetworkException(ex.Message, ex);
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
         {
-            throw new ApiException("Request timed out", ex);
+            throw new Errors.NetworkTimeoutException("Request timed out", ex);
         }
 
         /* A post-headers body-read failure (connection reset, read timeout,
            truncated chunked transfer, decompression error) must surface as the
-           same uniform ApiException as a send-phase failure — not as the raw
+           same NetworkException as a send-phase failure — not as the raw
            HttpRequestException / IOException / TaskCanceledException leaked by
            HttpClient. Wrap the lazy body read in the transport try/catch so
            callers get one error type for the entire transport phase. */
@@ -558,12 +564,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         catch (HttpRequestException ex)
         {
             response.Dispose();
-            throw new ApiException(ex.Message, ex);
+            throw new Errors.NetworkException(ex.Message, ex);
         }
         catch (IOException ex)
         {
             response.Dispose();
-            throw new ApiException(ex.Message, ex);
+            throw new Errors.NetworkException(ex.Message, ex);
         }
         catch (InvalidDataException ex)
         {
@@ -582,7 +588,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         catch (TaskCanceledException ex)
         {
             response.Dispose();
-            throw new ApiException("Request timed out", ex);
+            throw new Errors.NetworkTimeoutException("Request timed out", ex);
         }
 
         /* Gap AL (cont.): a real HttpClientHandler strips the Content-Encoding
