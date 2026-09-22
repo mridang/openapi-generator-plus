@@ -498,7 +498,7 @@ describe {{moduleName}}::Api::PetApi do
     it 'raises error on 404 response' do
       api, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
       begin
-        _(-> { api.get_pet_by_id(99_999) }).must_raise StandardError
+        _(-> { api.get_pet_by_id(99_999) }).must_raise {{moduleName}}::Errors::NotFoundError
       ensure
         server.close
         thread.join(2)
@@ -508,7 +508,7 @@ describe {{moduleName}}::Api::PetApi do
     it 'raises error on 500 response' do
       api, server, thread = new_pet_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
       begin
-        _(-> { api.get_pet_by_id(1) }).must_raise StandardError
+        _(-> { api.get_pet_by_id(1) }).must_raise {{moduleName}}::Errors::InternalServerError
       ensure
         server.close
         thread.join(2)

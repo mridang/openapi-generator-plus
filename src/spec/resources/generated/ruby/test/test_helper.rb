@@ -82,7 +82,7 @@ ENV['CHASM_INTERNAL_HTTP_URL'] = 'http://chasm:4010'
 ENV['CHASM_INTERNAL_HTTPS_URL'] = 'https://chasm:8443'
 
 # Configure the client to use the Chasm mock server
-PetstoreClient.configure do |b|
+Petstore::Client.configure do |b|
   b.base_url chasm_url
   b.default_header 'Authorization', 'Bearer test-token'
 end

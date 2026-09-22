@@ -4,57 +4,57 @@
 require 'minitest/autorun'
 require 'petstore_client'
 
-describe PetstoreClient::TransportOptions do
+describe Petstore::Client::TransportOptions do
   parallelize_me!
 
   it 'verify_ssl defaults to true' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.verify_ssl).must_equal true
   end
 
   it 'ca_cert_path defaults to nil' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.ca_cert_path).must_be_nil
   end
 
   it 'proxy defaults to nil' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.proxy).must_be_nil
   end
 
   it 'timeout defaults to 10000ms' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.timeout).must_equal 10_000
   end
 
   it 'follow_redirects defaults to true' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.follow_redirects).must_equal true
   end
 
   it 'max_redirects defaults to nil' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.max_redirects).must_be_nil
   end
 
   it 'user_agent defaults to non-empty string' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.user_agent).wont_be_nil
     _(opts.user_agent).wont_be_empty
   end
 
   it 'default_headers defaults to empty map' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.default_headers).must_be_empty
   end
 
   it 'inject_request_id defaults to false' do
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.inject_request_id).must_equal false
   end
 
   it 'builder sets all fields' do
-    opts = PetstoreClient::TransportOptions.builder
+    opts = Petstore::Client::TransportOptions.builder
       .verify_ssl(false)
       .ca_cert_path('/path/to/ca.pem')
       .proxy('http://proxy:8080')
@@ -78,7 +78,7 @@ describe PetstoreClient::TransportOptions do
   end
 
   it 'follow_redirects defaults to true with null max_redirects' do
-    opts = PetstoreClient::TransportOptions.builder
+    opts = Petstore::Client::TransportOptions.builder
       .follow_redirects(true)
       .build
 
@@ -86,26 +86,28 @@ describe PetstoreClient::TransportOptions do
     _(opts.max_redirects).must_be_nil
   end
 
-  it 'invalid proxy URL throws exception' do
-    assert_raises(ArgumentError) do
-      PetstoreClient::TransportOptions.builder.proxy('not-a-url').build
+  it 'invalid proxy URL raises ArgumentError, not an SDK error' do
+    error = assert_raises(ArgumentError) do
+      Petstore::Client::TransportOptions.builder.proxy('not-a-url').build
     end
+    _(error).must_be_instance_of ArgumentError
+    _(error).wont_be_kind_of ::Petstore::Client::OpenAPIError
   end
 
   it 'unparseable proxy URL raises ArgumentError, not URI::InvalidURIError' do
     error = assert_raises(ArgumentError) do
-      PetstoreClient::TransportOptions.builder.proxy('http://[bad').build
+      Petstore::Client::TransportOptions.builder.proxy('http://[bad').build
     end
     _(error).must_be_instance_of ArgumentError
   end
 
   it 'null proxy URL is accepted' do
-    opts = PetstoreClient::TransportOptions.builder.proxy(nil).build
+    opts = Petstore::Client::TransportOptions.builder.proxy(nil).build
     _(opts.proxy).must_be_nil
   end
 
   it 'builder methods return the same builder instance' do
-    builder = PetstoreClient::TransportOptions.builder
+    builder = Petstore::Client::TransportOptions.builder
 
     _(builder.verify_ssl(true)).must_be_same_as builder
     _(builder.ca_cert_path(nil)).must_be_same_as builder
@@ -120,7 +122,7 @@ describe PetstoreClient::TransportOptions do
   end
 
   it 'accumulates headers from default_header calls' do
-    opts = PetstoreClient::TransportOptions.builder
+    opts = Petstore::Client::TransportOptions.builder
       .default_header('X-First', 'one')
       .default_header('X-Second', 'two')
       .build
@@ -131,7 +133,7 @@ describe PetstoreClient::TransportOptions do
   end
 
   it 'merges headers from default_headers call' do
-    opts = PetstoreClient::TransportOptions.builder
+    opts = Petstore::Client::TransportOptions.builder
       .default_header('X-First', 'one')
       .default_headers({ 'X-Second' => 'two', 'X-Third' => 'three' })
       .build
@@ -145,7 +147,7 @@ describe PetstoreClient::TransportOptions do
   it 'modifying source map does not affect built options' do
     headers = { 'X-Original' => 'original' }
 
-    opts = PetstoreClient::TransportOptions.builder
+    opts = Petstore::Client::TransportOptions.builder
       .default_headers(headers)
       .build
 
@@ -158,7 +160,7 @@ describe PetstoreClient::TransportOptions do
   end
 
   it 'builder produces independent instances' do
-    builder = PetstoreClient::TransportOptions.builder.verify_ssl(false)
+    builder = Petstore::Client::TransportOptions.builder.verify_ssl(false)
     first = builder.build
     second = builder.build
 
@@ -170,23 +172,23 @@ describe PetstoreClient::TransportOptions do
 
   it 'timeout defaults to 10000ms' do
     # Default TransportOptions applies a 10-second timeout.
-    opts = PetstoreClient::TransportOptions.builder.build
+    opts = Petstore::Client::TransportOptions.builder.build
     _(opts.timeout).must_equal 10_000
   end
 
   it 'timeout can be explicitly set to nil for no timeout' do
-    opts = PetstoreClient::TransportOptions.builder.timeout(nil).build
+    opts = Petstore::Client::TransportOptions.builder.timeout(nil).build
     _(opts.timeout).must_be_nil
   end
 
   it 'setting timeout to 5000 is accessible' do
-    opts = PetstoreClient::TransportOptions.builder.timeout(5000).build
+    opts = Petstore::Client::TransportOptions.builder.timeout(5000).build
     _(opts.timeout).must_equal 5000
   end
 
   it 'timeout field is named exactly timeout' do
     # Verify via the reader that the field is named :timeout (not :open_timeout or :connection_timeout).
-    opts = PetstoreClient::TransportOptions.builder.timeout(1000).build
+    opts = Petstore::Client::TransportOptions.builder.timeout(1000).build
     _(opts.timeout).wont_be_nil
     _(opts.timeout).must_equal 1000
   end
@@ -194,7 +196,7 @@ describe PetstoreClient::TransportOptions do
   # ProxyConfigTests
 
   it 'setting proxy URL is preserved on read-back' do
-    opts = PetstoreClient::TransportOptions.builder
+    opts = Petstore::Client::TransportOptions.builder
       .proxy('http://proxy.example.com:8080')
       .build
     _(opts.proxy).must_equal 'http://proxy.example.com:8080'
@@ -202,7 +204,7 @@ describe PetstoreClient::TransportOptions do
 
   it 'setting proxy is supported on all platforms' do
     # Proxy configuration must not raise on any platform.
-    opts = PetstoreClient::TransportOptions.builder
+    opts = Petstore::Client::TransportOptions.builder
       .proxy('http://proxy.example.com:8080')
       .build
     _(opts.proxy).must_equal 'http://proxy.example.com:8080'

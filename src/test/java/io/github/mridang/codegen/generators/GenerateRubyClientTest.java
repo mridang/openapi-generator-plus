@@ -15,12 +15,23 @@ class GenerateRubyClientTest {
   private static final Path OUTPUT_DIR =
       Path.of("src/spec/resources/generated/ruby").toAbsolutePath();
 
+  /**
+   * Generates the golden with the shape of a real SDK: a nested module whose
+   * first segment is also the client class name ({@code Petstore::Client} with
+   * client class {@code Petstore}, as {@code Zitadel::Client} with client class
+   * {@code Zitadel}). Inside {@code module Petstore::Client} a relative constant
+   * path such as {@code Petstore::Client::ApiError} resolves {@code Petstore} to
+   * the client class, so any relative path in a template breaks this golden.
+   */
   @Test
   @ResourceLock(value = "generated-ruby", mode = ResourceAccessMode.READ_WRITE)
   void generate() throws IOException {
     ClientGenerator.generateClient(
         "ruby-plus",
-        Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient"),
+        Map.of(
+            "gemName", "petstore_client",
+            "moduleName", "Petstore::Client",
+            "clientClassName", "Petstore"),
         OUTPUT_DIR);
   }
 
@@ -47,7 +58,7 @@ class GenerateRubyClientTest {
     final String options =
         Files.readString(
             OUTPUT_DIR.resolve(
-                "lib/petstore_client/api/options/find_pets_by_status_options.rb"));
+                "lib/petstore/client/api/options/find_pets_by_status_options.rb"));
 
     // The status accessor must carry the YARD deprecation tag.
     assertThat(options)

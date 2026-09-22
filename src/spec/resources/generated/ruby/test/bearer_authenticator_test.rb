@@ -12,29 +12,29 @@
 require 'minitest/autorun'
 require 'petstore_client'
 
-describe PetstoreClient::Auth::BearerAuthenticator do
+describe Petstore::Client::Auth::BearerAuthenticator do
   parallelize_me!
 
   it 'raw token is prefixed with Bearer' do
-    auth = PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', 'xyz')
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
   it 'already-prefixed token is not doubled' do
-    auth = PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', 'Bearer xyz')
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'Bearer xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
   it 'lowercase bearer prefix is stripped' do
-    auth = PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', 'bearer xyz')
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'bearer xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
   it 'mixed-case bearer prefix is stripped' do
-    auth = PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', 'BeArEr xyz')
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'BeArEr xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
@@ -43,11 +43,11 @@ describe PetstoreClient::Auth::BearerAuthenticator do
   # "Authorization: Bearer " header, sending the request unauthenticated, so
   # the constructor must reject it.
   it 'rejects an empty token' do
-    _(-> { PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
+    _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
   end
 
   it 'rejects a whitespace-only token' do
-    _(-> { PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', '   ') }).must_raise ArgumentError
+    _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '   ') }).must_raise ArgumentError
   end
 
   # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing newlines
@@ -55,13 +55,13 @@ describe PetstoreClient::Auth::BearerAuthenticator do
   # Also reject non-ASCII.
   it 'rejects CR/LF in the token' do
     _(-> {
-      PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
   end
 
   it 'rejects a non-ASCII token' do
     _(-> {
-      PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', 'ñoño')
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'ñoño')
     }).must_raise ArgumentError
   end
 
@@ -69,7 +69,7 @@ describe PetstoreClient::Auth::BearerAuthenticator do
   # representation must mask the stored token — the secret value must be absent
   # and a *** redaction marker present.
   it 'redacts the token from inspect and to_s' do
-    auth = PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).wont_include 'super-secret-token'
     _(auth.to_s).wont_include 'super-secret-token'
     _("#{auth}").wont_include 'super-secret-token'

@@ -189,7 +189,7 @@ rescue {{moduleName}}::Errors::ClientError => e
   puts "Client error #{e.status_code}: #{e.message}"
 rescue {{moduleName}}::Errors::ServerError => e
   puts "Server error: #{e.message}"
-rescue {{moduleName}}::Errors::ApiError => e
+rescue {{moduleName}}::ApiError => e
   puts "API error: #{e.message}"
 end
 ```

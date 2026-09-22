@@ -126,9 +126,10 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       %w[openid]
     )
 
-    assert_raises({{moduleName}}::ApiError) do
+    err = assert_raises(RuntimeError) do
       auth.build_authorization_url
     end
+    _(err).must_be_instance_of RuntimeError
   end
 
   it 'getHost returns configured host' do
@@ -178,7 +179,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # oauth-oidc-missing-endpoint-guard: a discovery document missing the
   # required endpoints must raise a typed ApiError up front, not NPE later.
-  it 'raises ApiError when discovery omits authorization_endpoint' do
+  it 'raises SerializationError when discovery omits authorization_endpoint' do
     client = FakeOidcClient.new([{ status: 200, body: { 'token_endpoint' => 'https://auth.example.com/token' } }])
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -187,10 +188,10 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises({{moduleName}}::ApiError) { auth.build_authorization_url }
+    assert_raises({{moduleName}}::SerializationError) { auth.build_authorization_url }
   end
 
-  it 'raises ApiError when discovery omits token_endpoint' do
+  it 'raises SerializationError when discovery omits token_endpoint' do
     client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -199,7 +200,38 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises({{moduleName}}::ApiError) { auth.build_authorization_url }
+    assert_raises({{moduleName}}::SerializationError) { auth.build_authorization_url }
+  end
+
+  it 'raises SerializationError when the discovery document is not JSON' do
+    client = FakeOidcClient.new([{ status: 200, body: '<html>not json</html>' }])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    err = assert_raises({{moduleName}}::SerializationError) { auth.build_authorization_url }
+    _(err).must_be_instance_of {{moduleName}}::SerializationError
+  end
+
+  # Discovery is an HTTP call like any other: a non-2xx answer raises the
+  # same status-specific error an API call would.
+  { 404 => {{moduleName}}::Errors::NotFoundError, 500 => {{moduleName}}::Errors::InternalServerError }.each do |status, error_class|
+    it "raises #{error_class} when discovery answers #{status}" do
+      client = FakeOidcClient.new([{ status: status, body: '{}' }])
+      auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my_client_id', 'my_client_secret',
+        'https://app.example.com/callback', %w[openid]
+      )
+      auth.api_client = client
+      err = assert_raises(error_class) { auth.build_authorization_url }
+      _(err).must_be_instance_of error_class
+      _(err.status_code).must_equal status
+    end
   end
 
   it 'masks the client secret in inspect' do

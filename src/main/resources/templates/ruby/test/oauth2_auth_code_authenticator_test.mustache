@@ -85,10 +85,13 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   end
 
   it 'throws before exchange code called' do
+    # Requesting a token before the code exchange is a wrong call order:
+    # the invalid-state RuntimeError, not an SDK error.
     error = assert_raises(RuntimeError) do
       auth.auth_headers
     end
     _(error).must_be_instance_of RuntimeError
+    _(error).wont_be_kind_of {{apiErrorParent}}
   end
 
   it 'getHost returns configured host' do

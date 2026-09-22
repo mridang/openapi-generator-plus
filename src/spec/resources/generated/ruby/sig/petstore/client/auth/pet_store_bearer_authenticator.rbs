@@ -1,0 +1,7 @@
+module Petstore::Client
+  module Auth
+    class PetStoreBearerAuthenticator < BearerAuthenticator
+      def initialize: (host: String, token: String) -> void
+    end
+  end
+end

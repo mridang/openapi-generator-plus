@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -276,6 +277,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("errors/network_error.mustache", errorsPath, "network_error.rb"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsPath, "network_timeout_error.rb"),
             new SupportingFileSpec("version.mustache", libPath, "version.rb"),
+            new SupportingFileSpec("types.mustache", libPath, "types.rb"),
             new SupportingFileSpec("header_selector.mustache", libPath, "header_selector.rb"),
             new SupportingFileSpec("object_serializer.mustache", libPath, "object_serializer.rb"),
             new SupportingFileSpec("serialization_error.mustache", libPath, "serialization_error.rb"),
@@ -381,6 +383,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 nestedClose.append('\n');
             }
         }
+        // RBS resolves `module Zitadel::Client` only once `Zitadel` itself is
+        // declared, so the signatures declare every enclosing module first.
+        final StringBuilder parentsRbs = new StringBuilder();
+        for (int i = 1; i < moduleParts.size(); i++) {
+            parentsRbs.append("module ").append(String.join("::", moduleParts.subList(0, i)))
+                    .append("\nend\n\n");
+        }
+        additionalProperties.put("moduleNameParentsRbs", parentsRbs.toString());
         additionalProperties.put("moduleNameNestedOpen", nestedOpen.toString());
         additionalProperties.put("moduleNameNestedClose", nestedClose.toString());
         additionalProperties.put("moduleNameNestedIndent", "  ".repeat(moduleParts.size()));
@@ -599,6 +609,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         if (ops == null) {
             return objs;
         }
+        writeServerTypeFiles(operations);
         for (final CodegenOperation op : ops) {
             // A top-level byte response: the return schema itself is
             // `format: byte` (not a byte *field* of a model, which decodes via
@@ -630,6 +641,86 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             }
         }
         return objs;
+    }
+
+    /**
+     * Emits the two OAuth2 error classes next to the token manager, each in a
+     * file of its own named after the class, rather than inside the token
+     * manager's file.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_token_error.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_token_error")));
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_server_error.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_server_error")));
+        }
+    }
+
+    /**
+     * Writes each per-operation server type, server-variable enum module and
+     * server variant to a file of its own under {@code api/}, named after the
+     * constant it declares, and lists those files in {@code serverTypeFiles}
+     * so the API file can {@code require_relative} them. One constant per file
+     * is the layout Zeitwerk (and the golden's file/constant test) expects.
+     */
+    @SuppressWarnings("unchecked")
+    private void writeServerTypeFiles(Map<String, Object> operations) {
+        final List<Map<String, Object>> typeDefs =
+                (List<Map<String, Object>>) operations.get("serverTypeDefs");
+        final List<String> files = new ArrayList<>();
+        if (typeDefs != null) {
+            final String modulePath =
+                    NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+            final Path apiDir = Path.of(getOutputDir(), LIB_FOLDER, modulePath, "api");
+            for (final Map<String, Object> typeDef : typeDefs) {
+                final String typeName =
+                        (String) Objects.requireNonNull(typeDef.get("serverTypeName"));
+                final String typeFile = NamingConvention.SNAKE_CASE.apply(typeName);
+                writeServerTypeFile(apiDir, typeFile, "api/server_type.mustache", new HashMap<>(typeDef));
+                files.add(typeFile);
+                final Set<String> enumNames = new LinkedHashSet<>();
+                final List<Map<String, Object>> variants =
+                        (List<Map<String, Object>>) Objects.requireNonNull(typeDef.get("variants"));
+                for (final Map<String, Object> variant : variants) {
+                    final List<Map<String, Object>> vars =
+                            (List<Map<String, Object>>) variant.get("serverVariables");
+                    for (final Map<String, Object> var : vars == null ? List.<Map<String, Object>>of() : vars) {
+                        final String enumName = typeName + var.get("pascalName");
+                        if (Boolean.TRUE.equals(var.get("hasEnumValues")) && enumNames.add(enumName)) {
+                            final Map<String, Object> ctx = new HashMap<>(var);
+                            ctx.put("serverTypeName", typeName);
+                            final String enumFile = NamingConvention.SNAKE_CASE.apply(enumName);
+                            writeServerTypeFile(apiDir, enumFile, "api/server_variable_enum.mustache", ctx);
+                            files.add(enumFile);
+                        }
+                    }
+                }
+                for (final Map<String, Object> variant : variants) {
+                    final Map<String, Object> ctx = new HashMap<>(variant);
+                    ctx.put("serverTypeName", typeName);
+                    ctx.put("serverTypeFile", typeFile);
+                    final String variantFile =
+                            NamingConvention.SNAKE_CASE.apply(typeName + variant.get("variantName"));
+                    writeServerTypeFile(apiDir, variantFile, "api/server_variant.mustache", ctx);
+                    files.add(variantFile);
+                }
+            }
+        }
+        operations.put("serverTypeFiles", files);
+    }
+
+    private void writeServerTypeFile(
+            Path apiDir, String fileName, String template, Map<String, Object> context) {
+        final String filePath = apiDir.resolve(fileName + ".rb").toString();
+        writeFile(filePath, renderOptionsTemplate(template, context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
     }
 
     /**

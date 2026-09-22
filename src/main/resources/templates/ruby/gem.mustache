@@ -6,6 +6,10 @@
 require 'dry-struct'
 require 'dry-types'
 
+# Every file below opens the gem's module in its compact form, which needs
+# each enclosing module to exist already.
+{{{moduleNameNestedOpen}}}{{{moduleNameNestedClose}}}
+
 # Common files
 require '{{modulePath}}/api_error'
 require '{{modulePath}}/errors/client_error'
@@ -20,6 +24,7 @@ require '{{modulePath}}/errors/internal_server_error'
 require '{{modulePath}}/errors/network_error'
 require '{{modulePath}}/errors/network_timeout_error'
 require '{{modulePath}}/version'
+require '{{modulePath}}/types'
 require '{{modulePath}}/configuration'
 require '{{modulePath}}/transport_options'
 require '{{modulePath}}/server_variable'

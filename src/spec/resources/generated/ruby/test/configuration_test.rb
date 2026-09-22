@@ -3,31 +3,31 @@
 
 require 'test_helper'
 
-describe PetstoreClient::Configuration do
+describe Petstore::Client::Configuration do
   before do
-    @saved_default = PetstoreClient::Configuration.default
-    PetstoreClient::Configuration.default = PetstoreClient::Configuration.builder.build
+    @saved_default = Petstore::Client::Configuration.default
+    Petstore::Client::Configuration.default = Petstore::Client::Configuration.builder.build
   end
 
   after do
-    PetstoreClient::Configuration.default = @saved_default
+    Petstore::Client::Configuration.default = @saved_default
   end
 
   it 'builder produces correct defaults' do
-    config = PetstoreClient::Configuration.builder.build
+    config = Petstore::Client::Configuration.builder.build
 
     _(config.base_url).must_equal('/api/v3')
     _(config.default_headers).must_equal({})
   end
 
   it 'builder returns Builder instance' do
-    builder = PetstoreClient::Configuration.builder
+    builder = Petstore::Client::Configuration.builder
 
-    _(builder).must_be_instance_of(PetstoreClient::Configuration::Builder)
+    _(builder).must_be_instance_of(Petstore::Client::Configuration::Builder)
   end
 
   it 'builder sets base_url' do
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .base_url('https://custom.example.com')
       .build
 
@@ -35,7 +35,7 @@ describe PetstoreClient::Configuration do
   end
 
   it 'builder sets single default header' do
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .default_header('Authorization', 'Bearer token123')
       .build
 
@@ -43,7 +43,7 @@ describe PetstoreClient::Configuration do
   end
 
   it 'builder sets multiple default headers' do
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .default_headers({
         'Authorization' => 'Bearer token123',
         'X-Custom' => 'value'
@@ -57,7 +57,7 @@ describe PetstoreClient::Configuration do
   end
 
   it 'builder accumulates headers' do
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .default_header('X-First', 'one')
       .default_header('X-Second', 'two')
       .default_headers({ 'X-Third' => 'three' })
@@ -70,7 +70,7 @@ describe PetstoreClient::Configuration do
   end
 
   it 'builder sets all fields' do
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .base_url('https://api.example.com')
       .default_header('Authorization', 'Bearer token')
       .default_headers({ 'X-Custom' => 'value' })
@@ -84,22 +84,22 @@ describe PetstoreClient::Configuration do
   end
 
   it 'server resolves URL with default variables' do
-    server = PetstoreClient::ServerConfiguration.new(
+    server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.example.com/api/{version}',
       description: 'Test server',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(
+        'env' => Petstore::Client::ServerVariable.new(
           default_value: 'api',
           enum_values: %w[api staging]
         ),
-        'version' => PetstoreClient::ServerVariable.new(
+        'version' => Petstore::Client::ServerVariable.new(
           default_value: 'v3',
           enum_values: %w[v2 v3]
         )
       }
     )
 
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .server(server)
       .build
 
@@ -107,21 +107,21 @@ describe PetstoreClient::Configuration do
   end
 
   it 'server resolves URL with variable overrides' do
-    server = PetstoreClient::ServerConfiguration.new(
+    server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.example.com/api/{version}',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(
+        'env' => Petstore::Client::ServerVariable.new(
           default_value: 'api',
           enum_values: %w[api staging]
         ),
-        'version' => PetstoreClient::ServerVariable.new(
+        'version' => Petstore::Client::ServerVariable.new(
           default_value: 'v3',
           enum_values: %w[v2 v3]
         )
       }
     )
 
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .server(server, { 'env' => 'staging', 'version' => 'v2' })
       .build
 
@@ -129,10 +129,10 @@ describe PetstoreClient::Configuration do
   end
 
   it 'invalid enum value raises' do
-    server = PetstoreClient::ServerConfiguration.new(
+    server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.example.com',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(
+        'env' => Petstore::Client::ServerVariable.new(
           default_value: 'api',
           enum_values: %w[api staging]
         )
@@ -140,18 +140,18 @@ describe PetstoreClient::Configuration do
     )
 
     _(proc {
-      PetstoreClient::Configuration.builder
+      Petstore::Client::Configuration.builder
         .server(server, { 'env' => 'invalid' })
         .build
     }).must_raise(ArgumentError)
   end
 
   it 'base_url overrides server' do
-    server = PetstoreClient::ServerConfiguration.new(
+    server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://api.example.com'
     )
 
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .server(server)
       .base_url('https://override.example.com')
       .build
@@ -160,32 +160,32 @@ describe PetstoreClient::Configuration do
   end
 
   it 'default returns an instance' do
-    config = PetstoreClient::Configuration.default
+    config = Petstore::Client::Configuration.default
 
-    _(config).must_be_instance_of(PetstoreClient::Configuration)
+    _(config).must_be_instance_of(Petstore::Client::Configuration)
     _(config.base_url).must_equal('/api/v3')
   end
 
   it 'default returns the same instance' do
-    first = PetstoreClient::Configuration.default
-    second = PetstoreClient::Configuration.default
+    first = Petstore::Client::Configuration.default
+    second = Petstore::Client::Configuration.default
 
     _(first).must_be_same_as(second)
   end
 
   it 'setting default changes the default' do
-    custom = PetstoreClient::Configuration.builder
+    custom = Petstore::Client::Configuration.builder
       .base_url('https://custom.example.com')
       .build
 
-    PetstoreClient::Configuration.default = custom
+    Petstore::Client::Configuration.default = custom
 
-    _(PetstoreClient::Configuration.default).must_be_same_as(custom)
-    _(PetstoreClient::Configuration.default.base_url).must_equal('https://custom.example.com')
+    _(Petstore::Client::Configuration.default).must_be_same_as(custom)
+    _(Petstore::Client::Configuration.default.base_url).must_equal('https://custom.example.com')
   end
 
   it 'builder produces independent instances' do
-    builder = PetstoreClient::Configuration.builder
+    builder = Petstore::Client::Configuration.builder
       .base_url('https://example.com')
     first = builder.build
     second = builder.build
@@ -195,7 +195,7 @@ describe PetstoreClient::Configuration do
   end
 
   it 'configuration is frozen' do
-    config = PetstoreClient::Configuration.builder
+    config = Petstore::Client::Configuration.builder
       .default_header('X-Key', 'value')
       .build
 
@@ -204,13 +204,13 @@ describe PetstoreClient::Configuration do
   end
 
   it 'builder is fluent' do
-    builder = PetstoreClient::Configuration.builder
+    builder = Petstore::Client::Configuration.builder
 
     _(builder.base_url('https://example.com')).must_be_same_as(builder)
     _(builder.default_header('X-Key', 'value')).must_be_same_as(builder)
     _(builder.default_headers({ 'X-Other' => 'val' })).must_be_same_as(builder)
 
-    server = PetstoreClient::ServerConfiguration.new(url_template: 'https://example.com')
+    server = Petstore::Client::ServerConfiguration.new(url_template: 'https://example.com')
     _(builder.server(server)).must_be_same_as(builder)
   end
 end

@@ -12,34 +12,34 @@
 require 'minitest/autorun'
 require 'petstore_client'
 
-describe PetstoreClient::Auth::ApiKeyAuthenticator do
+describe Petstore::Client::Auth::ApiKeyAuthenticator do
   parallelize_me!
 
   it 'valid header key is exposed via auth_headers' do
-    auth = PetstoreClient::Auth::ApiKeyAuthenticator.new(
-      'https://api.example.com', 'X-API-Key', 'abc123', PetstoreClient::Auth::ApiKeyLocation::HEADER
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-API-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER
     )
     _(auth.auth_headers).must_equal({ 'X-API-Key' => 'abc123' })
   end
 
   it 'valid query key is exposed via query_params' do
-    auth = PetstoreClient::Auth::ApiKeyAuthenticator.new(
-      'https://api.example.com', 'api_key', 'abc123', PetstoreClient::Auth::ApiKeyLocation::QUERY
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'api_key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::QUERY
     )
     _(auth.query_params).must_equal({ 'api_key' => 'abc123' })
   end
 
   it 'valid cookie key is exposed via cookie_params' do
-    auth = PetstoreClient::Auth::ApiKeyAuthenticator.new(
-      'https://api.example.com', 'session', 'abc123', PetstoreClient::Auth::ApiKeyLocation::COOKIE
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'session', 'abc123', Petstore::Client::Auth::ApiKeyLocation::COOKIE
     )
     _(auth.cookie_params).must_equal({ 'session' => 'abc123' })
   end
 
   it 'rejects an empty header key at construction' do
     err = _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'X-API-Key', '', PetstoreClient::Auth::ApiKeyLocation::HEADER
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'X-API-Key', '', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
     }).must_raise ArgumentError
     _(err.message).must_include 'must not be empty'
@@ -47,24 +47,24 @@ describe PetstoreClient::Auth::ApiKeyAuthenticator do
 
   it 'rejects an empty query key at construction' do
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'api_key', '', PetstoreClient::Auth::ApiKeyLocation::QUERY
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'api_key', '', Petstore::Client::Auth::ApiKeyLocation::QUERY
       )
     }).must_raise ArgumentError
   end
 
   it 'rejects an empty cookie key at construction' do
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'session', '', PetstoreClient::Auth::ApiKeyLocation::COOKIE
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'session', '', Petstore::Client::Auth::ApiKeyLocation::COOKIE
       )
     }).must_raise ArgumentError
   end
 
   it 'rejects a whitespace-only key at construction' do
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'X-API-Key', '   ', PetstoreClient::Auth::ApiKeyLocation::HEADER
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'X-API-Key', '   ', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
     }).must_raise ArgumentError
   end
@@ -72,8 +72,8 @@ describe PetstoreClient::Auth::ApiKeyAuthenticator do
   # CR/LF/NUL are forbidden control characters in ALL locations.
   it 'rejects CR/LF in a query key at construction' do
     err = _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'api_key', "abc\r\n", PetstoreClient::Auth::ApiKeyLocation::QUERY
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'api_key', "abc\r\n", Petstore::Client::Auth::ApiKeyLocation::QUERY
       )
     }).must_raise ArgumentError
     _(err.message).must_include 'forbidden control'
@@ -81,16 +81,16 @@ describe PetstoreClient::Auth::ApiKeyAuthenticator do
 
   it 'rejects LF in a cookie key at construction' do
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'session', "abc\n", PetstoreClient::Auth::ApiKeyLocation::COOKIE
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'session', "abc\n", Petstore::Client::Auth::ApiKeyLocation::COOKIE
       )
     }).must_raise ArgumentError
   end
 
   it 'rejects CR in a header key at construction' do
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'X-API-Key', "abc\rdef", PetstoreClient::Auth::ApiKeyLocation::HEADER
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'X-API-Key', "abc\rdef", Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
     }).must_raise ArgumentError
   end
@@ -100,15 +100,15 @@ describe PetstoreClient::Auth::ApiKeyAuthenticator do
   # accept arbitrary chars.
   it 'HEADER location rejects a non-ASCII key' do
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new(
-        'https://api.example.com', 'X-Api-Key', 'kéy', PetstoreClient::Auth::ApiKeyLocation::HEADER
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'X-Api-Key', 'kéy', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
     }).must_raise ArgumentError
   end
 
   it 'QUERY location accepts a non-ASCII key' do
-    auth = PetstoreClient::Auth::ApiKeyAuthenticator.new(
-      'https://api.example.com', 'api_key', 'kéy', PetstoreClient::Auth::ApiKeyLocation::QUERY
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'api_key', 'kéy', Petstore::Client::Auth::ApiKeyLocation::QUERY
     )
     _(auth.query_params).must_equal({ 'api_key' => 'kéy' })
   end
@@ -117,8 +117,8 @@ describe PetstoreClient::Auth::ApiKeyAuthenticator do
   # representation must mask the stored API key — the secret value must be
   # absent and a *** redaction marker present.
   it 'redacts the api key from inspect and to_s' do
-    auth = PetstoreClient::Auth::ApiKeyAuthenticator.new(
-      'https://api.example.com', 'X-Api-Key', 'super-secret-key', PetstoreClient::Auth::ApiKeyLocation::HEADER
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', 'super-secret-key', Petstore::Client::Auth::ApiKeyLocation::HEADER
     )
     _(auth.inspect).wont_include 'super-secret-key'
     _(auth.to_s).wont_include 'super-secret-key'

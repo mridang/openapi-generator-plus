@@ -28,9 +28,9 @@ class FakeTokenClient
     @last_no_redirect = no_redirect
     @call_count += 1
     response = @responses[@call_count - 1] || @responses.last
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: response[:status],
-      body: response[:body].to_json,
+      body: response[:body].is_a?(String) ? response[:body] : response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
     )
   end
@@ -50,7 +50,7 @@ class SlowCountingTokenClient
   def send_request(_method, _url, _headers, _body, **_kwargs)
     @mutex.synchronize { @call_count += 1 }
     sleep 0.05
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: 200,
       body: @body.to_json,
       headers: { 'content-type' => 'application/json' }
@@ -71,7 +71,7 @@ class NumberingSlowTokenClient
   def send_request(_method, _url, _headers, _body, **_kwargs)
     n = @mutex.synchronize { @call_count += 1 }
     sleep 0.05
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: 200,
       body: { 'access_token' => "tok#{n}", 'expires_in' => 3600 }.to_json,
       headers: { 'content-type' => 'application/json' }
@@ -79,14 +79,14 @@ class NumberingSlowTokenClient
   end
 end
 
-describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
+describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   parallelize_me!
 
   it 'extracts access token from response' do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     token = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -97,7 +97,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -108,7 +108,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     token1 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -122,7 +122,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
       { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
       { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     token1 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -135,7 +135,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   it 'setAccessToken bypasses endpoint' do
     client = FakeTokenClient.new([])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
     manager.access_token = 'manual-token'
 
@@ -149,7 +149,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
       { status: 200, body: { 'access_token' => 'tok1', 'expires_in' => 3600 } },
       { status: 200, body: { 'access_token' => 'tok2', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     token1 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -162,10 +162,14 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
   end
 
   it 'throws when no ApiClient injected' do
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
-    assert_raises(PetstoreClient::ApiError) do
+    # A wrong call order is a programming error: the invalid-state
+    # RuntimeError, not an SDK error.
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    err = assert_raises(RuntimeError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
+    _(err).must_be_instance_of RuntimeError
+    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
   end
 
   it 'single-flight refresh coalesces concurrent callers' do
@@ -173,7 +177,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     # The mutex + cache check must coalesce them into exactly ONE network
     # round-trip to the token endpoint.
     client = SlowCountingTokenClient.new({ 'access_token' => 'shared-tok', 'expires_in' => 3600 })
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'client_credentials' }
@@ -195,12 +199,24 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'refresh_token' => 'x' } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    assert_raises(PetstoreClient::Auth::OAuth::OAuth2TokenError) do
+    err = assert_raises(Petstore::Client::Auth::OAuth::OAuth2TokenError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
+    _(err).must_be_kind_of ::Petstore::Client::OpenAPIError
+  end
+
+  it 'a 2xx token response that is not JSON raises OAuth2TokenError' do
+    client = FakeTokenClient.new([{ status: 200, body: '<html>not json</html>' }])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    err = assert_raises(Petstore::Client::Auth::OAuth::OAuth2TokenError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(err).must_be_instance_of Petstore::Client::Auth::OAuth::OAuth2TokenError
   end
 
   it 'token endpoint error response parsed to typed OAuth2ServerError' do
@@ -216,10 +232,10 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
         }
       }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    error = assert_raises(PetstoreClient::Auth::OAuth::OAuth2ServerError) do
+    error = assert_raises(Petstore::Client::Auth::OAuth::OAuth2ServerError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
     _(error.status_code).must_equal 400
@@ -233,7 +249,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'short', 'expires_in' => 10 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     token = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -246,7 +262,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'client_credentials' }
@@ -264,7 +280,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
       { status: 200, body: { 'access_token' => 'edge1', 'expires_in' => 30 } },
       { status: 200, body: { 'access_token' => 'edge2', 'expires_in' => 30 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'client_credentials' }
@@ -283,7 +299,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
       { status: 200, body: { 'access_token' => 'old_access', 'refresh_token' => 'old_refresh', 'expires_in' => 1 } },
       { status: 200, body: { 'access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '' } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'authorization_code' }
@@ -303,7 +319,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'str-tok', 'expires_in' => '3600' } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'client_credentials' }
@@ -321,7 +337,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'flt-tok', 'expires_in' => 3600.5 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'client_credentials' }
@@ -340,7 +356,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
       { status: 200, body: { 'access_token' => 'neg1', 'expires_in' => -1 } },
       { status: 200, body: { 'access_token' => 'neg2', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'client_credentials' }
@@ -356,17 +372,17 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 401, body: { 'error' => 'invalid_client' } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     # A failed token request surfaces as the typed OAuth2ServerError, which
     # subclasses the SDK's branded root so a rescue on the root catches it
     # alongside every other SDK error.
-    error = assert_raises(::PetstoreClient::OpenAPIError) do
+    error = assert_raises(::Petstore::Client::OpenAPIError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
-    _(error).must_be_kind_of PetstoreClient::Auth::OAuth::OAuth2ServerError
-    _(error).wont_be_kind_of PetstoreClient::ApiError
+    _(error).must_be_kind_of Petstore::Client::Auth::OAuth::OAuth2ServerError
+    _(error).wont_be_kind_of Petstore::Client::ApiError
   end
 
   it 'token POST requests no_redirect from transport (Bucket 3.2)' do
@@ -377,7 +393,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_nr', 'expires_in' => 3600 } }
     ])
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -386,20 +402,22 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   # Bucket 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
   # manager must refuse the whole 300-399 range (302 and 307 both exercised
-  # here, plus 301/303/308) with OAuth2TokenError rather than replaying the
-  # credential-bearing POST to the redirect target.
+  # here, plus 301/303/308) rather than replaying the credential-bearing
+  # POST to the redirect target. A 3xx is a non-2xx answer, so it raises
+  # OAuth2ServerError carrying the status.
   [301, 302, 303, 307, 308].each do |status|
     it "refuses #{status} redirect on token endpoint" do
       client = FakeTokenClient.new([{ status: status, body: '' }])
-      manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+      manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
 
-      assert_raises(PetstoreClient::Auth::OAuth::OAuth2TokenError) do
+      err = assert_raises(Petstore::Client::Auth::OAuth::OAuth2ServerError) do
         manager.get_access_token(
           'https://auth.example.com/token',
           { 'grant_type' => 'client_credentials', 'client_secret' => 'topsecret' }
         )
       end
+      _(err.status_code).must_equal status
     end
   end
 
@@ -407,7 +425,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     # After invalidation, 10 threads must coalesce into exactly ONE additional
     # network round-trip (single-flight), all observing the refreshed token.
     client = NumberingSlowTokenClient.new
-    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     params = { 'grant_type' => 'client_credentials' }
@@ -431,7 +449,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   it 'redirect-refusal error includes the Location header for diagnostics' do
     # Gap 3.2: the redirect-refusal error should name the offending Location
-    # for diagnostics. The Ruby SDK's OAuth2TokenError message embeds only the
+    # for diagnostics. The Ruby SDK's OAuth2ServerError message embeds only the
     # status code, not the Location target, so this cannot be asserted without
     # fabricating behaviour the SDK does not implement.
     skip 'Ruby OAuth2TokenManager redirect-refusal error does not surface the Location header'

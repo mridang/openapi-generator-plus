@@ -27,7 +27,10 @@ interface RubySpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default Map<String, Object> getCodegenProperties() {
-    return Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient");
+    return Map.of(
+        "gemName", "petstore_client",
+        "moduleName", "Petstore::Client",
+        "clientClassName", "Petstore");
   }
 
   @Override

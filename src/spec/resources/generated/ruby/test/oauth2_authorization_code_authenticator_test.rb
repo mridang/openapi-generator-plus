@@ -27,7 +27,7 @@ class FakeAuthCodeClient
     @last_body = body
     response = @responses[@call_index] || @responses.last
     @call_index += 1
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
@@ -35,11 +35,11 @@ class FakeAuthCodeClient
   end
 end
 
-describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
+describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   parallelize_me!
 
   let(:auth) do
-    PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+    Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -91,10 +91,13 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   end
 
   it 'throws before exchange code called' do
+    # Requesting a token before the code exchange is a wrong call order:
+    # the invalid-state RuntimeError, not an SDK error.
     error = assert_raises(RuntimeError) do
       auth.auth_headers
     end
     _(error).must_be_instance_of RuntimeError
+    _(error).wont_be_kind_of ::Petstore::Client::OpenAPIError
   end
 
   it 'getHost returns configured host' do
@@ -130,7 +133,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   end
 
   it 'authorize URL with existing query string uses ampersand separator' do
-    auth_with_query = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+    auth_with_query = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -150,7 +153,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret. The overridden
     # inspect must mask it.
-    secret_auth = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+    secret_auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'super_secret_value',
@@ -167,7 +170,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   end
 
   def test_redacts_secret
-    auth = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'leaky_client_secret',

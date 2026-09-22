@@ -31,11 +31,11 @@ class MultipartModelPart < Dry::Struct
     JSON_KEY_MAP[key.to_s] || key.to_sym
   end
 
-  attribute :is_enabled, Types::Any.optional.meta(omittable: true)
-  attribute :recorded_at, Types::Any.optional.meta(omittable: true)
+  attribute :is_enabled, ::Petstore::Client::Types::Any.optional.meta(omittable: true)
+  attribute :recorded_at, ::Petstore::Client::Types::Any.optional.meta(omittable: true)
 end
 
-describe PetstoreClient::DefaultApiClient do
+describe Petstore::Client::DefaultApiClient do
   parallelize_me!
 
   def stub_connection(stubs)
@@ -46,7 +46,7 @@ describe PetstoreClient::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/echo') { [200, { 'content-type' => 'application/json' }, '{"method":"GET"}'] }
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/echo', {}, nil)
       _(response.status_code).must_equal 200
@@ -60,7 +60,7 @@ describe PetstoreClient::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/echo') { [200, {}, '{"method":"POST","body":"{key}"}'] }
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       headers = { 'Content-Type' => 'application/json' }
       response = client.send_request('POST', 'http://localhost/echo', headers, '{"key":"value"}')
@@ -75,7 +75,7 @@ describe PetstoreClient::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/echo') { [200, { 'x-test-header' => 'test-value' }, 'ok'] }
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/echo', {}, nil)
       _(response.headers['x-test-header']).must_equal 'test-value'
@@ -87,7 +87,7 @@ describe PetstoreClient::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/not-found') { [404, {}, 'not found'] }
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/not-found', {}, nil)
       _(response.status_code).must_equal 404
@@ -100,7 +100,7 @@ describe PetstoreClient::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.put('/echo') { [200, {}, '{"method":"PUT"}'] }
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('PUT', 'http://localhost/echo', {}, 'update')
       _(response.status_code).must_equal 200
@@ -113,7 +113,7 @@ describe PetstoreClient::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.delete('/echo') { [200, {}, '{"method":"DELETE"}'] }
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('DELETE', 'http://localhost/echo', {}, nil)
       _(response.status_code).must_equal 200
@@ -128,7 +128,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'application/vnd.api+json' }, '{"format":"vendor"}']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/vendor-json', {}, nil)
       _(response.status_code).must_equal 200
@@ -144,7 +144,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'x-custom-value' => 'val1, val2' }, 'ok']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/multi-header', {}, nil)
       _(response.status_code).must_equal 200
@@ -162,8 +162,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.user_agent('MyApp/1.0').build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.user_agent('MyApp/1.0').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', {}, nil)
     end
@@ -179,7 +179,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', {}, nil)
     end
@@ -196,8 +196,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.inject_request_id(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.inject_request_id(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', {}, nil)
     end
@@ -214,8 +214,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.inject_request_id(false).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.inject_request_id(false).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', {}, nil)
     end
@@ -232,8 +232,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.inject_request_id(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.inject_request_id(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', { 'X-Request-ID' => 'caller-id' }, nil)
     end
@@ -253,8 +253,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.inject_request_id(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.inject_request_id(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', {}, nil)
       client.send_request('GET', 'http://localhost/test', {}, nil)
@@ -271,8 +271,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.default_header('X-Custom', 'custom-value').build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.default_header('X-Custom', 'custom-value').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', {}, nil)
     end
@@ -288,8 +288,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.default_header('Accept', 'text/plain').build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.default_header('Accept', 'text/plain').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('GET', 'http://localhost/test', { 'Accept' => 'application/json' }, nil)
     end
@@ -301,7 +301,7 @@ describe PetstoreClient::DefaultApiClient do
 
   it 'rejects multipart filename containing CRLF (header injection)' do
     require 'stringio'
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     io = StringIO.new('payload')
     io.define_singleton_method(:path) { "a\r\nX-Injected: yes" }
     assert_raises(ArgumentError) do
@@ -311,7 +311,7 @@ describe PetstoreClient::DefaultApiClient do
 
   it 'rejects multipart filename containing NUL byte' do
     require 'stringio'
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     io = StringIO.new('payload')
     io.define_singleton_method(:path) { "a\0b.txt" }
     assert_raises(ArgumentError) do
@@ -330,7 +330,7 @@ describe PetstoreClient::DefaultApiClient do
     require 'stringio'
     io = StringIO.new('payload')
     io.define_singleton_method(:path) { 'a"b.txt' }
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
@@ -349,7 +349,7 @@ describe PetstoreClient::DefaultApiClient do
     require 'stringio'
     io = StringIO.new('payload')
     io.define_singleton_method(:path) { '日本.pdf' }
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
@@ -373,7 +373,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '{}']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       # 'café' is a plain scalar form field whose NAME is non-ASCII.
       client.send_request('POST', 'http://localhost/upload', {}, { 'café' => 'value' })
@@ -409,7 +409,7 @@ describe PetstoreClient::DefaultApiClient do
       is_enabled: true,
       recorded_at: Time.utc(2020, 1, 2, 3, 4, 5, 123_000)
     )
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'metadata' => metadata })
     end
@@ -439,7 +439,7 @@ describe PetstoreClient::DefaultApiClient do
     require 'stringio'
     io = StringIO.new("\x89PNG\r\n".b)
     io.define_singleton_method(:path) { 'pic.png' }
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
@@ -458,7 +458,7 @@ describe PetstoreClient::DefaultApiClient do
     require 'stringio'
     io = StringIO.new('PDF-bytes')
     io.define_singleton_method(:path) { 'doc.pdf' }
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
@@ -477,7 +477,7 @@ describe PetstoreClient::DefaultApiClient do
     require 'stringio'
     io = StringIO.new('bytes')
     io.define_singleton_method(:path) { 'blob.xyzunknown' }
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
@@ -501,7 +501,7 @@ describe PetstoreClient::DefaultApiClient do
     require 'stringio'
     # Raw binary bytes (0x00, 0x01, 0x02), an IO with no #path => no filename.
     io = StringIO.new("\x00\x01\x02".b)
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
@@ -519,7 +519,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain; charset=ISO-8859-1' }, "\xE9".b]
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/latin1', {}, nil)
       _(response.body.encoding).must_equal Encoding::UTF_8
@@ -534,7 +534,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain' }, 'héllo']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/no-charset', {}, nil)
       _(response.body).must_equal 'héllo'
@@ -548,7 +548,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain; charset=not-a-real-charset' }, 'hello']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/bogus', {}, nil)
       _(response.body).must_equal 'hello'
@@ -571,7 +571,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain; charset=utf-16' }, be_bytes]
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/utf16', {}, nil)
       _(response.body.encoding).must_equal Encoding::UTF_8
@@ -595,7 +595,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain; charset=utf-16' }, le_bom_bytes]
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/utf16-bom', {}, nil)
       _(response.body).must_equal 'Tag'
@@ -616,13 +616,13 @@ describe PetstoreClient::DefaultApiClient do
   end
 
   it 'parses proxy URL with userinfo without raising' do
-    transport = PetstoreClient::TransportOptions.builder
+    transport = Petstore::Client::TransportOptions.builder
       .proxy('http://user:pass@proxy.example.com:3128')
       .build
     _(transport.proxy).must_equal 'http://user:pass@proxy.example.com:3128'
 
     # Verify Faraday accepts the proxy URL during connection build.
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    client = Petstore::Client::DefaultApiClient.new(transport)
     conn = client.send(:build_connection)
     captured_proxy = conn.proxy
     _(captured_proxy).wont_be_nil
@@ -643,7 +643,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, {}, '']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
       # The 3xx surfaces to the caller verbatim and the redirect target is
@@ -660,7 +660,7 @@ describe PetstoreClient::DefaultApiClient do
         [307, { 'location' => 'https://attacker.example.com/steal' }, '']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       resp = client.send_request(:POST, 'http://localhost/token', {}, 'client_id=abc&client_secret=xyz', no_redirect: true)
       _(resp.status_code).must_equal 307
@@ -673,7 +673,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'application/json' }, '{"access_token":"ok"}']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
       _(resp.status_code).must_equal 200
@@ -693,13 +693,17 @@ describe PetstoreClient::DefaultApiClient do
         [307, { 'location' => 'http://insecure.example.com/upload' }, '']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::ApiError) do
+      err = assert_raises(Petstore::Client::ApiError) do
         client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
       end
       _(err.message).must_match(/TLS downgrade/)
+      # A refused redirect is a response that could not be used: an
+      # ApiError with the 3xx status, never a NetworkError.
+      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err.status_code).must_equal 307
     end
     _(call_count).must_equal 1
   end
@@ -715,8 +719,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain' }, 'ok']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       resp = client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
       _(resp.status_code).must_equal 200
@@ -734,16 +738,20 @@ describe PetstoreClient::DefaultApiClient do
         [302, { 'location' => 'http://localhost/loop' }, '']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder
+    transport = Petstore::Client::TransportOptions.builder
       .follow_redirects(true)
       .max_redirects(2)
       .build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::ApiError) do
+      err = assert_raises(Petstore::Client::ApiError) do
         client.send_request(:GET, 'http://localhost/loop', {}, nil)
       end
       _(err.message).must_match(/redirect/i)
+      # A refused redirect is a response that could not be used: an
+      # ApiError with the 3xx status, never a NetworkError.
+      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err.status_code).must_equal 302
     end
   end
 
@@ -758,32 +766,39 @@ describe PetstoreClient::DefaultApiClient do
         [302, { 'location' => 'file:///etc/passwd' }, '']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::ApiError) do
+      err = assert_raises(Petstore::Client::ApiError) do
         client.send_request(:GET, 'http://localhost/evil', {}, nil)
       end
       _(err.message).must_match(/non-http/i)
+      # A refused redirect is a response that could not be used: an
+      # ApiError with the 3xx status, never a NetworkError.
+      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err.status_code).must_equal 302
     end
   end
 
   # ── Bucket 3: use-after-close raises loudly ──
 
-  it 'raises ApiError when send_request is called after close' do
+  it 'raises RuntimeError when send_request is called after close' do
     # After #close releases the connection pool the client is dead; a
-    # subsequent send_request MUST raise an ApiError rather than lazily
-    # rebuilding a connection (which would make close a silent no-op).
-    client = PetstoreClient::DefaultApiClient.new
+    # subsequent send_request MUST raise the invalid-state RuntimeError
+    # rather than lazily rebuilding a connection (which would make close a
+    # silent no-op).
+    client = Petstore::Client::DefaultApiClient.new
     client.close
-    err = assert_raises(PetstoreClient::ApiError) do
+    err = assert_raises(RuntimeError) do
       client.send_request(:GET, 'http://localhost/echo', {}, nil)
     end
+    _(err).must_be_instance_of RuntimeError
+    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
     _(err.message).must_match(/closed/i)
   end
 
   it 'close is idempotent' do
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.close
     client.close # must not raise
   end
@@ -796,7 +811,7 @@ describe PetstoreClient::DefaultApiClient do
     # such schemes or not, the constant MUST exist and every entry
     # MUST be lowercased so the cross-origin filter compares
     # case-insensitively.
-    names = PetstoreClient::DefaultApiClient::EXTRA_SENSITIVE_HEADER_NAMES
+    names = Petstore::Client::DefaultApiClient::EXTRA_SENSITIVE_HEADER_NAMES
     _(names).must_be_kind_of Array
     names.each do |n|
       _(n).must_equal n.downcase
@@ -821,8 +836,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain' }, 'ok']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     headers = {
       'Authorization' => 'Bearer secret',
       'Cookie' => 'session=abc',
@@ -856,8 +871,8 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'text/plain' }, 'ok']
       end
     end
-    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-    client = PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
     headers = {
       'X-API-Key' => 'secret-api-key-value',
       'X-Internal-Key' => 'secret-api-key-value',
@@ -876,10 +891,12 @@ describe PetstoreClient::DefaultApiClient do
   # must fail fast at construction with an ArgumentError rather than silently
   # falling back to the system trust store (security theater).
   it 'raises ArgumentError at construction for a non-existent ca_cert_path' do
-    transport = PetstoreClient::TransportOptions.builder.ca_cert_path('/nonexistent/ca.pem').build
-    assert_raises(ArgumentError) do
-      PetstoreClient::DefaultApiClient.new(transport)
+    transport = Petstore::Client::TransportOptions.builder.ca_cert_path('/nonexistent/ca.pem').build
+    err = assert_raises(ArgumentError) do
+      Petstore::Client::DefaultApiClient.new(transport)
     end
+    _(err).must_be_instance_of ArgumentError
+    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
   end
 
   # A request that gets no HTTP response raises NetworkError, and one that
@@ -889,12 +906,14 @@ describe PetstoreClient::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/slow') { raise Faraday::TimeoutError, 'execution expired' }
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::Errors::NetworkTimeoutError) do
+      err = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) do
         client.send_request('GET', 'http://localhost/slow', {}, nil)
       end
-      _(err).must_be_kind_of PetstoreClient::ApiError
+      _(err).must_be_instance_of Petstore::Client::Errors::NetworkTimeoutError
+      _(err).must_be_kind_of Petstore::Client::Errors::NetworkError
+      _(err).must_be_kind_of Petstore::Client::ApiError
       _(err.status_code).must_equal 0
       _(err.cause).must_be_kind_of Faraday::TimeoutError
     end
@@ -911,28 +930,25 @@ describe PetstoreClient::DefaultApiClient do
         end
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::Errors::NetworkTimeoutError) do
+      err = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) do
         client.send_request('GET', 'http://localhost/connect-timeout', {}, nil)
       end
       _(err.status_code).must_equal 0
     end
   end
 
-  it 'raises NetworkError when the connection fails' do
-    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
-      stub.get('/refused') { raise Faraday::ConnectionFailed, 'Connection refused' }
+  it 'raises NetworkError when the connection is refused' do
+    # Nothing listens on port 1, so the connect is refused for real.
+    client = Petstore::Client::DefaultApiClient.new
+    err = assert_raises(Petstore::Client::Errors::NetworkError) do
+      client.send_request('GET', 'http://127.0.0.1:1/refused', {}, nil)
     end
-    client = PetstoreClient::DefaultApiClient.new
-    client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::Errors::NetworkError) do
-        client.send_request('GET', 'http://localhost/refused', {}, nil)
-      end
-      _(err).wont_be_kind_of PetstoreClient::Errors::NetworkTimeoutError
-      _(err.status_code).must_equal 0
-      _(err.cause).must_be_kind_of Faraday::ConnectionFailed
-    end
+    _(err).must_be_instance_of Petstore::Client::Errors::NetworkError
+    _(err).must_be_kind_of Petstore::Client::ApiError
+    _(err.status_code).must_equal 0
+    _(err.cause).must_be_kind_of Faraday::ConnectionFailed
   end
 
   # ── decompression-error-not-wrapped ──
@@ -943,14 +959,19 @@ describe PetstoreClient::DefaultApiClient do
   it 'wraps a malformed Content-Encoding body as ApiError' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/gz') do
-        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'not-actually-gzip']
+        [502, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'not-actually-gzip']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::ApiError) do
+      err = assert_raises(Petstore::Client::ApiError) do
         client.send_request('GET', 'http://localhost/gz', {}, nil)
       end
+      # A response arrived, so this is an ApiError with that response's
+      # status, never a NetworkError with status 0.
+      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err).wont_be_kind_of Petstore::Client::Errors::NetworkError
+      _(err.status_code).must_equal 502
       refute_kind_of Zlib::Error, err
     end
     stubs.verify_stubbed_calls
@@ -971,9 +992,9 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'plain-not-gzip']
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(PetstoreClient::ApiError) do
+      err = assert_raises(Petstore::Client::ApiError) do
         client.send_request('GET', 'http://localhost/gz', {}, nil)
       end
       refute_kind_of Zlib::Error, err
@@ -993,7 +1014,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, compressed]
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/gz', {}, nil)
       _(JSON.parse(response.body)['ok']).must_equal true
@@ -1015,7 +1036,7 @@ describe PetstoreClient::DefaultApiClient do
         [200, { 'content-type' => 'application/json', 'content-encoding' => 'br' }, compressed]
       end
     end
-    client = PetstoreClient::DefaultApiClient.new
+    client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
       response = client.send_request('GET', 'http://localhost/br', {}, nil)
       _(JSON.parse(response.body)['ok']).must_equal true

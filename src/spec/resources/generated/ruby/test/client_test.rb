@@ -3,30 +3,30 @@
 
 require 'test_helper'
 
-describe PetstoreClient::Client do
+describe Petstore::Client::Petstore do
   parallelize_me!
 
   it 'constructs with authenticator only' do
-    authenticator = PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 
-    client = PetstoreClient::Client.new(authenticator)
+    client = Petstore::Client::Petstore.new(authenticator)
 
     _(client).wont_be_nil
   end
 
   it 'constructs with authenticator and nil transport options' do
-    authenticator = PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 
-    client = PetstoreClient::Client.new(authenticator, nil)
+    client = Petstore::Client::Petstore.new(authenticator, nil)
 
     _(client).wont_be_nil
   end
 
   it 'constructs with authenticator and transport options' do
-    authenticator = PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
-    transport = PetstoreClient::TransportOptions.builder.build
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    transport = Petstore::Client::TransportOptions.builder.build
 
-    client = PetstoreClient::Client.new(authenticator, transport)
+    client = Petstore::Client::Petstore.new(authenticator, transport)
 
     _(client).wont_be_nil
   end
@@ -36,11 +36,11 @@ describe PetstoreClient::Client do
     # newlines from .env / file reads, which would CRLF-inject the
     # Authorization header. Also reject non-ASCII.
     _(-> {
-      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', "tok\r\nInjected: yes")
+      Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
 
     _(-> {
-      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', 'ñoño')
+      Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'ñoño')
     }).must_raise ArgumentError
   end
 
@@ -49,11 +49,11 @@ describe PetstoreClient::Client do
     # bare "Authorization: Bearer " header, sending the request
     # unauthenticated, so the constructor must reject it.
     _(-> {
-      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', '')
+      Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', '')
     }).must_raise ArgumentError
 
     _(-> {
-      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', '   ')
+      Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', '   ')
     }).must_raise ArgumentError
   end
 
@@ -63,28 +63,84 @@ describe PetstoreClient::Client do
     # + TAB to prevent header injection (CR/LF) and silent UTF-8
     # mangling that varies per HTTP lib.
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', "abc\r\nInjected: yes",
-                                                    PetstoreClient::Auth::ApiKeyLocation::HEADER)
+      Petstore::Client::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', "abc\r\nInjected: yes",
+                                                    Petstore::Client::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     _(-> {
-      PetstoreClient::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', 'kéy',
-                                                    PetstoreClient::Auth::ApiKeyLocation::HEADER)
+      Petstore::Client::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', 'kéy',
+                                                    Petstore::Client::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     # Non-header locations accept arbitrary chars.
-    query_auth = PetstoreClient::Auth::ApiKeyAuthenticator.new(
-      '/api/v3', 'api_key', 'kéy', PetstoreClient::Auth::ApiKeyLocation::QUERY
+    query_auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      '/api/v3', 'api_key', 'kéy', Petstore::Client::Auth::ApiKeyLocation::QUERY
     )
     _(query_auth.query_params).must_equal({ 'api_key' => 'kéy' })
   end
 
   it 'API groups are accessible' do
-    authenticator = PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 
-    client = PetstoreClient::Client.new(authenticator)
+    client = Petstore::Client::Petstore.new(authenticator)
 
     _(client.pet).wont_be_nil
     _(client.store).wont_be_nil
+  end
+
+  # The layout Zeitwerk expects, checked without Zeitwerk: every file under
+  # lib/petstore/client declares exactly the one constant its path names
+  # (errors/not_found_error.rb declares Errors::NotFoundError), no constant
+  # lives in a file named after another, and no file claims a top-level
+  # constant besides the gem's own module. Loading every file first makes
+  # a file that no other file requires count too.
+  it 'declares exactly the constant each lib file path names' do
+    lib = File.expand_path('../lib', __dir__)
+    root_dir = File.join(lib, 'petstore/client')
+    files = Dir.glob(File.join(root_dir, '**', '*.rb')).sort
+    files.each { |file| require file }
+    normalize = ->(name) { name.to_s.downcase.delete('_') }
+    under_lib = ->(file) { !file.nil? && file.start_with?("#{lib}/") }
+    problems = []
+
+    top_level = 'Petstore::Client'.split('::').first
+    Object.constants.each do |name|
+      file, = Object.const_source_location(name)
+      problems << "#{file} declares top-level #{name}" if under_lib.call(file) && name.to_s != top_level
+    end
+
+    walk = lambda do |namespace, dir|
+      namespace.constants(false).each do |name|
+        file, = namespace.const_source_location(name)
+        next unless under_lib.call(file)
+
+        sub_dir = Dir.glob(File.join(dir, '*')).find do |entry|
+          File.directory?(entry) && normalize.call(File.basename(entry)) == normalize.call(name)
+        end
+        if sub_dir
+          walk.call(namespace.const_get(name, false), sub_dir)
+          next
+        end
+        if File.dirname(file) != dir || normalize.call(File.basename(file, '.rb')) != normalize.call(name)
+          problems << "#{namespace}::#{name} is declared in #{file}, not in a file of its own under #{dir}"
+        end
+      end
+    end
+    walk.call(Petstore::Client, root_dir)
+
+    files.each do |file|
+      segments = file.delete_prefix("#{root_dir}/").delete_suffix('.rb').split('/')
+      namespace = Petstore::Client
+      segments.each do |segment|
+        name = namespace.constants(false).find { |c| normalize.call(c) == normalize.call(segment) }
+        if name.nil?
+          problems << "#{file} does not declare #{namespace}::<#{segment}>"
+          break
+        end
+        namespace = namespace.const_get(name, false)
+      end
+    end
+
+    _(problems).must_be_empty
   end
 end

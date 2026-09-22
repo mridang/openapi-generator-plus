@@ -9,25 +9,25 @@ require 'stringio'
 require 'socket'
 require 'base64'
 
-describe PetstoreClient::Api::PetApi do
+describe Petstore::Client::Api::PetApi do
   parallelize_me!
 
   before do
-    @api = PetstoreClient::Api::PetApi.new
+    @api = Petstore::Client::Api::PetApi.new
     @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'
-    @auth = PetstoreClient::Auth::BearerAuthenticator.new(@base_url, 'test-token')
+    @auth = Petstore::Client::Auth::BearerAuthenticator.new(@base_url, 'test-token')
   end
 
   describe '#add_pet' do
     it 'creates a new pet' do
-      pet = PetstoreClient::Models::Pet.new(
+      pet = Petstore::Client::Models::Pet.new(
         id: 12_345,
         name: 'TestDog',
         photo_urls: Set['http://example.com/photo.jpg'],
         status: 'available'
       )
 
-      result = @api.add_pet(pet, PetstoreClient::Api::Options::AddPetOptions.new(auth: @auth))
+      result = @api.add_pet(pet, Petstore::Client::Api::Options::AddPetOptions.new(auth: @auth))
 
       _(result).wont_be_nil
       _(result.name).wont_be_nil
@@ -36,11 +36,11 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#find_pets_by_status' do
     it 'returns pets by status' do
-      result = @api.find_pets_by_status(PetstoreClient::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
+      result = @api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
 
       _(result).must_be_kind_of(Array)
       _(result).wont_be_empty
-      _(result.first).must_be_kind_of(PetstoreClient::Models::Pet)
+      _(result.first).must_be_kind_of(Petstore::Client::Models::Pet)
     end
   end
 
@@ -56,7 +56,7 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#update_pet' do
     it 'updates an existing pet' do
-      pet = PetstoreClient::Models::Pet.new(
+      pet = Petstore::Client::Models::Pet.new(
         id: 1,
         name: 'UpdatedDog',
         photo_urls: Set['http://example.com/updated.jpg'],
@@ -71,7 +71,7 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#delete_pet' do
     it 'deletes a pet' do
-      @api.delete_pet(1, PetstoreClient::Api::Options::DeletePetOptions.new(auth: @auth))
+      @api.delete_pet(1, Petstore::Client::Api::Options::DeletePetOptions.new(auth: @auth))
     end
   end
 
@@ -116,8 +116,8 @@ describe PetstoreClient::Api::PetApi do
         client.print(response)
         client.close
       end
-      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
-      api = PetstoreClient::Api::PetApi.new(nil, config)
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
       [api, server, thread, captured_body, captured_content_type]
     end
 
@@ -228,7 +228,7 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#upload_pet_certificate' do
     it 'uploads a certificate via multipart' do
-      options = PetstoreClient::Api::Options::UploadPetCertificateOptions.new(
+      options = Petstore::Client::Api::Options::UploadPetCertificateOptions.new(
         file: StringIO.new('cert-data')
       )
       result = @api.upload_pet_certificate(1, options)
@@ -241,7 +241,7 @@ describe PetstoreClient::Api::PetApi do
     it 'uploads a document with metadata via multipart' do
       result = @api.upload_pet_document(
         1,
-        PetstoreClient::Api::Options::UploadPetDocumentOptions.new(
+        Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
           file: StringIO.new('doc-data'),
           document_type: 'vaccination_record',
           notes: 'Annual checkup'
@@ -288,8 +288,8 @@ describe PetstoreClient::Api::PetApi do
         client.print(response)
         client.close
       end
-      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
-      api = PetstoreClient::Api::PetApi.new(nil, config)
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
       [api, server, thread, captured_body, captured_content_type]
     end
 
@@ -299,7 +299,7 @@ describe PetstoreClient::Api::PetApi do
         raw = "\x00\x01\x02PDFBYTES\xFF".b
         api.upload_pet_document(
           1,
-          PetstoreClient::Api::Options::UploadPetDocumentOptions.new(file: StringIO.new(raw)),
+          Petstore::Client::Api::Options::UploadPetDocumentOptions.new(file: StringIO.new(raw)),
           content_type: 'application/octet-stream'
         )
 
@@ -332,7 +332,7 @@ describe PetstoreClient::Api::PetApi do
         begin
           api.upload_pet_document(
             1,
-            PetstoreClient::Api::Options::UploadPetDocumentOptions.new(
+            Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
               file: StringIO.new('doc-data'),
               document_type: 'vaccination_record'
             ),
@@ -356,11 +356,11 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#add_pet_photos' do
     it 'uploads photos with metadata via multipart' do
-      metadata = PetstoreClient::Models::PhotoMetadata.new(caption: 'Test photo', is_primary: true)
+      metadata = Petstore::Client::Models::PhotoMetadata.new(caption: 'Test photo', is_primary: true)
 
       result = @api.add_pet_photos(
         1,
-        PetstoreClient::Api::Options::AddPetPhotosOptions.new(
+        Petstore::Client::Api::Options::AddPetPhotosOptions.new(
           files: [StringIO.new('photo1')],
           metadata: metadata
         )
@@ -392,7 +392,7 @@ describe PetstoreClient::Api::PetApi do
       result = @api.get_pet_passport(1)
 
       _(result).wont_be_nil
-      _(result).must_be_kind_of(PetstoreClient::Models::PetPassport)
+      _(result).must_be_kind_of(Petstore::Client::Models::PetPassport)
     end
   end
 
@@ -401,7 +401,7 @@ describe PetstoreClient::Api::PetApi do
       result = @api.get_pet_tag(
         5,
         'cute',
-        PetstoreClient::Api::Options::GetPetTagOptions.new(colors: %w[blue black], sizes: %w[S M])
+        Petstore::Client::Api::Options::GetPetTagOptions.new(colors: %w[blue black], sizes: %w[S M])
       )
 
       _(result).wont_be_nil
@@ -419,15 +419,15 @@ describe PetstoreClient::Api::PetApi do
       api_client = Object.new
       api_client.define_singleton_method(:send_request) do |_method, url, _headers, _body, **_kwargs|
         captured_url = url
-        PetstoreClient::ApiHttpResponse.new(
+        Petstore::Client::ApiHttpResponse.new(
           status_code: 200,
           body: '{"id":1,"name":"Rex","photoUrls":["http://example.com/p.jpg"]}',
           headers: { 'content-type' => 'application/json' }
         )
       end
 
-      api = PetstoreClient::Api::PetApi.new(api_client)
-      server = PetstoreClient::Api::GetExternalPetInfoServerServer0.new
+      api = Petstore::Client::Api::PetApi.new(api_client)
+      server = Petstore::Client::Api::GetExternalPetInfoServerServer0.new
       api.get_external_pet_info(1, server: server)
 
       _(captured_url).must_match(%r{\Ahttps://external-api\.example\.com/v1/pet/1/external})
@@ -442,14 +442,14 @@ describe PetstoreClient::Api::PetApi do
   describe '#get_pet_by_name required-param validation' do
     it 'raises ArgumentError when the required query param category is nil' do
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('Rex', PetstoreClient::Api::Options::GetPetByNameOptions.new(category: nil))
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: nil))
       end
       _(err.message).must_include 'category'
     end
 
     it 'raises ArgumentError when the required path param name is nil' do
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name(nil, PetstoreClient::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+        @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
       end
       _(err.message).must_include 'name'
     end
@@ -459,14 +459,14 @@ describe PetstoreClient::Api::PetApi do
       # string for a required string param means the caller omitted it,
       # so it must be rejected exactly like nil.
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('Rex', PetstoreClient::Api::Options::GetPetByNameOptions.new(category: ''))
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: ''))
       end
       _(err.message).must_include 'category'
     end
 
     it 'raises ArgumentError when the required string path param name is empty' do
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('', PetstoreClient::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+        @api.get_pet_by_name('', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
       end
       _(err.message).must_include 'name'
     end
@@ -490,15 +490,15 @@ describe PetstoreClient::Api::PetApi do
         end
       end
 
-      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
-      api = PetstoreClient::Api::PetApi.new(nil, config)
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
       [api, server, thread]
     end
 
     it 'raises error on 404 response' do
       api, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
       begin
-        _(-> { api.get_pet_by_id(99_999) }).must_raise StandardError
+        _(-> { api.get_pet_by_id(99_999) }).must_raise Petstore::Client::Errors::NotFoundError
       ensure
         server.close
         thread.join(2)
@@ -508,7 +508,7 @@ describe PetstoreClient::Api::PetApi do
     it 'raises error on 500 response' do
       api, server, thread = new_pet_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
       begin
-        _(-> { api.get_pet_by_id(1) }).must_raise StandardError
+        _(-> { api.get_pet_by_id(1) }).must_raise Petstore::Client::Errors::InternalServerError
       ensure
         server.close
         thread.join(2)
@@ -529,7 +529,7 @@ describe PetstoreClient::Api::PetApi do
     it 'handles multipart upload from mock' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"code":200,"type":"","message":"success"}')
       begin
-        options = PetstoreClient::Api::Options::UploadPetCertificateOptions.new(
+        options = Petstore::Client::Api::Options::UploadPetCertificateOptions.new(
           file: StringIO.new('fake-cert-data')
         )
         result = api.upload_pet_certificate(1, options)
@@ -546,7 +546,7 @@ describe PetstoreClient::Api::PetApi do
     it 'raises ApiError when a body-returning op gets an empty body' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '')
       begin
-        err = assert_raises(PetstoreClient::ApiError) do
+        err = assert_raises(Petstore::Client::ApiError) do
           api.get_pet_by_id(1)
         end
         _(err.status_code).must_equal 200
@@ -564,7 +564,7 @@ describe PetstoreClient::Api::PetApi do
     it 'raises when a 2xx body is malformed JSON for the declared model' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"id":1,"name":')
       begin
-        _(-> { api.get_pet_by_id(1) }).must_raise PetstoreClient::SerializationError
+        _(-> { api.get_pet_by_id(1) }).must_raise Petstore::Client::SerializationError
       ensure
         server.close
         thread.join(2)
@@ -592,8 +592,8 @@ describe PetstoreClient::Api::PetApi do
         client.print(response)
         client.close
       end
-      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
-      api = PetstoreClient::Api::PetApi.new(nil, config)
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
       [api, server, thread, captured]
     end
 
@@ -606,7 +606,7 @@ describe PetstoreClient::Api::PetApi do
         api.get_pet_tag(
           5,
           'a b',
-          PetstoreClient::Api::Options::GetPetTagOptions.new
+          Petstore::Client::Api::Options::GetPetTagOptions.new
         )
         request_line = captured.pop
         _(request_line).must_include '%20'
@@ -632,7 +632,7 @@ describe PetstoreClient::Api::PetApi do
         api.get_pet_tag(
           5,
           'cute',
-          PetstoreClient::Api::Options::GetPetTagOptions.new(
+          Petstore::Client::Api::Options::GetPetTagOptions.new(
             colors: %w[blue black], sizes: %w[S M]
           )
         )
@@ -672,14 +672,14 @@ describe PetstoreClient::Api::PetApi do
 
     describe '#add_pet_with_http_info' do
       it 'returns HTTP info on successful pet creation' do
-        pet = PetstoreClient::Models::Pet.new(
+        pet = Petstore::Client::Models::Pet.new(
           id: 99,
           name: 'HttpInfoDog',
           photo_urls: Set['http://example.com/photo.jpg'],
           status: 'available'
         )
 
-        result = @api.add_pet_with_http_info(pet, PetstoreClient::Api::Options::AddPetOptions.new(auth: @auth))
+        result = @api.add_pet_with_http_info(pet, Petstore::Client::Api::Options::AddPetOptions.new(auth: @auth))
 
         _(result).wont_be_nil
         _(result.status_code).must_be :>=, 200
@@ -690,7 +690,7 @@ describe PetstoreClient::Api::PetApi do
 
     describe '#update_pet_with_http_info' do
       it 'returns HTTP info on successful update' do
-        pet = PetstoreClient::Models::Pet.new(
+        pet = Petstore::Client::Models::Pet.new(
           id: 1,
           name: 'UpdatedDog',
           photo_urls: Set['http://example.com/updated.jpg'],
@@ -707,7 +707,7 @@ describe PetstoreClient::Api::PetApi do
 
     describe '#delete_pet_with_http_info' do
       it 'returns HTTP info on successful deletion' do
-        result = @api.delete_pet_with_http_info(1, PetstoreClient::Api::Options::DeletePetOptions.new(auth: @auth))
+        result = @api.delete_pet_with_http_info(1, Petstore::Client::Api::Options::DeletePetOptions.new(auth: @auth))
 
         _(result).wont_be_nil
         _(result.status_code).must_be :>=, 200
@@ -718,7 +718,7 @@ describe PetstoreClient::Api::PetApi do
     describe '#find_pets_by_status_with_http_info' do
       it 'returns HTTP info along with the list' do
         result = @api.find_pets_by_status_with_http_info(
-          PetstoreClient::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+          Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available')
         )
 
         _(result).wont_be_nil
@@ -774,19 +774,19 @@ describe PetstoreClient::Api::PetApi do
       server, port, thread, captured = capture_auth_header
 
       begin
-        config = PetstoreClient::Configuration.new(
+        config = Petstore::Client::Configuration.new(
           base_url: "http://127.0.0.1:#{port}",
           default_headers: { 'Authorization' => 'Bearer default-token' }
         )
-        api = PetstoreClient::Api::PetApi.new(nil, config)
-        per_call_auth = PetstoreClient::Auth::BearerAuthenticator.new("http://127.0.0.1:#{port}", 'per-call-token')
+        api = Petstore::Client::Api::PetApi.new(nil, config)
+        per_call_auth = Petstore::Client::Auth::BearerAuthenticator.new("http://127.0.0.1:#{port}", 'per-call-token')
 
-        pet = PetstoreClient::Models::Pet.new(
+        pet = Petstore::Client::Models::Pet.new(
           id: 1,
           name: 'OverrideDog',
           photo_urls: Set['http://example.com/p.jpg']
         )
-        api.add_pet(pet, PetstoreClient::Api::Options::AddPetOptions.new(auth: per_call_auth))
+        api.add_pet(pet, Petstore::Client::Api::Options::AddPetOptions.new(auth: per_call_auth))
 
         header_line = captured.pop
         _(header_line).must_include 'Bearer per-call-token'
@@ -803,20 +803,20 @@ describe PetstoreClient::Api::PetApi do
       server, port, thread, captured = capture_auth_header
 
       begin
-        config = PetstoreClient::Configuration.new(
+        config = Petstore::Client::Configuration.new(
           base_url: "http://127.0.0.1:#{port}",
           default_headers: { 'Authorization' => 'Bearer config-default-token' }
         )
-        api = PetstoreClient::Api::PetApi.new(nil, config)
+        api = Petstore::Client::Api::PetApi.new(nil, config)
 
-        pet = PetstoreClient::Models::Pet.new(
+        pet = Petstore::Client::Models::Pet.new(
           id: 1,
           name: 'DefaultCredsDog',
           photo_urls: Set['http://example.com/p.jpg']
         )
         # Options omits auth entirely; the minted Options object defaults its
         # auth member to nil, so the configured default credentials apply.
-        api.add_pet(pet, PetstoreClient::Api::Options::AddPetOptions.new)
+        api.add_pet(pet, Petstore::Client::Api::Options::AddPetOptions.new)
 
         header_line = captured.pop
         _(header_line).must_include 'Bearer config-default-token'
@@ -831,7 +831,7 @@ describe PetstoreClient::Api::PetApi do
     # freeze themselves at the end of #initialize, so reading values works
     # but no writer (setter) is exposed and the instance is frozen.
     it 'builds immutable Options from keyword arguments' do
-      options = PetstoreClient::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+      options = Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available')
 
       _(options.status).must_equal 'available'
       refute options.respond_to?(:status=)
@@ -845,7 +845,7 @@ describe PetstoreClient::Api::PetApi do
     # so there is no AddPetOptions-style class for it. Guard the contract by
     # asserting the GetPetByIdOptions constant is absent.
     it 'does not expose an auth member on an unsecured operation' do
-      _(PetstoreClient::Api::Options.const_defined?(:GetPetByIdOptions)).must_equal false
+      _(Petstore::Client::Api::Options.const_defined?(:GetPetByIdOptions)).must_equal false
     end
   end
 
@@ -879,8 +879,8 @@ describe PetstoreClient::Api::PetApi do
         client.print(response)
         client.close
       end
-      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
-      api = PetstoreClient::Api::PetApi.new(nil, config)
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
       [api, server, thread, captured]
     end
 
@@ -889,7 +889,7 @@ describe PetstoreClient::Api::PetApi do
     it 'expands an array form property to repeated keys' do
       api, server, thread, captured = capture_request_body
       begin
-        options = PetstoreClient::Api::Options::SetPetPreferencesOptions.new(
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
           nickname: 'Rex', tags: %w[a b]
         )
         api.set_pet_preferences(1, options)
@@ -908,7 +908,7 @@ describe PetstoreClient::Api::PetApi do
     it 'omits absent optional form properties' do
       api, server, thread, captured = capture_request_body
       begin
-        options = PetstoreClient::Api::Options::SetPetPreferencesOptions.new(nickname: 'Rex')
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(nickname: 'Rex')
         api.set_pet_preferences(1, options)
         sent = captured.pop
         _(sent).must_equal 'nickname=Rex'
@@ -925,7 +925,7 @@ describe PetstoreClient::Api::PetApi do
     it 'encodes a space in a form value as + not %20' do
       api, server, thread, captured = capture_request_body
       begin
-        options = PetstoreClient::Api::Options::SetPetPreferencesOptions.new(
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
           nickname: 'Mr Whiskers', note: 'good boy'
         )
         api.set_pet_preferences(1, options)

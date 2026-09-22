@@ -51,10 +51,10 @@ module {{moduleName}}
           JSON_KEY_MAP[key.to_s] || key.to_sym
         end
 
-        attribute :blob, Types::Any.optional.meta(omittable: true)
-        attribute :identifier, Types::Any.optional.meta(omittable: true)
-        attribute :note, Types::Any.optional.meta(omittable: true)
-        attribute :ttl, Types::Any.optional.meta(omittable: true)
+        attribute :blob, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
+        attribute :identifier, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
+        attribute :note, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
+        attribute :ttl, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
       end
     end
   end
@@ -150,6 +150,26 @@ describe {{moduleName}}::ObjectSerializer do
   end
 
   describe 'DeserializationErrorWrapping' do
+    # The error contract: every wire-shape failure raises exactly
+    # SerializationError (no subclass, no library error), and that is an
+    # instance of the SDK root so one rescue catches it.
+    {
+      'malformed JSON' => ['{', 'Category'],
+      'wrong primitive type' => ['{"id":"abc","name":"doggie","photoUrls":[]}', 'Pet'],
+      'unknown enum value' => ['{"name":"doggie","photoUrls":[],"status":"banana"}', 'Pet'],
+      'missing required field' => ['{"photoUrls":[]}', 'Pet'],
+      'malformed duration' => ['{"retryAfter":"soon"}', 'EdgeCases'],
+      'malformed date-time' => ['{"expiresAt":"not-a-date"}', 'EdgeCases']
+    }.each do |failure, (json, type)|
+      it "raises exactly SerializationError, a root error, for #{failure}" do
+        err = _(proc {
+          {{moduleName}}::ObjectSerializer.deserialize(json, type)
+        }).must_raise({{moduleName}}::SerializationError)
+        _(err).must_be_instance_of({{moduleName}}::SerializationError)
+        _(err).must_be_kind_of({{apiErrorParent}})
+      end
+    end
+
     it 'truncated JSON raises SerializationError not a raw parse error' do
       _(proc {
         {{moduleName}}::ObjectSerializer.deserialize('{', 'Category')

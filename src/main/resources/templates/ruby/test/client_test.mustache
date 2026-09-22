@@ -92,4 +92,60 @@ describe {{moduleName}}::{{clientClassName}} do
 {{/apis}}
 {{/apiInfo}}
   end
+
+  # The layout Zeitwerk expects, checked without Zeitwerk: every file under
+  # lib/{{modulePath}} declares exactly the one constant its path names
+  # (errors/not_found_error.rb declares Errors::NotFoundError), no constant
+  # lives in a file named after another, and no file claims a top-level
+  # constant besides the gem's own module. Loading every file first makes
+  # a file that no other file requires count too.
+  it 'declares exactly the constant each lib file path names' do
+    lib = File.expand_path('../lib', __dir__)
+    root_dir = File.join(lib, '{{modulePath}}')
+    files = Dir.glob(File.join(root_dir, '**', '*.rb')).sort
+    files.each { |file| require file }
+    normalize = ->(name) { name.to_s.downcase.delete('_') }
+    under_lib = ->(file) { !file.nil? && file.start_with?("#{lib}/") }
+    problems = []
+
+    top_level = '{{moduleName}}'.split('::').first
+    Object.constants.each do |name|
+      file, = Object.const_source_location(name)
+      problems << "#{file} declares top-level #{name}" if under_lib.call(file) && name.to_s != top_level
+    end
+
+    walk = lambda do |namespace, dir|
+      namespace.constants(false).each do |name|
+        file, = namespace.const_source_location(name)
+        next unless under_lib.call(file)
+
+        sub_dir = Dir.glob(File.join(dir, '*')).find do |entry|
+          File.directory?(entry) && normalize.call(File.basename(entry)) == normalize.call(name)
+        end
+        if sub_dir
+          walk.call(namespace.const_get(name, false), sub_dir)
+          next
+        end
+        if File.dirname(file) != dir || normalize.call(File.basename(file, '.rb')) != normalize.call(name)
+          problems << "#{namespace}::#{name} is declared in #{file}, not in a file of its own under #{dir}"
+        end
+      end
+    end
+    walk.call({{moduleName}}, root_dir)
+
+    files.each do |file|
+      segments = file.delete_prefix("#{root_dir}/").delete_suffix('.rb').split('/')
+      namespace = {{moduleName}}
+      segments.each do |segment|
+        name = namespace.constants(false).find { |c| normalize.call(c) == normalize.call(segment) }
+        if name.nil?
+          problems << "#{file} does not declare #{namespace}::<#{segment}>"
+          break
+        end
+        namespace = namespace.const_get(name, false)
+      end
+    end
+
+    _(problems).must_be_empty
+  end
 end

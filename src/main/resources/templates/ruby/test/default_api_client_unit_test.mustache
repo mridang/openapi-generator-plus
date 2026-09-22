@@ -31,8 +31,8 @@ class MultipartModelPart < Dry::Struct
     JSON_KEY_MAP[key.to_s] || key.to_sym
   end
 
-  attribute :is_enabled, Types::Any.optional.meta(omittable: true)
-  attribute :recorded_at, Types::Any.optional.meta(omittable: true)
+  attribute :is_enabled, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
+  attribute :recorded_at, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
 end
 
 describe {{moduleName}}::DefaultApiClient do
@@ -700,6 +700,10 @@ describe {{moduleName}}::DefaultApiClient do
         client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
       end
       _(err.message).must_match(/TLS downgrade/)
+      # A refused redirect is a response that could not be used: an
+      # ApiError with the 3xx status, never a NetworkError.
+      _(err).must_be_instance_of {{moduleName}}::ApiError
+      _(err.status_code).must_equal 307
     end
     _(call_count).must_equal 1
   end
@@ -744,6 +748,10 @@ describe {{moduleName}}::DefaultApiClient do
         client.send_request(:GET, 'http://localhost/loop', {}, nil)
       end
       _(err.message).must_match(/redirect/i)
+      # A refused redirect is a response that could not be used: an
+      # ApiError with the 3xx status, never a NetworkError.
+      _(err).must_be_instance_of {{moduleName}}::ApiError
+      _(err.status_code).must_equal 302
     end
   end
 
@@ -765,20 +773,27 @@ describe {{moduleName}}::DefaultApiClient do
         client.send_request(:GET, 'http://localhost/evil', {}, nil)
       end
       _(err.message).must_match(/non-http/i)
+      # A refused redirect is a response that could not be used: an
+      # ApiError with the 3xx status, never a NetworkError.
+      _(err).must_be_instance_of {{moduleName}}::ApiError
+      _(err.status_code).must_equal 302
     end
   end
 
   # ── Bucket 3: use-after-close raises loudly ──
 
-  it 'raises ApiError when send_request is called after close' do
+  it 'raises RuntimeError when send_request is called after close' do
     # After #close releases the connection pool the client is dead; a
-    # subsequent send_request MUST raise an ApiError rather than lazily
-    # rebuilding a connection (which would make close a silent no-op).
+    # subsequent send_request MUST raise the invalid-state RuntimeError
+    # rather than lazily rebuilding a connection (which would make close a
+    # silent no-op).
     client = {{moduleName}}::DefaultApiClient.new
     client.close
-    err = assert_raises({{moduleName}}::ApiError) do
+    err = assert_raises(RuntimeError) do
       client.send_request(:GET, 'http://localhost/echo', {}, nil)
     end
+    _(err).must_be_instance_of RuntimeError
+    _(err).wont_be_kind_of {{apiErrorParent}}
     _(err.message).must_match(/closed/i)
   end
 
@@ -884,9 +899,11 @@ describe {{moduleName}}::DefaultApiClient do
   # falling back to the system trust store (security theater).
   it 'raises ArgumentError at construction for a non-existent ca_cert_path' do
     transport = {{moduleName}}::TransportOptions.builder.ca_cert_path('/nonexistent/ca.pem').build
-    assert_raises(ArgumentError) do
+    err = assert_raises(ArgumentError) do
       {{moduleName}}::DefaultApiClient.new(transport)
     end
+    _(err).must_be_instance_of ArgumentError
+    _(err).wont_be_kind_of {{apiErrorParent}}
   end
 
   # A request that gets no HTTP response raises NetworkError, and one that
@@ -901,6 +918,8 @@ describe {{moduleName}}::DefaultApiClient do
       err = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
         client.send_request('GET', 'http://localhost/slow', {}, nil)
       end
+      _(err).must_be_instance_of {{moduleName}}::Errors::NetworkTimeoutError
+      _(err).must_be_kind_of {{moduleName}}::Errors::NetworkError
       _(err).must_be_kind_of {{moduleName}}::ApiError
       _(err.status_code).must_equal 0
       _(err.cause).must_be_kind_of Faraday::TimeoutError
@@ -927,19 +946,16 @@ describe {{moduleName}}::DefaultApiClient do
     end
   end
 
-  it 'raises NetworkError when the connection fails' do
-    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
-      stub.get('/refused') { raise Faraday::ConnectionFailed, 'Connection refused' }
-    end
+  it 'raises NetworkError when the connection is refused' do
+    # Nothing listens on port 1, so the connect is refused for real.
     client = {{moduleName}}::DefaultApiClient.new
-    client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises({{moduleName}}::Errors::NetworkError) do
-        client.send_request('GET', 'http://localhost/refused', {}, nil)
-      end
-      _(err).wont_be_kind_of {{moduleName}}::Errors::NetworkTimeoutError
-      _(err.status_code).must_equal 0
-      _(err.cause).must_be_kind_of Faraday::ConnectionFailed
+    err = assert_raises({{moduleName}}::Errors::NetworkError) do
+      client.send_request('GET', 'http://127.0.0.1:1/refused', {}, nil)
     end
+    _(err).must_be_instance_of {{moduleName}}::Errors::NetworkError
+    _(err).must_be_kind_of {{moduleName}}::ApiError
+    _(err.status_code).must_equal 0
+    _(err.cause).must_be_kind_of Faraday::ConnectionFailed
   end
 
   # ── decompression-error-not-wrapped ──
@@ -950,7 +966,7 @@ describe {{moduleName}}::DefaultApiClient do
   it 'wraps a malformed Content-Encoding body as ApiError' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/gz') do
-        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'not-actually-gzip']
+        [502, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'not-actually-gzip']
       end
     end
     client = {{moduleName}}::DefaultApiClient.new
@@ -958,6 +974,11 @@ describe {{moduleName}}::DefaultApiClient do
       err = assert_raises({{moduleName}}::ApiError) do
         client.send_request('GET', 'http://localhost/gz', {}, nil)
       end
+      # A response arrived, so this is an ApiError with that response's
+      # status, never a NetworkError with status 0.
+      _(err).must_be_instance_of {{moduleName}}::ApiError
+      _(err).wont_be_kind_of {{moduleName}}::Errors::NetworkError
+      _(err.status_code).must_equal 502
       refute_kind_of Zlib::Error, err
     end
     stubs.verify_stubbed_calls

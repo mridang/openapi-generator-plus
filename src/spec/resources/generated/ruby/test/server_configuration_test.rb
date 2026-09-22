@@ -12,72 +12,74 @@
 require 'minitest/autorun'
 require 'petstore_client'
 
-describe PetstoreClient::ServerConfiguration do
+describe Petstore::Client::ServerConfiguration do
   parallelize_me!
 
   it 'returns the template unchanged when there are no variables' do
-    config = PetstoreClient::ServerConfiguration.new(url_template: 'https://api.example.com/v1')
+    config = Petstore::Client::ServerConfiguration.new(url_template: 'https://api.example.com/v1')
     _(config.url).must_equal 'https://api.example.com/v1'
   end
 
   it 'substitutes default variable values when no overrides are given' do
-    config = PetstoreClient::ServerConfiguration.new(
+    config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(default_value: 'prod'),
-        'version' => PetstoreClient::ServerVariable.new(default_value: '2')
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod'),
+        'version' => Petstore::Client::ServerVariable.new(default_value: '2')
       }
     )
     _(config.url).must_equal 'https://prod.api.example.com/v2'
   end
 
   it 'substitutes overrides in place of default values' do
-    config = PetstoreClient::ServerConfiguration.new(
+    config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(default_value: 'prod'),
-        'version' => PetstoreClient::ServerVariable.new(default_value: '2')
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod'),
+        'version' => Petstore::Client::ServerVariable.new(default_value: '2')
       }
     )
     _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com/v2'
   end
 
   it 'uses the default for variables absent from the overrides' do
-    config = PetstoreClient::ServerConfiguration.new(
+    config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(default_value: 'prod'),
-        'version' => PetstoreClient::ServerVariable.new(default_value: '2')
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod'),
+        'version' => Petstore::Client::ServerVariable.new(default_value: '2')
       }
     )
     _(config.url({ 'version' => '3' })).must_equal 'https://prod.api.example.com/v3'
   end
 
   it 'accepts an override value that is in the variable enum' do
-    config = PetstoreClient::ServerConfiguration.new(
+    config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
       }
     )
     _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com'
   end
 
   it 'rejects an override value that is not in the variable enum' do
-    config = PetstoreClient::ServerConfiguration.new(
+    config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       variables: {
-        'env' => PetstoreClient::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
       }
     )
     err = _(-> { config.url({ 'env' => 'dev' }) }).must_raise ArgumentError
+    _(err).must_be_instance_of ArgumentError
+    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
     _(err.message).must_include 'dev'
     _(err.message).must_include 'env'
   end
 
   it 'exposes the raw url_template, description, and variables' do
-    variables = { 'env' => PetstoreClient::ServerVariable.new(default_value: 'prod') }
-    config = PetstoreClient::ServerConfiguration.new(
+    variables = { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
+    config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       description: 'Primary server',
       variables: variables
@@ -88,9 +90,9 @@ describe PetstoreClient::ServerConfiguration do
   end
 
   it 'is immutable and freezes its variables map' do
-    config = PetstoreClient::ServerConfiguration.new(
+    config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://api.example.com',
-      variables: { 'env' => PetstoreClient::ServerVariable.new(default_value: 'prod') }
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
     )
     _(config).must_be :frozen?
     _(config.variables).must_be :frozen?

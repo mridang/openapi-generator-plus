@@ -533,9 +533,9 @@ describe {{moduleName}}::DefaultApiClient do
 
   describe 'client lifecycle (Gap T6)' do
     # Gap T6: #close releases the underlying connection and is idempotent.
-    # A request issued on a closed client must raise the SDK-typed ApiError
-    # (closed-flag guard) rather than silently rebuilding a connection,
-    # matching the uniform use-after-close contract across SDKs.
+    # A request issued on a closed client must raise the invalid-state
+    # RuntimeError (closed-flag guard) rather than silently rebuilding a
+    # connection, matching the uniform use-after-close contract across SDKs.
     it 'close releases underlying client' do
       client = {{moduleName}}::DefaultApiClient.new
       client.close
@@ -543,7 +543,8 @@ describe {{moduleName}}::DefaultApiClient do
 
       error = _ do
         client.send_request(:GET, 'https://example.com', {}, nil)
-      end.must_raise {{moduleName}}::ApiError
+      end.must_raise RuntimeError
+      _(error).must_be_instance_of RuntimeError
       _(error.message).must_include('closed')
     end
   end

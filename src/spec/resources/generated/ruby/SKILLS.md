@@ -19,7 +19,7 @@ bundle install
 ```ruby
 require 'petstore_client'
 
-client = PetstoreClient::Client.with_token('https://api.example.com', 'your-token')
+client = Petstore::Client::Petstore.with_token('https://api.example.com', 'your-token')
 ```
 
 ## Authentication
@@ -29,49 +29,49 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```ruby
-authenticator = PetstoreClient::Auth::BearerAuthenticator.new('https://api.example.com', 'your-token')
-client = PetstoreClient::Client.new(authenticator)
+authenticator = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'your-token')
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### Basic Auth
 
 ```ruby
-authenticator = PetstoreClient::Auth::BasicAuthenticator.new('https://api.example.com', 'username', 'password')
-client = PetstoreClient::Client.new(authenticator)
+authenticator = Petstore::Client::Auth::BasicAuthenticator.new('https://api.example.com', 'username', 'password')
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### API Key
 
 ```ruby
-authenticator = PetstoreClient::Auth::ApiKeyAuthenticator.new(
-  'https://api.example.com', 'key-name', 'key-value', PetstoreClient::Auth::ApiKeyLocation::HEADER)
-client = PetstoreClient::Client.new(authenticator)
+authenticator = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+  'https://api.example.com', 'key-name', 'key-value', Petstore::Client::Auth::ApiKeyLocation::HEADER)
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### OAuth2 Client Credentials
 
 ```ruby
-authenticator = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token')
-client = PetstoreClient::Client.new(authenticator)
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### OAuth2 Authorization Code
 
 ```ruby
-authenticator = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+authenticator = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
   'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback')
-client = PetstoreClient::Client.new(authenticator)
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### OAuth2 Password
 
 ```ruby
-authenticator = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+authenticator = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
   'https://auth.example.com/token', 'username', 'password')
-client = PetstoreClient::Client.new(authenticator)
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### OAuth2 Implicit
@@ -79,17 +79,17 @@ client = PetstoreClient::Client.new(authenticator)
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```ruby
-authenticator = PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator.new('https://api.example.com', 'your-access-token')
-client = PetstoreClient::Client.new(authenticator)
+authenticator = Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new('https://api.example.com', 'your-access-token')
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### OpenID Connect
 
 ```ruby
-authenticator = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+authenticator = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
   'https://auth.example.com/.well-known/openid-configuration')
-client = PetstoreClient::Client.new(authenticator)
+client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### OAuth2 token lifecycle
@@ -116,17 +116,17 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 Override the default if your authorization server only accepts one form:
 
 ```ruby
-authenticator = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
-  client_auth_method: PetstoreClient::Auth::OAuth::ClientAuthMethod::BASIC)
+  client_auth_method: Petstore::Client::Auth::OAuth::ClientAuthMethod::BASIC)
 ```
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `PetstoreClient::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `Petstore::Client::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. Pass the desired server's URL to the client:
 
 ```ruby
-client = PetstoreClient::Client.with_token(PetstoreClient::Servers::SERVER_0.url, 'your-token')
+client = Petstore::Client::Petstore.with_token(Petstore::Client::Servers::SERVER_0.url, 'your-token')
 ```
 
 ## Testing
@@ -141,7 +141,7 @@ fake_authenticator = Class.new do
   def cookie_params = {}
 end.new
 
-client = PetstoreClient::Client.new(fake_authenticator)
+client = Petstore::Client::Petstore.new(fake_authenticator)
 ```
 
 ## Error Handling
@@ -164,13 +164,13 @@ All API errors derive from `ApiError`. The error hierarchy is:
 ```ruby
 begin
   result = client.pet.add_pet(request)
-rescue PetstoreClient::Errors::NotFoundError => e
+rescue Petstore::Client::Errors::NotFoundError => e
   puts "Not found: #{e.message}"
-rescue PetstoreClient::Errors::ClientError => e
+rescue Petstore::Client::Errors::ClientError => e
   puts "Client error #{e.status_code}: #{e.message}"
-rescue PetstoreClient::Errors::ServerError => e
+rescue Petstore::Client::Errors::ServerError => e
   puts "Server error: #{e.message}"
-rescue PetstoreClient::Errors::ApiError => e
+rescue Petstore::Client::ApiError => e
   puts "API error: #{e.message}"
 end
 ```
@@ -180,12 +180,12 @@ end
 ### Custom Transport Options
 
 ```ruby
-transport = PetstoreClient::TransportOptions.builder
+transport = Petstore::Client::TransportOptions.builder
   .proxy('http://proxy:3128')
   .timeout(5000)
   .build
 
-client = PetstoreClient::Client.new(authenticator, transport)
+client = Petstore::Client::Petstore.new(authenticator, transport)
 ```
 
 ## API Methods
@@ -194,10 +194,10 @@ Each API group is exposed as a typed attribute on the client (e.g., `client.pet`
 
 ## Models
 
-Models are generated as Ruby classes under the `PetstoreClient::Models` namespace.
+Models are generated as Ruby classes under the `Petstore::Client::Models` namespace.
 
 ```ruby
-model = PetstoreClient::Models::ApiResponse.new
+model = Petstore::Client::Models::ApiResponse.new
 ```
 
 ## Binary / File Uploads

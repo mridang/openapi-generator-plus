@@ -10,11 +10,11 @@
 
 lib = File.expand_path('lib', __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'petstore_client/version'
+require 'petstore/client/version'
 
 Gem::Specification.new do |s|
   s.name        = 'petstore_client'
-  s.version     = ::PetstoreClient::VERSION
+  s.version     = ::Petstore::Client::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ['Swagger Petstore - OpenAPI 3.0']
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'

@@ -2,13 +2,13 @@
 # rubocop:disable all
 
 require 'test_helper'
-require 'petstore_client/header_selector'
+require 'petstore/client/header_selector'
 
-describe PetstoreClient::HeaderSelector do
+describe Petstore::Client::HeaderSelector do
   parallelize_me!
 
   before do
-    @header_selector = PetstoreClient::HeaderSelector.new
+    @header_selector = Petstore::Client::HeaderSelector.new
   end
 
   describe '#json_mime?' do

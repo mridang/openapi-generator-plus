@@ -13,11 +13,11 @@ require 'minitest/autorun'
 require 'json'
 require 'petstore_client'
 
-describe PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator do
+describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
   parallelize_me!
 
   let(:auth) do
-    PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
+    Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'https://auth.example.com/authorize',
@@ -53,9 +53,10 @@ describe PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator do
   end
 
   it 'throws when access token not set' do
-    assert_raises(PetstoreClient::ApiError) do
+    err = assert_raises(RuntimeError) do
       auth.auth_headers
     end
+    _(err).must_be_instance_of RuntimeError
   end
 
   it 'getHost returns configured host' do
@@ -63,7 +64,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator do
   end
 
   def test_redacts_secret
-    auth = PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'https://auth.example.com/authorize',

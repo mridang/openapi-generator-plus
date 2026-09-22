@@ -167,7 +167,7 @@ describe {{moduleName}}::Api::StoreApi do
     it 'raises error on get_order_by_id 404' do
       api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
       begin
-        _(-> { api.get_order_by_id(99_999) }).must_raise StandardError
+        _(-> { api.get_order_by_id(99_999) }).must_raise {{moduleName}}::Errors::NotFoundError
       ensure
         server.close
         thread.join(2)
@@ -184,7 +184,7 @@ describe {{moduleName}}::Api::StoreApi do
           status: 'placed',
           complete: false
         )
-        _(-> { api.place_order(order) }).must_raise StandardError
+        _(-> { api.place_order(order) }).must_raise {{moduleName}}::Errors::InternalServerError
       ensure
         server.close
         thread.join(2)
@@ -194,7 +194,7 @@ describe {{moduleName}}::Api::StoreApi do
     it 'raises error on delete_order 404' do
       api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
       begin
-        _(-> { api.delete_order(99_999) }).must_raise StandardError
+        _(-> { api.delete_order(99_999) }).must_raise {{moduleName}}::Errors::NotFoundError
       ensure
         server.close
         thread.join(2)

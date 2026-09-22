@@ -1,8 +1,28 @@
-module PetstoreClient
+module Petstore
+end
+
+module Petstore::Client
   def self.configure: () { (Configuration::Builder) -> void } -> void
                     | () -> Configuration
 
   VERSION: String
+
+  module Types
+    Builder: untyped
+    Any: untyped
+    Required: untyped
+    String: untyped
+    Integer: untyped
+    Float: untyped
+    Decimal: untyped
+    Bool: untyped
+    Date: untyped
+    DateTime: untyped
+    Time: untyped
+    Hash: untyped
+    Array: untyped
+    Nil: untyped
+  end
 
   class Configuration
     attr_reader base_url: String
@@ -88,7 +108,7 @@ module PetstoreClient
   class OpenAPIError < StandardError
   end
 
-  class ApiError < ::PetstoreClient::OpenAPIError
+  class ApiError < ::Petstore::Client::OpenAPIError
     attr_reader status_code: Integer?
     attr_reader response_headers: Hash[String, String]?
     attr_reader response_body: String?
@@ -158,6 +178,7 @@ module PetstoreClient
     def decode_text_body: (String, String?) -> String
     def detect_encoding: (String?) -> Encoding
     def utf16_bom?: (untyped) -> bool
+    def unusable_response: (untyped, String) -> ApiError
     def decompress_body: (untyped, untyped) -> untyped
     def connection: () -> untyped
     def build_connection: () -> untyped
@@ -173,9 +194,7 @@ module PetstoreClient
     def effective_port: (URI::Generic) -> Integer
   end
 
-  UUID_REGEX: Regexp
-
-  class SerializationError < ::PetstoreClient::OpenAPIError
+  class SerializationError < ::Petstore::Client::OpenAPIError
     attr_reader cause: Exception?
     def initialize: (String, ?Exception?) -> void
   end
@@ -199,6 +218,7 @@ module PetstoreClient
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
     PROTOBUF_DURATION_REGEX: Regexp
+    UUID_REGEX: Regexp
     def self.stringify: (untyped) -> String
     def self.serialize: (untyped) -> String
     def self.encode_oneof_body: (untyped, String) -> untyped
@@ -326,6 +346,8 @@ module PetstoreClient
         private
         def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
         def parse_max_age: (Hash[String, String]?) -> Integer
+        def parse_discovery: (String?) -> Hash[String, untyped]
+        def discovery_error: (::Petstore::Client::ApiHttpResponse) -> ::Petstore::Client::ApiError
       end
 
       class OAuth2TokenManager
@@ -342,15 +364,16 @@ module PetstoreClient
         def build_refresh_params: (String, Hash[String, String]) -> Hash[String, String]
         def fetch_token: (String, Hash[String, String], ?Hash[String, String]) -> void
         def parse_oauth2_server_error: (Integer, String) -> OAuth2ServerError
+        def parse_token_response: (String?) -> Hash[String, untyped]
         def require_api_client: () -> ApiClient
         def apply_token_response: (Hash[String, untyped]) -> void
         def parse_expires_in: (untyped) -> Integer
       end
 
-      class OAuth2TokenError < ::PetstoreClient::OpenAPIError
+      class OAuth2TokenError < ::Petstore::Client::OpenAPIError
       end
 
-      class OAuth2ServerError < ::PetstoreClient::OpenAPIError
+      class OAuth2ServerError < ::Petstore::Client::OpenAPIError
         attr_reader status_code: Integer?
         attr_reader code: String?
         attr_reader description: String?
@@ -363,12 +386,12 @@ module PetstoreClient
     end
   end
 
-  class Client
+  class Petstore
     attr_reader pet: Api::PetApi
     attr_reader store: Api::StoreApi
     def initialize: (Auth::Authenticator, ?TransportOptions?) -> void
-    def self.with_token: (String, String) -> Client
-    def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> Client
+    def self.with_token: (String, String) -> Petstore
+    def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> Petstore
   end
 
   module Models

@@ -21,7 +21,7 @@ class FakeClientCredentialsClient
     @last_url = url
     @last_headers = headers
     @last_body = body
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: 200,
       body: { 'access_token' => 'cc_tok_abc', 'expires_in' => 3600 }.to_json,
       headers: { 'content-type' => 'application/json' }
@@ -42,7 +42,7 @@ class ConfigurableClientCredentialsClient
   def send_request(_method, _url, _headers, _body, no_redirect: false)
     response = @responses[@call_count] || @responses.last
     @call_count += 1
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
@@ -50,13 +50,13 @@ class ConfigurableClientCredentialsClient
   end
 end
 
-describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
+describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
   parallelize_me!
 
   let(:client) { FakeClientCredentialsClient.new }
 
   let(:auth) do
-    a = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+    a = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -105,7 +105,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     error_client = ConfigurableClientCredentialsClient.new([
       { status: 401, body: { 'error' => 'invalid_client' } }
     ])
-    error_auth = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+    error_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -116,9 +116,9 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
 
     # The failed token exchange surfaces as the typed OAuth2ServerError,
     # which subclasses the SDK's branded root, not ApiError.
-    error = _(-> { error_auth.auth_headers }).must_raise ::PetstoreClient::OpenAPIError
-    _(error).must_be_kind_of PetstoreClient::Auth::OAuth::OAuth2ServerError
-    _(error).wont_be_kind_of PetstoreClient::ApiError
+    error = _(-> { error_auth.auth_headers }).must_raise ::Petstore::Client::OpenAPIError
+    _(error).must_be_kind_of Petstore::Client::Auth::OAuth::OAuth2ServerError
+    _(error).wont_be_kind_of Petstore::Client::ApiError
   end
 
   it 'caches token across calls' do
@@ -128,7 +128,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     caching_client = ConfigurableClientCredentialsClient.new([
       { status: 200, body: { 'access_token' => 'cached_cc_token', 'expires_in' => 3600 } }
     ])
-    caching_auth = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+    caching_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -150,13 +150,13 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     # client_id and client_secret MUST be application/x-www-form-
     # urlencoded BEFORE being joined with ':' and base64-encoded.
     basic_client = FakeClientCredentialsClient.new
-    basic_auth = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+    basic_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'id+with/special',
       'secret&with=stuff',
       'https://auth.example.com/token',
       %w[read],
-      client_auth_method: PetstoreClient::Auth::OAuth::ClientAuthMethod::BASIC
+      client_auth_method: Petstore::Client::Auth::OAuth::ClientAuthMethod::BASIC
     )
     basic_auth.api_client = basic_client
 
@@ -173,7 +173,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret. The overridden
     # inspect must mask it.
-    secret_auth = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+    secret_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'super_secret_value',
@@ -188,7 +188,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
   end
 
   def test_redacts_secret
-    auth = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'leaky_client_secret',

@@ -4,18 +4,18 @@
 require 'json'
 require 'test_helper'
 
-describe PetstoreClient::DefaultApiClient do
+describe Petstore::Client::DefaultApiClient do
   parallelize_me!
 
   describe 'TLS verification disabled' do
     it 'makes HTTPS request with verify_ssl=false' do
       chasm_url = ENV.fetch('CHASM_HTTPS_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .verify_ssl(false)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -29,12 +29,12 @@ describe PetstoreClient::DefaultApiClient do
       chasm_url = ENV.fetch('CHASM_HTTPS_URL')
       ca_cert_path = ENV.fetch('CA_CERT_PATH')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .verify_ssl(true)
         .ca_cert_path(ca_cert_path)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -48,11 +48,11 @@ describe PetstoreClient::DefaultApiClient do
       chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .proxy(proxy_url)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -71,7 +71,7 @@ describe PetstoreClient::DefaultApiClient do
       require 'base64'
       require 'uri'
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .proxy('http://alice:s3cret@127.0.0.1:3128')
         .build
 
@@ -94,7 +94,7 @@ describe PetstoreClient::DefaultApiClient do
     it 'carries user:pass userinfo from the canonical proxy URL' do
       require 'base64'
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .proxy('http://user:pass@127.0.0.1:3128')
         .build
 
@@ -103,7 +103,7 @@ describe PetstoreClient::DefaultApiClient do
 
       # Faraday parses the userinfo from the proxy URL when the connection
       # is built — the credentials are honoured, not dropped.
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       conn = client.send(:build_connection)
       _(conn.proxy).wont_be_nil
       _(conn.proxy.user).must_equal('user')
@@ -120,12 +120,12 @@ describe PetstoreClient::DefaultApiClient do
       chasm_url = ENV.fetch('CHASM_INTERNAL_HTTPS_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .proxy(proxy_url)
         .verify_ssl(false)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -138,12 +138,12 @@ describe PetstoreClient::DefaultApiClient do
     it 'times out on slow endpoint' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .timeout(1)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
-      error = _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise PetstoreClient::Errors::NetworkTimeoutError
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      error = _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise Petstore::Client::Errors::NetworkTimeoutError
       _(error.status_code).must_equal 0
       _(error.cause).wont_be_nil
     end
@@ -153,11 +153,11 @@ describe PetstoreClient::DefaultApiClient do
     it 'injects custom User-Agent header' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .user_agent('MyApp/1.0')
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -170,11 +170,11 @@ describe PetstoreClient::DefaultApiClient do
     it 'injects X-Request-ID header with UUID format' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .inject_request_id(true)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -187,11 +187,11 @@ describe PetstoreClient::DefaultApiClient do
     it 'generates unique X-Request-ID per request' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .inject_request_id(true)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
 
       response1 = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
       request_id1 = JSON.parse(response1.body)['headers']['x-request-id']
@@ -207,11 +207,11 @@ describe PetstoreClient::DefaultApiClient do
     it 'includes transport-level default headers' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .default_header('X-Custom', 'custom-value')
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -222,11 +222,11 @@ describe PetstoreClient::DefaultApiClient do
     it 'caller headers override transport default headers' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .default_header('Accept', 'text/plain')
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(
         :GET, "#{chasm_url}/test/echo",
         { 'Accept' => 'application/json' }, nil
@@ -242,11 +242,11 @@ describe PetstoreClient::DefaultApiClient do
     it 'follows redirects when enabled' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(true)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -255,11 +255,11 @@ describe PetstoreClient::DefaultApiClient do
     it 'returns redirect response when disabled' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(false)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
 
       _(response.status_code).must_equal(302)
@@ -268,12 +268,12 @@ describe PetstoreClient::DefaultApiClient do
     it '303 switches to GET and drops body (Gap T3)' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(5)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       response = client.send_request(
         :POST,
         "#{chasm_url}/test/redirect/303",
@@ -293,12 +293,12 @@ describe PetstoreClient::DefaultApiClient do
     it 'replays multipart body across 307 redirects (T-new-3)' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(5)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       boundary = 'test-boundary'
       multipart_body = "--#{boundary}\r\n" \
         "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
@@ -332,13 +332,13 @@ describe PetstoreClient::DefaultApiClient do
     it 'scopes redirect counting per request across concurrent calls' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(5)
         .build
 
       # One shared client used by every thread below.
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
 
       # Mix requests that follow a redirect with requests that do not, all
       # in flight at the same time on the same client. Each thread records
@@ -382,12 +382,12 @@ describe PetstoreClient::DefaultApiClient do
       # follow_redirects=true but max_redirects=0: the server still answers
       # /test/redirect/302 with a 3xx, so every redirecting request must be
       # refused with an ApiError, while /test/echo never redirects.
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(0)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
 
       # Each redirecting thread must raise; capture the exception per thread.
       refused = Array.new(4) do
@@ -395,7 +395,7 @@ describe PetstoreClient::DefaultApiClient do
           begin
             client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
             nil
-          rescue PetstoreClient::ApiError => e
+          rescue Petstore::Client::ApiError => e
             e
           end
         end
@@ -424,12 +424,12 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'max redirects' do
     it 'respects max_redirects limit' do
-      transport = PetstoreClient::TransportOptions.builder
+      transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(5)
         .build
 
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      client = Petstore::Client::DefaultApiClient.new(transport)
       _(client).wont_be_nil
       _(transport.max_redirects).must_equal(5)
     end
@@ -439,7 +439,7 @@ describe PetstoreClient::DefaultApiClient do
     it 'sends multipart form data' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       form_data = { 'description' => 'A test file', 'file' => 'file content' }
       response = client.send_request(:POST, "#{chasm_url}/test/echo", {}, form_data)
 
@@ -449,7 +449,7 @@ describe PetstoreClient::DefaultApiClient do
     it 'rejects multipart field name with CRLF (Gap W2)' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       assert_raises(ArgumentError) do
         client.send_request(
           :POST,
@@ -466,7 +466,7 @@ describe PetstoreClient::DefaultApiClient do
     it 'multipart_field_name_with_crlf_rejected_on_string_value' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       assert_raises(ArgumentError) do
         client.send_request(
           :POST,
@@ -480,7 +480,7 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'HTTP compression' do
     it 'decompresses gzip response' do
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       response = client.send_request(
         :GET, 'https://jsonplaceholder.typicode.com/posts/1',
         { 'Accept-Encoding' => 'gzip' }, nil
@@ -492,7 +492,7 @@ describe PetstoreClient::DefaultApiClient do
 
     it 'decompresses brotli response' do
       skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       response = client.send_request(
         :GET, 'https://jsonplaceholder.typicode.com/posts/1',
         { 'Accept-Encoding' => 'br' }, nil
@@ -504,7 +504,7 @@ describe PetstoreClient::DefaultApiClient do
 
     it 'decompresses zstd response' do
       skip 'zstd-ruby gem not installed (optional group)' unless defined?(Zstd)
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       response = client.send_request(
         :GET, 'https://jsonplaceholder.typicode.com/posts/1',
         { 'Accept-Encoding' => 'zstd' }, nil
@@ -522,7 +522,7 @@ describe PetstoreClient::DefaultApiClient do
     # empty body and Content-Length: 0 explicitly on body-bearing verbs.
     it 'post_with_null_body_sends_content_length_zero' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       response = client.send_request(:POST, "#{chasm_url}/test/echo", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -533,17 +533,18 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'client lifecycle (Gap T6)' do
     # Gap T6: #close releases the underlying connection and is idempotent.
-    # A request issued on a closed client must raise the SDK-typed ApiError
-    # (closed-flag guard) rather than silently rebuilding a connection,
-    # matching the uniform use-after-close contract across SDKs.
+    # A request issued on a closed client must raise the invalid-state
+    # RuntimeError (closed-flag guard) rather than silently rebuilding a
+    # connection, matching the uniform use-after-close contract across SDKs.
     it 'close releases underlying client' do
-      client = PetstoreClient::DefaultApiClient.new
+      client = Petstore::Client::DefaultApiClient.new
       client.close
       client.close
 
       error = _ do
         client.send_request(:GET, 'https://example.com', {}, nil)
-      end.must_raise PetstoreClient::ApiError
+      end.must_raise RuntimeError
+      _(error).must_be_instance_of RuntimeError
       _(error.message).must_include('closed')
     end
   end
@@ -575,8 +576,8 @@ describe PetstoreClient::DefaultApiClient do
           [200, { 'content-type' => 'text/plain' }, 'ok']
         end
       end
-      transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
       client.stub(:build_connection, stub_connection_n1(stubs)) do
         resp = client.send_request(:POST, 'https://localhost/r', {}, 'secret=payload')
         _(resp.status_code).must_equal(200)
@@ -589,10 +590,10 @@ describe PetstoreClient::DefaultApiClient do
           [307, { 'location' => 'http://insecure.example.com/upload' }, '']
         end
       end
-      transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
       client.stub(:build_connection, stub_connection_n1(stubs)) do
-        err = assert_raises(PetstoreClient::ApiError) do
+        err = assert_raises(Petstore::Client::ApiError) do
           client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
         end
         _(err.message).must_match(/TLS downgrade/)
@@ -605,10 +606,10 @@ describe PetstoreClient::DefaultApiClient do
           [308, { 'location' => 'http://insecure.example.com/upload' }, '']
         end
       end
-      transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
-      client = PetstoreClient::DefaultApiClient.new(transport)
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
       client.stub(:build_connection, stub_connection_n1(stubs)) do
-        err = assert_raises(PetstoreClient::ApiError) do
+        err = assert_raises(Petstore::Client::ApiError) do
           client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
         end
         _(err.message).must_match(/TLS downgrade/)

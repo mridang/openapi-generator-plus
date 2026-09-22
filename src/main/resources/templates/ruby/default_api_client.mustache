@@ -83,10 +83,10 @@ module {{moduleName}}
     # @return [ApiHttpResponse] the HTTP response
     def send_request(method, url, headers, body, no_redirect: false)
       # Bucket 3: using the client after #close has released its connection
-      # pool is a caller error. Surface it loudly as an ApiError instead of
-      # lazily rebuilding a connection (which would make close a silent
-      # no-op), matching the uniform closed-flag contract across SDKs.
-      raise ApiError, 'ApiClient has been closed and can no longer send requests' if @closed
+      # pool is a caller error. Surface it loudly as a RuntimeError (the
+      # invalid-state error) instead of lazily rebuilding a connection (which
+      # would make close a silent no-op), matching the other SDKs.
+      raise 'ApiClient has been closed and can no longer send requests' if @closed
 
       merged = @transport_options.default_headers.dup.merge(headers)
       merged['User-Agent'] ||= @transport_options.user_agent if @transport_options.user_agent
@@ -148,10 +148,11 @@ module {{moduleName}}
             next_uri = safe_parse_uri(next_url)
             # Bucket 3: a Location header pointing at a non-http(s) scheme
             # (file:, javascript:, data:, ...) is an SSRF / local-file
-            # exfiltration vector. Refuse loudly with an ApiError instead of
-            # silently returning the 3xx response, matching the other SDKs.
+            # exfiltration vector. Refuse loudly with an ApiError carrying the
+            # 3xx status instead of silently returning the 3xx response,
+            # matching the other SDKs.
             if next_uri.nil? || !%w[http https].include?(next_uri.scheme)
-              raise ApiError, "Refusing to follow redirect to non-http(s) URL: #{next_url}"
+              raise unusable_response(response, "Refusing to follow redirect to non-http(s) URL: #{next_url}")
             end
 
             cross_origin = !same_origin?(original_url, next_url)
@@ -181,8 +182,8 @@ module {{moduleName}}
             # actually a body to replay — 301/302/303 demotions to GET
             # drop the body and are allowed.
             if !next_body.nil? && https_to_http_downgrade?(url, next_url)
-              raise ApiError, "Refusing to replay body across HTTPS -> HTTP " \
-                              "redirect (TLS downgrade): #{next_url}"
+              raise unusable_response(response, 'Refusing to replay body across HTTPS -> HTTP ' \
+                                                "redirect (TLS downgrade): #{next_url}")
             end
 
             redirect_headers = current_headers.dup
@@ -217,19 +218,23 @@ module {{moduleName}}
           # returning the last redirect response as if it were the answer,
           # matching the other SDKs.
           if redirect_status?(response.status)
-            raise ApiError, "Exceeded maximum number of redirects (#{max_redirects})"
+            raise unusable_response(response, "Exceeded maximum number of redirects (#{max_redirects})")
           end
         end
-        # Decompress inside the rescue so a malformed Content-Encoding body
-        # (a truncated/garbage gzip/deflate/br/zstd payload) surfaces as an
-        # SDK ApiError rather than leaking a raw Zlib::GzipFile::Error /
-        # Zlib::Error / decoder exception to the caller.
-        content_type = response.headers['content-type'].to_s
-        decoded_body = decompress_body(response.body, response.headers['content-encoding'])
       rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Faraday::SSLError => e
         raise network_error_class(e).new(message: e.message)
-      rescue Zlib::Error => e
-        raise ApiError, "Failed to decompress response body: #{e.message}"
+      rescue URI::InvalidURIError => e
+        raise ArgumentError, "Invalid request URL (#{e.message}): #{url}"
+      end
+      content_type = response.headers['content-type'].to_s
+      # A malformed Content-Encoding body (a truncated/garbage
+      # gzip/deflate/br/zstd payload) arrived with a real response, so it
+      # surfaces as an ApiError carrying that response's status rather than
+      # a network error or a raw Zlib / decoder exception.
+      decoded_body = begin
+        decompress_body(response.body, response.headers['content-encoding'])
+      rescue StandardError => e
+        raise unusable_response(response, "Failed to decompress response body: #{e.message}")
       end
       response_body = if text_content_type?(content_type)
                         decode_text_body(decoded_body.to_s, content_type)
@@ -262,9 +267,9 @@ module {{moduleName}}
     end
 
     # Releases the Faraday connection and its underlying socket pool and
-    # marks the client closed. Subsequent calls to {#send_request} raise an
-    # {ApiError} rather than silently rebuilding a connection. It is safe to
-    # call this method repeatedly (idempotent).
+    # marks the client closed. Subsequent calls to {#send_request} raise a
+    # RuntimeError rather than silently rebuilding a connection. It is safe
+    # to call this method repeatedly (idempotent).
     def close
       conn = @connection
       @connection = nil
@@ -380,6 +385,18 @@ module {{moduleName}}
       Encoding.find(charset) || Encoding::UTF_8
     rescue ArgumentError
       Encoding::UTF_8
+    end
+
+    # A response arrived but cannot be used (a refused redirect, an
+    # undecodable body): an ApiError carrying the response's real status.
+    #
+    # @return [ApiError]
+    def unusable_response(response, message)
+      ApiError.new(
+        status_code: response.status.to_i,
+        message: message,
+        response_headers: response.headers.to_h
+      )
     end
 
     def decompress_body(body, encoding)

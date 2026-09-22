@@ -28,7 +28,7 @@ class FakePasswordClient
     @last_body = body
     response = @responses[@call_count] || @responses.last
     @call_count += 1
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
@@ -36,14 +36,14 @@ class FakePasswordClient
   end
 end
 
-describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
+describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
   parallelize_me!
 
   it 'sends password grant type' do
     client = FakePasswordClient.new([
       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
     ])
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -62,7 +62,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
     client = FakePasswordClient.new([
       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
     ])
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -82,7 +82,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
     client = FakePasswordClient.new([
       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
     ])
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -102,7 +102,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
     client = FakePasswordClient.new([
       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
     ])
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -122,7 +122,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
       { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => -1 } },
       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
     ])
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -141,7 +141,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
   end
 
   it 'getHost returns configured host' do
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'my_client_secret',
@@ -160,7 +160,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
     client = FakePasswordClient.new([
       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
     ])
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'id+with/special',
       'secret&with=stuff',
@@ -168,7 +168,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
       'user@example.com',
       'secret_password',
       %w[read],
-      client_auth_method: PetstoreClient::Auth::OAuth::ClientAuthMethod::BASIC
+      client_auth_method: Petstore::Client::Auth::OAuth::ClientAuthMethod::BASIC
     )
     auth.api_client = client
 
@@ -185,7 +185,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret and @password into
     # logs / error messages. The overridden inspect must mask both.
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'super_secret_value',
@@ -203,7 +203,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
   end
 
   def test_redacts_secret
-    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
       'leaky_client_secret',

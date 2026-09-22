@@ -1,0 +1,15 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  module Api
+    # Server type for the {{operationId}} operation.
+    class {{serverTypeName}}
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+  end
+end

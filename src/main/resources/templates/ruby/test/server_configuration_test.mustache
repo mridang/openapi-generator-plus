@@ -65,6 +65,8 @@ describe {{moduleName}}::ServerConfiguration do
       }
     )
     err = _(-> { config.url({ 'env' => 'dev' }) }).must_raise ArgumentError
+    _(err).must_be_instance_of ArgumentError
+    _(err).wont_be_kind_of {{apiErrorParent}}
     _(err.message).must_include 'dev'
     _(err.message).must_include 'env'
   end

@@ -83,6 +83,7 @@ describe {{moduleName}}::Api::BaseApi do
         api.call('GET', "/test/status/#{status}", {}, {}, nil,
                  ['application/json'], 'application/json', nil)
       end
+      _(err).must_be_instance_of error_class
       _(err.status_code).must_equal status
       _(err.response_body).wont_be_nil
       _(err.response_body).wont_be_empty
@@ -101,22 +102,24 @@ describe {{moduleName}}::Api::BaseApi do
 
   # ── Exception hierarchy ──
 
-  it 'NotFoundError is a kind of ClientError and ApiError' do
+  it 'NotFoundError is a kind of ClientError, ApiError and the root error' do
     err = assert_raises({{moduleName}}::Errors::NotFoundError) do
       api.call('GET', '/test/status/404', {}, {}, nil,
                ['application/json'], 'application/json', nil)
     end
     assert_kind_of {{moduleName}}::Errors::ClientError, err
     assert_kind_of {{moduleName}}::ApiError, err
+    assert_kind_of {{apiErrorParent}}, err
   end
 
-  it 'InternalServerError is a kind of ServerError and ApiError' do
+  it 'InternalServerError is a kind of ServerError, ApiError and the root error' do
     err = assert_raises({{moduleName}}::Errors::InternalServerError) do
       api.call('GET', '/test/status/500', {}, {}, nil,
                ['application/json'], 'application/json', nil)
     end
     assert_kind_of {{moduleName}}::Errors::ServerError, err
     assert_kind_of {{moduleName}}::ApiError, err
+    assert_kind_of {{apiErrorParent}}, err
   end
 
   # ── Success deserialization ──

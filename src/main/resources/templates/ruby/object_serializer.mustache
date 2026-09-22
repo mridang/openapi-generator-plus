@@ -62,7 +62,7 @@ module {{moduleName}}
         ::{{moduleName}}::Models.const_get(type)
       rescue NameError
         begin
-          {{moduleName}}.const_get(type)
+          ::{{moduleName}}.const_get(type)
         rescue NameError
           nil
         end
@@ -376,7 +376,7 @@ module {{moduleName}}
         klass = begin
           ::{{moduleName}}::Models.const_get(return_type)
         rescue NameError
-          {{moduleName}}.const_get(return_type)
+          ::{{moduleName}}.const_get(return_type)
         end
         if klass.respond_to?(:openapi_one_of) || klass.respond_to?(:openapi_any_of)
           klass.build(data)
@@ -612,10 +612,10 @@ module {{moduleName}}
     end
 
     private_class_method :sanitize_for_serialization, :deserialize_model
-  end
 
-  # Canonical RFC 4122 UUID textual form. Validated on both the
-  # deserialize and serialize paths for any `format: uuid` property.
-  # Stdlib-only — no `uuid` gem dependency required.
-  UUID_REGEX = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
+    # Canonical RFC 4122 UUID textual form. Validated on both the
+    # deserialize and serialize paths for any `format: uuid` property.
+    # Stdlib-only — no `uuid` gem dependency required.
+    UUID_REGEX = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
+  end
 end

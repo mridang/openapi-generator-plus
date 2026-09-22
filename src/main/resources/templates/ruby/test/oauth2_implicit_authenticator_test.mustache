@@ -47,9 +47,10 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
   end
 
   it 'throws when access token not set' do
-    assert_raises({{moduleName}}::ApiError) do
+    err = assert_raises(RuntimeError) do
       auth.auth_headers
     end
+    _(err).must_be_instance_of RuntimeError
   end
 
   it 'getHost returns configured host' do

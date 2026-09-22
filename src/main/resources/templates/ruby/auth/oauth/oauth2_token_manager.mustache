@@ -4,6 +4,8 @@
 
 require 'json'
 require 'uri'
+require_relative 'oauth2_token_error'
+require_relative 'oauth2_server_error'
 
 module {{moduleName}}
   module Auth
@@ -49,7 +51,9 @@ module {{moduleName}}
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
         # @return [String] a valid access token
-        # @raise [::{{moduleName}}::ApiError] if no API client has been injected or token fetch fails
+        # @raise [RuntimeError] if no API client has been injected
+        # @raise [OAuth2ServerError] if the token endpoint answers with a non-2xx status
+        # @raise [OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
         def get_access_token(token_url, params, extra_headers = {})
           @mutex.synchronize do
             return @access_token if token_still_valid?
@@ -116,7 +120,9 @@ module {{moduleName}}
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
         # @return [void]
-        # @raise [::{{moduleName}}::ApiError] if no API client has been injected or the request fails
+        # @raise [RuntimeError] if no API client has been injected
+        # @raise [OAuth2ServerError] if the token endpoint answers with a non-2xx status
+        # @raise [OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
         def fetch_token(token_url, params, extra_headers = {})
           client = require_api_client
           headers = {
@@ -135,13 +141,9 @@ module {{moduleName}}
           status = response.status_code
           # RFC 6749 §3.2 forbids redirects at the token endpoint. With
           # no_redirect: true the transport surfaces the 3xx verbatim rather
-          # than replaying the credential-bearing POST; refuse all 3xx
-          # explicitly so the caller fails closed instead of leaking the
+          # than replaying the credential-bearing POST, so a 3xx fails closed
+          # below like every other non-2xx status instead of leaking the
           # client credentials / refresh_token to the redirect target.
-          if (300..399).cover?(status)
-            raise OAuth2TokenError, "Refusing to follow #{status} redirect on " \
-              "OAuth2 token endpoint; token POSTs carry credentials and must not be replayed."
-          end
           # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
           # `error` (required), `error_description`, `error_uri`. Parse them
           # into a typed OAuth2ServerError so callers can recover via rescue.
@@ -149,7 +151,18 @@ module {{moduleName}}
           # object.
           raise parse_oauth2_server_error(status, response.body) unless (200..299).cover?(status)
 
-          apply_token_response(JSON.parse(response.body))
+          apply_token_response(parse_token_response(response.body))
+        end
+
+        # A 2xx token response that is not a JSON object cannot yield a
+        # token: surface it as OAuth2TokenError rather than a raw parser error.
+        def parse_token_response(body)
+          parsed = JSON.parse(body.to_s)
+          raise OAuth2TokenError, 'Token response is not a JSON object' unless parsed.is_a?(Hash)
+
+          parsed
+        rescue JSON::ParserError => e
+          raise OAuth2TokenError, "Token response is not valid JSON: #{e.message}"
         end
 
         def parse_oauth2_server_error(status_code, body)
@@ -169,7 +182,7 @@ module {{moduleName}}
 
         def require_api_client
           @api_client || raise(
-            ::{{moduleName}}::ApiError,
+            RuntimeError,
             'ApiClient has not been injected. ' \
             'Ensure the {{clientClassName}} constructor calls api_client= ' \
             'on HttpAwareAuthenticator before making API requests.'
@@ -226,44 +239,6 @@ module {{moduleName}}
             end
           else
             0
-          end
-        end
-      end
-
-      # Raised when the OAuth2 token endpoint returns a 2xx response whose
-      # body is missing or contains an empty +access_token+ field. Distinct
-      # from {OAuth2ServerError} (which represents RFC 6749 §5.2 error
-      # responses on 4xx/5xx) so callers can rescue them separately.
-      class OAuth2TokenError < {{apiErrorParent}}
-      end
-
-      # Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
-      # +code+ attribute carries the OAuth2 error code (e.g. +invalid_grant+,
-      # +invalid_client+); +description+ and +uri+ are the optional
-      # human-readable description and a URL to a page describing the error.
-      # +raw_body+ preserves the original response payload for diagnostics
-      # when the body is not a well-formed OAuth2 error object.
-      class OAuth2ServerError < {{apiErrorParent}}
-        attr_reader :status_code, :code, :description, :uri, :raw_body
-
-        def initialize(status_code, code, description, uri, raw_body)
-          @status_code = status_code
-          @code = code
-          @description = description
-          @uri = uri
-          @raw_body = raw_body
-          super(build_message)
-        end
-
-        private
-
-        def build_message
-          if @code.nil?
-            "Token request failed with status #{@status_code}: #{@raw_body}"
-          elsif @description
-            "Token request failed with status #{@status_code}: #{@code} -- #{@description}"
-          else
-            "Token request failed with status #{@status_code}: #{@code}"
           end
         end
       end

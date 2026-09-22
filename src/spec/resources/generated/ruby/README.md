@@ -70,7 +70,7 @@ base64 text from the wire. The transport layer base64-decodes on
 read and base64-encodes (strict, no line breaks) on write.
 
 ```ruby
-model = PetstoreClient::ObjectSerializer.deserialize(json, 'BinaryVault')
+model = Petstore::Client::ObjectSerializer.deserialize(json, 'BinaryVault')
 model.seal.encoding  # => #<Encoding:ASCII-8BIT>
 File.binwrite('out.bin', model.seal)
 ```

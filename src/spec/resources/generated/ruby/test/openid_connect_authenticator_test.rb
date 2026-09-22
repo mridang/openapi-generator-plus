@@ -24,7 +24,7 @@ class FakeOidcClient
   def send_request(method, url, headers, body, no_redirect: false)
     @requests << { method: method, url: url, headers: headers, body: body, no_redirect: no_redirect }
     response = @responses.shift || @responses.last
-    PetstoreClient::ApiHttpResponse.new(
+    Petstore::Client::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].is_a?(String) ? response[:body] : response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
@@ -32,7 +32,7 @@ class FakeOidcClient
   end
 end
 
-describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
+describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
   parallelize_me!
 
   let(:discovery_response) do
@@ -51,7 +51,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
 
   it 'builds authorization URL from discovery' do
     client = FakeOidcClient.new([discovery_response])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',
@@ -71,7 +71,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
 
   it 'fetches discovery document' do
     client = FakeOidcClient.new([discovery_response])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',
@@ -88,7 +88,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
 
   it 'obtains token after code exchange' do
     client = FakeOidcClient.new([discovery_response, token_response])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',
@@ -107,7 +107,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
 
   it 'getAuthHeaders returns Bearer after exchange' do
     client = FakeOidcClient.new([discovery_response, token_response])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',
@@ -123,7 +123,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
   end
 
   it 'throws when no ApiClient injected' do
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',
@@ -132,13 +132,14 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
       %w[openid]
     )
 
-    assert_raises(PetstoreClient::ApiError) do
+    err = assert_raises(RuntimeError) do
       auth.build_authorization_url
     end
+    _(err).must_be_instance_of RuntimeError
   end
 
   it 'getHost returns configured host' do
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',
@@ -153,7 +154,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
   # than issue a second GET to the discovery endpoint.
   it 'fetches discovery document only once' do
     client = FakeOidcClient.new([discovery_response])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id', 'my_client_secret',
@@ -172,47 +173,78 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
   # surface as a typed ApiError, not as a downstream "invalid JSON" error.
   it 'raises ApiError when discovery returns a non-2xx status' do
     client = FakeOidcClient.new([{ status: 500, body: '<html>error</html>' }])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id', 'my_client_secret',
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises(PetstoreClient::ApiError) { auth.build_authorization_url }
+    assert_raises(Petstore::Client::ApiError) { auth.build_authorization_url }
   end
 
   # oauth-oidc-missing-endpoint-guard: a discovery document missing the
   # required endpoints must raise a typed ApiError up front, not NPE later.
-  it 'raises ApiError when discovery omits authorization_endpoint' do
+  it 'raises SerializationError when discovery omits authorization_endpoint' do
     client = FakeOidcClient.new([{ status: 200, body: { 'token_endpoint' => 'https://auth.example.com/token' } }])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id', 'my_client_secret',
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises(PetstoreClient::ApiError) { auth.build_authorization_url }
+    assert_raises(Petstore::Client::SerializationError) { auth.build_authorization_url }
   end
 
-  it 'raises ApiError when discovery omits token_endpoint' do
+  it 'raises SerializationError when discovery omits token_endpoint' do
     client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id', 'my_client_secret',
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises(PetstoreClient::ApiError) { auth.build_authorization_url }
+    assert_raises(Petstore::Client::SerializationError) { auth.build_authorization_url }
+  end
+
+  it 'raises SerializationError when the discovery document is not JSON' do
+    client = FakeOidcClient.new([{ status: 200, body: '<html>not json</html>' }])
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    err = assert_raises(Petstore::Client::SerializationError) { auth.build_authorization_url }
+    _(err).must_be_instance_of Petstore::Client::SerializationError
+  end
+
+  # Discovery is an HTTP call like any other: a non-2xx answer raises the
+  # same status-specific error an API call would.
+  { 404 => Petstore::Client::Errors::NotFoundError, 500 => Petstore::Client::Errors::InternalServerError }.each do |status, error_class|
+    it "raises #{error_class} when discovery answers #{status}" do
+      client = FakeOidcClient.new([{ status: status, body: '{}' }])
+      auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my_client_id', 'my_client_secret',
+        'https://app.example.com/callback', %w[openid]
+      )
+      auth.api_client = client
+      err = assert_raises(error_class) { auth.build_authorization_url }
+      _(err).must_be_instance_of error_class
+      _(err.status_code).must_equal status
+    end
   end
 
   it 'masks the client secret in inspect' do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret. The overridden
     # inspect must mask it.
-    secret_auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    secret_auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',
@@ -228,7 +260,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
   end
 
   def test_redacts_secret
-    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
       'my_client_id',

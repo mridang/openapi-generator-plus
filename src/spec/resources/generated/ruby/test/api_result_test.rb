@@ -12,11 +12,11 @@
 require 'minitest/autorun'
 require 'petstore_client'
 
-describe PetstoreClient::ApiResult do
+describe Petstore::Client::ApiResult do
   parallelize_me!
 
   it 'exposes the status code' do
-    result = PetstoreClient::ApiResult.new(
+    result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: {}
     )
     _(result.status_code).must_equal 200
@@ -24,21 +24,21 @@ describe PetstoreClient::ApiResult do
 
   it 'exposes the deserialized data' do
     data = { 'id' => 1, 'name' => 'Dogs' }
-    result = PetstoreClient::ApiResult.new(
+    result = Petstore::Client::ApiResult.new(
       status_code: 200, data: data, raw_body: '{"id":1,"name":"Dogs"}', headers: {}
     )
     _(result.data).must_equal data
   end
 
   it 'allows nil data for empty responses' do
-    result = PetstoreClient::ApiResult.new(
+    result = Petstore::Client::ApiResult.new(
       status_code: 204, data: nil, raw_body: '', headers: {}
     )
     _(result.data).must_be_nil
   end
 
   it 'exposes the raw body' do
-    result = PetstoreClient::ApiResult.new(
+    result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '{"id":1}', headers: {}
     )
     _(result.raw_body).must_equal '{"id":1}'
@@ -46,7 +46,7 @@ describe PetstoreClient::ApiResult do
 
   it 'exposes the response headers' do
     headers = { 'Content-Type' => 'application/json', 'X-Request-Id' => 'abc123' }
-    result = PetstoreClient::ApiResult.new(
+    result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: headers
     )
     _(result.headers).must_equal headers
@@ -54,7 +54,7 @@ describe PetstoreClient::ApiResult do
   end
 
   it 'freezes the headers map' do
-    result = PetstoreClient::ApiResult.new(
+    result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: { 'Content-Type' => 'application/json' }
     )
     _(result.headers).must_be :frozen?
