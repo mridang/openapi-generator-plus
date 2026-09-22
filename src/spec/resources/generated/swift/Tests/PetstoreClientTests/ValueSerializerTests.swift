@@ -621,14 +621,14 @@ import Testing
   // ConfigurationError.invalidArgument: a caller mistake, never a trap.
   @Test func testEmptyStringPathParamThrows() {
     let error = #expect(throws: ConfigurationError.self) {
-      try ValueSerializer.requirePathParam("id", "", operation: "PetApi.getPetById")
+      try ValueSerializer.requirePathParam("id", "", operation: "Api.operation")
     }
     guard case .invalidArgument? = error else {
       Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
       return
     }
     #expect(throws: Never.self) {
-      try ValueSerializer.requirePathParam("id", "5", operation: "PetApi.getPetById")
+      try ValueSerializer.requirePathParam("id", "5", operation: "Api.operation")
     }
   }
 }
