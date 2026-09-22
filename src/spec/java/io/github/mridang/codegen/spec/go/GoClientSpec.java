@@ -18,7 +18,10 @@ public class GoClientSpec extends AbstractClientSpec implements GoSpec {
          * `.out/reports/`, so the per-test counts are reported like the other
          * languages'. Its exit code is the `go test` exit code. */
         return new String[] {
-            "mkdir -p .out/reports",
+            /* The report printed after this run is read from the host's golden
+             * directory; clear the previous run's there, so a run that fails
+             * before writing one does not print stale results. */
+            "rm -rf /app/.out/reports && mkdir -p .out/reports",
             "go run gotest.tools/gotestsum@v1.13.0 --format=standard-quiet"
                 + " --junitfile .out/reports/junit.xml -- -parallel=8 ./..."
         };
