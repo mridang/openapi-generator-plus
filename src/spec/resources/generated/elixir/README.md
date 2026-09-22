@@ -98,7 +98,9 @@ through a local HTTP-CONNECT bridge or configure it at the OS level.
 
 ### Per-call cancellation
 
-The SDK has no cancellation API of its own; bound a call with the timeout option.
+The SDK has no cancellation API of its own. To bound how long a call can
+take, set the request timeout on `TransportOptions`; a call that exceeds it
+fails with `NetworkTimeoutError`.
 
 ### `LICENSE` file is not auto-emitted
 
