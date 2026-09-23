@@ -67,7 +67,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
     %__MODULE__{
       transport_options: opts,
-      base_req: Req.new(build_static_req_options(opts)),
+      base_req: Req.new(request_options(opts)),
       proxy_auth_header: build_proxy_auth_header(opts.proxy),
       closed: :atomics.new(1, signed: false)
     }
@@ -103,7 +103,7 @@ defmodule PetstoreClient.DefaultApiClient do
   # Gap AK: Finch's proxy tuple has no slot for basic-auth credentials,
   # so userinfo embedded in the proxy URL (`http://user:pass@host:port`)
   # would be silently dropped. Extract it as a Proxy-Authorization value,
-  # which build_static_req_options/1 hands to the proxy connection.
+  # which request_options/1 hands to the proxy connection.
   defp build_proxy_auth_header(nil), do: nil
 
   defp build_proxy_auth_header(proxy_url) when is_binary(proxy_url) do
@@ -243,7 +243,7 @@ defmodule PetstoreClient.DefaultApiClient do
     # across cross-origin 3xx redirects by default, which leaks bearer
     # tokens to attacker-controlled hosts via malicious 302. We've
     # disabled Req's built-in redirect follower (redirect: false in
-    # build_static_req_options) and follow Location: headers manually
+    # request_options) and follow Location: headers manually
     # here, stripping the sensitive headers when the next URL's origin
     # (scheme + host + port) differs from the original.
     # Gap 3.2: callers (notably Auth.OAuth.OAuth2TokenManager) can pass
@@ -270,7 +270,7 @@ defmodule PetstoreClient.DefaultApiClient do
         ] ->
           reraise e, __STACKTRACE__
 
-        e in [Req.TransportError, Req.HTTPError] ->
+        e in [Req.TransportError, Req.HTTPError, Finch.Error] ->
           reraise transport_error(e), __STACKTRACE__
 
         # A malformed request (a bad URL, an unsupported method) is a caller
@@ -304,11 +304,31 @@ defmodule PetstoreClient.DefaultApiClient do
     }
   end
 
+  @doc """
+  Classifies a transport failure — a request that produced no HTTP response —
+  into the SDK's error type. Public so a test can assert the classification of
+  each deadline the client arms without having to make each one expire.
+  """
+  @spec classify_transport_error(Exception.t()) :: Exception.t()
+  def classify_transport_error(e), do: transport_error(e)
+
   # No HTTP response: a `Req.TransportError` whose reason is `:timeout` is a
   # NetworkTimeoutError; any other transport failure (connection refused, DNS,
   # TLS, reset, malformed HTTP) is a NetworkError. Both carry status 0 and keep
   # the Req exception as `cause`.
   defp transport_error(%Req.TransportError{reason: :timeout} = e) do
+    PetstoreClient.Errors.NetworkTimeoutError.exception(
+      message: Exception.message(e),
+      status_code: 0,
+      cause: e
+    )
+  end
+
+  # A pool checkout that blows its deadline is a `Finch.Error`, not a
+  # `Req.TransportError`, so it used to fall through to the generic clause and
+  # arrive as a NetworkError. It is the same expired `:timeout` option as the
+  # other three deadlines and gets the same type.
+  defp transport_error(%Finch.Error{reason: :pool_timeout} = e) do
     PetstoreClient.Errors.NetworkTimeoutError.exception(
       message: Exception.message(e),
       status_code: 0,
@@ -577,11 +597,17 @@ defmodule PetstoreClient.DefaultApiClient do
     :ok
   end
 
-  # Build the static portion of the Req options (everything that depends on
-  # TransportOptions and is fixed for the lifetime of the ApiClient). The
-  # per-request options (method, url, headers, body) are merged at the call
-  # site via Req.request!/2.
-  defp build_static_req_options(opts) do
+  @doc """
+  The static portion of the Req options: everything that depends on
+  `TransportOptions` and is fixed for the lifetime of the ApiClient. The
+  per-request options (method, url, headers, body) are merged at the call
+  site via `Req.request!/2`.
+
+  Public so a test can prove the single `:timeout` option arms every deadline
+  the stack has rather than only one of them.
+  """
+  @spec request_options(PetstoreClient.TransportOptions.t()) :: keyword()
+  def request_options(opts) do
     # Gap BH: always disable Req's auto-redirect; we follow Location
     # manually in send_request so we can strip Authorization / Cookie /
     # Proxy-Authorization on cross-origin hops.
@@ -602,9 +628,18 @@ defmodule PetstoreClient.DefaultApiClient do
 
     _ = opts.follow_redirects
 
+    # `:timeout` arms every deadline the stack has, not just one of them:
+    # `:receive_timeout` is the idle timer between chunks, the connect
+    # deadline below is the TCP/TLS handshake, `:pool_timeout` is the wait for
+    # a Finch connection, and the total budget is enforced by the Task below.
+    # Left unset, `:pool_timeout` keeps Req's own 5s default, so a client
+    # configured with a 30s timeout still failed after 5s — and as a
+    # NetworkError rather than the NetworkTimeoutError the other three raise.
     req_opts =
       if opts.timeout do
-        Keyword.put(req_opts, :receive_timeout, opts.timeout)
+        req_opts
+        |> Keyword.put(:receive_timeout, opts.timeout)
+        |> Keyword.put(:pool_timeout, opts.timeout)
       else
         req_opts
       end

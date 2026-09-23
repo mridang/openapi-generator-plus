@@ -19,5 +19,45 @@ defmodule PetstoreClient do
   ## Usage
 
       client = PetstoreClient.Client.with_token("https://api.example.com", "my-token")
+
+  ## Errors
+
+  Every error this SDK raises lives under `PetstoreClient.Errors`:
+
+      PetstoreClient.Errors.OpenAPIError   # the branded grouping
+      PetstoreClient.Errors.ApiError       # an HTTP response the call could not use
+      PetstoreClient.Errors.ClientError    # 4xx grouping
+      PetstoreClient.Errors.BadRequestError
+      PetstoreClient.Errors.UnauthorizedError
+      PetstoreClient.Errors.ForbiddenError
+      PetstoreClient.Errors.NotFoundError
+      PetstoreClient.Errors.ConflictError
+      PetstoreClient.Errors.UnprocessableEntityError
+      PetstoreClient.Errors.ServerError    # 5xx grouping
+      PetstoreClient.Errors.InternalServerError
+      PetstoreClient.Errors.NetworkError   # no response at all
+      PetstoreClient.Errors.NetworkTimeoutError
+      PetstoreClient.Errors.SerializationError
+      PetstoreClient.Errors.OAuth2ServerError
+      PetstoreClient.Errors.OAuth2TokenError
+
+  `errors/0` and `error?/1` are re-exported here so the whole tree is
+  reachable from the package root, as it is in the other SDKs.
   """
+
+  @doc """
+  The canonical list of every exception module this SDK can raise. Use it
+  in a single `rescue` clause to catch any SDK error.
+
+      rescue
+        e in PetstoreClient.errors() -> handle(e)
+  """
+  @spec errors() :: [module(), ...]
+  defdelegate errors(), to: PetstoreClient.Errors.OpenAPIError, as: :exceptions
+
+  @doc """
+  Whether `term` is an exception raised by this SDK.
+  """
+  @spec error?(term()) :: boolean()
+  defdelegate error?(term), to: PetstoreClient.Errors.OpenAPIError, as: :open_api_error?
 end

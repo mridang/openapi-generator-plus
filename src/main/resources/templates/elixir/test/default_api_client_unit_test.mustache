@@ -557,6 +557,38 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert {{moduleName}}.Errors.ApiError.api_error?(err)
   end
 
+  # The one `:timeout` option arms four separate deadlines, and each of them
+  # must classify as NetworkTimeoutError. Three are Mint/Req timeouts that
+  # arrive as `%Req.TransportError{reason: :timeout}`; the pool checkout is a
+  # `%Finch.Error{reason: :pool_timeout}`, which used to miss the transport
+  # clause entirely and surface the same expired deadline as a NetworkError.
+  test "every configured deadline classifies as NetworkTimeoutError" do
+    for cause <- [
+          %Req.TransportError{reason: :timeout},
+          %Finch.Error{reason: :pool_timeout}
+        ] do
+      err = {{moduleName}}.DefaultApiClient.classify_transport_error(cause)
+
+      assert %{{moduleName}}.Errors.NetworkTimeoutError{} = err
+      assert err.status_code == 0
+      assert err.cause == cause
+      assert {{moduleName}}.Errors.NetworkError.network_error?(err)
+    end
+  end
+
+  # Every deadline is armed from the single `:timeout` option: the idle timer,
+  # the connect handshake and the pool checkout. Leaving one of them at the
+  # library's own default is what made the same expired budget surface under
+  # two different types.
+  test "the timeout option arms every deadline the stack has" do
+    transport = {{moduleName}}.TransportOptions.new(timeout: 3_000)
+    opts = {{moduleName}}.DefaultApiClient.request_options(transport)
+
+    assert Keyword.get(opts, :receive_timeout) == 3_000
+    assert Keyword.get(opts, :pool_timeout) == 3_000
+    assert Keyword.get(Keyword.get(opts, :connect_options, []), :timeout) == 3_000
+  end
+
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
