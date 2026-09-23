@@ -1041,6 +1041,26 @@ test('transport timeout raises NetworkTimeoutException', function (): void {
         });
 });
 
+test('exceeding the total duration budget raises NetworkTimeoutException', function (): void {
+    /* The client sets both `timeout` (idle) and `max_duration` (total). Only
+     * the idle timer throws Symfony's TimeoutException; blowing the total
+     * budget throws a plain TransportException, so the same expired deadline
+     * used to surface as NetworkException depending on which timer fired
+     * first. It is a timeout either way. */
+    $client = new StubbedDefaultApiClient(new MockHttpClient(function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException(
+            'Max duration was reached for "http://example.com/slow".'
+        );
+    }));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/slow', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkException::class);
+            expect($e->getCode())->toBe(0);
+        });
+});
+
 test('decompresses a valid gzip-encoded response body', function (): void {
     /* Baseline for the decompression error-wrapping test below: a well-formed
      * gzip body declared via Content-Encoding is transparently inflated so the
