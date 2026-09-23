@@ -1125,6 +1125,45 @@ func TestDefaultApiClient_TimeoutReturnsNetworkTimeoutError(t *testing.T) {
 	}
 }
 
+// http.Client.Timeout is the one deadline the client sets, and it spans the
+// body read as well as the connect and header phases. A response whose headers
+// arrive inside the budget and whose body then stalls past it fails in
+// io.ReadAll, a different call site from the one above, and it must classify
+// as the same *NetworkTimeoutError rather than a bare *NetworkError.
+func TestDefaultApiClient_BodyReadTimeoutReturnsNetworkTimeoutError(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		/* Headers and one byte go out immediately, so the client is past the
+		 * header phase; the body is then never finished. */
+		w.Header().Set("Content-Length", "1024")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("x"))
+		w.(http.Flusher).Flush()
+		<-release
+	}))
+	defer server.Close()
+	defer close(release)
+
+	transport, err := NewTransportOptionsBuilder().Timeout(200).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err = client.SendRequest("GET", server.URL+"/trickle", map[string]string{}, nil)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+	if timeoutErr.StatusCode() != 0 {
+		t.Errorf("expected StatusCode 0, got %d", timeoutErr.StatusCode())
+	}
+	var netErr2 *pkgerrors.NetworkError
+	if !errors.As(err, &netErr2) {
+		t.Errorf("expected *NetworkTimeoutError to be a *NetworkError, got %T", err)
+	}
+}
+
 // multipart-nonascii-field-name: a non-ASCII multipart field name must be
 // preserved as UTF-8 bytes in the Content-Disposition header, not transliterated
 // or stripped — matching the other SDKs. buildMultipartBody is exercised
