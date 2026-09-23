@@ -19,9 +19,14 @@ public class ElixirClientSpec extends AbstractClientSpec implements ElixirSpec {
              * directory; clear the previous run's there, so a run that fails
              * before writing one does not print stale results. */
             "rm -rf /app/.out/reports && mkdir -p .out/reports",
-            /* Test files compile only when the suite runs, so their warnings
-             * fail the run here. */
-            "mix test --warnings-as-errors"
+            /* Not --warnings-as-errors: the suite has to call the operations
+             * the spec marks deprecated, and Elixir emits a deprecation
+             * warning at every such call site with no way to suppress one.
+             * The sources are compiled with warnings as errors by
+             * ElixirLintingSpec, and the test files are linted there too, by
+             * `mix credo --strict` over the generated .credo.exs, whose
+             * `included` list covers test/. */
+            "mix test"
         };
     }
 

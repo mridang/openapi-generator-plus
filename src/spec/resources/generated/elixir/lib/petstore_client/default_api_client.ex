@@ -628,20 +628,18 @@ defmodule PetstoreClient.DefaultApiClient do
 
     _ = opts.follow_redirects
 
-    # `:timeout` arms every deadline the stack has, not just one of them:
-    # `:receive_timeout` is the idle timer between chunks, the connect
-    # deadline below is the TCP/TLS handshake, `:pool_timeout` is the wait for
-    # a Finch connection, and the total budget is enforced by the Task below.
-    # Left unset, `:pool_timeout` keeps Req's own 5s default, so a client
-    # configured with a 30s timeout still failed after 5s — and as a
-    # NetworkError rather than the NetworkTimeoutError the other three raise.
+    # `:timeout` arms every deadline this client is allowed to set:
+    # `:receive_timeout` is the idle timer between chunks, the connect deadline
+    # below is the TCP/TLS handshake, and the total budget is enforced by the
+    # Task in send_request. The pool checkout keeps Req's own default: its
+    # `:pool_timeout` lives under `:finch`, and Req refuses `:finch` together
+    # with the `:connect_options` this client needs for the proxy, the CA
+    # bundle and that connect deadline. A blown pool checkout is still an
+    # expired deadline, so transport_error/1 classifies it as
+    # NetworkTimeoutError rather than letting it arrive as a NetworkError.
     req_opts =
       if opts.timeout do
-        req_opts
-        |> Keyword.put(:receive_timeout, opts.timeout)
-        |> Keyword.update(:finch, [pool_timeout: opts.timeout], fn finch ->
-          Keyword.put(finch, :pool_timeout, opts.timeout)
-        end)
+        Keyword.put(req_opts, :receive_timeout, opts.timeout)
       else
         req_opts
       end

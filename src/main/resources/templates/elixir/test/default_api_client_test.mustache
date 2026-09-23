@@ -355,7 +355,7 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     )
 
     client = {{moduleName}}.DefaultApiClient.new(transport)
-    assert client != nil
+    assert %{{moduleName}}.DefaultApiClient{} = client
     assert transport.max_redirects == 5
   end
 
@@ -467,7 +467,7 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     form_data = %{"description" => "A test file", "file" => "file content"}
     response = {{moduleName}}.DefaultApiClient.send_request(client, :post, "#{chasm_url}/test/echo", %{}, form_data)
 
-    assert response != nil
+    assert %{{moduleName}}.ApiHttpResponse{} = response
   end
 
   test "rejects multipart field name with CRLF (Gap W2)" do

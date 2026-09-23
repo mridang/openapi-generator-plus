@@ -576,17 +576,20 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     end
   end
 
-  # Every deadline is armed from the single `:timeout` option: the idle timer,
-  # the connect handshake and the pool checkout. Leaving one of them at the
-  # library's own default is what made the same expired budget surface under
-  # two different types.
+  # Every deadline this client is allowed to set is armed from the single
+  # `:timeout` option: the idle timer and the connect handshake. Leaving one of
+  # them at the library's own default is what makes the same expired budget
+  # surface under two different types.
   test "the timeout option arms every deadline the stack has" do
     transport = {{moduleName}}.TransportOptions.new(timeout: 3_000)
     opts = {{moduleName}}.DefaultApiClient.request_options(transport)
 
     assert Keyword.get(opts, :receive_timeout) == 3_000
-    assert Keyword.get(Keyword.get(opts, :finch, []), :pool_timeout) == 3_000
     assert Keyword.get(Keyword.get(opts, :connect_options, []), :timeout) == 3_000
+    # The pool checkout cannot be armed from here: Req keeps `:pool_timeout`
+    # under `:finch` and refuses `:finch` alongside `:connect_options`. It is
+    # covered by classification instead, above.
+    refute Keyword.has_key?(opts, :finch)
   end
 
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do

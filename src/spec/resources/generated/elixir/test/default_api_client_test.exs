@@ -456,7 +456,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
-    assert client != nil
+    assert %PetstoreClient.DefaultApiClient{} = client
     assert transport.max_redirects == 5
   end
 
@@ -590,7 +590,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
         form_data
       )
 
-    assert response != nil
+    assert %PetstoreClient.ApiHttpResponse{} = response
   end
 
   test "rejects multipart field name with CRLF (Gap W2)" do
