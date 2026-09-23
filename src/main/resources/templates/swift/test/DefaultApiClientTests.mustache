@@ -1,4 +1,12 @@
 {{>api_info}}
+/* This suite drives the client through a stub URLProtocol that reports
+   redirects and configures proxies. swift-corelibs-foundation traps on the
+   first — "The URLSession swift-corelibs-foundation implementation doesn't
+   currently handle redirects directly" — and has no connectionProxyDictionary
+   for the second, so the suite runs on the Apple platforms. The parts that do
+   not need a stubbed redirect live in DefaultApiClientUnitTests, which runs
+   everywhere. */
+#if !os(Linux)
 import Foundation
 import Testing
 
@@ -48,11 +56,6 @@ import FoundationNetworking
         #expect(resp.statusCode == 200)
     }
 
-    /* Configuring a proxy throws on Linux, where URLSession has no
-     * connectionProxyDictionary, so the proxy cases run on the Apple
-     * platforms only. Everything else in this suite is platform-independent
-     * and runs everywhere. */
-#if !os(Linux)
     @Test func testMakesHttpRequestThroughProxy() async throws {
         let transport = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
         let client = makeClient(transport: transport) { _ in
@@ -127,7 +130,6 @@ import FoundationNetworking
             method: "GET", url: "https://example.com", headers: [:], body: nil)
         #expect(resp.statusCode == 200)
     }
-#endif
 
     @Test func testTimesOutOnSlowEndpoint() async throws {
         let transport = TransportOptionsBuilder().timeout(1).build()
@@ -818,3 +820,4 @@ private final class RedirectStubURLProtocol: URLProtocol {
 
     override func stopLoading() {}
 }
+#endif
