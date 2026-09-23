@@ -1129,6 +1129,50 @@ async fn test_timeout_returns_network_timeout_error() {
     );
 }
 
+/// `timeout` is the one deadline the client arms, and reqwest applies it to
+/// the whole transfer: connect, headers and body alike. A response whose
+/// headers arrive inside the budget and whose body then stalls past it fails
+/// at a different call site (`response.bytes()`), and it must classify as the
+/// same NetworkTimeoutError rather than a bare NetworkError.
+#[tokio::test]
+async fn test_body_read_timeout_returns_network_timeout_error() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    /* Headers and one body byte go out immediately, so the client is past the
+     * header phase; the promised body is then never finished. */
+    thread::spawn(move || {
+        if let Some(Ok(mut stream)) = listener.incoming().next() {
+            use std::io::Write;
+            let _ = stream.write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1024\r\n\r\nx",
+            );
+            let _ = stream.flush();
+            thread::sleep(std::time::Duration::from_secs(5));
+        }
+    });
+
+    let transport = TransportOptionsBuilder::new()
+        .timeout(300)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let result = client
+        .send_request(
+            "GET",
+            &format!("http://{}/trickle", addr),
+            &HashMap::new(),
+            None,
+        )
+        .await;
+
+    let err = result.expect_err("a body read past the timeout must fail");
+    let timeout_err = err
+        .downcast_ref::<NetworkTimeoutError>()
+        .unwrap_or_else(|| panic!("expected NetworkTimeoutError, got: {}", err));
+    let api_err = timeout_err.network_error().api_error();
+    assert_eq!(api_err.status_code(), 0, "a timeout has status 0");
+}
+
 /// Gap T6: a request issued AFTER `close()` is a wrong call order. It fails
 /// fast with `ConfigurationError::InvalidState` — not an SDK error, not a
 /// silent success, and not a foreign reqwest error.

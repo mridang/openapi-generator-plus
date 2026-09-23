@@ -435,10 +435,12 @@ impl ApiClient for DefaultApiClient {
                 .get("content-type")
                 .cloned()
                 .unwrap_or_default();
-            // Gap: a body-read failure that occurs AFTER response headers are
-            // received (connection reset, read timeout, truncated chunked
-            // transfer) is wrapped in the uniform NetworkError (statusCode 0),
-            // the same treatment a send-phase failure gets.
+            // A body-read failure that occurs AFTER response headers are
+            // received (connection reset, truncated chunked transfer) goes
+            // through the same classifier as a send-phase failure, so the
+            // deadline that `timeout` arms produces NetworkTimeoutError here
+            // too and everything else produces NetworkError. Both carry
+            // status 0.
             let raw_bytes = response.bytes().await.map_err(transport_error)?;
             // A body that arrived but cannot be decompressed is not a network
             // failure: the server answered, so it is an ApiError carrying the
