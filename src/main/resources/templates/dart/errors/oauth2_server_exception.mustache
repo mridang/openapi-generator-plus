@@ -1,0 +1,46 @@
+{{>api_info}}
+import '{{errorPrefixSnake}}_exception.dart';
+
+/// Thrown when the token endpoint answers with a non-2xx status, including a
+/// 3xx redirect, which the token POST never follows.
+/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// [code] field carries the OAuth2 error code (e.g. `invalid_grant`,
+/// `invalid_client`); [description] and [uri] are the optional
+/// human-readable description and a URL to a page describing the error.
+/// [rawBody] preserves the original response payload for diagnostics when
+/// the body is not a well-formed OAuth2 error object.
+class OAuth2ServerException extends {{errorPrefix}}Exception {
+  final int statusCode;
+  final String? code;
+  final String? description;
+  final String? uri;
+  final String rawBody;
+  @override
+  final String message;
+
+  OAuth2ServerException(
+    this.statusCode,
+    this.code,
+    this.description,
+    this.uri,
+    this.rawBody,
+  ) : message = _buildMessage(statusCode, code, description, rawBody);
+
+  static String _buildMessage(
+    int statusCode,
+    String? code,
+    String? description,
+    String rawBody,
+  ) {
+    if (code == null) {
+      return 'Token request failed with status $statusCode: $rawBody';
+    }
+    if (description != null) {
+      return 'Token request failed with status $statusCode: $code -- $description';
+    }
+    return 'Token request failed with status $statusCode: $code';
+  }
+
+  @override
+  String toString() => 'OAuth2ServerException: $message';
+}

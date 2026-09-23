@@ -76,6 +76,26 @@ abstract class AbstractApiClient implements ApiClient {
   /// transport only ever sees them wrapped in `http.ClientException`.
   bool isNetworkError(Object error) => false;
 
+  /// Matches the wording `dart:io` uses when a deadline expires, so the
+  /// connect deadline is classified the same way the total one is.
+  static final RegExp _timedOutMessage = RegExp(
+    r'timed? ?out',
+    caseSensitive: false,
+  );
+
+  /// Whether [message] describes an expired deadline rather than another
+  /// transport failure.
+  ///
+  /// The client sets two deadlines: `HttpClient.connectionTimeout` on the
+  /// connect phase and `Future.timeout` on the whole request. Only the
+  /// second throws `dart:async`'s TimeoutException; the connect deadline
+  /// throws a SocketException that `package:http` rewraps as a
+  /// ClientException, so the same expired deadline surfaced as
+  /// NetworkException or NetworkTimeoutException depending on which timer
+  /// fired first. It is a timeout either way.
+  static bool isTimeoutMessage(String message) =>
+      _timedOutMessage.hasMatch(message);
+
   /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
   /// embedded in the proxy URL, or returns null when no credentials are
   /// present. Percent-encoded userinfo is decoded before encoding.
@@ -375,7 +395,11 @@ abstract class AbstractApiClient implements ApiClient {
        * failures (truncated/malformed chunked body, connection reset
        * mid-stream) — and wraps native socket/TLS errors from its IOClient —
        * as ClientException. No HTTP response arrived, so it is a
-       * NetworkException (an ApiException with status 0). */
+       * NetworkException (an ApiException with status 0) -- unless the
+       * connect deadline is what expired, which is a timeout. */
+      if (isTimeoutMessage(e.message)) {
+        throw NetworkTimeoutException(message: e.message, underlyingError: e);
+      }
       throw NetworkException(message: e.message, underlyingError: e);
     } on TimeoutException catch (e) {
       /* `Future.timeout` throws dart:async's TimeoutException, which is
@@ -392,6 +416,12 @@ abstract class AbstractApiClient implements ApiClient {
        * other error is wrapped as a plain ApiException so no foreign exception
        * type escapes the SDK surface. */
       if (isNetworkError(e)) {
+        if (isTimeoutMessage(e.toString())) {
+          throw NetworkTimeoutException(
+            message: e.toString(),
+            underlyingError: e,
+          );
+        }
         throw NetworkException(message: e.toString(), underlyingError: e);
       }
       throw ApiException(statusCode: 0, message: e.toString(), underlyingError: e);

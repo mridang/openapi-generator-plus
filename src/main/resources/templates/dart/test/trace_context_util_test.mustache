@@ -1,10 +1,16 @@
 {{>api_info}}
 {{#generateTests}}
+import 'package:opentelemetry/api.dart' as otel;
+import 'package:opentelemetry/sdk.dart' as otel_sdk;
 import 'package:test/test.dart';
 import 'package:{{packageName}}/src/trace_context_util.dart';
 
 void main() {
   group('TraceContextUtil', () {
+    tearDown(() {
+      TraceContextUtil.propagator = null;
+    });
+
     test('is a no-op without tracer', () {
       final headers = {'X-Existing': 'value'};
 
@@ -76,25 +82,147 @@ void main() {
       expect(headers['X-Request-ID'], equals('abc-123'));
     });
 
-    // .NET-specific scenario: Dart has no ambient tracer like .NET Activity.Current;
-    // injecting a real active span requires a fully configured OpenTelemetry SDK.
-    test('injects traceparent when a span is active', () {},
-        skip: 'no ambient tracer; active-span injection requires a configured OpenTelemetry SDK');
+    test('injects traceparent when a span is active', () {
+      final exporter = _InMemorySpanExporter();
+      final tracer = _sdkTracer(exporter);
+      final headers = <String, String>{};
 
-    // .NET-specific scenario: setting tracestate on an active span requires a fully
-    // configured OpenTelemetry SDK, which is out of scope for this unit test.
-    test('includes tracestate when present on the active span', () {},
-        skip: 'no ambient tracer; tracestate-present requires a configured OpenTelemetry SDK');
+      final span = tracer.startSpan('request');
+      _propagateFrom(otel.contextWithSpan(otel.Context.root, span));
+      TraceContextUtil.injectTraceContext(headers);
+      span.end();
 
-    // .NET-specific scenario: exercising an empty tracestate on an active span
-    // requires a fully configured OpenTelemetry SDK, which is out of scope here.
-    test('omits tracestate when empty on the active span', () {},
-        skip: 'no ambient tracer; empty-tracestate requires a configured OpenTelemetry SDK');
+      final spanContext = span.spanContext;
+      final flags = spanContext.traceFlags.toRadixString(16).padLeft(2, '0');
+      expect(
+        headers['traceparent'],
+        equals('00-${spanContext.traceId}-${spanContext.spanId}-$flags'),
+      );
+      expect(exporter.spans.map((s) => s.name), equals(['request']));
+    });
 
-    // .NET-specific scenario: verifying the recorded trace-flags byte requires a
-    // fully configured OpenTelemetry SDK with an active span.
-    test('formats trace flags correctly on the active span', () {},
-        skip: 'no ambient tracer; trace-flags formatting requires a configured OpenTelemetry SDK');
+    test('includes tracestate when present on the active span', () {
+      final tracer = _sdkTracer(_InMemorySpanExporter());
+      final headers = <String, String>{};
+
+      final span = tracer.startSpan(
+        'request',
+        context: _remoteParent('vendor=value'),
+      );
+      _propagateFrom(otel.contextWithSpan(otel.Context.root, span));
+      TraceContextUtil.injectTraceContext(headers);
+      span.end();
+
+      expect(headers['tracestate'], equals('vendor=value'));
+    });
+
+    test('omits tracestate when empty on the active span', () {
+      final tracer = _sdkTracer(_InMemorySpanExporter());
+      final headers = <String, String>{};
+
+      final span = tracer.startSpan('request');
+      _propagateFrom(otel.contextWithSpan(otel.Context.root, span));
+      TraceContextUtil.injectTraceContext(headers);
+      span.end();
+
+      expect(headers['traceparent'], isNotNull);
+      expect(headers.containsKey('tracestate'), isFalse);
+    });
+
+    test('formats trace flags correctly on the active span', () {
+      final sampled = _sdkTracer(_InMemorySpanExporter());
+      final unsampled = _sdkTracer(
+        _InMemorySpanExporter(),
+        sampler: const otel_sdk.AlwaysOffSampler(),
+      );
+      final sampledHeaders = <String, String>{};
+      final unsampledHeaders = <String, String>{};
+
+      final sampledSpan = sampled.startSpan('sampled');
+      _propagateFrom(otel.contextWithSpan(otel.Context.root, sampledSpan));
+      TraceContextUtil.injectTraceContext(sampledHeaders);
+      sampledSpan.end();
+
+      final unsampledSpan = unsampled.startSpan('unsampled');
+      _propagateFrom(otel.contextWithSpan(otel.Context.root, unsampledSpan));
+      TraceContextUtil.injectTraceContext(unsampledHeaders);
+      unsampledSpan.end();
+
+      final sampledFlags = sampledHeaders['traceparent']!.split('-')[3];
+      final unsampledFlags = unsampledHeaders['traceparent']!.split('-')[3];
+      /* Two lowercase hex digits; the low bit is the sampled flag. */
+      expect(sampledFlags, matches(r'^[0-9a-f]{2}$'));
+      expect(unsampledFlags, matches(r'^[0-9a-f]{2}$'));
+      expect(
+        int.parse(sampledFlags, radix: 16) & otel.TraceFlags.sampled,
+        equals(otel.TraceFlags.sampled),
+      );
+      expect(
+        int.parse(unsampledFlags, radix: 16) & otel.TraceFlags.sampled,
+        equals(0),
+      );
+    });
   });
+}
+
+/*
+ * Dart has no ambient tracer, so the span a request belongs to reaches the
+ * SDK through the propagator callback the application installs. These tests
+ * install the W3C propagator the OpenTelemetry SDK registers by default and
+ * drive their own tracer provider, so each test controls the span.
+ */
+final otel.TextMapPropagator _propagator = otel.W3CTraceContextPropagator();
+
+/// Injects [context]'s span into the headers, the way an application wires
+/// OpenTelemetry into [TraceContextUtil.propagator].
+void _propagateFrom(otel.Context context) {
+  TraceContextUtil.propagator = (headers) {
+    _propagator.inject(context, headers, _MapSetter());
+  };
+}
+
+/// A tracer from a real SDK provider that records every finished span in memory.
+otel.Tracer _sdkTracer(
+  _InMemorySpanExporter exporter, {
+  otel_sdk.Sampler sampler = const otel_sdk.AlwaysOnSampler(),
+}) =>
+    otel_sdk.TracerProviderBase(
+      processors: [otel_sdk.SimpleSpanProcessor(exporter)],
+      sampler: sampler,
+    ).getTracer('trace-context-test');
+
+/// A context whose active span is a sampled remote parent carrying the given
+/// tracestate.
+otel.Context _remoteParent(String traceState) => otel.contextWithSpanContext(
+      otel.Context.root,
+      otel.SpanContext.remote(
+        otel.TraceId.fromString('0af7651916cd43dd8448eb211c80319c'),
+        otel.SpanId.fromString('b7ad6b7169203331'),
+        otel.TraceFlags.sampled,
+        otel.TraceState.fromString(traceState),
+      ),
+    );
+
+/// Writes the propagated fields into a plain header map.
+class _MapSetter implements otel.TextMapSetter<Map<String, String>> {
+  @override
+  void set(Map<String, String> carrier, String key, String value) {
+    carrier[key] = value;
+  }
+}
+
+/// Keeps every exported span in memory so a test can assert on it.
+class _InMemorySpanExporter implements otel_sdk.SpanExporter {
+  final List<otel_sdk.ReadOnlySpan> spans = [];
+
+  @override
+  void export(List<otel_sdk.ReadOnlySpan> spans) => this.spans.addAll(spans);
+
+  @Deprecated('Removed from SpanExporter in opentelemetry 0.19.0.')
+  @override
+  void forceFlush() {}
+
+  @override
+  void shutdown() {}
 }
 {{/generateTests}}

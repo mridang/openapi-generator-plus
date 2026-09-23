@@ -758,10 +758,10 @@ void main() {
     // matching member. StockItem.priority is the model-field carrier, so this
     // exercises the same toJson()/fromJson() the generated model calls into.
     test('integer-backed Priority enum serializes as a JSON number', () {
-      expect(Priority.NUMBER_2.toJson(), equals(2));
-      expect(Priority.NUMBER_2.toJson(), isA<int>());
+      expect(Priority.number2.toJson(), equals(2));
+      expect(Priority.number2.toJson(), isA<int>());
 
-      final item = StockItem(priority: Priority.NUMBER_2);
+      final item = StockItem(priority: Priority.number2);
       final wire = item.toJson();
       // The number must be emitted as 2, never the string "2".
       expect(wire['priority'], equals(2));
@@ -773,10 +773,10 @@ void main() {
     });
 
     test('integer-backed Priority enum deserializes from a JSON number', () {
-      expect(Priority.fromJson(2), equals(Priority.NUMBER_2));
+      expect(Priority.fromJson(2), equals(Priority.number2));
 
       final restored = StockItem.fromJson(<String, dynamic>{'priority': 3});
-      expect(restored.priority, equals(Priority.NUMBER_3));
+      expect(restored.priority, equals(Priority.number3));
     });
 
     // -- DecimalAsNumberWireFormTests (WAVE B) --

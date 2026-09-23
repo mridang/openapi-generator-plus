@@ -7,8 +7,12 @@
 
 import 'dart:convert';
 
-import 'errors/open_api_exception.dart';
+import 'errors/serialization_exception.dart';
 import 'iso8601_duration.dart';
+/* SerializationException is declared in the errors directory with every other
+ * SDK error; re-exported here so the models that raise it keep importing one
+ * file. */
+export 'errors/serialization_exception.dart';
 export 'iso8601_duration.dart'
     show formatProtobufDuration, parseProtobufDuration, validatePartialTime;
 
@@ -56,27 +60,6 @@ class UuidValue {
 
   @override
   int get hashCode => uuid.hashCode;
-}
-
-/// SerializationException is thrown when serialization or deserialization fails.
-///
-/// Extends [OpenAPIException], the branded root of the exception hierarchy, so
-/// that `serializationError is OpenAPIException` holds alongside the API
-/// errors.
-class SerializationException extends OpenAPIException {
-  @override
-  final String message;
-  final Object? cause;
-
-  const SerializationException(this.message, [this.cause]);
-
-  @override
-  String toString() {
-    if (cause != null) {
-      return 'SerializationException: $message: $cause';
-    }
-    return 'SerializationException: $message';
-  }
 }
 
 /// Converts an object to a JSON string.

@@ -53,8 +53,8 @@ final client = Client(authenticator: authenticator);
 ```dart
 final authenticator = ApiKeyAuthenticator(
   host: 'https://api.example.com',
-  keyName: 'key-name',
-  keyValue: 'key-value',
+  keyParamName: 'key-name',
+  apiKey: 'key-value',
   location: ApiKeyLocation.header,
 );
 final client = Client(authenticator: authenticator);
@@ -79,9 +79,10 @@ final authenticator = OAuth2AuthorizationCodeAuthenticator(
   host: 'https://api.example.com',
   clientId: 'client-id',
   clientSecret: 'client-secret',
+  authorizationUrl: 'https://auth.example.com/authorize',
   tokenUrl: 'https://auth.example.com/token',
-  authorizationCode: 'authorization-code',
   redirectUri: 'https://app.example.com/callback',
+  scopes: ['read'],
 );
 final client = Client(authenticator: authenticator);
 ```
@@ -105,7 +106,13 @@ final client = Client(authenticator: authenticator);
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```dart
-final authenticator = OAuth2ImplicitAuthenticator(host: 'https://api.example.com', accessToken: 'your-access-token');
+final authenticator = OAuth2ImplicitAuthenticator(
+  host: 'https://api.example.com',
+  clientId: 'client-id',
+  authorizationUrl: 'https://auth.example.com/authorize',
+  scopes: ['read'],
+);
+authenticator.setAccessToken('your-access-token');
 final client = Client(authenticator: authenticator);
 ```
 
@@ -114,9 +121,11 @@ final client = Client(authenticator: authenticator);
 ```dart
 final authenticator = OpenIdConnectAuthenticator(
   host: 'https://api.example.com',
+  openIdConnectUrl: 'https://auth.example.com/.well-known/openid-configuration',
   clientId: 'client-id',
   clientSecret: 'client-secret',
-  discoveryUrl: 'https://auth.example.com/.well-known/openid-configuration',
+  redirectUri: 'https://app.example.com/callback',
+  scopes: ['openid'],
 );
 final client = Client(authenticator: authenticator);
 ```
@@ -167,9 +176,9 @@ final client = Client.withToken(host: server0.url(), accessToken: 'your-token');
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```dart
-class FakeAuthenticator implements Authenticator {
+class FakeAuthenticator extends BaseAuthenticator {
   @override
-  String get host => 'https://api.example.com';
+  String host() => 'https://api.example.com';
 
   @override
   Map<String, String> authHeaders() => {'Authorization': 'Bearer test-token'};

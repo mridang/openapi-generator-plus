@@ -2,17 +2,7 @@
 import 'dart:convert';
 
 import '../../api_client.dart';
-import '../../api_http_response.dart';
 import '../../errors/api_exception.dart';
-import '../../errors/bad_request_exception.dart';
-import '../../errors/client_exception.dart';
-import '../../errors/conflict_exception.dart';
-import '../../errors/forbidden_exception.dart';
-import '../../errors/internal_server_error_exception.dart';
-import '../../errors/not_found_exception.dart';
-import '../../errors/server_exception.dart';
-import '../../errors/unauthorized_exception.dart';
-import '../../errors/unprocessable_entity_exception.dart';
 import '../../object_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
@@ -95,49 +85,6 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     return delegate.authHeadersAsync();
   }
 
-  /// The exception an API call answered with the discovery response's
-  /// status would throw: the status-specific subclass where there is one,
-  /// else [ClientException] / [ServerException] / [ApiException].
-  ApiException _discoveryException(ApiHttpResponse response) {
-    final code = response.statusCode;
-    final message = 'OIDC discovery request to $_openIdConnectUrl failed';
-    final body = response.body;
-    final headers = response.headers;
-    switch (code) {
-      case 400:
-        return BadRequestException(
-            statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-      case 401:
-        return UnauthorizedException(
-            statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-      case 403:
-        return ForbiddenException(
-            statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-      case 404:
-        return NotFoundException(
-            statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-      case 409:
-        return ConflictException(
-            statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-      case 422:
-        return UnprocessableEntityException(
-            statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-      case 500:
-        return InternalServerErrorException(
-            statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-    }
-    if (code >= 400 && code < 500) {
-      return ClientException(
-          statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-    }
-    if (code >= 500) {
-      return ServerException(
-          statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-    }
-    return ApiException(
-        statusCode: code, message: message, responseBody: body, responseHeaders: headers);
-  }
-
   Future<OAuth2AuthorizationCodeAuthenticator> _resolveDelegate() async {
     if (_delegate != null && DateTime.now().isBefore(_discoveryExpiry)) {
       return _delegate!;
@@ -162,7 +109,11 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     /* Discovery is an HTTP call like any other: a non-2xx answer throws the
      * same status-specific exception an API call would. */
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw _discoveryException(response);
+      throw ApiException.fromResponse(
+        response.statusCode,
+        response.headers,
+        response.body,
+      );
     }
 
     final Object? decoded;

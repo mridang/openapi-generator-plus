@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:testcontainers_core/testcontainers_core.dart';
 
 late String proxyUrl;
+late String proxyAuthHostPort;
 late String chasmUrl;
 late String chasmHttpUrl;
 late String chasmHttpsUrl;
@@ -32,7 +33,7 @@ Future<void> setUpContainers() async {
   final squidConfFile = File('${fixtures.path}/proxy/squid.conf');
 
   _squidContainer = DockerContainer('ubuntu/squid:5.2-22.04_beta')
-      .withExposedPorts([3128])
+      .withExposedPorts([3128, 3129])
       .withCopyIntoContainer(
         PathTransferable(squidConfFile),
         '/etc/squid/squid.conf',
@@ -46,6 +47,11 @@ Future<void> setUpContainers() async {
   final squidHost = await _squidContainer.containerHostIp();
   final squidPort = await _squidContainer.exposedPort(3128);
   proxyUrl = 'http://$squidHost:$squidPort';
+  /* 3129 is the same proxy with Basic credentials required, so the proxy-auth
+   * tests can prove Proxy-Authorization is sent (and that 407 comes back
+   * when it is not). */
+  final squidAuthPort = await _squidContainer.exposedPort(3129);
+  proxyAuthHostPort = '$squidHost:$squidAuthPort';
 
   final specFile = File('${fixtures.path}/openapi.yaml');
   final chasmCertFile = File('${fixtures.path}/certs/server.pem');

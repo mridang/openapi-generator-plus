@@ -1,7 +1,17 @@
 {{>api_info}}
 import 'dart:convert';
 
+import '../object_serializer.dart';
+import 'bad_request_exception.dart';
+import 'client_exception.dart';
+import 'conflict_exception.dart';
+import 'forbidden_exception.dart';
+import 'internal_server_error_exception.dart';
+import 'not_found_exception.dart';
 import '{{errorPrefixSnake}}_exception.dart';
+import 'server_exception.dart';
+import 'unauthorized_exception.dart';
+import 'unprocessable_entity_exception.dart';
 
 /// ApiException represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
@@ -43,6 +53,114 @@ class ApiException extends {{errorPrefix}}Exception {
     this.errorBody,
     this.underlyingError,
   });
+
+  /// Builds the exception that a non-2xx response with this status raises.
+  ///
+  /// This is the one status-to-exception mapping in the SDK: the API
+  /// classes and the OpenID Connect discovery both use it.
+  ///
+  /// Returns the status-specific subclass where there is one (for example
+  /// [NotFoundException] for 404), else [ClientException] for any other 4xx,
+  /// [ServerException] for any other 5xx, and [ApiException] for everything
+  /// else.
+  static ApiException fromResponse(
+    int statusCode,
+    Map<String, String>? responseHeaders,
+    String? responseBody,
+  ) {
+    final message = 'API returned status code $statusCode';
+    Object? errorBody;
+    if (responseBody != null && responseBody.isNotEmpty) {
+      try {
+        /* F5: route through parseJson so the depth-cap rejects malicious
+         * 100k-deep error payloads before they stack-overflow the VM. */
+        errorBody = parseJson(responseBody);
+      } catch (_) {}
+    }
+    switch (statusCode) {
+      case 400:
+        return BadRequestException(
+          statusCode: statusCode,
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+      case 401:
+        return UnauthorizedException(
+          statusCode: statusCode,
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+      case 403:
+        return ForbiddenException(
+          statusCode: statusCode,
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+      case 404:
+        return NotFoundException(
+          statusCode: statusCode,
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+      case 409:
+        return ConflictException(
+          statusCode: statusCode,
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+      case 422:
+        return UnprocessableEntityException(
+          statusCode: statusCode,
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+      case 500:
+        return InternalServerErrorException(
+          statusCode: statusCode,
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+    }
+    if (statusCode >= 400 && statusCode < 500) {
+      return ClientException(
+        statusCode: statusCode,
+        message: message,
+        responseBody: responseBody,
+        responseHeaders: responseHeaders,
+        errorBody: errorBody,
+      );
+    }
+    if (statusCode >= 500) {
+      return ServerException(
+        statusCode: statusCode,
+        message: message,
+        responseBody: responseBody,
+        responseHeaders: responseHeaders,
+        errorBody: errorBody,
+      );
+    }
+    return ApiException(
+      statusCode: statusCode,
+      message: message,
+      responseBody: responseBody,
+      responseHeaders: responseHeaders,
+      errorBody: errorBody,
+    );
+  }
 
   @override
   String toString() {

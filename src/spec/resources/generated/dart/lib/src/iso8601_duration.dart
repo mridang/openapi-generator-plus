@@ -23,7 +23,7 @@
 ///   * Negative durations parse and format with a leading `-`.
 library;
 
-import 'object_serializer.dart' show SerializationException;
+import 'errors/serialization_exception.dart';
 
 /// Regex matching the `google.protobuf.Duration` JSON grammar.
 ///

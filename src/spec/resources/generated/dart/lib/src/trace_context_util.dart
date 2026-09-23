@@ -14,11 +14,17 @@
 /// set the propagator at application startup:
 ///
 /// ```dart
-/// import 'package:opentelemetry_dart/opentelemetry_dart.dart';
+/// import 'package:opentelemetry/api.dart';
+///
+/// class _MapSetter implements TextMapSetter<Map<String, String>> {
+///   @override
+///   void set(Map<String, String> carrier, String key, String value) {
+///     carrier[key] = value;
+///   }
+/// }
 ///
 /// TraceContextUtil.propagator = (Map<String, String> headers) {
-///   final propagator = globalTextMapPropagator;
-///   propagator.inject(Context.current, headers, MapSetter());
+///   globalTextMapPropagator.inject(Context.current, headers, _MapSetter());
 /// };
 /// ```
 ///
@@ -34,7 +40,21 @@ class TraceContextUtil {
   ///
   /// If a [propagator] has been configured, it is called to inject
   /// traceparent and tracestate headers. Otherwise this is a no-op.
+  ///
+  /// The propagator writes into a scratch map, and only its non-empty entries
+  /// reach [headers]. The W3C propagator always writes `tracestate`, empty or
+  /// not, and an empty `tracestate` header is not what the other SDKs send.
   static void injectTraceContext(Map<String, String> headers) {
-    propagator?.call(headers);
+    final inject = propagator;
+    if (inject == null) {
+      return;
+    }
+    final injected = <String, String>{};
+    inject(injected);
+    injected.forEach((key, value) {
+      if (value.isNotEmpty) {
+        headers[key] = value;
+      }
+    });
   }
 }

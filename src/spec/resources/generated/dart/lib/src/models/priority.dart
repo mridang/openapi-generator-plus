@@ -16,13 +16,13 @@ import '../object_serializer.dart';
 /// Task priority, integer-backed enum
 enum Priority {
   /// Represents the value 1.
-  NUMBER_1(1),
+  number1(1),
 
   /// Represents the value 2.
-  NUMBER_2(2),
+  number2(2),
 
   /// Represents the value 3.
-  NUMBER_3(3);
+  number3(3);
 
   final int value;
   const Priority(this.value);

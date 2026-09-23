@@ -34,6 +34,13 @@ class _PerCallAuth implements Authenticator {
   Map<String, String> cookieParams() => {};
 }
 
+/// Points [PetApi.getExternalPetInfo]'s per-operation server at the mock
+/// server instead of the external host the spec names.
+class _MockGetExternalPetInfoServer extends GetExternalPetInfoServer {
+  @override
+  String getUrl() => chasmUrl;
+}
+
 PetApi _newPetApiForIntegration() {
   final config = ConfigurationBuilder()
       .baseUrl(chasmUrl)
@@ -430,10 +437,17 @@ void main() {
     });
 
     test('getExternalPetInfo', () async {
-      final api = _newPetApiForIntegration();
-      final result = await api.getExternalPetInfo(1, null);
+      // The operation's own server wins over the client's base URL: the client
+      // points at a closed port, the per-operation server at the mock server.
+      final config = ConfigurationBuilder()
+          .baseUrl('http://127.0.0.1:1')
+          .defaultHeader('Authorization', 'Bearer test-token')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      final result = await api.getExternalPetInfo(1, _MockGetExternalPetInfoServer());
       expect(result, isNotNull);
-    }, skip: 'Per-operation server URL points to external host');
+    });
 
     test('downloadBinaryMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

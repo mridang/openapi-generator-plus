@@ -21,15 +21,6 @@ import '../header_selector.dart';
 import '../object_serializer.dart';
 import '../trace_context_util.dart';
 import '../errors/api_exception.dart';
-import '../errors/client_exception.dart';
-import '../errors/server_exception.dart';
-import '../errors/bad_request_exception.dart';
-import '../errors/unauthorized_exception.dart';
-import '../errors/forbidden_exception.dart';
-import '../errors/not_found_exception.dart';
-import '../errors/conflict_exception.dart';
-import '../errors/unprocessable_entity_exception.dart';
-import '../errors/internal_server_error_exception.dart';
 
 /// BaseApi provides common functionality for all API classes.
 class BaseApi {
@@ -169,7 +160,11 @@ class BaseApi {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw _throwApiError(response);
+      throw ApiException.fromResponse(
+        response.statusCode,
+        response.headers,
+        response.body,
+      );
     }
 
     return response;
@@ -465,114 +460,5 @@ class BaseApi {
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20, 32)}';
-  }
-
-  ApiException _throwApiError(ApiHttpResponse response) {
-    final code = response.statusCode;
-    final msg = 'API returned status code $code';
-    final body = response.body;
-
-    Object? parsed;
-    if (body.isNotEmpty) {
-      try {
-        /* F5: route through parseJson so the depth-cap rejects malicious
-         * 100k-deep error payloads before they stack-overflow the VM. */
-        parsed = parseJson(body);
-      } catch (_) {}
-    }
-
-    final baseErr = ApiException(
-      statusCode: code,
-      message: msg,
-      responseBody: body,
-      responseHeaders: response.headers,
-      errorBody: parsed,
-    );
-
-    if (code >= 400 && code < 500) {
-      final clientErr = ClientException(
-        statusCode: code,
-        message: msg,
-        responseBody: body,
-        responseHeaders: response.headers,
-        errorBody: parsed,
-      );
-      switch (code) {
-        case 400:
-          return BadRequestException(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
-          );
-        case 401:
-          return UnauthorizedException(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
-          );
-        case 403:
-          return ForbiddenException(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
-          );
-        case 404:
-          return NotFoundException(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
-          );
-        case 409:
-          return ConflictException(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
-          );
-        case 422:
-          return UnprocessableEntityException(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
-          );
-        default:
-          return clientErr;
-      }
-    }
-
-    if (code >= 500) {
-      final serverErr = ServerException(
-        statusCode: code,
-        message: msg,
-        responseBody: body,
-        responseHeaders: response.headers,
-        errorBody: parsed,
-      );
-      switch (code) {
-        case 500:
-          return InternalServerErrorException(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
-          );
-        default:
-          return serverErr;
-      }
-    }
-
-    return baseErr;
   }
 }

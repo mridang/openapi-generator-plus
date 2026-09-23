@@ -70,6 +70,45 @@ void main() {
       expect(parsed['method'], equals('GET'));
     });
 
+    // The fixture proxy's second port answers 407 unless the request carries
+    // Proxy-Authorization, so these two prove the credentials in the proxy URL
+    // reach the proxy on the wire.
+    test(
+      'authenticating proxy accepts the credentials from the proxy URL',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .proxy('http://user:pass@$proxyAuthHostPort')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmInternalHttpUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['method'], equals('GET'));
+      },
+    );
+
+    test(
+      'authenticating proxy refuses a request without credentials',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .proxy('http://$proxyAuthHostPort')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmInternalHttpUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(407));
+      },
+    );
+
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     // and surfaced as Proxy-Authorization so the proxy can authenticate
     // the tunnel — otherwise the proxy 407s.

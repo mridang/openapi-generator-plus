@@ -39,11 +39,14 @@ export 'src/errors/internal_server_error_exception.dart';
 export 'src/errors/network_exception.dart';
 export 'src/errors/network_timeout_exception.dart';
 export 'src/errors/not_found_exception.dart';
+export 'src/errors/oauth2_server_exception.dart';
+export 'src/errors/oauth2_token_exception.dart';
+export 'src/errors/serialization_exception.dart';
 export 'src/errors/server_exception.dart';
 export 'src/errors/unauthorized_exception.dart';
 export 'src/errors/unprocessable_entity_exception.dart';
 export 'src/iso8601_duration.dart';
-export 'src/object_serializer.dart' show SerializationException, UuidValue;
+export 'src/object_serializer.dart' show UuidValue;
 {{#models}}
 {{#model}}
 export 'src/models/{{classFilename}}.dart';

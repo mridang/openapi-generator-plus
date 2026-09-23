@@ -420,21 +420,6 @@ void main() {
       }
     });
 
-    // -- ProxyAuthenticationTests --
-    test(
-      'proxy URL with userinfo sends Proxy-Authorization through the proxy',
-      () async {
-        // End-to-end proxy-auth roundtrip requires Squid configured with
-        // htpasswd-backed basic_auth ACLs; the bundled squid.conf grants
-        // unauthenticated access (allow all). Wire this up only after the
-        // shared Squid container is provisioned with basic auth.
-        fail('unreachable: skipped');
-      },
-      skip: 'requires Squid configured with basic-auth; bundled squid.conf '
-          'runs allow-all without htpasswd, so the userinfo in the proxy URL '
-          'cannot be verified end-to-end.',
-    );
-
     // -- Gap AL: Content-Encoding mismatch surfaces ApiException, no process crash --
     test(
       'gzip Content-Encoding with non-gzip body surfaces ApiException, not crash',
@@ -999,6 +984,46 @@ void main() {
               .having((e) => e.statusCode, 'statusCode', 0)
               .having((e) => e.underlyingError, 'underlyingError', isNotNull),
         ),
+      );
+    });
+
+    /* The client sets two deadlines: HttpClient.connectionTimeout on the
+     * connect phase and Future.timeout on the whole request. Only the second
+     * throws dart:async's TimeoutException; the connect deadline throws a
+     * SocketException that package:http rewraps as a ClientException, so the
+     * same expired deadline used to surface as NetworkException or
+     * NetworkTimeoutException depending on which timer fired first. It is a
+     * timeout either way. */
+    test('an expired connect deadline throws NetworkTimeoutException', () async {
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().timeout(200).build(),
+      );
+      await expectLater(
+        // 192.0.2.0/24 (RFC 5737 TEST-NET-1) is unrouted, so the TCP
+        // handshake never completes and a connect deadline is what expires.
+        client.sendRequest('GET', 'http://192.0.2.1/never', {}, null),
+        throwsA(
+          isA<NetworkTimeoutException>()
+              .having((e) => e.runtimeType, 'runtimeType',
+                  NetworkTimeoutException)
+              .having((e) => e, 'is a NetworkException', isA<NetworkException>())
+              .having((e) => e.statusCode, 'statusCode', 0),
+        ),
+      );
+    });
+
+    test('a connect-timeout message is classified as a timeout', () {
+      // The wording dart:io uses when HttpClient.connectionTimeout expires.
+      expect(
+        AbstractApiClient.isTimeoutMessage(
+          'HTTP connection timed out after 0:00:00.200000, '
+          'host: 192.0.2.1, port: 80',
+        ),
+        isTrue,
+      );
+      expect(
+        AbstractApiClient.isTimeoutMessage('Connection refused'),
+        isFalse,
       );
     });
 

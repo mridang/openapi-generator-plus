@@ -206,6 +206,20 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return NamingConvention.CAMEL_CASE;
     }
 
+    /**
+     * Names the members of a numeric enum in lowerCamelCase, the casing
+     * Dart gives every other enum member. The shared NUMBER_1 spelling
+     * fails the analyzer's constant_identifier_names.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (isNumericEnumDatatype(datatype) && name.startsWith("NUMBER_")) {
+            return "number" + name.substring("NUMBER_".length()).toLowerCase(Locale.ROOT);
+        }
+        return name;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected NamingConvention getFilenameCasing() {
@@ -306,7 +320,6 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("transport_options.mustache", srcDir, "transport_options.dart"),
             new SupportingFileSpec("server_configuration.mustache", srcDir, "server_configuration.dart"),
             new SupportingFileSpec("servers.mustache", srcDir, "servers.dart"),
-            new SupportingFileSpec("api_exception.mustache", srcDir, "api_exception.dart"),
             new SupportingFileSpec("errors/root_exception.mustache", errorsDir, errorPrefixSnake() + "_exception.dart"),
             new SupportingFileSpec("errors/api_exception.mustache", errorsDir, "api_exception.dart"),
             new SupportingFileSpec("errors/client_exception.mustache", errorsDir, "client_exception.dart"),
@@ -320,6 +333,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsDir, "internal_server_error_exception.dart"),
             new SupportingFileSpec("errors/network_exception.mustache", errorsDir, "network_exception.dart"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsDir, "network_timeout_exception.dart"),
+            new SupportingFileSpec("errors/serialization_exception.mustache", errorsDir, "serialization_exception.dart"),
+            new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsDir, "oauth2_server_exception.dart"),
+            new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsDir, "oauth2_token_exception.dart"),
             new SupportingFileSpec("header_selector.mustache", srcDir, "header_selector.dart"),
             new SupportingFileSpec("object_serializer.mustache", srcDir, "object_serializer.dart"),
             new SupportingFileSpec("iso8601_duration.mustache", srcDir, "iso8601_duration.dart"),
@@ -454,53 +470,42 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api_result_test.mustache",
                             "test",
                             "api_result_test.dart"));
-            if (hasBasicAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/basic_authenticator_test.mustache",
-                                "test",
-                                "basic_authenticator_test.dart"));
-            }
+        }
+    }
+
+    /**
+     * Registers the authenticator tests, each only when the spec's security
+     * schemes produce the authenticator it exercises. Registered here, not in
+     * processOpts: the scheme flags are only set once the spec is parsed.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (!generateTests) {
+            return;
+        }
+        addTestIf(hasBasicAuth, "basic_authenticator_test");
+        addTestIf(hasBearerAuth, "bearer_authenticator_test");
+        addTestIf(hasApiKeyAuth, "api_key_authenticator_test");
+        addTestIf(hasAnyOAuth2 || hasOpenIdConnect, "oauth2_token_manager_test");
+        addTestIf(
+                hasOAuth2AuthorizationCode,
+                "oauth2_auth_code_authenticator_test",
+                "oauth2_authorization_code_authenticator_test");
+        addTestIf(hasOAuth2Implicit, "oauth2_implicit_authenticator_test");
+        addTestIf(hasOAuth2ClientCredentials, "oauth2_client_credentials_authenticator_test");
+        addTestIf(hasOAuth2Password, "oauth2_password_authenticator_test");
+        addTestIf(hasOpenIdConnect, "openid_connect_authenticator_test");
+    }
+
+    private void addTestIf(boolean condition, String template) {
+        addTestIf(condition, template, template);
+    }
+
+    private void addTestIf(boolean condition, String template, String file) {
+        if (condition) {
             supportingFiles.add(
-                    new SupportingFile(
-                            "test/bearer_authenticator_test.mustache",
-                            "test",
-                            "bearer_authenticator_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api_key_authenticator_test.mustache",
-                            "test",
-                            "api_key_authenticator_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_token_manager_test.mustache",
-                            "test",
-                            "oauth2_token_manager_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_auth_code_authenticator_test.mustache",
-                            "test",
-                            "oauth2_authorization_code_authenticator_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_implicit_authenticator_test.mustache",
-                            "test",
-                            "oauth2_implicit_authenticator_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_client_credentials_authenticator_test.mustache",
-                            "test",
-                            "oauth2_client_credentials_authenticator_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_password_authenticator_test.mustache",
-                            "test",
-                            "oauth2_password_authenticator_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/openid_connect_authenticator_test.mustache",
-                            "test",
-                            "openid_connect_authenticator_test.dart"));
+                    new SupportingFile("test/" + template + ".mustache", "test", file + ".dart"));
         }
     }
 
