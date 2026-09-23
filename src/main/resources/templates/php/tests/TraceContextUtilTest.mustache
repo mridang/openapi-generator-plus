@@ -110,7 +110,12 @@ function injectTraceUnder(TracerProvider $tracerProvider, ContextInterface $pare
         ->setParent($parent)
         ->startSpan();
     $headers = [];
-    $spanScope = $span->storeInContext($parent)->activate();
+    /* Activate on the CURRENT context, not on $parent: $parent is derived
+     * from the root context and carries none of the tracer provider and
+     * propagator that withTestTracing() put on the current one, so
+     * Globals::propagator() would fall back to the no-op propagator and
+     * inject nothing. The span already carries $parent's trace id. */
+    $spanScope = $span->activate();
     try {
         TraceContextUtil::injectTraceContext($headers);
     } finally {
