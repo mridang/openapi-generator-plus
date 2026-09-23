@@ -639,7 +639,9 @@ defmodule PetstoreClient.DefaultApiClient do
       if opts.timeout do
         req_opts
         |> Keyword.put(:receive_timeout, opts.timeout)
-        |> Keyword.put(:pool_timeout, opts.timeout)
+        |> Keyword.update(:finch, [pool_timeout: opts.timeout], fn finch ->
+          Keyword.put(finch, :pool_timeout, opts.timeout)
+        end)
       else
         req_opts
       end

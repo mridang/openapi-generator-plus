@@ -27,6 +27,8 @@ defmodule PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator do
       "https://auth.example.com/authorize",
       "https://auth.example.com/oauth/token",
       redirect_uri,
-      [], refresh_url: "https://auth.example.com/oauth/refresh")
+      [],
+      refresh_url: "https://auth.example.com/oauth/refresh"
+    )
   end
 end

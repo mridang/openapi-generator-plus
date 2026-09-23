@@ -183,7 +183,9 @@ defmodule PetstoreClient.Api.PetApiTest do
   # encodes path segments per-item; the api template must NOT re-wrap the
   # whole string. A space must surface as %20, never %2520.
   defmodule PathCapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -195,7 +197,6 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     def captured_url(name), do: Agent.get(name, & &1)
 
-    @impl true
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
@@ -502,7 +503,9 @@ defmodule PetstoreClient.Api.PetApiTest do
   # key (`Map.has_key?(effective_auth, :auth_headers)`), so the authenticators
   # below are plain maps rather than the generated authenticator structs.
   defmodule HeaderCapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -514,7 +517,6 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     def captured_headers(name), do: Agent.get(name, & &1)
 
-    @impl true
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
@@ -654,7 +656,9 @@ defmodule PetstoreClient.Api.PetApiTest do
   # request body and headers so the assertions can inspect what actually went
   # on the wire.
   defmodule BodyCapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -666,7 +670,6 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     def captured(name), do: Agent.get(name, & &1)
 
-    @impl true
     def send_request(_method, _url, headers, body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> %{body: body, headers: headers} end)

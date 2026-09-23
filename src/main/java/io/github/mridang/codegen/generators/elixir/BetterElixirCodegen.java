@@ -194,7 +194,17 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
-        return new String[] {"mix format"};
+        /* Twice, and with the inputs named rather than left to
+         * `.formatter.exs`: a super call that ends in a keyword option is not
+         * a fixed point of one pass — `mix format` emits `[], refresh_url:
+         * "..."` on one line and `--check-formatted` then rejects it — and a
+         * bare `mix format` consults its own manifest and skips the file it
+         * just wrote. The spec runs `--check-formatted` over the committed
+         * output, so it has to be settled here. */
+        return new String[] {
+            "mix format '{mix,.formatter}.exs' '{config,lib,test}/**/*.{ex,exs}'",
+            "mix format '{mix,.formatter}.exs' '{config,lib,test}/**/*.{ex,exs}'"
+        };
     }
 
     /** {@inheritDoc} */
@@ -683,7 +693,8 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         }
         // The refresh URL is passed as the `refresh_url` keyword option; the
         // positional parameters end at the scopes list. It is written without
-        // brackets: mix format only settles on that form after two passes.
+        // brackets, which is the form mix format settles on — after two passes,
+        // which is why the formatter step runs twice.
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final List<String> args = new ArrayList<>(List.of("host", "client_id", "client_secret",
                     "\"" + spec.tokenUrl() + "\"", "username", "password", "[]"));

@@ -670,7 +670,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     opts = PetstoreClient.DefaultApiClient.request_options(transport)
 
     assert Keyword.get(opts, :receive_timeout) == 3_000
-    assert Keyword.get(opts, :pool_timeout) == 3_000
+    assert Keyword.get(Keyword.get(opts, :finch, []), :pool_timeout) == 3_000
     assert Keyword.get(Keyword.get(opts, :connect_options, []), :timeout) == 3_000
   end
 

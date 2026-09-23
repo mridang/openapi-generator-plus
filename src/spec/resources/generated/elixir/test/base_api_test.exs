@@ -293,9 +293,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # Vendor JSON MIME type deserialization
 
   defmodule VendorJsonApiClient do
-    @behaviour PetstoreClient.ApiClient
-
-    @impl true
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     def send_request(_method, _url, _headers, _body) do
       %PetstoreClient.ApiHttpResponse{
         status_code: 200,
@@ -329,9 +329,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # Nil content-type skips deserialization
 
   defmodule NilContentTypeApiClient do
-    @behaviour PetstoreClient.ApiClient
-
-    @impl true
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     def send_request(_method, _url, _headers, _body) do
       %PetstoreClient.ApiHttpResponse{status_code: 200, body: "raw body content", headers: %{}}
     end
@@ -386,7 +386,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # allowEmptyValue query params
 
   defmodule CapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -400,7 +402,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
       Agent.get(name, & &1)
     end
 
-    @impl true
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
@@ -922,9 +923,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # BinaryResponseTests
 
   defmodule OctetStreamApiClient do
-    @behaviour PetstoreClient.ApiClient
-
-    @impl true
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     def send_request(_method, _url, _headers, _body) do
       binary_data = <<0x00, 0xFF, 0x42>>
       encoded = Base.encode64(binary_data)
@@ -938,9 +939,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   end
 
   defmodule ImagePngApiClient do
-    @behaviour PetstoreClient.ApiClient
-
-    @impl true
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     def send_request(_method, _url, _headers, _body) do
       binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D>>
       encoded = Base.encode64(binary_data)
@@ -954,9 +955,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   end
 
   defmodule EmptyBinaryApiClient do
-    @behaviour PetstoreClient.ApiClient
-
-    @impl true
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     def send_request(_method, _url, _headers, _body) do
       %PetstoreClient.ApiHttpResponse{
         status_code: 200,
@@ -1123,7 +1124,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # NullBodyContentTypeTests
 
   defmodule CapturingHeadersApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -1137,7 +1140,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
       Agent.get(name, & &1)
     end
 
-    @impl true
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
@@ -1327,7 +1329,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # Auth via keyword arg (item #4) — client-level authenticator used when no :auth opt
 
   defmodule AuthCapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -1341,7 +1345,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
       Agent.get(name, & &1)
     end
 
-    @impl true
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
@@ -1442,7 +1445,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # outbound request actually carried the credential.
 
   defmodule AuthAppliedCapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -1454,7 +1459,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     def captured(name), do: Agent.get(name, & &1)
 
-    @impl true
     def send_request(_method, url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> %{headers: headers, url: url} end)
@@ -1621,7 +1625,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # Per-op server override (item #5)
 
   defmodule UrlCapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -1635,7 +1641,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
       Agent.get(name, & &1)
     end
 
-    @impl true
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
@@ -1769,9 +1774,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # substituting the raw body string, matching the other 11 SDKs.
 
   defmodule MalformedSuccessApiClient do
-    @behaviour PetstoreClient.ApiClient
-
-    @impl true
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     def send_request(_method, _url, _headers, _body) do
       # 200 OK with a declared JSON content type but a body that cannot be
       # parsed against the declared return type.
@@ -1875,7 +1880,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # ---------------------------------------------------------------------------
 
   defmodule BodyCapturingApiClient do
-    @behaviour PetstoreClient.ApiClient
+    # A module-style api_client: BaseApi calls send_request/4 on it
+    # directly. That shape is not the PetstoreClient.ApiClient behaviour,
+    # which is for struct clients, so the double does not claim it.
     use Agent
 
     def start do
@@ -1887,7 +1894,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     def captured_body(name), do: Agent.get(name, & &1)
 
-    @impl true
     def send_request(_method, _url, _headers, body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> body end)
