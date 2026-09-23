@@ -1072,6 +1072,31 @@ class DefaultApiClientUnitTest {
             assertEquals(0, ex.statusCode)
             assertInstanceOf(io.ktor.client.plugins.HttpRequestTimeoutException::class.java, ex.cause)
         }
+
+        @Test
+        @DisplayName("connect and socket deadlines raise NetworkTimeoutException")
+        fun connectAndSocketDeadlinesRaiseNetworkTimeoutException() {
+            // The `timeout` option arms three Ktor deadlines from one budget —
+            // request, connect and socket — so every one of them must classify
+            // as NetworkTimeoutException. A connect or socket expiry surfacing
+            // as a plain NetworkException would let the same expired deadline
+            // report under two different types.
+            listOf<Throwable>(
+                io.ktor.client.network.sockets.ConnectTimeoutException("http://localhost/slow", null),
+                java.net.SocketTimeoutException("socket timed out"),
+            ).forEach { expired ->
+                val engine = MockEngine { _ -> throw expired }
+                val client = HttpClient(engine) { followRedirects = false }
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {
+                    runBlocking {
+                        DefaultApiClient(client).sendRequest("GET", "http://localhost/slow", emptyMap(), null)
+                    }
+                }
+                assertInstanceOf({{invokerPackage}}.errors.NetworkException::class.java, ex)
+                assertEquals(0, ex.statusCode)
+                assertSame(expired, ex.cause, "the expired deadline must be kept as the cause")
+            }
+        }
     }
 
     @Nested
