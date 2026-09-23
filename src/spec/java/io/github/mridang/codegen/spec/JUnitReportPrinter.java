@@ -173,6 +173,37 @@ public final class JUnitReportPrinter {
       return;
     }
 
+    /* Count the <testcase> elements rather than trusting the suite's own
+     * attributes. Writers disagree about what `tests` means: swift-testing
+     * excludes the skipped cases from it, so subtracting `skipped` again
+     * dropped a test from the report for every test the runner skipped, and
+     * the printed totals never matched what the runner announced. The
+     * elements are the tests that ran, so they are what gets counted; the
+     * attributes stay as the fallback for a writer that emits no elements. */
+    int countedTests = 0;
+    int countedSkipped = 0;
+    int countedFailed = 0;
+    for (int i = 0; i < testcases.getLength(); i++) {
+      Node tcNode = testcases.item(i);
+      if (tcNode.getParentNode() != suite) {
+        continue;
+      }
+      Element tc = (Element) tcNode;
+      countedTests++;
+      if (tc.getElementsByTagName("skipped").getLength() > 0) {
+        countedSkipped++;
+      } else if (tc.getElementsByTagName("failure").getLength() > 0
+          || tc.getElementsByTagName("error").getLength() > 0) {
+        countedFailed++;
+      }
+    }
+    if (countedTests > 0) {
+      tests = countedTests;
+      skipped = countedSkipped;
+      failed = countedFailed;
+      errored = 0;
+    }
+
     suites.add(new SuiteSummary(name, tests, failed, errored, skipped, time));
     collectFailures(suite, name, failures);
   }
