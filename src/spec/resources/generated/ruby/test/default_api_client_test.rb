@@ -166,7 +166,7 @@ describe Petstore::Client::DefaultApiClient do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = Petstore::Client::TransportOptions.builder
-        .timeout(1)
+        .timeout(1000)
         .build
 
       client = Petstore::Client::DefaultApiClient.new(transport)

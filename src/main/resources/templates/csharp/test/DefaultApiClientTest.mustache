@@ -141,7 +141,7 @@ public class DefaultApiClientTest
     public async Task TimesOutOnSlowEndpoint()
     {
         var transport = TransportOptions.Builder()
-            .Timeout(1)
+            .Timeout(1000)
             .Build();
 
         var client = new DefaultApiClient(transport);

@@ -166,7 +166,7 @@ describe {{moduleName}}::DefaultApiClient do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
-        .timeout(1)
+        .timeout(1000)
         .build
 
       client = {{moduleName}}::DefaultApiClient.new(transport)

@@ -45,7 +45,7 @@ final class PetApiTests {
     /* A request that exceeds the configured timeout is a NetworkTimeoutError,
        which is a NetworkError with status 0. */
     @Test func testTimeoutThrowsNetworkTimeoutError() async throws {
-        let transport = TransportOptionsBuilder().timeout(200).build()
+        let transport = TransportOptionsBuilder().timeout(1000).build()
         let client = try DefaultApiClient(transportOptions: transport)
         let error = await #expect(throws: NetworkTimeoutError.self) {
             _ = try await client.sendRequest(

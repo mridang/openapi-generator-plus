@@ -100,7 +100,7 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
   test "times out on slow endpoint" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
-    transport = {{moduleName}}.TransportOptions.new(timeout: 1)
+    transport = {{moduleName}}.TransportOptions.new(timeout: 1000)
     client = {{moduleName}}.DefaultApiClient.new(transport)
 
     assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->

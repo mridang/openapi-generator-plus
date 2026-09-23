@@ -237,7 +237,7 @@ class DefaultApiClientTest {
             String chasmUrl = ChasmContainer.getBaseUrl();
 
             TransportOptions transport = TransportOptions.builder()
-                    .timeout(1)
+                    .timeout(1000)
                     .build();
 
             DefaultApiClient client = new DefaultApiClient(transport);

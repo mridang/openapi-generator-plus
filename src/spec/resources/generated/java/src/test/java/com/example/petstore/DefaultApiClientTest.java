@@ -242,7 +242,7 @@ class DefaultApiClientTest {
     void timesOutOnSlowEndpoint() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
-      TransportOptions transport = TransportOptions.builder().timeout(1).build();
+      TransportOptions transport = TransportOptions.builder().timeout(1000).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       com.example.petstore.errors.NetworkTimeoutException ex =

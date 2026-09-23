@@ -174,7 +174,7 @@ class DefaultApiClientTest {
         fun timesOutOnSlowEndpoint() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport = TransportOptions.builder()
-                .timeout(1L)
+                .timeout(1000L)
                 .build()
             val client = DefaultApiClient(transport)
             val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {

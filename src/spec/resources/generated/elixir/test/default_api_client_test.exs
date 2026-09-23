@@ -128,7 +128,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   test "times out on slow endpoint" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
-    transport = PetstoreClient.TransportOptions.new(timeout: 1)
+    transport = PetstoreClient.TransportOptions.new(timeout: 1000)
     client = PetstoreClient.DefaultApiClient.new(transport)
 
     assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->

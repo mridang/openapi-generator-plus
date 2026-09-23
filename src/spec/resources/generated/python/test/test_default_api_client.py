@@ -176,7 +176,7 @@ class TestHttpProxyWithTls:
 
 class TestRequestTimeout:
     def test_times_out_on_slow_endpoint(self, chasm_http_url: Any) -> None:
-        transport = TransportOptions.builder().timeout(1).build()
+        transport = TransportOptions.builder().timeout(1000).build()
         client = DefaultApiClient(transport)
 
         from petstore_client.errors import NetworkTimeoutException

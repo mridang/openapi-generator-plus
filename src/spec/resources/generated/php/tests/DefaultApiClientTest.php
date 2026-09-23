@@ -140,7 +140,7 @@ test('times out on slow endpoint', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
-        ->timeout(1)
+        ->timeout(1000)
         ->build();
 
     $client = new DefaultApiClient($transport);

@@ -193,7 +193,7 @@ class DefaultApiClientTest {
             val transport =
                 TransportOptions
                     .builder()
-                    .timeout(1L)
+                    .timeout(1000L)
                     .build()
             val client = DefaultApiClient(transport)
             val ex =

@@ -217,7 +217,7 @@ describe("DefaultApiClient", () => {
     test("times out on slow endpoint", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
-      const transport = TransportOptions.builder().timeout(1).build();
+      const transport = TransportOptions.builder().timeout(1000).build();
 
       const client = new DefaultApiClient(transport);
       const error = await client
