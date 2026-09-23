@@ -1,7 +1,10 @@
 {{>api_info}}
-#if !os(Linux)
 import Foundation
 import Testing
+
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import {{packageName}}
 
 @Suite(.serialized) final class DefaultApiClientUnitTests {
@@ -681,4 +684,3 @@ private final class UnitStubURLProtocol: URLProtocol {
 
     override func stopLoading() {}
 }
-#endif

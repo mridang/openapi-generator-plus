@@ -86,8 +86,8 @@ import Testing
   /* A 404 is a NotFoundError and a 500 an InternalServerError; each is an
    * ApiError of the right family and part of the OpenAPIError hierarchy. */
   @Test func testStatusCodesMapToTypedErrors() {
-    let notFound: any Error = BaseApi.throwAPIError(
-      ApiHttpResponse(statusCode: 404, body: "", headers: [:]))
+    let notFound: any Error = ApiError.fromResponse(
+      statusCode: 404, headers: [:], body: "")
     #expect(notFound is NotFoundError)
     #expect(notFound is ClientError)
     #expect(!(notFound is ServerError))
@@ -95,8 +95,8 @@ import Testing
     #expect(notFound is OpenAPIError)
     #expect((notFound as? ApiError)?.statusCode == 404)
 
-    let serverError: any Error = BaseApi.throwAPIError(
-      ApiHttpResponse(statusCode: 500, body: "", headers: [:]))
+    let serverError: any Error = ApiError.fromResponse(
+      statusCode: 500, headers: [:], body: "")
     #expect(serverError is InternalServerError)
     #expect(serverError is ServerError)
     #expect(!(serverError is ClientError))
@@ -201,6 +201,25 @@ import Testing
     // A cancelled URLSession task outside a cancelled Swift Task (e.g. the
     // session was invalidated) is still a transport failure.
     #expect(DefaultApiClient.transportError(URLError(.cancelled)) is NetworkError)
+  }
+
+  /* The one `timeout` option arms BOTH of URLSession's deadlines — the
+     per-request idle timer and the total resource budget — and an expired
+     deadline must be a NetworkTimeoutError whichever of the two fired.
+     Both expire as URLError.timedOut, so the assertion covers both paths:
+     the session is proved to carry both deadlines, and the classifier is
+     proved to map that code to the timeout type. */
+  @Test func testEveryConfiguredDeadlineClassifiesAsTimeout() throws {
+    let opts = TransportOptionsBuilder().timeout(1500).build()
+    let (session, _) = try DefaultApiClient.buildSession(opts)
+
+    #expect(session.configuration.timeoutIntervalForRequest == 1.5)
+    #expect(session.configuration.timeoutIntervalForResource == 1.5)
+
+    let expired = DefaultApiClient.transportError(URLError(.timedOut))
+    #expect(expired is NetworkTimeoutError)
+    #expect(expired is NetworkError)
+    #expect((expired as? ApiError)?.statusCode == 0)
   }
 
   @Test func testCancelledTaskSurfacesCancellationError() async throws {

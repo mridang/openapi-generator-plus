@@ -311,13 +311,12 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("configuration.mustache", srcDir, "Configuration.swift"),
-            new SupportingFileSpec("configuration_error.mustache", srcDir, "ConfigurationError.swift"),
             new SupportingFileSpec("transport_options.mustache", srcDir, "TransportOptions.swift"),
             new SupportingFileSpec("server_configuration.mustache", srcDir, "ServerConfiguration.swift"),
             new SupportingFileSpec("servers.mustache", srcDir, "Servers.swift"),
             new SupportingFileSpec("indirect.mustache", srcDir, "Indirect.swift"),
             new SupportingFileSpec("errors/root_error.mustache", errorsDir, rootErrorName("Error") + ".swift"),
-            new SupportingFileSpec("api_error.mustache", srcDir, "ApiError.swift"),
+            new SupportingFileSpec("errors/api_error.mustache", errorsDir, "ApiError.swift"),
             new SupportingFileSpec("errors/client_error.mustache", errorsDir, "ClientError.swift"),
             new SupportingFileSpec("errors/server_error.mustache", errorsDir, "ServerError.swift"),
             new SupportingFileSpec("errors/bad_request_error.mustache", errorsDir, "BadRequestError.swift"),
@@ -329,6 +328,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "InternalServerError.swift"),
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "NetworkError.swift"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "NetworkTimeoutError.swift"),
+            new SupportingFileSpec("errors/serialization_error.mustache", errorsDir, "SerializationError.swift"),
+            new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsDir, "OAuth2ServerError.swift"),
+            new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsDir, "OAuth2TokenError.swift"),
+            new SupportingFileSpec("errors/oauth2_authorization_code_error.mustache", errorsDir, "OAuth2AuthorizationCodeError.swift"),
+            new SupportingFileSpec("errors/configuration_error.mustache", errorsDir, "ConfigurationError.swift"),
             new SupportingFileSpec("header_selector.mustache", srcDir, "HeaderSelector.swift"),
             new SupportingFileSpec("iso8601_duration.mustache", srcDir, "ISO8601Duration.swift"),
             new SupportingFileSpec("object_serializer.mustache", srcDir, "ObjectSerializer.swift"),
@@ -445,16 +449,6 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "ComposedSchemaTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/BearerAuthenticatorTests.mustache",
-                            testDir,
-                            "BearerAuthenticatorTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/ApiKeyAuthenticatorTests.mustache",
-                            testDir,
-                            "ApiKeyAuthenticatorTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/ServerConfigurationTests.mustache",
                             testDir,
                             "ServerConfigurationTests.swift"));
@@ -468,36 +462,6 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/ApiResultTests.mustache",
                             testDir,
                             "ApiResultTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2TokenManagerTests.mustache",
-                            testDir,
-                            "OAuth2TokenManagerTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2AuthCodeAuthenticatorTests.mustache",
-                            testDir,
-                            "OAuth2AuthorizationCodeAuthenticatorTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2ImplicitAuthenticatorTests.mustache",
-                            testDir,
-                            "OAuth2ImplicitAuthenticatorTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2ClientCredentialsAuthenticatorTests.mustache",
-                            testDir,
-                            "OAuth2ClientCredentialsAuthenticatorTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OAuth2PasswordAuthenticatorTests.mustache",
-                            testDir,
-                            "OAuth2PasswordAuthenticatorTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/OpenIdConnectAuthenticatorTests.mustache",
-                            testDir,
-                            "OpenIdConnectAuthenticatorTests.swift"));
         }
     }
 
@@ -594,13 +558,72 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
-        if (generateTests && hasBasicAuth) {
+        if (!generateTests) {
+            return;
+        }
+        final String testDir = Path.of("Tests", packageName + "Tests").toString();
+        if (hasBasicAuth) {
             supportingFiles.add(
                     new SupportingFile(
                             "test/BasicAuthenticatorTests.mustache",
-                            Path.of("Tests", packageName + "Tests").toString(),
+                            testDir,
                             "BasicAuthenticatorTests.swift"));
         }
+        if (hasBearerAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/BearerAuthenticatorTests.mustache",
+                            testDir,
+                            "BearerAuthenticatorTests.swift"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiKeyAuthenticatorTests.mustache",
+                            testDir,
+                            "ApiKeyAuthenticatorTests.swift"));
+        }
+    }
+
+    /**
+     * The OAuth2 and OpenID Connect tests, each gated on the scheme it
+     * exercises. Like the Basic, Bearer and API-key tests they are registered
+     * once the spec has been read, never from processOpts.
+     */
+    @Override
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        final String testDir = Path.of("Tests", packageName + "Tests").toString();
+        return List.of(
+                new OAuthTestFileSpec(
+                        "test/OAuth2TokenManagerTests.mustache",
+                        testDir,
+                        "OAuth2TokenManagerTests.swift",
+                        OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec(
+                        "test/OAuth2AuthCodeAuthenticatorTests.mustache",
+                        testDir,
+                        "OAuth2AuthorizationCodeAuthenticatorTests.swift",
+                        OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec(
+                        "test/OAuth2ImplicitAuthenticatorTests.mustache",
+                        testDir,
+                        "OAuth2ImplicitAuthenticatorTests.swift",
+                        OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec(
+                        "test/OAuth2ClientCredentialsAuthenticatorTests.mustache",
+                        testDir,
+                        "OAuth2ClientCredentialsAuthenticatorTests.swift",
+                        OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec(
+                        "test/OAuth2PasswordAuthenticatorTests.mustache",
+                        testDir,
+                        "OAuth2PasswordAuthenticatorTests.swift",
+                        OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec(
+                        "test/OpenIdConnectAuthenticatorTests.mustache",
+                        testDir,
+                        "OpenIdConnectAuthenticatorTests.swift",
+                        OAuthTestCondition.OIDC));
     }
 
     /** {@inheritDoc} */

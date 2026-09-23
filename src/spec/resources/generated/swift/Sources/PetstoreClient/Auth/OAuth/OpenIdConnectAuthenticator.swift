@@ -118,7 +118,11 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
      * typed ApiError for its status rather than a misleading "invalid
      * JSON" decode failure. */
     guard response.statusCode >= 200 && response.statusCode < 300 else {
-      throw BaseApi.throwAPIError(response)
+      throw ApiError.fromResponse(
+        statusCode: response.statusCode,
+        headers: response.headers,
+        body: response.body
+      )
     }
 
     guard let data = response.body.data(using: .utf8) else {

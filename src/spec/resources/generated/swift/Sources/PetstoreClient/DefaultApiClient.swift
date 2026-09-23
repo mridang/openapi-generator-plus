@@ -786,11 +786,18 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     }
   }
 
-  private static func buildSession(_ opts: TransportOptions) throws -> (
-    URLSession, SessionDelegate?
-  ) {
+  /* `internal` rather than `private` so the tests can assert that the one
+   * `timeout` knob arms BOTH of URLSession's deadlines, and that each of
+   * them surfaces as NetworkTimeoutError rather than as a bare
+   * NetworkError. */
+  static func buildSession(_ opts: TransportOptions) throws -> (URLSession, SessionDelegate?) {
     let config = URLSessionConfiguration.default
 
+    /* URLSession has two deadlines: `timeoutIntervalForRequest` is the
+     * idle timer between bytes, `timeoutIntervalForResource` the total
+     * budget for the whole transfer. Both are armed from the single
+     * `timeout` option, and both expire as `URLError.timedOut`, so an
+     * expired deadline is a NetworkTimeoutError whichever timer fired. */
     if let timeout = opts.timeout {
       let seconds = TimeInterval(timeout) / 1000.0
       config.timeoutIntervalForRequest = seconds
@@ -893,7 +900,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 /// When ``followRedirects`` is false, the delegate stops all HTTP 3xx redirects.
 /// When ``maxRedirects`` is set, the delegate limits the number of consecutive
 /// redirects before stopping. A value of 0 means no redirects are followed.
-private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate,
+/* `internal` rather than file-private so `buildSession` — which the tests
+ * call to prove both of URLSession's deadlines are armed — can name it in its
+ * return type. Nothing here is public. */
+final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate,
   @unchecked Sendable
 {
   private let verifySsl: Bool

@@ -1073,17 +1073,13 @@ import Testing
   /// URL (`http://user:pass@host:port`) are accepted by ``TransportOptions``
   /// and surfaced on the resulting ``TransportOptions/proxy`` URL.
   ///
-  /// The test is skipped when the bundled Squid container does not advertise
-  /// basic-auth (the default `squid.conf` in this repo does not), because the
-  /// proxy would reject any authenticated client before we could observe the
-  /// upstream request and the assertion would be meaningless.
+  /// The credential parsing is platform-independent and always runs. Driving
+  /// a request through the credentialed proxy is asserted separately, on the
+  /// Apple platforms only: URLSession on Linux has no
+  /// `connectionProxyDictionary`, so the SDK refuses a proxy there (see
+  /// ``ConfigurationError/proxyUnsupported``).
   @Test func testProxyAuthCredentialsRoundTrip() throws {
-    let squidSupportsBasicAuth = ProcessInfo.processInfo.environment["SQUID_BASIC_AUTH"] == "1"
-    guard squidSupportsBasicAuth else {
-      /* Skipped: bundled Squid container lacks basic-auth in this config. */
-      return
-    }
-    let proxyURL = "http://alice:s3cret@proxy.example.com:3128"
+    let proxyURL = "http://alice:s3cret@proxy.example.com:3129"
     let opts = try TransportOptionsBuilder().proxy(proxyURL).build()
     #expect(opts.proxy?.user == "alice")
     #expect(opts.proxy?.password == "s3cret")

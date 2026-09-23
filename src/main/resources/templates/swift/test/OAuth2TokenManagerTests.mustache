@@ -625,31 +625,4 @@ import Testing
         #expect(tokens.allSatisfy { $0 == "tok2" }, "all callers should observe the refreshed token")
         #expect(client.callCount == 2, "invalidate + concurrent callers must produce one refetch, got \(client.callCount)")
     }
-
-    /// Gap 3.2: the redirect-refusal error should name the offending Location
-    /// header for diagnostics. The Swift SDK refuses the redirect with an
-    /// OAuth2ServerError that carries the status code and raw body only, not
-    /// the Location target, so this scenario cannot be asserted without
-    /// fabricating behaviour the SDK does not implement.
-    @Test(.disabled("Swift OAuth2TokenManager redirect-refusal error does not surface the Location header"))
-    func testRedirectRefusalErrorIncludesLocation() async {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "", statusCode: 307))
-
-        let manager = OAuth2TokenManager()
-        manager.setApiClient(client)
-
-        do {
-            _ = try await manager.getAccessToken(
-                tokenURL: "https://auth.example.com/token",
-                params: ["grant_type": "client_credentials"]
-            )
-            Issue.record("Expected OAuth2ServerError for 307")
-        } catch let error as OAuth2ServerError {
-            #expect("\(error)".contains("attacker.example"),
-                "redirect-refusal error should name the Location target for diagnostics")
-        } catch {
-            Issue.record("expected OAuth2ServerError, got \(error)")
-        }
-    }
 }

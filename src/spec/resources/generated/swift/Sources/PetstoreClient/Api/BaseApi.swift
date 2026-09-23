@@ -188,7 +188,11 @@ public class BaseApi: @unchecked Sendable {
 
     /* Check for errors */
     if response.statusCode < 200 || response.statusCode >= 300 {
-      throw Self.throwAPIError(response)
+      throw ApiError.fromResponse(
+        statusCode: response.statusCode,
+        headers: response.headers,
+        body: response.body
+      )
     }
 
     return response
@@ -497,95 +501,6 @@ public class BaseApi: @unchecked Sendable {
     case "webm": return "video/webm"
     default: return "application/octet-stream"
     }
-  }
-
-  static func throwAPIError(_ response: ApiHttpResponse) -> ApiError {
-    let code = response.statusCode
-    let msg = "API returned status code \(code)"
-    let body = response.body
-
-    var parsed: Any? = nil
-    if !body.isEmpty, let data = body.data(using: .utf8) {
-      /* F5: depth-cap before invoking JSONSerialization so a
-       * malicious 100k-deep error payload cannot stack-overflow.
-       * Skip parsing entirely if the depth exceeds the cap. */
-      if ObjectSerializer.jsonMaxDepth(data) <= ObjectSerializer.maxJsonDepth {
-        parsed = try? JSONSerialization.jsonObject(with: data)
-      }
-    }
-
-    let baseErr = ApiError(
-      statusCode: code,
-      message: msg,
-      responseBody: body,
-      responseHeaders: response.headers,
-      errorBody: parsed
-    )
-
-    if code >= 400 && code < 500 {
-      let clientErr = ClientError(
-        statusCode: code,
-        message: msg,
-        responseBody: body,
-        responseHeaders: response.headers,
-        errorBody: parsed
-      )
-      switch code {
-      case 400:
-        return BadRequestError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 401:
-        return UnauthorizedError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 403:
-        return ForbiddenError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 404:
-        return NotFoundError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 409:
-        return ConflictError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 422:
-        return UnprocessableEntityError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      default:
-        return clientErr
-      }
-    }
-
-    if code >= 500 {
-      let serverErr = ServerError(
-        statusCode: code,
-        message: msg,
-        responseBody: body,
-        responseHeaders: response.headers,
-        errorBody: parsed
-      )
-      switch code {
-      case 500:
-        return InternalServerError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      default:
-        return serverErr
-      }
-    }
-
-    return baseErr
   }
 
   /// RFC 6265 cookie-name validation (RFC 7230 token).

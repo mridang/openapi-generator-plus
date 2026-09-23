@@ -83,4 +83,86 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
     }
     return try ObjectSerializer.deserialize(body, as: type)
   }
+
+  /// Builds the error type that matches an HTTP status code. This is the one
+  /// status-to-error mapping in the SDK: the API methods and the OpenID
+  /// Connect discovery call both go through it, so a status always produces
+  /// the same type wherever the response came from.
+  public static func fromResponse(
+    statusCode: Int,
+    headers: [String: String]?,
+    body: String
+  ) -> ApiError {
+    let msg = "API returned status code \(statusCode)"
+
+    var parsed: Any? = nil
+    if !body.isEmpty, let data = body.data(using: .utf8) {
+      /* F5: depth-cap before invoking JSONSerialization so a
+       * malicious 100k-deep error payload cannot stack-overflow.
+       * Skip parsing entirely if the depth exceeds the cap. */
+      if ObjectSerializer.jsonMaxDepth(data) <= ObjectSerializer.maxJsonDepth {
+        parsed = try? JSONSerialization.jsonObject(with: data)
+      }
+    }
+
+    if statusCode >= 400 && statusCode < 500 {
+      switch statusCode {
+      case 400:
+        return BadRequestError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      case 401:
+        return UnauthorizedError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      case 403:
+        return ForbiddenError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      case 404:
+        return NotFoundError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      case 409:
+        return ConflictError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      case 422:
+        return UnprocessableEntityError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      default:
+        return ClientError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      }
+    }
+
+    if statusCode >= 500 {
+      switch statusCode {
+      case 500:
+        return InternalServerError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      default:
+        return ServerError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      }
+    }
+
+    return ApiError(
+      statusCode: statusCode, message: msg, responseBody: body,
+      responseHeaders: headers, errorBody: parsed
+    )
+  }
 }

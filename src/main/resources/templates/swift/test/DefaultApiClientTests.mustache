@@ -1,7 +1,10 @@
 {{>api_info}}
-#if !os(Linux)
 import Foundation
 import Testing
+
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import {{packageName}}
 
 @Suite(.serialized) final class DefaultApiClientTests {
@@ -45,6 +48,11 @@ import Testing
         #expect(resp.statusCode == 200)
     }
 
+    /* Configuring a proxy throws on Linux, where URLSession has no
+     * connectionProxyDictionary, so the proxy cases run on the Apple
+     * platforms only. Everything else in this suite is platform-independent
+     * and runs everywhere. */
+#if !os(Linux)
     @Test func testMakesHttpRequestThroughProxy() async throws {
         let transport = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
         let client = makeClient(transport: transport) { _ in
@@ -86,9 +94,9 @@ import Testing
     //
     // NOTE: configuring a proxy on Linux throws at session construction (the
     // platform path is macOS-only — see buildSession), so this test exercises
-    // the macOS path; the file is gated `#if !os(Linux)`. The credential
-    // extraction itself (proxyAuthHeader) is platform-independent and is
-    // asserted directly alongside the on-wire header.
+    // the macOS path. The credential extraction itself (proxyAuthHeader) is
+    // platform-independent and is asserted directly alongside the on-wire
+    // header.
     @Test func testProxyUserinfoCarriesCredentialsCanonical() async throws {
         let transport = try TransportOptionsBuilder()
             .proxy("http://user:pass@127.0.0.1:3128")
@@ -119,6 +127,7 @@ import Testing
             method: "GET", url: "https://example.com", headers: [:], body: nil)
         #expect(resp.statusCode == 200)
     }
+#endif
 
     @Test func testTimesOutOnSlowEndpoint() async throws {
         let transport = TransportOptionsBuilder().timeout(1).build()
@@ -809,4 +818,3 @@ private final class RedirectStubURLProtocol: URLProtocol {
 
     override func stopLoading() {}
 }
-#endif

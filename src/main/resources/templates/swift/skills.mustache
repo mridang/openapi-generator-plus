@@ -203,7 +203,7 @@ All API errors derive from `ApiError`. The error hierarchy is:
 
 ```swift
 do {
-    let result = try await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* parameters */)
+    let result = try await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}{{paramName}}: {{paramName}}{{/isPath}}{{#isBody}}{{paramName}}: {{paramName}}{{/isBody}}{{#isOptions}}{{#vendorExtensions.op.optionsParamRequired}}options: options{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 } catch let error as NotFoundError {
     print("Not found: \(error)")
 } catch let error as ClientError {

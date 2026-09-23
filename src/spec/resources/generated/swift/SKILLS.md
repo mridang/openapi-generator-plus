@@ -184,7 +184,7 @@ All API errors derive from `ApiError`. The error hierarchy is:
 
 ```swift
 do {
-    let result = try await client.pet.addPet(/* parameters */)
+    let result = try await client.pet.addPet(pet: pet)
 } catch let error as NotFoundError {
     print("Not found: \(error)")
 } catch let error as ClientError {

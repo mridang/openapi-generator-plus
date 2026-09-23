@@ -348,11 +348,15 @@ final class PetApiTests {
     #expect(result != nil)
   }
 
-  @Test(
-    .disabled(
-      "SetPetAvatarThumbnailRequest is a decoder-only union type with no public constructor"))
-  func testSetPetAvatarThumbnail() async throws {
-    // SetPetAvatarThumbnailRequest has no public constructor; placeholder only.
+  @Test func testSetPetAvatarThumbnail() async throws {
+    let api = petApiForIntegration()
+
+    /* The oneOf request body is built the way a caller holding its JSON
+       would build it: by decoding, which picks the matching variant. */
+    let thumbnail = try JSONDecoder().decode(
+      SetPetAvatarThumbnailRequest.self, from: Data("\"/9j/4A==\"".utf8))
+
+    try await api.setPetAvatarThumbnail(petId: 1, setPetAvatarThumbnailRequest: thumbnail)
   }
 
   @Test func testUploadPetCertificate() async throws {
@@ -402,10 +406,14 @@ final class PetApiTests {
     _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)
   }
 
-  @Test(.disabled("Per-operation server URL points to external host"))
-  func testGetExternalPetInfo() async throws {
+  /* The operation's own server points at an external host, so the test
+     supplies a server of its own that points at the mock server, which
+     serves every path in the spec. */
+  @Test func testGetExternalPetInfo() async throws {
     let api = petApiForIntegration()
-    _ = try await api.getExternalPetInfo(petId: 1)
+
+    let result = try await api.getExternalPetInfo(petId: 1, server: MockExternalPetInfoServer())
+    #expect(result.id != nil)
   }
 
   // MARK: - Mock Helpers
@@ -820,4 +828,10 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
       headers: responseHeaders
     )
   }
+}
+
+/// Points getExternalPetInfo's own server at the mock server, which serves
+/// every path in the spec.
+private struct MockExternalPetInfoServer: GetExternalPetInfoServer {
+  func getUrl() -> String { return chasmUrl }
 }

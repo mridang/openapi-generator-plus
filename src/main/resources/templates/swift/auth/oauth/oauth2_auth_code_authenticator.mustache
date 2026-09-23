@@ -1,21 +1,6 @@
 {{>api_info}}
 import Foundation
 
-/// Error raised by ``OAuth2AuthorizationCodeAuthenticator`` when the caller
-/// violates the documented usage contract (e.g. requesting headers before
-/// exchanging an authorization code). Callers can catch this to recover
-/// gracefully instead of being terminated by a `fatalError`.
-///
-/// This is a caller mistake, not an API failure, so like
-/// ``ConfigurationError`` it conforms to plain `Error` and is deliberately not
-/// part of the SDK error hierarchy rooted at ``{{errorPrefix}}Error``.
-public enum OAuth2AuthorizationCodeError: Error, Equatable {
-    /// Auth headers were requested before `exchangeCode(_:)`.
-    case codeNotExchanged
-    /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
-    case emptyCode
-}
-
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
 ///
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
