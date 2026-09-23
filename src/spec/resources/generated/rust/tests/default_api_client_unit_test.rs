@@ -1142,7 +1142,17 @@ async fn test_body_read_timeout_returns_network_timeout_error() {
      * header phase; the promised body is then never finished. */
     thread::spawn(move || {
         if let Some(Ok(mut stream)) = listener.incoming().next() {
-            use std::io::Write;
+            use std::io::{BufRead, BufReader, Write};
+            /* Read the request line and headers first: a server that answers
+             * without draining the request can have its write reset. */
+            let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+            let mut line = String::new();
+            while reader.read_line(&mut line).unwrap_or(0) > 0 {
+                if line == "\r\n" || line == "\n" {
+                    break;
+                }
+                line.clear();
+            }
             let _ = stream.write_all(
                 b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1024\r\n\r\nx",
             );
