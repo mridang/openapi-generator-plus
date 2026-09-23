@@ -518,6 +518,25 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void connectDeadlineRaisesNetworkTimeoutException() {
+    // The `timeout` option arms two deadlines: the connect timeout on the
+    // HttpClient and the read timeout on the HttpRequest. Both expire on the
+    // same configured budget, so both must classify as NetworkTimeoutException
+    // — a connect-phase expiry surfacing as a plain NetworkException would let
+    // one deadline report under two types. 192.0.2.1 (RFC 5737 TEST-NET-1) is
+    // reserved for documentation and never routed, so the SYN is dropped
+    // rather than refused and the connect timer is the one that fires.
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().timeout(250).build());
+    {{invokerPackage}}.errors.NetworkTimeoutException ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException.class, () ->
+        client.sendRequest("GET", "http://192.0.2.1:81/never", Map.of(), null));
+    assertInstanceOf({{invokerPackage}}.errors.NetworkException.class, ex);
+    assertEquals(0, ex.getStatusCode());
+    assertTrue(ex.getCause() instanceof java.net.http.HttpTimeoutException,
+        "cause should be the JDK timeout exception, was: " + ex.getCause());
+  }
+
+  @Test
   void httpsToHttpBodyReplayGuardIgnoredForSameSchemeRedirects() {
     java.net.URI httpOrig = java.net.URI.create("http://api.example.com/x");
     java.net.URI httpTarg = java.net.URI.create("http://api.example.com/y");
