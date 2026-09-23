@@ -107,12 +107,56 @@ public final class JUnitReportPrinter {
           }
         }
         if (hasChildSuites) {
+          /* A suite can hold both its own cases and nested suites — Pest
+           * nests a describe() block inside the file's suite. Recursing
+           * alone dropped every test declared outside the describe, so the
+           * report undercounted what the runner printed. */
+          collectDirectCases(suite, suites, failures);
           collectSuites(suite, suites, failures);
         } else {
           collectSuite(suite, suites, failures);
         }
       }
     }
+  }
+
+  /**
+   * Summarises only the {@code <testcase>} elements that are direct children of
+   * {@code suite}, for a suite that also holds nested suites. The suite's own
+   * {@code tests}/{@code time} attributes cover its descendants too, so the
+   * counts are recomputed from the direct cases to avoid double counting.
+   */
+  private static void collectDirectCases(
+      Element suite, List<SuiteSummary> suites, List<TestFailure> failures) {
+    String name = attr(suite, "name", "(unnamed)");
+    List<Element> direct = new ArrayList<>();
+    NodeList children = suite.getChildNodes();
+    for (int i = 0; i < children.getLength(); i++) {
+      Node child = children.item(i);
+      if (child.getNodeType() == Node.ELEMENT_NODE && "testcase".equals(child.getNodeName())) {
+        direct.add((Element) child);
+      }
+    }
+    if (direct.isEmpty()) {
+      return;
+    }
+
+    int failed = 0;
+    int errored = 0;
+    int skipped = 0;
+    double time = 0;
+    for (Element tc : direct) {
+      time += parseDouble(attr(tc, "time", "0"));
+      if (tc.getElementsByTagName("failure").getLength() > 0) {
+        failed++;
+      } else if (tc.getElementsByTagName("error").getLength() > 0) {
+        errored++;
+      } else if (tc.getElementsByTagName("skipped").getLength() > 0) {
+        skipped++;
+      }
+    }
+    suites.add(new SuiteSummary(name, direct.size(), failed, errored, skipped, time));
+    collectFailures(suite, name, failures);
   }
 
   private static void collectSuite(
@@ -130,7 +174,12 @@ public final class JUnitReportPrinter {
     }
 
     suites.add(new SuiteSummary(name, tests, failed, errored, skipped, time));
+    collectFailures(suite, name, failures);
+  }
 
+  /** Records every failing/erroring {@code <testcase>} directly under {@code suite}. */
+  private static void collectFailures(Element suite, String name, List<TestFailure> failures) {
+    NodeList testcases = suite.getElementsByTagName("testcase");
     for (int i = 0; i < testcases.getLength(); i++) {
       Node tcNode = testcases.item(i);
       if (tcNode.getParentNode() != suite) {
