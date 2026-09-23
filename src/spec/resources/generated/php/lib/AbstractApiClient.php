@@ -186,7 +186,93 @@ abstract class AbstractApiClient implements ApiClient
             $currentHeaders = $mergedHeaders;
             while ($hops < $maxRedirects && self::isRedirectStatus($response->statusCode)) {
                 $location = ($response->headers['location'] ?? [null])[0];
-                break;
+                if ($location === null) {
+                    break;
+                }
+                $nextUrl = self::resolveUrl($url, $location);
+                if ($nextUrl === null) {
+                    break;
+                }
+                $scheme = parse_url($nextUrl, PHP_URL_SCHEME);
+                if (!in_array(strtolower((string) $scheme), ['http', 'https'], true)) {
+                    /* Gap T-D3: a Location pointing at a non-http(s)
+                     * scheme (file:, javascript:, data:, ...) is an
+                     * attack vector. Refuse loudly instead of silently
+                     * returning the 3xx, matching the throwing SDKs. */
+                    throw new ApiException(
+                        $response->statusCode,
+                        "Redirect to unsupported scheme '$scheme' in Location: $nextUrl"
+                    );
+                }
+                $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
+
+                /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+                 *   307 + 308: preserve original method and body.
+                 *   303:       force GET, drop the body (and Content-Type/Length).
+                 *   301 + 302: historical browser behaviour — switch to GET for
+                 *              non-GET/HEAD requests, drop the body. */
+                $statusCode = $response->statusCode;
+                $methodUpper = strtoupper($currentMethod);
+
+                /* Gap 3.3: refuse to replay a request body across an
+                 * HTTPS -> HTTP downgrade. A malicious 307/308 from an
+                 * upstream proxy can otherwise leak request bodies
+                 * (containing credentials, PII, etc.) onto the wire in
+                 * plaintext. The connection is closed and the original
+                 * 3xx response surfaces to the caller. */
+                $prevScheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+                $nextScheme = strtolower((string) $scheme);
+                $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
+                $hasBody = $currentBody !== null;
+                if ($isDowngrade && $hasBody && ($statusCode === 307 || $statusCode === 308)) {
+                    /* Gap 3.3 / T-D2: raise instead of silently returning
+                     * the 3xx so the caller sees the refused downgrade,
+                     * matching the SDKs that throw on a refused replay. */
+                    throw new ApiException(
+                        $statusCode,
+                        "Refusing to replay request body across HTTPS->HTTP downgrade redirect to $nextUrl"
+                    );
+                }
+
+                if ($statusCode === 307 || $statusCode === 308) {
+                    $nextMethod = $currentMethod;
+                    $dropBody = false;
+                } elseif ($statusCode === 303) {
+                    $nextMethod = 'GET';
+                    $dropBody = true;
+                } elseif ($methodUpper === 'GET' || $methodUpper === 'HEAD') {
+                    $nextMethod = $currentMethod;
+                    $dropBody = false;
+                } else {
+                    $nextMethod = 'GET';
+                    $dropBody = true;
+                }
+
+                $redirectHeaders = $currentHeaders;
+                if ($crossOrigin) {
+                    foreach (array_keys($redirectHeaders) as $hname) {
+                        $lower = strtolower((string) $hname);
+                        if (in_array($lower, static::SENSITIVE_HEADER_NAMES, true)) {
+                            unset($redirectHeaders[$hname]);
+                        }
+                    }
+                }
+                if ($dropBody) {
+                    foreach (array_keys($redirectHeaders) as $hname) {
+                        $lower = strtolower((string) $hname);
+                        if ($lower === 'content-type' || $lower === 'content-length') {
+                            unset($redirectHeaders[$hname]);
+                        }
+                    }
+                }
+
+                $redirectBody = $dropBody ? null : $currentBody;
+                $url = $nextUrl;
+                $currentMethod = $nextMethod;
+                $currentBody = $redirectBody;
+                $currentHeaders = $redirectHeaders;
+                $response = $this->execute($nextMethod, $nextUrl, $redirectHeaders, $redirectBody);
+                $hops++;
             }
 
             /* Gap T-D1: if we ran out of redirect budget while the
