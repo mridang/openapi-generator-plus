@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -22,6 +20,20 @@ __all__ = [
     "ServerVariable",
     "OpenAPIException",
     "ApiException",
+    "ClientException",
+    "ServerException",
+    "BadRequestException",
+    "UnauthorizedException",
+    "ForbiddenException",
+    "NotFoundException",
+    "ConflictException",
+    "UnprocessableEntityException",
+    "InternalServerErrorException",
+    "NetworkException",
+    "NetworkTimeoutException",
+    "SerializationException",
+    "OAuth2ServerException",
+    "OAuth2TokenException",
     "ApiResponse",
     "Availability",
     "BinaryVault",
@@ -71,6 +83,24 @@ from petstore_client.server_configuration import (
 from petstore_client.server_configuration import ServerVariable as ServerVariable
 from petstore_client.errors import OpenAPIException as OpenAPIException
 from petstore_client.errors import ApiException as ApiException
+from petstore_client.errors import ClientException as ClientException
+from petstore_client.errors import ServerException as ServerException
+from petstore_client.errors import BadRequestException as BadRequestException
+from petstore_client.errors import UnauthorizedException as UnauthorizedException
+from petstore_client.errors import ForbiddenException as ForbiddenException
+from petstore_client.errors import NotFoundException as NotFoundException
+from petstore_client.errors import ConflictException as ConflictException
+from petstore_client.errors import (
+    UnprocessableEntityException as UnprocessableEntityException,
+)
+from petstore_client.errors import (
+    InternalServerErrorException as InternalServerErrorException,
+)
+from petstore_client.errors import NetworkException as NetworkException
+from petstore_client.errors import NetworkTimeoutException as NetworkTimeoutException
+from petstore_client.errors import SerializationException as SerializationException
+from petstore_client.errors import OAuth2ServerException as OAuth2ServerException
+from petstore_client.errors import OAuth2TokenException as OAuth2TokenException
 
 # import models into sdk package
 from petstore_client.models.api_response import (

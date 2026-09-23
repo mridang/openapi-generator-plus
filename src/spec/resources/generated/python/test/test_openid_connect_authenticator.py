@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -19,7 +17,7 @@ from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
 from petstore_client.errors.not_found_exception import NotFoundException
-from petstore_client.object_serializer import SerializationException
+from petstore_client.errors import ApiException, SerializationException
 from petstore_client.api_http_response import ApiHttpResponse
 
 
@@ -155,7 +153,9 @@ class TestOpenIdConnectAuthenticator:
         ("status", "expected"),
         [(404, NotFoundException), (500, InternalServerErrorException)],
     )
-    def test_discovery_non_2xx_status_raises(self, status: int, expected: type) -> None:
+    def test_discovery_non_2xx_status_raises(
+        self, status: int, expected: type[ApiException]
+    ) -> None:
         # Discovery is an HTTP call like any other: a non-2xx answer (e.g. a
         # 500-HTML error page) raises the same status-specific error an API
         # call would, not a confusing "invalid JSON" from json.loads.

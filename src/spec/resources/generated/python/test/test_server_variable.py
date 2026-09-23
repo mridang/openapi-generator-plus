@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 from petstore_client.server_configuration import ServerVariable
 
 

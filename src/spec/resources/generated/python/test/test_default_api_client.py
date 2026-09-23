@@ -1,8 +1,7 @@
-# ruff: noqa
-# mypy: ignore-errors
 import json
 
 import pytest
+import urllib3
 from typing import Any
 
 from petstore_client.default_api_client import DefaultApiClient
@@ -39,6 +38,13 @@ class TestCustomCaBundle:
         assert '"method"' in response.body
 
 
+def _proxy_manager(client: DefaultApiClient) -> urllib3.ProxyManager:
+    """The client's pool manager, which a proxied transport makes a ProxyManager."""
+    pool = client._pool_manager
+    assert isinstance(pool, urllib3.ProxyManager)
+    return pool
+
+
 class TestHttpProxy:
     def test_makes_http_request_through_proxy(
         self, chasm_internal_http_url: Any, proxy_url: Any
@@ -54,6 +60,38 @@ class TestHttpProxy:
 
 
 class TestProxyWithCredentials:
+    # The fixture proxy's second port answers 407 unless the request carries
+    # Proxy-Authorization, so these two prove the credentials in the proxy URL
+    # reach the proxy on the wire.
+    def test_authenticating_proxy_accepts_credentials_from_the_proxy_url(
+        self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .proxy(f"http://user:pass@{proxy_auth_host_port}")
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_internal_http_url + "/test/echo", {}, None
+        )
+
+        assert response.status_code == 200
+        assert '"method"' in response.body
+
+    def test_authenticating_proxy_refuses_a_request_without_credentials(
+        self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder().proxy(f"http://{proxy_auth_host_port}").build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_internal_http_url + "/test/echo", {}, None
+        )
+
+        assert response.status_code == 407
+
     # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     # and surfaced as Proxy-Authorization so the proxy can authenticate
     # the tunnel — otherwise the proxy 407s. urllib3 2.x does NOT extract
@@ -72,7 +110,7 @@ class TestProxyWithCredentials:
         # so look it up case-insensitively. HTTP header names are
         # case-insensitive on the wire regardless.
         proxy_headers = {
-            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+            k.lower(): v for k, v in _proxy_manager(client).proxy_headers.items()
         }
         assert proxy_headers.get("proxy-authorization") == "Basic YWxpY2U6czNjcmV0"
 
@@ -88,7 +126,7 @@ class TestProxyWithCredentials:
         )
         client = DefaultApiClient(transport)
         proxy_headers = {
-            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+            k.lower(): v for k, v in _proxy_manager(client).proxy_headers.items()
         }
         expected = "Basic " + base64.b64encode(b"al@ice:p:ss").decode("ascii")
         assert proxy_headers.get("proxy-authorization") == expected
@@ -97,7 +135,7 @@ class TestProxyWithCredentials:
         transport = TransportOptions.builder().proxy("http://127.0.0.1:3128").build()
         client = DefaultApiClient(transport)
         proxy_headers = {
-            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+            k.lower(): v for k, v in _proxy_manager(client).proxy_headers.items()
         }
         assert "proxy-authorization" not in proxy_headers
 
@@ -114,7 +152,7 @@ class TestProxyWithCredentials:
         )
         client = DefaultApiClient(transport)
         proxy_headers = {
-            k.lower(): v for k, v in client._pool_manager.proxy_headers.items()
+            k.lower(): v for k, v in _proxy_manager(client).proxy_headers.items()
         }
         expected = "Basic " + base64.b64encode(b"user:pass").decode("ascii")
         assert proxy_headers.get("proxy-authorization") == expected

@@ -1,5 +1,8 @@
-# ruff: noqa
-# mypy: ignore-errors
+# The import block below is emitted for every model, so a model that uses
+# none of the strict scalars or containers still carries them; the footer
+# re-imports the strict aliases a forward reference needs. Only those three
+# import rules are off -- every other ruff rule applies to this file.
+# ruff: noqa: F401, F811, E402
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #

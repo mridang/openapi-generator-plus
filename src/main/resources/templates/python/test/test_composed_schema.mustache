@@ -1,8 +1,7 @@
-# ruff: noqa
-# mypy: ignore-errors
 import pytest
 
-from {{packageName}}.object_serializer import ObjectSerializer, SerializationException
+from {{packageName}}.errors import SerializationException
+from {{packageName}}.object_serializer import ObjectSerializer
 from {{packageName}}.models.dry_food import DryFood
 from {{packageName}}.models.wet_food import WetFood
 from {{packageName}}.models.medication import Medication

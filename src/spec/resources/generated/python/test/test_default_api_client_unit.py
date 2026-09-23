@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 import json
 import pytest
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -544,41 +542,6 @@ class TestMultipartContentType:
         assert ".123" in parsed["recordedAt"]
 
 
-class TestProxyAuthentication:
-    """Proxy URL with userinfo should produce a ``Proxy-Authorization`` header.
-
-    The shared Squid container in this test environment runs without
-    basic-auth ACLs, so this scenario cannot be verified end-to-end.
-    Enable when ``squid.conf`` is provisioned with htpasswd-backed auth.
-    """
-
-    @pytest.mark.skip(
-        reason=(
-            "requires Squid configured with basic-auth; the shared squid_container "
-            "in this test environment runs without basic_auth ACLs, so userinfo in the "
-            "proxy URL cannot be verified end-to-end. Enable when squid.conf is "
-            "provisioned with htpasswd-backed auth."
-        )
-    )
-    def test_proxy_url_with_userinfo_sends_proxy_authorization(self) -> None:
-        from urllib.parse import urlparse
-
-        # Splice basic-auth userinfo into the proxy URL: http://user:pass@host:port
-        base_proxy_url = "http://127.0.0.1:3128"
-        parsed = urlparse(base_proxy_url)
-        proxy_url_with_auth = (
-            f"{parsed.scheme}://user:pass@{parsed.hostname}:{parsed.port}"
-        )
-
-        transport = TransportOptions.builder().proxy(proxy_url_with_auth).build()
-        client = DefaultApiClient(transport)
-        response = client.send_request("GET", "http://chasm:8080/test/echo", {}, None)
-
-        assert response.status_code == 200
-        # chasm echo envelope always includes a method field
-        assert '"method"' in response.body
-
-
 class TestMultipartBinaryPreservation:
     """Binary multipart parts must not be re-encoded through UTF-8."""
 
@@ -976,6 +939,7 @@ class TestBodyReadErrorWrapped:
 
     def test_body_read_error_is_wrapped_in_network_exception(self) -> None:
         import urllib3
+        import urllib3.exceptions
         from petstore_client.errors import NetworkException
 
         class _ReadFailResp:
@@ -1037,6 +1001,7 @@ class TestNetworkErrors:
 
     def test_read_timeout_raises_network_timeout_exception(self) -> None:
         import urllib3
+        import urllib3.exceptions
         from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         class _Pool:
@@ -1046,6 +1011,36 @@ class TestNetworkErrors:
                     no_pool,
                     url,
                     urllib3.exceptions.ReadTimeoutError(no_pool, url, "read timed out"),
+                )
+
+        client = DefaultApiClient(pool_manager=_Pool())
+        with pytest.raises(NetworkTimeoutException) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert type(excinfo.value) is NetworkTimeoutException
+        assert isinstance(excinfo.value, NetworkException)
+        assert excinfo.value.status_code == 0
+        assert isinstance(excinfo.value.__cause__, urllib3.exceptions.MaxRetryError)
+
+    def test_connect_timeout_raises_network_timeout_exception(self) -> None:
+        # The single `urllib3.Timeout(total=...)` the client sets covers both
+        # the connect and the read phase, and urllib3 raises a different error
+        # for each. Both are the same expired deadline, so both must be a
+        # NetworkTimeoutException -- and the connect branch sits behind the
+        # NewConnectionError check, whose subclassing could invert on an
+        # upgrade.
+        import urllib3
+        import urllib3.exceptions
+        from petstore_client.errors import NetworkException, NetworkTimeoutException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                no_pool: Any = None
+                raise urllib3.exceptions.MaxRetryError(
+                    no_pool,
+                    url,
+                    urllib3.exceptions.ConnectTimeoutError(
+                        no_pool, "connect timed out"
+                    ),
                 )
 
         client = DefaultApiClient(pool_manager=_Pool())

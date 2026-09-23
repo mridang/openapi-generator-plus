@@ -1,5 +1,7 @@
-# ruff: noqa
-# mypy: ignore-errors
+# The model and pydantic import blocks below are emitted for every API
+# class, so an API that references none of them still carries them. Only
+# F401 is off -- every other ruff rule applies to this file.
+# ruff: noqa: F401
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -12,7 +14,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
+from pydantic import AwareDatetime, StrictBool, StrictFloat, StrictInt, StrictStr
 
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet
@@ -464,8 +466,16 @@ class PetApi(BaseApi):
             # A CR/LF or control char here would otherwise allow header
             # injection; fail closed with the same error the auth-cookie path
             # raises rather than emitting a malformed header.
-            cookie_value = ValueSerializer.serialize_styled(
-                "api_key", options.api_key, "cookie", "StrictStr", None, "form", True
+            cookie_value = str(
+                ValueSerializer.serialize_styled(
+                    "api_key",
+                    options.api_key,
+                    "cookie",
+                    "StrictStr",
+                    None,
+                    "form",
+                    True,
+                )
             )
             if not _is_valid_cookie_value(cookie_value):
                 raise ValueError(

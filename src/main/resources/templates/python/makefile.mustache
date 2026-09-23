@@ -15,7 +15,8 @@ format: install
 	ruff format .
 
 typecheck: install
-	mypy {{packageName}}/
+	mypy {{packageName}}/ test/
+	ty check
 
 docs: install
 	rm -rf .out/docs-src .out/docs

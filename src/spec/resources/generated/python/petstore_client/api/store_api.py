@@ -1,5 +1,7 @@
-# ruff: noqa
-# mypy: ignore-errors
+# The model and pydantic import blocks below are emitted for every API
+# class, so an API that references none of them still carries them. Only
+# F401 is off -- every other ruff rule applies to this file.
+# ruff: noqa: F401
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -10,7 +12,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
+from pydantic import AwareDatetime, StrictBool, StrictFloat, StrictInt, StrictStr
 
 from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
@@ -168,14 +170,16 @@ class StoreApi(BaseApi):
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.preferred_swatch is not None:
-            header_params["Preferred-Swatch"] = ValueSerializer.serialize_styled(
-                "Preferred-Swatch",
-                options.preferred_swatch,
-                "header",
-                "Swatch",
-                None,
-                "simple",
-                False,
+            header_params["Preferred-Swatch"] = str(
+                ValueSerializer.serialize_styled(
+                    "Preferred-Swatch",
+                    options.preferred_swatch,
+                    "header",
+                    "Swatch",
+                    None,
+                    "simple",
+                    False,
+                )
             )
         body = None
 

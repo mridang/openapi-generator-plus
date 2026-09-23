@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 from .add_pet_options import AddPetOptions as AddPetOptions
 from .add_pet_photos_options import AddPetPhotosOptions as AddPetPhotosOptions
 from .add_pet_treatment_options import AddPetTreatmentOptions as AddPetTreatmentOptions

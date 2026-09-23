@@ -8,18 +8,8 @@ from typing import Dict, Mapping, Optional, Sequence
 from ...api_client import ApiClient
 from ..http_aware_authenticator import HttpAwareAuthenticator
 from .oauth2_authorization_code_authenticator import OAuth2AuthorizationCodeAuthenticator
-from ...api_http_response import ApiHttpResponse
 from ...errors import ApiException
-from ...errors.bad_request_exception import BadRequestException
-from ...errors.client_exception import ClientException
-from ...errors.conflict_exception import ConflictException
-from ...errors.forbidden_exception import ForbiddenException
-from ...errors.internal_server_error_exception import InternalServerErrorException
-from ...errors.not_found_exception import NotFoundException
-from ...errors.server_exception import ServerException
-from ...errors.unauthorized_exception import UnauthorizedException
-from ...errors.unprocessable_entity_exception import UnprocessableEntityException
-from ...object_serializer import SerializationException
+from ...errors.serialization_exception import SerializationException
 
 # RFC 8414 recommended default max-age for OIDC discovery documents.
 _DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
@@ -128,7 +118,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         # the real discovery failure. Discovery is an HTTP call like any
         # other, so it raises the same typed error an API call would.
         if response.status_code < 200 or response.status_code >= 300:
-            raise self._discovery_error(response)
+            raise ApiException.from_response(response.status_code, response.headers, response.body)
         try:
             discovery = json.loads(response.body)
         except ValueError as e:
@@ -166,34 +156,6 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             getattr(response, 'headers', None)
         )
         return self._delegate
-
-    def _discovery_error(self, response: ApiHttpResponse) -> ApiException:
-        """The error an API call answered with the discovery response's
-        status would raise: the status-specific subclass where there is one,
-        else ClientException / ServerException / ApiException."""
-        message = f'OpenID Connect discovery request to {self._openid_connect_url} failed'
-        headers = dict(response.headers)
-        code = response.status_code
-        by_status = {
-            400: BadRequestException,
-            401: UnauthorizedException,
-            403: ForbiddenException,
-            404: NotFoundException,
-            409: ConflictException,
-            422: UnprocessableEntityException,
-            500: InternalServerErrorException,
-        }
-        if code in by_status:
-            return by_status[code](message=message, response_body=response.body, response_headers=headers)
-        if 400 <= code < 500:
-            return ClientException(
-                status_code=code, message=message, response_body=response.body, response_headers=headers
-            )
-        if code >= 500:
-            return ServerException(
-                status_code=code, message=message, response_body=response.body, response_headers=headers
-            )
-        return ApiException(status_code=code, message=message, response_body=response.body, response_headers=headers)
 
     def build_authorization_url(self, state: Optional[str] = None) -> str:
         """Build the authorization URL using the discovered authorization endpoint.

@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -23,6 +21,7 @@ from urllib.parse import (
 )
 
 import urllib3
+import urllib3.exceptions
 
 from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.errors import (

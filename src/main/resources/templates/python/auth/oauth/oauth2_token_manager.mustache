@@ -6,7 +6,8 @@ import time
 from typing import Dict, Optional
 
 from ...api_client import ApiClient
-from ...errors import {{errorPrefix}}Exception
+from ...errors.oauth2_server_exception import OAuth2ServerException
+from ...errors.oauth2_token_exception import OAuth2TokenException
 
 
 class OAuth2TokenManager:
@@ -260,78 +261,3 @@ class OAuth2TokenManager:
     @property
     def refresh_token(self) -> Optional[str]:
         return self._refresh_token
-
-
-class OAuth2TokenException({{errorPrefix}}Exception):
-    """Raised when the OAuth2 token endpoint returns a 2xx response that
-    cannot be used: a body that is not a JSON object, or one whose
-    ``access_token`` field is missing or empty. Distinct from
-    :class:`OAuth2ServerException` (which represents non-2xx responses) so
-    callers can recover differently.
-
-    A sibling of :class:`ApiException` under the branded
-    :class:`{{errorPrefix}}Exception` root -- it is an OAuth2 token-acquisition
-    failure rather than an HTTP-status error, so it does not extend
-    ``ApiException``. Callers can still catch every SDK error with one
-    ``except {{errorPrefix}}Exception``."""
-
-
-class OAuth2ServerException({{errorPrefix}}Exception):
-    """Raised when the OAuth2 token endpoint answers with a non-2xx status,
-    including a 3xx redirect, which the token POST never follows. Typed
-    representation of an RFC 6749 §5.2 OAuth2 error response.
-
-    Attributes:
-        status_code: The HTTP status code returned by the token endpoint.
-        code: The OAuth2 error code (e.g. ``invalid_grant``,
-            ``invalid_client``), or ``None`` when the body did not parse as
-            a valid OAuth2 error object.
-        description: Optional human-readable description.
-        uri: Optional URI to a page describing the error.
-        raw_body: The original response payload (for diagnostics).
-    """
-
-    def __init__(
-        self,
-        status_code: int,
-        code: Optional[str],
-        description: Optional[str],
-        uri: Optional[str],
-        raw_body: str,
-    ) -> None:
-        if code is None:
-            message = f'Token request failed with status {status_code}: {raw_body}'
-        elif description is not None:
-            message = (
-                f'Token request failed with status {status_code}: {code} -- {description}'
-            )
-        else:
-            message = f'Token request failed with status {status_code}: {code}'
-        super().__init__(message)
-        # Stored privately and exposed via read-only @property getters so a
-        # caught error's fields cannot be reassigned after construction.
-        self._status_code = status_code
-        self._code = code
-        self._description = description
-        self._uri = uri
-        self._raw_body = raw_body
-
-    @property
-    def status_code(self) -> int:
-        return self._status_code
-
-    @property
-    def code(self) -> Optional[str]:
-        return self._code
-
-    @property
-    def description(self) -> Optional[str]:
-        return self._description
-
-    @property
-    def uri(self) -> Optional[str]:
-        return self._uri
-
-    @property
-    def raw_body(self) -> str:
-        return self._raw_body

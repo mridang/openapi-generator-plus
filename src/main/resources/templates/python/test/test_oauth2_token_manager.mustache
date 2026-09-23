@@ -6,11 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from {{packageName}}.auth.oauth.oauth2_token_manager import (
-    OAuth2ServerException,
-    OAuth2TokenException,
-    OAuth2TokenManager,
-)
+from {{packageName}}.auth.oauth.oauth2_token_manager import OAuth2TokenManager
+from {{packageName}}.errors import OAuth2ServerException, OAuth2TokenException
 from {{packageName}}.api_http_response import ApiHttpResponse
 from {{packageName}}.errors import {{errorPrefix}}Exception
 

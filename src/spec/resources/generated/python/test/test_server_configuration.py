@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 import pytest
 
 from petstore_client.errors import OpenAPIException

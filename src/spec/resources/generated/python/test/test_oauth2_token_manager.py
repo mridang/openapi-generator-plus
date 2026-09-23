@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -14,11 +12,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from petstore_client.auth.oauth.oauth2_token_manager import (
-    OAuth2ServerException,
-    OAuth2TokenException,
-    OAuth2TokenManager,
-)
+from petstore_client.auth.oauth.oauth2_token_manager import OAuth2TokenManager
+from petstore_client.errors import OAuth2ServerException, OAuth2TokenException
 from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.errors import OpenAPIException
 

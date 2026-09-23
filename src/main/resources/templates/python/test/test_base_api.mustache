@@ -1,8 +1,8 @@
 {{>api_info}}
 import pytest
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
-from {{packageName}}.api.base_api import BaseApi, NO_AUTH
+from {{packageName}}.api.base_api import BaseApi, NO_AUTH, _NoAuth
 from {{packageName}}.api.pet_api import PetApi
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
@@ -46,7 +46,7 @@ class StubApi(BaseApi):
     async def call(self, method: str, path: str, query_params: dict[str, Any],
                    header_params: dict[str, str], body: Any,
                    accepts: list[str], content_type: str,
-                   return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
+                   return_type: Optional[str], auth: Union[Authenticator, _NoAuth, None] = None) -> Any:
         return await self._invoke_api(
             method, path, query_params, header_params, body,
             accepts, content_type, return_type, auth)
@@ -54,7 +54,7 @@ class StubApi(BaseApi):
     async def call_result(self, method: str, path: str, query_params: dict[str, Any],
                           header_params: dict[str, str], body: Any,
                           accepts: list[str], content_type: str,
-                          return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
+                          return_type: Optional[str], auth: Union[Authenticator, _NoAuth, None] = None) -> Any:
         return await self._invoke_api_for_result(
             method, path, query_params, header_params, body,
             accepts, content_type, return_type, auth)
@@ -345,7 +345,6 @@ class TestAuthInjection:
         # would freeze every other coroutine for the duration of the fetch.
         # Record the thread get_auth_headers runs on and assert it is NOT the
         # loop's running thread (i.e. it ran in a worker thread).
-        import asyncio
         import threading
 
         loop_thread_id = threading.get_ident()
@@ -639,7 +638,7 @@ class TestMalformedSuccessBodyFailsLoud:
     200 must surface as the SDK's SerializationException, never as the raw text."""
 
     async def test_truncated_json_body_propagates_serialization_error(self) -> None:
-        from {{packageName}}.object_serializer import SerializationException
+        from {{packageName}}.errors import SerializationException
         client = MalformedJsonApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
@@ -650,7 +649,7 @@ class TestMalformedSuccessBodyFailsLoud:
     async def test_malformed_body_not_returned_as_raw_string(self) -> None:
         # The failure mode we guard against: swallowing the parse error and
         # handing back the raw, undecoded body string. It must raise instead.
-        from {{packageName}}.object_serializer import SerializationException
+        from {{packageName}}.errors import SerializationException
         client = MalformedJsonApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)

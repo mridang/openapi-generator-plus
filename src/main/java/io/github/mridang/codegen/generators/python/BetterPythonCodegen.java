@@ -384,6 +384,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsPath, "internal_server_error_exception.py"),
             new SupportingFileSpec("errors/network_exception.mustache", errorsPath, "network_exception.py"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsPath, "network_timeout_exception.py"),
+            new SupportingFileSpec("errors/serialization_exception.mustache", errorsPath, "serialization_exception.py"),
+            new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsPath, "oauth2_server_exception.py"),
+            new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsPath, "oauth2_token_exception.py"),
             new SupportingFileSpec("_duration.mustache", packagePath, "_duration.py"),
             new SupportingFileSpec("_types.mustache", packagePath, "_types.py"),
             new SupportingFileSpec("object_serializer.mustache", packagePath, "object_serializer.py"),
@@ -507,24 +510,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_client.mustache",
                             "test",
                             "test_client.py"));
-            // Standalone authenticator tests, emitted only when the spec's
-            // security schemes produce the corresponding authenticator (mirrors
-            // the gating of BearerAuthenticatorTest/ApiKeyAuthenticatorTest in
-            // BetterJavaCodegen and of test_basic_authenticator above).
-            if (hasBearerAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_bearer_authenticator.mustache",
-                                "test",
-                                "test_bearer_authenticator.py"));
-            }
-            if (hasApiKeyAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_api_key_authenticator.mustache",
-                                "test",
-                                "test_api_key_authenticator.py"));
-            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/test_pet_api.mustache",
@@ -910,6 +895,25 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        // Standalone authenticator tests, emitted only when the spec's security
+        // schemes produce the corresponding authenticator. Registered here, not
+        // in processOpts: the scheme flags are only set once the spec is parsed.
+        if (generateTests) {
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_bearer_authenticator.mustache",
+                                "test",
+                                "test_bearer_authenticator.py"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_api_key_authenticator.mustache",
+                                "test",
+                                "test_api_key_authenticator.py"));
+            }
+        }
 
         // Python needs an explicit __init__.py for the oauth sub-package.
         if (hasAnyOAuth2 || hasOpenIdConnect) {

@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 """Integration tests for the Store API endpoints."""
 
 import pytest

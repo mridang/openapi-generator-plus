@@ -1,8 +1,7 @@
-# ruff: noqa
-# mypy: ignore-errors
 import pytest
 
-from petstore_client.object_serializer import ObjectSerializer, SerializationException
+from petstore_client.errors import SerializationException
+from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.dry_food import DryFood
 from petstore_client.models.wet_food import WetFood
 from petstore_client.models.medication import Medication

@@ -63,7 +63,8 @@ from petstore_client.auth.oauth.oauth2_authorization_code_authenticator import O
 
 authenticator = OAuth2AuthorizationCodeAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", ["read"])
 client = Client(authenticator)
 ```
 
@@ -85,7 +86,9 @@ The implicit flow obtains the access token out of band (typically in the browser
 ```python
 from petstore_client.auth.oauth.oauth2_implicit_authenticator import OAuth2ImplicitAuthenticator
 
-authenticator = OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token")
+authenticator = OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", ["read"])
+authenticator.set_access_token("your-access-token")
 client = Client(authenticator)
 ```
 
@@ -95,8 +98,8 @@ client = Client(authenticator)
 from petstore_client.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
 
 authenticator = OpenIdConnectAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/.well-known/openid-configuration")
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", ["openid"])
 client = Client(authenticator)
 ```
 
@@ -147,11 +150,13 @@ client = Client.with_token(SERVER_0.get_url(), "your-token")
 The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```python
-class FakeAuthenticator:
-    def get_host(self):
+from petstore_client.auth.authenticator import Authenticator
+
+class FakeAuthenticator(Authenticator):
+    def get_host(self) -> str:
         return "https://api.example.com"
 
-    def get_auth_headers(self):
+    def get_auth_headers(self) -> dict[str, str]:
         return {"Authorization": "Bearer test-token"}
 
 client = Client(FakeAuthenticator())

@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 import pytest
 from types import MappingProxyType
 

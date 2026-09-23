@@ -1,5 +1,4 @@
-# ruff: noqa
-# mypy: ignore-errors
+from typing import Any, cast
 import dataclasses
 import json
 import os
@@ -146,4 +145,4 @@ class TestOptionsImmutability:
         options = FindPetsByStatusOptions(status="available")
 
         with pytest.raises(dataclasses.FrozenInstanceError):
-            options.status = "sold"  # type: ignore[misc]
+            cast(Any, options).status = "sold"

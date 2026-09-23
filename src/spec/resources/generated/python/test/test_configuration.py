@@ -1,5 +1,3 @@
-# ruff: noqa
-# mypy: ignore-errors
 from types import MappingProxyType
 
 from petstore_client.configuration import Configuration, ConfigurationBuilder

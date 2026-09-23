@@ -15,7 +15,8 @@ format: install
 	ruff format .
 
 typecheck: install
-	mypy petstore_client/
+	mypy petstore_client/ test/
+	ty check
 
 docs: install
 	rm -rf .out/docs-src .out/docs

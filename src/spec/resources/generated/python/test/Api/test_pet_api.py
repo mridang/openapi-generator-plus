@@ -1,13 +1,11 @@
-# ruff: noqa
-# mypy: ignore-errors
 """Integration tests for the Pet API endpoints."""
 
 import pytest
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 from urllib.parse import unquote
-from petstore_client.api.pet_api import PetApi
+from petstore_client.api.pet_api import GetExternalPetInfoServer, PetApi
 from petstore_client.api.options.add_pet_options import AddPetOptions
 from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
 from petstore_client.api.options.delete_pet_options import DeletePetOptions
@@ -235,9 +233,12 @@ class TestPetApi:
 
         server = HTTPServer(("127.0.0.1", 0), Handler)
         port = server.server_address[1]
-        thread = threading.Thread(
-            target=lambda: [server.handle_request(), server.handle_request()]
-        )
+
+        def serve_twice() -> None:
+            server.handle_request()
+            server.handle_request()
+
+        thread = threading.Thread(target=serve_twice)
         thread.daemon = True
         thread.start()
 
@@ -330,9 +331,12 @@ class TestPetApi:
 
         server = HTTPServer(("127.0.0.1", 0), Handler)
         port = server.server_address[1]
-        thread = threading.Thread(
-            target=lambda: [server.handle_request(), server.handle_request()]
-        )
+
+        def serve_twice() -> None:
+            server.handle_request()
+            server.handle_request()
+
+        thread = threading.Thread(target=serve_twice)
         thread.daemon = True
         thread.start()
 
@@ -384,7 +388,7 @@ class TestPetApi:
         # required fields, the options argument is required (no default). Omitting
         # it must raise TypeError at call time, not silently pass None through.
         with pytest.raises(TypeError):
-            self.api.add_pet_photos(1)
+            cast(Any, self.api).add_pet_photos(1)
 
     async def test_download_pet_document(self) -> None:
         result = await self.api.download_pet_document(1, 1)
@@ -467,9 +471,24 @@ class TestPetApi:
             f"list-repr blob leaked into query string: {path}"
         )
 
-    @pytest.mark.skip(reason="Per-operation server points to external URL")
-    async def test_get_external_pet_info_uses_per_operation_server(self) -> None:
-        result = await self.api.get_external_pet_info(1)
+    async def test_get_external_pet_info_uses_per_operation_server(
+        self, api_base_url: Any
+    ) -> None:
+        # The operation's own server wins over the client's base URL: the
+        # client points at a closed port, the per-operation server at the mock.
+        class MockServer(GetExternalPetInfoServer):
+            def get_url(self) -> str:
+                return api_base_url
+
+        config = (
+            Configuration.builder()
+            .base_url("http://127.0.0.1:1")
+            .default_header("Authorization", "Bearer test-token")
+            .build()
+        )
+        api = PetApi(config=config)
+
+        result = await api.get_external_pet_info(1, server=MockServer())
 
         assert result is not None
 

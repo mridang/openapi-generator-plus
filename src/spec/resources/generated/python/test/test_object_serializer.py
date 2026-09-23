@@ -1,10 +1,9 @@
-# ruff: noqa
-# mypy: ignore-errors
 import datetime
 from decimal import Decimal
 import pytest
 from petstore_client.errors import OpenAPIException
-from petstore_client.object_serializer import ObjectSerializer, SerializationException
+from petstore_client.errors import SerializationException
+from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.category import Category
 from petstore_client.models.order import OrderStatusEnum
 from petstore_client.models.pet import Pet
@@ -278,7 +277,7 @@ class TestDecimalNumberSerializesUnquoted:
     """
 
     def test_weight_serializes_as_unquoted_number(self) -> None:
-        pet = Pet(name="Fido", photoUrls=[], weightKg=Decimal("1.5"))
+        pet = Pet(name="Fido", photoUrls=set(), weightKg=Decimal("1.5"))
         serialized = ObjectSerializer().serialize(pet)
         # Unquoted number on the wire, NOT a quoted string.
         assert '"weightKg":1.5' in serialized
@@ -1126,8 +1125,6 @@ class TestAdditionalPropertiesTopLevelRoundTrip:
         assert "additionalProperties" not in data
 
     def test_full_round_trip_preserves_extra_keys(self) -> None:
-        import json
-
         wire = '{"createdAt":"2024-01-01T00:00:00Z","region":"eu","tier":"gold"}'
         metadata = ObjectSerializer().deserialize(wire, "Metadata")
         restored = ObjectSerializer().deserialize(
@@ -1154,8 +1151,6 @@ class TestNestedContainerDeepRoundTrip:
         assert isinstance(item.matrix[0][0], int)
 
     def test_nested_array_round_trips(self) -> None:
-        from petstore_client.models.stock_item import StockItem
-
         original = ObjectSerializer().deserialize(
             '{"priority":1,"matrix":[[7,8],[9]]}', "StockItem"
         )
