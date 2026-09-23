@@ -71,6 +71,7 @@ read and base64-encodes (strict, no line breaks) on write.
 
 {{#hasByteExample}}
 ```ruby
+json = '{"{{byteExampleBaseName}}":"aGVsbG8="}'
 model = {{moduleName}}::ObjectSerializer.deserialize(json, '{{byteExampleClassname}}')
 model.{{byteExamplePropertyName}}.encoding  # => #<Encoding:ASCII-8BIT>
 File.binwrite('out.bin', model.{{byteExamplePropertyName}})

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -20,7 +19,8 @@ module Petstore
 end
 
 # Common files
-require 'petstore/client/api_error'
+require 'petstore/client/errors/open_api_error'
+require 'petstore/client/errors/api_error'
 require 'petstore/client/errors/client_error'
 require 'petstore/client/errors/server_error'
 require 'petstore/client/errors/bad_request_error'
@@ -32,6 +32,9 @@ require 'petstore/client/errors/unprocessable_entity_error'
 require 'petstore/client/errors/internal_server_error'
 require 'petstore/client/errors/network_error'
 require 'petstore/client/errors/network_timeout_error'
+require 'petstore/client/errors/serialization_error'
+require 'petstore/client/errors/oauth2_server_error'
+require 'petstore/client/errors/oauth2_token_error'
 require 'petstore/client/version'
 require 'petstore/client/types'
 require 'petstore/client/configuration'
@@ -40,7 +43,6 @@ require 'petstore/client/server_variable'
 require 'petstore/client/server_configuration'
 require 'petstore/client/servers'
 require 'petstore/client/header_selector'
-require 'petstore/client/serialization_error'
 require 'petstore/client/object_serializer'
 require 'petstore/client/value_serializer'
 require 'petstore/client/trace_context_util'

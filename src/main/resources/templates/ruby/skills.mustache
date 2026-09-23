@@ -57,7 +57,7 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 
 ```ruby
 authenticator = {{moduleName}}::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
-  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token')
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'])
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
@@ -68,7 +68,8 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```ruby
 authenticator = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback')
+  'https://auth.example.com/authorize', 'https://auth.example.com/token',
+  'https://app.example.com/callback', ['read'])
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
@@ -79,7 +80,7 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```ruby
 authenticator = {{moduleName}}::Auth::OAuth::OAuth2PasswordAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/token', 'username', 'password')
+  'https://auth.example.com/token', 'username', 'password', ['read'])
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
@@ -90,7 +91,10 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```ruby
-authenticator = {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator.new('https://api.example.com', 'your-access-token')
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
+  'https://api.example.com', 'client-id', 'https://auth.example.com/authorize', ['read']
+)
+authenticator.access_token = 'your-access-token'
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
@@ -100,8 +104,8 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 
 ```ruby
 authenticator = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
-  'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/.well-known/openid-configuration')
+  'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
+  'client-id', 'client-secret', 'https://app.example.com/callback', ['openid'])
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
@@ -132,7 +136,7 @@ Override the default if your authorization server only accepts one form:
 
 ```ruby
 authenticator = {{moduleName}}::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
-  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'],
   client_auth_method: {{moduleName}}::Auth::OAuth::ClientAuthMethod::BASIC)
 ```
 
@@ -189,7 +193,7 @@ rescue {{moduleName}}::Errors::ClientError => e
   puts "Client error #{e.status_code}: #{e.message}"
 rescue {{moduleName}}::Errors::ServerError => e
   puts "Server error: #{e.message}"
-rescue {{moduleName}}::ApiError => e
+rescue {{moduleName}}::Errors::ApiError => e
   puts "API error: #{e.message}"
 end
 ```

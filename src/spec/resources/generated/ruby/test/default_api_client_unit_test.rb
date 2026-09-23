@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'minitest/autorun'
 require 'json'
@@ -603,18 +602,6 @@ describe Petstore::Client::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
-  # ── Proxy authentication (#29) ──
-  #
-  # The test fixture Squid config does NOT enable basic auth, so any
-  # proxy-with-credentials request will succeed at the proxy level just
-  # like an unauthenticated request. We assert that the userinfo portion
-  # of the proxy URL is accepted and forwarded to Faraday's proxy config
-  # without raising; full end-to-end basic-auth verification is skipped
-  # because the fixture Squid lacks auth_param config.
-  it 'accepts proxy URL with basic-auth userinfo (skips if Squid lacks auth)' do
-    skip 'Squid fixture has no auth_param basic configuration'
-  end
-
   it 'parses proxy URL with userinfo without raising' do
     transport = Petstore::Client::TransportOptions.builder
       .proxy('http://user:pass@proxy.example.com:3128')
@@ -696,13 +683,13 @@ describe Petstore::Client::DefaultApiClient do
     transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
     client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(Petstore::Client::ApiError) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
       end
       _(err.message).must_match(/TLS downgrade/)
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
-      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err).must_be_instance_of Petstore::Client::Errors::ApiError
       _(err.status_code).must_equal 307
     end
     _(call_count).must_equal 1
@@ -744,13 +731,13 @@ describe Petstore::Client::DefaultApiClient do
       .build
     client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(Petstore::Client::ApiError) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request(:GET, 'http://localhost/loop', {}, nil)
       end
       _(err.message).must_match(/redirect/i)
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
-      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err).must_be_instance_of Petstore::Client::Errors::ApiError
       _(err.status_code).must_equal 302
     end
   end
@@ -769,13 +756,13 @@ describe Petstore::Client::DefaultApiClient do
     transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
     client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(Petstore::Client::ApiError) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request(:GET, 'http://localhost/evil', {}, nil)
       end
       _(err.message).must_match(/non-http/i)
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
-      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err).must_be_instance_of Petstore::Client::Errors::ApiError
       _(err.status_code).must_equal 302
     end
   end
@@ -793,7 +780,7 @@ describe Petstore::Client::DefaultApiClient do
       client.send_request(:GET, 'http://localhost/echo', {}, nil)
     end
     _(err).must_be_instance_of RuntimeError
-    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
+    _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
     _(err.message).must_match(/closed/i)
   end
 
@@ -896,7 +883,7 @@ describe Petstore::Client::DefaultApiClient do
       Petstore::Client::DefaultApiClient.new(transport)
     end
     _(err).must_be_instance_of ArgumentError
-    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
+    _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
   # A request that gets no HTTP response raises NetworkError, and one that
@@ -913,7 +900,7 @@ describe Petstore::Client::DefaultApiClient do
       end
       _(err).must_be_instance_of Petstore::Client::Errors::NetworkTimeoutError
       _(err).must_be_kind_of Petstore::Client::Errors::NetworkError
-      _(err).must_be_kind_of Petstore::Client::ApiError
+      _(err).must_be_kind_of Petstore::Client::Errors::ApiError
       _(err.status_code).must_equal 0
       _(err.cause).must_be_kind_of Faraday::TimeoutError
     end
@@ -939,6 +926,30 @@ describe Petstore::Client::DefaultApiClient do
     end
   end
 
+  it 'raises NetworkTimeoutError when the write times out' do
+    # Faraday's net_http adapter rescues Timeout::Error, which Net::WriteTimeout
+    # is, and re-raises it as Faraday::TimeoutError. The write deadline is the
+    # same budget as the connect and read ones, so it is the same error type.
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/write-timeout') do
+        begin
+          raise Net::WriteTimeout, 'execution expired'
+        rescue Net::WriteTimeout => e
+          raise Faraday::TimeoutError, e
+        end
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) do
+        client.send_request('POST', 'http://localhost/write-timeout', {}, 'body')
+      end
+      _(err).must_be_instance_of Petstore::Client::Errors::NetworkTimeoutError
+      _(err).must_be_kind_of Petstore::Client::Errors::NetworkError
+      _(err.status_code).must_equal 0
+    end
+  end
+
   it 'raises NetworkError when the connection is refused' do
     # Nothing listens on port 1, so the connect is refused for real.
     client = Petstore::Client::DefaultApiClient.new
@@ -946,7 +957,7 @@ describe Petstore::Client::DefaultApiClient do
       client.send_request('GET', 'http://127.0.0.1:1/refused', {}, nil)
     end
     _(err).must_be_instance_of Petstore::Client::Errors::NetworkError
-    _(err).must_be_kind_of Petstore::Client::ApiError
+    _(err).must_be_kind_of Petstore::Client::Errors::ApiError
     _(err.status_code).must_equal 0
     _(err.cause).must_be_kind_of Faraday::ConnectionFailed
   end
@@ -964,12 +975,12 @@ describe Petstore::Client::DefaultApiClient do
     end
     client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(Petstore::Client::ApiError) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request('GET', 'http://localhost/gz', {}, nil)
       end
       # A response arrived, so this is an ApiError with that response's
       # status, never a NetworkError with status 0.
-      _(err).must_be_instance_of Petstore::Client::ApiError
+      _(err).must_be_instance_of Petstore::Client::Errors::ApiError
       _(err).wont_be_kind_of Petstore::Client::Errors::NetworkError
       _(err.status_code).must_equal 502
       refute_kind_of Zlib::Error, err
@@ -994,7 +1005,7 @@ describe Petstore::Client::DefaultApiClient do
     end
     client = Petstore::Client::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises(Petstore::Client::ApiError) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request('GET', 'http://localhost/gz', {}, nil)
       end
       refute_kind_of Zlib::Error, err

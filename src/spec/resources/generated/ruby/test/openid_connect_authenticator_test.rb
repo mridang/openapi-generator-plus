@@ -1,7 +1,5 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -180,7 +178,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises(Petstore::Client::ApiError) { auth.build_authorization_url }
+    assert_raises(Petstore::Client::Errors::ApiError) { auth.build_authorization_url }
   end
 
   # oauth-oidc-missing-endpoint-guard: a discovery document missing the
@@ -194,7 +192,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises(Petstore::Client::SerializationError) { auth.build_authorization_url }
+    assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
   end
 
   it 'raises SerializationError when discovery omits token_endpoint' do
@@ -206,7 +204,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises(Petstore::Client::SerializationError) { auth.build_authorization_url }
+    assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
   end
 
   it 'raises SerializationError when the discovery document is not JSON' do
@@ -218,8 +216,8 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    err = assert_raises(Petstore::Client::SerializationError) { auth.build_authorization_url }
-    _(err).must_be_instance_of Petstore::Client::SerializationError
+    err = assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    _(err).must_be_instance_of Petstore::Client::Errors::SerializationError
   end
 
   # Discovery is an HTTP call like any other: a non-2xx answer raises the

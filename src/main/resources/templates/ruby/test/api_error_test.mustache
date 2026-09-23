@@ -1,13 +1,12 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'test_helper'
 
-describe {{moduleName}}::ApiError do
+describe {{moduleName}}::Errors::ApiError do
   parallelize_me!
 
   it 'exposes status_code, response_body, response_headers and error_body' do
-    err = {{moduleName}}::ApiError.new(
+    err = {{moduleName}}::Errors::ApiError.new(
       status_code: 404,
       message: 'not found',
       response_headers: { 'content-type' => 'application/json' },
@@ -25,7 +24,7 @@ describe {{moduleName}}::ApiError do
     # apierror-responsebody-headers-nullable-split: nil is distinct from an
     # empty header map / empty body so a pre-response transport failure can
     # be encoded.
-    err = {{moduleName}}::ApiError.new(
+    err = {{moduleName}}::Errors::ApiError.new(
       status_code: 0,
       message: 'connection reset',
       response_headers: nil,
@@ -37,7 +36,7 @@ describe {{moduleName}}::ApiError do
   end
 
   it 'is a StandardError subclass with a message' do
-    err = {{moduleName}}::ApiError.new(status_code: 500, message: 'boom')
+    err = {{moduleName}}::Errors::ApiError.new(status_code: 500, message: 'boom')
 
     _(err).must_be_kind_of(StandardError)
     _(err.message).wont_be_empty
@@ -46,7 +45,7 @@ describe {{moduleName}}::ApiError do
   # Unified exception hierarchy: every SDK-thrown error must reach the
   # branded root ({{apiErrorParent}}) so a single rescue catches them all.
   it 'roots ApiError at the branded base' do
-    err = {{moduleName}}::ApiError.new(status_code: 500, message: 'boom')
+    err = {{moduleName}}::Errors::ApiError.new(status_code: 500, message: 'boom')
 
     _(err).must_be_kind_of({{apiErrorParent}})
   end
@@ -55,7 +54,7 @@ describe {{moduleName}}::ApiError do
     err = {{moduleName}}::Errors::BadRequestError.new(message: 'bad input')
 
     _(err).must_be_kind_of({{moduleName}}::Errors::ClientError)
-    _(err).must_be_kind_of({{moduleName}}::ApiError)
+    _(err).must_be_kind_of({{moduleName}}::Errors::ApiError)
     _(err).must_be_kind_of({{apiErrorParent}})
   end
 
@@ -63,34 +62,82 @@ describe {{moduleName}}::ApiError do
     err = {{moduleName}}::Errors::NetworkTimeoutError.new(message: 'timed out')
 
     _(err).must_be_kind_of({{moduleName}}::Errors::NetworkError)
-    _(err).must_be_kind_of({{moduleName}}::ApiError)
+    _(err).must_be_kind_of({{moduleName}}::Errors::ApiError)
     _(err).must_be_kind_of({{apiErrorParent}})
     _(err.status_code).must_equal(0)
     _({{moduleName}}::Errors::NetworkError.new(message: 'refused').status_code).must_equal(0)
   end
 
   it 'defaults status_code to 0 when no HTTP response was received' do
-    _({{moduleName}}::ApiError.new('connection reset').status_code).must_equal(0)
+    _({{moduleName}}::Errors::ApiError.new('connection reset').status_code).must_equal(0)
   end
 
   it 'roots SerializationError at the branded base' do
-    err = {{moduleName}}::SerializationError.new('boom')
+    err = {{moduleName}}::Errors::SerializationError.new('boom')
 
     _(err).must_be_kind_of({{apiErrorParent}})
   end
 
   it 'roots OAuth2 token-manager errors at the branded base' do
-    token_err = {{moduleName}}::Auth::OAuth::OAuth2TokenError.new('missing access_token')
-    server_err = {{moduleName}}::Auth::OAuth::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
+    token_err = {{moduleName}}::Errors::OAuth2TokenError.new('missing access_token')
+    server_err = {{moduleName}}::Errors::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
 
     _(token_err).must_be_kind_of({{apiErrorParent}})
-    _(token_err).wont_be_kind_of({{moduleName}}::ApiError)
+    _(token_err).wont_be_kind_of({{moduleName}}::Errors::ApiError)
     _(server_err).must_be_kind_of({{apiErrorParent}})
-    _(server_err).wont_be_kind_of({{moduleName}}::ApiError)
+    _(server_err).wont_be_kind_of({{moduleName}}::Errors::ApiError)
+  end
+
+  # Requiring the gem loads the whole error tree, every class in Errors,
+  # whatever security schemes the spec declares.
+  it 'loads every error class into the Errors namespace' do
+    %w[
+      {{apiErrorParentSimpleName}} ApiError ClientError ServerError BadRequestError UnauthorizedError
+      ForbiddenError NotFoundError ConflictError UnprocessableEntityError
+      InternalServerError NetworkError NetworkTimeoutError SerializationError
+      OAuth2ServerError OAuth2TokenError
+    ].each do |name|
+      klass = {{moduleName}}::Errors.const_get(name, false)
+      _(klass).must_be_kind_of(Class)
+      _(klass <= StandardError).must_equal(true)
+    end
+  end
+
+  {
+    400 => {{moduleName}}::Errors::BadRequestError,
+    401 => {{moduleName}}::Errors::UnauthorizedError,
+    403 => {{moduleName}}::Errors::ForbiddenError,
+    404 => {{moduleName}}::Errors::NotFoundError,
+    409 => {{moduleName}}::Errors::ConflictError,
+    422 => {{moduleName}}::Errors::UnprocessableEntityError,
+    418 => {{moduleName}}::Errors::ClientError,
+    500 => {{moduleName}}::Errors::InternalServerError,
+    503 => {{moduleName}}::Errors::ServerError,
+    302 => {{moduleName}}::Errors::ApiError
+  }.each do |status, expected|
+    it "from_response maps #{status} to #{expected.name.split('::').last}" do
+      err = {{moduleName}}::Errors::ApiError.from_response(status, { 'x-request-id' => 'abc' }, '{"code":7}')
+
+      _(err).must_be_instance_of(expected)
+      _(err).must_be_kind_of({{apiErrorParent}})
+      _(err.status_code).must_equal(status)
+      _(err.response_headers).must_equal({ 'x-request-id' => 'abc' })
+      _(err.response_body).must_equal('{"code":7}')
+      _(err.error_body).must_equal({ 'code' => 7 })
+    end
+  end
+
+  it 'from_response keeps a non-JSON body raw without an error body' do
+    err = {{moduleName}}::Errors::ApiError.from_response(500, {}, '<html>oops</html>')
+
+    _(err).must_be_instance_of({{moduleName}}::Errors::InternalServerError)
+    _(err.response_headers).must_equal({})
+    _(err.response_body).must_equal('<html>oops</html>')
+    _(err.error_body).must_be_nil
   end
 
   it 'typed_error_body deserializes the body into the typed model' do
-    err = {{moduleName}}::ApiError.new(
+    err = {{moduleName}}::Errors::ApiError.new(
       status_code: 400,
       response_body: '{"id":42,"name":"Dogs"}',
       response_headers: {}
@@ -103,7 +150,7 @@ describe {{moduleName}}::ApiError do
   end
 
   it 'typed_error_body returns nil when there is no response body' do
-    err = {{moduleName}}::ApiError.new(
+    err = {{moduleName}}::Errors::ApiError.new(
       status_code: 500,
       response_body: '',
       response_headers: {}
@@ -113,7 +160,7 @@ describe {{moduleName}}::ApiError do
   end
 
   it 'typed_error_body ignores extraneous fields not on the model' do
-    err = {{moduleName}}::ApiError.new(
+    err = {{moduleName}}::Errors::ApiError.new(
       status_code: 422,
       response_body: '{"id":1,"name":"Cat","extra":"drop-me"}',
       response_headers: {}

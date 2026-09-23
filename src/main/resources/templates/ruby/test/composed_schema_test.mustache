@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'test_helper'
 require 'json'
@@ -28,13 +27,13 @@ describe 'Composed Schema' do
       # base type. Aligns Ruby with Python / Swift / Dart / Go / Rust.
       json = '{"foodType":"raw","calories":300}'
       _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
-        .must_raise {{moduleName}}::SerializationError
+        .must_raise {{moduleName}}::Errors::SerializationError
     end
 
     it 'raises SerializationError for missing discriminator' do
       json = '{"weightKg":2.5}'
       _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
-        .must_raise {{moduleName}}::SerializationError
+        .must_raise {{moduleName}}::Errors::SerializationError
     end
 
     it 'raises SerializationError for empty discriminator value' do
@@ -42,7 +41,7 @@ describe 'Composed Schema' do
       # rather than route to a structurally-fitting variant.
       json = '{"foodType":"","weightKg":2.5}'
       _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
-        .must_raise {{moduleName}}::SerializationError
+        .must_raise {{moduleName}}::Errors::SerializationError
     end
 
     it 'unknown discriminator error names the offending value' do
@@ -50,7 +49,7 @@ describe 'Composed Schema' do
       # so callers can diagnose server/spec drift.
       json = '{"foodType":"raw","calories":300}'
       err = _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
-            .must_raise {{moduleName}}::SerializationError
+            .must_raise {{moduleName}}::Errors::SerializationError
       _(err.message).must_include('raw')
     end
 
@@ -126,7 +125,7 @@ describe 'Composed Schema' do
       # caller can rescue a single branded type.
       json = '{"unrelatedKey":"value","anotherUnknown":123}'
       _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetTreatment') }
-        .must_raise {{moduleName}}::SerializationError
+        .must_raise {{moduleName}}::Errors::SerializationError
     end
   end
 
@@ -185,8 +184,6 @@ describe 'Composed Schema' do
     end
 
     it 'round-trips the array byte variant preserving both payloads exactly' do
-      payload_a = [0x01, 0x02, 0x03, 0x04].pack('C*')
-      payload_b = [0x05, 0x06, 0x07, 0x08].pack('C*')
       result = {{moduleName}}::ObjectSerializer.deserialize('["AQIDBA==","BQYHCA=="]', 'SetPetAvatarThumbnailRequest')
 
       _(result).must_be_kind_of(Array)

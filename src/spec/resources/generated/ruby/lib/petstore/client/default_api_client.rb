@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -54,7 +53,7 @@ module Petstore::Client
     # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
     # leak the API key to a different host. Entries are already lowercase
     # so the cross-origin filter can compare case-insensitively.
-    EXTRA_SENSITIVE_HEADER_NAMES = %w[ x-api-key x-internal-key].freeze
+    EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
 
     # Create a client with default transport settings.
     #
@@ -259,7 +258,7 @@ module Petstore::Client
       # normalise both shapes. The joined form is not directly parseable
       # for Set-Cookie; callers needing structured cookie access should
       # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
-      normalized_headers = {} #: Hash[String, String]
+      normalized_headers = {} # : Hash[String, String]
       response.headers.each do |name, value|
         joined = value.is_a?(Array) ? value.join(', ') : value.to_s
         normalized_headers[name.to_s.downcase] = joined
@@ -396,9 +395,9 @@ module Petstore::Client
     # A response arrived but cannot be used (a refused redirect, an
     # undecodable body): an ApiError carrying the response's real status.
     #
-    # @return [ApiError]
+    # @return [Errors::ApiError]
     def unusable_response(response, message)
-      ApiError.new(
+      Errors::ApiError.new(
         status_code: response.status.to_i,
         message: message,
         response_headers: response.headers.to_h
@@ -437,9 +436,15 @@ module Petstore::Client
         f.ssl.ca_file = @transport_options.ca_cert_path if @transport_options.ca_cert_path
 
         if @transport_options.timeout
+          # The one deadline is applied to every phase Faraday times
+          # separately -- connect, read and write. Each raises a different
+          # error, and all three classify as NetworkTimeoutError; the write
+          # deadline is set here rather than left to Faraday's fallback so
+          # the three are visibly the same budget.
           timeout_secs = @transport_options.timeout / 1000.0
           f.options.timeout = timeout_secs
           f.options.open_timeout = timeout_secs
+          f.options.write_timeout = timeout_secs
         end
 
         # Gap BH: do not register the Faraday follow_redirects middleware

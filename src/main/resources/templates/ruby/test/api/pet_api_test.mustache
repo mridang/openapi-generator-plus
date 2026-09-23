@@ -1,10 +1,12 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 # Integration tests for the Pet API endpoints.
 
 require 'test_helper'
-require 'set'
+# The stdlib signature of TCPServer#initialize, (?String host, Integer port),
+# puts a required parameter after an optional one, which steep reads as a
+# single positional, so each TCPServer.new(host, port) below carries a
+# steep:ignore for that one diagnostic.
 require 'stringio'
 require 'socket'
 require 'base64'
@@ -91,7 +93,7 @@ describe {{moduleName}}::Api::PetApi do
     # off the wire, exercising the operation's request_body construction plus
     # BaseApi#serialize_body end-to-end rather than a helper in isolation.
     def capture_avatar_request
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       captured_body = Queue.new
       captured_content_type = Queue.new
@@ -263,7 +265,7 @@ describe {{moduleName}}::Api::PetApi do
     # wire, exercising request_body construction plus BaseApi#serialize_body and
     # the transport end-to-end.
     def capture_document_request
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       captured_body = Queue.new
       captured_content_type = Queue.new
@@ -410,27 +412,21 @@ describe {{moduleName}}::Api::PetApi do
 
   describe '#get_external_pet_info' do
     it 'uses per-operation server URL' do
-      # The operation declares a per-operation server whose URL points at an
-      # external host. We cannot reach that host from the mock-server test
-      # environment, so instead of a live call we capture the request URL via
-      # a stub API client and assert the per-operation server URL was applied
-      # as the request origin (mirrors the Node CapturingApiClient approach).
-      captured_url = nil
-      api_client = Object.new
-      api_client.define_singleton_method(:send_request) do |_method, url, _headers, _body, **_kwargs|
-        captured_url = url
-        {{moduleName}}::ApiHttpResponse.new(
-          status_code: 200,
-          body: '{"id":1,"name":"Rex","photoUrls":["http://example.com/p.jpg"]}',
-          headers: { 'content-type' => 'application/json' }
-        )
-      end
+      # The operation's own server wins over the client's base URL: the client
+      # points at a closed port, the per-operation server at the mock server.
+      mock_url = @base_url
+      server = Class.new({{moduleName}}::Api::GetExternalPetInfoServer) do
+        define_method(:url) { mock_url }
+      end.new
+      config = {{moduleName}}::Configuration.new(
+        base_url: 'http://127.0.0.1:1',
+        default_headers: { 'Authorization' => 'Bearer test-token' }
+      )
+      api = {{moduleName}}::Api::PetApi.new(nil, config)
 
-      api = {{moduleName}}::Api::PetApi.new(api_client)
-      server = {{moduleName}}::Api::GetExternalPetInfoServerServer0.new
-      api.get_external_pet_info(1, server: server)
+      result = api.get_external_pet_info(1, server: server)
 
-      _(captured_url).must_match(%r{\Ahttps://external-api\.example\.com/v1/pet/1/external})
+      _(result).wont_be_nil
     end
   end
 
@@ -441,8 +437,11 @@ describe {{moduleName}}::Api::PetApi do
   # required query param sailed through to the wire.
   describe '#get_pet_by_name required-param validation' do
     it 'raises ArgumentError when the required query param category is nil' do
+      # Deliberately breaks the signature, which types category as String.
+      # @type var missing: untyped
+      missing = nil
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('Rex', {{moduleName}}::Api::Options::GetPetByNameOptions.new(category: nil))
+        @api.get_pet_by_name('Rex', {{moduleName}}::Api::Options::GetPetByNameOptions.new(category: missing))
       end
       _(err.message).must_include 'category'
     end
@@ -474,7 +473,7 @@ describe {{moduleName}}::Api::PetApi do
 
   describe 'error handling' do
     def new_pet_api_for_mock(status, content_type, body)
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       thread = Thread.new do
         loop do
@@ -546,7 +545,7 @@ describe {{moduleName}}::Api::PetApi do
     it 'raises ApiError when a body-returning op gets an empty body' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '')
       begin
-        err = assert_raises({{moduleName}}::ApiError) do
+        err = assert_raises({{moduleName}}::Errors::ApiError) do
           api.get_pet_by_id(1)
         end
         _(err.status_code).must_equal 200
@@ -564,7 +563,7 @@ describe {{moduleName}}::Api::PetApi do
     it 'raises when a 2xx body is malformed JSON for the declared model' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"id":1,"name":')
       begin
-        _(-> { api.get_pet_by_id(1) }).must_raise {{moduleName}}::SerializationError
+        _(-> { api.get_pet_by_id(1) }).must_raise {{moduleName}}::Errors::SerializationError
       ensure
         server.close
         thread.join(2)
@@ -578,7 +577,7 @@ describe {{moduleName}}::Api::PetApi do
   # encode_path_segment pass, turning a space into %2520 instead of %20.
   describe 'path encoding' do
     def capture_request_line(status, content_type, body)
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do
@@ -742,7 +741,7 @@ describe {{moduleName}}::Api::PetApi do
     # Authorization header (if any) of the first request and returns a
     # minimal Pet JSON body so the body-returning convenience method is happy.
     def capture_auth_header
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do
@@ -859,7 +858,7 @@ describe {{moduleName}}::Api::PetApi do
     # body and returns a minimal ApiResponse JSON so the convenience method
     # is satisfied.
     def capture_request_body
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do

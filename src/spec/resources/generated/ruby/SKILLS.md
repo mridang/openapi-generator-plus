@@ -52,7 +52,7 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 ```ruby
 authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
-  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token')
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'])
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
@@ -61,7 +61,8 @@ client = Petstore::Client::Petstore.new(authenticator)
 ```ruby
 authenticator = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback')
+  'https://auth.example.com/authorize', 'https://auth.example.com/token',
+  'https://app.example.com/callback', ['read'])
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
@@ -70,7 +71,7 @@ client = Petstore::Client::Petstore.new(authenticator)
 ```ruby
 authenticator = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/token', 'username', 'password')
+  'https://auth.example.com/token', 'username', 'password', ['read'])
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
@@ -79,7 +80,10 @@ client = Petstore::Client::Petstore.new(authenticator)
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```ruby
-authenticator = Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new('https://api.example.com', 'your-access-token')
+authenticator = Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
+  'https://api.example.com', 'client-id', 'https://auth.example.com/authorize', ['read']
+)
+authenticator.access_token = 'your-access-token'
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
@@ -87,8 +91,8 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 ```ruby
 authenticator = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
-  'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/.well-known/openid-configuration')
+  'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
+  'client-id', 'client-secret', 'https://app.example.com/callback', ['openid'])
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
@@ -117,7 +121,7 @@ Override the default if your authorization server only accepts one form:
 
 ```ruby
 authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
-  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'],
   client_auth_method: Petstore::Client::Auth::OAuth::ClientAuthMethod::BASIC)
 ```
 
@@ -170,7 +174,7 @@ rescue Petstore::Client::Errors::ClientError => e
   puts "Client error #{e.status_code}: #{e.message}"
 rescue Petstore::Client::Errors::ServerError => e
   puts "Server error: #{e.message}"
-rescue Petstore::Client::ApiError => e
+rescue Petstore::Client::Errors::ApiError => e
   puts "API error: #{e.message}"
 end
 ```

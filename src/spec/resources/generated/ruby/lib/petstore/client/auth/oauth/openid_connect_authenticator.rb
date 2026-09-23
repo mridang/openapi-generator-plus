@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -99,8 +98,8 @@ module Petstore::Client
         #
         # @return [OAuth2AuthorizationCodeAuthenticator]
         # @raise [RuntimeError] if the API client has not been injected
-        # @raise [::Petstore::Client::ApiError] if the discovery request fails with a non-2xx status
-        # @raise [::Petstore::Client::SerializationError] if the discovery document is unusable
+        # @raise [::Petstore::Client::Errors::ApiError] if the discovery request fails with a non-2xx status
+        # @raise [::Petstore::Client::Errors::SerializationError] if the discovery document is unusable
         def resolve_delegate
           return @delegate if @delegate && Time.now < @discovery_expiry
 
@@ -118,7 +117,9 @@ module Petstore::Client
           # "invalid JSON" error. Surface the real failure instead, as the
           # same typed error an API call with that status raises.
           status = response.status_code.to_i
-          raise discovery_error(response) if status < 200 || status >= 300
+          if status < 200 || status >= 300
+            raise ::Petstore::Client::Errors::ApiError.from_response(status, response.headers, response.body)
+          end
 
           discovery = parse_discovery(response.body)
           authorization_endpoint = discovery['authorization_endpoint']
@@ -127,11 +128,12 @@ module Petstore::Client
           # endpoints: building a delegate with nil/empty endpoint URLs would
           # otherwise NPE far away at the first authorize/token call.
           if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
-            raise ::Petstore::Client::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'"
+            raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'"
           end
           if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
-            raise ::Petstore::Client::SerializationError, "OIDC discovery document is missing 'token_endpoint'"
+            raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'token_endpoint'"
           end
+
           @delegate = OAuth2AuthorizationCodeAuthenticator.new(
             @host, @client_id, @client_secret,
             authorization_endpoint,
@@ -144,40 +146,14 @@ module Petstore::Client
         end
 
         # @return [Hash] the discovery document
-        # @raise [::Petstore::Client::SerializationError] if the body is not a JSON object
+        # @raise [::Petstore::Client::Errors::SerializationError] if the body is not a JSON object
         def parse_discovery(body)
           parsed = JSON.parse(body.to_s)
-          raise ::Petstore::Client::SerializationError, 'OIDC discovery document is not a JSON object' unless parsed.is_a?(Hash)
+          raise ::Petstore::Client::Errors::SerializationError, 'OIDC discovery document is not a JSON object' unless parsed.is_a?(Hash)
 
           parsed
         rescue JSON::ParserError => e
-          raise ::Petstore::Client::SerializationError.new("OIDC discovery document is not valid JSON: #{e.message}", e)
-        end
-
-        # The error an API call answered with the discovery response's
-        # status would raise: the status-specific subclass where there is
-        # one, else ClientError / ServerError / ApiError.
-        #
-        # @return [::Petstore::Client::ApiError]
-        def discovery_error(response)
-          opts = {
-            message: "OIDC discovery request to #{@openid_connect_url} failed",
-            response_body: response.body,
-            response_headers: response.headers
-          }
-          code = response.status_code.to_i
-          case code
-          when 400 then ::Petstore::Client::Errors::BadRequestError.new(**opts)
-          when 401 then ::Petstore::Client::Errors::UnauthorizedError.new(**opts)
-          when 403 then ::Petstore::Client::Errors::ForbiddenError.new(**opts)
-          when 404 then ::Petstore::Client::Errors::NotFoundError.new(**opts)
-          when 409 then ::Petstore::Client::Errors::ConflictError.new(**opts)
-          when 422 then ::Petstore::Client::Errors::UnprocessableEntityError.new(**opts)
-          when 500 then ::Petstore::Client::Errors::InternalServerError.new(**opts)
-          when 400..499 then ::Petstore::Client::Errors::ClientError.new(status_code: code, **opts)
-          when 500..599 then ::Petstore::Client::Errors::ServerError.new(status_code: code, **opts)
-          else ::Petstore::Client::ApiError.new(status_code: code, **opts)
-          end
+          raise ::Petstore::Client::Errors::SerializationError.new("OIDC discovery document is not valid JSON: #{e.message}", e)
         end
 
         # Parse `Cache-Control: max-age=<seconds>` from response headers.

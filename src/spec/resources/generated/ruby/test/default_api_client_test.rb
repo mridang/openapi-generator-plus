@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'json'
 require 'test_helper'
@@ -62,6 +61,34 @@ describe Petstore::Client::DefaultApiClient do
   end
 
   describe 'proxy with credentials' do
+    # The fixture proxy's second port answers 407 unless the request carries
+    # Proxy-Authorization, so these two prove the credentials in the proxy URL
+    # reach the proxy on the wire.
+    it 'authenticating proxy accepts the credentials from the proxy URL' do
+      chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
+      transport = Petstore::Client::TransportOptions.builder
+        .proxy("http://user:pass@#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(JSON.parse(response.body)['method']).must_equal('GET')
+    end
+
+    it 'authenticating proxy refuses a request without credentials' do
+      chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
+      transport = Petstore::Client::TransportOptions.builder
+        .proxy("http://#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(407)
+    end
+
     # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     # and surfaced as Proxy-Authorization so the proxy can authenticate
     # the tunnel — otherwise the proxy 407s. Faraday reads userinfo
@@ -75,11 +102,11 @@ describe Petstore::Client::DefaultApiClient do
         .proxy('http://alice:s3cret@127.0.0.1:3128')
         .build
 
-      uri = URI.parse(transport.proxy)
+      uri = URI.parse(transport.proxy.to_s)
       _(uri.user).must_equal('alice')
       _(uri.password).must_equal('s3cret')
-      user = URI.decode_www_form_component(uri.user)
-      pass = URI.decode_www_form_component(uri.password)
+      user = URI.decode_www_form_component(uri.user.to_s)
+      pass = URI.decode_www_form_component(uri.password.to_s)
       encoded = Base64.strict_encode64("#{user}:#{pass}")
       _("Basic #{encoded}").must_equal('Basic YWxpY2U6czNjcmV0')
     end
@@ -301,13 +328,13 @@ describe Petstore::Client::DefaultApiClient do
       client = Petstore::Client::DefaultApiClient.new(transport)
       boundary = 'test-boundary'
       multipart_body = "--#{boundary}\r\n" \
-        "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
-        "hello\r\n" \
-        "--#{boundary}\r\n" \
-        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
-        "Content-Type: application/octet-stream\r\n\r\n" \
-        "file-content-bytes\r\n" \
-        "--#{boundary}--\r\n"
+                       "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
+                       "hello\r\n" \
+                       "--#{boundary}\r\n" \
+                       "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
+                       "Content-Type: application/octet-stream\r\n\r\n" \
+                       "file-content-bytes\r\n" \
+                       "--#{boundary}--\r\n"
       headers = { 'Content-Type' => "multipart/form-data; boundary=#{boundary}" }
       # chasm echoes the replayed request after the 307; we verify the
       # method stayed POST and the multipart body was carried through.
@@ -395,7 +422,7 @@ describe Petstore::Client::DefaultApiClient do
           begin
             client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
             nil
-          rescue Petstore::Client::ApiError => e
+          rescue Petstore::Client::Errors::ApiError => e
             e
           end
         end
@@ -593,7 +620,7 @@ describe Petstore::Client::DefaultApiClient do
       transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
       client = Petstore::Client::DefaultApiClient.new(transport)
       client.stub(:build_connection, stub_connection_n1(stubs)) do
-        err = assert_raises(Petstore::Client::ApiError) do
+        err = assert_raises(Petstore::Client::Errors::ApiError) do
           client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
         end
         _(err.message).must_match(/TLS downgrade/)
@@ -609,7 +636,7 @@ describe Petstore::Client::DefaultApiClient do
       transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
       client = Petstore::Client::DefaultApiClient.new(transport)
       client.stub(:build_connection, stub_connection_n1(stubs)) do
-        err = assert_raises(Petstore::Client::ApiError) do
+        err = assert_raises(Petstore::Client::Errors::ApiError) do
           client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
         end
         _(err.message).must_match(/TLS downgrade/)

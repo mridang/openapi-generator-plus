@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -119,6 +118,7 @@ module Petstore::Client
             unless value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
               raise ArgumentError, "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
             end
+
             "#{name}=#{value}"
           end.join('; ')
           existing = headers['Cookie']
@@ -176,43 +176,12 @@ module Petstore::Client
 
       private
 
-      # Attempts to parse the response body as JSON so that structured error
-      # data (e.g. from a +default+ response schema) is available via
-      # {ApiError#error_body}.
+      # Raises the error ApiError.from_response maps the response to. The body
+      # is parsed as JSON where possible so that structured error data (e.g.
+      # from a +default+ response schema) is available via
+      # {Errors::ApiError#error_body}.
       def throw_api_error(response)
-        code = response.status_code
-        msg = "API returned status code #{code}"
-        body = response.body
-
-        parsed = nil
-        if body && !body.empty?
-          begin
-            parsed = JSON.parse(body)
-          rescue JSON::ParserError
-            nil
-          end
-        end
-
-        err_opts = { message: msg, response_body: body, response_headers: response.headers, error_body: parsed }
-
-        if code >= 400 && code < 500
-          raise case code
-                when 400 then ::Petstore::Client::Errors::BadRequestError.new(**err_opts)
-                when 401 then ::Petstore::Client::Errors::UnauthorizedError.new(**err_opts)
-                when 403 then ::Petstore::Client::Errors::ForbiddenError.new(**err_opts)
-                when 404 then ::Petstore::Client::Errors::NotFoundError.new(**err_opts)
-                when 409 then ::Petstore::Client::Errors::ConflictError.new(**err_opts)
-                when 422 then ::Petstore::Client::Errors::UnprocessableEntityError.new(**err_opts)
-                else ::Petstore::Client::Errors::ClientError.new(status_code: code, **err_opts)
-                end
-        end
-        if code >= 500
-          raise case code
-                when 500 then ::Petstore::Client::Errors::InternalServerError.new(**err_opts)
-                else ::Petstore::Client::Errors::ServerError.new(status_code: code, **err_opts)
-                end
-        end
-        raise ::Petstore::Client::ApiError.new(status_code: code, **err_opts)
+        raise ::Petstore::Client::Errors::ApiError.from_response(response.status_code, response.headers, response.body)
       end
 
       def build_query_string(query_params)

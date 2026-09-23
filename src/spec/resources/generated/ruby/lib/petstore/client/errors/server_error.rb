@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -10,7 +9,7 @@
 module Petstore::Client
   module Errors
     # Exception for HTTP 5xx server errors.
-    class ServerError < ::Petstore::Client::ApiError
+    class ServerError < ::Petstore::Client::Errors::ApiError
     end
   end
 end

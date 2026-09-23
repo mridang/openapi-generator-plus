@@ -1,9 +1,12 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 # Integration tests for the Store API endpoints.
 
 require 'test_helper'
+# The stdlib signature of TCPServer#initialize, (?String host, Integer port),
+# puts a required parameter after an optional one, which steep reads as a
+# single positional, so each TCPServer.new(host, port) below carries a
+# steep:ignore for that one diagnostic.
 require 'socket'
 
 describe {{moduleName}}::Api::StoreApi do
@@ -98,7 +101,7 @@ describe {{moduleName}}::Api::StoreApi do
 
   describe '#get_grouped_categories' do
     def new_store_api_for_mock(status, content_type, body)
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       thread = Thread.new do
         loop do
@@ -143,7 +146,7 @@ describe {{moduleName}}::Api::StoreApi do
 
   describe 'error handling' do
     def new_store_api_for_mock(status, content_type, body)
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       thread = Thread.new do
         loop do

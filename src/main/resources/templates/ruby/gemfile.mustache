@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 source 'https://rubygems.org'
 
@@ -32,6 +31,7 @@ group :development, :test do
 {{/generateTests}}
   gem 'minitest', '~> 5.0'
   gem 'minitest-hooks', '~> 1.5'
+  gem 'opentelemetry-sdk', '~> 1.5'
   gem 'rake', '~> 13.4'
   gem 'rubocop', '~> 1.87', require: false
   gem 'rubocop-minitest', '~> 0.39', require: false

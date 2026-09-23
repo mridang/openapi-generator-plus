@@ -390,9 +390,9 @@ module {{moduleName}}
     # A response arrived but cannot be used (a refused redirect, an
     # undecodable body): an ApiError carrying the response's real status.
     #
-    # @return [ApiError]
+    # @return [Errors::ApiError]
     def unusable_response(response, message)
-      ApiError.new(
+      Errors::ApiError.new(
         status_code: response.status.to_i,
         message: message,
         response_headers: response.headers.to_h
@@ -431,9 +431,15 @@ module {{moduleName}}
         f.ssl.ca_file = @transport_options.ca_cert_path if @transport_options.ca_cert_path
 
         if @transport_options.timeout
+          # The one deadline is applied to every phase Faraday times
+          # separately -- connect, read and write. Each raises a different
+          # error, and all three classify as NetworkTimeoutError; the write
+          # deadline is set here rather than left to Faraday's fallback so
+          # the three are visibly the same budget.
           timeout_secs = @transport_options.timeout / 1000.0
           f.options.timeout = timeout_secs
           f.options.open_timeout = timeout_secs
+          f.options.write_timeout = timeout_secs
         end
 
         # Gap BH: do not register the Faraday follow_redirects middleware

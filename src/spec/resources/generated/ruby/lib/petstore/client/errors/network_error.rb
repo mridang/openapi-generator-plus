@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -13,7 +12,7 @@ module Petstore::Client
     # refused, the host name did not resolve, the TLS handshake failed, or the
     # connection was reset. The status code is always 0; the underlying
     # library error is kept as +cause+.
-    class NetworkError < ::Petstore::Client::ApiError
+    class NetworkError < ::Petstore::Client::Errors::ApiError
       def initialize(message: nil)
         super({ status_code: 0, message: message })
       end

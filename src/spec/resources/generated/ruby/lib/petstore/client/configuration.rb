@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -60,7 +59,7 @@ module Petstore::Client
     class Builder
       def initialize
         @base_url = '/api/v3'
-        @default_headers = {} #: Hash[String, String]
+        @default_headers = {} # : Hash[String, String]
       end
 
       # Set the base URL for all API requests.

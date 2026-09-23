@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'minitest/autorun'
 require 'petstore_client'
@@ -91,7 +90,7 @@ describe Petstore::Client::TransportOptions do
       Petstore::Client::TransportOptions.builder.proxy('not-a-url').build
     end
     _(error).must_be_instance_of ArgumentError
-    _(error).wont_be_kind_of ::Petstore::Client::OpenAPIError
+    _(error).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
   it 'unparseable proxy URL raises ArgumentError, not URI::InvalidURIError' do

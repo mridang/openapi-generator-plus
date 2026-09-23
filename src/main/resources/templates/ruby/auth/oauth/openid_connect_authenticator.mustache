@@ -93,8 +93,8 @@ module {{moduleName}}
         #
         # @return [OAuth2AuthorizationCodeAuthenticator]
         # @raise [RuntimeError] if the API client has not been injected
-        # @raise [::{{moduleName}}::ApiError] if the discovery request fails with a non-2xx status
-        # @raise [::{{moduleName}}::SerializationError] if the discovery document is unusable
+        # @raise [::{{moduleName}}::Errors::ApiError] if the discovery request fails with a non-2xx status
+        # @raise [::{{moduleName}}::Errors::SerializationError] if the discovery document is unusable
         def resolve_delegate
           return @delegate if @delegate && Time.now < @discovery_expiry
 
@@ -112,7 +112,9 @@ module {{moduleName}}
           # "invalid JSON" error. Surface the real failure instead, as the
           # same typed error an API call with that status raises.
           status = response.status_code.to_i
-          raise discovery_error(response) if status < 200 || status >= 300
+          if status < 200 || status >= 300
+            raise ::{{moduleName}}::Errors::ApiError.from_response(status, response.headers, response.body)
+          end
 
           discovery = parse_discovery(response.body)
           authorization_endpoint = discovery['authorization_endpoint']
@@ -121,10 +123,10 @@ module {{moduleName}}
           # endpoints: building a delegate with nil/empty endpoint URLs would
           # otherwise NPE far away at the first authorize/token call.
           if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
-            raise ::{{moduleName}}::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'"
+            raise ::{{moduleName}}::Errors::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'"
           end
           if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
-            raise ::{{moduleName}}::SerializationError, "OIDC discovery document is missing 'token_endpoint'"
+            raise ::{{moduleName}}::Errors::SerializationError, "OIDC discovery document is missing 'token_endpoint'"
           end
           @delegate = OAuth2AuthorizationCodeAuthenticator.new(
             @host, @client_id, @client_secret,
@@ -138,40 +140,14 @@ module {{moduleName}}
         end
 
         # @return [Hash] the discovery document
-        # @raise [::{{moduleName}}::SerializationError] if the body is not a JSON object
+        # @raise [::{{moduleName}}::Errors::SerializationError] if the body is not a JSON object
         def parse_discovery(body)
           parsed = JSON.parse(body.to_s)
-          raise ::{{moduleName}}::SerializationError, 'OIDC discovery document is not a JSON object' unless parsed.is_a?(Hash)
+          raise ::{{moduleName}}::Errors::SerializationError, 'OIDC discovery document is not a JSON object' unless parsed.is_a?(Hash)
 
           parsed
         rescue JSON::ParserError => e
-          raise ::{{moduleName}}::SerializationError.new("OIDC discovery document is not valid JSON: #{e.message}", e)
-        end
-
-        # The error an API call answered with the discovery response's
-        # status would raise: the status-specific subclass where there is
-        # one, else ClientError / ServerError / ApiError.
-        #
-        # @return [::{{moduleName}}::ApiError]
-        def discovery_error(response)
-          opts = {
-            message: "OIDC discovery request to #{@openid_connect_url} failed",
-            response_body: response.body,
-            response_headers: response.headers
-          }
-          code = response.status_code.to_i
-          case code
-          when 400 then ::{{moduleName}}::Errors::BadRequestError.new(**opts)
-          when 401 then ::{{moduleName}}::Errors::UnauthorizedError.new(**opts)
-          when 403 then ::{{moduleName}}::Errors::ForbiddenError.new(**opts)
-          when 404 then ::{{moduleName}}::Errors::NotFoundError.new(**opts)
-          when 409 then ::{{moduleName}}::Errors::ConflictError.new(**opts)
-          when 422 then ::{{moduleName}}::Errors::UnprocessableEntityError.new(**opts)
-          when 500 then ::{{moduleName}}::Errors::InternalServerError.new(**opts)
-          when 400..499 then ::{{moduleName}}::Errors::ClientError.new(status_code: code, **opts)
-          when 500..599 then ::{{moduleName}}::Errors::ServerError.new(status_code: code, **opts)
-          else ::{{moduleName}}::ApiError.new(status_code: code, **opts)
-          end
+          raise ::{{moduleName}}::Errors::SerializationError.new("OIDC discovery document is not valid JSON: #{e.message}", e)
         end
 
         # Parse `Cache-Control: max-age=<seconds>` from response headers.

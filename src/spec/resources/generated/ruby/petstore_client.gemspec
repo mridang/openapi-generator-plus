@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -20,25 +19,25 @@ Gem::Specification.new do |s|
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'
   s.description = 'A simplified Pet Store API for integration testing.'
   s.license     = 'MIT'
-  s.required_ruby_version = '>= 3.1'
+  s.required_ruby_version = '>= 3.4'
   s.metadata['rubygems_mfa_required'] = 'true'
 
   # base64, json and set are default gems that Ruby is unbundling from
   # the standard library (base64 is no longer a default gem on Ruby
   # 3.4+). The generated runtime requires all three, so declare them
-  # explicitly rather than relying on them being preinstalled.
+  # explicitly rather than relying on them being preinstalled. iso8601
+  # covers `format: duration` (no stdlib equivalent; lighter than
+  # ActiveSupport::Duration) and tod covers `format: time`, the
+  # time-of-day values Ruby has no native type for. One alphabetical
+  # run, which is what Gemspec/OrderedDependencies asks for.
   s.add_dependency 'base64', '~> 0.3'
-  s.add_dependency 'json', '~> 2.6'
-  s.add_dependency 'set', '~> 1.1'
   s.add_dependency 'dry-struct', '~> 1.6'
   s.add_dependency 'dry-types', '~> 1.7'
   s.add_dependency 'faraday', '~> 2.0'
   s.add_dependency 'faraday-follow_redirects', '~> 0.3'
-  # 4.8: format: duration — ISO-8601 duration parsing/formatting (no
-  # stdlib equivalent; lighter than ActiveSupport::Duration).
   s.add_dependency 'iso8601', '~> 0.13'
-  # 4.8: format: time — time-of-day (HH:MM:SS) values; Ruby has no
-  # native time-of-day type so we standardise on Tod::TimeOfDay.
+  s.add_dependency 'json', '~> 2.6'
+  s.add_dependency 'set', '~> 1.1'
   s.add_dependency 'tod', '~> 3.1'
 
   s.files = Dir['lib/**/*', 'sig/**/*', 'README.md', 'Gemfile', 'petstore_client.gemspec']

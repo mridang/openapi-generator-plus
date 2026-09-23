@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -42,9 +41,7 @@ module Petstore::Client
       # array-typed property. Consumed by ::Petstore::Client::ObjectSerializer
       # on the (de)serialize path.
       # @type var openapi_formats: Hash[Symbol, String]
-      openapi_formats = {
-        
-      }
+      openapi_formats = {}
       OPENAPI_FORMATS = openapi_formats.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.

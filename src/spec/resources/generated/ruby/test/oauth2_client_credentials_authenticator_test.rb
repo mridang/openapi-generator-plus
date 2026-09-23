@@ -1,7 +1,5 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -17,7 +15,7 @@ require 'petstore_client'
 class FakeClientCredentialsClient
   attr_reader :last_url, :last_body, :last_headers
 
-  def send_request(_method, url, headers, body, no_redirect: false)
+  def send_request(_method, url, headers, body, **_kwargs)
     @last_url = url
     @last_headers = headers
     @last_body = body
@@ -39,7 +37,7 @@ class ConfigurableClientCredentialsClient
     @call_count = 0
   end
 
-  def send_request(_method, _url, _headers, _body, no_redirect: false)
+  def send_request(_method, _url, _headers, _body, **_kwargs)
     response = @responses[@call_count] || @responses.last
     @call_count += 1
     Petstore::Client::ApiHttpResponse.new(
@@ -103,8 +101,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     # swallowed into an empty header map that would send the API request
     # unauthenticated and produce a confusing downstream 401.
     error_client = ConfigurableClientCredentialsClient.new([
-      { status: 401, body: { 'error' => 'invalid_client' } }
-    ])
+                                                             { status: 401, body: { 'error' => 'invalid_client' } }
+                                                           ])
     error_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -116,9 +114,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
 
     # The failed token exchange surfaces as the typed OAuth2ServerError,
     # which subclasses the SDK's branded root, not ApiError.
-    error = _(-> { error_auth.auth_headers }).must_raise ::Petstore::Client::OpenAPIError
-    _(error).must_be_kind_of Petstore::Client::Auth::OAuth::OAuth2ServerError
-    _(error).wont_be_kind_of Petstore::Client::ApiError
+    error = _(-> { error_auth.auth_headers }).must_raise ::Petstore::Client::Errors::OpenAPIError
+    _(error).must_be_kind_of Petstore::Client::Errors::OAuth2ServerError
+    _(error).wont_be_kind_of Petstore::Client::Errors::ApiError
   end
 
   it 'caches token across calls' do
@@ -126,8 +124,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     # consecutive header requests reuse the same token and issue only a
     # single token request to the endpoint.
     caching_client = ConfigurableClientCredentialsClient.new([
-      { status: 200, body: { 'access_token' => 'cached_cc_token', 'expires_in' => 3600 } }
-    ])
+                                                               { status: 200, body: { 'access_token' => 'cached_cc_token', 'expires_in' => 3600 } }
+                                                             ])
     caching_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',

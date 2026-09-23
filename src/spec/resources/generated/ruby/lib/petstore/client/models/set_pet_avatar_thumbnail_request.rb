@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -70,6 +69,7 @@ module Petstore::Client
 
           value
         end
+
         # Builds the object
         # @param data [Object] data to be matched against the list of oneOf items
         # @return [Object] Returns the model or the data itself

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -29,6 +28,7 @@ module Petstore::Client
     # is accepted.
     # @return [Array<String>]
     attr_reader :enum_values
+
     # Create a new server variable.
     #
     # @param default_value [String] the default value used when no override is provided

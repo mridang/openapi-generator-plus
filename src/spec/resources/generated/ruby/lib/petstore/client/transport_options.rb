@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -109,7 +108,7 @@ module Petstore::Client
         @follow_redirects = true
         @max_redirects = nil
         @user_agent = 'petstore_client/1.0.0 (ruby)'
-        @default_headers = {} #: Hash[String, String]
+        @default_headers = {} # : Hash[String, String]
         @inject_request_id = false
       end
 

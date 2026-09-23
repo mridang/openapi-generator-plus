@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'minitest/autorun'
 require 'json'
@@ -22,7 +21,7 @@ end
 class CapturingApiClient
   attr_reader :captured_url, :captured_headers, :captured_body
 
-  def send_request(_method, url, headers, body, no_redirect: false)
+  def send_request(_method, url, headers, body, **_kwargs)
     @captured_url = url
     @captured_headers = headers
     @captured_body = body
@@ -108,8 +107,8 @@ describe Petstore::Client::Api::BaseApi do
                ['application/json'], 'application/json', nil)
     end
     assert_kind_of Petstore::Client::Errors::ClientError, err
-    assert_kind_of Petstore::Client::ApiError, err
-    assert_kind_of ::Petstore::Client::OpenAPIError, err
+    assert_kind_of Petstore::Client::Errors::ApiError, err
+    assert_kind_of ::Petstore::Client::Errors::OpenAPIError, err
   end
 
   it 'InternalServerError is a kind of ServerError, ApiError and the root error' do
@@ -118,8 +117,8 @@ describe Petstore::Client::Api::BaseApi do
                ['application/json'], 'application/json', nil)
     end
     assert_kind_of Petstore::Client::Errors::ServerError, err
-    assert_kind_of Petstore::Client::ApiError, err
-    assert_kind_of ::Petstore::Client::OpenAPIError, err
+    assert_kind_of Petstore::Client::Errors::ApiError, err
+    assert_kind_of ::Petstore::Client::Errors::OpenAPIError, err
   end
 
   # ── Success deserialization ──
@@ -244,7 +243,7 @@ describe Petstore::Client::Api::BaseApi do
     refute client.captured_headers.key?('Cookie'),
            'security:[] op must not carry an auth cookie from the client authenticator'
     _(client.captured_url).wont_include 'api_key',
-      "security:[] op must not carry an api-key query param, got: #{client.captured_url}"
+                                        "security:[] op must not carry an api-key query param, got: #{client.captured_url}"
   end
 
   # INHERITED GLOBAL SECURITY — get_pet_by_id declares no security of its own, so
@@ -349,7 +348,7 @@ describe Petstore::Client::Api::BaseApi do
       # Response deserialization may fail; we only care about the captured URL
     end
     _(client.captured_url).wont_include 'status=',
-      "Expected no status param when options is nil, got: #{client.captured_url}"
+                                        "Expected no status param when options is nil, got: #{client.captured_url}"
   end
 
   it 'allow_empty_value param omitted when value is nil in options' do
@@ -784,7 +783,7 @@ describe Petstore::Client::Api::BaseApi do
   # ── Typed error body (#7) ──
 
   it 'ApiError#typed_error_body deserializes error body to typed model' do
-    err = Petstore::Client::ApiError.new(
+    err = Petstore::Client::Errors::ApiError.new(
       status_code: 400,
       response_body: '{"id":42,"name":"BadCategory"}',
       response_headers: {}
@@ -796,7 +795,7 @@ describe Petstore::Client::Api::BaseApi do
   end
 
   it 'ApiError#typed_error_body returns nil for empty body' do
-    err = Petstore::Client::ApiError.new(
+    err = Petstore::Client::Errors::ApiError.new(
       status_code: 500,
       response_body: '',
       response_headers: {}

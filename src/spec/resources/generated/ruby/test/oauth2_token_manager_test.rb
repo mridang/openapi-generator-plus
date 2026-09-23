@@ -1,7 +1,5 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -84,8 +82,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'extracts access token from response' do
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -95,8 +93,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'stores refresh token' do
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -106,8 +104,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'returns cached token when not expired' do
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -119,9 +117,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'refetches token when expired' do
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
-      { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
+                                   { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -146,9 +144,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'invalidate_access_token forces refetch' do
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'tok1', 'expires_in' => 3600 } },
-      { status: 200, body: { 'access_token' => 'tok2', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'tok1', 'expires_in' => 3600 } },
+                                   { status: 200, body: { 'access_token' => 'tok2', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -169,7 +167,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
       manager.get_access_token('https://auth.example.com/token', {})
     end
     _(err).must_be_instance_of RuntimeError
-    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
+    _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
   it 'single-flight refresh coalesces concurrent callers' do
@@ -197,15 +195,15 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # A 2xx response whose body omits access_token must surface as the typed
     # OAuth2TokenError, not silently cache an empty token.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'refresh_token' => 'x' } }
-    ])
+                                   { status: 200, body: { 'refresh_token' => 'x' } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    err = assert_raises(Petstore::Client::Auth::OAuth::OAuth2TokenError) do
+    err = assert_raises(Petstore::Client::Errors::OAuth2TokenError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
-    _(err).must_be_kind_of ::Petstore::Client::OpenAPIError
+    _(err).must_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
   it 'a 2xx token response that is not JSON raises OAuth2TokenError' do
@@ -213,29 +211,29 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    err = assert_raises(Petstore::Client::Auth::OAuth::OAuth2TokenError) do
+    err = assert_raises(Petstore::Client::Errors::OAuth2TokenError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
-    _(err).must_be_instance_of Petstore::Client::Auth::OAuth::OAuth2TokenError
+    _(err).must_be_instance_of Petstore::Client::Errors::OAuth2TokenError
   end
 
   it 'token endpoint error response parsed to typed OAuth2ServerError' do
     # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     # typed OAuth2ServerError carrying code/description/uri.
     client = FakeTokenClient.new([
-      {
-        status: 400,
-        body: {
-          'error' => 'invalid_grant',
-          'error_description' => 'refresh token expired',
-          'error_uri' => 'https://docs.example.com/errors/invalid_grant'
-        }
-      }
-    ])
+                                   {
+                                     status: 400,
+                                     body: {
+                                       'error' => 'invalid_grant',
+                                       'error_description' => 'refresh token expired',
+                                       'error_uri' => 'https://docs.example.com/errors/invalid_grant'
+                                     }
+                                   }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    error = assert_raises(Petstore::Client::Auth::OAuth::OAuth2ServerError) do
+    error = assert_raises(Petstore::Client::Errors::OAuth2ServerError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
     _(error.status_code).must_equal 400
@@ -247,8 +245,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   it 'expires_in short-lived token does not storm' do
     # Gap CM: short-lived token must produce exactly ONE network call.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'short', 'expires_in' => 10 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'short', 'expires_in' => 10 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -260,8 +258,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   it 'expires_in long-lived token applies full buffer' do
     # Gap CM: long-lived token gets full 30s buffer; second call serves cache.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -277,9 +275,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   it 'expires_in exactly buffer returns zero buffer' do
     # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'edge1', 'expires_in' => 30 } },
-      { status: 200, body: { 'access_token' => 'edge2', 'expires_in' => 30 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'edge1', 'expires_in' => 30 } },
+                                   { status: 200, body: { 'access_token' => 'edge2', 'expires_in' => 30 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -296,9 +294,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     # MUST NOT clobber the cached refresh_token.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'old_access', 'refresh_token' => 'old_refresh', 'expires_in' => 1 } },
-      { status: 200, body: { 'access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '' } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'old_access', 'refresh_token' => 'old_refresh', 'expires_in' => 1 } },
+                                   { status: 200, body: { 'access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '' } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -317,8 +315,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # quoted string. The manager must accept it and cache the token; a
     # second call within the buffer window must serve from cache.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'str-tok', 'expires_in' => '3600' } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'str-tok', 'expires_in' => '3600' } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -335,8 +333,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     # The manager must floor it and cache the token.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'flt-tok', 'expires_in' => 3600.5 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'flt-tok', 'expires_in' => 3600.5 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -353,9 +351,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # D1: a negative expires_in (e.g. -1) must mark the token as
     # immediately stale so the very next call refetches.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'neg1', 'expires_in' => -1 } },
-      { status: 200, body: { 'access_token' => 'neg2', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'neg1', 'expires_in' => -1 } },
+                                   { status: 200, body: { 'access_token' => 'neg2', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -370,19 +368,19 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'throws when token request fails' do
     client = FakeTokenClient.new([
-      { status: 401, body: { 'error' => 'invalid_client' } }
-    ])
+                                   { status: 401, body: { 'error' => 'invalid_client' } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
     # A failed token request surfaces as the typed OAuth2ServerError, which
     # subclasses the SDK's branded root so a rescue on the root catches it
     # alongside every other SDK error.
-    error = assert_raises(::Petstore::Client::OpenAPIError) do
+    error = assert_raises(::Petstore::Client::Errors::OpenAPIError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
-    _(error).must_be_kind_of Petstore::Client::Auth::OAuth::OAuth2ServerError
-    _(error).wont_be_kind_of Petstore::Client::ApiError
+    _(error).must_be_kind_of Petstore::Client::Errors::OAuth2ServerError
+    _(error).wont_be_kind_of Petstore::Client::Errors::ApiError
   end
 
   it 'token POST requests no_redirect from transport (Bucket 3.2)' do
@@ -391,8 +389,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # `no_redirect: true` so the transport refuses any 3xx instead of
     # silently replaying the credentials body to a redirect target.
     client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'tok_nr', 'expires_in' => 3600 } }
-    ])
+                                   { status: 200, body: { 'access_token' => 'tok_nr', 'expires_in' => 3600 } }
+                                 ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -411,7 +409,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
       manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
 
-      err = assert_raises(Petstore::Client::Auth::OAuth::OAuth2ServerError) do
+      err = assert_raises(Petstore::Client::Errors::OAuth2ServerError) do
         manager.get_access_token(
           'https://auth.example.com/token',
           { 'grant_type' => 'client_credentials', 'client_secret' => 'topsecret' }

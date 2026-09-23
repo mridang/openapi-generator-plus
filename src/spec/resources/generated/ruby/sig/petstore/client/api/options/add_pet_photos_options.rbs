@@ -6,9 +6,9 @@ module Petstore::Client
       # are nullable only for optional parameters.  Instances are
       # frozen after construction, so only readers are exposed.
       class AddPetPhotosOptions
-        attr_reader files: Array[File]
+        attr_reader files: Array[(::IO | ::StringIO)]
         attr_reader metadata: Models::PhotoMetadata
-        def initialize: (files: Array[File], metadata: Models::PhotoMetadata) -> void
+        def initialize: (files: Array[(::IO | ::StringIO)], metadata: Models::PhotoMetadata) -> void
       end
     end
   end

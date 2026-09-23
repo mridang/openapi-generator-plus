@@ -1,7 +1,5 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -72,7 +70,7 @@ describe Petstore::Client::ServerConfiguration do
     )
     err = _(-> { config.url({ 'env' => 'dev' }) }).must_raise ArgumentError
     _(err).must_be_instance_of ArgumentError
-    _(err).wont_be_kind_of ::Petstore::Client::OpenAPIError
+    _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
     _(err.message).must_include 'dev'
     _(err.message).must_include 'env'
   end

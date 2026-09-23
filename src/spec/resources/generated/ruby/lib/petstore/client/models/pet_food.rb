@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -60,6 +59,7 @@ module Petstore::Client
 
           value
         end
+
         # Discriminator's property name (OpenAPI v3)
         def openapi_discriminator_name
           :foodType
@@ -83,13 +83,13 @@ module Petstore::Client
           # Go / Rust / Python which throw on union no-match (5 of 12
           # SDKs already strict; we promote the other 7 here).
           if discriminator_value.nil?
-            raise ::Petstore::Client::SerializationError,
+            raise ::Petstore::Client::Errors::SerializationError,
                   "Missing discriminator '#{openapi_discriminator_name}' for PetFood"
           end
 
           klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
           unless klass_name
-            raise ::Petstore::Client::SerializationError,
+            raise ::Petstore::Client::Errors::SerializationError,
                   "Unknown discriminator value for PetFood: '#{discriminator_value}'"
           end
 

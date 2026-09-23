@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -54,9 +53,9 @@ module Petstore::Client
         # variant and +procedure_name+ from another). The first retained
         # variant that responds wins; nil is returned for an unknown name
         # rather than raising, matching an omittable attribute reader.
-        def method_missing(name, *args, &block)
+        def method_missing(name, *args, &)
           instance = @anyof_matched_instances.find { |inst| inst.respond_to?(name) }
-          return instance.public_send(name, *args, &block) if instance
+          return instance.public_send(name, *args, &) if instance
 
           super
         end
@@ -88,7 +87,7 @@ module Petstore::Client
           # BOTH"; returning only the first match silently dropped the other
           # variants' fields and lost them on re-encode. We keep each match so
           # a co-satisfied payload round-trips losslessly.
-          matched = [] #: Array[untyped]
+          matched = [] # : Array[untyped]
           openapi_any_of.each do |klass_name|
             next if klass_name == :AnyType
 

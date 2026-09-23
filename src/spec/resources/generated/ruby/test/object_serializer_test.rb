@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'test_helper'
 require 'base64'
@@ -70,7 +69,7 @@ describe Petstore::Client::ObjectSerializer do
       _(result).must_include('2024-01-01')
       _(result).must_include('12:30:45')
       assert(result.include?('+00:00') || result.include?('Z') || result.end_with?('Z'),
-        "should contain UTC offset: #{result}")
+             "should contain UTC offset: #{result}")
     end
 
     it 'positive offset is preserved in serialized string' do
@@ -160,32 +159,34 @@ describe Petstore::Client::ObjectSerializer do
       'missing required field' => ['{"photoUrls":[]}', 'Pet'],
       'malformed duration' => ['{"retryAfter":"soon"}', 'EdgeCases'],
       'malformed date-time' => ['{"expiresAt":"not-a-date"}', 'EdgeCases']
-    }.each do |failure, (json, type)|
+    }.each do |failure, args|
       it "raises exactly SerializationError, a root error, for #{failure}" do
+        json = args.fetch(0)
+        type = args.fetch(1)
         err = _(proc {
           Petstore::Client::ObjectSerializer.deserialize(json, type)
-        }).must_raise(Petstore::Client::SerializationError)
-        _(err).must_be_instance_of(Petstore::Client::SerializationError)
-        _(err).must_be_kind_of(::Petstore::Client::OpenAPIError)
+        }).must_raise(Petstore::Client::Errors::SerializationError)
+        _(err).must_be_instance_of(Petstore::Client::Errors::SerializationError)
+        _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
       end
     end
 
     it 'truncated JSON raises SerializationError not a raw parse error' do
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize('{', 'Category')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'incomplete JSON object raises SerializationError' do
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize('{"name":', 'Category')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'thrown SerializationError has a cause referencing original error' do
       Petstore::Client::ObjectSerializer.deserialize('{', 'Category')
       flunk 'Expected SerializationError to be raised'
-    rescue Petstore::Client::SerializationError => e
+    rescue Petstore::Client::Errors::SerializationError => e
       _(e.cause).wont_be_nil
     end
   end
@@ -459,7 +460,7 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"id":1,"photoUrls":["http://example.com/p.jpg"]}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'raises when a second required field is absent from the JSON' do
@@ -467,14 +468,14 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"id":1,"name":"doggie"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'raises when a required field is explicitly null in the JSON' do
       json = '{"id":1,"name":null,"photoUrls":["http://example.com/p.jpg"]}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'deserializes successfully when all required fields are present' do
@@ -531,7 +532,7 @@ describe Petstore::Client::ObjectSerializer do
       # deserialize wraps all of them uniformly as SerializationError so a
       # caller can catch every bad-payload case with one rescue, rather than
       # this path leaking a raw stdlib ArgumentError.
-      assert_raises(Petstore::Client::SerializationError) do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('"shipped"', 'TestStatusEnumDeserialize')
       end
     end
@@ -550,7 +551,7 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'deserializes an inline model enum with a known value' do
@@ -605,31 +606,31 @@ describe Petstore::Client::ObjectSerializer do
   describe 'NaN/Infinity rejection' do
     it 'serialize raises on NaN' do
       # ObjectSerializer wraps JSON::GeneratorError as SerializationError.
-      assert_raises(Petstore::Client::SerializationError) do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.serialize({ 'val' => Float::NAN })
       end
     end
 
     it 'serialize raises on +Infinity' do
-      assert_raises(Petstore::Client::SerializationError) do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.serialize({ 'val' => Float::INFINITY })
       end
     end
 
     it 'serialize raises on -Infinity' do
-      assert_raises(Petstore::Client::SerializationError) do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.serialize({ 'val' => -Float::INFINITY })
       end
     end
 
     it 'deserialize raises on NaN literal' do
-      assert_raises(Petstore::Client::SerializationError) do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"val": NaN}', 'Object')
       end
     end
 
     it 'deserialize raises on Infinity literal' do
-      assert_raises(Petstore::Client::SerializationError) do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"val": Infinity}', 'Object')
       end
     end
@@ -669,7 +670,7 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"blob":"not valid base64!!!"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'TestFormatModel')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'base64-decodes a top-level byte response (JSON string literal)' do
@@ -691,7 +692,7 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"id":1,"name":"Dogs","rogue":"x"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'StrictTag')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'accepts a payload with only declared keys' do
@@ -715,14 +716,14 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"identifier":"not-a-uuid"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'TestFormatModel')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'raises SerializationError on serialize with malformed UUID' do
       model = Petstore::Client::Models::TestFormatModel.new(identifier: 'bogus')
       _(proc {
         Petstore::Client::ObjectSerializer.serialize(model)
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'serializes a valid UUID unchanged' do
@@ -882,7 +883,7 @@ describe Petstore::Client::ObjectSerializer do
     end
 
     it 'convert_to_type raises on malformed duration string' do
-      assert_raises(Petstore::Client::SerializationError) do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.convert_to_type('PT1H', 'ISO8601::Duration')
       end
     end
@@ -961,7 +962,7 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"name":null,"photoUrls":["u"]}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
   end
 
@@ -979,7 +980,7 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"weightKg":5.0}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
   end
 
@@ -1008,7 +1009,7 @@ describe Petstore::Client::ObjectSerializer do
     it 'rejects an unknown integer enum value on deserialize' do
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize('99', 'Priority')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'round-trips an integer-enum-typed model field as a number' do
@@ -1048,7 +1049,7 @@ describe Petstore::Client::ObjectSerializer do
     it 'rejects an unknown string enum value on deserialize' do
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize('"available"', 'Availability')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
   end
 
@@ -1063,7 +1064,7 @@ describe Petstore::Client::ObjectSerializer do
       json = '{"priority":1,"availability":"liquidated"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'StockItem')
-      }).must_raise(Petstore::Client::SerializationError)
+      }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'accepts a known referenced-enum field value' do

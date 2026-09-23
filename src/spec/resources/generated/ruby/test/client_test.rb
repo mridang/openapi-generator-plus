@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'test_helper'
 
@@ -64,12 +63,12 @@ describe Petstore::Client::Petstore do
     # mangling that varies per HTTP lib.
     _(-> {
       Petstore::Client::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', "abc\r\nInjected: yes",
-                                                    Petstore::Client::Auth::ApiKeyLocation::HEADER)
+                                                      Petstore::Client::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     _(-> {
       Petstore::Client::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', 'kéy',
-                                                    Petstore::Client::Auth::ApiKeyLocation::HEADER)
+                                                      Petstore::Client::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     # Non-header locations accept arbitrary chars.
@@ -95,9 +94,9 @@ describe Petstore::Client::Petstore do
   # constant besides the gem's own module. Loading every file first makes
   # a file that no other file requires count too.
   it 'declares exactly the constant each lib file path names' do
-    lib = File.expand_path('../lib', __dir__)
+    lib = File.expand_path('../lib', File.dirname(__FILE__))
     root_dir = File.join(lib, 'petstore/client')
-    files = Dir.glob(File.join(root_dir, '**', '*.rb')).sort
+    files = Dir.glob(File.join(root_dir, '**', '*.rb'))
     files.each { |file| require file }
     normalize = ->(name) { name.to_s.downcase.delete('_') }
     under_lib = ->(file) { !file.nil? && file.start_with?("#{lib}/") }

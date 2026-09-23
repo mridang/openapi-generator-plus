@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 {{>api_info}}
 
@@ -174,7 +173,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises({{moduleName}}::ApiError) { auth.build_authorization_url }
+    assert_raises({{moduleName}}::Errors::ApiError) { auth.build_authorization_url }
   end
 
   # oauth-oidc-missing-endpoint-guard: a discovery document missing the
@@ -188,7 +187,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises({{moduleName}}::SerializationError) { auth.build_authorization_url }
+    assert_raises({{moduleName}}::Errors::SerializationError) { auth.build_authorization_url }
   end
 
   it 'raises SerializationError when discovery omits token_endpoint' do
@@ -200,7 +199,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises({{moduleName}}::SerializationError) { auth.build_authorization_url }
+    assert_raises({{moduleName}}::Errors::SerializationError) { auth.build_authorization_url }
   end
 
   it 'raises SerializationError when the discovery document is not JSON' do
@@ -212,8 +211,8 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    err = assert_raises({{moduleName}}::SerializationError) { auth.build_authorization_url }
-    _(err).must_be_instance_of {{moduleName}}::SerializationError
+    err = assert_raises({{moduleName}}::Errors::SerializationError) { auth.build_authorization_url }
+    _(err).must_be_instance_of {{moduleName}}::Errors::SerializationError
   end
 
   # Discovery is an HTTP call like any other: a non-2xx answer raises the

@@ -6,10 +6,10 @@ module Petstore::Client
       # are nullable only for optional parameters.  Instances are
       # frozen after construction, so only readers are exposed.
       class UploadPetDocumentOptions
-        attr_reader file: File
+        attr_reader file: (::IO | ::StringIO)
         attr_reader document_type: String?
         attr_reader notes: String?
-        def initialize: (file: File, ?document_type: String?, ?notes: String?) -> void
+        def initialize: (file: (::IO | ::StringIO), ?document_type: String?, ?notes: String?) -> void
       end
     end
   end

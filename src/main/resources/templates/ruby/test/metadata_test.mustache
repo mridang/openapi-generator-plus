@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'test_helper'
 require 'json'
@@ -70,7 +69,7 @@ describe 'gem manifest' do
   # generated fallback) so the gem does not publish with an empty
   # description on RubyGems.
   it 'declares a non-empty description' do
-    gemspec_path = File.join(File.expand_path('..', __dir__), '{{gemName}}.gemspec')
+    gemspec_path = File.join(File.expand_path('..', File.dirname(__FILE__)), '{{gemName}}.gemspec')
     _(File.exist?(gemspec_path)).must_equal(true)
 
     spec = Gem::Specification.load(gemspec_path)
@@ -85,7 +84,7 @@ describe 'gem manifest' do
   # (base64 is no longer a default gem on Ruby 3.4+). They must be
   # declared explicitly so the gem keeps working once they are removed.
   it 'declares the default gems used by the runtime' do
-    gemspec_path = File.join(File.expand_path('..', __dir__), '{{gemName}}.gemspec')
+    gemspec_path = File.join(File.expand_path('..', File.dirname(__FILE__)), '{{gemName}}.gemspec')
     _(File.exist?(gemspec_path)).must_equal(true)
 
     spec = Gem::Specification.load(gemspec_path)

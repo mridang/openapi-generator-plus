@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'etc'
 require 'securerandom'
@@ -13,7 +12,7 @@ SimpleCov.start do
   track_files 'lib/**/*.rb'
 end
 
-$LOAD_PATH.unshift File.expand_path('../lib', __dir__)
+$LOAD_PATH.unshift File.expand_path('../lib', File.dirname(__FILE__))
 
 require 'minitest/reporters'
 require 'better_junit'
@@ -48,10 +47,10 @@ CHASM = Testcontainers::DockerContainer.new('mridang/chasm:1.3.0')
 CHASM.with_exposed_port(4010)
 CHASM.with_exposed_port(8443)
 CHASM.with_filesystem_binds([
-  "#{spec_path}:/tmp/openapi.yaml:ro",
-  "#{chasm_cert_path}:/certs/cert.pem:ro",
-  "#{chasm_key_path}:/certs/key.pem:ro"
-])
+                              "#{spec_path}:/tmp/openapi.yaml:ro",
+                              "#{chasm_cert_path}:/certs/cert.pem:ro",
+                              "#{chasm_key_path}:/certs/key.pem:ro"
+                            ])
 CHASM.with_command(
   'mock', '/tmp/openapi.yaml', '--host', '0.0.0.0',
   '--tls-cert', '/certs/cert.pem',
@@ -101,7 +100,7 @@ PROXY_NETWORK.connect(CHASM._container.id, {}, { 'EndpointConfig' => { 'Aliases'
 squid_conf_path = File.join(host_app_path, 'test', 'fixtures', 'proxy', 'squid.conf')
 
 SQUID = Testcontainers::DockerContainer.new('ubuntu/squid:5.2-22.04_beta')
-SQUID.with_exposed_port(3128)
+SQUID.with_exposed_ports(3128, 3129)
 SQUID.with_filesystem_binds(["#{squid_conf_path}:/etc/squid/squid.conf:ro"])
 
 SQUID.start
@@ -123,4 +122,6 @@ sleep 3
 
 squid_host = ENV['TESTCONTAINERS_HOST_OVERRIDE'] || SQUID.host
 ENV['PROXY_URL'] = "http://#{squid_host}:#{SQUID.mapped_port(3128)}"
+# host:port of the fixture proxy port that requires Basic proxy credentials.
+ENV['PROXY_AUTH_HOST_PORT'] = "#{squid_host}:#{SQUID.mapped_port(3129)}"
 ENV['CA_CERT_PATH'] = File.join(Dir.pwd, 'test', 'fixtures', 'certs', 'ca.pem')

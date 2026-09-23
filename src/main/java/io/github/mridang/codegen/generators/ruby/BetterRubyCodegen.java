@@ -29,7 +29,10 @@ import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -264,7 +267,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("server_configuration.mustache", libPath, "server_configuration.rb"),
             new SupportingFileSpec("server_variable.mustache", libPath, "server_variable.rb"),
             new SupportingFileSpec("servers.mustache", libPath, "servers.rb"),
-            new SupportingFileSpec("api_error.mustache", libPath, "api_error.rb"),
+            new SupportingFileSpec("errors/api_error.mustache", errorsPath, "api_error.rb"),
             new SupportingFileSpec("errors/client_error.mustache", errorsPath, "client_error.rb"),
             new SupportingFileSpec("errors/server_error.mustache", errorsPath, "server_error.rb"),
             new SupportingFileSpec("errors/bad_request_error.mustache", errorsPath, "bad_request_error.rb"),
@@ -276,11 +279,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsPath, "internal_server_error.rb"),
             new SupportingFileSpec("errors/network_error.mustache", errorsPath, "network_error.rb"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsPath, "network_timeout_error.rb"),
+            new SupportingFileSpec("errors/serialization_error.mustache", errorsPath, "serialization_error.rb"),
+            new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsPath, "oauth2_server_error.rb"),
+            new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsPath, "oauth2_token_error.rb"),
             new SupportingFileSpec("version.mustache", libPath, "version.rb"),
             new SupportingFileSpec("types.mustache", libPath, "types.rb"),
             new SupportingFileSpec("header_selector.mustache", libPath, "header_selector.rb"),
             new SupportingFileSpec("object_serializer.mustache", libPath, "object_serializer.rb"),
-            new SupportingFileSpec("serialization_error.mustache", libPath, "serialization_error.rb"),
             new SupportingFileSpec("value_serializer.mustache", libPath, "value_serializer.rb"),
             new SupportingFileSpec("trace_context_util.mustache", libPath, "trace_context_util.rb"),
             new SupportingFileSpec("api_response.mustache", libPath, "api_http_response.rb"),
@@ -338,7 +343,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             // lexically and finds the client class `Zitadel::Client::Zitadel`
             // when clientClassName repeats the top-level module's name.
             apiErrorParent =
-                    "::" + moduleName + "::" + additionalProperties.get("errorPrefix") + "Error";
+                    "::" + moduleName + "::Errors::" + additionalProperties.get("errorPrefix") + "Error";
         }
         additionalProperties.put("apiErrorParent", apiErrorParent);
 
@@ -423,8 +428,12 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         // every SDK error.
         supportingFiles.add(
                 new SupportingFile(
-                        "error_parent.mustache", libPath, apiErrorParentFile + ".rb"));
+                        "errors/error_parent.mustache",
+                        Path.of(libPath, "errors").toString(),
+                        apiErrorParentFile + ".rb"));
 
+        // The Steepfile type-checks the tests whenever any are emitted.
+        additionalProperties.put("emitUnitTests", emitUnitTests());
         if (emitUnitTests()) {
             supportingFiles.add(
                     new SupportingFile("test/test_helper.mustache", "test", "test_helper.rb"));
@@ -526,54 +535,33 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "test/server_variable_test.mustache",
                             "test",
                             "server_variable_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/bearer_authenticator_test.mustache",
-                            "test",
-                            "bearer_authenticator_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api_key_authenticator_test.mustache",
-                            "test",
-                            "api_key_authenticator_test.rb"));
-            if (hasBasicAuth) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/basic_authenticator_test.mustache",
-                                "test",
-                                "basic_authenticator_test.rb"));
-            }
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_token_manager_test.mustache",
-                            "test",
-                            "oauth2_token_manager_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_auth_code_authenticator_test.mustache",
-                            "test",
-                            "oauth2_authorization_code_authenticator_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_implicit_authenticator_test.mustache",
-                            "test",
-                            "oauth2_implicit_authenticator_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_client_credentials_authenticator_test.mustache",
-                            "test",
-                            "oauth2_client_credentials_authenticator_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_password_authenticator_test.mustache",
-                            "test",
-                            "oauth2_password_authenticator_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/openid_connect_authenticator_test.mustache",
-                            "test",
-                            "openid_connect_authenticator_test.rb"));
         }
+    }
+
+    /**
+     * Records the wire name of the README's {@code format: byte} example
+     * property, so the example can build the JSON it deserializes instead
+     * of reading an undefined variable.
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        final Object classname = additionalProperties.get("byteExampleClassname");
+        final Object propertyName = additionalProperties.get("byteExamplePropertyName");
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (model == null || model.vars == null || !model.classname.equals(classname)) {
+                    continue;
+                }
+                for (final CodegenProperty prop : model.vars) {
+                    if (prop.name.equals(propertyName)) {
+                        additionalProperties.put("byteExampleBaseName", prop.baseName);
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     /** Sentinel return type for a top-level {@code format: byte} response. */
@@ -644,22 +632,36 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     /**
-     * Emits the two OAuth2 error classes next to the token manager, each in a
-     * file of its own named after the class, rather than inside the token
-     * manager's file.
+     * Registers the authenticator tests, each only when the spec's security
+     * schemes produce the authenticator it exercises. Registered here, not in
+     * processOpts: the scheme flags are only set once the spec is parsed.
      */
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
-        if (hasAnyOAuth2 || hasOpenIdConnect) {
-            supportingFiles.add(new SupportingFile(
-                    "auth/oauth/oauth2_token_error.mustache",
-                    getOAuthDir(),
-                    toAuthFilename("oauth2_token_error")));
-            supportingFiles.add(new SupportingFile(
-                    "auth/oauth/oauth2_server_error.mustache",
-                    getOAuthDir(),
-                    toAuthFilename("oauth2_server_error")));
+        if (!generateTests) {
+            return;
+        }
+        addTestIf(hasBearerAuth, "bearer_authenticator_test");
+        addTestIf(hasApiKeyAuth, "api_key_authenticator_test");
+        addTestIf(hasBasicAuth, "basic_authenticator_test");
+        addTestIf(hasAnyOAuth2 || hasOpenIdConnect, "oauth2_token_manager_test");
+        addTestIf(hasOAuth2AuthorizationCode, "oauth2_auth_code_authenticator_test",
+                "oauth2_authorization_code_authenticator_test");
+        addTestIf(hasOAuth2Implicit, "oauth2_implicit_authenticator_test");
+        addTestIf(hasOAuth2ClientCredentials, "oauth2_client_credentials_authenticator_test");
+        addTestIf(hasOAuth2Password, "oauth2_password_authenticator_test");
+        addTestIf(hasOpenIdConnect, "openid_connect_authenticator_test");
+    }
+
+    private void addTestIf(boolean condition, String template) {
+        addTestIf(condition, template, template);
+    }
+
+    private void addTestIf(boolean condition, String template, String file) {
+        if (condition) {
+            supportingFiles.add(
+                    new SupportingFile("test/" + template + ".mustache", "test", file + ".rb"));
         }
     }
 
@@ -1193,6 +1195,18 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     /**
+     * The RBS type of an Options field. An uploaded file is read, never
+     * reopened by path, so any readable IO is accepted, an in-memory StringIO
+     * included, not just a File.
+     */
+    private String optionRbsType(CodegenParameter p) {
+        final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
+        final boolean upload = p.isFile || p.isBinary
+                || (p.items != null && (p.items.isFile || p.items.isBinary));
+        return upload ? rbsType.replaceAll("\\bFile\\b", "(::IO | ::StringIO)") : rbsType;
+    }
+
+    /**
      * Generates the RBS type-signature file for an Options class.
      * The file is written alongside the source file and relocated
      * to {@code sig/} by {@link #postProcessFile}.
@@ -1206,7 +1220,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
-            param.put("rbsType", qualifyRbsModelType(toRbsType(p.dataType), p));
+            param.put("rbsType", optionRbsType(p));
             param.put("required", p.required);
             params.add(param);
         }
@@ -1217,14 +1231,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             if (!p.required) continue;
             if (!first) sig.append(", ");
             first = false;
-            final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
+            final String rbsType = optionRbsType(p);
             sig.append(p.paramName).append(": ").append(rbsType);
         }
         for (final CodegenParameter p : optionsParams) {
             if (p.required) continue;
             if (!first) sig.append(", ");
             first = false;
-            final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
+            final String rbsType = optionRbsType(p);
             sig.append('?').append(p.paramName).append(": ").append(rbsType).append('?');
         }
         // Optional per-operation authenticator keyword, typed as the generic

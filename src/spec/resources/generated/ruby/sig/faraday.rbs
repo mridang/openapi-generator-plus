@@ -7,7 +7,7 @@
 # ever be added here. Connection#proxy= is intentionally omitted: the gem does not
 # declare it and sig/vendor.rbs reopens Connection to add it in both contexts.
 module Faraday
-  def self.new: () ?{ (Connection) -> void } -> Connection
+  def self.new: (?String? url, ?Hash[Symbol, untyped] options) ?{ (Connection) -> void } -> Connection
 
   class Error < StandardError
   end
@@ -40,5 +40,6 @@ module Faraday
   class RequestOptions
     def timeout=: (Numeric?) -> void
     def open_timeout=: (Numeric?) -> void
+    def write_timeout=: (Numeric?) -> void
   end
 end

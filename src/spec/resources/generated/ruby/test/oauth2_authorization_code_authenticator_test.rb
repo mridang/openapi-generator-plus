@@ -1,7 +1,5 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -22,7 +20,7 @@ class FakeAuthCodeClient
     @call_index = 0
   end
 
-  def send_request(_method, url, _headers, body, no_redirect: false)
+  def send_request(_method, url, _headers, body, **_kwargs)
     @last_url = url
     @last_body = body
     response = @responses[@call_index] || @responses.last
@@ -66,8 +64,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'exchanges code with correct grant type' do
     client = FakeAuthCodeClient.new([
-      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+                                    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -79,9 +77,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'includes refresh token on refresh' do
     client = FakeAuthCodeClient.new([
-      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
-      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+                                      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+                                    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -97,7 +95,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
       auth.auth_headers
     end
     _(error).must_be_instance_of RuntimeError
-    _(error).wont_be_kind_of ::Petstore::Client::OpenAPIError
+    _(error).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
   it 'getHost returns configured host' do

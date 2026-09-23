@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 {{>api_info}}
 
@@ -196,7 +195,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    err = assert_raises({{moduleName}}::Auth::OAuth::OAuth2TokenError) do
+    err = assert_raises({{moduleName}}::Errors::OAuth2TokenError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
     _(err).must_be_kind_of {{apiErrorParent}}
@@ -207,10 +206,10 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    err = assert_raises({{moduleName}}::Auth::OAuth::OAuth2TokenError) do
+    err = assert_raises({{moduleName}}::Errors::OAuth2TokenError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
-    _(err).must_be_instance_of {{moduleName}}::Auth::OAuth::OAuth2TokenError
+    _(err).must_be_instance_of {{moduleName}}::Errors::OAuth2TokenError
   end
 
   it 'token endpoint error response parsed to typed OAuth2ServerError' do
@@ -229,7 +228,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    error = assert_raises({{moduleName}}::Auth::OAuth::OAuth2ServerError) do
+    error = assert_raises({{moduleName}}::Errors::OAuth2ServerError) do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
     _(error.status_code).must_equal 400
@@ -375,8 +374,8 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     error = assert_raises({{apiErrorParent}}) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
-    _(error).must_be_kind_of {{moduleName}}::Auth::OAuth::OAuth2ServerError
-    _(error).wont_be_kind_of {{moduleName}}::ApiError
+    _(error).must_be_kind_of {{moduleName}}::Errors::OAuth2ServerError
+    _(error).wont_be_kind_of {{moduleName}}::Errors::ApiError
   end
 
   it 'token POST requests no_redirect from transport (Bucket 3.2)' do
@@ -405,7 +404,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
       manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
 
-      err = assert_raises({{moduleName}}::Auth::OAuth::OAuth2ServerError) do
+      err = assert_raises({{moduleName}}::Errors::OAuth2ServerError) do
         manager.get_access_token(
           'https://auth.example.com/token',
           { 'grant_type' => 'client_credentials', 'client_secret' => 'topsecret' }

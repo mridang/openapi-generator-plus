@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -12,7 +11,6 @@ require 'base64'
 require 'date'
 require 'iso8601'
 require 'json'
-require 'set'
 require 'time'
 require 'tod'
 
@@ -43,7 +41,7 @@ module Petstore::Client
       sanitized = sanitize_for_serialization(object)
       JSON.generate(sanitized, allow_nan: false)
     rescue StandardError => e
-      raise SerializationError.new("Failed to serialize object to JSON: #{e.message}", e)
+      raise Errors::SerializationError.new("Failed to serialize object to JSON: #{e.message}", e)
     end
 
     # Apply a oneOf union's own pre-serialization transform to a request
@@ -102,9 +100,9 @@ module Petstore::Client
 
       convert_to_type(data, target_type)
     rescue JSON::ParserError => e
-      raise SerializationError.new("Failed to parse JSON: #{e.message}", e)
+      raise Errors::SerializationError.new("Failed to parse JSON: #{e.message}", e)
     rescue StandardError => e
-      raise e if e.is_a?(SerializationError)
+      raise e if e.is_a?(Errors::SerializationError)
 
       # Schema-validation failures raised by convert_to_type — strict
       # primitive type mismatches, unknown standalone-enum values, and the
@@ -113,7 +111,7 @@ module Petstore::Client
       # so a caller can `rescue SerializationError` and catch every bad-payload
       # case, rather than having unknown-enum / wrong-type leak a raw stdlib
       # ArgumentError while a missing-required-field is wrapped (dry-struct).
-      raise SerializationError.new("Failed to deserialize JSON to #{target_type}: #{e.message}", e)
+      raise Errors::SerializationError.new("Failed to deserialize JSON to #{target_type}: #{e.message}", e)
     end
 
     # Convert a single scalar value to its string representation.
@@ -233,7 +231,7 @@ module Petstore::Client
       when Array, Set, Hash
         visited ||= Set.new
         obj_id = object.object_id
-        raise SerializationError, 'Circular reference detected during serialization' if visited.include?(obj_id)
+        raise Errors::SerializationError, 'Circular reference detected during serialization' if visited.include?(obj_id)
 
         visited.add(obj_id)
         begin
@@ -256,7 +254,7 @@ module Petstore::Client
         if object.class.const_defined?(:ATTRIBUTE_MAP)
           visited ||= Set.new
           obj_id = object.object_id
-          raise SerializationError, 'Circular reference detected during serialization' if visited.include?(obj_id)
+          raise Errors::SerializationError, 'Circular reference detected during serialization' if visited.include?(obj_id)
 
           visited.add(obj_id)
           # @type var formats: Hash[Symbol, String]
@@ -337,14 +335,14 @@ module Petstore::Client
       when 'Tod::TimeOfDay'
         # 4.8: format: time — parse HH:MM[:SS] from the wire.
         # Tod::TimeOfDay.parse raises ArgumentError on malformed input,
-        # which is wrapped into SerializationError by the outer rescue.
+        # which is wrapped into Errors::SerializationError by the outer rescue.
         return data if data.is_a?(Tod::TimeOfDay)
 
         Tod::TimeOfDay.parse(data.to_s)
       when 'ISO8601::Duration'
         # 4.8: format: duration — parse protobuf-JSON duration ("3600s").
         # The native type stays ISO8601::Duration; only the wire form is
-        # protobuf-JSON. Malformed input raises SerializationError.
+        # protobuf-JSON. Malformed input raises Errors::SerializationError.
         return data if data.is_a?(ISO8601::Duration)
 
         duration_from_protobuf_json(data.to_s)
@@ -419,7 +417,7 @@ module Petstore::Client
         data.each_key do |json_key|
           next if declared_keys.include?(json_key)
 
-          raise SerializationError,
+          raise Errors::SerializationError,
                 "Unknown property '#{json_key}' on #{klass} (unevaluatedProperties:false)"
         end
       end
@@ -480,11 +478,11 @@ module Petstore::Client
       when 'uuid'
         validate_uuid(value)
       when 'byte[]'
-        raise SerializationError, "Expected Array for format: byte[], got #{value.class}" unless value.is_a?(Array)
+        raise Errors::SerializationError, "Expected Array for format: byte[], got #{value.class}" unless value.is_a?(Array)
 
         value.map { |item| decode_byte(item) }
       when 'uuid[]'
-        raise SerializationError, "Expected Array for format: uuid[], got #{value.class}" unless value.is_a?(Array)
+        raise Errors::SerializationError, "Expected Array for format: uuid[], got #{value.class}" unless value.is_a?(Array)
 
         value.map { |item| validate_uuid(item) }
       else
@@ -493,18 +491,18 @@ module Petstore::Client
     end
 
     def self.decode_byte(value)
-      raise SerializationError, "Expected base64 String for format: byte, got #{value.class}" unless value.is_a?(String)
+      raise Errors::SerializationError, "Expected base64 String for format: byte, got #{value.class}" unless value.is_a?(String)
 
       begin
         Base64.strict_decode64(value).force_encoding(Encoding::BINARY)
       rescue ArgumentError => e
-        raise SerializationError.new("Invalid base64 for format: byte: #{e.message}", e)
+        raise Errors::SerializationError.new("Invalid base64 for format: byte: #{e.message}", e)
       end
     end
 
     def self.validate_uuid(value)
       unless value.is_a?(String) && UUID_REGEX.match?(value)
-        raise SerializationError, "Invalid UUID for format: uuid: #{value.inspect}"
+        raise Errors::SerializationError, "Invalid UUID for format: uuid: #{value.inspect}"
       end
 
       value
@@ -554,11 +552,11 @@ module Petstore::Client
     #
     # Accepts the protobuf-JSON wire form ("3600s", "3600.000000001s")
     # and rebuilds the native ISO8601::Duration from the total seconds.
-    # Malformed input raises SerializationError, consistent with the
+    # Malformed input raises Errors::SerializationError, consistent with the
     # other format parsers in this class.
     def self.duration_from_protobuf_json(value)
       unless PROTOBUF_DURATION_REGEX.match?(value)
-        raise SerializationError, "Invalid protobuf-JSON duration for format: duration: #{value.inspect}"
+        raise Errors::SerializationError, "Invalid protobuf-JSON duration for format: duration: #{value.inspect}"
       end
 
       negative = value.start_with?('-')
@@ -599,11 +597,11 @@ module Petstore::Client
       when 'uuid'
         validate_uuid(value)
       when 'byte[]'
-        raise SerializationError, "Expected Array for format: byte[], got #{value.class}" unless value.is_a?(Array)
+        raise Errors::SerializationError, "Expected Array for format: byte[], got #{value.class}" unless value.is_a?(Array)
 
         value.map { |item| encode_byte(item) }
       when 'uuid[]'
-        raise SerializationError, "Expected Array for format: uuid[], got #{value.class}" unless value.is_a?(Array)
+        raise Errors::SerializationError, "Expected Array for format: uuid[], got #{value.class}" unless value.is_a?(Array)
 
         value.map { |item| validate_uuid(item) }
       else
@@ -612,7 +610,7 @@ module Petstore::Client
     end
 
     def self.encode_byte(value)
-      raise SerializationError, "Expected String for format: byte, got #{value.class}" unless value.is_a?(String)
+      raise Errors::SerializationError, "Expected String for format: byte, got #{value.class}" unless value.is_a?(String)
 
       Base64.strict_encode64(value)
     end

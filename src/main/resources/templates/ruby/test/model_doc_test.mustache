@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'test_helper'
 
@@ -18,7 +17,7 @@ describe 'generated model doc comments' do
   parallelize_me!
 
   MODELS_GLOB = File.join(
-    File.expand_path('..', __dir__), 'lib', '{{gemName}}', 'models', '*.rb'
+    File.expand_path('..', File.dirname(__FILE__)), 'lib', '{{gemName}}', 'models', '*.rb'
   )
 
   it 'finds the generated model sources on disk' do
@@ -43,7 +42,7 @@ describe 'generated model doc comments' do
     # examples in the spec, so the guard must keep their "# @example" lines.
     # This proves the null filter does not over-suppress legitimate docs.
     category = File.read(
-      File.join(File.expand_path('..', __dir__), 'lib', '{{gemName}}', 'models', 'category.rb')
+      File.join(File.expand_path('..', File.dirname(__FILE__)), 'lib', '{{gemName}}', 'models', 'category.rb')
     )
 
     _(category).must_include('# @example 1')

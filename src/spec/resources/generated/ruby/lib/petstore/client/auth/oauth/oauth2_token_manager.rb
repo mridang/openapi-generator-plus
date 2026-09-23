@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -10,8 +9,8 @@
 
 require 'json'
 require 'uri'
-require_relative 'oauth2_token_error'
-require_relative 'oauth2_server_error'
+require_relative '../../errors/oauth2_token_error'
+require_relative '../../errors/oauth2_server_error'
 
 module Petstore::Client
   module Auth
@@ -58,8 +57,8 @@ module Petstore::Client
         # @param params [Hash{String => String}] the token request parameters
         # @return [String] a valid access token
         # @raise [RuntimeError] if no API client has been injected
-        # @raise [OAuth2ServerError] if the token endpoint answers with a non-2xx status
-        # @raise [OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
+        # @raise [::Petstore::Client::Errors::OAuth2ServerError] if the token endpoint answers with a non-2xx status
+        # @raise [::Petstore::Client::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
         def get_access_token(token_url, params, extra_headers = {})
           @mutex.synchronize do
             return @access_token if token_still_valid?
@@ -127,8 +126,8 @@ module Petstore::Client
         # @param params [Hash{String => String}] the token request parameters
         # @return [void]
         # @raise [RuntimeError] if no API client has been injected
-        # @raise [OAuth2ServerError] if the token endpoint answers with a non-2xx status
-        # @raise [OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
+        # @raise [::Petstore::Client::Errors::OAuth2ServerError] if the token endpoint answers with a non-2xx status
+        # @raise [::Petstore::Client::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
         def fetch_token(token_url, params, extra_headers = {})
           client = require_api_client
           headers = {
@@ -164,11 +163,11 @@ module Petstore::Client
         # token: surface it as OAuth2TokenError rather than a raw parser error.
         def parse_token_response(body)
           parsed = JSON.parse(body.to_s)
-          raise OAuth2TokenError, 'Token response is not a JSON object' unless parsed.is_a?(Hash)
+          raise ::Petstore::Client::Errors::OAuth2TokenError, 'Token response is not a JSON object' unless parsed.is_a?(Hash)
 
           parsed
         rescue JSON::ParserError => e
-          raise OAuth2TokenError, "Token response is not valid JSON: #{e.message}"
+          raise ::Petstore::Client::Errors::OAuth2TokenError, "Token response is not valid JSON: #{e.message}"
         end
 
         def parse_oauth2_server_error(status_code, body)
@@ -180,9 +179,9 @@ module Petstore::Client
           if parsed.is_a?(Hash) && parsed['error'].is_a?(String) && !parsed['error'].empty?
             description = parsed['error_description'].is_a?(String) ? parsed['error_description'] : nil
             uri = parsed['error_uri'].is_a?(String) ? parsed['error_uri'] : nil
-            OAuth2ServerError.new(status_code, parsed['error'], description, uri, body)
+            ::Petstore::Client::Errors::OAuth2ServerError.new(status_code, parsed['error'], description, uri, body)
           else
-            OAuth2ServerError.new(status_code, nil, nil, nil, body)
+            ::Petstore::Client::Errors::OAuth2ServerError.new(status_code, nil, nil, nil, body)
           end
         end
 
@@ -198,7 +197,7 @@ module Petstore::Client
         def apply_token_response(parsed)
           access_token = parsed['access_token']
           unless access_token.is_a?(String) && !access_token.empty?
-            raise OAuth2TokenError, 'Token response missing or empty access_token field'
+            raise ::Petstore::Client::Errors::OAuth2TokenError, 'Token response missing or empty access_token field'
           end
 
           @access_token = access_token

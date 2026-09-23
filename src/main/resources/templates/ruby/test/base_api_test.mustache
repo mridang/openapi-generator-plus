@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
 require 'minitest/autorun'
 require 'json'
@@ -22,7 +21,7 @@ end
 class CapturingApiClient
   attr_reader :captured_url, :captured_headers, :captured_body
 
-  def send_request(_method, url, headers, body, no_redirect: false)
+  def send_request(_method, url, headers, body, **_kwargs)
     @captured_url = url
     @captured_headers = headers
     @captured_body = body
@@ -108,7 +107,7 @@ describe {{moduleName}}::Api::BaseApi do
                ['application/json'], 'application/json', nil)
     end
     assert_kind_of {{moduleName}}::Errors::ClientError, err
-    assert_kind_of {{moduleName}}::ApiError, err
+    assert_kind_of {{moduleName}}::Errors::ApiError, err
     assert_kind_of {{apiErrorParent}}, err
   end
 
@@ -118,7 +117,7 @@ describe {{moduleName}}::Api::BaseApi do
                ['application/json'], 'application/json', nil)
     end
     assert_kind_of {{moduleName}}::Errors::ServerError, err
-    assert_kind_of {{moduleName}}::ApiError, err
+    assert_kind_of {{moduleName}}::Errors::ApiError, err
     assert_kind_of {{apiErrorParent}}, err
   end
 
@@ -784,7 +783,7 @@ describe {{moduleName}}::Api::BaseApi do
   # ── Typed error body (#7) ──
 
   it 'ApiError#typed_error_body deserializes error body to typed model' do
-    err = {{moduleName}}::ApiError.new(
+    err = {{moduleName}}::Errors::ApiError.new(
       status_code: 400,
       response_body: '{"id":42,"name":"BadCategory"}',
       response_headers: {}
@@ -796,7 +795,7 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   it 'ApiError#typed_error_body returns nil for empty body' do
-    err = {{moduleName}}::ApiError.new(
+    err = {{moduleName}}::Errors::ApiError.new(
       status_code: 500,
       response_body: '',
       response_headers: {}

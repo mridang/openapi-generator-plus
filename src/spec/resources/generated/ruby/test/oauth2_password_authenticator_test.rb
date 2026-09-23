@@ -1,7 +1,5 @@
 # frozen_string_literal: true
-# rubocop:disable all
 
-# rubocop:disable all
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -22,7 +20,7 @@ class FakePasswordClient
     @call_count = 0
   end
 
-  def send_request(_method, url, headers, body, no_redirect: false)
+  def send_request(_method, url, headers, body, **_kwargs)
     @last_url = url
     @last_headers = headers
     @last_body = body
@@ -41,8 +39,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'sends password grant type' do
     client = FakePasswordClient.new([
-      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+                                    ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -60,8 +58,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'sends username and password' do
     client = FakePasswordClient.new([
-      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+                                    ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -80,8 +78,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'sends client id and secret' do
     client = FakePasswordClient.new([
-      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+                                    ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -100,8 +98,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'returns authorization bearer header' do
     client = FakePasswordClient.new([
-      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+                                    ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -119,9 +117,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'uses refresh token on subsequent calls' do
     client = FakePasswordClient.new([
-      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => -1 } },
-      { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => -1 } },
+                                      { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
+                                    ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -158,8 +156,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     # client_id and client_secret MUST be application/x-www-form-
     # urlencoded BEFORE being joined with ':' and base64-encoded.
     client = FakePasswordClient.new([
-      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-    ])
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+                                    ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'id+with/special',
