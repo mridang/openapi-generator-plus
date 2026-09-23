@@ -14,12 +14,10 @@ public class KotlinClientSpec extends AbstractClientSpec implements KotlinSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {
-            "gradle test; GRADLE_EXIT=$?; "
-                + "if [ -d .out/reports ] && "
-                + "! grep -l 'failures=\"[1-9]' .out/reports/*.xml >/dev/null 2>&1; "
-                + "then exit 0; fi; exit $GRADLE_EXIT"
-        };
+        /* Gradle's exit code is the result. The old fallback exited 0 whenever
+         * no report file recorded a failure, which also covered the run that
+         * wrote no reports at all — a test-compile error passed the spec. */
+        return new String[] {"gradle test --console=plain"};
     }
 
     @Override
