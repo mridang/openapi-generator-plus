@@ -8,7 +8,7 @@
 import * as util from "node:util";
 import { OpenIdConnectAuthenticator } from "../src/auth/oauth/openid-connect-authenticator.js";
 import { InternalServerError, NotFoundError } from "../src/errors/index.js";
-import { SerializationError } from "../src/object-serializer.js";
+import { SerializationError } from "../src/errors/serialization-error.js";
 import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 

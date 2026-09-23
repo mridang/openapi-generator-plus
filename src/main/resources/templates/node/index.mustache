@@ -43,11 +43,8 @@ export { Servers } from './servers{{importFileExtension}}';
 export { isUuid, uuid, URI, Email, Decimal } from './brand{{importFileExtension}}';
 export type { UUID } from './brand{{importFileExtension}}';
 
-/* Error hierarchy. */
-export { {{errorPrefix}}Error } from './errors/{{errorPrefixKebab}}-error{{importFileExtension}}';
-export { ApiError } from './api-error{{importFileExtension}}';
+/* Error hierarchy: every error the SDK throws. */
 export * from './errors/index{{importFileExtension}}';
-export { SerializationError } from './object-serializer{{importFileExtension}}';
 
 /*
  * Authentication: the interface, the HTTP-aware extension, and every
@@ -89,11 +86,3 @@ export { ClientAuthMethod } from './auth/oauth/client-auth-method{{importFileExt
 export { ClientAuthMethod } from './auth/oauth/client-auth-method{{importFileExtension}}';
 {{/hasOAuth2Password}}
 {{/hasOAuth2ClientCredentials}}
-{{#hasAnyOAuth2}}
-export { OAuth2TokenError, OAuth2ServerError } from './auth/oauth/oauth2-token-manager{{importFileExtension}}';
-{{/hasAnyOAuth2}}
-{{^hasAnyOAuth2}}
-{{#hasOpenIdConnect}}
-export { OAuth2TokenError, OAuth2ServerError } from './auth/oauth/oauth2-token-manager{{importFileExtension}}';
-{{/hasOpenIdConnect}}
-{{/hasAnyOAuth2}}

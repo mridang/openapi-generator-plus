@@ -1,6 +1,8 @@
 {{>api_info}}
 
 export { {{errorPrefix}}Error } from './{{errorPrefixKebab}}-error{{importFileExtension}}';
+export { ApiError } from './api-error{{importFileExtension}}';
+export type { StatusErrorFactory } from './api-error{{importFileExtension}}';
 export { ClientError } from './client-error{{importFileExtension}}';
 export { ServerError } from './server-error{{importFileExtension}}';
 export { BadRequestError } from './bad-request-error{{importFileExtension}}';
@@ -12,3 +14,6 @@ export { UnprocessableEntityError } from './unprocessable-entity-error{{importFi
 export { InternalServerError } from './internal-server-error{{importFileExtension}}';
 export { NetworkError } from './network-error{{importFileExtension}}';
 export { NetworkTimeoutError } from './network-timeout-error{{importFileExtension}}';
+export { SerializationError } from './serialization-error{{importFileExtension}}';
+export { OAuth2ServerError } from './oauth2-server-error{{importFileExtension}}';
+export { OAuth2TokenError } from './oauth2-token-error{{importFileExtension}}';

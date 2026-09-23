@@ -7,11 +7,10 @@
 
 import {
   ObjectSerializer,
-  SerializationError,
   durationToProtoJson,
   durationFromProtoJson,
 } from "../src/object-serializer.js";
-import { OpenAPIError } from "../src/errors/index.js";
+import { OpenAPIError, SerializationError } from "../src/errors/index.js";
 import {
   Category,
   EdgeCases,
@@ -435,7 +434,7 @@ describe("ObjectSerializer", () => {
       // rejects it. The raw text is preserved (no lossy Number() round-trip).
       const pet = new Pet({
         name: "Fido",
-        photoUrls: ["u"],
+        photoUrls: new Set(["u"]),
         weightKg: "12.345" as unknown as Pet["weightKg"],
       });
       const result = ObjectSerializer.serialize(pet);
@@ -454,7 +453,7 @@ describe("ObjectSerializer", () => {
       // string), so the unquoted emission keeps every digit.
       const pet = new Pet({
         name: "Fido",
-        photoUrls: ["u"],
+        photoUrls: new Set(["u"]),
         weightKg: "12.34567890123456789" as unknown as Pet["weightKg"],
       });
       const result = ObjectSerializer.serialize(pet);

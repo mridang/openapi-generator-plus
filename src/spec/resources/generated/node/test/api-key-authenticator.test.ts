@@ -39,7 +39,7 @@ describe("ApiKeyAuthenticator", () => {
           "",
           ApiKeyLocation.HEADER,
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
     expect(
       () =>
         new ApiKeyAuthenticator(
@@ -48,7 +48,7 @@ describe("ApiKeyAuthenticator", () => {
           "   ",
           ApiKeyLocation.HEADER,
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
   });
 
   it("HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
@@ -62,7 +62,7 @@ describe("ApiKeyAuthenticator", () => {
           "abc\r\nInjected: yes",
           ApiKeyLocation.HEADER,
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
     expect(
       () =>
         new ApiKeyAuthenticator(
@@ -71,7 +71,7 @@ describe("ApiKeyAuthenticator", () => {
           "kéy",
           ApiKeyLocation.HEADER,
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
     // Non-header locations accept arbitrary chars.
     const queryAuth = new ApiKeyAuthenticator(
       "https://api.example.com",

@@ -147,7 +147,7 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
     // distinct from the empty-string case and must also be rejected before
     // any token POST is issued (code.trim().length === 0 guard).
-    await expect(authenticator.exchangeCode('   ')).rejects.toThrow();
+    await expect(authenticator.exchangeCode('   ')).rejects.toThrow(TypeError);
     // No token request should have been issued for the invalid code.
     expect(mockClient.lastMethod).toBe('');
   });

@@ -1,6 +1,7 @@
 {{>api_info}}
 
-import { ObjectSerializer, SerializationError } from '../src/object-serializer{{importFileExtension}}';
+import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { SerializationError } from '../src/errors/serialization-error{{importFileExtension}}';
 import { PetWithOwner, PetFood, DryFood, WetFood, PetTreatment, Medication, Surgery } from '../src/models/index{{importFileExtension}}';
 
 describe('Composed Schema', () => {

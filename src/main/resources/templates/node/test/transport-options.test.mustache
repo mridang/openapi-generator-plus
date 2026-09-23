@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
-import { TransportOptions } from '../src/transport-options';
+import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 
 describe('TransportOptions', () => {
   test('verifySsl defaults to true', () => {

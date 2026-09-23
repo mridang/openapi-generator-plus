@@ -7,4 +7,5 @@ process.env.CHASM_HTTPS_URL = config.chasmHttpsUrl;
 process.env.CHASM_INTERNAL_HTTP_URL = config.chasmInternalHttpUrl;
 process.env.CHASM_INTERNAL_HTTPS_URL = config.chasmInternalHttpsUrl;
 process.env.PROXY_URL = config.proxyUrl;
+process.env.PROXY_AUTH_HOST_PORT = config.proxyAuthHostPort;
 process.env.CA_CERT_PATH = config.caCertPath;

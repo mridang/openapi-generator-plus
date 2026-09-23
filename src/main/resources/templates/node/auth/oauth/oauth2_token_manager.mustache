@@ -1,7 +1,8 @@
 {{>api_info}}
 
 import type { ApiClient } from '../../api-client{{importFileExtension}}';
-import { {{errorPrefix}}Error } from '../../errors/{{errorPrefixKebab}}-error{{importFileExtension}}';
+import { OAuth2ServerError } from '../../errors/oauth2-server-error{{importFileExtension}}';
+import { OAuth2TokenError } from '../../errors/oauth2-token-error{{importFileExtension}}';
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
@@ -259,57 +260,5 @@ export class OAuth2TokenManager {
       return Math.floor(parsed);
     }
     return 0;
-  }
-}
-
-/**
- * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
- * be used: a body that is not a JSON object, or one whose `access_token`
- * field is missing or empty. Distinct from {@link OAuth2ServerError} (which
- * represents non-2xx responses) so callers can recover differently via
- * `instanceof`.
- */
-export class OAuth2TokenError extends {{errorPrefix}}Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'OAuth2TokenError';
-  }
-}
-
-/**
- * Thrown when the OAuth2 token endpoint answers with a non-2xx status,
- * including a 3xx redirect, which the token POST never follows.
- * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
- * `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
- * `invalid_client`); `description` and `uri` are the optional
- * human-readable description and a URL to a page describing the error.
- * `rawBody` preserves the original response payload for diagnostics when
- * the body is not a well-formed OAuth2 error object.
- */
-export class OAuth2ServerError extends {{errorPrefix}}Error {
-  constructor(
-    public readonly statusCode: number,
-    public readonly code: string | null,
-    public readonly description: string | null,
-    public readonly uri: string | null,
-    public readonly rawBody: string,
-  ) {
-    super(OAuth2ServerError.buildMessage(statusCode, code, description, rawBody));
-    this.name = 'OAuth2ServerError';
-  }
-
-  private static buildMessage(
-    statusCode: number,
-    code: string | null,
-    description: string | null,
-    rawBody: string,
-  ): string {
-    if (code === null) {
-      return `Token request failed with status ${statusCode}: ${rawBody}`;
-    }
-    if (description !== null) {
-      return `Token request failed with status ${statusCode}: ${code} — ${description}`;
-    }
-    return `Token request failed with status ${statusCode}: ${code}`;
   }
 }

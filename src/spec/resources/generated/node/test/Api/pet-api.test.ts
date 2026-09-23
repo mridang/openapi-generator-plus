@@ -7,6 +7,7 @@
 
 import * as http from "node:http";
 import {
+  GetExternalPetInfoServer,
   PetApi,
   UploadPetDocumentDocumentTypeEnum,
 } from "../../src/api/pet-api.js";
@@ -23,9 +24,9 @@ import {
   PhotoMetadata,
   SetPetAvatarThumbnailRequest,
 } from "../../src/models/index.js";
-import { ApiError } from "../../src/api-error.js";
+import { ApiError } from "../../src/errors/api-error.js";
 import { InternalServerError, NotFoundError } from "../../src/errors/index.js";
-import { SerializationError } from "../../src/object-serializer.js";
+import { SerializationError } from "../../src/errors/serialization-error.js";
 
 const baseUrl = process.env.API_BASE_URL || "http://localhost:4010";
 const config = Configuration.builder()
@@ -229,9 +230,23 @@ describe("PetApi", () => {
     }
   });
 
-  // skip: Per-operation server URL points to external host (getExternalPetInfo).
-  test.skip("getExternalPetInfo - Per-operation server URL points to external host", async () => {
-    const result = await api.getExternalPetInfo(1);
+  test("getExternalPetInfo uses the per-operation server", async () => {
+    /* The operation's own server wins over the client's base URL: the
+     * client points at a closed port, the per-operation server at the mock. */
+    class MockServer extends GetExternalPetInfoServer {
+      getUrl(): string {
+        return baseUrl;
+      }
+    }
+    const closedPortApi = new PetApi(
+      undefined,
+      Configuration.builder()
+        .baseUrl("http://127.0.0.1:1")
+        .defaultHeader("Authorization", "Bearer test-token")
+        .build(),
+    );
+
+    const result = await closedPortApi.getExternalPetInfo(1, new MockServer());
 
     expect(result).toBeDefined();
   });

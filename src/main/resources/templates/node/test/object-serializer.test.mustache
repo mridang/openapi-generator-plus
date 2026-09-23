@@ -2,11 +2,10 @@
 
 import {
   ObjectSerializer,
-  SerializationError,
   durationToProtoJson,
   durationFromProtoJson,
 } from '../src/object-serializer{{importFileExtension}}';
-import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
+import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
 import { Category, EdgeCases, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
@@ -377,7 +376,7 @@ describe('ObjectSerializer', () => {
       // rejects it. The raw text is preserved (no lossy Number() round-trip).
       const pet = new Pet({
         name: 'Fido',
-        photoUrls: ['u'],
+        photoUrls: new Set(['u']),
         weightKg: '12.345' as unknown as Pet['weightKg'],
       });
       const result = ObjectSerializer.serialize(pet);
@@ -396,7 +395,7 @@ describe('ObjectSerializer', () => {
       // string), so the unquoted emission keeps every digit.
       const pet = new Pet({
         name: 'Fido',
-        photoUrls: ['u'],
+        photoUrls: new Set(['u']),
         weightKg: '12.34567890123456789' as unknown as Pet['weightKg'],
       });
       const result = ObjectSerializer.serialize(pet);

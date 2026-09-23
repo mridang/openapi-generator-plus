@@ -13,7 +13,7 @@ import {
   ServerVariable,
 } from "../src/server-configuration.js";
 import type { Authenticator } from "../src/auth/authenticator.js";
-import { ApiError } from "../src/api-error.js";
+import { ApiError } from "../src/errors/api-error.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { ServerError } from "../src/errors/server-error.js";
 import { BadRequestError } from "../src/errors/bad-request-error.js";
@@ -61,6 +61,14 @@ class CapturingApiClient implements ApiClient {
 }
 
 class TestableApi extends BaseApi {
+  constructor(
+    apiClient?: ApiClient,
+    config?: Configuration,
+    authenticator?: Authenticator | null,
+  ) {
+    super(apiClient, config, authenticator);
+  }
+
   async call<T>(
     method: string,
     path: string,

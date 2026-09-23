@@ -9,22 +9,7 @@ import "reflect-metadata";
 import { plainToInstance, type ClassConstructor } from "class-transformer";
 import { Temporal } from "temporal-polyfill";
 import * as models from "./models/index.js";
-import { OpenAPIError } from "./errors/open-api-error.js";
-
-/**
- * Exception raised when serialization or deserialization fails. Extends the
- * branded {@link OpenAPIError} root so it shares a common `instanceof
- * OpenAPIError` ancestor with the transport-level {@link ApiError} hierarchy.
- */
-export class SerializationError extends OpenAPIError {
-  public readonly cause?: Error;
-
-  constructor(message: string, cause?: Error) {
-    super(message);
-    this.name = "SerializationError";
-    this.cause = cause;
-  }
-}
+import { SerializationError } from "./errors/serialization-error.js";
 
 /**
  * Number of nanoseconds in one second, as a BigInt, for exact

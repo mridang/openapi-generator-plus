@@ -4,16 +4,9 @@ import type { ApiClient } from '../api-client{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 import { isNoAuth } from '../auth/authenticator{{importFileExtension}}';
-import { ApiError } from '../api-error{{importFileExtension}}';
-import { BadRequestError } from '../errors/bad-request-error{{importFileExtension}}';
-import { ClientError } from '../errors/client-error{{importFileExtension}}';
-import { ConflictError } from '../errors/conflict-error{{importFileExtension}}';
-import { ForbiddenError } from '../errors/forbidden-error{{importFileExtension}}';
-import { InternalServerError } from '../errors/internal-server-error{{importFileExtension}}';
-import { NotFoundError } from '../errors/not-found-error{{importFileExtension}}';
-import { ServerError } from '../errors/server-error{{importFileExtension}}';
-import { UnauthorizedError } from '../errors/unauthorized-error{{importFileExtension}}';
-import { UnprocessableEntityError } from '../errors/unprocessable-entity-error{{importFileExtension}}';
+/* Imported through the errors barrel, which loads every status-specific
+ * error, so ApiError.fromResponse knows them all. */
+import { ApiError } from '../errors/index{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
@@ -257,56 +250,13 @@ export abstract class BaseApi {
   }
 
   /**
-   * Throw the appropriate error subclass for the given error response.
-   *
-   * Attempts to parse the response body as JSON so that structured error
-   * data (e.g. from a `default` response schema) is available via
+   * Throw the error {@link ApiError.fromResponse} maps the response to. The
+   * body is parsed as JSON where possible so that structured error data
+   * (e.g. from a `default` response schema) is available via
    * {@link ApiError.errorBody}.
    */
   private throwApiError(response: { statusCode: number; body: string | null; headers: Record<string, string> }): never {
-    const code = response.statusCode;
-    const message = `API returned status code ${code}`;
-    const headers = response.headers;
-    const body = response.body;
-
-    let errorBody: unknown = null;
-    if (body) {
-      try {
-        /* F5: depth-cap JSON parsing to refuse 100k-deep error payloads
-         * before V8 stack-overflows. */
-        errorBody = ObjectSerializer.parseJson(body);
-      } catch {
-        /* non-JSON or over-deep body, errorBody stays null */
-      }
-    }
-
-    if (code >= 400 && code < 500) {
-      switch (code) {
-        case 400:
-          throw new BadRequestError(message, headers, body, errorBody);
-        case 401:
-          throw new UnauthorizedError(message, headers, body, errorBody);
-        case 403:
-          throw new ForbiddenError(message, headers, body, errorBody);
-        case 404:
-          throw new NotFoundError(message, headers, body, errorBody);
-        case 409:
-          throw new ConflictError(message, headers, body, errorBody);
-        case 422:
-          throw new UnprocessableEntityError(message, headers, body, errorBody);
-        default:
-          throw new ClientError(code, message, headers, body, errorBody);
-      }
-    }
-    if (code >= 500) {
-      switch (code) {
-        case 500:
-          throw new InternalServerError(message, headers, body, errorBody);
-        default:
-          throw new ServerError(code, message, headers, body, errorBody);
-      }
-    }
-    throw new ApiError(code, message, headers, body, errorBody);
+    throw ApiError.fromResponse(response.statusCode, response.headers, response.body);
   }
 
   /**

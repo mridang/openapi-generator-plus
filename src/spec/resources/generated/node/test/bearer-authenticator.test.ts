@@ -40,10 +40,10 @@ describe("BearerAuthenticator", () => {
           "https://api.example.com",
           "tok\r\nInjected: yes",
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
     expect(
       () => new BearerAuthenticator("https://api.example.com", "ñoño"),
-    ).toThrow();
+    ).toThrow(TypeError);
   });
 
   it("rejects an empty or whitespace token", () => {
@@ -51,10 +51,10 @@ describe("BearerAuthenticator", () => {
     // bare "Authorization: Bearer " header that silently fails auth.
     expect(
       () => new BearerAuthenticator("https://api.example.com", ""),
-    ).toThrow();
+    ).toThrow(TypeError);
     expect(
       () => new BearerAuthenticator("https://api.example.com", "   "),
-    ).toThrow();
+    ).toThrow(TypeError);
   });
 
   it("redacts the secret from default string/inspect/JSON", () => {

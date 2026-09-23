@@ -15,7 +15,9 @@ public class NodeClientSpec extends AbstractClientSpec implements NodeSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "npx jest --verbose",
+      /* --experimental-vm-modules lets the SDK's dynamic import() of the
+       * optional OpenTelemetry API resolve under Jest, as it does on Node. */
+      "npm test",
       "mv .out/cobertura-coverage.xml .out/coverage.xml"
     };
   }

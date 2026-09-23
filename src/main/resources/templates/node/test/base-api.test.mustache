@@ -5,7 +5,7 @@ import { Configuration } from '../src/configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
 import { ServerConfiguration, ServerVariable } from '../src/server-configuration{{importFileExtension}}';
 import type { Authenticator } from '../src/auth/authenticator{{importFileExtension}}';
-import { ApiError } from '../src/api-error{{importFileExtension}}';
+import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
 import { ClientError } from '../src/errors/client-error{{importFileExtension}}';
 import { ServerError } from '../src/errors/server-error{{importFileExtension}}';
 import { BadRequestError } from '../src/errors/bad-request-error{{importFileExtension}}';
@@ -43,6 +43,10 @@ class CapturingApiClient implements ApiClient {
 }
 
 class TestableApi extends BaseApi {
+  constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null) {
+    super(apiClient, config, authenticator);
+  }
+
   async call<T>(
     method: string,
     path: string,

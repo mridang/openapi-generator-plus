@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import { ApiError } from './api-error{{importFileExtension}}';
 import { ClientError } from './client-error{{importFileExtension}}';
 
 /**
@@ -16,3 +17,9 @@ export class UnauthorizedError<T = unknown> extends ClientError<T> {
     this.name = 'UnauthorizedError';
   }
 }
+
+ApiError.registerStatusError(
+  401,
+  (_statusCode, message, headers, body, errorBody) =>
+    new UnauthorizedError(message, headers, body, errorBody)
+);

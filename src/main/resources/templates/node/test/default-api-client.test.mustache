@@ -1,10 +1,12 @@
 {{>api_info}}
 
 import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
-import { ApiError } from '../src/api-error{{importFileExtension}}';
-import { NetworkError, NetworkTimeoutError } from '../src/errors/index{{importFileExtension}}';
+import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
+import { ClientError, NetworkError, NetworkTimeoutError } from '../src/errors/index{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
-import { OAuth2TokenManager, OAuth2TokenError } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
+import { OAuth2TokenManager } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
+import { OAuth2TokenError } from '../src/errors/oauth2-token-error{{importFileExtension}}';
+import * as dns from 'node:dns/promises';
 import * as zlib from 'node:zlib';
 import * as http from 'node:http';
 
@@ -33,21 +35,21 @@ describe('DefaultApiClient', () => {
   describe('hostname verification', () => {
     /*
      * Gap AM: verifySsl=false must disable BOTH cert-chain AND
-     * hostname verification (curl -k semantics). The chasm cert
-     * is issued for CN=chasm with SAN entries for `chasm`,
-     * `localhost`, and `host.docker.internal` — but not for
-     * `127.0.0.1`. Connecting via the literal IP therefore forces a
-     * hostname mismatch independent of chain trust, so we can assert
-     * that turning off verification skips the hostname check too.
+     * hostname verification (curl -k semantics). The chasm cert names
+     * `chasm`, `localhost`, `host.docker.internal` and the IP 127.0.0.1,
+     * but no other address. Connecting to the mock by the IP address its
+     * host name resolves to therefore forces a hostname mismatch
+     * independent of chain trust, so we can assert that turning off
+     * verification skips the hostname check too.
      */
 
-    function ipHttpsUrl(): string {
-      const chasmUrl = process.env['CHASM_HTTPS_URL']!;
-      const port = new URL(chasmUrl).port;
-      return `https://127.0.0.1:${port}`;
+    async function ipHttpsUrl(): Promise<string> {
+      const chasmUrl = new URL(process.env['CHASM_HTTPS_URL']!);
+      const { address } = await dns.lookup(chasmUrl.hostname, { family: 4 });
+      return `https://${address}:${chasmUrl.port}`;
     }
 
-    test('verifySsl=true rejects hostname mismatch (cert is for localhost, request is to 127.0.0.1)', async () => {
+    test('verifySsl=true rejects hostname mismatch (the cert does not name the address)', async () => {
       const caCertPath = process.env['CA_CERT_PATH']!;
 
       const transport = TransportOptions.builder()
@@ -57,12 +59,11 @@ describe('DefaultApiClient', () => {
 
       const client = new DefaultApiClient(transport);
       await expect(
-        client.sendRequest('GET', `${ipHttpsUrl()}/test/echo`, {}, null)
-      ).rejects.toThrow();
+        client.sendRequest('GET', `${await ipHttpsUrl()}/test/echo`, {}, null)
+      ).rejects.toBeInstanceOf(NetworkError);
     });
 
-    // GitHub-hosted runners can't bind chasm testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
-    test.skip('verifySsl=false accepts hostname mismatch (curl -k semantics)', async () => {
+    test('verifySsl=false accepts hostname mismatch (curl -k semantics)', async () => {
       const transport = TransportOptions.builder()
         .verifySsl(false)
         .build();
@@ -70,7 +71,7 @@ describe('DefaultApiClient', () => {
       const client = new DefaultApiClient(transport);
       const response = await client.sendRequest(
         'GET',
-        `${ipHttpsUrl()}/test/echo`,
+        `${await ipHttpsUrl()}/test/echo`,
         {},
         null
       );
@@ -81,8 +82,7 @@ describe('DefaultApiClient', () => {
   });
 
   describe('custom CA bundle', () => {
-    // GitHub-hosted runners can't bind chasm testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
-    test.skip('makes HTTPS request with custom CA cert', async () => {
+    test('makes HTTPS request with custom CA cert', async () => {
       const chasmUrl = process.env['CHASM_HTTPS_URL']!;
       const caCertPath = process.env['CA_CERT_PATH']!;
 
@@ -112,6 +112,40 @@ describe('DefaultApiClient', () => {
      * userinfo natively from the URL; we assert TransportOptions
      * preserves the userinfo end-to-end.
      */
+    /*
+     * The fixture proxy's second port refuses a request unless it carries
+     * Proxy-Authorization, so these two prove the credentials in the proxy
+     * URL reach the proxy on the wire.
+     */
+    test('authenticating proxy accepts the credentials from the proxy URL', async () => {
+      const chasmUrl = process.env['CHASM_INTERNAL_HTTP_URL']!;
+      const transport = TransportOptions.builder()
+        .proxy(`http://user:pass@${process.env['PROXY_AUTH_HOST_PORT']!}`)
+        .build();
+
+      const client = new DefaultApiClient(transport);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('"method"');
+    });
+
+    test('authenticating proxy refuses a request without credentials', async () => {
+      const chasmUrl = process.env['CHASM_INTERNAL_HTTP_URL']!;
+      const transport = TransportOptions.builder()
+        .proxy(`http://${process.env['PROXY_AUTH_HOST_PORT']!}`)
+        .build();
+
+      const client = new DefaultApiClient(transport);
+      const refused = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null).catch(
+        (error: unknown) => error,
+      );
+
+      /* The proxy answered, so this is the status error, not a NetworkError. */
+      expect((refused as Error).constructor).toBe(ClientError);
+      expect((refused as ClientError).statusCode).toBe(407);
+    });
+
     test('proxy_with_credentials_injects_basic_authorization', () => {
       const transport = TransportOptions.builder()
         .proxy('http://alice:s3cret@127.0.0.1:3128')

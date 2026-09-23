@@ -1,12 +1,24 @@
 {{>api_info}}
 
-import { ApiError } from '../src/api-error{{importFileExtension}}';
+import * as sdk from '../src/index{{importFileExtension}}';
+import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
+import * as errors from '../src/errors/index{{importFileExtension}}';
 import {
   {{errorPrefix}}Error,
   ClientError,
   BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  InternalServerError,
   NetworkError,
   NetworkTimeoutError,
+  NotFoundError,
+  OAuth2ServerError,
+  OAuth2TokenError,
+  SerializationError,
+  ServerError,
+  UnauthorizedError,
+  UnprocessableEntityError,
 } from '../src/errors/index{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
 
@@ -107,6 +119,76 @@ describe('ApiError', () => {
       expect(typed!.id).toBe(1);
       expect(typed!.name).toBe('Cat');
       expect(typed as unknown as Record<string, unknown>).not.toHaveProperty('extra');
+    });
+  });
+
+  describe('error tree', () => {
+    const tree = [
+      '{{errorPrefix}}Error',
+      'ApiError',
+      'ClientError',
+      'ServerError',
+      'BadRequestError',
+      'UnauthorizedError',
+      'ForbiddenError',
+      'NotFoundError',
+      'ConflictError',
+      'UnprocessableEntityError',
+      'InternalServerError',
+      'NetworkError',
+      'NetworkTimeoutError',
+      'SerializationError',
+      'OAuth2ServerError',
+      'OAuth2TokenError',
+    ];
+
+    test('every error lives in src/errors and the package root exports it', () => {
+      for (const name of tree) {
+        const fromErrors = (errors as Record<string, unknown>)[name];
+        expect(typeof fromErrors).toBe('function');
+        expect((sdk as Record<string, unknown>)[name]).toBe(fromErrors);
+      }
+    });
+
+    test('the OAuth2 errors are rooted at the branded base, not at ApiError', () => {
+      const server = new OAuth2ServerError(400, 'invalid_grant', null, null, '{}');
+      const token = new OAuth2TokenError('no access_token');
+      expect(server).toBeInstanceOf({{errorPrefix}}Error);
+      expect(token).toBeInstanceOf({{errorPrefix}}Error);
+      expect(server).not.toBeInstanceOf(ApiError);
+      expect(token).not.toBeInstanceOf(ApiError);
+      expect(new SerializationError('boom')).toBeInstanceOf({{errorPrefix}}Error);
+    });
+  });
+
+  describe('fromResponse', () => {
+    test.each([
+      [400, BadRequestError],
+      [401, UnauthorizedError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [422, UnprocessableEntityError],
+      [418, ClientError],
+      [500, InternalServerError],
+      [503, ServerError],
+      [302, ApiError],
+    ])('maps %i to its error', (status, expected) => {
+      const err = ApiError.fromResponse(status, { 'x-request-id': 'abc' }, '{"code":7}');
+      expect(err.constructor).toBe(expected);
+      expect(err).toBeInstanceOf({{errorPrefix}}Error);
+      expect(err.statusCode).toBe(status);
+      expect(err.responseHeaders).toEqual({ 'x-request-id': 'abc' });
+      expect(err.responseBody).toBe('{"code":7}');
+      expect(err.errorBody).toEqual({ code: 7 });
+    });
+
+    test('keeps a non-JSON body raw without an error body', () => {
+      const err = ApiError.fromResponse(500, {}, '<html>oops</html>');
+      expect(err.constructor).toBe(InternalServerError);
+      expect(err.responseHeaders).toEqual({});
+      expect(err.responseBody).toBe('<html>oops</html>');
+      expect(err.errorBody).toBeNull();
     });
   });
 });

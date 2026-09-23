@@ -23,15 +23,15 @@ describe('BearerAuthenticator', () => {
   });
 
   it('rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
-    expect(() => new BearerAuthenticator('https://api.example.com', 'tok\r\nInjected: yes')).toThrow();
-    expect(() => new BearerAuthenticator('https://api.example.com', 'ñoño')).toThrow();
+    expect(() => new BearerAuthenticator('https://api.example.com', 'tok\r\nInjected: yes')).toThrow(TypeError);
+    expect(() => new BearerAuthenticator('https://api.example.com', 'ñoño')).toThrow(TypeError);
   });
 
   it('rejects an empty or whitespace token', () => {
     // bearer-no-empty-token-guard: an empty/whitespace token would emit a
     // bare "Authorization: Bearer " header that silently fails auth.
-    expect(() => new BearerAuthenticator('https://api.example.com', '')).toThrow();
-    expect(() => new BearerAuthenticator('https://api.example.com', '   ')).toThrow();
+    expect(() => new BearerAuthenticator('https://api.example.com', '')).toThrow(TypeError);
+    expect(() => new BearerAuthenticator('https://api.example.com', '   ')).toThrow(TypeError);
   });
 
   it('redacts the secret from default string/inspect/JSON', () => {

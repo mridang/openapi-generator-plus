@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import { ApiError } from './api-error{{importFileExtension}}';
 import { ClientError } from './client-error{{importFileExtension}}';
 
 /**
@@ -16,3 +17,9 @@ export class BadRequestError<T = unknown> extends ClientError<T> {
     this.name = 'BadRequestError';
   }
 }
+
+ApiError.registerStatusError(
+  400,
+  (_statusCode, message, headers, body, errorBody) =>
+    new BadRequestError(message, headers, body, errorBody)
+);

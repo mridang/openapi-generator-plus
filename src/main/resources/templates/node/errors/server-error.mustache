@@ -1,6 +1,6 @@
 {{>api_info}}
 
-import { ApiError } from '../api-error{{importFileExtension}}';
+import { ApiError } from './api-error{{importFileExtension}}';
 
 /**
  * Exception for HTTP 5xx server errors.
@@ -17,3 +17,10 @@ export class ServerError<T = unknown> extends ApiError<T> {
     this.name = 'ServerError';
   }
 }
+
+ApiError.registerStatusError(
+  5,
+  (statusCode, message, headers, body, errorBody) =>
+    new ServerError(statusCode, message, headers, body, errorBody),
+  true
+);

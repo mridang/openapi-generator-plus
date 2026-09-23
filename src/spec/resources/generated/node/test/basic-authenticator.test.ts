@@ -27,21 +27,21 @@ describe("BasicAuthenticator", () => {
           "alice\r\n",
           "s3cret",
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
   });
 
   it("rejects password with nul at construction", () => {
     expect(
       () =>
         new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"),
-    ).toThrow();
+    ).toThrow(TypeError);
   });
 
   it("rejects username with colon at construction", () => {
     expect(
       () =>
         new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"),
-    ).toThrow();
+    ).toThrow(TypeError);
   });
 
   it("password is not leaked in default string representation", () => {

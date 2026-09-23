@@ -16,15 +16,15 @@ describe('ApiKeyAuthenticator', () => {
   });
 
   it('rejects an empty key at construction', () => {
-    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '', ApiKeyLocation.HEADER)).toThrow();
-    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '   ', ApiKeyLocation.HEADER)).toThrow();
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '', ApiKeyLocation.HEADER)).toThrow(TypeError);
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '   ', ApiKeyLocation.HEADER)).toThrow(TypeError);
   });
 
   it('HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
     // HEADER location must reject anything outside printable ASCII +
     // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.
-    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)).toThrow();
-    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'kéy', ApiKeyLocation.HEADER)).toThrow();
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)).toThrow(TypeError);
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'kéy', ApiKeyLocation.HEADER)).toThrow(TypeError);
     // Non-header locations accept arbitrary chars.
     const queryAuth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'kéy', ApiKeyLocation.QUERY);
     expect(queryAuth.getQueryParams()).toEqual({ api_key: 'kéy' });

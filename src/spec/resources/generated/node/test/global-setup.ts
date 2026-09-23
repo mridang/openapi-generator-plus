@@ -97,7 +97,7 @@ export default async function globalSetup() {
 
   const squid = await startWithRetry("squid", () =>
     new GenericContainer("ubuntu/squid:5.2-22.04_beta")
-      .withExposedPorts(3128)
+      .withExposedPorts(3128, 3129)
       .withBindMounts([
         { source: squidConfPath, target: "/etc/squid/squid.conf", mode: "ro" },
       ])
@@ -126,6 +126,8 @@ export default async function globalSetup() {
     }
   }
   const proxyUrl = `http://${squid.getHost()}:${squid.getMappedPort(3128)}`;
+  // host:port of the fixture proxy port that requires Basic proxy credentials.
+  const proxyAuthHostPort = `${squid.getHost()}:${squid.getMappedPort(3129)}`;
   const caCertPath = path.join(
     process.cwd(),
     "test",
@@ -143,6 +145,7 @@ export default async function globalSetup() {
       chasmInternalHttpUrl,
       chasmInternalHttpsUrl,
       proxyUrl,
+      proxyAuthHostPort,
       caCertPath,
     }),
   );

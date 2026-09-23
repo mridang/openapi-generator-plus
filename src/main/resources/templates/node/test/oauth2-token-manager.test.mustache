@@ -1,6 +1,8 @@
 {{>api_info}}
 
-import { OAuth2TokenManager, OAuth2TokenError, OAuth2ServerError } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
+import { OAuth2TokenManager } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
+import { OAuth2ServerError } from '../src/errors/oauth2-server-error{{importFileExtension}}';
+import { OAuth2TokenError } from '../src/errors/oauth2-token-error{{importFileExtension}}';
 import { {{errorPrefix}}Error } from '../src/errors/{{errorPrefixKebab}}-error{{importFileExtension}}';
 import type { ApiClient, SendRequestOptions } from '../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../src/api-http-response{{importFileExtension}}';

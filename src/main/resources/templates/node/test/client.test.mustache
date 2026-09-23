@@ -26,15 +26,15 @@ describe('{{clientClassName}}', () => {
   });
 
   test('BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
-    expect(() => new BearerAuthenticator('{{{basePath}}}', 'tok\r\nInjected: yes')).toThrow();
-    expect(() => new BearerAuthenticator('{{{basePath}}}', 'ñoño')).toThrow();
+    expect(() => new BearerAuthenticator('{{{basePath}}}', 'tok\r\nInjected: yes')).toThrow(TypeError);
+    expect(() => new BearerAuthenticator('{{{basePath}}}', 'ñoño')).toThrow(TypeError);
   });
 
   test('BearerAuthenticator rejects an empty or whitespace token', () => {
     // bearer-no-empty-token-guard: an empty/whitespace token would emit a
     // bare "Authorization: Bearer " header that silently fails auth.
-    expect(() => new BearerAuthenticator('{{{basePath}}}', '')).toThrow();
-    expect(() => new BearerAuthenticator('{{{basePath}}}', '   ')).toThrow();
+    expect(() => new BearerAuthenticator('{{{basePath}}}', '')).toThrow(TypeError);
+    expect(() => new BearerAuthenticator('{{{basePath}}}', '   ')).toThrow(TypeError);
   });
 
   test('authenticators redact the secret from default string/inspect/JSON', () => {
@@ -57,8 +57,8 @@ describe('{{clientClassName}}', () => {
   test('ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
     // HEADER location must reject anything outside printable ASCII +
     // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.
-    expect(() => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)).toThrow();
-    expect(() => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation.HEADER)).toThrow();
+    expect(() => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)).toThrow(TypeError);
+    expect(() => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation.HEADER)).toThrow(TypeError);
     // Non-header locations accept arbitrary chars.
     const queryAuth = new ApiKeyAuthenticator('{{{basePath}}}', 'api_key', 'kéy', ApiKeyLocation.QUERY);
     expect(queryAuth.getQueryParams()).toEqual({ api_key: 'kéy' });

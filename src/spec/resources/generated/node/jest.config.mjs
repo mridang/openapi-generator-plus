@@ -10,7 +10,10 @@ export default {
     "^#transport$": "<rootDir>/src/default-api-client.ts",
   },
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { diagnostics: false }],
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      { diagnostics: false, tsconfig: "tsconfig.jest.json" },
+    ],
   },
   globalSetup: "<rootDir>/test/global-setup.ts",
   globalTeardown: "<rootDir>/test/global-teardown.ts",

@@ -1,7 +1,9 @@
 {{>api_info}}
 
 import type { ApiClient, SendRequestOptions } from './api-client{{importFileExtension}}';
-import { ApiError } from './api-error{{importFileExtension}}';
+/* Through the errors barrel, which loads every status-specific error, so
+ * ApiError.fromResponse knows them all. */
+import { ApiError } from './errors/index{{importFileExtension}}';
 import { NetworkError } from './errors/network-error{{importFileExtension}}';
 import { NetworkTimeoutError } from './errors/network-timeout-error{{importFileExtension}}';
 import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}';
@@ -99,9 +101,12 @@ export abstract class AbstractApiClient implements ApiClient {
    * timeouts as a `TypeError` whose cause carries a `UND_ERR_*_TIMEOUT` code:
    * both are a {@link NetworkTimeoutError}. Any other `TypeError` means no
    * HTTP response arrived (connection refused, DNS failure, TLS failure,
-   * connection reset) and is a {@link NetworkError}. Anything else stays a
-   * plain {@link ApiError} with status 0. The original error is kept as
-   * `cause` in every case.
+   * connection reset) and is a {@link NetworkError}, except a proxy that
+   * refused the tunnel: that proxy answered, so the error is the one
+   * {@link ApiError.fromResponse} maps its status to (a 407 without proxy
+   * credentials is a `ClientError`). Anything else stays a plain
+   * {@link ApiError} with status 0. The original error is kept as `cause` in
+   * every other case.
    *
    * @param error the value `fetch` or the body read rejected with
    * @returns the SDK error to throw
@@ -120,10 +125,33 @@ export abstract class AbstractApiClient implements ApiClient {
     if (name === 'TimeoutError' || /^UND_ERR_(CONNECT|HEADERS|BODY)_TIMEOUT$/.test(causeCode)) {
       return new NetworkTimeoutError(message, { cause: error });
     }
+    const proxyStatus = AbstractApiClient.proxyRefusalStatus(error);
+    if (proxyStatus !== null) {
+      return ApiError.fromResponse(proxyStatus, null, null);
+    }
     if (name === 'TypeError') {
       return new NetworkError(message, { cause: error });
     }
     return new ApiError(0, message, null, null, null, { cause: error });
+  }
+
+  /**
+   * The status a proxy refused the CONNECT tunnel with, found anywhere in the
+   * error's cause chain (undici reports it only in the message), or null.
+   *
+   * @param error the value `fetch` rejected with
+   * @returns the proxy's status code, or null when no proxy refused
+   */
+  private static proxyRefusalStatus(error: unknown): number | null {
+    let current: unknown = error;
+    for (let depth = 0; depth < 4 && current != null && typeof current === 'object'; depth++) {
+      const match = /Proxy response \((\d{3})\) !== 200/.exec(String((current as Record<string, unknown>).message ?? ''));
+      if (match) {
+        return Number(match[1]);
+      }
+      current = (current as Record<string, unknown>).cause;
+    }
+    return null;
   }
 
   /**

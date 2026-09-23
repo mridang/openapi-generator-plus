@@ -198,7 +198,7 @@ export class {{classname}} {
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
-import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTemporalImport}}, Transform{{/hasTemporalImport}}{{^hasTemporalImport}}{{#hasBufferImport}}, Transform{{/hasBufferImport}}{{/hasTemporalImport}} } from 'class-transformer';
+import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTransformDecorator}}, Transform{{/hasTransformDecorator}} } from 'class-transformer';
 {{#hasTemporalImport}}
 import { Temporal } from 'temporal-polyfill';
 {{/hasTemporalImport}}

@@ -385,7 +385,7 @@ describe('ValueSerializer', () => {
       // callers see the real error rather than a downstream 404.
       expect(() =>
         ValueSerializer.serializeStyled('id', '', 'path', 'string', null, 'simple', false)
-      ).toThrow();
+      ).toThrow(TypeError);
     });
   });
 

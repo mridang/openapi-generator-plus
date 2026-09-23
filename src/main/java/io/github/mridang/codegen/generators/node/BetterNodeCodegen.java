@@ -23,7 +23,10 @@ import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -287,7 +290,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("transport_options.mustache", "src", "transport-options.ts"),
             new SupportingFileSpec("server_configuration.mustache", "src", "server-configuration.ts"),
             new SupportingFileSpec("servers.mustache", "src", "servers.ts"),
-            new SupportingFileSpec("api_error.mustache", "src", "api-error.ts"),
+            new SupportingFileSpec("errors/api-error.mustache", "src/errors", "api-error.ts"),
             new SupportingFileSpec("base_api.mustache", "src/api", "base-api.ts"),
             new SupportingFileSpec("errors/index.mustache", "src/errors", "index.ts"),
             new SupportingFileSpec("errors/root-error.mustache", "src/errors", errorPrefixKebab() + "-error.ts"),
@@ -302,6 +305,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),
             new SupportingFileSpec("errors/network-error.mustache", "src/errors", "network-error.ts"),
             new SupportingFileSpec("errors/network-timeout-error.mustache", "src/errors", "network-timeout-error.ts"),
+            new SupportingFileSpec("errors/serialization-error.mustache", "src/errors", "serialization-error.ts"),
+            new SupportingFileSpec("errors/oauth2-server-error.mustache", "src/errors", "oauth2-server-error.ts"),
+            new SupportingFileSpec("errors/oauth2-token-error.mustache", "src/errors", "oauth2-token-error.ts"),
             new SupportingFileSpec("brand.mustache", "src", "brand.ts"),
             new SupportingFileSpec("deep_input.mustache", "src", "deep-input.ts"),
             new SupportingFileSpec("object_serializer.mustache", "src", "object-serializer.ts"),
@@ -346,6 +352,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         supportingFiles.add(
                 new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
 
+        if (emitUnitTests()) {
+            // Type-checks the tests together with the sources, as the SDK's own
+            // client does before it runs them.
+            supportingFiles.add(new SupportingFile("tsconfig_jest.mustache", "", "tsconfig.jest.json"));
+        }
         if (emitUnitTests()) {
             // Spec-independent pure-unit tests. These import only supporting
             // modules (ValueSerializer, HeaderSelector, Configuration,
@@ -471,21 +482,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api-error.test.mustache",
                             "test",
                             "api-error.test.ts"));
-            // D1: standalone authenticator tests for the bearer/api-key schemes
-            // present in the petstore golden. Like client.test above, they import
-            // scheme-gated authenticators that exist only in the golden, so they
-            // are emitted under generateTests, next to the basic-authenticator
-            // golden coverage rather than into every real client.
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/bearer-authenticator.test.mustache",
-                            "test",
-                            "bearer-authenticator.test.ts"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api-key-authenticator.test.mustache",
-                            "test",
-                            "api-key-authenticator.test.ts"));
         }
     }
 
@@ -724,8 +720,81 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     imp.put("className", className);
                 }
             }
+            // The API file names a model only in a method signature (a return
+            // type or a parameter type). A model the spec attaches to an error
+            // response, or to an Options field only, is never named there, so
+            // importing it would be an unused import.
+            final Set<String> named = namedInSignatures(objs);
+            imports.removeIf(imp -> !named.contains(imp.get("className")));
         }
+        objs.put("usesValueSerializer", usesValueSerializer(objs));
         return objs;
+    }
+
+    /**
+     * Every identifier the API file's method signatures name: the words of
+     * each operation's return type and of each request-wrapper field type.
+     */
+    @SuppressWarnings("unchecked")
+    private static Set<String> namedInSignatures(OperationsMap objs) {
+        final Set<String> named = new HashSet<>();
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return named;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return named;
+        }
+        final java.util.regex.Pattern word = java.util.regex.Pattern.compile("\\w+");
+        for (final CodegenOperation op : ops) {
+            final List<String> types = new ArrayList<>();
+            if (op.returnType != null) {
+                types.add(op.returnType);
+            }
+            final Object deco = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (deco instanceof Map) {
+                final Object fields = ((Map<String, Object>) deco).get("requestWrapperFields");
+                if (fields instanceof List) {
+                    for (final Object field : (List<Object>) fields) {
+                        if (field instanceof Map && ((Map<String, Object>) field).get("type") != null) {
+                            types.add(String.valueOf(((Map<String, Object>) field).get("type")));
+                        }
+                    }
+                }
+            }
+            for (final String type : types) {
+                final java.util.regex.Matcher m = word.matcher(type);
+                while (m.find()) {
+                    named.add(m.group());
+                }
+            }
+        }
+        return named;
+    }
+
+    /**
+     * Whether any operation serializes a parameter through ValueSerializer:
+     * every path, header and cookie parameter does, and so does every query
+     * parameter except one sent as JSON content.
+     */
+    @SuppressWarnings("unchecked")
+    private static boolean usesValueSerializer(OperationsMap objs) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null || operations.get("operation") == null) {
+            return false;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            if (!op.pathParams.isEmpty() || !op.headerParams.isEmpty() || !op.cookieParams.isEmpty()) {
+                return true;
+            }
+            for (final CodegenParameter p : op.queryParams) {
+                if (p.getContent() == null || p.getContent().isEmpty()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -893,6 +962,30 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         m.put("type", type);
         m.put("optional", optional);
         return m;
+    }
+
+    /**
+     * Registers the bearer and API-key authenticator tests, each only when the
+     * spec's security schemes produce that authenticator. Registered here, not
+     * in processOpts: the scheme flags are only set once the spec is parsed.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (generateTests && hasBearerAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer-authenticator.test.mustache",
+                            "test",
+                            "bearer-authenticator.test.ts"));
+        }
+        if (generateTests && hasApiKeyAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api-key-authenticator.test.mustache",
+                            "test",
+                            "api-key-authenticator.test.ts"));
+        }
     }
 
     /** {@inheritDoc} */
@@ -1130,6 +1223,51 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 Path.of(outputFolder, "src", "api", "options", "index.ts").toString();
         writeFile(barrelPath, content);
         postProcessFile(Path.of(barrelPath).toFile(), "source");
+    }
+
+    /**
+     * Sets each model's import flags from exactly what its template emits, once
+     * every model is known: {@code hasTypeDecorator} and
+     * {@code hasTransformDecorator} when a property carries that decorator, and
+     * a brand import when a property's type names the brand as a whole word
+     * (a model named {@code *Email} does not use the {@code Email} brand). An
+     * import the file never uses fails the SDK's own lint.
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (model == null || model.vars == null) {
+                    continue;
+                }
+                modelMap.put("hasTypeDecorator", model.vars.stream().anyMatch(this::needsTypeDecorator));
+                modelMap.put("hasTransformDecorator", model.vars.stream().anyMatch(BetterNodeCodegen::hasTransform));
+                modelMap.put("hasUuidImport", namesType(model, "UUID"));
+                modelMap.put("hasUriImport", namesType(model, "URI"));
+                modelMap.put("hasEmailImport", namesType(model, "Email"));
+                modelMap.put("hasDecimalImport", namesType(model, "Decimal"));
+            }
+        }
+        return result;
+    }
+
+    /** Whether the model template emits an {@code @Transform} for the property. */
+    private static boolean hasTransform(CodegenProperty prop) {
+        final Map<String, Object> ext = prop.vendorExtensions;
+        return Boolean.TRUE.equals(ext.get("isTimeFormat"))
+                || Boolean.TRUE.equals(ext.get("isDurationFormat"))
+                || prop.isByteArray
+                || (prop.isArray && prop.items != null && prop.items.isByteArray);
+    }
+
+    /** Whether any property's type names {@code type} as a whole word. */
+    private static boolean namesType(CodegenModel model, String type) {
+        final java.util.regex.Pattern word =
+                java.util.regex.Pattern.compile("\\b" + java.util.regex.Pattern.quote(type) + "\\b");
+        return model.vars.stream()
+                .anyMatch(p -> p.dataType != null && word.matcher(p.dataType).find());
     }
 
     /** {@inheritDoc} */

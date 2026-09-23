@@ -51,11 +51,8 @@ export { Servers } from "./servers.js";
 export { isUuid, uuid, URI, Email, Decimal } from "./brand.js";
 export type { UUID } from "./brand.js";
 
-/* Error hierarchy. */
-export { OpenAPIError } from "./errors/open-api-error.js";
-export { ApiError } from "./api-error.js";
+/* Error hierarchy: every error the SDK throws. */
 export * from "./errors/index.js";
-export { SerializationError } from "./object-serializer.js";
 
 /*
  * Authentication: the interface, the HTTP-aware extension, and every
@@ -74,7 +71,3 @@ export { OAuth2AuthorizationCodeAuthenticator } from "./auth/oauth/oauth2-author
 export { OAuth2ImplicitAuthenticator } from "./auth/oauth/oauth2-implicit-authenticator.js";
 export { OpenIdConnectAuthenticator } from "./auth/oauth/openid-connect-authenticator.js";
 export { ClientAuthMethod } from "./auth/oauth/client-auth-method.js";
-export {
-  OAuth2TokenError,
-  OAuth2ServerError,
-} from "./auth/oauth/oauth2-token-manager.js";

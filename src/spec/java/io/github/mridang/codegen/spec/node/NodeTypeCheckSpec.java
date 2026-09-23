@@ -8,7 +8,10 @@ import org.junit.jupiter.api.parallel.ResourceLock;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Verifies that generated TypeScript code passes tsc type checking with strict mode.
+ * Verifies that generated TypeScript code passes tsc type checking with strict mode: the
+ * sources as the package builds them, then the sources and tests together through
+ * tsconfig.jest.json with the package marked as an ES module, the way a real client (an ESM
+ * package) type-checks them, so a relative import without its file extension fails here.
  * If this test fails, the Node templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
@@ -18,7 +21,9 @@ public class NodeTypeCheckSpec extends AbstractIntegrationSpec implements NodeSp
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"npx tsc --noEmit"};
+    return new String[] {
+      "npx tsc --noEmit", "npm pkg set type=module", "npx tsc -p tsconfig.jest.json"
+    };
   }
 
   @Test

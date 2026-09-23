@@ -33,15 +33,15 @@ describe("Client", () => {
   test("BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () => new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes"),
-    ).toThrow();
-    expect(() => new BearerAuthenticator("/api/v3", "ñoño")).toThrow();
+    ).toThrow(TypeError);
+    expect(() => new BearerAuthenticator("/api/v3", "ñoño")).toThrow(TypeError);
   });
 
   test("BearerAuthenticator rejects an empty or whitespace token", () => {
     // bearer-no-empty-token-guard: an empty/whitespace token would emit a
     // bare "Authorization: Bearer " header that silently fails auth.
-    expect(() => new BearerAuthenticator("/api/v3", "")).toThrow();
-    expect(() => new BearerAuthenticator("/api/v3", "   ")).toThrow();
+    expect(() => new BearerAuthenticator("/api/v3", "")).toThrow(TypeError);
+    expect(() => new BearerAuthenticator("/api/v3", "   ")).toThrow(TypeError);
   });
 
   test("authenticators redact the secret from default string/inspect/JSON", () => {
@@ -77,7 +77,7 @@ describe("Client", () => {
           "abc\r\nInjected: yes",
           ApiKeyLocation.HEADER,
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
     expect(
       () =>
         new ApiKeyAuthenticator(
@@ -86,7 +86,7 @@ describe("Client", () => {
           "kéy",
           ApiKeyLocation.HEADER,
         ),
-    ).toThrow();
+    ).toThrow(TypeError);
     // Non-header locations accept arbitrary chars.
     const queryAuth = new ApiKeyAuthenticator(
       "/api/v3",

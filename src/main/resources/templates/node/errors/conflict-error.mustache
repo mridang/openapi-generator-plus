@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import { ApiError } from './api-error{{importFileExtension}}';
 import { ClientError } from './client-error{{importFileExtension}}';
 
 /**
@@ -16,3 +17,9 @@ export class ConflictError<T = unknown> extends ClientError<T> {
     this.name = 'ConflictError';
   }
 }
+
+ApiError.registerStatusError(
+  409,
+  (_statusCode, message, headers, body, errorBody) =>
+    new ConflictError(message, headers, body, errorBody)
+);

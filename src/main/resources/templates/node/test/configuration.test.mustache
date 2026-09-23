@@ -1,7 +1,7 @@
 {{>api_info}}
 
-import { Configuration, ConfigurationBuilder } from '../src/configuration';
-import { ServerConfiguration, ServerVariable } from '../src/server-configuration';
+import { Configuration, ConfigurationBuilder } from '../src/configuration{{importFileExtension}}';
+import { ServerConfiguration, ServerVariable } from '../src/server-configuration{{importFileExtension}}';
 
 describe('Configuration', () => {
   let savedDefault: Configuration;
@@ -125,7 +125,7 @@ describe('Configuration', () => {
 
     expect(() =>
       Configuration.builder().server(server, { env: 'invalid' }).build(),
-    ).toThrow();
+    ).toThrow(TypeError);
   });
 
   test('baseUrl overrides server', () => {

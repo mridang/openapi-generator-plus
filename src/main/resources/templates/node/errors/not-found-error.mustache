@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import { ApiError } from './api-error{{importFileExtension}}';
 import { ClientError } from './client-error{{importFileExtension}}';
 
 /**
@@ -16,3 +17,9 @@ export class NotFoundError<T = unknown> extends ClientError<T> {
     this.name = 'NotFoundError';
   }
 }
+
+ApiError.registerStatusError(
+  404,
+  (_statusCode, message, headers, body, errorBody) =>
+    new NotFoundError(message, headers, body, errorBody)
+);

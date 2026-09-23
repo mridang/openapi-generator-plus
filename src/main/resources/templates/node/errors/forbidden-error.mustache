@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import { ApiError } from './api-error{{importFileExtension}}';
 import { ClientError } from './client-error{{importFileExtension}}';
 
 /**
@@ -16,3 +17,9 @@ export class ForbiddenError<T = unknown> extends ClientError<T> {
     this.name = 'ForbiddenError';
   }
 }
+
+ApiError.registerStatusError(
+  403,
+  (_statusCode, message, headers, body, errorBody) =>
+    new ForbiddenError(message, headers, body, errorBody)
+);

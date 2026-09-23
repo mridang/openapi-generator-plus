@@ -7,7 +7,7 @@ build: install
 	npx tsc
 
 test: install
-	npx jest --verbose
+	npm test
 
 lint: install
 	npx eslint .

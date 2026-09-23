@@ -58,7 +58,7 @@ const authenticator = new ApiKeyAuthenticator(
   "https://api.example.com",
   "key-name",
   "key-value",
-  ApiKeyLocation.Header,
+  ApiKeyLocation.HEADER,
 );
 const client = new Client(authenticator);
 ```
@@ -73,6 +73,7 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
   "client-id",
   "client-secret",
   "https://auth.example.com/token",
+  ["read"],
 );
 const client = new Client(authenticator);
 ```
@@ -86,9 +87,10 @@ const authenticator = new OAuth2AuthorizationCodeAuthenticator(
   "https://api.example.com",
   "client-id",
   "client-secret",
+  "https://auth.example.com/authorize",
   "https://auth.example.com/token",
-  "authorization-code",
   "https://app.example.com/callback",
+  ["read"],
 );
 const client = new Client(authenticator);
 ```
@@ -105,6 +107,7 @@ const authenticator = new OAuth2PasswordAuthenticator(
   "https://auth.example.com/token",
   "username",
   "password",
+  ["read"],
 );
 const client = new Client(authenticator);
 ```
@@ -118,8 +121,11 @@ import { OAuth2ImplicitAuthenticator } from "./src/auth/oauth/oauth2-implicit-au
 
 const authenticator = new OAuth2ImplicitAuthenticator(
   "https://api.example.com",
-  "your-access-token",
+  "client-id",
+  "https://auth.example.com/authorize",
+  ["read"],
 );
+authenticator.setAccessToken("your-access-token");
 const client = new Client(authenticator);
 ```
 
@@ -130,9 +136,11 @@ import { OpenIdConnectAuthenticator } from "./src/auth/oauth/openid-connect-auth
 
 const authenticator = new OpenIdConnectAuthenticator(
   "https://api.example.com",
+  "https://auth.example.com/.well-known/openid-configuration",
   "client-id",
   "client-secret",
-  "https://auth.example.com/.well-known/openid-configuration",
+  "https://app.example.com/callback",
+  ["openid"],
 );
 const client = new Client(authenticator);
 ```
@@ -189,12 +197,23 @@ const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```typescript
-const fake = {
+import type { Authenticator } from "./src/auth/authenticator.js";
+
+const fake: Authenticator = {
   getHost(): string {
     return "https://api.example.com";
   },
   getAuthHeaders(): Record<string, string> {
     return { Authorization: "Bearer test-token" };
+  },
+  getAuthHeadersAsync(): Promise<Record<string, string>> {
+    return Promise.resolve(this.getAuthHeaders());
+  },
+  getQueryParams(): Record<string, string> {
+    return {};
+  },
+  getCookieParams(): Record<string, string> {
+    return {};
   },
 };
 
