@@ -78,7 +78,7 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
      */
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return is_string($data) && ($type === \Uri\Rfc3986\Uri::class || ltrim($type, '\\') === 'Uri\\Rfc3986\\Uri');
+        return is_string($data) && ($type === \Uri\Rfc3986\Uri::class || ltrim($type, '\\') === \Uri\Rfc3986\Uri::class);
     }
 
     /**

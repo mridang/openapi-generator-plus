@@ -4,9 +4,11 @@
 
 namespace {{invokerPackage}}\Auth\OAuth;
 
+use {{invokerPackage}}\Errors\OAuth2ServerException;
+use {{invokerPackage}}\Errors\OAuth2TokenException;
 use {{invokerPackage}}\ApiClient;
-use {{invokerPackage}}\ApiException;
-use {{invokerPackage}}\{{errorPrefix}}Exception;
+use {{invokerPackage}}\Errors\ApiException;
+use {{invokerPackage}}\Errors\{{errorPrefix}}Exception;
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.

@@ -141,7 +141,7 @@ class DefaultApiClient extends AbstractApiClient
      * boundary-bearing `Content-Type` header in that case.
      *
      * @param array<string, string> $headers
-     * @throws ApiException if the request fails at the transport level
+     * @throws NetworkException if the request fails at the transport level
      */
     protected function execute(
         string $method,
@@ -246,7 +246,7 @@ class DefaultApiClient extends AbstractApiClient
                  * empty body so Symfony emits Content-Length: 0 (the base
                  * class already injected the header); GET/HEAD send nothing. */
                 $upperMethod = strtoupper($method);
-                if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
+                if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
                     $options['body'] = '';
                 }
             }

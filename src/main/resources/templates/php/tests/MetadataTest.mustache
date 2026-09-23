@@ -26,6 +26,7 @@ test('deserializes additional string properties', function (): void {
     $metadata = ObjectSerializer::deserialize($json, Metadata::class);
     expect($metadata)->toBeInstanceOf(Metadata::class);
     expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
+    assert($metadata->additionalProperties !== null);
     expect($metadata->additionalProperties->hasKey('customField'))->toBeTrue();
     expect($metadata->additionalProperties->get('customField'))->toBe('hello');
 });
@@ -33,7 +34,9 @@ test('deserializes additional string properties', function (): void {
 test('round trip preserves additional properties', function (): void {
     $metadata = new Metadata();
     $metadata->createdAt = new \DateTime('2024-01-01T00:00:00+00:00');
-    $metadata->additionalProperties = new \Ds\Map(['customField' => 'hello', 'anotherField' => 'world']);
+    /** @var \Ds\Map<string, mixed> $additionalProperties */
+    $additionalProperties = new \Ds\Map(['customField' => 'hello', 'anotherField' => 'world']);
+    $metadata->additionalProperties = $additionalProperties;
 
     $json = ObjectSerializer::serialize($metadata);
     /** @var Metadata $deserialized */
@@ -43,7 +46,9 @@ test('round trip preserves additional properties', function (): void {
 
 test('additional properties field is Ds\\Map typed', function (): void {
     $metadata = new Metadata();
-    $metadata->additionalProperties = new \Ds\Map(['key' => 'value']);
+    /** @var \Ds\Map<string, mixed> $additionalProperties */
+    $additionalProperties = new \Ds\Map(['key' => 'value']);
+    $metadata->additionalProperties = $additionalProperties;
     expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
     expect($metadata->additionalProperties->get('key'))->toBe('value');
 });
@@ -83,7 +88,7 @@ test('generated models never claim a null example', function (): void {
     $modelsDir = __DIR__ . '/../lib/Models';
     expect(is_dir($modelsDir))->toBeTrue();
 
-    $files = glob($modelsDir . '/*.php');
+    $files = glob($modelsDir . '/*.php') ?: [];
     expect($files)->not->toBeEmpty();
 
     foreach ($files as $file) {

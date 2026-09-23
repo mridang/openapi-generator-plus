@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Errors;
 
-use PetstoreClient\ApiException;
 use Throwable;
 
 /**

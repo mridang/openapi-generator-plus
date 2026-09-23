@@ -10,7 +10,7 @@
 namespace {{apiPackage}};
 
 use {{invokerPackage}}\ApiClient;
-use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
@@ -84,7 +84,7 @@ class {{classname}} extends BaseApi
 {{#returnType}}
      * @return {{{vendorExtensions.phpDocReturnType}}}
 {{/returnType}}
-     * @throws \{{invokerPackage}}\ApiException
+     * @throws \{{invokerPackage}}\Errors\ApiException
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -102,7 +102,7 @@ class {{classname}} extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new \{{invokerPackage}}\ApiException(
+            throw new \{{invokerPackage}}\Errors\ApiException(
                 $apiResult->statusCode,
                 'Expected a response body for {{operationId}} but received none',
                 $apiResult->headers,
@@ -148,7 +148,7 @@ class {{classname}} extends BaseApi
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
-     * @throws \{{invokerPackage}}\ApiException
+     * @throws \{{invokerPackage}}\Errors\ApiException
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
     {
@@ -383,7 +383,7 @@ class {{classname}} extends BaseApi
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<null>
-     * @throws \{{invokerPackage}}\ApiException
+     * @throws \{{invokerPackage}}\Errors\ApiException
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
     {

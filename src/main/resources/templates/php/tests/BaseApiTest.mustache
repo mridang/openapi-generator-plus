@@ -14,7 +14,7 @@ use {{invokerPackage}}\Auth\Authenticator;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
-use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\Errors\ClientException;
 use {{invokerPackage}}\Errors\ServerException;
 use {{invokerPackage}}\Errors\BadRequestException;
@@ -32,95 +32,6 @@ use {{apiPackage}}\Options\FindPetsByStatusOptions;
 use {{apiPackage}}\Options\AddPetOptions;
 use {{invokerPackage}}\Models\Category;
 use {{invokerPackage}}\Models\Pet;
-
-class CapturingApiClient implements ApiClient
-{
-    public string $capturedUrl = '';
-    /** @var array<string, string> */
-    public array $capturedHeaders = [];
-    public mixed $capturedBody = null;
-
-    /** @param array<string, string> $headers */
-    public function sendRequest(
-        string $method,
-        string $url,
-        array $headers,
-        mixed $body,
-        bool $noRedirect = false,
-    ): ApiHttpResponse {
-        $this->capturedUrl = $url;
-        $this->capturedHeaders = $headers;
-        $this->capturedBody = $body;
-        return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
-    }
-}
-
-class TestableApi extends BaseApi
-{
-    /**
-     * @param array<string, mixed> $queryParams
-     * @param array<string, string> $headerParams
-     * @param array<string> $accepts
-     */
-    public function call(
-        string $method,
-        string $path,
-        array $queryParams,
-        array $headerParams,
-        mixed $body,
-        array $accepts,
-        ?string $contentType,
-        ?string $returnType,
-        ?Authenticator $auth = null
-    ): mixed {
-        return $this->invokeApi(
-            $method,
-            $path,
-            $queryParams,
-            $headerParams,
-            $body,
-            $accepts,
-            $contentType,
-            $returnType,
-            $auth
-        );
-    }
-}
-
-class TestAuthenticator implements Authenticator
-{
-    /**
-     * @param array<string, string> $headers
-     * @param array<string, string> $queryParams
-     * @param array<string, string> $cookies
-     */
-    public function __construct(
-        private readonly array $headers = [],
-        private readonly array $queryParams = [],
-        private readonly array $cookies = []
-    ) {
-    }
-
-    public function getHost(): string
-    {
-        return '';
-    }
-
-    public function getAuthHeaders(): array
-    {
-        return $this->headers;
-    }
-
-    public function getQueryParams(): array
-    {
-        return $this->queryParams;
-    }
-
-    public function getCookieParams(): array
-    {
-        return $this->cookies;
-    }
-}
 
 function makeBaseApiTestableApi(): TestableApi
 {
@@ -143,7 +54,7 @@ test('throws correct exception', function (int $status, string $expectedClass): 
         );
         test()->fail('Expected exception not thrown');
     } catch (ApiException $e) {
-        expect($e)->toBeInstanceOf($expectedClass);
+        expect($e::class)->toBe($expectedClass);
         expect($e->getCode())->toBe($status);
         expect($e->getResponseBody())->not->toBeEmpty();
     }
@@ -164,6 +75,7 @@ test('get typed error body deserializes into given class', function (): void {
     $typed = $ex->getTypedErrorBody(Category::class);
 
     expect($typed)->toBeInstanceOf(Category::class);
+    assert($typed instanceof Category);
     expect($typed->id)->toBe(42);
     expect($typed->name)->toBe('Dogs');
 });
@@ -213,7 +125,7 @@ test('not found hierarchy', function (): void {
         expect($e::class)->toBe(NotFoundException::class);
         expect($e)->toBeInstanceOf(ClientException::class);
         expect($e)->toBeInstanceOf(ApiException::class);
-        expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
     }
 });
 
@@ -234,7 +146,7 @@ test('internal server error hierarchy', function (): void {
         expect($e::class)->toBe(InternalServerErrorException::class);
         expect($e)->toBeInstanceOf(ServerException::class);
         expect($e)->toBeInstanceOf(ApiException::class);
-        expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
     }
 });
 
@@ -250,6 +162,7 @@ test('deserializes json response', function (): void {
         'object'
     );
     expect($result)->toBeArray();
+    /** @var array<string, mixed> $result */
     expect($result['method'])->toBe('GET');
 });
 
@@ -310,6 +223,7 @@ test('forwards auth headers', function (): void {
         $auth
     );
     expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
     expect($result['headers']['x-custom'])->toBe('auth-value');
 });
 
@@ -517,8 +431,9 @@ test('serializes json body', function (): void {
         'object'
     );
     expect($result)->toBeArray();
+    /** @var array{body: string} $result */
     /** @var array<string, mixed> $parsedBody */
-    $parsedBody = (array) json_decode((string) $result['body'], true);
+    $parsedBody = (array) json_decode($result['body'], true);
     expect($parsedBody['key'])->toBe('value');
 });
 
@@ -740,6 +655,7 @@ test('deserializes vendor json mime types', function (): void {
     $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['application/json'], 'application/json', 'object');
     expect($result)->toBeArray();
+    /** @var array<string, mixed> $result */
     expect($result['title'])->toBe('Not Found');
 });
 
@@ -899,6 +815,7 @@ test('binary response roundtrips nul and high bytes', function (): void {
     $result = $testApi->call('GET', '/api/bin', [], [], null,
         ['application/octet-stream'], 'application/octet-stream', null);
     expect($result)->toBe($binaryData);
+    assert(is_string($result));
     expect(strlen($result))->toBe(3);
 });
 

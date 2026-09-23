@@ -47,7 +47,7 @@ $client = new {{clientClassName}}($authenticator);
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
 
-$authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation::Header);
+$authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation::HEADER);
 $client = new {{clientClassName}}($authenticator);
 ```
 
@@ -59,7 +59,7 @@ $client = new {{clientClassName}}($authenticator);
 use {{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 $authenticator = new OAuth2ClientCredentialsAuthenticator(
-    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token');
+    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', []);
 $client = new {{clientClassName}}($authenticator);
 ```
 
@@ -72,8 +72,10 @@ use {{invokerPackage}}\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
 
 $authenticator = new OAuth2AuthorizationCodeAuthenticator(
     'https://api.example.com', 'client-id', 'client-secret',
-    'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback');
+    'https://auth.example.com/authorize', 'https://auth.example.com/token',
+    'https://app.example.com/callback', []);
 $client = new {{clientClassName}}($authenticator);
+$authenticator->exchangeCode('authorization-code');
 ```
 
 {{/hasOAuth2AuthorizationCode}}
@@ -85,7 +87,7 @@ use {{invokerPackage}}\Auth\OAuth\OAuth2PasswordAuthenticator;
 
 $authenticator = new OAuth2PasswordAuthenticator(
     'https://api.example.com', 'client-id', 'client-secret',
-    'https://auth.example.com/token', 'username', 'password');
+    'https://auth.example.com/token', 'username', 'password', []);
 $client = new {{clientClassName}}($authenticator);
 ```
 
@@ -98,7 +100,9 @@ The implicit flow obtains the access token out of band (typically in the browser
 ```php
 use {{invokerPackage}}\Auth\OAuth\OAuth2ImplicitAuthenticator;
 
-$authenticator = new OAuth2ImplicitAuthenticator('https://api.example.com', 'your-access-token');
+$authenticator = new OAuth2ImplicitAuthenticator(
+    'https://api.example.com', 'client-id', 'https://auth.example.com/authorize', []);
+$authenticator->setAccessToken('your-access-token');
 $client = new {{clientClassName}}($authenticator);
 ```
 
@@ -110,9 +114,10 @@ $client = new {{clientClassName}}($authenticator);
 use {{invokerPackage}}\Auth\OAuth\OpenIdConnectAuthenticator;
 
 $authenticator = new OpenIdConnectAuthenticator(
-    'https://api.example.com', 'client-id', 'client-secret',
-    'https://auth.example.com/.well-known/openid-configuration');
+    'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
+    'client-id', 'client-secret', 'https://app.example.com/callback', []);
 $client = new {{clientClassName}}($authenticator);
+$authenticator->exchangeCode('authorization-code');
 ```
 
 {{/hasOpenIdConnect}}
@@ -145,7 +150,7 @@ use {{invokerPackage}}\Auth\OAuth\ClientAuthMethod;
 use {{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 $authenticator = new OAuth2ClientCredentialsAuthenticator(
-    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', [],
     clientAuthMethod: ClientAuthMethod::Basic);
 ```
 
@@ -168,7 +173,9 @@ $client = {{clientClassName}}::withToken(Servers::server0()->getUrl(), 'your-tok
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```php
-$fake = new class implements {{invokerPackage}}\Auth\Authenticator {
+use {{invokerPackage}}\Auth\Authenticator;
+
+$fake = new class implements Authenticator {
     public function getHost(): string { return 'https://api.example.com'; }
     public function getAuthHeaders(): array {
         return ['Authorization' => 'Bearer test-token'];
@@ -198,22 +205,27 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```php
-use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\{{clientClassName}};
+use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\Errors\NotFoundException;
 use {{invokerPackage}}\Errors\ClientException;
 use {{invokerPackage}}\Errors\ServerException;
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}
 
-try {
-    $result = $client->{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}->{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}($request);
-} catch (NotFoundException $e) {
-    echo "Not found: " . $e->getMessage();
-} catch (ClientException $e) {
-    echo "Client error " . $e->getStatusCode() . ": " . $e->getMessage();
-} catch (ServerException $e) {
-    echo "Server error: " . $e->getMessage();
-} catch (ApiException $e) {
-    echo "API error: " . $e->getMessage();
-}
+function {{operationId}}OrReport({{clientClassName}} $client{{#pathParams}}, {{{dataType}}} ${{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} ${{paramName}}{{/bodyParam}}): void
+{
+    try {
+        $client->{{clientPropertyName}}->{{operationId}}({{#pathParams}}${{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}${{paramName}}{{/bodyParam}});
+    } catch (NotFoundException $e) {
+        echo "Not found: " . $e->getMessage();
+    } catch (ClientException $e) {
+        echo "Client error " . $e->getStatusCode() . ": " . $e->getMessage();
+    } catch (ServerException $e) {
+        echo "Server error: " . $e->getMessage();
+    } catch (ApiException $e) {
+        echo "API error: " . $e->getMessage();
+    }
+}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 ```
 
 ## Configuration

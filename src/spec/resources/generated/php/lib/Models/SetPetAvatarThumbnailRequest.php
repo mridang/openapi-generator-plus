@@ -20,8 +20,8 @@ class SetPetAvatarThumbnailRequest
     private static function oneOfCandidates(): array
     {
         return [
-            fn (mixed $d): string => \PetstoreClient\ObjectSerializer::decodeByteOneOfScalar($d),
-            fn (mixed $d): \Ds\Vector => \PetstoreClient\ObjectSerializer::decodeByteOneOfArray($d),
+            \PetstoreClient\ObjectSerializer::decodeByteOneOfScalar(...),
+            \PetstoreClient\ObjectSerializer::decodeByteOneOfArray(...),
         ];
     }
 

@@ -43,10 +43,16 @@ interface PhpSpec extends LanguageSpec, DockerImageSpec {
         /* pecl/apk fetch over the network, which is flaky on CI runners; retry
          * a few times before giving up so a single transient download failure
          * doesn't fail every php spec sharing this container. */
+        /* brotli and zstd are the optional extensions the SDK decodes those
+         * Content-Encodings with; installing them lets the brotli and zstd
+         * decompression tests run instead of skipping. `yes ''` accepts the
+         * default (bundled library) answer to each extension's prompt. */
         "for i in 1 2 3 4 5; do apk add --no-cache $PHPIZE_DEPS"
-            + " && pecl install pcov && docker-php-ext-enable pcov && break;"
-            + " echo \"pcov setup attempt $i failed; retrying\" >&2; sleep 3; done;"
-            + " php -m | grep -qi pcov || { echo 'pcov missing after retries' >&2; exit 1; }",
+            + " && (yes '' | pecl install pcov brotli zstd)"
+            + " && docker-php-ext-enable pcov brotli zstd && break;"
+            + " echo \"pecl setup attempt $i failed; retrying\" >&2; sleep 3; done;"
+            + " for ext in pcov brotli zstd; do php -m | grep -qi \"^$ext$\""
+            + " || { echo \"$ext missing after retries\" >&2; exit 1; }; done",
         "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist");
   }
 

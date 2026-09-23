@@ -71,7 +71,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
     /**
      * @var list<class-string>
      */
-    private const DS_CONTAINER_CLASSES = [
+    private const array DS_CONTAINER_CLASSES = [
         \Ds\Vector::class,
         \Ds\Set::class,
         \Ds\Map::class,
@@ -175,7 +175,6 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     return null;
                 }
                 if (!is_array($parameterData)) {
-                    /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                     return new $className([$parameterData]);
                 }
 
@@ -220,7 +219,6 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     }
                 }
 
-                /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                 return new $className($items);
             }
         }

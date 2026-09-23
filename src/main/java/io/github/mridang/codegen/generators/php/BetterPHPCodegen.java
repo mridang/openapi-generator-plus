@@ -217,6 +217,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             // partial install or bin-name conflict.
             "rm -rf vendor composer.lock",
             "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
+            // Rector first, as a client's own `make format` does after
+            // generating: it rewrites to the configured PHP level and
+            // quality sets, and php-cs-fixer then settles the layout.
+            "vendor/bin/rector process --no-progress-bar",
             "vendor/bin/php-cs-fixer fix --quiet",
             // phpcbf exits 1 when it successfully fixes violations and 2/3 on a
             // real error; tolerate only the success-with-fixes case so genuine
@@ -245,8 +249,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.php"),
             new SupportingFileSpec("configuration_builder.mustache", invokerFolder, "ConfigurationBuilder.php"),
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.php"),
-            new SupportingFileSpec(
-                "serialization_exception.mustache", invokerFolder, "SerializationException.php"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.php"),
             new SupportingFileSpec("precise_duration.mustache", invokerFolder, "PreciseDuration.php"),
             new SupportingFileSpec("serializer/uri_normalizer.mustache", serializerFolder, "UriNormalizer.php"),
@@ -255,8 +257,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("serializer/ds_set_normalizer.mustache", serializerFolder, "DsSetNormalizer.php"),
             new SupportingFileSpec("serializer/ds_map_normalizer.mustache", serializerFolder, "DsMapNormalizer.php"),
             new SupportingFileSpec("serializer/ds_aware_object_normalizer.mustache", serializerFolder, "DsAwareObjectNormalizer.php"),
-            new SupportingFileSpec("root_exception.mustache", invokerFolder, rootErrorName("Exception") + ".php"),
-            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.php"),
+            new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".php"),
+            new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.php"),
+            new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.php"),
+            new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.php"),
+            new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.php"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.php"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.php"),
             new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.php"),
@@ -376,9 +381,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "DefaultApiClientUnitTest.php"));
             supportingFiles.add(
                     new SupportingFile(
+                            "tests/StubbedDefaultApiClient.mustache",
+                            "tests",
+                            "StubbedDefaultApiClient.php"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "tests/Psr18ApiClientUnitTest.mustache",
                             "tests",
                             "Psr18ApiClientUnitTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/StubPsr18Client.mustache",
+                            "tests",
+                            "StubPsr18Client.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/MultipartModelPart.mustache",
+                            "tests",
+                            "MultipartModelPart.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/ServerConfigurationTest.mustache",
@@ -440,6 +460,21 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "BaseApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
+                            "tests/CapturingApiClient.mustache",
+                            "tests",
+                            "CapturingApiClient.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/TestableApi.mustache",
+                            "tests",
+                            "TestableApi.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/TestAuthenticator.mustache",
+                            "tests",
+                            "TestAuthenticator.php"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "tests/MetadataTest.mustache",
                             "tests",
                             "MetadataTest.php"));
@@ -453,22 +488,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/ClientTest.mustache",
                             "tests",
                             "ClientTest.php"));
-            // Standalone authenticator tests for the non-OAuth HTTP schemes.
-            // The OAuthTestCondition enum (in AbstractBetterCodegen) only gates
-            // BASIC + the OAuth2/OIDC flows, so Bearer/ApiKey have no matching
-            // condition; they are registered here in the golden-only generateTests
-            // block alongside ClientTest, which likewise references the
-            // Bearer/ApiKey authenticators that the golden spec always declares.
-            supportingFiles.add(
-                    new SupportingFile(
-                            "tests/BearerAuthenticatorTest.mustache",
-                            "tests",
-                            "BearerAuthenticatorTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "tests/ApiKeyAuthenticatorTest.mustache",
-                            "tests",
-                            "ApiKeyAuthenticatorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/ApiExceptionTest.mustache",
@@ -689,23 +708,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Registers the shared auth files, then gives each OAuth2 exception its
-     * own file: PSR-4 autoloads a class only from a file named after it, so
-     * a class declared alongside {@code OAuth2TokenManager} could not be
-     * loaded until the token manager itself had been.
+     * Registers the shared auth files, then the Bearer and API-key
+     * authenticator tests. Those tests are emitted only when the spec declares
+     * the scheme; the scheme flags are set in {@code processOpenAPI}, after
+     * {@code processOpts}, so they cannot be read there.
      */
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
-        if (hasAnyOAuth2 || hasOpenIdConnect) {
+        if (!generateTests) {
+            return;
+        }
+        if (hasBearerAuth) {
             supportingFiles.add(new SupportingFile(
-                    "auth/oauth/oauth2_token_exception.mustache",
-                    getOAuthDir(),
-                    "OAuth2TokenException.php"));
+                    "tests/BearerAuthenticatorTest.mustache", "tests", "BearerAuthenticatorTest.php"));
+        }
+        if (hasApiKeyAuth) {
             supportingFiles.add(new SupportingFile(
-                    "auth/oauth/oauth2_server_exception.mustache",
-                    getOAuthDir(),
-                    "OAuth2ServerException.php"));
+                    "tests/ApiKeyAuthenticatorTest.mustache", "tests", "ApiKeyAuthenticatorTest.php"));
         }
     }
 

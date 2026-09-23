@@ -61,7 +61,7 @@ final class ValueSerializer
 
         if (is_array($value)) {
             if ($location === 'query') {
-                $items = array_map([ObjectSerializer::class, 'stringify'], $value);
+                $items = array_map(ObjectSerializer::stringify(...), $value);
 
                 return match ($collectionFormat) {
                     'multi' => $items,
@@ -73,7 +73,7 @@ final class ValueSerializer
             }
 
             if ($location === 'header') {
-                return implode(',', array_map([ObjectSerializer::class, 'stringify'], $value));
+                return implode(',', array_map(ObjectSerializer::stringify(...), $value));
             }
         }
 
@@ -166,7 +166,7 @@ final class ValueSerializer
             ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
                 ? $v->format('Y-m-d')
                 : ObjectSerializer::stringify($v)
-            : [ObjectSerializer::class, 'stringify'];
+            : ObjectSerializer::stringify(...);
 
         /* Whether the incoming value is a multi-valued collection drives the
          * branching below: only arrays/objects explode into repeated params or

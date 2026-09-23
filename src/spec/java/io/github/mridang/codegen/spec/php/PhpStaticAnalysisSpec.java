@@ -8,8 +8,9 @@ import org.junit.jupiter.api.parallel.ResourceLock;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Verifies that generated PHP code passes PHPStan static analysis at level 9. If this test fails,
- * the PHP templates need to be fixed.
+ * Verifies that generated PHP code passes PHPStan at level 9 over the SDK and its Pest tests (the
+ * generated phpstan.neon loads the peststan extension), and that every class autoloads under
+ * strict PSR-4, one class per file. If this test fails, the PHP templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
@@ -18,7 +19,10 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec implements Ph
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"vendor/bin/phpstan analyse --no-progress"};
+    return new String[] {
+      "vendor/bin/phpstan analyse --no-progress --memory-limit=-1",
+      "composer dump-autoload --optimize --strict-psr"
+    };
   }
 
   @Test

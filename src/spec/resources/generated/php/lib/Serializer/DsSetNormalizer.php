@@ -79,7 +79,7 @@ final class DsSetNormalizer implements NormalizerInterface, DenormalizerInterfac
     {
         return is_array($data) && (
             $type === \Ds\Set::class
-            || ltrim($type, '\\') === 'Ds\\Set'
+            || ltrim($type, '\\') === \Ds\Set::class
         );
     }
 

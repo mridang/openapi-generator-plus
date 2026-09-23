@@ -31,12 +31,16 @@
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
         "rector/rector": "^2.4",
         "nyholm/psr7": "^1.8",
+        "mrpunyapal/peststan": "^0.2.10",
+        "open-telemetry/sdk": "^1.0",
         "testcontainers/testcontainers": "^1.0"
     },
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
-            "pestphp/pest-plugin": true
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": false,
+            "tbachert/spi": false
         }
     },
     "suggest": {

@@ -149,6 +149,7 @@ test('client credentials basic auth url encodes client id and secret', function 
     $authHeader = $request['headers']['Authorization'] ?? null;
     expect($authHeader)->not->toBeNull();
     expect($authHeader)->toStartWith('Basic ');
+    assert(is_string($authHeader));
     $decoded = base64_decode(substr($authHeader, strlen('Basic ')));
     // Expected: form-urlencoded id ':' form-urlencoded secret
     expect($decoded)->toBe('id%2Bwith%2Fspecial:secret%26with%3Dstuff');
@@ -196,7 +197,7 @@ test('client credentials token fetch error is surfaced not swallowed', function 
     $authenticator->setApiClient($client);
 
     expect(fn (): mixed => $authenticator->getAuthHeaders())
-        ->toThrow(\PetstoreClient\Auth\OAuth\OAuth2ServerException::class);
+        ->toThrow(\PetstoreClient\Errors\OAuth2ServerException::class);
 });
 
 /**

@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
-use PetstoreClient\ApiException;
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
@@ -24,15 +24,6 @@ use PetstoreClient\ObjectSerializer;
 use PetstoreClient\TraceContextUtil;
 use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Auth\NoAuth;
-use PetstoreClient\Errors\BadRequestException;
-use PetstoreClient\Errors\ClientException;
-use PetstoreClient\Errors\ConflictException;
-use PetstoreClient\Errors\ForbiddenException;
-use PetstoreClient\Errors\InternalServerErrorException;
-use PetstoreClient\Errors\NotFoundException;
-use PetstoreClient\Errors\ServerException;
-use PetstoreClient\Errors\UnauthorizedException;
-use PetstoreClient\Errors\UnprocessableEntityException;
 
 /**
  * Base class for all API classes. Provides the invokeApi method that
@@ -182,7 +173,7 @@ class BaseApi
         $response = $this->apiClient->sendRequest($method, $url, $headers, $serializedBody);
 
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            $this->throwApiException($response);
+            throw ApiException::fromResponse($response->statusCode, $response->headers, $response->body);
         }
 
         $data = null;
@@ -199,7 +190,7 @@ class BaseApi
             $isNonJson = $respContentType !== null
                 && !$this->headerSelector->isJsonMime($respContentType);
 
-            if ($isNonJson && self::isTextMediaType((string) $respContentType)) {
+            if ($isNonJson && $this->isTextMediaType((string) $respContentType)) {
                 /* A text response (text/plain, XML, ...) crosses the
                  * transport as its decoded string, never base64: hand it
                  * back unchanged. Base64-decoding it would corrupt any text
@@ -276,60 +267,13 @@ class BaseApi
      * decoded string (the same rule the transport uses), as opposed to a
      * binary body it base64-encodes.
      */
-    private static function isTextMediaType(string $mediaType): bool
+    private function isTextMediaType(string $mediaType): bool
     {
         $mediaType = strtolower($mediaType);
         return str_starts_with($mediaType, 'text/')
             || in_array($mediaType, ['application/json', 'application/xml', 'application/javascript'], true)
             || str_ends_with($mediaType, '+json')
             || str_ends_with($mediaType, '+xml');
-    }
-
-    /**
-     * Throw the appropriate exception subclass for the given error response.
-     *
-     * Attempts to deserialize the response body as JSON so that structured
-     * error data (e.g. from a default response schema) is available
-     * via ApiException::getErrorBody().
-     *
-     * @throws ApiException always
-     */
-    private function throwApiException(ApiHttpResponse $response): never
-    {
-        $code = $response->statusCode;
-        $message = "API returned status code $code";
-        $headers = $response->headers;
-        $body = $response->body;
-
-        $errorBody = null;
-        if (trim($body) !== '') {
-            try {
-                $errorBody = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-            } catch (\JsonException) {
-                /* non-JSON body, errorBody stays null */
-            }
-        }
-
-        if ($code >= 400 && $code < 500) {
-            throw match ($code) {
-                400 => new BadRequestException($message, $headers, $body, $errorBody),
-                401 => new UnauthorizedException($message, $headers, $body, $errorBody),
-                403 => new ForbiddenException($message, $headers, $body, $errorBody),
-                404 => new NotFoundException($message, $headers, $body, $errorBody),
-                409 => new ConflictException($message, $headers, $body, $errorBody),
-                422 => new UnprocessableEntityException($message, $headers, $body, $errorBody),
-                default => new ClientException($code, $message, $headers, $body, $errorBody),
-            };
-        }
-
-        if ($code >= 500) {
-            throw match ($code) {
-                500 => new InternalServerErrorException($message, $headers, $body, $errorBody),
-                default => new ServerException($code, $message, $headers, $body, $errorBody),
-            };
-        }
-
-        throw new ApiException($code, $message, $headers, $body, $errorBody);
     }
 
     /**

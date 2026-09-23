@@ -6,37 +6,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ApiException;
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptions;
 use PetstoreClient\TransportOptionsBuilder;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
-
-/**
- * Test-only subclass that overrides the protected {@see
- * DefaultApiClient::createHttpClient()} transport seam to return a caller-
- * supplied stub client. The production constructor no longer accepts an HTTP
- * client argument (it would leak the Symfony transport type onto the public
- * API), so unit tests inject their MockHttpClient by overriding the factory
- * via this subclass — mirroring how the Ruby SDK stubs its private
- * build_connection.
- */
-final class StubbedDefaultApiClient extends DefaultApiClient
-{
-    public function __construct(
-        private readonly HttpClientInterface $stubClient,
-        ?TransportOptions $transportOptions = null,
-    ) {
-        parent::__construct($transportOptions);
-    }
-
-    protected function createHttpClient(): HttpClientInterface
-    {
-        return $this->stubClient;
-    }
-}
 
 /**
  * Collect a Symfony HttpClient request body into a single string.
@@ -195,7 +171,7 @@ test('injects custom user agent', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->userAgent('MyApp/1.0')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -236,7 +212,7 @@ test('injects request id', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -260,7 +236,7 @@ test('does not inject request id when disabled', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(false)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -282,7 +258,7 @@ test('does not override caller request id', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -317,7 +293,7 @@ test('generates unique request ids', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(true)
         ->build();
 
@@ -344,7 +320,7 @@ test('unit includes transport default headers', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->defaultHeader('X-Custom', 'custom-value')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -366,7 +342,7 @@ test('caller headers override defaults', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->defaultHeader('Accept', 'text/plain')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -605,7 +581,7 @@ test('decodes iso 8859 1 error body to utf 8', function (): void {
 test('proxy with basic auth is accepted by builder', function (): void {
     // Verify the transport accepts a proxy URL embedding user:pass and exposes it.
     // The actual proxy-auth header is constructed by Symfony's underlying CurlHttpClient.
-    $opts = (new TransportOptionsBuilder())
+    $opts = new TransportOptionsBuilder()
         ->proxy('http://user:secret@proxy.example.com:8080')
         ->build();
 
@@ -613,8 +589,27 @@ test('proxy with basic auth is accepted by builder', function (): void {
 });
 
 test('proxy auth squid end to end', function (): void {
-    // Container-backed Squid+auth proxy is not provisioned in this suite.
-    test()->markTestSkipped('Skipped: requires a containerized Squid proxy with basic-auth credentials.');
+    // The Squid fixture's second port answers 407 unless the request carries
+    // Basic proxy credentials, so a success through it proves the credentials
+    // embedded in the proxy URL reached the proxy.
+    $proxy = parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
+        . parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy('http://user:pass@' . $proxy)->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('"method"');
+});
+
+test('proxy that requires credentials answers 407 when none are sent', function (): void {
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy((string) getenv('PROXY_AUTH_URL'))->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(407);
 });
 
 // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
@@ -691,7 +686,7 @@ test('cross origin redirect strips api key header', function (): void {
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     /* MockHttpClient records request options on its responses. We use a
      * closure form so we can capture the headers sent on hop 2. */
-    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
+    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {
@@ -730,7 +725,7 @@ test('cross origin redirect strips authorization and cookie', function (): void 
     $capturedHeaders = [];
     $hop2 = new MockResponse('ok', ['http_code' => 200]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
+    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {
@@ -807,7 +802,7 @@ test('https to http downgrade refuses body replay on 307', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -824,7 +819,7 @@ test('https to http downgrade refuses body replay on 308', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v'))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -937,7 +932,7 @@ test('exceeding max redirects throws too many redirects', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -958,7 +953,7 @@ test('redirect to non http scheme throws', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -977,9 +972,9 @@ test('send after close throws logic exception', function (): void {
     $client->close();
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\LogicException::class);
-            expect($e)->not->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+            expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });
 
@@ -1000,9 +995,9 @@ test('non-existent caCertPath throws invalid argument exception at construction'
     $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
 
     expect(fn (): mixed => new DefaultApiClient($transport))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\InvalidArgumentException::class);
-            expect($e)->not->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+            expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });
 
@@ -1014,7 +1009,7 @@ test('transport failure raises NetworkException with status 0 and the cause kept
 
     try {
         $client->sendRequest('GET', 'http://example.com/refused', [], null);
-        expect(false)->toBeTrue('Expected NetworkException');
+        test()->fail('Expected NetworkException');
     } catch (\PetstoreClient\Errors\NetworkException $e) {
         expect($e::class)->toBe(\PetstoreClient\Errors\NetworkException::class);
         expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\NetworkTimeoutException::class);
@@ -1030,7 +1025,7 @@ test('transport timeout raises NetworkTimeoutException', function (): void {
     }));
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/slow', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\NetworkTimeoutException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
             expect($e->getCode())->toBe(0);
@@ -1096,7 +1091,7 @@ test('wraps a gzip decompression failure as api exception', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/echo', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A response did arrive: exactly ApiException carrying the real
              * status (200), never a NetworkException. */
             expect($e::class)->toBe(ApiException::class);
@@ -1124,7 +1119,7 @@ test('AL: content-encoding gzip lie with plaintext body surfaces ApiException', 
     $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/lie', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A response did arrive: exactly ApiException carrying the real
              * status (200), never a NetworkException. */
             expect($e::class)->toBe(ApiException::class);

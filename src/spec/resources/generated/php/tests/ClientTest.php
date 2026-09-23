@@ -23,7 +23,7 @@ test('construct with authenticator only', function (): void {
 test('construct with authenticator and null transport options', function (): void {
     // A null transport must fall back to the default builder output, so
     // constructing with an explicit null is equivalent to omitting it.
-    $client = new Client($this->authenticator, null);
+    $client = new Client($this->authenticator);
 
     expect($client)->toBeInstanceOf(Client::class);
 });
@@ -100,8 +100,8 @@ test('injected api client is wired into every api group', function (): void {
 
     $client = new Client($this->authenticator, null, $stub);
 
-    $property = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->getProperty('apiClient');
+    $property = new \ReflectionClass(\PetstoreClient\Api\PetApi::class)->getProperty('apiClient');
     expect($property->getValue($client->pet))->toBe($stub);
-    $property = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))->getProperty('apiClient');
+    $property = new \ReflectionClass(\PetstoreClient\Api\StoreApi::class)->getProperty('apiClient');
     expect($property->getValue($client->store))->toBe($stub);
 });

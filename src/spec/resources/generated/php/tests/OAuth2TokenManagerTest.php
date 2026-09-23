@@ -15,8 +15,8 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiHttpResponse;
-use PetstoreClient\Auth\OAuth\OAuth2ServerException;
-use PetstoreClient\Auth\OAuth\OAuth2TokenException;
+use PetstoreClient\Errors\OAuth2ServerException;
+use PetstoreClient\Errors\OAuth2TokenException;
 use PetstoreClient\Auth\OAuth\OAuth2TokenManager;
 
 function makeOAuth2TokenManagerResponse(
@@ -121,7 +121,7 @@ test('token manager throws when no api client injected', function (): void {
     $manager = new OAuth2TokenManager();
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });
@@ -276,9 +276,9 @@ test('throws when token request fails', function (): void {
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(OAuth2ServerException::class);
-            expect($e)->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+            expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });
 
@@ -291,7 +291,7 @@ test('malformed 2xx token response throws OAuth2TokenException', function (): vo
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(OAuth2TokenException::class);
         });
 });
@@ -306,7 +306,7 @@ test('token transport failure propagates NetworkException', function (): void {
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Exception $e) use ($failure): void {
+        ->toThrow(function (\Throwable $e) use ($failure): void {
             expect($e)->toBe($failure);
         });
 });
@@ -349,7 +349,7 @@ test('missing access_token in 2xx response throws typed OAuth2TokenException', f
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(OAuth2TokenException::class);
         });
 });
@@ -373,7 +373,7 @@ test('server error response parsed to typed OAuth2ServerException', function ():
 
     try {
         $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        expect(false)->toBeTrue('Expected OAuth2ServerException');
+        test()->fail('Expected OAuth2ServerException');
     } catch (OAuth2ServerException $error) {
         expect($error->statusCode)->toBe(400);
         expect($error->errorCode)->toBe('invalid_grant');
@@ -411,27 +411,9 @@ test('token post refuses 3xx redirect', function (int $status): void {
     expect(fn () => $manager->getAccessToken(
         'https://auth.example.com/token',
         ['grant_type' => 'client_credentials', 'client_secret' => 'topsecret']
-    ))->toThrow(function (\Exception $e) use ($status): void {
+    ))->toThrow(function (\Throwable $e) use ($status): void {
         expect($e::class)->toBe(OAuth2ServerException::class);
+        assert($e instanceof OAuth2ServerException);
         expect($e->statusCode)->toBe($status);
     });
 })->with([301, 302, 303, 307, 308]);
-
-test('single-flight refresh coalesces concurrent callers', function (): void {
-    // PHP has no shared-memory threads in the standard runtime, so genuine
-    // concurrent callers racing into one in-flight token refresh cannot be
-    // exercised here. The single-flight contract is verified in the
-    // thread-capable languages (java/kotlin/go/rust/node/python/etc.).
-})->skip('PHP has no threads; single-flight concurrency cannot be exercised');
-
-test('invalidate access token triggers a single refetch under concurrency', function (): void {
-    // Same limitation as the single-flight test above: no threads means no
-    // concurrent post-invalidation refetch to coalesce.
-})->skip('PHP has no threads; concurrent post-invalidate refetch cannot be exercised');
-
-test('redirect-refusal error includes the Location header for diagnostics', function (): void {
-    // Gap 3.2: the redirect-refusal error should name the offending Location
-    // for diagnostics. The PHP SDK's OAuth2ServerException message embeds only the
-    // status code, not the Location target, so this cannot be asserted without
-    // fabricating behaviour the SDK does not implement.
-})->skip('PHP OAuth2TokenManager redirect-refusal error does not surface the Location header');

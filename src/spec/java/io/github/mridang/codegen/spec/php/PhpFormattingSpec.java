@@ -19,7 +19,7 @@ public class PhpFormattingSpec extends AbstractFormattingSpec implements PhpSpec
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"vendor/bin/phpcs"};
+    return new String[] {"vendor/bin/phpcs", "vendor/bin/php-cs-fixer check"};
   }
 
   @Override

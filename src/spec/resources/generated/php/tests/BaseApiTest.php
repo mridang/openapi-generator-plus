@@ -14,7 +14,7 @@ use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
-use PetstoreClient\ApiException;
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Errors\BadRequestException;
@@ -32,95 +32,6 @@ use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Pet;
-
-class CapturingApiClient implements ApiClient
-{
-    public string $capturedUrl = '';
-    /** @var array<string, string> */
-    public array $capturedHeaders = [];
-    public mixed $capturedBody = null;
-
-    /** @param array<string, string> $headers */
-    public function sendRequest(
-        string $method,
-        string $url,
-        array $headers,
-        mixed $body,
-        bool $noRedirect = false,
-    ): ApiHttpResponse {
-        $this->capturedUrl = $url;
-        $this->capturedHeaders = $headers;
-        $this->capturedBody = $body;
-        return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
-    }
-}
-
-class TestableApi extends BaseApi
-{
-    /**
-     * @param array<string, mixed> $queryParams
-     * @param array<string, string> $headerParams
-     * @param array<string> $accepts
-     */
-    public function call(
-        string $method,
-        string $path,
-        array $queryParams,
-        array $headerParams,
-        mixed $body,
-        array $accepts,
-        ?string $contentType,
-        ?string $returnType,
-        ?Authenticator $auth = null
-    ): mixed {
-        return $this->invokeApi(
-            $method,
-            $path,
-            $queryParams,
-            $headerParams,
-            $body,
-            $accepts,
-            $contentType,
-            $returnType,
-            $auth
-        );
-    }
-}
-
-class TestAuthenticator implements Authenticator
-{
-    /**
-     * @param array<string, string> $headers
-     * @param array<string, string> $queryParams
-     * @param array<string, string> $cookies
-     */
-    public function __construct(
-        private readonly array $headers = [],
-        private readonly array $queryParams = [],
-        private readonly array $cookies = []
-    ) {
-    }
-
-    public function getHost(): string
-    {
-        return '';
-    }
-
-    public function getAuthHeaders(): array
-    {
-        return $this->headers;
-    }
-
-    public function getQueryParams(): array
-    {
-        return $this->queryParams;
-    }
-
-    public function getCookieParams(): array
-    {
-        return $this->cookies;
-    }
-}
 
 function makeBaseApiTestableApi(): TestableApi
 {
@@ -143,7 +54,7 @@ test('throws correct exception', function (int $status, string $expectedClass): 
         );
         test()->fail('Expected exception not thrown');
     } catch (ApiException $e) {
-        expect($e)->toBeInstanceOf($expectedClass);
+        expect($e::class)->toBe($expectedClass);
         expect($e->getCode())->toBe($status);
         expect($e->getResponseBody())->not->toBeEmpty();
     }
@@ -164,6 +75,7 @@ test('get typed error body deserializes into given class', function (): void {
     $typed = $ex->getTypedErrorBody(Category::class);
 
     expect($typed)->toBeInstanceOf(Category::class);
+    assert($typed instanceof Category);
     expect($typed->id)->toBe(42);
     expect($typed->name)->toBe('Dogs');
 });
@@ -213,7 +125,7 @@ test('not found hierarchy', function (): void {
         expect($e::class)->toBe(NotFoundException::class);
         expect($e)->toBeInstanceOf(ClientException::class);
         expect($e)->toBeInstanceOf(ApiException::class);
-        expect($e)->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+        expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
     }
 });
 
@@ -234,7 +146,7 @@ test('internal server error hierarchy', function (): void {
         expect($e::class)->toBe(InternalServerErrorException::class);
         expect($e)->toBeInstanceOf(ServerException::class);
         expect($e)->toBeInstanceOf(ApiException::class);
-        expect($e)->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+        expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
     }
 });
 
@@ -250,6 +162,7 @@ test('deserializes json response', function (): void {
         'object'
     );
     expect($result)->toBeArray();
+    /** @var array<string, mixed> $result */
     expect($result['method'])->toBe('GET');
 });
 
@@ -310,6 +223,7 @@ test('forwards auth headers', function (): void {
         $auth
     );
     expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
     expect($result['headers']['x-custom'])->toBe('auth-value');
 });
 
@@ -383,7 +297,7 @@ test('configured bearer authenticator is applied to a secured operation', functi
     $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
     try {
         $api->addPetWithHttpInfo($pet);
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
@@ -397,7 +311,7 @@ test('per-operation bearer authenticator is applied to a secured operation', fun
     $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
     try {
         $api->addPetWithHttpInfo($pet, new AddPetOptions($auth));
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer per-op-token');
@@ -412,7 +326,7 @@ test('configured api-key header authenticator is applied to a secured operation'
     $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
     try {
         $api->addPetWithHttpInfo($pet);
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
@@ -435,7 +349,7 @@ test('configured bearer authenticator is suppressed on a security:[] operation',
     $api = new StoreApi($client, $config, $auth);
     try {
         $api->getInventoryWithHttpInfo();
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedHeaders)->not->toHaveKey('Authorization');
@@ -449,7 +363,7 @@ test('configured api-key authenticator is suppressed on a security:[] operation'
     $api = new StoreApi($client, $config, $auth);
     try {
         $api->getInventoryWithHttpInfo();
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedHeaders)->not->toHaveKey('X-API-Key');
@@ -463,7 +377,7 @@ test('configured api-key query authenticator sends no api-key param on a securit
     $api = new StoreApi($client, $config, $auth);
     try {
         $api->getInventoryWithHttpInfo();
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedUrl)->not->toContain('api_key=');
@@ -477,7 +391,7 @@ test('configured cookie authenticator sets no cookie on a security:[] operation'
     $api = new StoreApi($client, $config, $auth);
     try {
         $api->getInventoryWithHttpInfo();
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedHeaders)->not->toHaveKey('Cookie');
@@ -498,7 +412,7 @@ test('configured bearer authenticator is applied on an inherited-security operat
     $api = new PetApi($client, $config, $auth);
     try {
         $api->getPetByIdWithHttpInfo(1);
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }
     expect($client->capturedHeaders)->toHaveKey('Authorization');
@@ -517,8 +431,9 @@ test('serializes json body', function (): void {
         'object'
     );
     expect($result)->toBeArray();
+    /** @var array{body: string} $result */
     /** @var array<string, mixed> $parsedBody */
-    $parsedBody = (array) json_decode((string) $result['body'], true);
+    $parsedBody = (array) json_decode($result['body'], true);
     expect($parsedBody['key'])->toBe('value');
 });
 
@@ -548,7 +463,7 @@ test('findPetsByStatus omitting status sends no status= in query', function (): 
     $api = new PetApi($client, $config);
     try {
         $api->findPetsByStatus(new FindPetsByStatusOptions());
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured URL
     }
     expect($client->capturedUrl)->not->toContain('status=');
@@ -562,7 +477,7 @@ test('findPetsByStatus with explicit empty status sends status= in query', funct
     $api = new PetApi($client, $config);
     try {
         $api->findPetsByStatus(new FindPetsByStatusOptions(''));
-    } catch (\Exception $e) {
+    } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured URL
     }
     expect($client->capturedUrl)->toContain('status=');
@@ -740,6 +655,7 @@ test('deserializes vendor json mime types', function (): void {
     $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['application/json'], 'application/json', 'object');
     expect($result)->toBeArray();
+    /** @var array<string, mixed> $result */
     expect($result['title'])->toBe('Not Found');
 });
 
@@ -899,6 +815,7 @@ test('binary response roundtrips nul and high bytes', function (): void {
     $result = $testApi->call('GET', '/api/bin', [], [], null,
         ['application/octet-stream'], 'application/octet-stream', null);
     expect($result)->toBe($binaryData);
+    assert(is_string($result));
     expect(strlen($result))->toBe(3);
 });
 

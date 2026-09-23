@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
+use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\Serializer\DsMapNormalizer;
 use PetstoreClient\Serializer\DsSetNormalizer;
 use PetstoreClient\Serializer\DsAwareObjectNormalizer;
@@ -50,7 +51,6 @@ class ObjectSerializer
      * keeping the same numeric UTC offset (+00:00) the offset tests and the
      * decoder already expect, so the fraction the decoder accepts is now also
      * emitted and the round-trip is lossless to the millisecond. */
-    /** @var string */
     private const string DATE_TIME_FORMAT = \DateTime::RFC3339_EXTENDED;
 
     private static ?Serializer $serializer = null;
@@ -515,7 +515,7 @@ class ObjectSerializer
             if (is_string($data) && $data !== '') {
                 try {
                     return new \DateTime($data);
-                } catch (\Exception $exception) {
+                } catch (\Exception) {
                     $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
                     return new \DateTime((string) $cleaned);
                 }
@@ -565,7 +565,7 @@ class ObjectSerializer
             return null;
         }
 
-        if ($class === 'Symfony\Component\Uid\Uuid') {
+        if ($class === \Symfony\Component\Uid\Uuid::class) {
             if (is_string($data)) {
                 $decoded = json_decode($data, true);
                 if (is_string($decoded)) {
@@ -686,7 +686,7 @@ class ObjectSerializer
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class, JsonEncoder::FORMAT);
             if (is_array($data)) {
-                $result = self::captureAdditionalProperties($result, $data);
+                return self::captureAdditionalProperties($result, $data);
             }
             return $result;
         } catch (\Throwable $e) {
@@ -857,7 +857,7 @@ class ObjectSerializer
          * model-side helper throws \InvalidArgumentException on an unknown key;
          * the surrounding deserialize() try/catch wraps it in
          * SerializationException. */
-        (new \ReflectionMethod($class, 'assertNoUnknownProperties'))->invoke(null, $data);
+        new \ReflectionMethod($class, 'assertNoUnknownProperties')->invoke(null, $data);
     }
 
     /**
@@ -967,7 +967,7 @@ class ObjectSerializer
         }
 
         if (is_array($value)) {
-            $items = array_map([self::class, 'stringify'], $value);
+            $items = array_map(self::stringify(...), $value);
             return match ($collectionFormat) {
                 'ssv' => implode(' ', $items),
                 'tsv' => implode("\t", $items),
@@ -986,7 +986,7 @@ class ObjectSerializer
     public static function toHeaderValue(mixed $value): string
     {
         if (is_array($value)) {
-            return implode(',', array_map(static fn ($v): string => self::stringify($v), $value));
+            return implode(',', array_map(self::stringify(...), $value));
         }
 
         return self::stringify($value);

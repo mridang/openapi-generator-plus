@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
 
@@ -188,10 +189,10 @@ test('oidc throws when discovery returns non-2xx status', function (): void {
     // The status maps to its ApiException subclass exactly as an API
     // operation's would.
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\InternalServerErrorException::class);
             expect($e->getCode())->toBe(500);
-            expect($e)->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+            expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });
 
@@ -215,7 +216,7 @@ test('oidc discovery 404 raises NotFoundException', function (): void {
     $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\NotFoundException::class);
             expect($e->getCode())->toBe(404);
         });
@@ -230,7 +231,7 @@ test('oidc discovery transport failure propagates NetworkException', function ()
     $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Exception $e) use ($failure): void {
+        ->toThrow(function (\Throwable $e) use ($failure): void {
             expect($e)->toBe($failure);
         });
 });
@@ -241,9 +242,9 @@ test('oidc malformed discovery document raises SerializationException', function
     $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\PetstoreClient\SerializationException::class);
-            expect($e)->toBeInstanceOf(\PetstoreClient\OpenAPIException::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });
 
@@ -258,7 +259,7 @@ test('oidc throws when no api client injected', function (): void {
     );
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });
@@ -294,7 +295,7 @@ test('oidc throws when discovery omits authorization_endpoint', function (): voi
     $authenticator->setApiClient($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(\PetstoreClient\SerializationException::class, 'OIDC discovery document is missing authorization_endpoint');
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'OIDC discovery document is missing authorization_endpoint');
 });
 
 test('oidc throws when discovery omits token_endpoint', function (): void {
@@ -315,7 +316,7 @@ test('oidc throws when discovery omits token_endpoint', function (): void {
     $authenticator->setApiClient($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(\PetstoreClient\SerializationException::class, 'OIDC discovery document is missing token_endpoint');
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'OIDC discovery document is missing token_endpoint');
 });
 
 /**

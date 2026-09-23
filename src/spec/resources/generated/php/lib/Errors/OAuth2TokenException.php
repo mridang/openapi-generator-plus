@@ -11,9 +11,7 @@
 
 declare(strict_types=1);
 
-namespace PetstoreClient\Auth\OAuth;
-
-use PetstoreClient\OpenAPIException;
+namespace PetstoreClient\Errors;
 
 /**
  * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot

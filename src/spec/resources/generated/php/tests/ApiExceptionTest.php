@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use PetstoreClient\ApiException;
-use PetstoreClient\SerializationException;
-use PetstoreClient\OpenAPIException;
+use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\SerializationException;
+use PetstoreClient\Errors\OpenAPIException;
 use PetstoreClient\Models\Category;
 
 test('exposes status code, message, body, headers and error body', function (): void {
@@ -13,7 +13,6 @@ test('exposes status code, message, body, headers and error body', function (): 
         'not found',
         ['content-type' => 'application/json'],
         '{"id":7,"name":"missing"}',
-        null,
     );
 
     expect($ex->getStatusCode())->toBe(404);
@@ -30,7 +29,6 @@ test('null headers and body mark transport-no-response', function (): void {
     $ex = new ApiException(
         0,
         'connection reset',
-        null,
         null,
     );
 
@@ -68,6 +66,7 @@ test('a thrown typed error is caught by a OpenAPIException catch', function (): 
     expect($caught)->toBeInstanceOf(\PetstoreClient\Errors\UnauthorizedException::class);
     expect($caught)->toBeInstanceOf(ApiException::class);
     expect($caught)->toBeInstanceOf(OpenAPIException::class);
+    assert($caught instanceof ApiException);
     expect($caught->getStatusCode())->toBe(401);
 });
 
@@ -136,12 +135,13 @@ test('getTypedErrorBody deserializes the body into the given class', function ()
 
     $typed = $ex->getTypedErrorBody(Category::class);
     expect($typed)->toBeInstanceOf(Category::class);
+    assert($typed instanceof Category);
     expect($typed->id)->toBe(42);
     expect($typed->name)->toBe('Dogs');
 });
 
 test('getTypedErrorBody returns null when there is no response body', function (): void {
-    $ex = new ApiException(500, 'oops', [], null);
+    $ex = new ApiException(500, 'oops', []);
 
     expect($ex->getTypedErrorBody(Category::class))->toBeNull();
 });
@@ -151,6 +151,60 @@ test('getTypedErrorBody ignores extraneous fields not on the model', function ()
 
     $typed = $ex->getTypedErrorBody(Category::class);
     expect($typed)->toBeInstanceOf(Category::class);
+    assert($typed instanceof Category);
     expect($typed->id)->toBe(1);
     expect($typed->name)->toBe('Cat');
 });
+
+test('fromResponse maps every status to its exception', function (int $status, string $expected): void {
+    $ex = ApiException::fromResponse($status, ['x-request-id' => 'abc'], '{"code":"denied"}');
+
+    expect($ex::class)->toBe($expected);
+    expect($ex->getStatusCode())->toBe($status);
+    expect($ex->getResponseHeaders())->toBe(['x-request-id' => 'abc']);
+    expect($ex->getResponseBody())->toBe('{"code":"denied"}');
+    expect($ex->getErrorBody())->toBe(['code' => 'denied']);
+})->with([
+    [400, \PetstoreClient\Errors\BadRequestException::class],
+    [401, \PetstoreClient\Errors\UnauthorizedException::class],
+    [403, \PetstoreClient\Errors\ForbiddenException::class],
+    [404, \PetstoreClient\Errors\NotFoundException::class],
+    [409, \PetstoreClient\Errors\ConflictException::class],
+    [422, \PetstoreClient\Errors\UnprocessableEntityException::class],
+    [418, \PetstoreClient\Errors\ClientException::class],
+    [500, \PetstoreClient\Errors\InternalServerErrorException::class],
+    [503, \PetstoreClient\Errors\ServerException::class],
+    [302, ApiException::class],
+]);
+
+test('fromResponse leaves the error body null when the body is not JSON', function (): void {
+    $ex = ApiException::fromResponse(502, [], '<html>bad gateway</html>');
+
+    expect($ex::class)->toBe(\PetstoreClient\Errors\ServerException::class);
+    expect($ex->getResponseBody())->toBe('<html>bad gateway</html>');
+    expect($ex->getErrorBody())->toBeNull();
+});
+
+test('every error type lives in the Errors namespace under the root', function (string $error): void {
+    $namespace = substr($error, 0, (int) strrpos($error, '\\'));
+
+    expect($namespace)->toBe('PetstoreClient\\Errors');
+    expect(is_a($error, OpenAPIException::class, true))->toBeTrue();
+})->with([
+    OpenAPIException::class,
+    ApiException::class,
+    \PetstoreClient\Errors\ClientException::class,
+    \PetstoreClient\Errors\ServerException::class,
+    \PetstoreClient\Errors\BadRequestException::class,
+    \PetstoreClient\Errors\UnauthorizedException::class,
+    \PetstoreClient\Errors\ForbiddenException::class,
+    \PetstoreClient\Errors\NotFoundException::class,
+    \PetstoreClient\Errors\ConflictException::class,
+    \PetstoreClient\Errors\UnprocessableEntityException::class,
+    \PetstoreClient\Errors\InternalServerErrorException::class,
+    \PetstoreClient\Errors\NetworkException::class,
+    \PetstoreClient\Errors\NetworkTimeoutException::class,
+    SerializationException::class,
+    \PetstoreClient\Errors\OAuth2ServerException::class,
+    \PetstoreClient\Errors\OAuth2TokenException::class,
+]);

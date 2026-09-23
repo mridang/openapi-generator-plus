@@ -17,15 +17,19 @@ use {{modelPackage}}\SetPetAvatarThumbnailRequest;
 test('one of deserializes dry food', function (): void {
     $data = ['foodType' => 'dry', 'weightKg' => 2.5];
     $result = PetFood::build($data);
-    expect($result->getActualInstance())->toBeInstanceOf(DryFood::class);
-    expect($result->getActualInstance()->foodType)->toBe('dry');
+    $instance = $result->getActualInstance();
+    expect($instance)->toBeInstanceOf(DryFood::class);
+    assert($instance instanceof DryFood);
+    expect($instance->foodType)->toBe('dry');
 });
 
 test('one of deserializes wet food', function (): void {
     $data = ['foodType' => 'wet', 'volumeMl' => 400];
     $result = PetFood::build($data);
-    expect($result->getActualInstance())->toBeInstanceOf(WetFood::class);
-    expect($result->getActualInstance()->foodType)->toBe('wet');
+    $instance = $result->getActualInstance();
+    expect($instance)->toBeInstanceOf(WetFood::class);
+    assert($instance instanceof WetFood);
+    expect($instance->foodType)->toBe('wet');
 });
 
 test('one of missing discriminator throws', function (): void {
@@ -61,8 +65,10 @@ test('one of serializes dry food', function (): void {
 test('any of deserializes medication', function (): void {
     $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
     $result = PetTreatment::build($data);
-    expect($result->getActualInstance())->toBeInstanceOf(Medication::class);
-    expect($result->getActualInstance()->drugName)->toBe('Amoxicillin');
+    $instance = $result->getActualInstance();
+    expect($instance)->toBeInstanceOf(Medication::class);
+    assert($instance instanceof Medication);
+    expect($instance->drugName)->toBe('Amoxicillin');
 });
 
 test('any of deserializes surgery', function (): void {
@@ -116,10 +122,12 @@ test('any of retains all matching variants (medication and surgery) losslessly',
     }
 
     expect($medication)->toBeInstanceOf(Medication::class);
+    assert($medication instanceof Medication);
     expect($medication->drugName)->toBe('Amoxicillin');
     expect($medication->dosage)->toBe('250mg');
 
     expect($surgery)->toBeInstanceOf(Surgery::class);
+    assert($surgery instanceof Surgery);
     expect($surgery->procedureName)->toBe('Spay');
     expect($surgery->durationMinutes)->toBe(45);
 

@@ -82,7 +82,7 @@ final class DsVectorNormalizer implements NormalizerInterface, DenormalizerInter
     {
         return is_array($data) && (
             $type === \Ds\Vector::class
-            || ltrim($type, '\\') === 'Ds\\Vector'
+            || ltrim($type, '\\') === \Ds\Vector::class
         );
     }
 

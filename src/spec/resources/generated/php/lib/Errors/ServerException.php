@@ -13,8 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Errors;
 
-use PetstoreClient\ApiException;
-
 /**
  * Exception for HTTP 5xx server errors.
  */

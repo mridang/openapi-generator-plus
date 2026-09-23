@@ -114,6 +114,7 @@ test('deserialize uuid from string', function (): void {
     $json = '"550e8400-e29b-41d4-a716-446655440000"';
     $result = ObjectSerializer::deserialize($json, \Symfony\Component\Uid\Uuid::class);
     expect($result)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
+    assert($result instanceof \Symfony\Component\Uid\Uuid);
     expect($result->toRfc4122())->toBe('550e8400-e29b-41d4-a716-446655440000');
 });
 
@@ -310,25 +311,25 @@ test('tab character escaped properly in json', function (): void {
 
 test('truncated json throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{', Category::class))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\{{invokerPackage}}\SerializationException::class);
-            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
         });
 });
 
 test('invalid json structure throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('"hello"', Category::class))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\{{invokerPackage}}\SerializationException::class);
-            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
         });
 });
 
 test('wrong primitive type throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{"id":"not-a-number","name":"Dogs"}', Category::class))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\{{invokerPackage}}\SerializationException::class);
-            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
         });
 });
 
@@ -336,9 +337,9 @@ test('malformed date-time throws SerializationException', function (): void {
     // Order::$shipDate is format: date-time; a value that is not an RFC 3339
     // timestamp must fail with the SDK's SerializationException.
     expect(fn () => ObjectSerializer::deserialize('{"shipDate":"not-a-date"}', \{{modelPackage}}\Order::class))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\{{invokerPackage}}\SerializationException::class);
-            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
         });
 });
 
@@ -348,7 +349,7 @@ test('malformed json does not leak native exception', function (): void {
         ObjectSerializer::deserialize('{not valid json', Category::class);
         test()->fail('Expected exception was not thrown');
     } catch (\Throwable $e) {
-        expect($e)->toBeInstanceOf(\{{invokerPackage}}\SerializationException::class);
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\SerializationException::class);
         expect($e)->not->toBeInstanceOf(\JsonException::class);
         // The native exception is preserved as the previous exception so
         // callers who need the gory detail can still drill down.
@@ -370,9 +371,9 @@ test('unknown enum value on deserialize throws SerializationException', function
     $json = '{"id":1,"name":"Rex","photoUrls":[],"status":"teleporting"}';
 
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\{{invokerPackage}}\SerializationException::class);
-            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
         });
 });
 
@@ -385,7 +386,7 @@ test('unknown enum value does not silently fall back to a default member', funct
     $threw = false;
     try {
         ObjectSerializer::deserialize($json, Pet::class);
-    } catch (\{{invokerPackage}}\SerializationException) {
+    } catch (\{{invokerPackage}}\Errors\SerializationException) {
         $threw = true;
     }
 
@@ -474,6 +475,7 @@ test('deserialize deserializes json to typed model', function (): void {
     $json = '{"id":1,"name":"Dogs"}';
     $category = ObjectSerializer::deserialize($json, Category::class);
     expect($category)->toBeInstanceOf(Category::class);
+    assert($category instanceof Category);
     expect($category->id)->toBe(1);
     expect($category->name)->toBe('Dogs');
 });
@@ -510,6 +512,7 @@ test('deserialize tolerates utf-8 BOM prefix', function (): void {
     $json = "\xEF\xBB\xBF{\"id\":1,\"name\":\"Dogs\"}";
     $category = ObjectSerializer::deserialize($json, Category::class);
     expect($category)->toBeInstanceOf(Category::class);
+    assert($category instanceof Category);
     expect($category->id)->toBe(1);
     expect($category->name)->toBe('Dogs');
 });
@@ -582,7 +585,7 @@ test('deserialize throws on int overflow', function (): void {
      * \OverflowException is wrapped in the SDK-owned SerializationException by
      * the public entry point. */
     expect(fn () => ObjectSerializer::deserialize('9223372036854775808', 'int'))
-        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 // -- 2.1 format:byte helpers --
@@ -627,7 +630,7 @@ test('deep deserialize map of model values into typed instances', function (): v
      * false, and the map values come back as raw arrays instead
      * of typed Category instances. */
     $json = '{"a":{"id":1,"name":"Dogs"},"b":{"id":2,"name":"Cats"}}';
-    /** @var array<string, mixed> $result */
+    /** @var array<string, Category> $result */
     $result = ObjectSerializer::deserialize($json, 'array<string,Category>');
     expect($result)->toHaveKey('a');
     expect($result['a'])->toBeInstanceOf(Category::class);
@@ -807,15 +810,15 @@ test('DateInterval fractional value round trips', function (): void {
 test('DateInterval invalid string surfaces exception', function (): void {
     // ISO-8601 "PT1H" is no longer accepted — protobuf-JSON only.
     expect(fn () => ObjectSerializer::deserialize('"PT1H"', 'DateInterval'))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\{{invokerPackage}}\SerializationException::class);
-            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
         });
 });
 
 test('DateInterval bare number without suffix is rejected', function (): void {
     expect(fn () => ObjectSerializer::deserialize('"3600"', 'DateInterval'))
-        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 // -- F-BM-05: missing required field hard-fails on deserialize --
@@ -826,9 +829,9 @@ test('deserialize throws when a required field is missing', function (): void {
      * rather than silently constructing a partial object. */
     $json = '{"id":1,"photoUrls":["http://x/a.png"]}'; // missing "name"
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\{{invokerPackage}}\SerializationException::class);
-            expect($e)->toBeInstanceOf(\{{invokerPackage}}\{{errorPrefix}}Exception::class);
+        ->toThrow(function (\Throwable $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
         });
 });
 
@@ -840,7 +843,7 @@ test('deserialize throws when a required field is explicitly null', function ():
      * hard-fail rather than build a partial object. */
     $json = '{"name":null,"photoUrls":["http://x/a.png"]}';
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 // -- Gap AJ: JSON null on a required non-nullable field must throw --
@@ -855,14 +858,14 @@ test('deserialize throws when a required field is explicitly null', function ():
 test('AJ: deserialize null on required non-nullable field throws', function (): void {
     $json = '{"name":null,"photoUrls":["u"]}';
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('deserialize throws when a required container field is explicitly null', function (): void {
     /* photoUrls is a required, non-nullable \Ds\Set. Explicit null must fail. */
     $json = '{"name":"doggie","photoUrls":null}';
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('deserialize succeeds when all required fields are present', function (): void {
@@ -906,16 +909,14 @@ test('wet subtype serialize auto-emits discriminator', function (): void {
 });
 
 test('deserialize parent routes to subtype by discriminator', function (): void {
-    /* Feature gap: ObjectSerializer::deserialize() dispatches object classes
-     * through Symfony's denormalize(), which builds an empty PetFood oneOf
-     * wrapper rather than invoking PetFood::build() to route foodType="dry"
-     * to a DryFood instance. The discriminator routing lives on the model's
-     * static build() method and is not wired into the generic deserialize
-     * entry point, unlike Java/Go/Rust/Node. */
+    /* ObjectSerializer::deserialize() hands a oneOf parent to its static
+     * build(), which routes foodType="dry" to a DryFood instance. */
     $json = '{"foodType":"dry","weightKg":2.5}';
     $food = ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class);
+    expect($food)->toBeInstanceOf(\{{invokerPackage}}\Models\PetFood::class);
+    /** @var \{{invokerPackage}}\Models\PetFood $food */
     expect($food->getActualInstance())->toBeInstanceOf(\{{invokerPackage}}\Models\DryFood::class);
-})->skip('PHP deserialize() does not route oneOf parents through PetFood::build()');
+});
 
 // -- Gap AU-residual: missing discriminator must throw, not wrap raw dict --
 //
@@ -933,7 +934,7 @@ test('deserialize parent routes to subtype by discriminator', function (): void 
 test('deserialize PetFood missing discriminator throws', function (): void {
     $json = '{"weightKg":5.0}'; // no "foodType" discriminator property
     expect(fn (): mixed => ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class))
-        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('deserialize PetFood missing discriminator does not wrap raw dict', function (): void {
@@ -946,7 +947,7 @@ test('deserialize PetFood missing discriminator does not wrap raw dict', functio
     $threw = false;
     try {
         ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class);
-    } catch (\{{invokerPackage}}\SerializationException) {
+    } catch (\{{invokerPackage}}\Errors\SerializationException) {
         $threw = true;
     }
 
@@ -1080,7 +1081,7 @@ test('unknown availability wire value is rejected on deserialize', function (): 
     // "available" (lowercase) is NOT a declared case; only "Available" is.
     $json = '{"priority":1,"availability":"available"}';
     expect(fn (): mixed => ObjectSerializer::deserialize($json, StockItem::class))
-        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 // -- Canonical #3: format:byte fields round-trip through base64 on a model --
@@ -1096,9 +1097,11 @@ test('byte fields round-trip through base64 on a model', function (): void {
     $scanA = base64_encode("scan-A\x00\xff");
     $scanB = base64_encode('scan-B');
 
+    /** @var \Ds\Vector<string> $scans */
+    $scans = new \Ds\Vector([$scanA, $scanB]);
     $passport = new PetPassport(
         thumbnail: $thumb,
-        scans: new \Ds\Vector([$scanA, $scanB]),
+        scans: $scans,
     );
 
     $json = ObjectSerializer::serialize($passport);
@@ -1148,6 +1151,7 @@ test('additional property re-serializes at the top level not nested', function (
     /** @var Metadata $meta */
     $meta = ObjectSerializer::deserialize($json, Metadata::class);
     expect($meta->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
+    assert($meta->additionalProperties !== null);
     expect($meta->additionalProperties->get('customField'))->toBe('hello');
 
     $out = ObjectSerializer::serialize($meta);
@@ -1177,11 +1181,11 @@ test('nested array-of-array deep-round-trips to typed int leaves', function (): 
     $matrix = $item->matrix;
     expect($matrix)->toBeInstanceOf(\Ds\Vector::class);
     expect($matrix->count())->toBe(2);
-    expect($matrix[0])->toBeInstanceOf(\Ds\Vector::class);
+    expect($matrix->get(0))->toBeInstanceOf(\Ds\Vector::class);
     // Leaves are typed ints, deeply.
-    expect($matrix[0]->toArray())->toBe([1, 2, 3]);
-    expect($matrix[0][0])->toBeInt();
-    expect($matrix[1]->toArray())->toBe([4, 5]);
+    expect($matrix->get(0)->toArray())->toBe([1, 2, 3]);
+    expect($matrix->get(0)->get(0))->toBeInt();
+    expect($matrix->get(1)->toArray())->toBe([4, 5]);
 
     // Round-trips back to the same nested JSON shape.
     /** @var array<string, mixed> $data */

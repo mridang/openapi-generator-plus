@@ -1,0 +1,30 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiHttpResponse;
+
+class CapturingApiClient implements ApiClient
+{
+    public string $capturedUrl = '';
+    /** @var array<string, string> */
+    public array $capturedHeaders = [];
+    public mixed $capturedBody = null;
+
+    /** @param array<string, string> $headers */
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiHttpResponse {
+        $this->capturedUrl = $url;
+        $this->capturedHeaders = $headers;
+        $this->capturedBody = $body;
+        return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+    }
+}

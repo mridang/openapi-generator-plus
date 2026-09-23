@@ -31,4 +31,9 @@ return RectorConfig::configure()
         // Same for per-property: OAuth2TokenManager state mutates;
         // we avoid `readonly` to keep mustache emission uniform.
         \Rector\Php81\Rector\Property\ReadOnlyPropertyRector::class,
+        // Both write fully-qualified class names into the code (an
+        // instanceof in place of a null check, a return type on an arrow
+        // function), which pushes generated lines past PSR-12's 120 columns.
+        \Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector::class,
+        \Rector\TypeDeclaration\Rector\ArrowFunction\AddArrowFunctionReturnTypeRector::class,
     ]);

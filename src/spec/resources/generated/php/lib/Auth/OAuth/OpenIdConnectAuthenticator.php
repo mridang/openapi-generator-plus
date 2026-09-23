@@ -14,20 +14,11 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth\OAuth;
 
 use PetstoreClient\ApiClient;
-use PetstoreClient\ApiException;
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\BaseAuthenticator;
 use PetstoreClient\Auth\HttpAwareAuthenticator;
-use PetstoreClient\Errors\BadRequestException;
-use PetstoreClient\Errors\ClientException;
-use PetstoreClient\Errors\ConflictException;
-use PetstoreClient\Errors\ForbiddenException;
-use PetstoreClient\Errors\InternalServerErrorException;
-use PetstoreClient\Errors\NotFoundException;
-use PetstoreClient\Errors\ServerException;
-use PetstoreClient\Errors\UnauthorizedException;
-use PetstoreClient\Errors\UnprocessableEntityException;
-use PetstoreClient\SerializationException;
+use PetstoreClient\Errors\SerializationException;
 
 /**
  * Authenticator for OpenID Connect.
@@ -147,7 +138,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         );
 
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            throw self::statusError($response, $this->openIdConnectUrl);
+            throw ApiException::fromResponse($response->statusCode, $response->headers, $response->body);
         }
 
         $discovery = json_decode($response->body, true);
@@ -182,31 +173,6 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         $this->discoveryExpiry = time() + $this->parseMaxAge($response->headers);
 
         return $this->delegate;
-    }
-
-    /**
-     * Map a non-2xx discovery response to the ApiException subclass for its
-     * status, exactly as an API operation would.
-     */
-    private static function statusError(ApiHttpResponse $response, string $url): ApiException
-    {
-        $code = $response->statusCode;
-        $message = "OpenID Connect discovery request to $url failed with HTTP status $code";
-        $headers = $response->headers;
-        $body = $response->body;
-
-        return match (true) {
-            $code === 400 => new BadRequestException($message, $headers, $body),
-            $code === 401 => new UnauthorizedException($message, $headers, $body),
-            $code === 403 => new ForbiddenException($message, $headers, $body),
-            $code === 404 => new NotFoundException($message, $headers, $body),
-            $code === 409 => new ConflictException($message, $headers, $body),
-            $code === 422 => new UnprocessableEntityException($message, $headers, $body),
-            $code === 500 => new InternalServerErrorException($message, $headers, $body),
-            $code >= 400 && $code < 500 => new ClientException($code, $message, $headers, $body),
-            $code >= 500 => new ServerException($code, $message, $headers, $body),
-            default => new ApiException($code, $message, $headers, $body),
-        };
     }
 
     /**

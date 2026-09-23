@@ -1,3 +1,8 @@
+includes:
+  # Teach phpstan about Pest's functions (test(), expect(), beforeEach(),
+  # etc.) so the test suite is analysed along with the SDK.
+  - vendor/mrpunyapal/peststan/extension.neon
+
 parameters:
   level: 9
   tmpDir: .phpstan
@@ -5,8 +10,23 @@ parameters:
     - .
   excludePaths:
     - vendor
-    # Pest test files use magic methods (test(), expect(), beforeEach(),
-    # etc.) that phpstan cannot analyse without the dedicated
-    # pestphp/pest-plugin-phpstan plugin. Skip the tests directory until
-    # that plugin is wired up.
-    - tests
+  ignoreErrors:
+    # The same peststan gaps the Zitadel PHP client ignores, scoped to the
+    # test tree so lib/ keeps full checking.
+    # peststan does not narrow `expect($v)->toBeResource()` back onto $v, so
+    # fopen()'s `resource|false` still reaches fwrite()/rewind().
+    -
+      identifier: argument.type
+      message: '#Parameter \#1 \$stream of function (fwrite|rewind) expects resource, resource\|false given\.#'
+      path: tests/*
+    # peststan does not expose PHPUnit's markTestSkipped()/fail() on the
+    # TestCall that test() returns, though both work through Pest's TestCase.
+    -
+      identifier: method.notFound
+      message: '#Call to an undefined method Pest\\PendingCalls\\TestCall::(markTestSkipped|fail)\(\)\.#'
+      path: tests/*
+    # The tests assert these deliberately as cross-SDK invariants even where
+    # the subject's type already implies them.
+    -
+      identifier: pest.expectation.redundant
+      path: tests/*

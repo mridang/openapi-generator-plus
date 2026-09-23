@@ -44,7 +44,7 @@ $client = new Client($authenticator);
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 
-$authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation::Header);
+$authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation::HEADER);
 $client = new Client($authenticator);
 ```
 
@@ -54,7 +54,7 @@ $client = new Client($authenticator);
 use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 $authenticator = new OAuth2ClientCredentialsAuthenticator(
-    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token');
+    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', []);
 $client = new Client($authenticator);
 ```
 
@@ -65,8 +65,10 @@ use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
 
 $authenticator = new OAuth2AuthorizationCodeAuthenticator(
     'https://api.example.com', 'client-id', 'client-secret',
-    'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback');
+    'https://auth.example.com/authorize', 'https://auth.example.com/token',
+    'https://app.example.com/callback', []);
 $client = new Client($authenticator);
+$authenticator->exchangeCode('authorization-code');
 ```
 
 ### OAuth2 Password
@@ -76,7 +78,7 @@ use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
 
 $authenticator = new OAuth2PasswordAuthenticator(
     'https://api.example.com', 'client-id', 'client-secret',
-    'https://auth.example.com/token', 'username', 'password');
+    'https://auth.example.com/token', 'username', 'password', []);
 $client = new Client($authenticator);
 ```
 
@@ -87,7 +89,9 @@ The implicit flow obtains the access token out of band (typically in the browser
 ```php
 use PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator;
 
-$authenticator = new OAuth2ImplicitAuthenticator('https://api.example.com', 'your-access-token');
+$authenticator = new OAuth2ImplicitAuthenticator(
+    'https://api.example.com', 'client-id', 'https://auth.example.com/authorize', []);
+$authenticator->setAccessToken('your-access-token');
 $client = new Client($authenticator);
 ```
 
@@ -97,9 +101,10 @@ $client = new Client($authenticator);
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
 
 $authenticator = new OpenIdConnectAuthenticator(
-    'https://api.example.com', 'client-id', 'client-secret',
-    'https://auth.example.com/.well-known/openid-configuration');
+    'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
+    'client-id', 'client-secret', 'https://app.example.com/callback', []);
 $client = new Client($authenticator);
+$authenticator->exchangeCode('authorization-code');
 ```
 
 ### OAuth2 token lifecycle
@@ -130,7 +135,7 @@ use PetstoreClient\Auth\OAuth\ClientAuthMethod;
 use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 $authenticator = new OAuth2ClientCredentialsAuthenticator(
-    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', [],
     clientAuthMethod: ClientAuthMethod::Basic);
 ```
 
@@ -149,7 +154,9 @@ $client = Client::withToken(Servers::server0()->getUrl(), 'your-token');
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```php
-$fake = new class implements PetstoreClient\Auth\Authenticator {
+use PetstoreClient\Auth\Authenticator;
+
+$fake = new class implements Authenticator {
     public function getHost(): string { return 'https://api.example.com'; }
     public function getAuthHeaders(): array {
         return ['Authorization' => 'Bearer test-token'];
@@ -179,21 +186,25 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```php
-use PetstoreClient\ApiException;
+use PetstoreClient\Client;
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ServerException;
 
-try {
-    $result = $client->pet->addPet($request);
-} catch (NotFoundException $e) {
-    echo "Not found: " . $e->getMessage();
-} catch (ClientException $e) {
-    echo "Client error " . $e->getStatusCode() . ": " . $e->getMessage();
-} catch (ServerException $e) {
-    echo "Server error: " . $e->getMessage();
-} catch (ApiException $e) {
-    echo "API error: " . $e->getMessage();
+function addPetOrReport(Client $client, \PetstoreClient\Models\Pet $pet): void
+{
+    try {
+        $client->pet->addPet($pet);
+    } catch (NotFoundException $e) {
+        echo "Not found: " . $e->getMessage();
+    } catch (ClientException $e) {
+        echo "Client error " . $e->getStatusCode() . ": " . $e->getMessage();
+    } catch (ServerException $e) {
+        echo "Server error: " . $e->getMessage();
+    } catch (ApiException $e) {
+        echo "API error: " . $e->getMessage();
+    }
 }
 ```
 

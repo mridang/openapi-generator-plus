@@ -106,6 +106,9 @@ $networkName = 'proxy-test-network-' . bin2hex(random_bytes(4));
  */
 function dockerApiRequest(string $socketPath, string $endpoint, string $method = 'POST', ?array $body = null): void
 {
+    if ($socketPath === '' || $method === '') {
+        return;
+    }
     $ch = curl_init("http://localhost$endpoint");
     curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
@@ -127,7 +130,7 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
 $squidConfPath = $hostAppPath . '/tests/fixtures/proxy/squid.conf';
 
 $squid = (new GenericContainer('ubuntu/squid:5.2-22.04_beta'))
-    ->withExposedPorts(3128)
+    ->withExposedPorts(3128, 3129)
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     ->start();
 
@@ -144,9 +147,13 @@ sleep(3);
 // will fail individually with a clearer error.
 try {
     putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
+    // Port 3129 answers 407 unless the request carries Basic proxy
+    // credentials; any user name and password are accepted.
+    putenv('PROXY_AUTH_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3129));
 } catch (\Throwable $e) {
     fwrite(STDERR, "[bootstrap] could not resolve squid proxy port: " . $e->getMessage() . "\n");
     putenv('PROXY_URL=http://proxy-unavailable.invalid:0');
+    putenv('PROXY_AUTH_URL=http://proxy-unavailable.invalid:0');
 }
 if ($startupLock !== false) {
     flock($startupLock, LOCK_UN);

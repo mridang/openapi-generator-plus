@@ -6,7 +6,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ApiException;
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
 use PetstoreClient\TransportOptionsBuilder;
@@ -16,61 +16,6 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Serializer\Attribute\SerializedName;
-
-/**
- * A stand-in model part for the multipart serialization test below. It is
- * declared here rather than taken from the generated models so the test holds
- * for EVERY spec this SDK is generated from — no spec is guaranteed to contain
- * a model with these properties. It is shaped exactly like a generated model:
- * the PHP property names ARE the wire names, which is what the SDK's
- * ObjectSerializer emits (its normalizer is built without a name converter).
- */
-final class MultipartModelPart
-{
-    #[SerializedName('isEnabled')]
-    public ?bool $isEnabled = null;
-
-    #[SerializedName('recordedAt')]
-    public ?\DateTime $recordedAt = null;
-
-    public function __construct(?bool $isEnabled = null, ?\DateTime $recordedAt = null)
-    {
-        $this->isEnabled = $isEnabled;
-        $this->recordedAt = $recordedAt;
-    }
-}
-
-/**
- * A minimal PSR-18 client that replays a queue of canned responses and records
- * every {@see RequestInterface} it is handed, so tests can assert what the
- * Psr18ApiClient put on the wire. Mirrors the role of the Symfony MockHttpClient
- * in the DefaultApiClient unit tests, exercising the SAME shared orchestration
- * ({@see PetstoreClient\AbstractApiClient}) through the PSR-18 transport.
- */
-final class StubPsr18Client implements ClientInterface
-{
-    /** @var list<ResponseInterface> */
-    private array $responses;
-
-    /** @var list<RequestInterface> */
-    public array $requests = [];
-
-    public function __construct(ResponseInterface ...$responses)
-    {
-        $this->responses = array_values($responses);
-    }
-
-    public function sendRequest(RequestInterface $request): ResponseInterface
-    {
-        $this->requests[] = $request;
-        if ($this->responses === []) {
-            throw new class ('no stubbed response remaining') extends \RuntimeException implements ClientExceptionInterface {
-            };
-        }
-
-        return array_shift($this->responses);
-    }
-}
 
 /**
  * Build a PSR-7 response with the given status, body, and headers.
@@ -159,7 +104,7 @@ test('psr18 joins multi value response headers', function (): void {
 
 test('psr18 injects custom user agent', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->userAgent('MyApp/1.0')->build();
+    $transport = new TransportOptionsBuilder()->userAgent('MyApp/1.0')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -169,7 +114,7 @@ test('psr18 injects custom user agent', function (): void {
 
 test('psr18 injects request id matching uuid v4', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
+    $transport = new TransportOptionsBuilder()->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -180,7 +125,7 @@ test('psr18 injects request id matching uuid v4', function (): void {
 
 test('psr18 does not inject request id when disabled', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->injectRequestId(false)->build();
+    $transport = new TransportOptionsBuilder()->injectRequestId(false)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -190,7 +135,7 @@ test('psr18 does not inject request id when disabled', function (): void {
 
 test('psr18 does not override caller request id', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
+    $transport = new TransportOptionsBuilder()->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', ['X-Request-ID' => 'caller-id'], null);
@@ -200,7 +145,7 @@ test('psr18 does not override caller request id', function (): void {
 
 test('psr18 includes transport default headers', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->defaultHeader('X-Custom', 'custom-value')->build();
+    $transport = new TransportOptionsBuilder()->defaultHeader('X-Custom', 'custom-value')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -210,7 +155,7 @@ test('psr18 includes transport default headers', function (): void {
 
 test('psr18 caller headers override defaults', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->defaultHeader('Accept', 'text/plain')->build();
+    $transport = new TransportOptionsBuilder()->defaultHeader('Accept', 'text/plain')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', ['Accept' => 'application/json'], null);
@@ -281,7 +226,7 @@ test('psr18 https to http downgrade refuses body replay on 307', function (): vo
     $client = newPsr18Client($stub, $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(307);
         });
@@ -310,7 +255,7 @@ test('psr18 exceeding max redirects throws', function (): void {
     $client = newPsr18Client(new StubPsr18Client(...$loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(302);
         });
@@ -324,7 +269,7 @@ test('psr18 redirect to non http scheme throws', function (): void {
     $client = newPsr18Client($stub, $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(302);
         });
@@ -336,7 +281,7 @@ test('psr18 send after close throws logic exception', function (): void {
     $client->close();
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });
@@ -348,7 +293,7 @@ test('psr18 transport failure raises NetworkException', function (): void {
 
     try {
         $client->sendRequest('GET', 'http://example.com/refused', [], null);
-        expect(false)->toBeTrue('Expected NetworkException');
+        test()->fail('Expected NetworkException');
     } catch (\PetstoreClient\Errors\NetworkException $e) {
         expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\NetworkTimeoutException::class);
         expect($e->getStatusCode())->toBe(0);
@@ -401,7 +346,7 @@ test('psr18 AL content-encoding gzip lie with plaintext body surfaces ApiExcepti
     $client = newPsr18Client($stub);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/lie', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             // A response did arrive: ApiException with the real status, never NetworkException.
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(200);

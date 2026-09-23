@@ -96,7 +96,7 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
     {
         return (is_array($data) || is_object($data)) && (
             $type === \Ds\Map::class
-            || ltrim($type, '\\') === 'Ds\\Map'
+            || ltrim($type, '\\') === \Ds\Map::class
         );
     }
 

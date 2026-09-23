@@ -16,7 +16,7 @@ use PetstoreClient\Api\Options\SetPetPreferencesOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
 use PetstoreClient\Api\PetApi;
-use PetstoreClient\ApiException;
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
@@ -188,7 +188,7 @@ test('get pet avatar returns decoded bytes not base64 string', function (): void
 
     expect($result->data)->toBeString();
     expect($result->rawBody)->not->toBeNull();
-    expect(base64_encode($result->data))->toBe($result->rawBody);
+    expect(base64_encode((string) $result->data))->toBe($result->rawBody);
 });
 
 test('get pet avatar thumbnail', function (): void {
@@ -260,7 +260,51 @@ test('get pet photo', function (): void {
 });
 
 test('get external pet info uses per operation server url', function (): void {
-    test()->markTestSkipped('Per-operation server URL cannot be validated against a local mock server');
+    // The operation declares its own server. The client below sends every
+    // request for that server to the mock server instead, and records the URL
+    // the SDK asked for, so the test proves the chosen per-operation server
+    // was used and still gets a real response.
+    $externalServer = 'https://external-api.example.com/v1';
+    $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
+    $redirecting = new class ($externalServer, $baseUrl) implements \PetstoreClient\ApiClient {
+        /** @var list<string> */
+        public array $requestedUrls = [];
+
+        private readonly \PetstoreClient\DefaultApiClient $transport;
+
+        public function __construct(private readonly string $from, private readonly string $to)
+        {
+            $this->transport = new \PetstoreClient\DefaultApiClient();
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): \PetstoreClient\ApiHttpResponse {
+            $this->requestedUrls[] = $url;
+            return $this->transport->sendRequest(
+                $method,
+                str_replace($this->from, $this->to, $url),
+                $headers,
+                $body,
+                $noRedirect
+            );
+        }
+    };
+    $config = Configuration::builder()
+        ->baseUrl($baseUrl)
+        ->defaultHeader('Authorization', 'Bearer test-token')
+        ->build();
+    $api = new PetApi($redirecting, $config);
+
+    $result = $api->getExternalPetInfo(1, new \PetstoreClient\Api\GetExternalPetInfoServerServer0());
+
+    expect($result)->toBeInstanceOf(Pet::class);
+    expect($redirecting->requestedUrls)->toHaveCount(1);
+    expect($redirecting->requestedUrls[0])->toStartWith($externalServer . '/');
 });
 
 test('get pet tag sends styled parameters', function (): void {
@@ -286,7 +330,7 @@ test('get pet tag serializes optional array query params as styled values', func
 
     try {
         $api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
-    } catch (\Throwable $e) {
+    } catch (\Throwable) {
         // The capturing client returns a canned non-Pet body, so deserializing
         // the Pet-typed result may fail. That is irrelevant: the query string is
         // captured during sendRequest, before any deserialization happens.
@@ -308,7 +352,7 @@ test('get pet tag serializes optional array query params as styled values', func
     // NEVER leak onto the wire. None of these tokens may appear in the URL.
     expect($captured->url)->not->toContain('Array');
     expect($decoded)->not->toContain('Array');
-    expect($decoded)->not->toContain('Ds\\Vector');
+    expect($decoded)->not->toContain(\Ds\Vector::class);
     expect($decoded)->not->toContain('[blue');
     expect($decoded)->not->toContain('blue black]');
     expect($decoded)->not->toContain('&[blue');
@@ -343,8 +387,8 @@ function newBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
         {
         }
 
@@ -516,8 +560,8 @@ function newRawBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
         {
         }
 
@@ -606,7 +650,9 @@ test('uploadPetDocument default selection still sends a multipart body', functio
 test('delete pet cookie param with CRLF fails closed', function (): void {
     [$api] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->deletePet(1, new DeletePetOptions(apiKey: "abc\r\nInjected: yes")))
+    expect(function () use ($api): void {
+        $api->deletePet(1, new DeletePetOptions(apiKey: "abc\r\nInjected: yes"));
+    })
         ->toThrow(\InvalidArgumentException::class);
 });
 
@@ -614,7 +660,9 @@ test('delete pet cookie param with bare control char fails closed', function ():
     [$api] = newBodyCapturingPetApi();
 
     // A bare NUL is a forbidden RFC-6265 cookie-octet just like CR/LF.
-    expect(fn (): mixed => $api->deletePet(1, new DeletePetOptions(apiKey: "abc\x00def")))
+    expect(function () use ($api): void {
+        $api->deletePet(1, new DeletePetOptions(apiKey: "abc\x00def"));
+    })
         ->toThrow(\InvalidArgumentException::class);
 });
 
@@ -674,7 +722,7 @@ test('malformed 2xx body fails loud rather than returning the raw string', funct
 
     // The deserialize error propagates as the SDK-owned exception; the raw
     // un-parseable string is never handed back as a Pet.
-    expect($caught)->toBeInstanceOf(\PetstoreClient\SerializationException::class);
+    expect($caught)->toBeInstanceOf(\PetstoreClient\Errors\SerializationException::class);
 });
 
 // -- Mock-based binary download test --
@@ -716,8 +764,8 @@ function newHeaderCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
         {
         }
 
@@ -794,6 +842,8 @@ test('options class is immutable: construction works but property writes throw',
     $opts = new AddPetOptions(auth: $auth);
     expect($opts->auth)->toBe($auth);
 
+    /* Assigning the read-only property is what this test proves fails. */
+    /** @phpstan-ignore-next-line */
     expect(fn () => $opts->auth = new BearerAuthenticator('http://localhost:9999', 'other'))
         ->toThrow(\Error::class);
 });
@@ -821,7 +871,7 @@ test('get pet by name sends an empty required query param on the wire', function
 
     try {
         $api->getPetByName('Rex', new GetPetByNameOptions(category: ''));
-    } catch (\Throwable $e) {
+    } catch (\Throwable) {
         // Response deserialization of the canned body is not under test; the URL
         // is captured during sendRequest, before any deserialization happens.
     }

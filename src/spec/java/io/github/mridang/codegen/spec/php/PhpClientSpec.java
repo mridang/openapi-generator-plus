@@ -41,7 +41,11 @@ public class PhpClientSpec extends AbstractClientSpec implements PhpSpec {
      * Keeping `--parallel` for the speedup; dropping `--testdox`
      * gives back the regular dot-progress format which is what the
      * other 11 lang test outputs use anyway. */
-    return new String[] {"mkdir -p .out && vendor/bin/pest --parallel"};
+    /* --log-junit names the report explicitly: under --parallel the runner
+     * merges the workers' results into it, so it lists every test that ran. */
+    return new String[] {
+      "mkdir -p .out/reports && vendor/bin/pest --parallel --log-junit .out/reports/junit.xml"
+    };
   }
 
   @Override

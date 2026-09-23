@@ -97,9 +97,13 @@ test('exchange code rejects empty code', function (): void {
     );
     $authenticator->setApiClient($client);
 
-    expect(fn (): mixed => $authenticator->exchangeCode(''))
+    expect(function () use ($authenticator): void {
+        $authenticator->exchangeCode('');
+    })
         ->toThrow(\InvalidArgumentException::class);
-    expect(fn (): mixed => $authenticator->exchangeCode('   '))
+    expect(function () use ($authenticator): void {
+        $authenticator->exchangeCode('   ');
+    })
         ->toThrow(\InvalidArgumentException::class);
     expect($client->capturedRequests)->toHaveCount(0);
 });
@@ -120,7 +124,9 @@ test('exchange code rejects whitespace only code', function (): void {
     );
     $authenticator->setApiClient($client);
 
-    expect(fn (): mixed => $authenticator->exchangeCode('   '))
+    expect(function () use ($authenticator): void {
+        $authenticator->exchangeCode('   ');
+    })
         ->toThrow(\InvalidArgumentException::class);
     expect($client->capturedRequests)->toHaveCount(0);
 });
@@ -176,7 +182,7 @@ test('throws before exchange code called', function (): void {
     // Asking for a token before the code was exchanged is a wrong call
     // order: exactly the built-in \LogicException.
     expect(fn () => $authenticator->getAuthHeaders())
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });

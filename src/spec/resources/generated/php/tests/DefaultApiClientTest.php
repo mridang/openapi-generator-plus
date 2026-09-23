@@ -13,9 +13,6 @@ use PetstoreClient\TransportOptions;
 
 test('makes https request with verify ssl false', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
-    if (str_contains($chasmUrl, 'chasm-tls-unavailable')) {
-        test()->markTestSkipped('chasm HTTPS port not resolvable via testcontainers-php (see bootstrap.php)');
-    }
 
     $transport = TransportOptions::builder()
         ->verifySsl(false)
@@ -34,9 +31,6 @@ test('makes https request with verify ssl false', function (): void {
 
 test('makes https request with custom ca cert', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
-    if (str_contains($chasmUrl, 'chasm-tls-unavailable')) {
-        test()->markTestSkipped('chasm HTTPS port not resolvable via testcontainers-php (see bootstrap.php)');
-    }
     $caCertPath = getenv('CA_CERT_PATH') ?: null;
 
     $transport = TransportOptions::builder()
@@ -152,7 +146,7 @@ test('times out on slow endpoint', function (): void {
     $client = new DefaultApiClient($transport);
 
     expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\NetworkTimeoutException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
         });
@@ -171,7 +165,7 @@ test('injects custom user agent header', function (): void {
     $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
-    /** @var array<string, mixed> $json */
+    /** @var array{headers: array<string, string>} $json */
     $json = json_decode($response->body, true);
     expect($json['headers']['user-agent'])->toBe('MyApp/1.0');
 });
@@ -189,7 +183,7 @@ test('integration injects request id header', function (): void {
     $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
-    /** @var array<string, mixed> $json */
+    /** @var array{headers: array<string, string>} $json */
     $json = json_decode($response->body, true);
     expect($json['headers'])->toHaveKey('x-request-id');
     expect($json['headers']['x-request-id'])->toBeString();
@@ -206,12 +200,12 @@ test('integration generates unique request ids', function (): void {
     $client = new DefaultApiClient($transport);
 
     $response1 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-    /** @var array<string, mixed> $json1 */
+    /** @var array{headers: array<string, string>} $json1 */
     $json1 = json_decode($response1->body, true);
     $requestId1 = $json1['headers']['x-request-id'];
 
     $response2 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-    /** @var array<string, mixed> $json2 */
+    /** @var array{headers: array<string, string>} $json2 */
     $json2 = json_decode($response2->body, true);
     $requestId2 = $json2['headers']['x-request-id'];
 
@@ -231,7 +225,7 @@ test('integration includes transport default headers', function (): void {
     $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
-    /** @var array<string, mixed> $json */
+    /** @var array{headers: array<string, string>} $json */
     $json = json_decode($response->body, true);
     expect($json['headers']['x-custom'])->toBe('custom-value');
 });
@@ -252,7 +246,7 @@ test('caller headers override transport defaults', function (): void {
     );
 
     expect($response->statusCode)->toBe(200);
-    /** @var array<string, mixed> $json */
+    /** @var array{headers: array<string, string>} $json */
     $json = json_decode($response->body, true);
     expect($json['headers']['accept'])->toBe('application/json');
 });
@@ -310,22 +304,24 @@ test('redirect 303 switches to get and drops body', function (): void {
 
 /**
  * T-new-3: multipart bodies must be replayed across 307 redirects per
- * RFC 7231 §6.4.7 / RFC 7538. Symfony HttpClient strips the body when
- * following a 307 redirect, so this regression is not exercisable here
- * without a manual multipart byte-serializer in the redirect loop
- * (see the Rust SDK for the canonical implementation). Tracked as a
- * follow-up to T-new-3.
+ * RFC 7231 §6.4.7 / RFC 7538. The client follows redirects itself and
+ * rebuilds the multipart body for every hop.
  */
 test('multipart body replayed on 307 redirect', function (): void {
-    /* Skipped: Symfony HttpClient strips body on 307; multipart replay
-     * requires a manual byte-serializer like Rust impl - tracked as
-     * follow-up to T-new-3 (see AGENT.md "307/308 multipart body
-     * replay"). */
-    test()->markTestSkipped(
-        'Symfony HttpClient strips body on 307; multipart replay requires '
-        . 'manual byte-serializer like Rust impl - tracked as follow-up '
-        . 'to T-new-3'
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'POST',
+        $chasmUrl . '/test/redirect/307-multipart',
+        [],
+        ['description' => 'hello', 'file' => 'file-content-bytes']
     );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('POST');
+    expect($json['body'])->not->toBe('');
 });
 
 // -- Max redirects --
@@ -365,22 +361,22 @@ test('respects max redirects limit', function (): void {
  */
 test('redirect count and limit are scoped per request not shared per client', function (): void {
     // Router script for `php -S`: 302 -> /chain/{n-1} until /chain/0 -> 200.
-    $router = <<<'PHP'
-        <?php
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-        if (preg_match('#^/chain/(\d+)$#', (string) $path, $m)) {
-            $n = (int) $m[1];
-            if ($n <= 0) {
-                http_response_code(200);
-                echo 'ok';
-                return true;
-            }
-            header('Location: /chain/' . ($n - 1), true, 302);
+    $router = <<<'PHP_WRAP'
+    <?php
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+    if (preg_match('#^/chain/(\d+)$#', (string) $path, $m)) {
+        $n = (int) $m[1];
+        if ($n <= 0) {
+            http_response_code(200);
+            echo 'ok';
             return true;
         }
-        http_response_code(404);
+        header('Location: /chain/' . ($n - 1), true, 302);
         return true;
-        PHP;
+    }
+    http_response_code(404);
+    return true;
+    PHP_WRAP;
 
     // tempnam() reserves a unique base path; append .php for the router and
     // drop the original reservation so we don't leave an orphan temp file.
@@ -464,8 +460,10 @@ test('redirect count and limit are scoped per request not shared per client', fu
                 fclose($pipe);
             }
         }
-        proc_terminate($process);
-        proc_close($process);
+        if (is_resource($process)) {
+            proc_terminate($process);
+            proc_close($process);
+        }
         @unlink($routerFile);
     }
 });
@@ -503,7 +501,7 @@ test('decompresses gzip response', function (): void {
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
         'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
+        getenv('CHASM_HTTP_URL') . '/test/compressed/gzip',
         ['Accept-Encoding' => 'gzip'],
         null
     );
@@ -520,7 +518,7 @@ test('decompresses brotli response', function (): void {
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
         'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
+        getenv('CHASM_HTTP_URL') . '/test/compressed/br',
         ['Accept-Encoding' => 'br'],
         null
     );
@@ -537,7 +535,7 @@ test('decompresses zstd response', function (): void {
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
         'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
+        getenv('CHASM_HTTP_URL') . '/test/compressed/zstd',
         ['Accept-Encoding' => 'zstd'],
         null
     );
