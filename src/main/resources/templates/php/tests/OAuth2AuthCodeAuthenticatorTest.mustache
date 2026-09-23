@@ -172,7 +172,7 @@ test('throws before exchange code called', function (): void {
     // Asking for a token before the code was exchanged is a wrong call
     // order: exactly the built-in \LogicException.
     expect(fn () => $authenticator->getAuthHeaders())
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });

@@ -226,7 +226,7 @@ test('psr18 https to http downgrade refuses body replay on 307', function (): vo
     $client = newPsr18Client($stub, $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(307);
         });
@@ -255,7 +255,7 @@ test('psr18 exceeding max redirects throws', function (): void {
     $client = newPsr18Client(new StubPsr18Client(...$loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(302);
         });
@@ -269,7 +269,7 @@ test('psr18 redirect to non http scheme throws', function (): void {
     $client = newPsr18Client($stub, $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(302);
         });
@@ -281,7 +281,7 @@ test('psr18 send after close throws logic exception', function (): void {
     $client->close();
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });
@@ -346,7 +346,7 @@ test('psr18 AL content-encoding gzip lie with plaintext body surfaces ApiExcepti
     $client = newPsr18Client($stub);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/lie', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             // A response did arrive: ApiException with the real status, never NetworkException.
             expect($e::class)->toBe(ApiException::class);
             expect($e->getCode())->toBe(200);

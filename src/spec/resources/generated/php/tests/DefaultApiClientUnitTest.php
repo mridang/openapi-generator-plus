@@ -802,7 +802,7 @@ test('https to http downgrade refuses body replay on 307', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -819,7 +819,7 @@ test('https to http downgrade refuses body replay on 308', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v'))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -932,7 +932,7 @@ test('exceeding max redirects throws too many redirects', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -953,7 +953,7 @@ test('redirect to non http scheme throws', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -972,7 +972,7 @@ test('send after close throws logic exception', function (): void {
     $client->close();
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\LogicException::class);
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -995,7 +995,7 @@ test('non-existent caCertPath throws invalid argument exception at construction'
     $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
 
     expect(fn (): mixed => new DefaultApiClient($transport))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\InvalidArgumentException::class);
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -1025,7 +1025,7 @@ test('transport timeout raises NetworkTimeoutException', function (): void {
     }));
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/slow', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\NetworkTimeoutException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
             expect($e->getCode())->toBe(0);
@@ -1091,7 +1091,7 @@ test('wraps a gzip decompression failure as api exception', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/echo', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A response did arrive: exactly ApiException carrying the real
              * status (200), never a NetworkException. */
             expect($e::class)->toBe(ApiException::class);
@@ -1119,7 +1119,7 @@ test('AL: content-encoding gzip lie with plaintext body surfaces ApiException', 
     $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/lie', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A response did arrive: exactly ApiException carrying the real
              * status (200), never a NetworkException. */
             expect($e::class)->toBe(ApiException::class);

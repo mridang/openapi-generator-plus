@@ -121,7 +121,7 @@ test('token manager throws when no api client injected', function (): void {
     $manager = new OAuth2TokenManager();
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });
@@ -276,7 +276,7 @@ test('throws when token request fails', function (): void {
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(OAuth2ServerException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -291,7 +291,7 @@ test('malformed 2xx token response throws OAuth2TokenException', function (): vo
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(OAuth2TokenException::class);
         });
 });
@@ -306,7 +306,7 @@ test('token transport failure propagates NetworkException', function (): void {
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Throwable $e) use ($failure): void {
+        ->toThrow(function (\Exception $e) use ($failure): void {
             expect($e)->toBe($failure);
         });
 });
@@ -349,7 +349,7 @@ test('missing access_token in 2xx response throws typed OAuth2TokenException', f
     $manager->setApiClient($client);
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(OAuth2TokenException::class);
         });
 });
@@ -411,7 +411,7 @@ test('token post refuses 3xx redirect', function (int $status): void {
     expect(fn () => $manager->getAccessToken(
         'https://auth.example.com/token',
         ['grant_type' => 'client_credentials', 'client_secret' => 'topsecret']
-    ))->toThrow(function (\Throwable $e) use ($status): void {
+    ))->toThrow(function (\Exception $e) use ($status): void {
         expect($e::class)->toBe(OAuth2ServerException::class);
         assert($e instanceof OAuth2ServerException);
         expect($e->statusCode)->toBe($status);

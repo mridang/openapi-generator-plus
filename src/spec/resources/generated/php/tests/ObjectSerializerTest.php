@@ -311,7 +311,7 @@ test('tab character escaped properly in json', function (): void {
 
 test('truncated json throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{', Category::class))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -319,7 +319,7 @@ test('truncated json throws SerializationException', function (): void {
 
 test('invalid json structure throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('"hello"', Category::class))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -327,7 +327,7 @@ test('invalid json structure throws SerializationException', function (): void {
 
 test('wrong primitive type throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{"id":"not-a-number","name":"Dogs"}', Category::class))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -337,7 +337,7 @@ test('malformed date-time throws SerializationException', function (): void {
     // Order::$shipDate is format: date-time; a value that is not an RFC 3339
     // timestamp must fail with the SDK's SerializationException.
     expect(fn () => ObjectSerializer::deserialize('{"shipDate":"not-a-date"}', \PetstoreClient\Models\Order::class))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -371,7 +371,7 @@ test('unknown enum value on deserialize throws SerializationException', function
     $json = '{"id":1,"name":"Rex","photoUrls":[],"status":"teleporting"}';
 
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -810,7 +810,7 @@ test('DateInterval fractional value round trips', function (): void {
 test('DateInterval invalid string surfaces exception', function (): void {
     // ISO-8601 "PT1H" is no longer accepted — protobuf-JSON only.
     expect(fn () => ObjectSerializer::deserialize('"PT1H"', 'DateInterval'))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -829,7 +829,7 @@ test('deserialize throws when a required field is missing', function (): void {
      * rather than silently constructing a partial object. */
     $json = '{"id":1,"photoUrls":["http://x/a.png"]}'; // missing "name"
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });

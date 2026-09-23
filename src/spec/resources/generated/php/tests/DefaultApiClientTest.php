@@ -146,7 +146,7 @@ test('times out on slow endpoint', function (): void {
     $client = new DefaultApiClient($transport);
 
     expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\NetworkTimeoutException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
         });

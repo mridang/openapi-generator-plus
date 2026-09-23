@@ -189,7 +189,7 @@ test('oidc throws when discovery returns non-2xx status', function (): void {
     // The status maps to its ApiException subclass exactly as an API
     // operation's would.
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\InternalServerErrorException::class);
             expect($e->getCode())->toBe(500);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
@@ -216,7 +216,7 @@ test('oidc discovery 404 raises NotFoundException', function (): void {
     $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\NotFoundException::class);
             expect($e->getCode())->toBe(404);
         });
@@ -231,7 +231,7 @@ test('oidc discovery transport failure propagates NetworkException', function ()
     $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Throwable $e) use ($failure): void {
+        ->toThrow(function (\Exception $e) use ($failure): void {
             expect($e)->toBe($failure);
         });
 });
@@ -242,7 +242,7 @@ test('oidc malformed discovery document raises SerializationException', function
     $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
@@ -259,7 +259,7 @@ test('oidc throws when no api client injected', function (): void {
     );
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\LogicException::class);
         });
 });

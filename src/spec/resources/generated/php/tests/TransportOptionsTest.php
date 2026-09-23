@@ -92,7 +92,7 @@ test('follow redirects defaults to true with null max redirects', function (): v
 test('invalid proxy url throws exception', function (): void {
     // A bad proxy URL is a configuration mistake, not an SDK error.
     expect(fn () => TransportOptions::builder()->proxy('not-a-url')->build())
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\InvalidArgumentException::class);
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
