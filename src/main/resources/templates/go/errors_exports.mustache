@@ -40,3 +40,8 @@ type (
 	// OAuth2TokenError is a 2xx answer from the OAuth2 token endpoint that could not be used.
 	OAuth2TokenError = errors_pkg.OAuth2TokenError
 )
+
+// FromResponse is the one status-to-error mapping, re-exported so the whole
+// error surface — the types above and the factory that builds them — can be
+// reached from the package root.
+var FromResponse = errors_pkg.FromResponse
