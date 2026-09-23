@@ -21,13 +21,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{/enumVars}}
 {{/allowableValues}}
   @doc "All allowed values as atoms."
-  @spec all_values() :: [atom()]
+  @spec all_values() :: [t(), ...]
   def all_values do
     [{{#allowableValues}}{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(atom()) :: term()
+  @spec value(t()) :: {{#isInteger}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isInteger}}{{#isLong}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
 {{#allowableValues}}
 {{#enumVars}}
   def value(:"{{nameLowercase}}"), do: {{{value}}}
@@ -43,7 +43,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: atom() | {:error, term()}
+  @spec from_value(term()) :: t() | {:error, term()}
 {{#allowableValues}}
 {{#enumVars}}
   def from_value({{{value}}}), do: :"{{nameLowercase}}"
@@ -63,10 +63,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @moduledoc "Union type for {{classname}} (oneOf)."
   {{/description}}
 
+  @typedoc "A value of any of the oneOf variants."
+  @type t :: term()
+
   {{#oneOf}}
   {{#-first}}
   @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [atom()]
+  @spec openapi_one_of() :: [{{#oneOf}}:"{{.}}"{{^-last}} | {{/-last}}{{/oneOf}}, ...]
   def openapi_one_of do
     [
   {{/-first}}
@@ -96,7 +99,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/mappedModels}}
   {{/discriminator}}
   @doc "Build the appropriate type from data."
-  @spec build(term()) :: term()
+  @spec build({{#discriminator}}map() | list() | nil{{/discriminator}}{{^discriminator}}term(){{/discriminator}}) :: term()
   def build(data) do
   {{#discriminator}}
     discriminator_value = data[to_string(openapi_discriminator_name())]
@@ -105,7 +108,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     # which throw on union no-match (5 of 12 SDKs already strict;
     # we promote Elixir to the same behaviour here).
     if is_nil(discriminator_value) do
-      raise {{moduleName}}.SerializationError,
+      raise {{moduleName}}.Errors.SerializationError,
             message: "Missing discriminator '#{openapi_discriminator_name()}' for {{classname}}"
     end
 
@@ -131,7 +134,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
       :AnyType in openapi_one_of() -> data
       true ->
         # Raise on union no-match (see comment above).
-        raise {{moduleName}}.SerializationError,
+        raise {{moduleName}}.Errors.SerializationError,
               message: "JSON did not match any schema in the {{classname}} oneOf union"
     end
   {{/discriminator}}
@@ -190,7 +193,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
 
     if is_nil(klass_name) do
-      raise {{moduleName}}.SerializationError,
+      raise {{moduleName}}.Errors.SerializationError,
             message: "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
     end
 
@@ -199,7 +202,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     # schema outside the union is malformed; refuse to deserialize
     # instead of silently building an off-union type.
     unless klass_name in openapi_one_of() do
-      raise {{moduleName}}.SerializationError,
+      raise {{moduleName}}.Errors.SerializationError,
             message:
               "Discriminator '#{discriminator_value}' for {{classname}} resolves to " <>
                 "'#{klass_name}', which is not listed in oneOf"
@@ -218,7 +221,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
       Enum.any?(openapi_one_of(), fn ref -> Atom.to_string(ref) == candidate end)
 
     unless listed? do
-      raise {{moduleName}}.SerializationError,
+      raise {{moduleName}}.Errors.SerializationError,
             message:
               "Discriminator value '#{discriminator_value}' for {{classname}} is not " <>
                 "listed in oneOf"
@@ -241,6 +244,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{^description}}
   @moduledoc "Union type for {{classname}} (anyOf)."
   {{/description}}
+
+  @typedoc "A value of any of the anyOf variants."
+  @type t :: term()
 
   {{#anyOf}}
   {{#-first}}
@@ -404,7 +410,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @doc """
   Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
   Decodes a JSON-decoded map into this struct, raising
-  `{{moduleName}}.SerializationError` if any key is not declared in
+  `{{moduleName}}.Errors.SerializationError` if any key is not declared in
   `attribute_map/0`.
   """
   @spec from_map_strict(map()) :: t()
@@ -415,7 +421,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
       key_str = to_string(key)
 
       unless MapSet.member?(declared, key_str) do
-        raise {{moduleName}}.SerializationError,
+        raise {{moduleName}}.Errors.SerializationError,
               message: "Unknown property '#{key_str}' on {{classname}} (unevaluatedProperties:false)"
       end
     end)

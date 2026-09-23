@@ -194,7 +194,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
           fake_client
         )
 
-      assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
+      assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
         PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
       end
     end

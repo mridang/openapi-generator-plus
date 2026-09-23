@@ -11,6 +11,8 @@ defmodule PetstoreClient.Errors.NetworkTimeoutError do
   transport exception, if any, is kept as `cause`.
   """
 
+  alias PetstoreClient.Errors.ApiError
+
   defexception [:message, :status_code, :response_headers, :response_body, :error_body, :cause]
 
   @type t :: %__MODULE__{
@@ -40,5 +42,5 @@ defmodule PetstoreClient.Errors.NetworkTimeoutError do
 
   @impl true
   def message(%__MODULE__{} = error),
-    do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
+    do: ApiError.message(struct(ApiError, Map.from_struct(error)))
 end

@@ -11,8 +11,8 @@ defmodule PetstoreClient.Api.Options.GetBySwatchOptions do
   """
 
   @type t :: %__MODULE__{
-          query_swatch: Swatch.t() | nil,
-          preferred_swatch: Swatch.t() | nil
+          query_swatch: PetstoreClient.Models.Swatch.t() | nil,
+          preferred_swatch: PetstoreClient.Models.Swatch.t() | nil
         }
 
   defstruct query_swatch: nil,

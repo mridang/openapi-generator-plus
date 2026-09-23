@@ -25,13 +25,13 @@ defmodule PetstoreClient.Models.Priority do
   def number_3, do: :number_3
 
   @doc "All allowed values as atoms."
-  @spec all_values() :: [atom()]
+  @spec all_values() :: [t(), ...]
   def all_values do
     [number_1(), number_2(), number_3()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(atom()) :: term()
+  @spec value(t()) :: 1 | 2 | 3
   def value(:number_1), do: 1
   def value(:number_2), do: 2
   def value(:number_3), do: 3
@@ -45,7 +45,7 @@ defmodule PetstoreClient.Models.Priority do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: atom() | {:error, term()}
+  @spec from_value(term()) :: t() | {:error, term()}
   def from_value(1), do: :number_1
   def from_value(2), do: :number_2
   def from_value(3), do: :number_3

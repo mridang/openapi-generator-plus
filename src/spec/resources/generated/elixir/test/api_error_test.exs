@@ -8,7 +8,7 @@ defmodule PetstoreClient.ApiErrorTest do
 
   test "exposes status_code, response_body, response_headers and error_body" do
     err =
-      PetstoreClient.ApiError.exception(
+      PetstoreClient.Errors.ApiError.exception(
         status_code: 404,
         message: "not found",
         response_headers: %{"content-type" => "application/json"},
@@ -27,7 +27,7 @@ defmodule PetstoreClient.ApiErrorTest do
     # empty header map / empty body so a pre-response transport failure can
     # be encoded.
     err =
-      PetstoreClient.ApiError.exception(
+      PetstoreClient.Errors.ApiError.exception(
         status_code: 0,
         message: "connection reset",
         response_headers: nil,
@@ -39,21 +39,21 @@ defmodule PetstoreClient.ApiErrorTest do
   end
 
   test "is an exception with a message" do
-    err = PetstoreClient.ApiError.exception(status_code: 500, message: "boom")
+    err = PetstoreClient.Errors.ApiError.exception(status_code: 500, message: "boom")
 
-    assert %PetstoreClient.ApiError{} = err
-    assert PetstoreClient.ApiError.message(err) != ""
+    assert %PetstoreClient.Errors.ApiError{} = err
+    assert PetstoreClient.Errors.ApiError.message(err) != ""
   end
 
   test "typed_error_body deserializes the body into the typed model" do
     err =
-      PetstoreClient.ApiError.exception(
+      PetstoreClient.Errors.ApiError.exception(
         status_code: 400,
         response_body: ~s({"id":42,"name":"Dogs"}),
         response_headers: %{}
       )
 
-    body = PetstoreClient.ApiError.typed_error_body(err, "Category")
+    body = PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
     assert %PetstoreClient.Models.Category{} = body
     assert body.id == 42
     assert body.name == "Dogs"
@@ -61,24 +61,24 @@ defmodule PetstoreClient.ApiErrorTest do
 
   test "typed_error_body returns nil when there is no response body" do
     err =
-      PetstoreClient.ApiError.exception(
+      PetstoreClient.Errors.ApiError.exception(
         status_code: 500,
         response_body: "",
         response_headers: %{}
       )
 
-    assert PetstoreClient.ApiError.typed_error_body(err, "Category") == nil
+    assert PetstoreClient.Errors.ApiError.typed_error_body(err, "Category") == nil
   end
 
   test "typed_error_body ignores extraneous fields not on the model" do
     err =
-      PetstoreClient.ApiError.exception(
+      PetstoreClient.Errors.ApiError.exception(
         status_code: 422,
         response_body: ~s({"id":1,"name":"Cat","extra":"drop-me"}),
         response_headers: %{}
       )
 
-    body = PetstoreClient.ApiError.typed_error_body(err, "Category")
+    body = PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
     assert %PetstoreClient.Models.Category{} = body
     assert body.id == 1
     assert body.name == "Cat"
@@ -86,21 +86,21 @@ defmodule PetstoreClient.ApiErrorTest do
 
   describe "SDK error grouping" do
     test "ApiError, a typed error and the Serialization error are all recognised" do
-      api_error = PetstoreClient.ApiError.exception(status_code: 500, message: "boom")
+      api_error = PetstoreClient.Errors.ApiError.exception(status_code: 500, message: "boom")
       typed_error = PetstoreClient.Errors.BadRequestError.exception(%{message: "nope"})
-      serialization_error = %PetstoreClient.SerializationError{message: "bad json"}
+      serialization_error = %PetstoreClient.Errors.SerializationError{message: "bad json"}
 
-      assert PetstoreClient.OpenAPIError.open_api_error?(api_error)
-      assert PetstoreClient.OpenAPIError.open_api_error?(typed_error)
-      assert PetstoreClient.OpenAPIError.open_api_error?(serialization_error)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(api_error)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(typed_error)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(serialization_error)
     end
 
     test "every SDK exception module is listed in exceptions/0" do
-      modules = PetstoreClient.OpenAPIError.exceptions()
+      modules = PetstoreClient.Errors.OpenAPIError.exceptions()
 
-      assert PetstoreClient.ApiError in modules
+      assert PetstoreClient.Errors.ApiError in modules
       assert PetstoreClient.Errors.BadRequestError in modules
-      assert PetstoreClient.SerializationError in modules
+      assert PetstoreClient.Errors.SerializationError in modules
     end
 
     test "a rescued SDK error is recognised via exceptions/0" do
@@ -115,21 +115,18 @@ defmodule PetstoreClient.ApiErrorTest do
           e -> e
         end
 
-      assert caught.__struct__ in PetstoreClient.OpenAPIError.exceptions()
-      assert PetstoreClient.OpenAPIError.open_api_error?(caught)
+      assert caught.__struct__ in PetstoreClient.Errors.OpenAPIError.exceptions()
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(caught)
     end
 
     test "network and OAuth errors are recognised" do
       for err <- [
             PetstoreClient.Errors.NetworkError.exception(message: "refused"),
             PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out"),
-            %PetstoreClient.Auth.OAuth.OAuth2TokenError{message: "no access_token"},
-            %PetstoreClient.Auth.OAuth.OAuth2ServerError{
-              status_code: 400,
-              message: "invalid_grant"
-            }
+            %PetstoreClient.Errors.OAuth2TokenError{message: "no access_token"},
+            %PetstoreClient.Errors.OAuth2ServerError{status_code: 400, message: "invalid_grant"}
           ] do
-        assert PetstoreClient.OpenAPIError.open_api_error?(err)
+        assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
       end
     end
 
@@ -144,28 +141,59 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.ClientError.client_error?(not_found)
       refute PetstoreClient.Errors.ServerError.server_error?(not_found)
       refute PetstoreClient.Errors.NetworkError.network_error?(not_found)
-      assert PetstoreClient.ApiError.api_error?(not_found)
-      assert PetstoreClient.OpenAPIError.open_api_error?(not_found)
+      assert PetstoreClient.Errors.ApiError.api_error?(not_found)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(not_found)
 
       internal =
         PetstoreClient.Errors.InternalServerError.exception(%{message: "boom", status_code: 500})
 
       assert PetstoreClient.Errors.ServerError.server_error?(internal)
       refute PetstoreClient.Errors.ClientError.client_error?(internal)
-      assert PetstoreClient.ApiError.api_error?(internal)
-      assert PetstoreClient.OpenAPIError.open_api_error?(internal)
+      assert PetstoreClient.Errors.ApiError.api_error?(internal)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(internal)
 
       timeout = PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out")
       assert PetstoreClient.Errors.NetworkError.network_error?(timeout)
-      assert PetstoreClient.ApiError.api_error?(timeout)
+      assert PetstoreClient.Errors.ApiError.api_error?(timeout)
 
       refute PetstoreClient.Errors.NetworkError.network_error?(
-               PetstoreClient.ApiError.exception(message: "x")
+               PetstoreClient.Errors.ApiError.exception(message: "x")
              )
 
-      serialization = %PetstoreClient.SerializationError{message: "bad"}
-      refute PetstoreClient.ApiError.api_error?(serialization)
-      refute PetstoreClient.ApiError.api_error?(%ArgumentError{message: "unrelated"})
+      serialization = %PetstoreClient.Errors.SerializationError{message: "bad"}
+      refute PetstoreClient.Errors.ApiError.api_error?(serialization)
+      refute PetstoreClient.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
+    end
+
+    # The public status factory every generated operation and the OpenID
+    # Connect discovery request use: the most specific error for each status,
+    # with the status, headers and body kept and a JSON body parsed.
+    test "from_response maps every status to its error" do
+      headers = %{"x-request-id" => "abc"}
+
+      for {status, module} <- [
+            {400, PetstoreClient.Errors.BadRequestError},
+            {401, PetstoreClient.Errors.UnauthorizedError},
+            {403, PetstoreClient.Errors.ForbiddenError},
+            {404, PetstoreClient.Errors.NotFoundError},
+            {409, PetstoreClient.Errors.ConflictError},
+            {422, PetstoreClient.Errors.UnprocessableEntityError},
+            {418, PetstoreClient.Errors.ClientError},
+            {500, PetstoreClient.Errors.InternalServerError},
+            {503, PetstoreClient.Errors.ServerError},
+            {302, PetstoreClient.Errors.ApiError}
+          ] do
+        err = PetstoreClient.Errors.ApiError.from_response(status, headers, ~s({"k":"v"}))
+
+        assert err.__struct__ == module
+        assert err.status_code == status
+        assert err.response_headers == headers
+        assert err.response_body == ~s({"k":"v"})
+        assert err.error_body == %{"k" => "v"}
+        assert PetstoreClient.Errors.ApiError.api_error?(err)
+        assert PetstoreClient.Errors.ClientError.client_error?(err) == status in 400..499
+        assert PetstoreClient.Errors.ServerError.server_error?(err) == status >= 500
+      end
     end
 
     test "network errors carry status 0" do
@@ -176,10 +204,16 @@ defmodule PetstoreClient.ApiErrorTest do
     end
 
     test "non-SDK exceptions are not recognised" do
-      refute PetstoreClient.OpenAPIError.open_api_error?(%RuntimeError{message: "unrelated"})
-      refute PetstoreClient.OpenAPIError.open_api_error?(%ArgumentError{message: "unrelated"})
-      refute PetstoreClient.OpenAPIError.open_api_error?(:not_an_exception)
-      refute PetstoreClient.OpenAPIError.open_api_error?(%{message: "plain map"})
+      refute PetstoreClient.Errors.OpenAPIError.open_api_error?(%RuntimeError{
+               message: "unrelated"
+             })
+
+      refute PetstoreClient.Errors.OpenAPIError.open_api_error?(%ArgumentError{
+               message: "unrelated"
+             })
+
+      refute PetstoreClient.Errors.OpenAPIError.open_api_error?(:not_an_exception)
+      refute PetstoreClient.Errors.OpenAPIError.open_api_error?(%{message: "plain map"})
     end
   end
 end

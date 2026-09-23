@@ -1,7 +1,9 @@
 defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   use ExUnit.Case, async: true
 
+  alias PetstoreClient.Auth.ApiKeyAuthenticator
   alias PetstoreClient.Auth.BasicAuthenticator
+  alias PetstoreClient.Auth.BearerAuthenticator
 
   describe "BasicAuthenticator" do
     test "valid credentials produce basic header" do
@@ -38,8 +40,6 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   # bearer-no-empty-token-guard: an empty/whitespace Bearer token must be
   # rejected at construction, not silently emit `Authorization: Bearer `.
   describe "BearerAuthenticator empty-token guard" do
-    alias PetstoreClient.Auth.BearerAuthenticator
-
     test "valid token produces bearer header" do
       auth = BearerAuthenticator.new("https://api.example.com", "abc123")
       headers = BearerAuthenticator.auth_headers(auth)
@@ -64,10 +64,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   describe "secret redaction in default inspect" do
     test "bearer token is not leaked by inspect/1" do
       auth =
-        PetstoreClient.Auth.BearerAuthenticator.new(
-          "https://api.example.com",
-          "super-secret-token"
-        )
+        BearerAuthenticator.new("https://api.example.com", "super-secret-token")
 
       refute inspect(auth) =~ "super-secret-token"
       assert inspect(auth) =~ "api.example.com"
@@ -75,11 +72,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
 
     test "basic auth password is not leaked by inspect/1" do
       auth =
-        PetstoreClient.Auth.BasicAuthenticator.new(
-          "https://api.example.com",
-          "alice",
-          "super-secret-pw"
-        )
+        BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")
 
       refute inspect(auth) =~ "super-secret-pw"
       assert inspect(auth) =~ "alice"
@@ -87,7 +80,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
 
     test "api key is not leaked by inspect/1" do
       auth =
-        PetstoreClient.Auth.ApiKeyAuthenticator.new(
+        ApiKeyAuthenticator.new(
           "https://api.example.com",
           "X-Api-Key",
           "super-secret-key",

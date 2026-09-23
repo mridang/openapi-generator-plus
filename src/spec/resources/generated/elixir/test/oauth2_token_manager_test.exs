@@ -281,7 +281,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
         end
 
       # A wrong call order is not an SDK error.
-      refute PetstoreClient.OpenAPIError.open_api_error?(err)
+      refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     end
 
     test "10 concurrent get_access_token calls hit token endpoint exactly once" do
@@ -536,7 +536,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
       # Group B fix: token endpoint 4xx responses now raise the typed
       # OAuth2ServerError (RFC 6749 §5.2), not a generic RuntimeError.
-      assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
+      assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
         PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
           manager,
           "https://auth.example.com/token",
@@ -559,7 +559,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
-      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, fn ->
+      assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
         PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
           manager,
           "https://auth.example.com/token",
@@ -610,7 +610,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
         PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
         err =
-          assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
+          assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
             PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
               manager,
               "https://auth.example.com/token",
@@ -641,11 +641,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
         )
       end
 
-      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, fn ->
+      assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
         fetch.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "<html>ok</html>"})
       end
 
-      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, fn ->
+      assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
         fetch.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "[1, 2]"})
       end
 
@@ -678,7 +678,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
       error =
-        assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
+        assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
           PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
             manager,
             "https://auth.example.com/token",
@@ -727,34 +727,6 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
       assert Enum.all?(tokens, &(&1 == "tok2"))
       assert NumberingCountingApiClient.call_count(counting_client) == 2
-    end
-
-    # Gap 3.2: the redirect-refusal error should name the offending Location
-    # header for diagnostics. The Elixir SDK refuses the redirect with an
-    # OAuth2ServerError that carries the status code and raw body only, not the
-    # Location target, so this cannot be asserted without fabricating behaviour
-    # the SDK does not implement.
-    @tag :skip
-    test "redirect-refusal error includes the Location header for diagnostics" do
-      fake_client =
-        FakeApiClient.new([
-          %PetstoreClient.ApiHttpResponse{
-            status_code: 307,
-            headers: %{"location" => "https://attacker.example/token"},
-            body: ""
-          }
-        ])
-
-      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
-      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
-
-      assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, ~r/attacker\.example/, fn ->
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-          manager,
-          "https://auth.example.com/token",
-          %{"grant_type" => "client_credentials"}
-        )
-      end
     end
   end
 end

@@ -25,10 +25,8 @@ defmodule PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator do
       client_id,
       client_secret,
       "https://auth.example.com/oauth/token",
-      "https://auth.example.com/oauth/refresh",
       username,
       password,
-      []
-    )
+      [], refresh_url: "https://auth.example.com/oauth/refresh")
   end
 end

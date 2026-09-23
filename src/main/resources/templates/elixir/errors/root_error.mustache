@@ -1,6 +1,6 @@
 {{>api_info}}
 
-defmodule {{moduleName}}.{{errorPrefix}}Error do
+defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
   @moduledoc """
   Branded grouping for every exception this SDK can raise.
 
@@ -17,7 +17,7 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
           try do
             {{moduleName}}.SomeApi.some_call(client)
           rescue
-            e in {{moduleName}}.{{errorPrefix}}Error.exceptions() ->
+            e in {{moduleName}}.Errors.{{errorPrefix}}Error.exceptions() ->
               # `e` is guaranteed to be an SDK error
               handle(e)
           end
@@ -28,22 +28,22 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
       raised by the BEAM itself):
 
           rescue
-            e -> if {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(e), do: ..., else: reraise(e, __STACKTRACE__)
+            e -> if {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(e), do: ..., else: reraise(e, __STACKTRACE__)
 
   The taxonomy mirrors the object-oriented SDKs:
 
       Any SDK error  (this grouping)
-       ├─ {{moduleName}}.ApiError  (message, status_code, response_headers,
-       │                            response_body, error_body, cause)
+       ├─ {{moduleName}}.Errors.ApiError  (message, status_code,
+       │      response_headers, response_body, error_body, cause)
        │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
        │   │       NotFound(404) Conflict(409) UnprocessableEntity(422)
        │   │       (and the {{moduleName}}.Errors.ClientError grouping)
        │   ├─ 5xx: InternalServerError(500)
        │   │       (and the {{moduleName}}.Errors.ServerError grouping)
        │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
-       ├─ {{moduleName}}.SerializationError  (every encode/decode failure)
-       ├─ {{moduleName}}.Auth.OAuth.OAuth2ServerError  (token endpoint returned 4xx/5xx)
-       └─ {{moduleName}}.Auth.OAuth.OAuth2TokenError   (token endpoint answered unusably)
+       ├─ {{moduleName}}.Errors.SerializationError  (every encode/decode failure)
+       ├─ {{moduleName}}.Errors.OAuth2ServerError  (token endpoint returned 4xx/5xx)
+       └─ {{moduleName}}.Errors.OAuth2TokenError   (token endpoint answered unusably)
 
   The list is the single source of truth: every SDK exception module
   must appear in `exceptions/0`, and both the predicate and the type
@@ -51,7 +51,7 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
   """
 
   @exceptions [
-    {{moduleName}}.ApiError,
+    {{moduleName}}.Errors.ApiError,
     {{moduleName}}.Errors.ClientError,
     {{moduleName}}.Errors.ServerError,
     {{moduleName}}.Errors.BadRequestError,
@@ -63,13 +63,13 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
     {{moduleName}}.Errors.InternalServerError,
     {{moduleName}}.Errors.NetworkError,
     {{moduleName}}.Errors.NetworkTimeoutError,
-    {{moduleName}}.SerializationError,
-    {{moduleName}}.Auth.OAuth.OAuth2ServerError,
-    {{moduleName}}.Auth.OAuth.OAuth2TokenError
+    {{moduleName}}.Errors.SerializationError,
+    {{moduleName}}.Errors.OAuth2ServerError,
+    {{moduleName}}.Errors.OAuth2TokenError
   ]
 
   @type t ::
-          {{moduleName}}.ApiError.t()
+          {{moduleName}}.Errors.ApiError.t()
           | {{moduleName}}.Errors.ClientError.t()
           | {{moduleName}}.Errors.ServerError.t()
           | {{moduleName}}.Errors.BadRequestError.t()
@@ -81,14 +81,16 @@ defmodule {{moduleName}}.{{errorPrefix}}Error do
           | {{moduleName}}.Errors.InternalServerError.t()
           | {{moduleName}}.Errors.NetworkError.t()
           | {{moduleName}}.Errors.NetworkTimeoutError.t()
-          | Exception.t()
+          | {{moduleName}}.Errors.SerializationError.t()
+          | {{moduleName}}.Errors.OAuth2ServerError.t()
+          | {{moduleName}}.Errors.OAuth2TokenError.t()
 
   @doc """
   Returns the canonical list of every exception module this SDK can
   raise. Suitable for use directly in a `rescue e in ... ->` clause
   to catch any SDK error.
   """
-  @spec exceptions() :: [module()]
+  @spec exceptions() :: [module(), ...]
   def exceptions, do: @exceptions
 
   @doc """

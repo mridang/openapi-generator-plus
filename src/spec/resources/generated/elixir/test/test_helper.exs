@@ -74,6 +74,7 @@ System.put_env("CA_CERT_PATH", Path.join([File.cwd!(), "test", "fixtures", "cert
 squid_config =
   Testcontainers.Container.new("ubuntu/squid:5.2-22.04_beta")
   |> Testcontainers.Container.with_exposed_port(3128)
+  |> Testcontainers.Container.with_exposed_port(3129)
   |> Testcontainers.Container.with_bind_mount(squid_conf_path, "/etc/squid/squid.conf")
   |> Testcontainers.Container.with_network(network_name)
 
@@ -84,6 +85,10 @@ Process.sleep(3000)
 squid_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
 squid_port = Testcontainers.Container.mapped_port(squid, 3128)
 System.put_env("PROXY_URL", "http://#{squid_host}:#{squid_port}")
+# 3129 is the same proxy but answers 407 unless the request carries
+# Proxy-Authorization credentials.
+squid_auth_port = Testcontainers.Container.mapped_port(squid, 3129)
+System.put_env("PROXY_AUTH_URL", "http://#{squid_host}:#{squid_auth_port}")
 
 # Ryuk (the testcontainers reaper) is disabled above, so nothing tears the
 # chasm/squid containers or the shared network down when the suite ends.

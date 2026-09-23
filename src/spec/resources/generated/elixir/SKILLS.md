@@ -180,18 +180,26 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```elixir
-case PetstoreClient.Api.PetApi.add_pet(client.pet) do
+case PetstoreClient.Api.PetApi.add_pet(client.pet, pet) do
   {:ok, result} ->
     IO.inspect(result)
 
   {:error, %PetstoreClient.Errors.NotFoundError{} = e} ->
     IO.puts("Not found: #{e.message}")
 
-  {:error, %PetstoreClient.Errors.ClientError{} = e} ->
-    IO.puts("Client error #{e.status_code}: #{e.message}")
+  # Elixir has no inheritance: each error in the hierarchy above has a
+  # predicate that is true for it and for every error below it.
+  {:error, e} ->
+    cond do
+      PetstoreClient.Errors.ClientError.client_error?(e) ->
+        IO.puts("Client error #{e.status_code}: #{e.message}")
 
-  {:error, %PetstoreClient.Errors.ServerError{} = e} ->
-    IO.puts("Server error: #{e.message}")
+      PetstoreClient.Errors.ServerError.server_error?(e) ->
+        IO.puts("Server error: #{e.message}")
+
+      true ->
+        IO.puts("Error: #{Exception.message(e)}")
+    end
 end
 ```
 

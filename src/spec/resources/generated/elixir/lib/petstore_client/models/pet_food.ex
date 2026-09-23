@@ -8,8 +8,11 @@
 defmodule PetstoreClient.Models.PetFood do
   @moduledoc "Food for pets, discriminated by foodType"
 
+  @typedoc "A value of any of the oneOf variants."
+  @type t :: term()
+
   @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [atom()]
+  @spec openapi_one_of() :: [:DryFood | :WetFood, ...]
   def openapi_one_of do
     [
       :DryFood,
@@ -29,7 +32,7 @@ defmodule PetstoreClient.Models.PetFood do
   end
 
   @doc "Build the appropriate type from data."
-  @spec build(term()) :: term()
+  @spec build(map() | list() | nil) :: term()
   def build(data) do
     discriminator_value = data[to_string(openapi_discriminator_name())]
     # Raise on missing/unknown discriminator instead of silently
@@ -37,7 +40,7 @@ defmodule PetstoreClient.Models.PetFood do
     # which throw on union no-match (5 of 12 SDKs already strict;
     # we promote Elixir to the same behaviour here).
     if is_nil(discriminator_value) do
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message: "Missing discriminator '#{openapi_discriminator_name()}' for PetFood"
     end
 
@@ -48,7 +51,7 @@ defmodule PetstoreClient.Models.PetFood do
     klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
 
     if is_nil(klass_name) do
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message: "Unknown discriminator value for PetFood: '#{discriminator_value}'"
     end
 
@@ -57,7 +60,7 @@ defmodule PetstoreClient.Models.PetFood do
     # schema outside the union is malformed; refuse to deserialize
     # instead of silently building an off-union type.
     unless klass_name in openapi_one_of() do
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message:
           "Discriminator '#{discriminator_value}' for PetFood resolves to " <>
             "'#{klass_name}', which is not listed in oneOf"

@@ -52,6 +52,24 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
   end
 
   describe "OAuth2PasswordAuthenticator" do
+    # The authenticator generated for the spec's password scheme passes its
+    # token and refresh URLs to the flow in the right places.
+    test "scheme authenticator keeps the credentials and the declared URLs" do
+      auth =
+        PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "alice",
+          "s3cret"
+        )
+
+      assert auth.username == "alice"
+      assert auth.password == "s3cret"
+      assert auth.token_url == "https://auth.example.com/oauth/token"
+      assert auth.refresh_url == "https://auth.example.com/oauth/refresh"
+    end
+
     test "sends password grant type" do
       fake_client =
         FakeApiClient.new([

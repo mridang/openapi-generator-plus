@@ -185,7 +185,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         end
 
       # A wrong call order is not an SDK error.
-      refute PetstoreClient.OpenAPIError.open_api_error?(err)
+      refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     end
 
     # OIDC discovery is an HTTP call like any other: a 404 is a NotFoundError,
@@ -221,7 +221,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         discover.(PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out"))
       end
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         discover.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "{not json"})
       end
     end
@@ -269,7 +269,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
       # An incomplete discovery document is a SerializationError.
-      assert_raise PetstoreClient.SerializationError, ~r/authorization_endpoint/, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, ~r/authorization_endpoint/, fn ->
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       end
     end
@@ -289,7 +289,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth =
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
-      assert_raise PetstoreClient.SerializationError, ~r/token_endpoint/, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, ~r/token_endpoint/, fn ->
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       end
     end
@@ -309,13 +309,6 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     # The discovery document must be cached: a second build should reuse it
     # rather than issue a second GET to the discovery endpoint.
-    #
-    # Feature gap: build_authorization_url/2 caches the resolved delegate on a
-    # NEW struct that it discards (it returns the URL string, not the updated
-    # state), and the struct is immutable, so the cache is not observable
-    # across two calls on the same value — discovery is re-fetched. Tagged
-    # :skip so the scenario count matches the other SDKs.
-    @tag :skip
     test "fetches discovery document only once" do
       fake_client =
         FakeApiClient.new([

@@ -2,6 +2,20 @@
 defmodule {{moduleName}}.TraceContextUtilTest do
   use ExUnit.Case, async: true
 
+  require OpenTelemetry.Tracer, as: Tracer
+
+  defp traceparent(span_ctx, flags) do
+    "00-#{:otel_span.hex_trace_id(span_ctx)}-#{:otel_span.hex_span_id(span_ctx)}-#{flags}"
+  end
+
+  # A remote parent span arriving with the given flags and tracestate.
+  defp remote_parent(flags, tracestate) do
+    :otel_propagator_text_map.extract([
+      {"traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-#{flags}"},
+      {"tracestate", tracestate}
+    ])
+  end
+
   describe "inject_trace_context/1" do
     test "is a no-op without tracer" do
       headers = %{}
@@ -57,29 +71,60 @@ defmodule {{moduleName}}.TraceContextUtilTest do
       assert result["Content-Type"] == "application/json"
       assert result["X-Request-ID"] == "abc-123"
     end
+  end
 
-    # .NET-specific scenario: Elixir has no ambient tracer like .NET Activity.Current;
-    # active-span injection requires a fully configured OpenTelemetry SDK.
-    @tag :skip
+  describe "inject_trace_context/1 with an active OpenTelemetry span" do
+    # The OpenTelemetry SDK runs with a simple processor whose exporter sends
+    # every finished span to this test process: an in-memory exporter.
+    setup do
+      Application.load(:opentelemetry)
+      Application.put_env(:opentelemetry, :traces_exporter, :none)
+      Application.put_env(:opentelemetry, :processors, [{:otel_simple_processor, %{}}])
+      {:ok, _} = Application.ensure_all_started(:opentelemetry)
+      :otel_simple_processor.set_exporter(:otel_exporter_pid, self())
+      :ok
+    end
+
     test "injects traceparent when a span is active" do
+      Tracer.with_span "request" do
+        headers = {{moduleName}}.TraceContextUtil.inject_trace_context(%{})
+        assert headers["traceparent"] == traceparent(Tracer.current_span_ctx(), "01")
+      end
+
+      assert_receive {:span, _span}
     end
 
-    # .NET-specific scenario: setting tracestate on an active span requires a
-    # fully configured OpenTelemetry SDK, which is out of scope for this unit test.
-    @tag :skip
     test "includes tracestate when present on the active span" do
+      remote_parent("01", "vendor=value")
+
+      Tracer.with_span "request" do
+        headers = {{moduleName}}.TraceContextUtil.inject_trace_context(%{})
+        assert headers["tracestate"] == "vendor=value"
+      end
     end
 
-    # .NET-specific scenario: exercising an empty tracestate on an active span
-    # requires a fully configured OpenTelemetry SDK, which is out of scope here.
-    @tag :skip
     test "omits tracestate when empty on the active span" do
+      Tracer.with_span "request" do
+        headers = {{moduleName}}.TraceContextUtil.inject_trace_context(%{})
+        assert Map.has_key?(headers, "traceparent")
+        refute Map.has_key?(headers, "tracestate")
+      end
     end
 
-    # .NET-specific scenario: verifying the recorded trace-flags byte requires a
-    # fully configured OpenTelemetry SDK with an active span.
-    @tag :skip
     test "formats trace flags correctly on the active span" do
+      Tracer.with_span "sampled" do
+        headers = {{moduleName}}.TraceContextUtil.inject_trace_context(%{})
+        assert headers["traceparent"] == traceparent(Tracer.current_span_ctx(), "01")
+      end
+
+      # The default sampler follows the parent, so a child of an unsampled
+      # remote parent is not sampled either.
+      remote_parent("00", "")
+
+      Tracer.with_span "unsampled" do
+        headers = {{moduleName}}.TraceContextUtil.inject_trace_context(%{})
+        assert headers["traceparent"] == traceparent(Tracer.current_span_ctx(), "00")
+      end
     end
   end
 end

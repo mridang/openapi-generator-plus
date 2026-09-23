@@ -7,6 +7,8 @@ defmodule {{moduleName}}.Errors.NetworkError do
   and the transport exception is kept as `cause`.
   """
 
+  alias {{moduleName}}.Errors.ApiError
+
   defexception [:message, :status_code, :response_headers, :response_body, :error_body, :cause]
 
   @type t :: %__MODULE__{
@@ -35,7 +37,7 @@ defmodule {{moduleName}}.Errors.NetworkError do
   def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, status_code: 0}
 
   @impl true
-  def message(%__MODULE__{} = error), do: {{moduleName}}.ApiError.message(struct({{moduleName}}.ApiError, Map.from_struct(error)))
+  def message(%__MODULE__{} = error), do: ApiError.message(struct(ApiError, Map.from_struct(error)))
 
   @family [
     {{moduleName}}.Errors.NetworkError,

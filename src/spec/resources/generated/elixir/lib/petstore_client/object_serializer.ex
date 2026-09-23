@@ -11,13 +11,6 @@
 # uses Credo's default config and handles them with this file-level
 # directive rather than relaxing the ruleset.
 
-defmodule PetstoreClient.SerializationError do
-  @moduledoc """
-  Exception raised when serialization or deserialization fails.
-  """
-  defexception [:message, :cause]
-end
-
 defmodule PetstoreClient.AnyOfComposite do
   @moduledoc """
   Container holding EVERY `anyOf` variant a payload satisfied at once.
@@ -120,7 +113,7 @@ defmodule PetstoreClient.ObjectSerializer do
   the `@max_json_depth` nesting cap (DoS guard for malicious deeply-
   nested payloads — F5 follow-up, parity with Go/Java/Python).
   """
-  @spec parse_json(binary()) :: {:ok, term()} | {:error, term()}
+  @spec parse_json(binary()) :: {:ok, term()} | {:error, String.t() | Jason.DecodeError.t()}
   def parse_json(data) when is_binary(data) do
     depth = json_max_depth(data)
 
@@ -143,7 +136,7 @@ defmodule PetstoreClient.ObjectSerializer do
         json
 
       {:error, reason} ->
-        raise PetstoreClient.SerializationError,
+        raise PetstoreClient.Errors.SerializationError,
           message: "Failed to serialize: #{inspect(reason)}"
     end
   end
@@ -177,7 +170,7 @@ defmodule PetstoreClient.ObjectSerializer do
         convert_to_type(data, target_type)
 
       {:error, reason} ->
-        raise PetstoreClient.SerializationError,
+        raise PetstoreClient.Errors.SerializationError,
           message: "Failed to parse JSON: #{inspect(reason)}"
     end
   end
@@ -442,14 +435,19 @@ defmodule PetstoreClient.ObjectSerializer do
     do: data
 
   def convert_to_type(data, type) when type in ["String", "String.t()"],
-    do: raise(PetstoreClient.SerializationError, message: "Expected String, got #{inspect(data)}")
+    do:
+      raise(PetstoreClient.Errors.SerializationError,
+        message: "Expected String, got #{inspect(data)}"
+      )
 
   def convert_to_type(data, type) when type in ["Integer", "integer()"] and is_integer(data),
     do: data
 
   def convert_to_type(data, type) when type in ["Integer", "integer()"],
     do:
-      raise(PetstoreClient.SerializationError, message: "Expected Integer, got #{inspect(data)}")
+      raise(PetstoreClient.Errors.SerializationError,
+        message: "Expected Integer, got #{inspect(data)}"
+      )
 
   def convert_to_type(data, type) when type in ["Float", "float()"] and is_float(data), do: data
 
@@ -458,7 +456,7 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def convert_to_type(data, type) when type in ["Float", "float()"],
     do:
-      raise(PetstoreClient.SerializationError,
+      raise(PetstoreClient.Errors.SerializationError,
         message: "Expected Float/Integer, got #{inspect(data)}"
       )
 
@@ -467,7 +465,9 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def convert_to_type(data, type) when type in ["Boolean", "boolean()"],
     do:
-      raise(PetstoreClient.SerializationError, message: "Expected Boolean, got #{inspect(data)}")
+      raise(PetstoreClient.Errors.SerializationError,
+        message: "Expected Boolean, got #{inspect(data)}"
+      )
 
   def convert_to_type(data, "Object"), do: data
 
@@ -480,14 +480,14 @@ defmodule PetstoreClient.ObjectSerializer do
         bytes
 
       :error ->
-        raise PetstoreClient.SerializationError,
+        raise PetstoreClient.Errors.SerializationError,
           message: "Invalid base64 payload for ByteArray field: #{inspect(data)}"
     end
   end
 
   def convert_to_type(data, "ByteArray"),
     do:
-      raise(PetstoreClient.SerializationError,
+      raise(PetstoreClient.Errors.SerializationError,
         message: "Expected base64 String for ByteArray, got #{inspect(data)}"
       )
 
@@ -504,14 +504,14 @@ defmodule PetstoreClient.ObjectSerializer do
         bytes
 
       :error ->
-        raise PetstoreClient.SerializationError,
+        raise PetstoreClient.Errors.SerializationError,
           message: "Invalid base64 payload for binary() field: #{inspect(data)}"
     end
   end
 
   def convert_to_type(data, "binary()"),
     do:
-      raise(PetstoreClient.SerializationError,
+      raise(PetstoreClient.Errors.SerializationError,
         message: "Expected base64 String for binary(), got #{inspect(data)}"
       )
 
@@ -525,14 +525,14 @@ defmodule PetstoreClient.ObjectSerializer do
     if Regex.match?(@uuid_regex, data) do
       data
     else
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message: "Invalid UUID: #{inspect(data)}"
     end
   end
 
   def convert_to_type(data, "UUID"),
     do:
-      raise(PetstoreClient.SerializationError,
+      raise(PetstoreClient.Errors.SerializationError,
         message: "Expected UUID String, got #{inspect(data)}"
       )
 
@@ -627,7 +627,7 @@ defmodule PetstoreClient.ObjectSerializer do
   # element into a list.
   def convert_to_type(data, "[" <> _rest),
     do:
-      raise(PetstoreClient.SerializationError,
+      raise(PetstoreClient.Errors.SerializationError,
         message: "Expected a list for array type, got #{inspect(data)}"
       )
 
@@ -657,14 +657,9 @@ defmodule PetstoreClient.ObjectSerializer do
     if str in allowed do
       String.to_atom(str)
     else
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message: "Unknown enum value #{inspect(str)}; allowed values: #{inspect(allowed)}"
     end
-  end
-
-  defp raise_unparseable(data, format) do
-    raise PetstoreClient.SerializationError,
-      message: "Invalid #{format}: #{inspect(data)}"
   end
 
   def convert_to_type(data, return_type) do
@@ -686,6 +681,12 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
+  @spec raise_unparseable(term(), String.t()) :: no_return()
+  defp raise_unparseable(data, format) do
+    raise PetstoreClient.Errors.SerializationError,
+      message: "Invalid #{format}: #{inspect(data)}"
+  end
+
   defp atomize_enum(_module, data) when is_atom(data), do: data
 
   defp atomize_enum(module, data) do
@@ -699,7 +700,7 @@ defmodule PetstoreClient.ObjectSerializer do
     # exhaustion) and raises only on genuine spec drift, matching the other SDKs.
     case module.from_value(data) do
       {:error, _} ->
-        raise PetstoreClient.SerializationError,
+        raise PetstoreClient.Errors.SerializationError,
               "Unknown enum value #{inspect(data)} for #{inspect(module)}; " <>
                 "allowed values: #{inspect(module.all_values())}"
 
@@ -760,7 +761,7 @@ defmodule PetstoreClient.ObjectSerializer do
     if is_nil(resolved) do
       # A payload satisfying none of the declared variants is a contract
       # violation and must fail loudly rather than be silently dropped to nil.
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message: "No oneOf/anyOf variant matched the JSON"
     else
       resolved
@@ -792,7 +793,7 @@ defmodule PetstoreClient.ObjectSerializer do
       :no_match ->
         # A payload satisfying none of the declared variants is a contract
         # violation and must fail loudly rather than be silently dropped.
-        raise PetstoreClient.SerializationError,
+        raise PetstoreClient.Errors.SerializationError,
           message: "No oneOf/anyOf variant matched the JSON"
     end
   end
@@ -863,7 +864,7 @@ defmodule PetstoreClient.ObjectSerializer do
     result = convert_to_type(data, type_str)
 
     if is_nil(result) do
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message: "#{inspect(data)} doesn't match the #{type_str} type"
     else
       result
@@ -893,7 +894,7 @@ defmodule PetstoreClient.ObjectSerializer do
 
       Enum.each(Map.keys(data), fn key ->
         unless MapSet.member?(declared, key) do
-          raise PetstoreClient.SerializationError,
+          raise PetstoreClient.Errors.SerializationError,
             message:
               "Unknown property '#{key}' on #{inspect(module)} (unevaluatedProperties:false)"
         end
@@ -924,6 +925,8 @@ defmodule PetstoreClient.ObjectSerializer do
 
     struct(module, transformed)
   end
+
+  defp deserialize_model(_data, _module), do: nil
 
   # 2.19 additionalProperties round-trip: when the model declares
   # `additional_properties/0 == true`, undeclared wire keys are not discarded
@@ -962,8 +965,6 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  defp deserialize_model(_data, _module), do: nil
-
   # Raises SerializationError if any required, non-nullable property declared
   # by `module.required_fields/0` is missing from, or explicitly null in, the
   # already-stringified wire map. See the call site in `deserialize_model/2`.
@@ -972,11 +973,11 @@ defmodule PetstoreClient.ObjectSerializer do
       Enum.each(module.required_fields(), fn json_key ->
         cond do
           not Map.has_key?(data, json_key) ->
-            raise PetstoreClient.SerializationError,
+            raise PetstoreClient.Errors.SerializationError,
               message: "Missing required field '#{json_key}' for #{inspect(module)}"
 
           is_nil(Map.get(data, json_key)) ->
-            raise PetstoreClient.SerializationError,
+            raise PetstoreClient.Errors.SerializationError,
               message: "Required field '#{json_key}' for #{inspect(module)} must not be null"
 
           true ->
@@ -1092,7 +1093,7 @@ defmodule PetstoreClient.ObjectSerializer do
     # fallback introspects this module with `function_exported?/3` to pick the
     # oneOf/anyOf/struct/enum branch, so it must be loaded first or every
     # composed/struct type silently falls through to the raw-map branch.
-    Code.ensure_loaded(module)
+    _ = Code.ensure_loaded(module)
     module
   end
 end

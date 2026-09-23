@@ -15,7 +15,10 @@ public class SwiftClientSpec extends AbstractClientSpec implements SwiftSpec {
     @Override
     protected String[] getBuildCommands() {
         return new String[] {
-            "mkdir -p .out/reports",
+            /* The report printed after this run is read from the host's golden
+             * directory; clear the previous run's there, so a run that fails
+             * before writing one does not print stale results. */
+            "rm -rf /app/.out/reports && mkdir -p .out/reports",
             "swift test --parallel --enable-code-coverage --enable-swift-testing --disable-xctest --xunit-output .out/reports/junit.xml"
         };
     }

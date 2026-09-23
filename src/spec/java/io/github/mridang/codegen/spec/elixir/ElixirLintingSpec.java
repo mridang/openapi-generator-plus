@@ -14,7 +14,13 @@ public class ElixirLintingSpec extends AbstractIntegrationSpec implements Elixir
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"mix compile"};
+        /* The generated Makefile's build, lint and dialyzer targets: compile
+         * with warnings as errors, Credo in strict mode over lib/ and test/
+         * (the generated .credo.exs), and Dialyzer with the flags mix.exs
+         * sets. */
+        return new String[] {
+            "mix compile --warnings-as-errors --force", "mix credo --strict", "mix dialyzer"
+        };
     }
 
     @Test

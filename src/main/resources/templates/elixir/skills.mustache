@@ -199,18 +199,26 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```elixir
-case {{moduleName}}.Api.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}(client.{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}) do
+case {{moduleName}}.Api.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}(client.{{clientPropertyName}}{{#operation}}{{#-first}}{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}, {{paramName}}{{/isPath}}{{#isBody}}, {{paramName}}{{/isBody}}{{#isOptions}}{{#vendorExtensions.op.optionsParamRequired}}, options{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}) do
   {:ok, result} ->
     IO.inspect(result)
 
   {:error, %{{moduleName}}.Errors.NotFoundError{} = e} ->
     IO.puts("Not found: #{e.message}")
 
-  {:error, %{{moduleName}}.Errors.ClientError{} = e} ->
-    IO.puts("Client error #{e.status_code}: #{e.message}")
+  # Elixir has no inheritance: each error in the hierarchy above has a
+  # predicate that is true for it and for every error below it.
+  {:error, e} ->
+    cond do
+      {{moduleName}}.Errors.ClientError.client_error?(e) ->
+        IO.puts("Client error #{e.status_code}: #{e.message}")
 
-  {:error, %{{moduleName}}.Errors.ServerError{} = e} ->
-    IO.puts("Server error: #{e.message}")
+      {{moduleName}}.Errors.ServerError.server_error?(e) ->
+        IO.puts("Server error: #{e.message}")
+
+      true ->
+        IO.puts("Error: #{Exception.message(e)}")
+    end
 end
 ```
 

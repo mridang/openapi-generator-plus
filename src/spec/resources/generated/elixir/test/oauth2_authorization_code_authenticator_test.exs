@@ -41,6 +41,23 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
   end
 
   describe "OAuth2AuthorizationCodeAuthenticator" do
+    # The authenticator generated for the spec's authorization code scheme
+    # passes its endpoints to the flow in the right places.
+    test "scheme authenticator keeps the declared URLs" do
+      auth =
+        PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "https://app.example.com/callback"
+        )
+
+      assert auth.authorization_url == "https://auth.example.com/authorize"
+      assert auth.token_url == "https://auth.example.com/oauth/token"
+      assert auth.refresh_url == "https://auth.example.com/oauth/refresh"
+      assert auth.redirect_uri == "https://app.example.com/callback"
+    end
+
     test "builds authorization URL with required params" do
       auth = create_authenticator()
 

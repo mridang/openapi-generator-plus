@@ -455,7 +455,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     client = {{moduleName}}.DefaultApiClient.new()
 
     err =
-      assert_raise {{moduleName}}.ApiError, fn ->
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
         {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
       end
 
@@ -475,7 +475,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
           {{moduleName}}.DefaultApiClient.send_request(client, :get, url, %{}, nil)
         end
 
-      refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
     end
   end
 
@@ -491,7 +491,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
         {{moduleName}}.DefaultApiClient.new(transport)
       end
 
-    refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+    refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
   end
 
   # network-error: a request that gets no HTTP response (connection refused)
@@ -518,8 +518,8 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
     assert err.status_code == 0
     assert %Req.TransportError{} = err.cause
-    assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
-    assert {{moduleName}}.ApiError.api_error?(err)
+    assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+    assert {{moduleName}}.Errors.ApiError.api_error?(err)
     assert System.monotonic_time(:millisecond) - started < 2_000, "the request must not be retried"
   end
 
@@ -551,10 +551,10 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       end
 
     assert err.status_code == 0
-    assert {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+    assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
     # A NetworkTimeoutError is a NetworkError, which is an ApiError.
     assert {{moduleName}}.Errors.NetworkError.network_error?(err)
-    assert {{moduleName}}.ApiError.api_error?(err)
+    assert {{moduleName}}.Errors.ApiError.api_error?(err)
   end
 
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do
@@ -653,7 +653,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     client = {{moduleName}}.DefaultApiClient.new(transport)
 
     err =
-      assert_raise {{moduleName}}.ApiError, fn ->
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
         {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/loop", %{}, nil)
       end
 
@@ -681,7 +681,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     client = {{moduleName}}.DefaultApiClient.new()
 
     err =
-      assert_raise {{moduleName}}.ApiError, fn ->
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
         {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
       end
 
@@ -705,7 +705,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     client = {{moduleName}}.DefaultApiClient.new()
 
     err =
-      assert_raise {{moduleName}}.ApiError, fn ->
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
         {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
       end
 

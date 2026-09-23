@@ -538,7 +538,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     client = PetstoreClient.DefaultApiClient.new()
 
     err =
-      assert_raise PetstoreClient.ApiError, fn ->
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
         PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
       end
 
@@ -558,7 +558,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
           PetstoreClient.DefaultApiClient.send_request(client, :get, url, %{}, nil)
         end
 
-      refute PetstoreClient.OpenAPIError.open_api_error?(err)
+      refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     end
   end
 
@@ -574,7 +574,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
         PetstoreClient.DefaultApiClient.new(transport)
       end
 
-    refute PetstoreClient.OpenAPIError.open_api_error?(err)
+    refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
   end
 
   # network-error: a request that gets no HTTP response (connection refused)
@@ -601,8 +601,8 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     assert err.status_code == 0
     assert %Req.TransportError{} = err.cause
-    assert PetstoreClient.OpenAPIError.open_api_error?(err)
-    assert PetstoreClient.ApiError.api_error?(err)
+    assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
+    assert PetstoreClient.Errors.ApiError.api_error?(err)
 
     assert System.monotonic_time(:millisecond) - started < 2_000,
            "the request must not be retried"
@@ -636,10 +636,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       end
 
     assert err.status_code == 0
-    assert PetstoreClient.OpenAPIError.open_api_error?(err)
+    assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     # A NetworkTimeoutError is a NetworkError, which is an ApiError.
     assert PetstoreClient.Errors.NetworkError.network_error?(err)
-    assert PetstoreClient.ApiError.api_error?(err)
+    assert PetstoreClient.Errors.ApiError.api_error?(err)
   end
 
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do
@@ -753,7 +753,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     client = PetstoreClient.DefaultApiClient.new(transport)
 
     err =
-      assert_raise PetstoreClient.ApiError, fn ->
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
         PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/loop", %{}, nil)
       end
 
@@ -781,7 +781,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     client = PetstoreClient.DefaultApiClient.new()
 
     err =
-      assert_raise PetstoreClient.ApiError, fn ->
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
         PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
       end
 
@@ -805,7 +805,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     client = PetstoreClient.DefaultApiClient.new()
 
     err =
-      assert_raise PetstoreClient.ApiError, fn ->
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
         PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
       end
 

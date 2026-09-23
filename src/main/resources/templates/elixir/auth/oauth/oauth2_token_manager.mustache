@@ -225,14 +225,14 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
           map
 
         _ ->
-          raise {{moduleName}}.Auth.OAuth.OAuth2TokenError,
+          raise {{moduleName}}.Errors.OAuth2TokenError,
                 message: "Token response is not a valid token JSON object"
       end
 
     access_token = parsed["access_token"]
 
     unless is_binary(access_token) and access_token != "" do
-      raise {{moduleName}}.Auth.OAuth.OAuth2TokenError,
+      raise {{moduleName}}.Errors.OAuth2TokenError,
             message: "Token response missing or empty access_token field"
     end
 
@@ -285,7 +285,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
         description = if is_binary(parsed["error_description"]), do: parsed["error_description"], else: nil
         uri = if is_binary(parsed["error_uri"]), do: parsed["error_uri"], else: nil
 
-        {{moduleName}}.Auth.OAuth.OAuth2ServerError.exception(
+        {{moduleName}}.Errors.OAuth2ServerError.exception(
           status_code: status_code,
           code: code,
           description: description,
@@ -294,7 +294,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
         )
 
       _ ->
-        {{moduleName}}.Auth.OAuth.OAuth2ServerError.exception(
+        {{moduleName}}.Errors.OAuth2ServerError.exception(
           status_code: status_code,
           code: nil,
           description: nil,
@@ -334,59 +334,4 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   end
 
   defp parse_expires_in(_), do: 0
-end
-
-defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenError do
-  @moduledoc """
-  Raised when the OAuth2 token endpoint returns a 2xx response the SDK cannot
-  use: a body that is not a JSON object, or one that is missing or has an
-  empty `access_token` field. Distinct from
-  `{{moduleName}}.Auth.OAuth.OAuth2ServerError` (which represents any non-2xx
-  answer) so callers can `rescue` them separately.
-  """
-
-  defexception [:message]
-end
-
-defmodule {{moduleName}}.Auth.OAuth.OAuth2ServerError do
-  @moduledoc """
-  Raised when the OAuth2 token endpoint answers with any non-2xx status,
-  including a refused 3xx redirect. Typed representation of an RFC 6749 §5.2
-  OAuth2 error response.
-
-  Fields:
-
-    * `:status_code` -- HTTP status code returned by the token endpoint.
-    * `:code` -- the OAuth2 error code (e.g. `"invalid_grant"`).
-    * `:description` -- optional human-readable description.
-    * `:uri` -- optional URI to a page describing the error.
-    * `:raw_body` -- the original response payload (for diagnostics).
-  """
-
-  defexception [:status_code, :code, :description, :uri, :raw_body, :message]
-
-  @impl true
-  def exception(opts) do
-    status_code = Keyword.fetch!(opts, :status_code)
-    code = Keyword.get(opts, :code)
-    description = Keyword.get(opts, :description)
-    uri = Keyword.get(opts, :uri)
-    raw_body = Keyword.get(opts, :raw_body, "")
-
-    message =
-      cond do
-        is_nil(code) -> "Token request failed with status #{status_code}: #{raw_body}"
-        is_binary(description) -> "Token request failed with status #{status_code}: #{code} -- #{description}"
-        true -> "Token request failed with status #{status_code}: #{code}"
-      end
-
-    %__MODULE__{
-      status_code: status_code,
-      code: code,
-      description: description,
-      uri: uri,
-      raw_body: raw_body,
-      message: message
-    }
-  end
 end

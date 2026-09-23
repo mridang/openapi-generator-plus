@@ -27,7 +27,13 @@ interface ElixirSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default List<String> getSetupCommands() {
-    return List.of("mix local.hex --force && mix local.rebar --force", "mix deps.get");
+    /* The snapshot every spec restores is taken from the host's golden
+     * directory, which still holds the previous run's JUnit report; drop it so
+     * no later spec copies it back. */
+    return List.of(
+        "rm -rf .out/reports",
+        "mix local.hex --force && mix local.rebar --force",
+        "mix deps.get");
   }
 
   @Override

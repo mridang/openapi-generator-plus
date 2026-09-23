@@ -53,7 +53,6 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["method"] == "GET"
   end
 
-  @tag :skip
   test "makes HTTP request through proxy" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
@@ -103,7 +102,6 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert PetstoreClient.DefaultApiClient.proxy_auth_header(client) == "Basic dXNlcjpwYXNz"
   end
 
-  @tag :skip
   test "makes HTTPS request through proxy with verify_ssl=false" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTPS_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
@@ -529,7 +527,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
            nil
          )}
       rescue
-        e in PetstoreClient.ApiError -> {:error, e}
+        e in PetstoreClient.Errors.ApiError -> {:error, e}
       end
     end
 
@@ -567,7 +565,9 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     # Every refusing request — and ONLY those — got its own "too many
     # redirects" error. The refusal did not leak onto A or B above.
     Enum.each(refuse_results, fn result ->
-      assert {:error, %PetstoreClient.ApiError{message: message, status_code: status}} = result
+      assert {:error, %PetstoreClient.Errors.ApiError{message: message, status_code: status}} =
+               result
+
       assert message =~ "too many redirects"
       # A refused redirect is a response that arrived but cannot be used: it
       # carries the redirect's real status, never 0.
@@ -631,58 +631,59 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   end
 
   test "decompresses gzip response" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
     response =
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :get,
-        "https://jsonplaceholder.typicode.com/posts/1",
+        "#{chasm_url}/test/compressed/gzip",
         %{"Accept-Encoding" => "gzip"},
         nil
       )
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "userId")
+    assert String.contains?(response.body, "compressed fixture body")
   end
 
-  @tag :skip
-  # :brotli is declared only: [:dev, :prod], so it is not loaded in the
-  # :test env (keeps the Alpine test image toolchain-free, since brotli is
-  # a NIF that would otherwise compile from source). Req cannot decompress
-  # br without it; consumers opt in by adding :brotli to their own deps.
+  # :brotli is an optional NIF declared only: :prod, so it is not loaded in
+  # the :test env (keeps the Alpine test image toolchain-free, since brotli
+  # compiles from C source). Without it the SDK neither advertises nor
+  # decodes br; consumers opt in by adding :brotli to their own deps.
+  @tag skip: "the optional :brotli NIF is not loaded in the test environment"
   test "decompresses brotli response" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
     response =
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :get,
-        "https://jsonplaceholder.typicode.com/posts/1",
+        "#{chasm_url}/test/compressed/br",
         %{"Accept-Encoding" => "br"},
         nil
       )
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "userId")
+    assert String.contains?(response.body, "compressed fixture body")
   end
 
-  @tag :skip
   test "decompresses zstd response" do
-    # zstd is not supported by the Req HTTP library or Erlang's built-in HTTP client
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
     response =
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :get,
-        "https://jsonplaceholder.typicode.com/posts/1",
+        "#{chasm_url}/test/compressed/zstd",
         %{"Accept-Encoding" => "zstd"},
         nil
       )
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "userId")
+    assert String.contains?(response.body, "compressed fixture body")
   end
 
   # Gap T6 / close-lifecycle: close/1 is idempotent and returns :ok, and
@@ -710,7 +711,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
         )
       end
 
-    refute PetstoreClient.OpenAPIError.open_api_error?(err)
+    refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
   end
 
   # Gap F-W5-2: Req/Finch's `:receive_timeout` is per-chunk inactivity

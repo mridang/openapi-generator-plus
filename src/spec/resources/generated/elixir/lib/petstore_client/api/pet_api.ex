@@ -183,10 +183,10 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet(
           t(),
           PetstoreClient.Models.Pet.t(),
-          PetstoreClient.Api.Options.AddPetOptions.t(),
+          PetstoreClient.Api.Options.AddPetOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def add_pet(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
     case add_pet_with_http_info(api, pet, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -195,7 +195,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for add_pet but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -226,10 +226,10 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet_with_http_info(
           t(),
           PetstoreClient.Models.Pet.t(),
-          PetstoreClient.Api.Options.AddPetOptions.t(),
+          PetstoreClient.Api.Options.AddPetOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def add_pet_with_http_info(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
     # Per-operation auth is sourced solely from the Options struct's optional
     # `auth` field (the uniform "auth folded into Options" model shared by every
@@ -300,7 +300,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.AddPetPhotosOptions.t(),
           keyword()
         ) ::
-          {:ok, [PetstoreClient.Models.Photo.t()]} | {:error, term()}
+          {:ok, [PetstoreClient.Models.Photo.t()]} | {:error, Exception.t()}
   def add_pet_photos(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case add_pet_photos_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -309,7 +309,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for add_pet_photos but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -343,7 +343,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.AddPetPhotosOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def add_pet_photos_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -439,10 +439,10 @@ defmodule PetstoreClient.Api.PetApi do
           t(),
           integer(),
           PetstoreClient.Models.PetTreatment.t(),
-          PetstoreClient.Api.Options.AddPetTreatmentOptions.t(),
+          PetstoreClient.Api.Options.AddPetTreatmentOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.Models.PetTreatment.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.PetTreatment.t()} | {:error, Exception.t()}
   def add_pet_treatment(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
     case add_pet_treatment_with_http_info(api, pet_id, pet_treatment, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -451,7 +451,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for add_pet_treatment but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -483,10 +483,10 @@ defmodule PetstoreClient.Api.PetApi do
           t(),
           integer(),
           PetstoreClient.Models.PetTreatment.t(),
-          PetstoreClient.Api.Options.AddPetTreatmentOptions.t(),
+          PetstoreClient.Api.Options.AddPetTreatmentOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def add_pet_treatment_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -577,8 +577,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec delete_pet(t(), integer(), PetstoreClient.Api.Options.DeletePetOptions.t(), keyword()) ::
-          {:ok, nil} | {:error, term()}
+  @spec delete_pet(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.DeletePetOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, nil} | {:error, Exception.t()}
   def delete_pet(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case delete_pet_with_http_info(api, pet_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
@@ -602,10 +607,10 @@ defmodule PetstoreClient.Api.PetApi do
   @spec delete_pet_with_http_info(
           t(),
           integer(),
-          PetstoreClient.Api.Options.DeletePetOptions.t(),
+          PetstoreClient.Api.Options.DeletePetOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     # Per-operation auth is sourced solely from the Options struct's optional
     # `auth` field (the uniform "auth folded into Options" model shared by every
@@ -723,7 +728,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec download_pet_document(t(), integer(), integer(), keyword()) ::
-          {:ok, binary()} | {:error, term()}
+          {:ok, binary()} | {:error, Exception.t()}
   def download_pet_document(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
     case download_pet_document_with_http_info(api, pet_id, document_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -732,7 +737,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message:
              "Expected a response body for download_pet_document but received an empty body",
            status_code: result.status_code,
@@ -762,7 +767,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `download_pet_document` but returns the full `ApiResult`.
   """
   @spec download_pet_document_with_http_info(t(), integer(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def download_pet_document_with_http_info(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -866,10 +871,10 @@ defmodule PetstoreClient.Api.PetApi do
   @deprecated "This operation is deprecated."
   @spec find_pets_by_status(
           t(),
-          PetstoreClient.Api.Options.FindPetsByStatusOptions.t(),
+          PetstoreClient.Api.Options.FindPetsByStatusOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, term()}
+          {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, Exception.t()}
   def find_pets_by_status(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case find_pets_by_status_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -878,7 +883,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for find_pets_by_status but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -908,10 +913,10 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec find_pets_by_status_with_http_info(
           t(),
-          PetstoreClient.Api.Options.FindPetsByStatusOptions.t(),
+          PetstoreClient.Api.Options.FindPetsByStatusOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def find_pets_by_status_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1000,7 +1005,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_external_pet_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def get_external_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_external_pet_info_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1009,7 +1014,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message:
              "Expected a response body for get_external_pet_info but received an empty body",
            status_code: result.status_code,
@@ -1039,7 +1044,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_external_pet_info` but returns the full `ApiResult`.
   """
   @spec get_external_pet_info_with_http_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_external_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1117,7 +1122,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_multi_server_pet_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def get_multi_server_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_multi_server_pet_info_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1126,7 +1131,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message:
              "Expected a response body for get_multi_server_pet_info but received an empty body",
            status_code: result.status_code,
@@ -1156,7 +1161,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_multi_server_pet_info` but returns the full `ApiResult`.
   """
   @spec get_multi_server_pet_info_with_http_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_multi_server_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1236,7 +1241,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_pet_avatar(t(), integer(), keyword()) ::
-          {:ok, binary()} | {:error, term()}
+          {:ok, binary()} | {:error, Exception.t()}
   def get_pet_avatar(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_avatar_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1245,7 +1250,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for get_pet_avatar but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -1274,7 +1279,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_pet_avatar` but returns the full `ApiResult`.
   """
   @spec get_pet_avatar_with_http_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1354,7 +1359,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_pet_avatar_thumbnail(t(), integer(), keyword()) ::
-          {:ok, binary()} | {:error, term()}
+          {:ok, binary()} | {:error, Exception.t()}
   def get_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_avatar_thumbnail_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1363,7 +1368,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message:
              "Expected a response body for get_pet_avatar_thumbnail but received an empty body",
            status_code: result.status_code,
@@ -1393,7 +1398,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_pet_avatar_thumbnail` but returns the full `ApiResult`.
   """
   @spec get_pet_avatar_thumbnail_with_http_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1484,7 +1489,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @deprecated "This operation is deprecated."
   @spec get_pet_by_id(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def get_pet_by_id(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_by_id_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1493,7 +1498,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for get_pet_by_id but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -1522,7 +1527,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_pet_by_id` but returns the full `ApiResult`.
   """
   @spec get_pet_by_id_with_http_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_by_id_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1607,7 +1612,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.GetPetByNameOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def get_pet_by_name(%__MODULE__{} = api, name, options, opts \\ []) do
     case get_pet_by_name_with_http_info(api, name, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1616,7 +1621,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for get_pet_by_name but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -1650,7 +1655,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.GetPetByNameOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_by_name_with_http_info(%__MODULE__{} = api, name, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1758,7 +1763,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_pet_passport(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.Models.PetPassport.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.PetPassport.t()} | {:error, Exception.t()}
   def get_pet_passport(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_passport_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1767,7 +1772,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for get_pet_passport but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -1796,7 +1801,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_pet_passport` but returns the full `ApiResult`.
   """
   @spec get_pet_passport_with_http_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_passport_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1877,7 +1882,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_pet_photo(t(), integer(), integer(), keyword()) ::
-          {:ok, binary()} | {:error, term()}
+          {:ok, binary()} | {:error, Exception.t()}
   def get_pet_photo(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
     case get_pet_photo_with_http_info(api, pet_id, photo_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1886,7 +1891,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for get_pet_photo but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -1915,7 +1920,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_pet_photo` but returns the full `ApiResult`.
   """
   @spec get_pet_photo_with_http_info(t(), integer(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_photo_with_http_info(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -2020,10 +2025,10 @@ defmodule PetstoreClient.Api.PetApi do
           t(),
           integer(),
           String.t(),
-          PetstoreClient.Api.Options.GetPetTagOptions.t(),
+          PetstoreClient.Api.Options.GetPetTagOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options \\ nil, opts \\ []) do
     case get_pet_tag_with_http_info(api, pet_id, tag_name, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2032,7 +2037,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for get_pet_tag but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -2064,10 +2069,10 @@ defmodule PetstoreClient.Api.PetApi do
           t(),
           integer(),
           String.t(),
-          PetstoreClient.Api.Options.GetPetTagOptions.t(),
+          PetstoreClient.Api.Options.GetPetTagOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_tag_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -2235,7 +2240,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec get_staging_pet_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def get_staging_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_staging_pet_info_with_http_info(api, pet_id, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2244,7 +2249,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message:
              "Expected a response body for get_staging_pet_info but received an empty body",
            status_code: result.status_code,
@@ -2274,7 +2279,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `get_staging_pet_info` but returns the full `ApiResult`.
   """
   @spec get_staging_pet_info_with_http_info(t(), integer(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_staging_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -2355,7 +2360,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec set_pet_avatar(t(), integer(), binary(), keyword()) ::
-          {:ok, nil} | {:error, term()}
+          {:ok, nil} | {:error, Exception.t()}
   def set_pet_avatar(%__MODULE__{} = api, pet_id, body, opts \\ []) do
     case set_pet_avatar_with_http_info(api, pet_id, body, opts) do
       {:ok, result} -> {:ok, result.data}
@@ -2377,7 +2382,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `set_pet_avatar` but returns the full `ApiResult`.
   """
   @spec set_pet_avatar_with_http_info(t(), integer(), binary(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def set_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, body, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -2490,7 +2495,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Models.SetPetAvatarThumbnailRequest.t(),
           keyword()
         ) ::
-          {:ok, nil} | {:error, term()}
+          {:ok, nil} | {:error, Exception.t()}
   def set_pet_avatar_thumbnail(
         %__MODULE__{} = api,
         pet_id,
@@ -2532,7 +2537,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Models.SetPetAvatarThumbnailRequest.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def set_pet_avatar_thumbnail_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -2629,7 +2634,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.SetPetPreferencesOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
   def set_pet_preferences(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case set_pet_preferences_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2638,7 +2643,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for set_pet_preferences but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -2672,7 +2677,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.SetPetPreferencesOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def set_pet_preferences_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -2767,7 +2772,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @spec update_pet(t(), integer(), PetstoreClient.Models.Pet.t(), keyword()) ::
-          {:ok, PetstoreClient.Models.Pet.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
   def update_pet(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
     case update_pet_with_http_info(api, pet_id, pet, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2776,7 +2781,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for update_pet but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -2805,7 +2810,7 @@ defmodule PetstoreClient.Api.PetApi do
   Same as `update_pet` but returns the full `ApiResult`.
   """
   @spec update_pet_with_http_info(t(), integer(), PetstoreClient.Models.Pet.t(), keyword()) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def update_pet_with_http_info(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -2897,7 +2902,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.UploadPetCertificateOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
   def upload_pet_certificate(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_certificate_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2906,7 +2911,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message:
              "Expected a response body for upload_pet_certificate but received an empty body",
            status_code: result.status_code,
@@ -2941,7 +2946,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.UploadPetCertificateOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def upload_pet_certificate_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -3034,7 +3039,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.UploadPetDocumentOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, term()}
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
   def upload_pet_document(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_document_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -3043,7 +3048,7 @@ defmodule PetstoreClient.Api.PetApi do
       # null for a declared-non-null return.
       {:ok, %{data: nil} = result} ->
         {:error,
-         PetstoreClient.ApiError.exception(
+         PetstoreClient.Errors.ApiError.exception(
            message: "Expected a response body for upload_pet_document but received an empty body",
            status_code: result.status_code,
            response_body: result.raw_body,
@@ -3077,7 +3082,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.UploadPetDocumentOptions.t(),
           keyword()
         ) ::
-          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def upload_pet_document_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the

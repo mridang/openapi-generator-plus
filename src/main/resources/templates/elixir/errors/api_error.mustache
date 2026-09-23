@@ -1,10 +1,32 @@
 {{>api_info}}
 
-defmodule {{moduleName}}.ApiError do
+defmodule {{moduleName}}.Errors.ApiError do
   @moduledoc """
   Represents an error returned by the API, including the HTTP status code,
   response headers, and response body.
   """
+
+  alias {{moduleName}}.Errors.BadRequestError
+  alias {{moduleName}}.Errors.ClientError
+  alias {{moduleName}}.Errors.ConflictError
+  alias {{moduleName}}.Errors.ForbiddenError
+  alias {{moduleName}}.Errors.InternalServerError
+  alias {{moduleName}}.Errors.NotFoundError
+  alias {{moduleName}}.Errors.ServerError
+  alias {{moduleName}}.Errors.UnauthorizedError
+  alias {{moduleName}}.Errors.UnprocessableEntityError
+
+  # The statuses with an error of their own; any other 4xx or 5xx is a
+  # ClientError or ServerError.
+  @status_errors %{
+    400 => BadRequestError,
+    401 => UnauthorizedError,
+    403 => ForbiddenError,
+    404 => NotFoundError,
+    409 => ConflictError,
+    422 => UnprocessableEntityError,
+    500 => InternalServerError
+  }
 
   @type t :: %__MODULE__{
           message: String.t(),
@@ -58,6 +80,48 @@ defmodule {{moduleName}}.ApiError do
   end
 
   @doc """
+  Builds the error for a non-2xx HTTP response: the specific error for a
+  recognised status (`{{moduleName}}.Errors.NotFoundError` for 404,
+  `{{moduleName}}.Errors.InternalServerError` for 500, ...),
+  `{{moduleName}}.Errors.ClientError` or `{{moduleName}}.Errors.ServerError`
+  for any other 4xx or 5xx, and an `ApiError` for anything else. A JSON body
+  is also parsed into `error_body`. Every generated operation and the OpenID
+  Connect discovery request build their HTTP errors here, so this is the one
+  place the status-to-error mapping lives.
+  """
+  @spec from_response(integer(), %{optional(String.t()) => String.t()} | nil, String.t() | nil) ::
+          Exception.t()
+  def from_response(status_code, headers, body) do
+    exception_module(status_code).exception(%{
+      message: "API returned status code #{status_code}",
+      status_code: status_code,
+      response_body: body,
+      response_headers: headers,
+      error_body: parse_error_body(body)
+    })
+  end
+
+  defp exception_module(status_code) when is_map_key(@status_errors, status_code),
+    do: Map.fetch!(@status_errors, status_code)
+
+  defp exception_module(status_code) when status_code >= 400 and status_code < 500,
+    do: ClientError
+
+  defp exception_module(status_code) when status_code >= 500, do: ServerError
+  defp exception_module(_status_code), do: __MODULE__
+
+  # F5: route through ObjectSerializer.parse_json so the @max_json_depth guard
+  # rejects malicious 100k-deep error payloads before Jason recurses.
+  defp parse_error_body(body) when is_binary(body) and body != "" do
+    case {{moduleName}}.ObjectSerializer.parse_json(body) do
+      {:ok, data} -> data
+      _ -> nil
+    end
+  end
+
+  defp parse_error_body(_body), do: nil
+
+  @doc """
   Deserialize the response body into a typed error object.
 
   ## Parameters
@@ -75,7 +139,7 @@ defmodule {{moduleName}}.ApiError do
   end
 
   @family [
-    {{moduleName}}.ApiError,
+    {{moduleName}}.Errors.ApiError,
     {{moduleName}}.Errors.ClientError,
     {{moduleName}}.Errors.BadRequestError,
     {{moduleName}}.Errors.UnauthorizedError,

@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -52,5 +54,33 @@ class GenerateSwiftClientTest {
         .as("deprecated query param `status` must be marked deprecated in the Options struct")
         .contains("@available(*, deprecated, message: \"This parameter is deprecated.\")")
         .contains("public let status: String?");
+  }
+
+  /**
+   * The probe spec's only security scheme is a bearer token. The OAuth2 errors
+   * belong to the root error hierarchy, so they must be generated anyway; the
+   * authenticator tests, by contrast, must follow the schemes the spec declares,
+   * which only works when they are registered after the spec has been read.
+   */
+  @Test
+  void oauth2ErrorsAndSchemeTestsFollowTheSpec() throws IOException {
+    final Path out = Path.of("target", "probe-schemes", "swift-plus").toAbsolutePath();
+    if (Files.exists(out)) {
+      try (Stream<Path> walk = Files.walk(out)) {
+        walk.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+      }
+    }
+    ProbeGenerator.generate(
+        "swift-plus",
+        Map.of("packageName", "ProbeClient", "generateTests", "true", "skipFormatter", "true"),
+        out);
+
+    assertThat(out.resolve("Sources/ProbeClient/Errors/OAuth2ServerError.swift")).exists();
+    assertThat(out.resolve("Sources/ProbeClient/Errors/OAuth2TokenError.swift")).exists();
+    assertThat(out.resolve("Tests/ProbeClientTests/BearerAuthenticatorTests.swift")).exists();
+    assertThat(out.resolve("Tests/ProbeClientTests/BasicAuthenticatorTests.swift")).doesNotExist();
+    assertThat(out.resolve("Tests/ProbeClientTests/ApiKeyAuthenticatorTests.swift")).doesNotExist();
+    assertThat(out.resolve("Tests/ProbeClientTests/OAuth2TokenManagerTests.swift")).doesNotExist();
+    assertThat(out.resolve("Tests/ProbeClientTests/OpenIdConnectAuthenticatorTests.swift")).doesNotExist();
   }
 }

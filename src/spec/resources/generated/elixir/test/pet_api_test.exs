@@ -169,9 +169,13 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  @tag :skip
-  test "get_external_pet_info uses per-operation server URL" do
-    # Per-operation server URL cannot be verified against mock server
+  test "get_external_pet_info uses per-operation server URL", %{api: api, base_url: base_url} do
+    # The operation's own server is pointed at the mock server, which serves
+    # every path in the spec.
+    server = %PetstoreClient.ServerConfiguration{url_template: base_url}
+
+    assert {:ok, result} = PetstoreClient.Api.PetApi.get_external_pet_info(api, 1, server: server)
+    assert result != nil
   end
 
   # path-double-encoding: a string path param carrying an encodable char
@@ -400,7 +404,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   test "body-returning op with empty 200 body returns a typed ApiError" do
     api = new_pet_api_for_mock(200, "application/json", "")
 
-    assert {:error, %PetstoreClient.ApiError{} = error} =
+    assert {:error, %PetstoreClient.Errors.ApiError{} = error} =
              PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
 
     assert error.status_code == 200
@@ -409,7 +413,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   test "bang variant raises typed ApiError on empty 200 body" do
     api = new_pet_api_for_mock(200, "application/json", "")
 
-    assert_raise PetstoreClient.ApiError, fn ->
+    assert_raise PetstoreClient.Errors.ApiError, fn ->
       PetstoreClient.Api.PetApi.get_pet_by_id!(api, 1)
     end
   end
@@ -488,20 +492,6 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.data != nil
   end
 
-  # per-call-auth-override: an authenticator passed to the BASE operation
-  # method must apply its headers to the outgoing request, overriding the
-  # config default header. The generated BaseApi only merges auth headers when
-  # the authenticator is a plain map carrying an `:auth_headers` key
-  # (`Map.has_key?(effective_auth, :auth_headers)`); the generated
-  # `BearerAuthenticator` is a struct exposing `auth_headers/1` as a function,
-  # not a field, so its headers are never merged on the wire. The override
-  # therefore cannot be observed in Elixir — skipped and flagged as a feature
-  # gap so the scenario count still matches the other SDKs.
-  @tag :skip
-  test "per-call auth override is applied on the base method" do
-    # Authenticator struct headers are not merged by BaseApi; see comment above.
-  end
-
   # auth-folded-into-options: the uniform model puts a per-operation `auth`
   # field on each authed operation's Options struct. These three tests verify
   # (1) auth supplied via Options reaches the wire, (2) an auth-omitted call
@@ -535,6 +525,30 @@ defmodule PetstoreClient.Api.PetApiTest do
         headers: %{"Content-Type" => "application/json"}
       }
     end
+  end
+
+  # per-call-auth-override: an authenticator struct passed to the BASE
+  # operation method applies its headers to the outgoing request, overriding
+  # the config default header.
+  test "per-call auth override is applied on the base method" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: "http://localhost",
+        default_headers: %{"Authorization" => "Bearer config-default"}
+      )
+
+    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
+    call_auth = PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "per-call-token")
+
+    options = %PetstoreClient.Api.Options.DeletePetOptions{auth: call_auth}
+    {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, 1, options)
+
+    headers = HeaderCapturingApiClient.captured_headers(name)
+    assert headers["Authorization"] == "Bearer per-call-token"
+
+    Agent.stop(name)
   end
 
   test "authed op: auth supplied via Options reaches the wire" do
@@ -871,7 +885,7 @@ defmodule PetstoreClient.Api.PetApiTest do
         )
       end
 
-    refute PetstoreClient.OpenAPIError.open_api_error?(err)
+    refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     assert PathCapturingApiClient.captured_url(name) == ""
     Agent.stop(name)
   end

@@ -36,7 +36,7 @@ defmodule PetstoreClient.Api.BaseApi do
   @doc false
   # The no-auth sentinel (see @no_auth). Exposed so the generated per-resource
   # API modules can pass it for `security: []` operations.
-  @spec no_auth() :: atom()
+  @spec no_auth() :: :"$openapi_generator_plus_no_auth$"
   def no_auth, do: @no_auth
 
   @doc """
@@ -54,8 +54,8 @@ defmodule PetstoreClient.Api.BaseApi do
           [String.t()] | nil,
           String.t() | nil,
           String.t() | nil,
-          map() | nil
-        ) :: {:ok, term()} | {:error, term()}
+          map() | :"$openapi_generator_plus_no_auth$" | nil
+        ) :: {:ok, term()} | {:error, Exception.t()}
   def invoke_api(
         state,
         method,
@@ -98,8 +98,8 @@ defmodule PetstoreClient.Api.BaseApi do
           [String.t()] | nil,
           String.t() | nil,
           String.t() | nil,
-          map() | nil
-        ) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+          map() | :"$openapi_generator_plus_no_auth$" | nil
+        ) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def invoke_api_for_result(
         state,
         method,
@@ -247,7 +247,12 @@ defmodule PetstoreClient.Api.BaseApi do
 
       {:ok, response} ->
         if response.status_code < 200 or response.status_code >= 300 do
-          {:error, throw_api_error(response)}
+          {:error,
+           PetstoreClient.Errors.ApiError.from_response(
+             response.status_code,
+             response.headers,
+             response.body
+           )}
         else
           decode_success_body(response, return_type)
         end
@@ -369,58 +374,6 @@ defmodule PetstoreClient.Api.BaseApi do
   end
 
   defp auth_credentials(_effective_auth, _callback), do: nil
-
-  @doc false
-  # Builds the typed error for a non-2xx response. Shared with the OpenID
-  # Connect discovery request, which is an HTTP call like any other.
-  def throw_api_error(response) do
-    code = response.status_code
-    msg = "API returned status code #{code}"
-    body = response.body
-
-    parsed =
-      if body && body != "" do
-        # F5: route through ObjectSerializer.parse_json so the
-        # @max_json_depth guard rejects malicious 100k-deep error
-        # payloads before Jason recurses.
-        case PetstoreClient.ObjectSerializer.parse_json(body) do
-          {:ok, data} -> data
-          _ -> nil
-        end
-      else
-        nil
-      end
-
-    err_opts = %{
-      message: msg,
-      status_code: code,
-      response_body: body,
-      response_headers: response.headers,
-      error_body: parsed
-    }
-
-    cond do
-      code >= 400 and code < 500 ->
-        case code do
-          400 -> PetstoreClient.Errors.BadRequestError.exception(err_opts)
-          401 -> PetstoreClient.Errors.UnauthorizedError.exception(err_opts)
-          403 -> PetstoreClient.Errors.ForbiddenError.exception(err_opts)
-          404 -> PetstoreClient.Errors.NotFoundError.exception(err_opts)
-          409 -> PetstoreClient.Errors.ConflictError.exception(err_opts)
-          422 -> PetstoreClient.Errors.UnprocessableEntityError.exception(err_opts)
-          _ -> PetstoreClient.Errors.ClientError.exception(err_opts)
-        end
-
-      code >= 500 ->
-        case code do
-          500 -> PetstoreClient.Errors.InternalServerError.exception(err_opts)
-          _ -> PetstoreClient.Errors.ServerError.exception(err_opts)
-        end
-
-      true ->
-        PetstoreClient.ApiError.exception(err_opts)
-    end
-  end
 
   defp build_query_string(query_params) do
     query_params

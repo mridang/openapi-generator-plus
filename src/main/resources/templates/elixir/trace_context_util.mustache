@@ -27,12 +27,17 @@ defmodule {{moduleName}}.TraceContextUtil do
           %{optional(String.t()) => String.t()}
   def inject_trace_context(headers) do
     if Code.ensure_loaded?(:otel_propagator_text_map) do
+      # Called through apply/3: :opentelemetry_api is an optional dependency,
+      # so it is not known when this module is compiled. The configured
+      # injector writes into the headers map through the setter, which
+      # receives the key and value before the carrier.
       try do
+        injector = apply(:opentelemetry, :get_text_map_injector, [])
+
         apply(:otel_propagator_text_map, :inject, [
+          injector,
           headers,
-          fn headers, key, value ->
-            Map.put(headers, key, value)
-          end
+          fn key, value, carrier -> Map.put(carrier, key, value) end
         ])
       rescue
         _ -> headers

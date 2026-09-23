@@ -151,7 +151,7 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         end
 
       # A wrong call order is not an SDK error.
-      refute {{moduleName}}.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
     end
 
     # OIDC discovery is an HTTP call like any other: a 404 is a NotFoundError,
@@ -187,7 +187,7 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         discover.({{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out"))
       end
 
-      assert_raise {{moduleName}}.SerializationError, fn ->
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
         discover.(%{{moduleName}}.ApiHttpResponse{status_code: 200, body: "{not json"})
       end
     end
@@ -229,7 +229,7 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
       # An incomplete discovery document is a SerializationError.
-      assert_raise {{moduleName}}.SerializationError, ~r/authorization_endpoint/, fn ->
+      assert_raise {{moduleName}}.Errors.SerializationError, ~r/authorization_endpoint/, fn ->
         {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       end
     end
@@ -245,7 +245,7 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth = create_authenticator()
       auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
-      assert_raise {{moduleName}}.SerializationError, ~r/token_endpoint/, fn ->
+      assert_raise {{moduleName}}.Errors.SerializationError, ~r/token_endpoint/, fn ->
         {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       end
     end
@@ -264,13 +264,6 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     # The discovery document must be cached: a second build should reuse it
     # rather than issue a second GET to the discovery endpoint.
-    #
-    # Feature gap: build_authorization_url/2 caches the resolved delegate on a
-    # NEW struct that it discards (it returns the URL string, not the updated
-    # state), and the struct is immutable, so the cache is not observable
-    # across two calls on the same value — discovery is re-fetched. Tagged
-    # :skip so the scenario count matches the other SDKs.
-    @tag :skip
     test "fetches discovery document only once" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{

@@ -14,7 +14,15 @@ public class ElixirClientSpec extends AbstractClientSpec implements ElixirSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"mkdir -p .out/reports", "mix test"};
+        return new String[] {
+            /* The report printed after this run is read from the host's golden
+             * directory; clear the previous run's there, so a run that fails
+             * before writing one does not print stale results. */
+            "rm -rf /app/.out/reports && mkdir -p .out/reports",
+            /* Test files compile only when the suite runs, so their warnings
+             * fail the run here. */
+            "mix test --warnings-as-errors"
+        };
     }
 
     @Override

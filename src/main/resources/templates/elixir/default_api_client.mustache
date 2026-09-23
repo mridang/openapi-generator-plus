@@ -96,9 +96,8 @@ defmodule {{moduleName}}.DefaultApiClient do
 
   # Gap AK: Finch's proxy tuple has no slot for basic-auth credentials,
   # so userinfo embedded in the proxy URL (`http://user:pass@host:port`)
-  # is silently dropped. Extract it once at construction and inject as
-  # a Proxy-Authorization header on every outbound request, matching
-  # the Java/C# SDKs.
+  # would be silently dropped. Extract it as a Proxy-Authorization value,
+  # which build_static_req_options/1 hands to the proxy connection.
   defp build_proxy_auth_header(nil), do: nil
 
   defp build_proxy_auth_header(proxy_url) when is_binary(proxy_url) do
@@ -203,23 +202,18 @@ defmodule {{moduleName}}.DefaultApiClient do
     merged =
       if !Map.has_key?(merged, "Accept-Encoding") do
         # Only advertise "br" when the optional :brotli NIF is actually
-        # loaded; otherwise a server may return a brotli-compressed body
-        # that Req cannot decode, leaving raw bytes the caller can't parse.
+        # loaded, and "zstd" when Erlang/OTP ships the :zstd module (OTP 28);
+        # otherwise a server may return a body that cannot be decoded,
+        # leaving raw bytes the caller can't parse.
         accept_encoding =
-          if Code.ensure_loaded?(:brotli) do
-            "gzip, deflate, br"
-          else
-            "gzip, deflate"
-          end
+          Enum.join(
+            ["gzip", "deflate"] ++
+              if(Code.ensure_loaded?(:brotli), do: ["br"], else: []) ++
+              if(Code.ensure_loaded?(:zstd), do: ["zstd"], else: []),
+            ", "
+          )
 
         Map.put(merged, "Accept-Encoding", accept_encoding)
-      else
-        merged
-      end
-
-    merged =
-      if client.proxy_auth_header do
-        Map.put(merged, "Proxy-Authorization", client.proxy_auth_header)
       else
         merged
       end
@@ -264,7 +258,7 @@ defmodule {{moduleName}}.DefaultApiClient do
         )
       rescue
         e in [
-          {{moduleName}}.ApiError,
+          {{moduleName}}.Errors.ApiError,
           {{moduleName}}.Errors.NetworkError,
           {{moduleName}}.Errors.NetworkTimeoutError
         ] ->
@@ -340,8 +334,9 @@ defmodule {{moduleName}}.DefaultApiClient do
       "x-gzip" -> gunzip_body(body, "x-gzip", status)
       "deflate" -> inflate_body(body, status)
       "br" -> brotli_body(body, status)
+      "zstd" -> zstd_body(body, status)
       other ->
-        raise {{moduleName}}.ApiError,
+        raise {{moduleName}}.Errors.ApiError,
           message: "Unsupported Content-Encoding '#{other}' in response body",
           status_code: status
     end
@@ -352,7 +347,7 @@ defmodule {{moduleName}}.DefaultApiClient do
     :zlib.gunzip(body)
   rescue
     e ->
-      raise {{moduleName}}.ApiError,
+      raise {{moduleName}}.Errors.ApiError,
         message: "Failed to decompress #{label} response body: #{Exception.message(e)}",
         status_code: status,
         cause: e
@@ -370,7 +365,7 @@ defmodule {{moduleName}}.DefaultApiClient do
   # Matches the java/python/ruby/go/php "wrap decompression failures as the
   # SDK error" contract; previously Elixir passed these bytes through unchanged.
   defp gunzip_body(_body, label, status) do
-    raise {{moduleName}}.ApiError,
+    raise {{moduleName}}.Errors.ApiError,
       message:
         "Failed to decompress #{label} response body: " <>
           "Content-Encoding declared #{label} but the body is not a valid gzip stream",
@@ -397,7 +392,7 @@ defmodule {{moduleName}}.DefaultApiClient do
           end
         rescue
           e ->
-            raise {{moduleName}}.ApiError,
+            raise {{moduleName}}.Errors.ApiError,
               message: "Failed to decompress deflate response body: #{Exception.message(e)}",
               status_code: status,
               cause: e
@@ -409,18 +404,45 @@ defmodule {{moduleName}}.DefaultApiClient do
   # loaded, so a server should never send it otherwise; guard anyway.
   defp brotli_body(body, status) do
     if Code.ensure_loaded?(:brotli) do
-      case :brotli.decode(body) do
+      # Called through apply/3: :brotli is an optional dependency, so it is
+      # not known when this module is compiled.
+      case apply(:brotli, :decode, [body]) do
         {:ok, decoded} ->
           decoded
 
         _ ->
-          raise {{moduleName}}.ApiError,
+          raise {{moduleName}}.Errors.ApiError,
             message: "Failed to decompress br response body",
             status_code: status
       end
     else
-      raise {{moduleName}}.ApiError,
+      raise {{moduleName}}.Errors.ApiError,
         message: "Received a br-encoded response but the :brotli decoder is unavailable",
+        status_code: status
+    end
+  end
+
+  # `zstd` is only advertised in Accept-Encoding when Erlang/OTP ships the
+  # :zstd module (OTP 28 and later), so a server should never send it
+  # otherwise; guard anyway.
+  defp zstd_body(body, status) do
+    if Code.ensure_loaded?(:zstd) do
+      try do
+        # Called through apply/3 so the module still compiles on an older OTP.
+        :zstd |> apply(:decompress, [body]) |> IO.iodata_to_binary()
+      rescue
+        e ->
+          reraise {{moduleName}}.Errors.ApiError,
+                  [
+                    message: "Failed to decompress zstd response body: #{Exception.message(e)}",
+                    status_code: status,
+                    cause: e
+                  ],
+                  __STACKTRACE__
+      end
+    else
+      raise {{moduleName}}.Errors.ApiError,
+        message: "Received a zstd-encoded response but the :zstd decoder is unavailable",
         status_code: status
     end
   end
@@ -577,17 +599,24 @@ defmodule {{moduleName}}.DefaultApiClient do
       if opts.proxy do
         proxy_uri = URI.parse(opts.proxy)
 
-        case proxy_uri.scheme do
-          "https" ->
-            Keyword.put(req_opts, :connect_options,
-              proxy: {:https, String.to_charlist(proxy_uri.host), proxy_uri.port || 443, [hostname: proxy_uri.host]}
-            )
+        {scheme, default_port} =
+          if proxy_uri.scheme == "https", do: {:https, 443}, else: {:http, 80}
 
-          _ ->
-            Keyword.put(req_opts, :connect_options,
-              proxy: {:http, String.to_charlist(proxy_uri.host), proxy_uri.port || 80, [hostname: proxy_uri.host]}
-            )
-        end
+        proxy =
+          {scheme, String.to_charlist(proxy_uri.host), proxy_uri.port || default_port,
+           [hostname: proxy_uri.host]}
+
+        # Credentials in the proxy URL travel as Proxy-Authorization to the
+        # proxy only: on the CONNECT request for an https:// target, and on
+        # each forwarded request for an http:// target. They never reach the
+        # target server.
+        proxy_headers =
+          case build_proxy_auth_header(opts.proxy) do
+            nil -> []
+            header -> [{"proxy-authorization", header}]
+          end
+
+        Keyword.put(req_opts, :connect_options, proxy: proxy, proxy_headers: proxy_headers)
       else
         req_opts
       end
@@ -644,6 +673,23 @@ defmodule {{moduleName}}.DefaultApiClient do
     "{{nameLower}}"{{^-last}},{{/-last}}{{/apiKeyHeaderNames}}
   ]
 
+  # Mint forwards an http:// target through the connection to the proxy and
+  # reads only the proxy tuple's options for it, and Finch receives
+  # synchronously, so that connection must be passive. An https:// target
+  # tunnels through CONNECT, which needs the proxy connection left active.
+  defp proxy_request_options(client, url) do
+    connect_options = Map.get(client.base_req.options, :connect_options, [])
+
+    case {URI.parse(url).scheme, Keyword.get(connect_options, :proxy)} do
+      {"http", {scheme, host, port, proxy_opts}} ->
+        proxy = {scheme, host, port, Keyword.put(proxy_opts, :mode, :passive)}
+        [connect_options: Keyword.put(connect_options, :proxy, proxy)]
+
+      _ ->
+        []
+    end
+  end
+
   defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect) do
     do_request_with_redirects(client, method, url, url, headers, body, max_redirects, 0, no_redirect)
   end
@@ -657,10 +703,12 @@ defmodule {{moduleName}}.DefaultApiClient do
         {:ok,
          Req.request!(
            client.base_req,
-           method: method,
-           url: url,
-           headers: Enum.map(headers, fn {k, v} -> {k, v} end),
-           body: body
+           [
+             method: method,
+             url: url,
+             headers: Enum.map(headers, fn {k, v} -> {k, v} end),
+             body: body
+           ] ++ proxy_request_options(client, url)
          )}
       rescue
         exception -> {:raised, exception, __STACKTRACE__}
@@ -714,7 +762,7 @@ defmodule {{moduleName}}.DefaultApiClient do
               # (e.g. file:, javascript:, data:). Silently returning the
               # 3xx would hide a potential SSRF / local-file-read vector;
               # surface it as a typed SDK error instead.
-              raise {{moduleName}}.ApiError,
+              raise {{moduleName}}.Errors.ApiError,
                 message:
                   "refusing to follow redirect to non-http(s) Location " <>
                     "(#{response.status} redirect from #{orig_url} to #{next_url})",
@@ -730,7 +778,7 @@ defmodule {{moduleName}}.DefaultApiClient do
               # redirect chain instead of silently replaying.
               if downgrade?(orig_url, next_url) and body != nil and
                    response.status in [307, 308] do
-                raise {{moduleName}}.ApiError,
+                raise {{moduleName}}.Errors.ApiError,
                   message:
                     "refusing to replay request body across HTTPS->HTTP downgrade " <>
                       "(#{response.status} redirect from #{orig_url} to #{next_url})",
@@ -769,7 +817,7 @@ defmodule {{moduleName}}.DefaultApiClient do
               # Exceeding the redirect cap is a response that arrived but
               # cannot be used: an ApiError with the redirect's real status.
               if hops + 1 > max do
-                raise {{moduleName}}.ApiError,
+                raise {{moduleName}}.Errors.ApiError,
                   message: "too many redirects (exceeded #{max})",
                   status_code: response.status
               end
@@ -874,12 +922,6 @@ defmodule {{moduleName}}.DefaultApiClient do
       String.downcase(to_string(k)) in ["content-type", "content-length"]
     end)
     |> Map.new()
-  end
-
-  defp strip_body_headers(headers) when is_list(headers) do
-    Enum.reject(headers, fn {k, _v} ->
-      String.downcase(to_string(k)) in ["content-type", "content-length"]
-    end)
   end
 
   defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
@@ -1026,7 +1068,7 @@ defmodule {{moduleName}}.DefaultApiClient do
   defp guess_mime_type(filename) when is_binary(filename) do
     if Code.ensure_loaded?(MIME) and function_exported?(MIME, :from_path, 1) do
       try do
-        MIME.from_path(filename) || "application/octet-stream"
+        MIME.from_path(filename)
       rescue
         _ -> "application/octet-stream"
       end
@@ -1035,7 +1077,6 @@ defmodule {{moduleName}}.DefaultApiClient do
     end
   end
 
-  defp guess_mime_type(_), do: "application/octet-stream"
 
   # Gap BE+BF: response header keys are normalised to lowercase so callers can
   # look them up consistently regardless of the casing the server used (HTTP

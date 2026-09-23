@@ -36,7 +36,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
           scopes: [String.t()],
           api_client: term() | nil,
           delegate: term() | nil,
-          discovery_expiry: integer() | nil
+          discovery_expiry: integer() | nil,
+          discovery_cache: pid()
         }
 
   # Redact the client secret and the delegate (which holds the live token
@@ -51,7 +52,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     :scopes,
     :api_client,
     :delegate,
-    :discovery_expiry
+    :discovery_expiry,
+    :discovery_cache
   ]
 
   # RFC 8414 recommended default max-age for OIDC discovery documents.
@@ -72,6 +74,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
   """
   @spec new(String.t(), String.t(), String.t(), String.t(), String.t(), [String.t()]) :: t()
   def new(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes) do
+    # The struct is immutable and build_authorization_url/2 returns only the
+    # URL, so the resolved discovery document is cached in a process that
+    # every copy of this struct shares, like the token manager's token.
+    {:ok, discovery_cache} = Agent.start_link(fn -> nil end)
+
     %__MODULE__{
       host: host,
       openid_connect_url: openid_connect_url,
@@ -81,7 +88,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
       scopes: scopes,
       api_client: nil,
       delegate: nil,
-      discovery_expiry: 0
+      discovery_expiry: 0,
+      discovery_cache: discovery_cache
     }
   end
 
@@ -116,6 +124,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         code
       )
 
+    Agent.update(self.discovery_cache, fn _ -> {delegate, self.discovery_expiry} end)
     %{self | delegate: delegate}
   end
 
@@ -133,7 +142,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     if expiry != nil and System.system_time(:second) < expiry do
       self
     else
-      fetch_discovery(self)
+      cache_discovery(fetch_discovery(self))
     end
   end
 
@@ -143,7 +152,24 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
             "on HttpAwareAuthenticator before making API requests."
   end
 
-  defp resolve_delegate(%__MODULE__{} = self), do: fetch_discovery(self)
+  defp resolve_delegate(%__MODULE__{} = self) do
+    case Agent.get(self.discovery_cache, & &1) do
+      {delegate, expiry} when is_integer(expiry) ->
+        if System.system_time(:second) < expiry do
+          %{self | delegate: delegate, discovery_expiry: expiry}
+        else
+          cache_discovery(fetch_discovery(self))
+        end
+
+      _ ->
+        cache_discovery(fetch_discovery(self))
+    end
+  end
+
+  defp cache_discovery(%__MODULE__{} = self) do
+    Agent.update(self.discovery_cache, fn _ -> {self.delegate, self.discovery_expiry} end)
+    self
+  end
 
   defp fetch_discovery(%__MODULE__{api_client: nil}) do
     raise "ApiClient has not been injected. " <>
@@ -166,7 +192,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     # status before parsing keeps a 500-HTML / 404 body from surfacing as a
     # confusing "invalid JSON" error.
     if response.status_code < 200 or response.status_code >= 300 do
-      raise PetstoreClient.Api.BaseApi.throw_api_error(response)
+      raise PetstoreClient.Errors.ApiError.from_response(
+              response.status_code,
+              response.headers,
+              response.body
+            )
     end
 
     # An unparseable or incomplete document is a SerializationError.
@@ -176,7 +206,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
           map
 
         _ ->
-          raise PetstoreClient.SerializationError,
+          raise PetstoreClient.Errors.SerializationError,
             message:
               "OIDC discovery document from #{self.openid_connect_url} is not a JSON object"
       end
@@ -189,14 +219,14 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     # delegate with empty/nil endpoint URLs and fail much later with an
     # opaque error.
     if not is_binary(authorization_endpoint) or String.trim(authorization_endpoint) == "" do
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message:
           "OIDC discovery document from #{self.openid_connect_url} is missing " <>
             "a valid 'authorization_endpoint'"
     end
 
     if not is_binary(token_endpoint) or String.trim(token_endpoint) == "" do
-      raise PetstoreClient.SerializationError,
+      raise PetstoreClient.Errors.SerializationError,
         message:
           "OIDC discovery document from #{self.openid_connect_url} is missing " <>
             "a valid 'token_endpoint'"

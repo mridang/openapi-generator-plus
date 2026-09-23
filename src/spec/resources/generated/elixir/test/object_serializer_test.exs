@@ -189,13 +189,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
   describe "deserialize wraps decode failures" do
     test "truncated JSON raises SerializationError" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize("{", "Category")
       end
     end
 
     test "incomplete JSON object raises SerializationError" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize("{\"name\":", "Category")
       end
     end
@@ -214,11 +214,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
             {~s({"retryAfter":"PT1H"}), "EdgeCases"}
           ] do
         err =
-          assert_raise PetstoreClient.SerializationError, fn ->
+          assert_raise PetstoreClient.Errors.SerializationError, fn ->
             PetstoreClient.ObjectSerializer.deserialize(json, model)
           end
 
-        assert PetstoreClient.OpenAPIError.open_api_error?(err),
+        assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err),
                "#{model} #{json} must raise an SDK error"
       end
     end
@@ -228,7 +228,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
         PetstoreClient.ObjectSerializer.deserialize("{", "Category")
         flunk("Expected SerializationError to be raised")
       rescue
-        e in PetstoreClient.SerializationError ->
+        e in PetstoreClient.Errors.SerializationError ->
           assert e.message != nil and e.message != ""
       end
     end
@@ -244,13 +244,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "unknown enum value raises SerializationError" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("banana", "TestEnumStatus")
       end
     end
 
     test "mis-cased enum value raises (case-sensitive match)" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("AVAILABLE", "TestEnumStatus")
       end
     end
@@ -444,13 +444,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "rejects malformed base64 with SerializationError" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("not-base64!!!", "ByteArray")
       end
     end
 
     test "rejects non-string payload with SerializationError" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(123, "ByteArray")
       end
     end
@@ -475,13 +475,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "rejects malformed UUID" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("not-a-uuid", "UUID")
       end
     end
 
     test "rejects UUID with wrong segment lengths" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(
           "550e8400-e29b-41d4-a716-44665544",
           "UUID"
@@ -490,7 +490,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "rejects non-string payload" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(42, "UUID")
       end
     end
@@ -597,7 +597,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       # photoUrls (required, non-nullable) is absent.
       json = ~s({"name":"Rex"})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
       end
     end
@@ -605,7 +605,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "explicitly-null required field raises SerializationError" do
       json = ~s({"name":"Rex","photoUrls":null})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
       end
     end
@@ -615,7 +615,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       # `name` is null while `photoUrls` is present and valid.
       json = ~s({"name":null,"photoUrls":["http://example.com/rex.jpg"]})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
       end
     end
@@ -637,7 +637,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "Gap AJ: null on required non-nullable name raises SerializationError" do
       json = ~s({"name":null,"photoUrls":["u"]})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
       end
     end
@@ -741,7 +741,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # value reaches atomize_enum via the field's declared type and raises.
   describe "referenced enum field rejects unknown wire value" do
     test "unknown Availability wire value on a model field raises SerializationError" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"priority":1,"availability":"Discontinued"}),
           "StockItem"
@@ -750,7 +750,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "unknown Priority wire value on a model field raises SerializationError" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(~s({"priority":99}), "StockItem")
       end
     end
@@ -899,7 +899,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "Gap AU-resid: missing discriminator on PetFood raises" do
       json = ~s({"weightKg":5.0})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
@@ -983,7 +983,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
         fn _ -> raise "variant B does not match" end
       ]
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.resolve_one_of(%{"unexpected" => true}, candidates)
       end
     end
@@ -991,7 +991,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "resolve_any_of raises when no variant matches" do
       candidates = [fn _ -> raise "no match" end]
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.resolve_any_of(%{}, candidates)
       end
     end
@@ -1013,7 +1013,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
             {"true", "Boolean"},
             {"not-a-list", "[String]"}
           ] do
-        assert_raise PetstoreClient.SerializationError, fn ->
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.convert_to_type(value, type)
         end
       end
@@ -1029,7 +1029,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
             {"PT1H", "Duration"},
             {"3600", "Duration.t()"}
           ] do
-        assert_raise PetstoreClient.SerializationError, fn ->
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.convert_to_type(value, type)
         end
       end

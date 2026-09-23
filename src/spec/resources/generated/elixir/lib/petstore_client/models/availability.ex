@@ -25,13 +25,13 @@ defmodule PetstoreClient.Models.Availability do
   def on_hold, do: :on_hold
 
   @doc "All allowed values as atoms."
-  @spec all_values() :: [atom()]
+  @spec all_values() :: [t(), ...]
   def all_values do
     [available(), sold(), on_hold()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(atom()) :: term()
+  @spec value(t()) :: String.t()
   def value(:available), do: "Available"
   def value(:sold), do: "Sold"
   def value(:on_hold), do: "on-hold"
@@ -45,7 +45,7 @@ defmodule PetstoreClient.Models.Availability do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: atom() | {:error, term()}
+  @spec from_value(term()) :: t() | {:error, term()}
   def from_value("Available"), do: :available
   def from_value("Sold"), do: :sold
   def from_value("on-hold"), do: :on_hold

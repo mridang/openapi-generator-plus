@@ -166,11 +166,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
       "redirect_uri" => self.redirect_uri
     }
 
-    PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-      self.token_manager,
-      self.token_url,
-      params
-    )
+    _token =
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        self.token_manager,
+        self.token_url,
+        params
+      )
 
     %{self | token_exchanged: true}
   end

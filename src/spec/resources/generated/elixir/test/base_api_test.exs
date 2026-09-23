@@ -829,7 +829,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
         )
       end
 
-    refute PetstoreClient.OpenAPIError.open_api_error?(err)
+    refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
   end
 
   # Nil body handling
@@ -1787,7 +1787,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: MalformedSuccessApiClient}
 
-    assert_raise PetstoreClient.SerializationError, fn ->
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
       PetstoreClient.Api.BaseApi.invoke_api(
         state,
         :get,
@@ -1815,13 +1815,13 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "typed_error_body deserializes the error body into the typed model" do
     err =
-      PetstoreClient.ApiError.exception(
+      PetstoreClient.Errors.ApiError.exception(
         status_code: 400,
         response_body: ~s({"id":42,"name":"Dogs"}),
         response_headers: %{}
       )
 
-    body = PetstoreClient.ApiError.typed_error_body(err, "Category")
+    body = PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
     assert %PetstoreClient.Models.Category{} = body
     assert body.id == 42
     assert body.name == "Dogs"
@@ -1829,27 +1829,43 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "typed_error_body returns nil for an empty error body" do
     err =
-      PetstoreClient.ApiError.exception(
+      PetstoreClient.Errors.ApiError.exception(
         status_code: 500,
         response_body: "",
         response_headers: %{}
       )
 
-    assert PetstoreClient.ApiError.typed_error_body(err, "Category") == nil
+    assert PetstoreClient.Errors.ApiError.typed_error_body(err, "Category") == nil
   end
 
   # Proxy authentication (item #29)
 
-  @tag :skip
   test "proxy with basic authentication forwards Proxy-Authorization header" do
-    # Skipped: requires a proxy with HTTP basic-auth configured (e.g. Squid).
-    # If the local test environment provides one (e.g. via PROXY_AUTH_URL), this
-    # block exercises the proxy_auth_url with embedded credentials.
-    proxy_auth_url = System.get_env("PROXY_AUTH_URL")
-    assert proxy_auth_url != nil
+    # The Squid fixture's second port demands Basic proxy credentials: without
+    # them it answers 407, with them it forwards the request to the mock server.
+    chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
+    auth_proxy_url = System.fetch_env!("PROXY_AUTH_URL")
 
-    opts = PetstoreClient.TransportOptions.new(proxy: proxy_auth_url)
-    assert opts.proxy == proxy_auth_url
+    send = fn proxy ->
+      transport = PetstoreClient.TransportOptions.new(proxy: proxy)
+      client = PetstoreClient.DefaultApiClient.new(transport)
+
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+    end
+
+    with_credentials =
+      send.(String.replace(auth_proxy_url, "http://", "http://user:pass@", global: false))
+
+    assert with_credentials.status_code == 200
+
+    without_credentials = send.(auth_proxy_url)
+    assert without_credentials.status_code == 407
   end
 
   # ---------------------------------------------------------------------------
@@ -2031,7 +2047,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # or defaulting to an "unknown" member. The Pet model declares an inline
   # `status` enum (available | pending | sold).
   test "unknown enum wire value raises SerializationError on deserialize" do
-    assert_raise PetstoreClient.SerializationError, fn ->
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
       PetstoreClient.ObjectSerializer.deserialize(
         ~s({"name":"rex","photoUrls":[],"status":"banana"}),
         "Pet"

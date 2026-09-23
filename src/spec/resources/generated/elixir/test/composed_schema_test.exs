@@ -1,6 +1,8 @@
 defmodule PetstoreClient.ComposedSchemaTest do
   use ExUnit.Case, async: true
 
+  alias PetstoreClient.Models.SetPetAvatarThumbnailRequest
+
   # -- oneOf with discriminator: PetFood --
 
   describe "oneOf with discriminator PetFood" do
@@ -24,7 +26,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       # Python / Swift / Dart / Go / Rust.
       json = ~s({"foodType":"raw","calories":300})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
@@ -35,7 +37,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       # Aligns Elixir with Python / Swift / PHP / Ruby / Dart / Rust.
       json = ~s({"weightKg":2.5})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
@@ -45,7 +47,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       # rather than route to a structurally-fitting variant.
       json = ~s({"foodType":"","weightKg":2.5})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
@@ -56,7 +58,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       json = ~s({"foodType":"raw","calories":300})
 
       err =
-        assert_raise PetstoreClient.SerializationError, fn ->
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
         end
 
@@ -154,7 +156,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       # union. resolve_any_of raises SerializationError on union no-match.
       json = ~s({"unrelatedKey":"value","anotherUnknown":123})
 
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
       end
     end
@@ -176,7 +178,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
     test "scalar byte variant serializes to a base64 STRING, not raw bytes or an int-array" do
       raw = <<0x01, 0x02, 0x03, 0x04>>
 
-      wire = PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize(raw)
+      wire = SetPetAvatarThumbnailRequest.serialize(raw)
 
       # The wire value is the base64 STRING "AQIDBA==" — NOT the raw bytes,
       # NOT a JSON int-array [1,2,3,4].
@@ -197,7 +199,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       # ordering fix.
       raw = <<0x01, 0x02, 0x03, 0x04>>
 
-      restored = PetstoreClient.Models.SetPetAvatarThumbnailRequest.build("AQIDBA==")
+      restored = SetPetAvatarThumbnailRequest.build("AQIDBA==")
 
       assert is_binary(restored)
       refute is_list(restored)
@@ -208,8 +210,8 @@ defmodule PetstoreClient.ComposedSchemaTest do
     test "scalar byte variant round-trips serialize -> deserialize -> identical bytes" do
       raw = <<0x01, 0x02, 0x03, 0x04>>
 
-      wire = PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize(raw)
-      restored = PetstoreClient.Models.SetPetAvatarThumbnailRequest.build(wire)
+      wire = SetPetAvatarThumbnailRequest.serialize(raw)
+      restored = SetPetAvatarThumbnailRequest.build(wire)
 
       assert restored == raw
     end
@@ -218,13 +220,13 @@ defmodule PetstoreClient.ComposedSchemaTest do
       first = <<0x01, 0x02, 0x03, 0x04>>
       second = <<0x05, 0x06>>
 
-      wire = PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize([first, second])
+      wire = SetPetAvatarThumbnailRequest.serialize([first, second])
 
       # An array of base64 STRINGS — NOT an array of int-arrays nor raw bytes.
       assert wire == ["AQIDBA==", "BQY="]
       assert Enum.all?(wire, &is_binary/1)
 
-      restored = PetstoreClient.Models.SetPetAvatarThumbnailRequest.build(wire)
+      restored = SetPetAvatarThumbnailRequest.build(wire)
 
       assert restored == [first, second]
     end

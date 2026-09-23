@@ -275,7 +275,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("transport_options.mustache", libDir, "transport_options.ex"),
             new SupportingFileSpec("server_configuration.mustache", libDir, "server_configuration.ex"),
             new SupportingFileSpec("servers.mustache", libDir, "servers.ex"),
-            new SupportingFileSpec("api_error.mustache", libDir, "api_error.ex"),
+            new SupportingFileSpec("errors/api_error.mustache", errorsDir, "api_error.ex"),
+            new SupportingFileSpec("errors/serialization_error.mustache", errorsDir, "serialization_error.ex"),
+            new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsDir, "oauth2_server_error.ex"),
+            new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsDir, "oauth2_token_error.ex"),
             new SupportingFileSpec("errors/client_error.mustache", errorsDir, "client_error.ex"),
             new SupportingFileSpec("errors/server_error.mustache", errorsDir, "server_error.ex"),
             new SupportingFileSpec("errors/bad_request_error.mustache", errorsDir, "bad_request_error.ex"),
@@ -287,7 +290,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "internal_server_error.ex"),
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "network_error.ex"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "network_timeout_error.ex"),
-            new SupportingFileSpec("root_error.mustache", libDir, errorPrefixSnake() + "_error.ex"),
+            new SupportingFileSpec("errors/root_error.mustache", errorsDir, errorPrefixSnake() + "_error.ex"),
             new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),
             new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),
             new SupportingFileSpec("value_serializer.mustache", libDir, "value_serializer.ex"),
@@ -424,46 +427,6 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/bearer_authenticator_test.mustache",
-                            "test",
-                            "bearer_authenticator_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api_key_authenticator_test.mustache",
-                            "test",
-                            "api_key_authenticator_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_token_manager_test.mustache",
-                            "test",
-                            "oauth2_token_manager_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_auth_code_authenticator_test.mustache",
-                            "test",
-                            "oauth2_authorization_code_authenticator_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_implicit_authenticator_test.mustache",
-                            "test",
-                            "oauth2_implicit_authenticator_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_client_credentials_authenticator_test.mustache",
-                            "test",
-                            "oauth2_client_credentials_authenticator_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/oauth2_password_authenticator_test.mustache",
-                            "test",
-                            "oauth2_password_authenticator_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/openid_connect_authenticator_test.mustache",
-                            "test",
-                            "openid_connect_authenticator_test.exs"));
         }
     }
 
@@ -558,7 +521,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             final Map<String, Object> param = new HashMap<>();
             param.put("name", NamingConvention.SNAKE_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
-            param.put("typespec", toElixirTypespec(p));
+            param.put("typespec", toElixirTypespec(p, moduleName));
             param.put("required", p.required);
             // Propagate the parameter's deprecation flag so the Options field
             // can carry an @deprecated marker, mirroring how operations and
@@ -611,10 +574,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Registers the Basic authenticator test. It must be added here rather than
-     * in processOpts: the security-scheme flags are only set once the spec has
-     * been read, so a check in processOpts always saw them false and the test
-     * was never generated.
+     * Registers the Basic, Bearer and API-key authenticator tests. They must be
+     * added here rather than in processOpts: the security-scheme flags are only
+     * set once the spec has been read, so a check in processOpts always saw
+     * them false and the tests were never generated.
      */
     @Override
     protected void registerAuthSupportingFiles() {
@@ -626,6 +589,60 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test",
                             "basic_authenticator_test.exs"));
         }
+        if (generateTests && hasBearerAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/bearer_authenticator_test.mustache",
+                            "test",
+                            "bearer_authenticator_test.exs"));
+        }
+        if (generateTests && hasApiKeyAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_key_authenticator_test.mustache",
+                            "test",
+                            "api_key_authenticator_test.exs"));
+        }
+    }
+
+    /**
+     * The OAuth2 and OpenID Connect tests, each gated on the scheme it
+     * exercises. Like the Basic, Bearer and API-key tests they are registered
+     * once the spec has been read, never from processOpts.
+     */
+    @Override
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of(
+                new OAuthTestFileSpec(
+                        "test/oauth2_token_manager_test.mustache",
+                        "test",
+                        "oauth2_token_manager_test.exs",
+                        OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec(
+                        "test/oauth2_auth_code_authenticator_test.mustache",
+                        "test",
+                        "oauth2_authorization_code_authenticator_test.exs",
+                        OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec(
+                        "test/oauth2_implicit_authenticator_test.mustache",
+                        "test",
+                        "oauth2_implicit_authenticator_test.exs",
+                        OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec(
+                        "test/oauth2_client_credentials_authenticator_test.mustache",
+                        "test",
+                        "oauth2_client_credentials_authenticator_test.exs",
+                        OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec(
+                        "test/oauth2_password_authenticator_test.mustache",
+                        "test",
+                        "oauth2_password_authenticator_test.exs",
+                        OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec(
+                        "test/openid_connect_authenticator_test.mustache",
+                        "test",
+                        "openid_connect_authenticator_test.exs",
+                        OAuthTestCondition.OIDC));
     }
 
     /** {@inheritDoc} */
@@ -664,19 +681,25 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             return List.of("host", "client_id", "client_secret",
                     "\"" + spec.tokenUrl() + "\"", "[]");
         }
+        // The refresh URL is passed as the `refresh_url` keyword option; the
+        // positional parameters end at the scopes list. It is written without
+        // brackets: mix format only settles on that form after two passes.
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
-            final String refreshArg = spec.refreshUrl() != null
-                    ? "\"" + spec.refreshUrl() + "\"" : "nil";
-            return List.of("host", "client_id", "client_secret",
-                    "\"" + spec.tokenUrl() + "\"", refreshArg,
-                    "username", "password", "[]");
+            final List<String> args = new ArrayList<>(List.of("host", "client_id", "client_secret",
+                    "\"" + spec.tokenUrl() + "\"", "username", "password", "[]"));
+            if (spec.refreshUrl() != null) {
+                args.add("refresh_url: \"" + spec.refreshUrl() + "\"");
+            }
+            return args;
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
-            final String refreshArg = spec.refreshUrl() != null
-                    ? "\"" + spec.refreshUrl() + "\"" : "nil";
-            return List.of("host", "client_id", "client_secret",
+            final List<String> args = new ArrayList<>(List.of("host", "client_id", "client_secret",
                     "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
-                    "redirect_uri", "[]", refreshArg);
+                    "redirect_uri", "[]"));
+            if (spec.refreshUrl() != null) {
+                args.add("refresh_url: \"" + spec.refreshUrl() + "\"");
+            }
+            return args;
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"", "[]");
@@ -753,12 +776,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
      * {@code @type t :: %__MODULE__{...}}. Optional fields are unioned with
      * {@code nil} so Dialyzer and editor tooling pick up the real shape.
      */
-    private static String toElixirTypespec(CodegenParameter p) {
-        final String base = elixirBaseType(p);
+    private static String toElixirTypespec(CodegenParameter p, String moduleName) {
+        final String base = elixirBaseType(p, moduleName);
         return p.required ? base : base + " | nil";
     }
 
-    private static String elixirBaseType(CodegenParameter p) {
+    private static String elixirBaseType(CodegenParameter p, String moduleName) {
         if (p.isMap) {
             return "map()";
         }
@@ -768,28 +791,26 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         final String dt = p.dataType;
         // Elixir array container is rendered as [Inner] by the codegen.
         if (p.isArray && dt.startsWith("[") && dt.endsWith("]")) {
-            return "list(" + elementTypespec(dt.substring(1, dt.length() - 1)) + ")";
+            return "list(" + elementTypespec(dt.substring(1, dt.length() - 1), moduleName) + ")";
         }
         if (p.isArray) {
             return "list()";
         }
         // typeMapping already returns Elixir-shaped strings for primitives
         // (String.t(), integer(), boolean(), float(), binary(), MapSet.t(),
-        // map(), any()). Anything else is a model name — render as Model.t().
+        // map(), any()). Anything else is a model name — render it as the
+        // fully-qualified Model.t(), which is the only form Dialyzer resolves.
         if (dt.endsWith(")") || "list".equals(dt)) {
             return "list".equals(dt) ? "list()" : dt;
         }
-        return dt + ".t()";
+        return toModuleTypespec(dt, moduleName);
     }
 
-    private static String elementTypespec(String inner) {
+    private static String elementTypespec(String inner, String moduleName) {
         final String t = inner.trim();
         if (t.isEmpty()) {
             return "any()";
         }
-        if (t.endsWith(")")) {
-            return t;
-        }
-        return t + ".t()";
+        return toModuleTypespec(t, moduleName);
     }
 }

@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -123,5 +125,33 @@ class GenerateElixirClientTest {
     assertThat(start).as("model must declare a struct @type").isGreaterThanOrEqualTo(0);
     final int end = source.indexOf("}", start);
     return source.substring(start, end);
+  }
+
+  /**
+   * The probe spec's only security scheme is a bearer token. The OAuth2 errors
+   * belong to the root error hierarchy, so they must be generated anyway; the
+   * authenticator tests, by contrast, must follow the schemes the spec declares,
+   * which only works when they are registered after the spec has been read.
+   */
+  @Test
+  void oauth2ErrorsAndSchemeTestsFollowTheSpec() throws IOException {
+    final Path out = Path.of("target", "probe-schemes", "elixir-plus").toAbsolutePath();
+    if (Files.exists(out)) {
+      try (Stream<Path> walk = Files.walk(out)) {
+        walk.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+      }
+    }
+    ProbeGenerator.generate(
+        "elixir-plus",
+        Map.of("packageName", "probe_client", "moduleName", "ProbeClient", "generateTests", "true", "skipFormatter", "true"),
+        out);
+
+    assertThat(out.resolve("lib/probe_client/errors/oauth2_server_error.ex")).exists();
+    assertThat(out.resolve("lib/probe_client/errors/oauth2_token_error.ex")).exists();
+    assertThat(out.resolve("test/bearer_authenticator_test.exs")).exists();
+    assertThat(out.resolve("test/basic_authenticator_test.exs")).doesNotExist();
+    assertThat(out.resolve("test/api_key_authenticator_test.exs")).doesNotExist();
+    assertThat(out.resolve("test/oauth2_token_manager_test.exs")).doesNotExist();
+    assertThat(out.resolve("test/openid_connect_authenticator_test.exs")).doesNotExist();
   }
 }

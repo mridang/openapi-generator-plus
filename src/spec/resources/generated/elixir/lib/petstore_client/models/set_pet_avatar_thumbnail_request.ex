@@ -8,8 +8,11 @@
 defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
   @moduledoc "Union type for SetPetAvatarThumbnailRequest (oneOf)."
 
+  @typedoc "A value of any of the oneOf variants."
+  @type t :: term()
+
   @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [atom()]
+  @spec openapi_one_of() :: [:"[binary()]" | :"binary()", ...]
   def openapi_one_of do
     [
       :"[binary()]",
@@ -43,7 +46,7 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
 
       true ->
         # Raise on union no-match (see comment above).
-        raise PetstoreClient.SerializationError,
+        raise PetstoreClient.Errors.SerializationError,
           message: "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
     end
   end

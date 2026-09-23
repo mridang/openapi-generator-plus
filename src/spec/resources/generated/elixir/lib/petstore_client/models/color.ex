@@ -25,13 +25,13 @@ defmodule PetstoreClient.Models.Color do
   def blue, do: :blue
 
   @doc "All allowed values as atoms."
-  @spec all_values() :: [atom()]
+  @spec all_values() :: [t(), ...]
   def all_values do
     [red(), green(), blue()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(atom()) :: term()
+  @spec value(t()) :: String.t()
   def value(:red), do: "red"
   def value(:green), do: "green"
   def value(:blue), do: "blue"
@@ -45,7 +45,7 @@ defmodule PetstoreClient.Models.Color do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: atom() | {:error, term()}
+  @spec from_value(term()) :: t() | {:error, term()}
   def from_value("red"), do: :red
   def from_value("green"), do: :green
   def from_value("blue"), do: :blue

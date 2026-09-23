@@ -8,6 +8,9 @@
 defmodule PetstoreClient.Models.PetTreatment do
   @moduledoc "A treatment that can match a medication, a surgery, or both"
 
+  @typedoc "A value of any of the anyOf variants."
+  @type t :: term()
+
   @doc "List of types defined in anyOf (OpenAPI v3)."
   @spec openapi_any_of() :: [String.t()]
   def openapi_any_of do

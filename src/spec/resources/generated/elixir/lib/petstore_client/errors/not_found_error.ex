@@ -10,6 +10,8 @@ defmodule PetstoreClient.Errors.NotFoundError do
   Exception for HTTP 404 Not Found.
   """
 
+  alias PetstoreClient.Errors.ApiError
+
   defexception [:message, :status_code, :response_headers, :response_body, :error_body]
 
   @type t :: %__MODULE__{
@@ -35,5 +37,5 @@ defmodule PetstoreClient.Errors.NotFoundError do
 
   @impl true
   def message(%__MODULE__{} = error),
-    do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
+    do: ApiError.message(struct(ApiError, Map.from_struct(error)))
 end

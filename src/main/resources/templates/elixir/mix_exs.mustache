@@ -81,7 +81,11 @@ defmodule {{moduleName}}.MixProject do
       # links cleanly) but skips the OTP start — no inotifywait, no
       # warning, no apt-install. `override: true` is required because
       # `testcontainers` declares `fs` itself.
-      {:fs, "~> 8.6", only: :test, override: true, runtime: false}
+      {:fs, "~> 8.6", only: :test, override: true, runtime: false},
+      # The trace-context tests start the OpenTelemetry SDK themselves, with
+      # a processor that exports finished spans to the test process.
+      {:opentelemetry_api, "~> 1.4", only: :test},
+      {:opentelemetry, "~> 1.5", only: :test, runtime: false}
 {{/generateTests}}
     ]
   end
