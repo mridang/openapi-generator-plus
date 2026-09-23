@@ -221,7 +221,7 @@ import {{invokerPackage}}.errors.*
 {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}import {{modelPackage}}.{{{dataType}}}
 {{/isModel}}{{/bodyParam}}
 
-// Operations are suspend functions, so they must be called from a coroutine.
+/* Operations are suspend functions, so they must be called from a coroutine. */
 suspend fun {{operationId}}OrReport(client: {{clientClassName}}{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{/bodyParam}}) {
     try {
         client.{{clientPropertyName}}.{{operationId}}({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}})

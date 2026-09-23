@@ -59,7 +59,7 @@ Laravel's client, or a test double — wrap any [PSR-18](https://www.php-fig.org
 ```php
 use PetstoreClient\Psr18ApiClient;
 
-// $httpClient is any PSR-18 client; $psr17 is any PSR-17 request/stream factory.
+/* $httpClient is any PSR-18 client; $psr17 is any PSR-17 request/stream factory. */
 $apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
 $client = Client::withToken('/api/v3', $token, null, $apiClient);
 ```

@@ -201,7 +201,7 @@ import com.example.petstore.Client
 import com.example.petstore.errors.*
 import com.example.petstore.models.Pet
 
-// Operations are suspend functions, so they must be called from a coroutine.
+/* Operations are suspend functions, so they must be called from a coroutine. */
 suspend fun addPetOrReport(client: Client, pet: Pet) {
     try {
         client.pet.addPet(pet)
