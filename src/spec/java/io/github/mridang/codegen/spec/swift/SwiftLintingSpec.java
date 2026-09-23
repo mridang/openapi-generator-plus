@@ -14,15 +14,16 @@ public class SwiftLintingSpec extends AbstractIntegrationSpec implements SwiftSp
 
     @Override
     protected String[] getBuildCommands() {
-        /* The two checks the generated Makefile's build and lint targets run,
-         * over the sources and the tests alike: the compiler (with
-         * -warnings-as-errors from Package.swift, and --build-tests so the
-         * test target is type-checked too) and swift-format's linter.
-         * SwiftLint is not run here: it ships no Linux binary and building it
-         * from source inside the spec container costs more than it finds on
-         * top of swift-format. */
+        /* The two checks the generated Makefile's build and lint targets run:
+         * the compiler with -warnings-as-errors (from Package.swift) over the
+         * sources, and swift-format's linter in strict mode over the sources
+         * AND the tests. The test target is type-checked by SwiftClientSpec's
+         * `swift test`, so building it a second time here only doubles the
+         * container's peak memory. SwiftLint is not run: it ships no Linux
+         * binary, and building it from source in the spec container costs
+         * more than it finds on top of swift-format. */
         return new String[] {
-            "swift build --build-tests", "swift-format lint --strict --recursive Sources Tests"
+            "swift build", "swift-format lint --strict --recursive Sources Tests"
         };
     }
 
