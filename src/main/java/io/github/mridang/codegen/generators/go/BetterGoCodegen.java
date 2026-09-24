@@ -531,6 +531,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("makefile.mustache", "", "Makefile"),
                 new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
                 new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+                new SupportingFileSpec(
+                        "dev_dependencies.mustache",
+                        ".openapi-generator",
+                        "DEV-DEPENDENCIES"),
                 new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"),
                 new SupportingFileSpec("models/set.mustache", "pkg/models", "set.go"),
                 new SupportingFileSpec(

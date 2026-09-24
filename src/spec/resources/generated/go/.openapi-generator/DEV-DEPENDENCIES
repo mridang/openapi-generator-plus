@@ -1,0 +1,13 @@
+# Dev dependencies the generated tests import.
+#
+# This file is generator-owned; the package manifest is not, because it carries
+# the package's own metadata and every real client keep-lists it. That makes
+# this file the only thing keeping the two in step, so the generated test
+# bootstrap reads it and fails with a message naming it when an entry is not
+# declared in go.mod.
+#
+# One entry per line: <name> <version-range>  # <which test needs it>
+github.com/testcontainers/testcontainers-go v0.37.0  # test/testcontainers_helper_test.go
+go.opentelemetry.io/otel v1.46.0  # pkg/trace_context_util_test.go
+go.opentelemetry.io/otel/sdk v1.46.0  # pkg/trace_context_util_test.go
+go.opentelemetry.io/otel/trace v1.46.0  # pkg/trace_context_util_test.go

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,7 +34,43 @@ var (
 	caCertPath            string
 )
 
+// checkDevDependencies fails the run when a dependency the generated tests
+// import is missing from go.mod.
+//
+// .openapi-generator/DEV-DEPENDENCIES is generator-owned; go.mod is not,
+// because it carries the module's own metadata and every real client
+// keep-lists it. Reading both here turns a drift between them into a message
+// naming the file instead of an opaque build failure.
+func checkDevDependencies() {
+	listing, err := os.ReadFile(filepath.Join("..", ".openapi-generator", "DEV-DEPENDENCIES"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read .openapi-generator/DEV-DEPENDENCIES: %v\n", err)
+		os.Exit(1)
+	}
+	manifest, err := os.ReadFile(filepath.Join("..", "go.mod"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read go.mod: %v\n", err)
+		os.Exit(1)
+	}
+	for _, line := range strings.Split(string(listing), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		name := strings.Fields(line)[0]
+		if !strings.Contains(string(manifest), name) {
+			fmt.Fprintf(os.Stderr,
+				"%s is required by the generated tests but is not declared in go.mod; "+
+					"every entry in .openapi-generator/DEV-DEPENDENCIES must be declared there\n",
+				name)
+			os.Exit(1)
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
+	checkDevDependencies()
+
 	ctx := context.Background()
 	fixturesDir, err := filepath.Abs(filepath.Join("..", "testdata"))
 	if err != nil {
@@ -60,6 +97,17 @@ func TestMain(m *testing.M) {
 		ExposedPorts: []string{"3128/tcp", "3129/tcp"},
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: squidConfPath, ContainerFilePath: "/etc/squid/squid.conf"},
+		},
+		/* ubuntu/squid declares VOLUME /var/log/squid and /var/spool/squid, so
+		 * every proxy container would otherwise leave two anonymous volumes
+		 * behind. tmpfs mounts satisfy the VOLUME declarations without any
+		 * volume being created. mode=1777 is required: a tmpfs inherits the
+		 * mode of the directory it covers (0755 here) but is owned by root,
+		 * and squid drops to the unprivileged `proxy` user before opening
+		 * /var/log/squid/access.log. */
+		Tmpfs: map[string]string{
+			"/var/log/squid":   "rw,mode=1777",
+			"/var/spool/squid": "rw,mode=1777",
 		},
 		Networks: []string{networkName},
 		WaitingFor: wait.ForAll(
