@@ -102,6 +102,15 @@ import Testing
     #expect(!(serverError is ClientError))
     #expect(serverError is OpenAPIError)
     #expect((serverError as? ApiError)?.statusCode == 500)
+
+    /* A status outside 400-599 is neither a ClientError nor a ServerError:
+     * the 5xx arm stops at 599, so 600 is a plain ApiError. */
+    let outOfRange: any Error = ApiError.fromResponse(
+      statusCode: 600, headers: [:], body: "")
+    #expect(!(outOfRange is ServerError))
+    #expect(!(outOfRange is ClientError))
+    #expect(outOfRange is ApiError)
+    #expect((outOfRange as? ApiError)?.statusCode == 600)
   }
 
   @Test func testTypedErrorConformsToApiErrorAndOpenAPIError() {

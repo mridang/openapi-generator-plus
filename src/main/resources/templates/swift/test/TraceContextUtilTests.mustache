@@ -81,6 +81,24 @@ import Testing
         #expect(headers["X-Request-ID"] == "abc-123")
     }
 
+    /// The hook the class doc tells a caller to register is public and is
+    /// actually used: an unreachable or ignored hook would mean trace context
+    /// is never injected. The propagator is process-wide state, so the suite
+    /// is serialized and this test restores it.
+    @Test func testRegisteredPropagatorIsUsed() {
+        let traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        TraceContextUtil.propagator = { headers in
+            headers["traceparent"] = traceparent
+        }
+        defer { TraceContextUtil.propagator = nil }
+        var headers: [String: String] = ["X-Existing": "value"]
+
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        #expect(headers["traceparent"] == traceparent)
+        #expect(headers["X-Existing"] == "value")
+    }
+
     // MARK: - With an active OpenTelemetry span
 
     /* Swift has no ambient tracer, so the SDK takes a propagator closure.

@@ -18,11 +18,29 @@ public protocol ApiClient: Sendable {
   ///   - headers: Caller-provided headers
   ///   - body: Request body as `Data`, `[String: Any]` for multipart
   ///     form data, or `nil`
-  ///   - noRedirect: when true, the implementation MUST NOT follow
-  ///     307/308 redirects and MUST throw an ``ApiError`` if the server
-  ///     returns one. Used by the OAuth2 token endpoint POST so that
-  ///     credentials embedded in the request body are never silently
-  ///     replayed to a redirect target. Defaults to false.
+  /// - Returns: An ``ApiHttpResponse`` with status code, body, and headers.
+  /// - Throws: An error if the request fails at the transport level.
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws
+    -> ApiHttpResponse
+
+  /// Sends an HTTP request, optionally refusing to follow redirects.
+  ///
+  /// When `noRedirect` is true, the implementation MUST NOT follow 307/308
+  /// redirects and MUST surface the first such response to the caller as-is.
+  /// Used by the OAuth2 token endpoint POST so that credentials embedded in
+  /// the request body are never silently replayed to a redirect target.
+  ///
+  /// The default implementation delegates to
+  /// ``sendRequest(method:url:headers:body:)``; transport implementations
+  /// that own the redirect loop should implement this and honour the flag.
+  ///
+  /// - Parameters:
+  ///   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
+  ///   - url: Fully qualified URL
+  ///   - headers: Caller-provided headers
+  ///   - body: Request body as `Data`, `[String: Any]` for multipart
+  ///     form data, or `nil`
+  ///   - noRedirect: when true, do not follow 307/308 responses
   /// - Returns: An ``ApiHttpResponse`` with status code, body, and headers.
   /// - Throws: An error if the request fails at the transport level.
   func sendRequest(
@@ -37,17 +55,13 @@ public protocol ApiClient: Sendable {
 }
 
 extension ApiClient {
-  public func close() {
-    /* No-op by default. Implementations override to release resources. */
+  public func sendRequest(
+    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+  ) async throws -> ApiHttpResponse {
+    try await sendRequest(method: method, url: url, headers: headers, body: body)
   }
 
-  /// Convenience overload that defaults ``noRedirect`` to false. Lets
-  /// existing call sites that don't care about redirect refusal stay
-  /// terse while OAuth2 token-endpoint POSTs opt in via the explicit
-  /// parameter.
-  public func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-    async throws -> ApiHttpResponse
-  {
-    try await sendRequest(method: method, url: url, headers: headers, body: body, noRedirect: false)
+  public func close() {
+    /* No-op by default. Implementations override to release resources. */
   }
 }

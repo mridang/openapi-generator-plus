@@ -13,10 +13,11 @@ import Foundation
 /// request. Transport-level settings (TLS, proxy, timeouts) belong in
 /// ``TransportOptions`` and are configured on the ``DefaultApiClient``.
 ///
-/// Configuration is immutable once built. Use ``ConfigurationBuilder`` to create instances:
+/// Configuration is immutable once built. Use ``Configuration/builder()`` to
+/// create instances:
 ///
 /// ```swift
-/// let config = ConfigurationBuilder()
+/// let config = Configuration.builder()
 ///     .baseURL("https://api.example.com")
 ///     .defaultHeader(name: "Authorization", value: "Bearer token")
 ///     .build()
@@ -34,6 +35,12 @@ public final class Configuration: Sendable {
   fileprivate init(baseURL: String, defaultHeaders: [String: String]) {
     self.baseURL = baseURL
     self.defaultHeaders = defaultHeaders
+  }
+
+  /// Returns a new ``ConfigurationBuilder``. This is the entry point for
+  /// building a configuration.
+  public static func builder() -> ConfigurationBuilder {
+    return ConfigurationBuilder()
   }
 
   /// Returns a Configuration with default values.

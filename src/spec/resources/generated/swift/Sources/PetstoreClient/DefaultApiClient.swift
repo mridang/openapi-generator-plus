@@ -175,12 +175,22 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     return "Basic \(encoded)"
   }
 
-  /// Sends an HTTP request with transport-level settings applied.
+  /// Sends an HTTP request with transport-level settings applied, following
+  /// redirects per the transport configuration.
+  public func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+    async throws -> ApiHttpResponse
+  {
+    return try await sendRequest(
+      method: method, url: url, headers: headers, body: body, noRedirect: false)
+  }
+
+  /// Sends an HTTP request with transport-level settings applied, refusing
+  /// to follow 307/308 redirects when `noRedirect` is true.
   ///
   /// Merges headers according to the priority order documented on the class,
   /// then dispatches via URLSession.
   public func sendRequest(
-    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool = false
+    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
   ) async throws -> ApiHttpResponse {
     /* Gap T-D4: using the client after close() must surface a uniform
        SDK error, not a foreign URLSession invalidation exception. */

@@ -24,6 +24,14 @@ import Testing
     /// When set, every request fails with this error instead of answering.
     var failure: Error? = nil
 
+    /// Satisfies the ApiClient requirement that carries no request options.
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      try await sendRequest(
+        method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
+
     func sendRequest(
       method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
     ) async throws -> ApiHttpResponse {
@@ -55,6 +63,14 @@ import Testing
     init(responseBody: String, delayNanos: UInt64 = 50_000_000) {
       self.responseBody = responseBody
       self.delayNanos = delayNanos
+    }
+
+    /// Satisfies the ApiClient requirement that carries no request options.
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      try await sendRequest(
+        method: method, url: url, headers: headers, body: body, noRedirect: false)
     }
 
     func sendRequest(
@@ -604,6 +620,14 @@ import Testing
 
     init(delayNanos: UInt64 = 50_000_000) {
       self.delayNanos = delayNanos
+    }
+
+    /// Satisfies the ApiClient requirement that carries no request options.
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      try await sendRequest(
+        method: method, url: url, headers: headers, body: body, noRedirect: false)
     }
 
     func sendRequest(

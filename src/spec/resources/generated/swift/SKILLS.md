@@ -201,7 +201,7 @@ do {
 ### Custom Transport Options
 
 ```swift
-let transport = try TransportOptionsBuilder()
+let transport = try TransportOptions.builder()
     .proxy("http://proxy:3128")
     .timeout(5000)
     .build()

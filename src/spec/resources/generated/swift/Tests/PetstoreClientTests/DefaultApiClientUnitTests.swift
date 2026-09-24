@@ -534,7 +534,7 @@ import Testing
     #expect(resp.statusCode == 308)
   }
 
-  /// When noRedirect is omitted the default-arg overload routes
+  /// When noRedirect is omitted the request-options-free overload routes
   /// through the regular session and a 200 response is surfaced
   /// untouched -- the OAuth2 path opts in, but BaseApi requests
   /// must not regress.

@@ -22,6 +22,14 @@ import Testing
     var lastBody: Data? = nil
     var getCount: Int = 0
 
+    /// Satisfies the ApiClient requirement that carries no request options.
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      try await sendRequest(
+        method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
+
     func sendRequest(
       method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
     ) async throws -> ApiHttpResponse {

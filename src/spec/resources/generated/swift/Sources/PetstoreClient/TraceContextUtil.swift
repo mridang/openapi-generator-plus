@@ -7,13 +7,13 @@
 
 import Foundation
 
-/// TraceContextUtil injects W3C Trace Context headers (traceparent, tracestate)
-/// into outgoing API requests when distributed tracing is available.
+/// Utility for injecting W3C Trace Context headers (traceparent, tracestate)
+/// into outgoing API requests when OpenTelemetry is available.
 ///
-/// Swift does not support runtime detection of optional packages (unlike Python's
-/// `try import` or Ruby's `require`), so this implementation uses a pluggable
-/// closure. By default it is a safe no-op. To enable trace context propagation,
-/// set the propagator at application startup:
+/// Swift cannot discover an optional package at runtime (unlike Python's
+/// `try import` or Ruby's `require`), so the propagator is registered by the
+/// application instead of being detected. If no ``propagator`` has been
+/// registered, this enum silently no-ops. Register one at application startup:
 ///
 /// ```swift
 /// import OpenTelemetryApi
@@ -27,21 +27,18 @@ import Foundation
 ///     headers = carrier
 /// }
 /// ```
-///
-/// This matches the pattern used by other languages in this SDK: try to use
-/// OpenTelemetry if available, otherwise do nothing (no crash).
-internal enum TraceContextUtil {
+public enum TraceContextUtil {
 
   /// The propagator function used to inject trace context headers.
   /// Set this at application startup to enable trace context propagation.
   /// When nil (the default), ``injectTraceContext(headers:)`` is a no-op.
-  internal static var propagator: ((_ headers: inout [String: String]) -> Void)?
+  public static var propagator: ((_ headers: inout [String: String]) -> Void)?
 
-  /// Injects trace context headers into the given header dictionary.
+  /// Inject the current OpenTelemetry trace context into the given headers
+  /// dictionary.
   ///
-  /// If a ``propagator`` has been configured, it is called to inject
-  /// W3C traceparent and tracestate headers. Otherwise this is a no-op.
-  internal static func injectTraceContext(headers: inout [String: String]) {
+  /// - Parameter headers: mutable dictionary of request headers
+  public static func injectTraceContext(headers: inout [String: String]) {
     propagator?(&headers)
   }
 }

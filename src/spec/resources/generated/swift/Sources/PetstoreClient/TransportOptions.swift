@@ -14,10 +14,11 @@ import Foundation
 /// are independent of API-level concerns (base URL, authentication headers)
 /// which belong in ``Configuration``.
 ///
-/// Use ``TransportOptionsBuilder`` to create instances:
+/// This class is immutable and thread-safe. Use ``TransportOptions/builder()``
+/// to create instances:
 ///
 /// ```swift
-/// let transport = TransportOptionsBuilder()
+/// let transport = TransportOptions.builder()
 ///     .verifySsl(false)
 ///     .proxy("http://proxy.example.com:8080")
 ///     .timeout(30000)
@@ -84,6 +85,12 @@ public final class TransportOptions: Sendable {
     self.userAgent = userAgent
     self._defaultHeaders = defaultHeaders
     self.injectRequestID = injectRequestID
+  }
+
+  /// Returns a new ``TransportOptionsBuilder``. This is the entry point for
+  /// building transport options.
+  public static func builder() -> TransportOptionsBuilder {
+    return TransportOptionsBuilder()
   }
 }
 

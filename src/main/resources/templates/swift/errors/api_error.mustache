@@ -54,22 +54,13 @@ public class ApiError: {{errorPrefix}}Error, LocalizedError, @unchecked Sendable
         return msg
     }
 
-    /// Deserializes the response body into the target type. Returns nil if there
-    /// is no response body to parse.
-    public func typedErrorBody<T: Decodable>(as type: T.Type) throws -> T? {
-        guard let body = responseBody, !body.isEmpty,
-              let data = body.data(using: .utf8) else {
-            return nil
-        }
-        /* F5: route through ObjectSerializer.deserialize so the depth-cap
-         * rejects malicious 100k-deep error payloads before JSONDecoder
-         * stack-overflows. */
-        return try ObjectSerializer.deserialize(data, as: type)
-    }
-
-    /// Deserializes the response body into the target type via
-    /// ``ObjectSerializer/deserialize(_:as:)``. Returns nil if there
-    /// is no response body to parse.
+    /// Deserializes the raw response body into the target type via
+    /// ``ObjectSerializer/deserialize(_:as:)``. This is the one accessor for
+    /// spec-declared error schemas. Returns nil if there is no response body
+    /// to parse.
+    ///
+    /// Routing through ``ObjectSerializer`` keeps the depth cap in play, so a
+    /// malicious deeply nested error payload cannot stack-overflow the decoder.
     public func getTypedErrorBody<T: Decodable>(_ type: T.Type) throws -> T? {
         guard let body = responseBody, !body.isEmpty else {
             return nil
@@ -138,7 +129,7 @@ public class ApiError: {{errorPrefix}}Error, LocalizedError, @unchecked Sendable
             }
         }
 
-        if statusCode >= 500 {
+        if statusCode >= 500 && statusCode < 600 {
             switch statusCode {
             case 500:
                 return InternalServerError(
