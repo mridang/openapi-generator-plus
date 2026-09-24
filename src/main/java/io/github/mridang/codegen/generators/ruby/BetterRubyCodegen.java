@@ -233,7 +233,33 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             // rubocop -A exits 1 when it auto-corrects offenses and 2 on a real
             // error; tolerate only the success-with-corrections case so genuine
             // failures still fail loud (subshell isolates $? from the && chain).
-            "( bundle exec rubocop -A --cache false --only Layout || [ $? -eq 1 ] )",
+            //
+            // Beyond Layout, the cops named here are the ones a fixed Mustache
+            // template cannot get right on its own: an operation with no
+            // parameters renders `def x()` from the same line that renders `def
+            // x(a, b)`, a hash whose last entry is conditional renders a
+            // trailing comma, and so on. Correcting them at generation time is
+            // what lets .rubocop.yml stop excluding them, so the cops stay live
+            // and a genuine violation still fails RubyLintingSpec. The list is
+            // an allowlist: every cop on it was verified to leave the tree with
+            // no offence of its own and no new offence from another cop.
+            "( bundle exec rubocop -A --cache false --only Layout"
+                    + ",Minitest/AssertMatch"
+                    + ",Minitest/AssertPredicate"
+                    + ",Minitest/RefuteRespondTo"
+                    + ",Style/DefWithParentheses"
+                    + ",Style/IfUnlessModifier"
+                    + ",Style/Lambda"
+                    + ",Style/MethodCallWithoutArgsParentheses"
+                    + ",Style/RedundantBegin"
+                    + ",Style/RedundantException"
+                    + ",Style/RedundantInterpolation"
+                    + ",Style/RegexpLiteral"
+                    + ",Style/RescueModifier"
+                    + ",Style/StringConcatenation"
+                    + ",Style/StringLiterals"
+                    + ",Style/TrailingCommaInHashLiteral"
+                    + " || [ $? -eq 1 ] )",
             "rm -rf vendor .bundle"
         };
     }
@@ -435,6 +461,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         // The Steepfile type-checks the tests whenever any are emitted.
         additionalProperties.put("emitUnitTests", emitUnitTests());
         if (emitUnitTests()) {
+            // The dev-dependency manifest: one line per dependency an emitted test
+            // imports. Every client keep-lists its own package manifest, so this
+            // generator-owned file is the only thing keeping the two in step.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "dev_dependencies.mustache",
+                            ".openapi-generator",
+                            "DEV-DEPENDENCIES"));
             supportingFiles.add(
                     new SupportingFile("test/test_helper.mustache", "test", "test_helper.rb"));
             supportingFiles.add(
