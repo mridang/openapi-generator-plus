@@ -28,7 +28,7 @@ func TestInjectTraceContext_NoOpWithoutTracer(t *testing.T) {
 
 	// InjectTraceContext should be a no-op when OpenTelemetry is not configured.
 	// It should not panic or modify existing headers.
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if headers["X-Existing"] != "value" {
 		t.Errorf("expected existing header to be preserved, got %q", headers["X-Existing"])
@@ -40,14 +40,14 @@ func TestInjectTraceContext_EmptyHeadersDoNotCauseException(t *testing.T) {
 	headers := make(map[string]string)
 
 	// Should not panic with empty headers map
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 }
 
 func TestInjectTraceContext_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if _, ok := headers["traceparent"]; ok {
 		t.Error("expected no traceparent header without OpenTelemetry")
@@ -58,7 +58,7 @@ func TestInjectTraceContext_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if _, ok := headers["tracestate"]; ok {
 		t.Error("expected no tracestate header without OpenTelemetry")
@@ -71,7 +71,7 @@ func TestInjectTraceContext_PreservesAuthorizationHeader(t *testing.T) {
 		"Authorization": "Bearer token123",
 	}
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if headers["Authorization"] != "Bearer token123" {
 		t.Errorf("expected Authorization header %q, got %q", "Bearer token123", headers["Authorization"])
@@ -84,7 +84,7 @@ func TestInjectTraceContext_PreservesContentTypeHeader(t *testing.T) {
 		"Content-Type": "application/json",
 	}
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if headers["Content-Type"] != "application/json" {
 		t.Errorf("expected Content-Type header %q, got %q", "application/json", headers["Content-Type"])
@@ -97,7 +97,7 @@ func TestInjectTraceContext_PreservesXRequestIdHeader(t *testing.T) {
 		"X-Request-ID": "req-12345",
 	}
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if headers["X-Request-ID"] != "req-12345" {
 		t.Errorf("expected X-Request-ID header %q, got %q", "req-12345", headers["X-Request-ID"])
@@ -112,7 +112,7 @@ func TestInjectTraceContext_PreservesAllExistingHeaders(t *testing.T) {
 		"X-Request-ID":  "abc-123",
 	}
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if headers["Authorization"] != "Bearer token" {
 		t.Error("Authorization header was modified")
@@ -125,8 +125,30 @@ func TestInjectTraceContext_PreservesAllExistingHeaders(t *testing.T) {
 	}
 }
 
+// TestSetTraceContextPropagator_RegisteredPropagatorIsUsed confirms the hook
+// the doc example tells a caller to register is public and actually used: an
+// unreachable or ignored hook would mean trace context is never injected. The
+// propagator is package state, so this test does not run in parallel.
+func TestSetTraceContextPropagator_RegisteredPropagatorIsUsed(t *testing.T) {
+	const traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
+		headers["traceparent"] = traceparent
+	})
+	t.Cleanup(func() { SetTraceContextPropagator(nil) })
+
+	headers := map[string]string{"X-Existing": "value"}
+	InjectTraceContext(headers)
+
+	if headers["traceparent"] != traceparent {
+		t.Errorf("expected the registered propagator to inject %q, got %q", traceparent, headers["traceparent"])
+	}
+	if headers["X-Existing"] != "value" {
+		t.Error("expected existing headers to be preserved")
+	}
+}
+
 // withActiveSpan configures the OpenTelemetry SDK with an in-memory exporter,
-// starts a span under parent and routes injectTraceContext through the W3C
+// starts a span under parent and routes InjectTraceContext through the W3C
 // propagator with that span active. Go has no ambient span, so the propagator
 // carries the span's context. The tests that call it do not run in parallel:
 // the propagator is package state, restored when the test ends.
@@ -139,10 +161,10 @@ func withActiveSpan(t *testing.T, parent context.Context, sampler sdktrace.Sampl
 	)
 	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
 	ctx, span := provider.Tracer("trace-context-test").Start(parent, "request")
-	setTraceContextPropagator(func(_ context.Context, headers map[string]string) {
+	SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
 		propagation.TraceContext{}.Inject(ctx, propagation.MapCarrier(headers))
 	})
-	t.Cleanup(func() { setTraceContextPropagator(nil) })
+	t.Cleanup(func() { SetTraceContextPropagator(nil) })
 	return span, exporter
 }
 
@@ -167,7 +189,7 @@ func TestInjectTraceContext_InjectsTraceparentWhenSpanActive(t *testing.T) {
 	span, exporter := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	headers := map[string]string{}
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 	span.End()
 
 	sc := span.SpanContext()
@@ -185,7 +207,7 @@ func TestInjectTraceContext_IncludesTracestateWhenPresent(t *testing.T) {
 	defer span.End()
 	headers := map[string]string{}
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if headers["tracestate"] != "vendor=value" {
 		t.Errorf("expected tracestate %q, got %q", "vendor=value", headers["tracestate"])
@@ -197,7 +219,7 @@ func TestInjectTraceContext_OmitsTracestateWhenEmpty(t *testing.T) {
 	defer span.End()
 	headers := map[string]string{}
 
-	injectTraceContext(headers)
+	InjectTraceContext(headers)
 
 	if _, ok := headers["traceparent"]; !ok {
 		t.Fatal("expected a traceparent header for the active span")
@@ -218,7 +240,7 @@ func TestInjectTraceContext_FormatsTraceFlagsCorrectly(t *testing.T) {
 		span, _ := withActiveSpan(t, context.Background(), tc.sampler)
 		headers := map[string]string{}
 
-		injectTraceContext(headers)
+		InjectTraceContext(headers)
 		span.End()
 
 		sc := span.SpanContext()

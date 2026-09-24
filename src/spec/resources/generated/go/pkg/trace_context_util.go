@@ -14,12 +14,28 @@ import (
 	"net/http"
 )
 
-// injectTraceContext injects W3C Trace Context headers (traceparent, tracestate)
+// InjectTraceContext injects W3C Trace Context headers (traceparent, tracestate)
 // into outgoing API requests when OpenTelemetry is available.
 //
-// This implementation uses a pluggable propagator function. By default it is a
-// safe no-op. To enable trace context propagation, set the propagator at
-// application startup:
+// Go cannot discover an optional package at runtime, so the propagator is
+// registered by the application instead. If no propagator has been registered
+// with SetTraceContextPropagator, this function silently no-ops.
+func InjectTraceContext(headers map[string]string) {
+	if traceContextPropagator != nil {
+		traceContextPropagator(context.Background(), headers)
+	}
+}
+
+// TraceContextPropagatorFunc is a function that injects trace context into headers.
+type TraceContextPropagatorFunc func(ctx context.Context, headers map[string]string)
+
+// traceContextPropagator holds the current propagator function.
+// It is nil by default (no-op).
+var traceContextPropagator TraceContextPropagatorFunc
+
+// SetTraceContextPropagator sets the function used to inject trace context
+// headers. Pass nil to disable trace context injection. To enable trace
+// context propagation, register the propagator at application startup:
 //
 //	import (
 //		"go.opentelemetry.io/otel"
@@ -28,26 +44,11 @@ import (
 //
 //	func init() {
 //		otel.SetTextMapPropagator(propagation.TraceContext{})
-//		setTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
+//		petstore.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
 //			otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(headers))
 //		})
 //	}
-func injectTraceContext(headers map[string]string) {
-	if traceContextPropagator != nil {
-		traceContextPropagator(context.Background(), headers)
-	}
-}
-
-// traceContextPropagatorFunc is a function that injects trace context into headers.
-type traceContextPropagatorFunc func(ctx context.Context, headers map[string]string)
-
-// traceContextPropagator holds the current propagator function.
-// It is nil by default (no-op).
-var traceContextPropagator traceContextPropagatorFunc
-
-// setTraceContextPropagator sets the function used to inject trace context
-// headers. Pass nil to disable trace context injection.
-func setTraceContextPropagator(fn traceContextPropagatorFunc) {
+func SetTraceContextPropagator(fn TraceContextPropagatorFunc) {
 	traceContextPropagator = fn
 }
 

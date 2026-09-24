@@ -139,8 +139,9 @@ func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *tes
 
 func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
 	t.Parallel()
+	timeout := 1000
 	transport, buildErr := NewTransportOptionsBuilder().
-		Timeout(1000).
+		Timeout(&timeout).
 		Build()
 	if buildErr != nil {
 		t.Fatal(buildErr)

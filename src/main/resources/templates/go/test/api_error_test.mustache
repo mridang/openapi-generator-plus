@@ -291,6 +291,9 @@ func TestFromResponse_MapsEveryStatusToItsType(t *testing.T) {
 		{500, "*errors.InternalServerError"},
 		{503, "*errors.ServerError"},
 		{302, "*errors.ApiError"},
+		/* A status outside 400-599 is not a ClientError or a ServerError: the
+		 * 5xx arm stops at 599, so 600 yields the base *ApiError. */
+		{600, "*errors.ApiError"},
 	}
 	headers := map[string]string{"X-Request-Id": "abc"}
 	for _, tc := range cases {

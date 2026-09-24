@@ -446,6 +446,9 @@ func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers 
 	return &petstore.ApiHttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
 
+// Close satisfies the ApiClient contract; this stub holds no resources.
+func (c *capturingApiClient) Close() error { return nil }
+
 // ── Header flow-through ──
 
 func TestBaseApi_EmptyContentTypeDefaultsToJson(t *testing.T) {
@@ -521,6 +524,9 @@ func (c *contentTypeApiClient) SendRequestWithOptions(method, url string, header
 		Headers:    map[string]string{"content-type": c.responseContentType},
 	}, nil
 }
+
+// Close satisfies the ApiClient contract; this stub holds no resources.
+func (c *contentTypeApiClient) Close() error { return nil }
 
 func TestBaseApi_SkipsDeserializationForNonJSON(t *testing.T) {
 	t.Parallel()
@@ -632,6 +638,9 @@ func (c *queryCapturingApiClient) SendRequestWithOptions(method, url string, hea
 	c.capturedURL = url
 	return &petstore.ApiHttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
+
+// Close satisfies the ApiClient contract; this stub holds no resources.
+func (c *queryCapturingApiClient) Close() error { return nil }
 
 func TestBaseApi_QueryParamSerialization(t *testing.T) {
 	t.Parallel()
@@ -978,6 +987,9 @@ func (c *bodyCapturingApiClient) SendRequestWithOptions(method, url string, head
 	return &petstore.ApiHttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
 
+// Close satisfies the ApiClient contract; this stub holds no resources.
+func (c *bodyCapturingApiClient) Close() error { return nil }
+
 func TestBaseApi_SerializesTextPlainBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
@@ -1052,6 +1064,9 @@ func (c *binaryResponseApiClient) SendRequestWithOptions(method, url string, hea
 		Headers:    map[string]string{"content-type": c.responseContentType},
 	}, nil
 }
+
+// Close satisfies the ApiClient contract; this stub holds no resources.
+func (c *binaryResponseApiClient) Close() error { return nil }
 
 func TestBinaryResponse_OctetStreamDecodedFromBase64(t *testing.T) {
 	t.Parallel()
@@ -1341,6 +1356,9 @@ func (c *authHeaderCapturingClient) SendRequestWithOptions(method, url string, h
 	}
 	return &petstore.ApiHttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
+
+// Close satisfies the ApiClient contract; this stub holds no resources.
+func (c *authHeaderCapturingClient) Close() error { return nil }
 
 func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 	t.Parallel()

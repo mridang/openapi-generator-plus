@@ -27,9 +27,10 @@ import (
 //
 // Example with custom transport (proxy, timeouts, etc.):
 //
+//	timeout := 5000
 //	transport, err := petstore.NewTransportOptionsBuilder().
 //		Proxy("http://proxy:3128").
-//		Timeout(5000).
+//		Timeout(&timeout).
 //		Build()
 //	if err != nil {
 //		return err

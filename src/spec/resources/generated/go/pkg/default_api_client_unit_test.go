@@ -1111,7 +1111,8 @@ func TestDefaultApiClient_TimeoutReturnsNetworkTimeoutError(t *testing.T) {
 	defer server.Close()
 	defer close(release)
 
-	transport, err := NewTransportOptionsBuilder().Timeout(100).Build()
+	timeout := 100
+	transport, err := NewTransportOptionsBuilder().Timeout(&timeout).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1153,7 +1154,8 @@ func TestDefaultApiClient_BodyReadTimeoutReturnsNetworkTimeoutError(t *testing.T
 	defer server.Close()
 	defer close(release)
 
-	transport, err := NewTransportOptionsBuilder().Timeout(200).Build()
+	timeout := 200
+	transport, err := NewTransportOptionsBuilder().Timeout(&timeout).Build()
 	if err != nil {
 		t.Fatal(err)
 	}

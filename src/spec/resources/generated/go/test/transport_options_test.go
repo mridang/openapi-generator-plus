@@ -153,11 +153,12 @@ func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
 func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 	t.Parallel()
 	customAgent := "CustomAgent/2.0"
+	customTimeout := 30000
 	opts, err := petstore.NewTransportOptionsBuilder().
 		VerifySsl(false).
 		CACertPath("../testdata/certs/ca.pem").
 		Proxy("http://proxy.example.com:8080").
-		Timeout(30000).
+		Timeout(&customTimeout).
 		FollowRedirects(false).
 		MaxRedirects(5).
 		UserAgent(&customAgent).
@@ -272,10 +273,11 @@ func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 	builder := petstore.NewTransportOptionsBuilder()
 
 	testAgent := "Test/1.0"
+	testTimeout := 10000
 	result := builder.
 		VerifySsl(true).
 		UserAgent(&testAgent).
-		Timeout(10000)
+		Timeout(&testTimeout)
 
 	if result == nil {
 		t.Fatal("expected non-nil builder from chaining")
@@ -401,7 +403,8 @@ func TestTransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) 
 
 func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
 	t.Parallel()
-	opts, err := petstore.NewTransportOptionsBuilder().Timeout(5000).Build()
+	timeout := 5000
+	opts, err := petstore.NewTransportOptionsBuilder().Timeout(&timeout).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,11 +413,26 @@ func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
 	}
 }
 
+// TestTransportOptions_NoTimeoutIsExpressible confirms "wait indefinitely" can
+// be asked for: Timeout(nil) clears the 10000ms default rather than being
+// indistinguishable from leaving the timeout unset.
+func TestTransportOptions_NoTimeoutIsExpressible(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().Timeout(nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Timeout() != nil {
+		t.Errorf("expected no timeout, got %d", *opts.Timeout())
+	}
+}
+
 func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
 	t.Parallel()
 	// Verify via the Timeout() accessor that the field is named 'Timeout'
 	// (not e.g. 'ConnectionTimeout' or 'OpenTimeout').
-	opts, err := petstore.NewTransportOptionsBuilder().Timeout(1000).Build()
+	timeout := 1000
+	opts, err := petstore.NewTransportOptionsBuilder().Timeout(&timeout).Build()
 	if err != nil {
 		t.Fatal(err)
 	}

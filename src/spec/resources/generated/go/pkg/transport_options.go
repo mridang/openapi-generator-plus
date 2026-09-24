@@ -36,10 +36,12 @@ var ErrInvalidCACertificate = errors.New("invalid CA certificate")
 //
 // Use NewTransportOptionsBuilder to create instances:
 //
+//	timeout := 5000
+//	userAgent := "MyApp/1.0"
 //	transport, err := petstore.NewTransportOptionsBuilder().
 //		VerifySsl(false).
 //		Proxy("http://proxy.example.com:8080").
-//		Timeout(5000).
+//		Timeout(&timeout).
 //		UserAgent(&userAgent).
 //		Build()
 //	if err != nil {
@@ -139,10 +141,10 @@ type TransportOptionsBuilder struct {
 
 // NewTransportOptionsBuilder creates a new builder with sensible defaults.
 //
-// The default request timeout is 10 seconds (10000 ms). Use Timeout(0) for no
-// timeout or pass an explicit positive value to override. The User-Agent header
-// defaults to "petstore/1.0.0 (go)"; call UserAgent to override it or pass nil
-// to omit it.
+// The default request timeout is 10 seconds (10000 ms). Call Timeout with an
+// explicit value to override it, or with nil for no timeout. The User-Agent
+// header defaults to "petstore/1.0.0 (go)"; call UserAgent to override it or
+// pass nil to omit it.
 func NewTransportOptionsBuilder() *TransportOptionsBuilder {
 	defaultTimeout := 10000
 	defaultUserAgent := "petstore/1.0.0 (go)"
@@ -189,10 +191,10 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 	return b
 }
 
-// Timeout sets the end-to-end request timeout in milliseconds.
-// A value of 0 means 0ms timeout; use nil (do not call this method) for no timeout.
-func (b *TransportOptionsBuilder) Timeout(val int) *TransportOptionsBuilder {
-	b.timeout = &val
+// Timeout sets the end-to-end request timeout in milliseconds. Pass nil for no
+// timeout; a value of 0 means a 0ms timeout.
+func (b *TransportOptionsBuilder) Timeout(val *int) *TransportOptionsBuilder {
+	b.timeout = val
 	return b
 }
 

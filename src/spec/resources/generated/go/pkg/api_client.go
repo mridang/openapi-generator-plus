@@ -48,4 +48,12 @@ type ApiClient interface {
 	 * token endpoint POSTs without polluting the package-level
 	 * TransportOptions. */
 	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error)
+
+	/* Close releases any resources held by this client (connection pool,
+	 * sockets). Implementations that own a pooled HTTP client should release
+	 * it here; one that holds nothing returns nil. Go has no default methods
+	 * on an interface, so every implementation declares Close — putting it on
+	 * the contract is what lets a custom transport be closed through the
+	 * abstraction. */
+	Close() error
 }

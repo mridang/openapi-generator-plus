@@ -107,20 +107,16 @@ func (e *ApiError) Error() string {
 	return msg
 }
 
-// TypedErrorBody deserializes the response body into the target value.
-func (e *ApiError) TypedErrorBody(target any) error {
+// GetTypedErrorBody deserializes the raw response body into the given target
+// value. This is the one accessor for spec-declared error schemas — callers
+// pass a pointer to the typed struct they expect (e.g. `var e MyErrorBody;
+// apiErr.GetTypedErrorBody(&e)`). An empty body leaves the target untouched
+// and reports no error.
+func (e *ApiError) GetTypedErrorBody(target any) error {
 	if e.responseBody == "" {
 		return nil
 	}
 	return json.Unmarshal([]byte(e.responseBody), target)
-}
-
-// GetTypedErrorBody deserializes the response body into the given target value.
-// This is the canonical accessor for spec-declared error schemas — callers pass
-// a pointer to the typed struct they expect (e.g. `var e MyErrorBody;
-// apiErr.GetTypedErrorBody(&e)`).
-func (e *ApiError) GetTypedErrorBody(target any) error {
-	return e.TypedErrorBody(target)
 }
 
 // NewNetworkError builds the error returned when a request produced no HTTP
@@ -139,8 +135,8 @@ func NewNetworkTimeoutError(msg string, cause error) *NetworkTimeoutError {
 
 // FromResponse builds the error for a non-2xx HTTP response: the most specific
 // type for the status code, sharing one immutable ApiError as the embedded
-// base. 4xx codes produce a *ClientError (or a recognised subclass); 5xx codes
-// a *ServerError (or a recognised subclass); anything else the bare *ApiError.
+// base. 400-499 produces a *ClientError (or a recognised subclass); 500-599 a
+// *ServerError (or a recognised subclass); anything else the bare *ApiError.
 // A JSON body is also parsed into the error body. Every generated operation and
 // the OpenID Connect discovery request build their HTTP errors here, so this is
 // the one place the status-to-error mapping lives.
@@ -177,7 +173,7 @@ func FromResponse(statusCode int, headers map[string]string, body string) error 
 		}
 	}
 
-	if statusCode >= 500 {
+	if statusCode >= 500 && statusCode < 600 {
 		serverErr := ServerError{ApiError: base}
 		switch statusCode {
 		case 500:
