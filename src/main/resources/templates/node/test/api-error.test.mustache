@@ -89,12 +89,10 @@ describe('ApiError', () => {
 
   describe('getTypedErrorBody', () => {
     test('deserializes the raw body into the requested class', () => {
-      const err = new ApiError<unknown>(
-        400,
-        'bad request',
-        {},
-        '{"id":42,"name":"Dogs"}'
-      );
+      // Built through fromResponse, the way a real response reaches a caller:
+      // the typed body must come out of the raw body, not out of whatever the
+      // generic parse happened to leave behind.
+      const err = ApiError.fromResponse(400, {}, '{"id":42,"name":"Dogs"}');
       const typed = err.getTypedErrorBody(Category);
       expect(typed).not.toBeNull();
       expect(typed).toBeInstanceOf(Category);
@@ -103,14 +101,13 @@ describe('ApiError', () => {
     });
 
     test('returns null when there is no response body', () => {
-      const err = new ApiError<unknown>(500, 'oops', {}, null);
+      const err = ApiError.fromResponse(500, {}, null);
       expect(err.getTypedErrorBody(Category)).toBeNull();
     });
 
     test('ignores extraneous fields not declared on the model', () => {
-      const err = new ApiError<unknown>(
+      const err = ApiError.fromResponse(
         422,
-        'unprocessable',
         {},
         '{"id":1,"name":"Cat","extra":"drop-me"}'
       );
