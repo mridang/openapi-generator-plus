@@ -121,15 +121,15 @@ async fn test_base_api_parses_json_error_body() {
         .expect("expected BadRequestError");
     // The parsed-JSON view of the body is a crate-internal detail; assert the
     // public surface instead — the raw body is present and is valid JSON, so
-    // `typed_body` deserializes it without error.
+    // `typed_error_body` deserializes it without error.
     let parsed: Option<serde_json::Value> = bad_request
         .client_error()
         .api_error()
-        .typed_body()
+        .typed_error_body()
         .expect("error body should be valid JSON");
     assert!(
         parsed.is_some(),
-        "typed_body should yield a parsed JSON value for JSON responses"
+        "typed_error_body should yield a parsed JSON value for JSON responses"
     );
 }
 
@@ -1313,10 +1313,10 @@ fn test_api_error_kind_network_variants_have_status_zero() {
     assert_eq!(kind.status_code(), 0);
 }
 
-// -- ApiError::typed_body (typed error-body accessor) --
+// -- ApiError::typed_error_body (typed error-body accessor) --
 
 #[test]
-fn test_api_error_typed_body_parses_into_target_type() {
+fn test_api_error_typed_error_body_parses_into_target_type() {
     #[derive(serde::Deserialize, Debug, PartialEq)]
     struct Problem {
         title: String,
@@ -1331,25 +1331,25 @@ fn test_api_error_typed_body_parses_into_target_type() {
         Some(r#"{"title":"Bad Input","status":400}"#.to_string()),
         Some(headers),
     );
-    let parsed: Option<Problem> = err.typed_body().expect("should deserialize");
+    let parsed: Option<Problem> = err.typed_error_body().expect("should deserialize");
     assert_eq!(parsed, Some(Problem { title: "Bad Input".to_string(), status: 400 }));
 }
 
 #[test]
-fn test_api_error_typed_body_returns_none_when_no_body() {
+fn test_api_error_typed_error_body_returns_none_when_no_body() {
     let err = {{packageName}}::ApiError::new(
         500,
         "boom".to_string(),
         None,
         None,
     );
-    let parsed: Result<Option<serde_json::Value>, _> = err.typed_body();
+    let parsed: Result<Option<serde_json::Value>, _> = err.typed_error_body();
     assert!(matches!(parsed, Ok(None)),
-        "typed_body must return Ok(None) when there is no response body");
+        "typed_error_body must return Ok(None) when there is no response body");
 }
 
 #[test]
-fn test_api_error_typed_body_returns_err_when_body_invalid() {
+fn test_api_error_typed_error_body_returns_err_when_body_invalid() {
     // The field is only a deserialization target and is never read directly;
     // underscore-prefixing exempts it from dead_code without a suppression,
     // while `serde(rename)` preserves the on-the-wire field name `id`.
@@ -1361,8 +1361,8 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
         Some("not json at all".to_string()),
         None,
     );
-    let parsed: Result<Option<Strict>, _> = err.typed_body();
-    assert!(parsed.is_err(), "typed_body must return Err for unparseable bodies");
+    let parsed: Result<Option<Strict>, _> = err.typed_error_body();
+    assert!(parsed.is_err(), "typed_error_body must return Err for unparseable bodies");
 }
 
 // immutability regression: ApiResult and ApiHttpResponse expose their state only

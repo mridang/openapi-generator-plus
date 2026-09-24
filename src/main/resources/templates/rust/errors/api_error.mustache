@@ -73,7 +73,7 @@ pub struct ApiError {
 
     /// The parsed response body, if JSON. Crate-internal: exposing the
     /// `serde_json::Value` AST would leak `serde_json` into the public API.
-    /// Callers should use [`ApiError::typed_body`] for a typed view of the
+    /// Callers should use [`ApiError::typed_error_body`] for a typed view of the
     /// body instead.
     pub(crate) error_body: Option<serde_json::Value>,
 
@@ -159,8 +159,8 @@ impl ApiError {
 
     /// Builds the error for a non-2xx HTTP response: the concrete 4xx/5xx type
     /// for a recognised status ([`NotFoundError`], [`InternalServerError`], ...),
-    /// [`ClientError`] or [`ServerError`] for any other 4xx or 5xx, and a plain
-    /// `ApiError` for anything else. Every generated operation and the OpenID
+    /// [`ClientError`] or [`ServerError`] for any other 400-499 or 500-599, and
+    /// a plain `ApiError` for anything else. Every generated operation and the OpenID
     /// Connect discovery request build their HTTP errors here, so this is the
     /// one place the status-to-error mapping lives.
     pub fn from_response(
@@ -188,7 +188,7 @@ impl ApiError {
             };
         }
 
-        if status_code >= 500 {
+        if (500..600).contains(&status_code) {
             let server_err = ServerError::from(base_err);
             return match status_code {
                 500 => Box::new(InternalServerError::from(server_err)),
@@ -219,24 +219,15 @@ impl ApiError {
         self.response_headers.as_ref()
     }
 
-    /// Deserializes the response body into the target type. Returns
-    /// `Ok(None)` if there is no response body to parse.
-    pub fn typed_error_body<T: serde::de::DeserializeOwned>(
-        &self,
-    ) -> Result<Option<T>, SerializationError> {
-        self.typed_body()
-    }
-
-    /// Deserializes the response body into the target type `T`.
+    /// Deserializes the raw response body into the target type `T`.
     ///
     /// Returns `Ok(None)` when the error did not carry a response body
     /// (e.g. transport-level failures, or the server emitted no payload).
     /// Returns `Err` when the body is present but cannot be parsed into `T`.
     ///
-    /// This is the canonical accessor mirroring the `getTypedErrorBody(Class)`
-    /// helper exposed by the Java/Kotlin/C# SDKs for spec-declared error
-    /// schemas. The `typed_error_body` name is retained as a deprecated alias.
-    pub fn typed_body<T: serde::de::DeserializeOwned>(
+    /// This is the one accessor for spec-declared error schemas, mirroring the
+    /// `getTypedErrorBody` helper the other SDKs expose.
+    pub fn typed_error_body<T: serde::de::DeserializeOwned>(
         &self,
     ) -> Result<Option<T>, SerializationError> {
         deserialize_error_body(self.response_body.as_deref())
@@ -296,7 +287,7 @@ pub struct ApiErrorFields {
     response_headers: Option<HashMap<String, String>>,
     /// Parsed JSON view of the response body, if it was valid JSON.
     /// Crate-internal: see [`ApiError::error_body`]. Use
-    /// [`ApiErrorFields::typed_body`] for a typed view.
+    /// [`ApiErrorFields::typed_error_body`] for a typed view.
     pub(crate) error_body: Option<serde_json::Value>,
 }
 
@@ -322,7 +313,7 @@ impl ApiErrorFields {
     }
 
     /// Convenience: deserialize the response body into `T`.
-    pub fn typed_body<T: serde::de::DeserializeOwned>(
+    pub fn typed_error_body<T: serde::de::DeserializeOwned>(
         &self,
     ) -> Result<Option<T>, SerializationError> {
         deserialize_error_body(self.response_body.as_deref())

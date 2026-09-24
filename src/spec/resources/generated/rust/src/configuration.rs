@@ -16,11 +16,12 @@ use crate::server_configuration::ServerConfiguration;
 /// request. Transport-level settings (TLS, proxy, timeouts) belong in
 /// `TransportOptions` and are configured on the `DefaultApiClient`.
 ///
-/// Configuration is immutable once built. Use `ConfigurationBuilder` to create instances:
+/// Configuration is immutable once built. Use [`Configuration::builder`] to
+/// create instances:
 ///
 /// ```rust,no_run
-/// # use petstore::ConfigurationBuilder;
-/// let config = ConfigurationBuilder::new()
+/// # use petstore::Configuration;
+/// let config = Configuration::builder()
 ///     .base_url("https://api.example.com")
 ///     .default_header("Authorization", "Bearer token")
 ///     .build();
@@ -38,6 +39,12 @@ pub struct Configuration {
 }
 
 impl Configuration {
+    /// Returns a new [`ConfigurationBuilder`]. This is the entry point for
+    /// building a configuration.
+    pub fn builder() -> ConfigurationBuilder {
+        ConfigurationBuilder::new()
+    }
+
     /// Returns the base URL for all API requests.
     pub fn base_url(&self) -> &str {
         &self.base_url

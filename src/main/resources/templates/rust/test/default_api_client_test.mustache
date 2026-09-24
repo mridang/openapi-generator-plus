@@ -156,7 +156,7 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
 async fn test_default_api_client_times_out_on_slow_endpoint() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
-        .timeout(1000)
+        .timeout(Some(1000))
         .build().expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();

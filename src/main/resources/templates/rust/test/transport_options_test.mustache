@@ -86,7 +86,7 @@ fn test_transport_options_builder_sets_all_fields() {
         .verify_ssl(false)
         .ca_cert_path(&ca_cert)
         .proxy("http://proxy.example.com:8080")
-        .timeout(30000)
+        .timeout(Some(30000))
         .follow_redirects(false)
         .max_redirects(Some(5))
         .user_agent("CustomAgent/2.0")
@@ -142,7 +142,7 @@ fn test_transport_options_missing_ca_cert_file_is_rejected() {
 
 #[test]
 fn test_transport_options_negative_timeout_is_rejected() {
-    let result = TransportOptionsBuilder::new().timeout(-1).build();
+    let result = TransportOptionsBuilder::new().timeout(Some(-1)).build();
     assert!(
         matches!(result, Err(ConfigurationError::InvalidTimeout(-1))),
         "expected InvalidTimeout(-1), got {:?}",
@@ -164,7 +164,7 @@ fn test_transport_options_builder_methods_return_same_instance() {
     let opts = TransportOptionsBuilder::new()
         .verify_ssl(true)
         .user_agent("Test/1.0")
-        .timeout(10000)
+        .timeout(Some(10000))
         .build().expect("valid transport options");
 
     assert_eq!(opts.user_agent(), Some("Test/1.0"));
@@ -237,15 +237,31 @@ fn test_transport_options_timeout_defaults_to_10_seconds_timeout_group() {
 
 #[test]
 fn test_transport_options_setting_timeout_is_accessible() {
-    let opts = TransportOptionsBuilder::new().timeout(5000).build().expect("valid transport options");
+    let opts = TransportOptionsBuilder::new().timeout(Some(5000)).build().expect("valid transport options");
     assert_eq!(opts.timeout(), Some(5000), "expected timeout to be 5000");
+}
+
+/// "No timeout" must be expressible: `timeout(None)` clears the 10_000 ms
+/// default rather than being indistinguishable from leaving it unset.
+#[test]
+fn test_transport_options_no_timeout_is_expressible() {
+    let opts = TransportOptionsBuilder::new().timeout(None).build().expect("valid transport options");
+    assert_eq!(opts.timeout(), None, "expected timeout(None) to mean no timeout");
+}
+
+/// `TransportOptions::builder()` is the static entry point every SDK exposes.
+#[test]
+fn test_transport_options_builder_entry_point() {
+    let opts = TransportOptions::builder().timeout(Some(2500)).build().expect("valid transport options");
+    assert_eq!(opts.timeout(), Some(2500));
+    assert!(opts.verify_ssl(), "expected the same defaults as TransportOptionsBuilder::new()");
 }
 
 #[test]
 fn test_transport_options_timeout_field_is_named_timeout() {
     // Verify via the timeout() accessor that the field is named 'timeout'
     // (not e.g. 'connection_timeout' or 'open_timeout').
-    let opts = TransportOptionsBuilder::new().timeout(1000).build().expect("valid transport options");
+    let opts = TransportOptionsBuilder::new().timeout(Some(1000)).build().expect("valid transport options");
     assert!(opts.timeout().is_some(), "expected non-None timeout");
     assert_eq!(opts.timeout(), Some(1000));
 }

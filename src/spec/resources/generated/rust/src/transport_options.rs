@@ -16,14 +16,15 @@ use crate::errors::configuration_error::ConfigurationError;
 /// are independent of API-level concerns (base URL, authentication headers)
 /// which belong in `Configuration`.
 ///
-/// Use `TransportOptionsBuilder` to create instances:
+/// This struct is immutable and thread-safe. Use [`TransportOptions::builder`]
+/// to create instances:
 ///
 /// ```rust,no_run
-/// # use petstore::TransportOptionsBuilder;
-/// let transport = TransportOptionsBuilder::new()
+/// # use petstore::TransportOptions;
+/// let transport = TransportOptions::builder()
 ///     .verify_ssl(false)
 ///     .proxy("http://proxy.example.com:8080")
-///     .timeout(5000)
+///     .timeout(Some(5000))
 ///     .user_agent("MyApp/1.0")
 ///     .build()?;
 /// # Ok::<(), petstore::ConfigurationError>(())
@@ -70,6 +71,12 @@ pub struct TransportOptions {
 }
 
 impl TransportOptions {
+    /// Returns a new [`TransportOptionsBuilder`]. This is the entry point for
+    /// building transport options.
+    pub fn builder() -> TransportOptionsBuilder {
+        TransportOptionsBuilder::new()
+    }
+
     /// Returns whether TLS certificate verification is enabled.
     pub fn verify_ssl(&self) -> bool {
         self.verify_ssl
@@ -145,9 +152,8 @@ impl TransportOptionsBuilder {
             proxy: None,
             proxy_error: None,
             // Default 10-second end-to-end timeout (10_000 ms). Callers can
-            // override it via `TransportOptionsBuilder::timeout()`. There is no
-            // way to disable it: the builder takes a plain i64, and `timeout(0)`
-            // is a zero-millisecond deadline, not "no deadline".
+            // override it via `TransportOptionsBuilder::timeout`, which takes
+            // `None` for no timeout; `Some(0)` is a zero-millisecond deadline.
             timeout: Some(10_000),
             follow_redirects: true,
             max_redirects: None,
@@ -203,10 +209,11 @@ impl TransportOptionsBuilder {
         self
     }
 
-    /// Sets the end-to-end request timeout in milliseconds. A negative value is
-    /// reported by [`build`](Self::build) as [`ConfigurationError::InvalidTimeout`].
-    pub fn timeout(mut self, val: i64) -> Self {
-        self.timeout = Some(val);
+    /// Sets the end-to-end request timeout in milliseconds, or `None` for no
+    /// timeout. A negative value is reported by [`build`](Self::build) as
+    /// [`ConfigurationError::InvalidTimeout`].
+    pub fn timeout(mut self, val: Option<i64>) -> Self {
+        self.timeout = val;
         self
     }
 

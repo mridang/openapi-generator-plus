@@ -96,6 +96,13 @@ impl Drop for DefaultApiClient {
 }
 
 impl ApiClient for DefaultApiClient {
+    /// Gap T6: releases the underlying transport. Delegates to the inherent
+    /// [`DefaultApiClient::close`], so closing through the trait object and
+    /// closing through the concrete type do the same thing.
+    fn close(&self) {
+        DefaultApiClient::close(self);
+    }
+
     /// Sends an HTTP request with transport-level settings applied.
     ///
     /// Merges headers according to the priority order documented on the struct,

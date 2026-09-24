@@ -228,12 +228,12 @@ match client.pet.add_pet(pet, None).await {
 ### Custom Transport Options
 
 ```rust
-use petstore::transport_options::TransportOptionsBuilder;
+use petstore::TransportOptions;
 use petstore::Client;
 
-let transport = TransportOptionsBuilder::new()
+let transport = TransportOptions::builder()
     .proxy("http://proxy:3128")
-    .timeout(5000)
+    .timeout(Some(5000))
     .build()?;
 
 let client = Client::new(Box::new(authenticator), Some(transport));

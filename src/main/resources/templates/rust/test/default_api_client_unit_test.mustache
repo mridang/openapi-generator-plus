@@ -1036,7 +1036,7 @@ async fn test_timeout_returns_network_timeout_error() {
     });
 
     let transport = TransportOptionsBuilder::new()
-        .timeout(200)
+        .timeout(Some(200))
         .build()
         .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
@@ -1098,7 +1098,7 @@ async fn test_body_read_timeout_returns_network_timeout_error() {
     });
 
     let transport = TransportOptionsBuilder::new()
-        .timeout(300)
+        .timeout(Some(300))
         .build()
         .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));

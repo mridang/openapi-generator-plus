@@ -23,6 +23,15 @@ fn test_configuration_builder_returns_instance() {
     assert_eq!(config.base_url(), "/api/v3");
 }
 
+/// `Configuration::builder()` is the static entry point every SDK exposes.
+#[test]
+fn test_configuration_builder_entry_point() {
+    let config = Configuration::builder()
+        .base_url("https://entry.example.com")
+        .build();
+    assert_eq!(config.base_url(), "https://entry.example.com");
+}
+
 #[test]
 fn test_configuration_builder_sets_base_url() {
     let config = ConfigurationBuilder::new()

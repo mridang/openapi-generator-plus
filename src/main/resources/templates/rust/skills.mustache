@@ -247,12 +247,12 @@ match client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName
 ### Custom Transport Options
 
 ```rust
-use {{packageName}}::transport_options::TransportOptionsBuilder;
+use {{packageName}}::TransportOptions;
 use {{packageName}}::{{clientClassName}};
 
-let transport = TransportOptionsBuilder::new()
+let transport = TransportOptions::builder()
     .proxy("http://proxy:3128")
-    .timeout(5000)
+    .timeout(Some(5000))
     .build()?;
 
 let client = {{clientClassName}}::new(Box::new(authenticator), Some(transport));

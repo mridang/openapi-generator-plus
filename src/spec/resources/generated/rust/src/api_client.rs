@@ -119,4 +119,13 @@ pub trait ApiClient: Send + Sync {
     > {
         self.send_request(method, url, headers, body)
     }
+
+    /// Releases any resources held by this client (connection pool, sockets).
+    /// The default implementation is a no-op; implementations that own a
+    /// pooled HTTP client should override it and dispose of that client. On
+    /// the contract so a custom transport can be closed through the
+    /// abstraction rather than only through its concrete type.
+    fn close(&self) {
+        /* No-op by default. Implementations override to release resources. */
+    }
 }

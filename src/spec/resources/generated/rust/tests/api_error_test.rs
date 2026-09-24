@@ -41,8 +41,8 @@ fn test_api_error_exposes_status_message_body_headers() {
         "application/json"
     );
     // The parsed-JSON view of the body is a crate-internal detail; the public
-    // surface is `typed_body`, which deserializes the raw body on demand.
-    let typed: Option<Category> = err.typed_body().expect("body is valid JSON");
+    // surface is `typed_error_body`, which deserializes the raw body on demand.
+    let typed: Option<Category> = err.typed_error_body().expect("body is valid JSON");
     assert_eq!(typed.expect("expected Some(Category)").id, Some(7));
 }
 
@@ -66,7 +66,7 @@ fn test_api_error_implements_std_error_and_display() {
 }
 
 #[test]
-fn test_api_error_typed_body_deserializes_body() {
+fn test_api_error_typed_error_body_deserializes_body() {
     let err = ApiError::new(
         400,
         "bad request".to_string(),
@@ -74,22 +74,24 @@ fn test_api_error_typed_body_deserializes_body() {
         None,
     );
 
-    let typed: Option<Category> = err.typed_body().expect("deserialization should succeed");
+    let typed: Option<Category> = err
+        .typed_error_body()
+        .expect("deserialization should succeed");
     let cat = typed.expect("expected Some(Category)");
     assert_eq!(cat.id, Some(42));
     assert_eq!(cat.name.as_deref(), Some("Dogs"));
 }
 
 #[test]
-fn test_api_error_typed_body_returns_none_when_no_body() {
+fn test_api_error_typed_error_body_returns_none_when_no_body() {
     let err = ApiError::new(500, "oops".to_string(), None, None);
 
-    let typed: Option<Category> = err.typed_body().expect("empty body should not error");
+    let typed: Option<Category> = err.typed_error_body().expect("empty body should not error");
     assert!(typed.is_none());
 }
 
 #[test]
-fn test_api_error_typed_body_ignores_extraneous_fields() {
+fn test_api_error_typed_error_body_ignores_extraneous_fields() {
     let err = ApiError::new(
         422,
         "unprocessable".to_string(),
@@ -97,7 +99,9 @@ fn test_api_error_typed_body_ignores_extraneous_fields() {
         None,
     );
 
-    let typed: Option<Category> = err.typed_body().expect("deserialization should succeed");
+    let typed: Option<Category> = err
+        .typed_error_body()
+        .expect("deserialization should succeed");
     let cat = typed.expect("expected Some(Category)");
     assert_eq!(cat.id, Some(1));
     assert_eq!(cat.name.as_deref(), Some("Cat"));
@@ -370,7 +374,7 @@ type IsExpectedType = fn(&(dyn std::error::Error + 'static)) -> bool;
 fn test_from_response_maps_every_status_to_its_type() {
     let mut headers = HashMap::new();
     headers.insert("x-request-id".to_string(), "abc".to_string());
-    let cases: [(u16, IsExpectedType); 10] = [
+    let cases: [(u16, IsExpectedType); 11] = [
         (400, |e| e.is::<BadRequestError>()),
         (401, |e| e.is::<UnauthorizedError>()),
         (403, |e| e.is::<ForbiddenError>()),
@@ -381,6 +385,9 @@ fn test_from_response_maps_every_status_to_its_type() {
         (500, |e| e.is::<InternalServerError>()),
         (503, |e| e.is::<ServerError>()),
         (302, |e| e.is::<ApiError>()),
+        /* A status outside 400-599 is neither a ClientError nor a
+         * ServerError: the 5xx arm stops at 599, so 600 is a plain ApiError. */
+        (600, |e| e.is::<ApiError>()),
     ];
     for (status, is_expected_type) in cases {
         let err = ApiError::from_response(status, &headers, r#"{"k":"v"}"#);
@@ -393,7 +400,7 @@ fn test_from_response_maps_every_status_to_its_type() {
             "status {status}: must chain to ApiError"
         );
         assert_eq!(is_a::<ClientError>(&*err), (400..500).contains(&status));
-        assert_eq!(is_a::<ServerError>(&*err), status >= 500);
+        assert_eq!(is_a::<ServerError>(&*err), (500..600).contains(&status));
 
         let api_error =
             std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| {

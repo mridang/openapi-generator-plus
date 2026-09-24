@@ -32,9 +32,9 @@ use crate::transport_options::TransportOptionsBuilder;
 /// # Example with custom transport (proxy, timeouts, etc.)
 ///
 /// ```rust,ignore
-/// let transport = TransportOptionsBuilder::new()
+/// let transport = TransportOptions::builder()
 ///     .proxy("http://proxy:3128")
-///     .timeout(5000)
+///     .timeout(Some(5000))
 ///     .build()?;
 /// let client = Client::new(authenticator, Some(transport));
 /// ```
