@@ -1,5 +1,3 @@
-use crate::models::*;
-
 /// Options for the get_pet_by_name operation.
 #[derive(Debug, Clone)]
 pub struct GetPetByNameOptions {

@@ -1,5 +1,3 @@
-use crate::models::*;
-
 /// Options for the get_stock_item operation.
 #[derive(Debug, Clone, Default)]
 pub struct GetStockItemOptions {

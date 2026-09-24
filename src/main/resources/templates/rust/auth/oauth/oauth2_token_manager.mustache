@@ -37,6 +37,12 @@ struct TokenManagerInner {
     token_expiry: Option<Instant>,
 }
 
+impl Default for OAuth2TokenManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OAuth2TokenManager {
     /// Creates a new token manager.
     ///

@@ -11,7 +11,6 @@ use crate::errors::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
-use crate::errors::configuration_error::ConfigurationError;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
@@ -243,7 +242,7 @@ impl {{classname}} {
 {{#required}}
 {{#isString}}
         if {{paramName}}.is_empty() {
-            return Err(Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{paramName}}"))));
+            return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{paramName}}"))));
         }
 {{/isString}}
 {{/required}}
@@ -291,7 +290,7 @@ impl {{classname}} {
         // Required query parameter (allowEmptyValue): a missing Options is a
         // programming error and is rejected up front.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
@@ -353,7 +352,7 @@ impl {{classname}} {
 {{#required}}
         // Required deepObject query parameter: a missing Options is rejected.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
         for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &opts.{{paramName}}) {
             query_params.push((k, v));
@@ -373,7 +372,7 @@ impl {{classname}} {
 {{#required}}
         // Required content query parameter: a missing Options is rejected.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
         query_params.push(("{{baseName}}".to_string(), serde_json::to_string(&opts.{{paramName}}).unwrap_or_default()));
 {{/required}}
@@ -391,7 +390,7 @@ impl {{classname}} {
         // missing Options is a programming error and is rejected up front,
         // matching the required-param validation the other SDKs perform.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
@@ -456,7 +455,7 @@ impl {{classname}} {
 {{#required}}
         // Required header parameter: a missing Options is a programming error.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
@@ -502,7 +501,7 @@ impl {{classname}} {
 {{#required}}
         // Required cookie parameter: a missing Options is a programming error.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
@@ -519,7 +518,7 @@ impl {{classname}} {
             // encoding it), so a CR/LF/control-char value would otherwise split
             // the header and inject arbitrary ones. Reject anything outside the
             // RFC 6265 cookie-octet set, failing closed with
-            // ConfigurationError::InvalidArgument — the same RFC 6265 rejection
+            // crate::errors::configuration_error::ConfigurationError::InvalidArgument — the same RFC 6265 rejection
             // the auth-cookie path performs in BaseApi.
             // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
             let cookie_value_valid = v.chars().all(|c| {
@@ -531,7 +530,7 @@ impl {{classname}} {
                     || (0x5D..=0x7E).contains(&o)
             });
             if !cookie_value_valid {
-                return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
                     "cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
                     "{{baseName}}"
                 ))));
@@ -556,7 +555,7 @@ impl {{classname}} {
                     // above. The serialized value is interpolated raw into the
                     // Cookie header (no percent-encoding per RFC 6265), so a
                     // CR/LF/control-char value is rejected here, failing closed
-                    // with ConfigurationError::InvalidArgument and mirroring
+                    // with crate::errors::configuration_error::ConfigurationError::InvalidArgument and mirroring
                     // the auth-cookie RFC 6265 check in BaseApi.
                     // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
                     let cookie_value_valid = v.chars().all(|c| {
@@ -568,7 +567,7 @@ impl {{classname}} {
                             || (0x5D..=0x7E).contains(&o)
                     });
                     if !cookie_value_valid {
-                        return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                        return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
                             "cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
                             "{{baseName}}"
                         ))));
@@ -603,7 +602,7 @@ impl {{classname}} {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "options")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "options")))
         })?;
 {{/vendorExtensions.op.requiredMultipartBody}}
 {{^vendorExtensions.op.requiredMultipartBody}}

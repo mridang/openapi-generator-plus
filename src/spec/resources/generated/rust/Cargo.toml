@@ -6,6 +6,41 @@ rust-version = "1.85"
 license = "MIT"
 description = "A simplified Pet Store API for integration testing."
 
+# Lint configuration for the generated crate.
+#
+# This is the single, documented home for lint exclusions. No generated source
+# file carries `#![allow(...)]` or `#[allow(...)]`: a lint that machine-
+# generated code cannot satisfy is named here, once, with the reason it cannot.
+# Everything else stays at its default level and `cargo clippy -- -D warnings`
+# enforces it.
+[lints.rust]
+# A schema may mark models, fields and operations deprecated, and the generated
+# constructors, accessors and tests must still set and read them.
+deprecated = "allow"
+# The request builders declare their locals (`path`, `query_params`,
+# `header_params`, `cookie_parts`, `form_pairs`) up front and mutate them only
+# in the branches the operation's parameters emit, so `mut` is unused for an
+# operation that declares none of them.
+unused_mut = "allow"
+# `object_serializer` and `value_serializer` are crate-private and expose a
+# complete parameter-encoding helper set (`to_query_value`, `to_header_value`,
+# `to_cookie_value`, `to_form_value`, `serialize_value`, ...). A given document
+# exercises only the subset its parameter styles require.
+dead_code = "allow"
+# Integer-backed enum variants keep the `NUMBER_<n>` identifiers the other
+# eleven SDKs emit; the wire value is the `serde_repr` discriminant, not the
+# variant name, so renaming them for Rust alone would break the alignment.
+non_camel_case_types = "allow"
+
+[lints.clippy]
+# Operation signatures take one argument per parameter the OpenAPI document
+# declares, and their result types are the document's response types.
+too_many_arguments = "allow"
+type_complexity = "allow"
+# Enum variants are emitted verbatim from the document's enum strings
+# (`US`, `EU`, `SANDBOX`), which callers match against.
+upper_case_acronyms = "allow"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_repr = "0.1"

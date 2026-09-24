@@ -1,5 +1,3 @@
-use crate::models::*;
-
 /// Options for the get_pet_tag operation.
 #[derive(Debug, Clone, Default)]
 pub struct GetPetTagOptions {

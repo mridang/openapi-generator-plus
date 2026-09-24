@@ -1,5 +1,3 @@
-use crate::models::*;
-
 /// Options for the upload_pet_certificate operation.
 #[derive(Debug, Clone)]
 pub struct UploadPetCertificateOptions {

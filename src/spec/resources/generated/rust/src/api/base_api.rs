@@ -8,7 +8,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use base64::Engine;
 use serde::de::DeserializeOwned;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody};

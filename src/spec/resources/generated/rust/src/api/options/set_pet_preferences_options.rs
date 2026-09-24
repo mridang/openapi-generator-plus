@@ -1,5 +1,3 @@
-use crate::models::*;
-
 /// Options for the set_pet_preferences operation.
 #[derive(Debug, Clone)]
 pub struct SetPetPreferencesOptions {

@@ -63,7 +63,7 @@ impl OAuth2ImplicitAuthenticator {
     /// keeps the previous token.
     pub fn set_access_token(&self, token: &str) -> Result<(), ConfigurationError> {
         for b in token.bytes() {
-            if b != b'\t' && (b < 0x20 || b >= 0x7F) {
+            if b != b'\t' && !(0x20..0x7F).contains(&b) {
                 return Err(ConfigurationError::InvalidArgument(
                     "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
                         .to_string(),

@@ -16,7 +16,6 @@ use crate::configuration::ConfigurationBuilder;
 use crate::default_api_client::DefaultApiClient;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::transport_options::TransportOptions;
-use crate::transport_options::TransportOptionsBuilder;
 
 /// Client is the unified entry point for all API services.
 ///

@@ -23,7 +23,6 @@ use crate::errors::api_error::{ApiError, TransportFailure};
 use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::{NetworkError, NetworkTimeoutError};
 use crate::transport_options::TransportOptions;
-use crate::transport_options::TransportOptionsBuilder;
 
 /// Gap 3.1: lowercased credential-bearing header names that must be stripped
 /// from cross-origin redirects. The fixed entries (`authorization`, `cookie`,
@@ -775,7 +774,7 @@ pub fn build_filename_directive(filename: &str) -> String {
         .chars()
         .map(|c| {
             let cv = c as u32;
-            if cv > 0x7F || cv < 0x20 || cv == 0x7F {
+            if !(0x20..0x7F).contains(&cv) {
                 '_'
             } else {
                 c

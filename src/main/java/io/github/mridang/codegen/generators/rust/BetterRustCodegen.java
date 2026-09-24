@@ -51,6 +51,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRustCodegen.class);
 
     /**
+     * A model-file import that names another generated model, as opposed to a
+     * collection or library type the templates already write out in full.
+     */
+    private static final java.util.regex.Pattern MODEL_IMPORT =
+            java.util.regex.Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+
+    /**
      * Rust keywords that cannot be used as raw identifiers ({@code r#crate} etc.
      * are rejected by the compiler), so they keep the leading-underscore escape.
      */
@@ -536,7 +543,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("nextest_toml.mustache", nextestDir, "default.toml"),
                 new SupportingFileSpec("makefile.mustache", "", "Makefile"),
                 new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
-                new SupportingFileSpec("gitignore.mustache", "", ".gitignore"));
+                new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+                new SupportingFileSpec(
+                        "dev_dependencies.mustache",
+                        ".openapi-generator",
+                        "DEV-DEPENDENCIES"));
     }
 
     /**
@@ -705,6 +716,22 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                             .anyMatch(p -> p.isDiscriminator));
             modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars);
         }
+        /* `use super::*;` only earns its place when the file names another
+         * generated model unqualified. The import list also carries collection
+         * and library types (`Vec<u8>`, `std::collections::HashMap`,
+         * `chrono::DateTime<chrono::Utc>`), which the templates already write
+         * out in full, so only a bare identifier counts. */
+        result.put(
+                "hasModelImports",
+                result.getImports().stream()
+                        .map(entry -> entry.get("import"))
+                        .filter(Objects::nonNull)
+                        .map(
+                                name ->
+                                        name.startsWith("models.")
+                                                ? name.substring("models.".length())
+                                                : name)
+                        .anyMatch(MODEL_IMPORT.asMatchPredicate()));
         return result;
     }
 
@@ -1041,6 +1068,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // setter and is folded in at the template level via hasAuthField.)
         context.put(
                 "hasOptionalParams", optionsParams.stream().anyMatch(p -> !p.required));
+        // `use crate::models::*;` is only emitted when a parameter is actually
+        // model-typed; an options struct made of primitives would otherwise
+        // carry a glob import that nothing resolves through.
+        context.put(
+                "hasModelParams", optionsParams.stream().anyMatch(BetterRustCodegen::referencesModel));
         // Folds the optional per-operation authenticator into the Options
         // struct (mirrors the Java generator). injectAuthFieldContext sets
         // hasAuthField (= op.hasAuthMethods) and authFieldType. Rust holds the
@@ -1050,6 +1082,22 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         injectAuthFieldContext(op, context);
         context.put("authFieldType", "Arc<dyn Authenticator>");
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Returns whether {@code parameter} is typed by a generated model or
+     * top-level enum, i.e. whether the options struct that carries it needs
+     * {@code use crate::models::*;}.
+     */
+    private static boolean referencesModel(CodegenParameter parameter) {
+        if (parameter.isModel || parameter.isEnumRef) {
+            return true;
+        }
+        return parameter.items != null
+                && (parameter.items.isModel
+                        || parameter.items.isEnumRef
+                        || (parameter.items.complexType != null
+                                && !parameter.items.complexType.isEmpty()));
     }
 
     /** {@inheritDoc} */
@@ -1104,7 +1152,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             return;
         }
         try (Stream<Path> entries = Files.list(dir)) {
-            final List<Map<String, String>> modules =
+            final List<Map<String, Object>> modules =
                     entries.filter(p -> p.toString().endsWith(".rs"))
                             .map(Path::getFileName)
                             .filter(Objects::nonNull)
@@ -1112,7 +1160,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             .filter(name -> !name.equals("mod.rs"))
                             .map(name -> name.replace(".rs", ""))
                             .sorted()
-                            .map(name -> Map.of("name", name))
+                            /* A module with nothing public (base_api is
+                             * crate-internal) is declared but not re-exported:
+                             * a glob that re-exports nothing is a rustc
+                             * warning, not a no-op. */
+                            .map(name -> Map.<String, Object>of(
+                                    "name", name,
+                                    "reexport", exportsPublicItems(dir.resolve(name + ".rs"))))
                             .collect(Collectors.toList());
 
             final Map<String, Object> ctx = new HashMap<>();
@@ -1124,6 +1178,22 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     renderOptionsTemplate("module_index.mustache", ctx));
         } catch (IOException e) {
             LOGGER.warn("Failed to write mod.rs in {}: {}", dir, e.getMessage());
+        }
+    }
+
+    /**
+     * Returns whether {@code file} declares at least one {@code pub} item, and
+     * so has anything for the module index to re-export.
+     */
+    private static boolean exportsPublicItems(Path file) {
+        try {
+            /* Only a top-level `pub` item is re-exportable through a glob:
+             * `pub(crate)` is "not public enough" for rustc, and an indented
+             * `pub` is a struct field, not an item. */
+            return Files.readAllLines(file).stream().anyMatch(line -> line.startsWith("pub "));
+        } catch (IOException e) {
+            LOGGER.warn("Failed to read {}: {}", file, e.getMessage());
+            return true;
         }
     }
 

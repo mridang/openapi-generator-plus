@@ -1,4 +1,8 @@
+{{! The glob is emitted only when a parameter is actually model-typed, so an
+    options struct made entirely of primitives carries no unused import. }}
+{{#hasModelParams}}
 use crate::models::*;
+{{/hasModelParams}}
 {{#hasAuthField}}
 use crate::auth::Authenticator;
 use std::sync::Arc;

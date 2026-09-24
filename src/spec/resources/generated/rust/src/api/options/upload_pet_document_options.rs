@@ -1,5 +1,3 @@
-use crate::models::*;
-
 /// Options for the upload_pet_document operation.
 #[derive(Debug, Clone)]
 pub struct UploadPetDocumentOptions {

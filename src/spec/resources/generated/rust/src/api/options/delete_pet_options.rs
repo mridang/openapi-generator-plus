@@ -1,5 +1,4 @@
 use crate::auth::Authenticator;
-use crate::models::*;
 use std::sync::Arc;
 
 /// Options for the delete_pet operation.

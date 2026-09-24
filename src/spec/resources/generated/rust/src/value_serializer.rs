@@ -7,8 +7,6 @@
 
 use std::collections::HashMap;
 
-use crate::object_serializer::stringify;
-
 /// Represents a serialized parameter value that may be a single value or
 /// multiple values (for exploded form-style query parameters).
 #[derive(Debug, Clone)]

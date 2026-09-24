@@ -5,17 +5,14 @@
 // own crate and links the whole module, but a given binary only calls the
 // subset of URL accessors its scenarios need (e.g. `store_api_test` uses only
 // `chasm_url`, while `default_api_client_test` exercises the HTTPS/proxy/CA
-// accessors). The unused accessors and their backing fields are therefore
-// genuinely dead *in that binary* even though every accessor is live in at
-// least one binary. Cargo offers no way to share a single compilation of this
-// helper across the separate test binaries, so the per-binary `dead_code` is
-// structural rather than a code smell. Scoped to this shared module only.
-#![allow(dead_code)]
+// accessors), so the unused ones are dead *in that binary* even though every
+// accessor is live in at least one. That is why Cargo.toml allows `dead_code`
+// for the package.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use testcontainers::core::{ContainerPort, WaitFor};
+use testcontainers::core::{ContainerPort, Mount, WaitFor};
 use testcontainers::runners::SyncRunner;
 use testcontainers::{GenericImage, ImageExt, ReuseDirective};
 
@@ -128,7 +125,57 @@ fn with_creation_lock<T>(body: impl FnOnce() -> T) -> T {
     result
 }
 
+/// Returns an empty, world-writable directory to copy over the Squid image's
+/// `/var/log/squid`.
+///
+/// A tmpfs mount inherits the mode of the directory it covers but is owned by
+/// root, and `/var/log/squid` ships as `0755 proxy:proxy`, so a plain tmpfs
+/// there is unwritable by the unprivileged `proxy` user Squid drops to and the
+/// proxy dies opening `access.log`. `testcontainers`' `Mount` API cannot pass
+/// tmpfs options, so the mode is widened on the image's own directory instead:
+/// `with_copy_to` extracts its tar between container create and start, which
+/// chmods the directory before the tmpfs is mounted over it.
+fn writable_log_dir() -> PathBuf {
+    let dir = std::env::temp_dir().join("openapi-generator-squid-log");
+    std::fs::create_dir_all(&dir).expect("Failed to create the Squid log directory");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o1777))
+            .expect("Failed to widen the Squid log directory");
+    }
+    dir
+}
+
+/// Fails the run when a dependency the generated tests import is missing from
+/// `Cargo.toml`.
+///
+/// `.openapi-generator/DEV-DEPENDENCIES` is generator-owned; the manifest is
+/// not, because it carries the package's own metadata and every real client
+/// keep-lists it. Reading both here turns a drift between them into a message
+/// naming the file instead of an opaque build failure.
+fn check_dev_dependencies() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let listing = std::fs::read_to_string(root.join(".openapi-generator").join("DEV-DEPENDENCIES"))
+        .expect("Failed to read .openapi-generator/DEV-DEPENDENCIES");
+    let manifest =
+        std::fs::read_to_string(root.join("Cargo.toml")).expect("Failed to read Cargo.toml");
+    for line in listing.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let name = line.split_whitespace().next().unwrap_or_default();
+        assert!(
+            manifest.contains(name),
+            "{name} is required by the generated tests but is not declared in Cargo.toml; \
+             every entry in .openapi-generator/DEV-DEPENDENCIES must be declared there"
+        );
+    }
+}
+
 fn init_containers_inner() -> TestContainers {
+    check_dev_dependencies();
     with_creation_lock(|| {
         let fixtures = fixtures_dir();
         let squid_conf_path = fixtures.join("proxy").join("squid.conf");
@@ -136,12 +183,22 @@ fn init_containers_inner() -> TestContainers {
         let ca_cert = fixtures.join("certs").join("ca.pem");
 
         // Start Squid
+        let squid_log_dir = writable_log_dir();
         let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
             .with_exposed_port(ContainerPort::Tcp(3128))
             .with_exposed_port(ContainerPort::Tcp(3129))
             .with_label("io.openapi-generator.fixture", "squid")
             .with_reuse(ReuseDirective::Always)
             .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
+            // See writable_log_dir: widens /var/log/squid before the tmpfs
+            // below is mounted over it.
+            .with_copy_to("/var/log/squid", squid_log_dir)
+            // ubuntu/squid declares VOLUME /var/log/squid and
+            // /var/spool/squid, so every proxy container would otherwise
+            // leave two anonymous volumes behind. tmpfs mounts satisfy the
+            // VOLUME declarations without any volume being created.
+            .with_mount(Mount::tmpfs_mount("/var/log/squid"))
+            .with_mount(Mount::tmpfs_mount("/var/spool/squid"))
             .with_startup_timeout(std::time::Duration::from_secs(120))
             .start()
             .expect("Failed to start Squid container");

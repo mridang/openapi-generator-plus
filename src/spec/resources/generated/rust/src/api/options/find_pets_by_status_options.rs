@@ -1,5 +1,3 @@
-use crate::models::*;
-
 /// Options for the find_pets_by_status operation.
 #[derive(Debug, Clone, Default)]
 pub struct FindPetsByStatusOptions {

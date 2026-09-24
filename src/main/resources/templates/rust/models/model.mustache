@@ -1,7 +1,16 @@
 {{>api_info}}
 
-use serde::{Serialize, Deserialize};
+{{! `use super::*;` brings the sibling model types this model references into
+    scope. It is emitted only when this model actually names another generated
+    model, so a model built from primitives, collections or fully-qualified
+    library types does not carry an unused glob import.
+    `Serialize`/`Deserialize` are named in full inside each `derive`, because
+    which of the two is derived and which is hand-rolled differs per model
+    shape and a fixed import line would be unused in some of them. }}
+{{#hasModelImports}}
 use super::*;
+
+{{/hasModelImports}}
 
 {{#models}}
 {{#model}}
@@ -13,7 +22,7 @@ use super::*;
 {{^description}}
 /// {{classname}} is an enumeration of allowed values.
 {{/description}}
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
@@ -54,7 +63,7 @@ impl {{classname}} {
 {{#vars}}
 {{#isEnum}}
 /// Typed enum for {{classname}}.{{name}}.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum {{classname}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
@@ -108,10 +117,10 @@ fn default_{{name}}() -> Option<{{{dataType}}}> {
     a `Default` impl below that mirrors `new()`. Structs without defaulted
     optional fields keep the cheap derive. }}
 {{#hasDefaultedOptionalVars}}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 {{/hasDefaultedOptionalVars}}
 {{^hasDefaultedOptionalVars}}
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 {{/hasDefaultedOptionalVars}}
 {{#isUnevaluatedPropertiesFalse}}
 // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -282,7 +291,7 @@ impl Default for {{classname}} {
 // discriminator as a plain `String` (so any value parses). Instead
 // we read the discriminator field, match against the spec's
 // declared mapping, and return an `Err` on unknown values — Gap 4.7.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(untagged)]
 pub enum {{classname}} {
 {{#mappedModels}}
@@ -301,9 +310,10 @@ impl<'de> serde::Deserialize<'de> for {{classname}} {
             .get("{{discriminator.propertyBaseName}}")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                D::Error::custom(format!(
+                D::Error::custom(
                     "missing discriminator field `{{discriminator.propertyBaseName}}` for {{classname}}"
-                ))
+                        .to_string(),
+                )
             })?;
         match discriminator {
 {{#mappedModels}}
@@ -334,7 +344,7 @@ impl<'de> serde::Deserialize<'de> for {{classname}} {
     scalar byte variant before the array variant, so a base64 STRING matches the
     scalar `Vec<u8>` first (the base64::vec deserializer expects a JSON array and
     rejects a string), never being mis-parsed element-by-element into a list. }}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum {{classname}} {
 {{#composedSchemas.oneOf}}
@@ -383,7 +393,7 @@ pub enum {{classname}} {
     wire payload is the UNION of all retained variants' fields, round-tripping
     co-satisfied data without loss. Each member schema here is an object model,
     so flattening merges their fields into a single JSON object. }}
-#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize)]
 pub struct {{classname}} {
 {{#composedSchemas.anyOf}}
     /// The `{{{dataType}}}` view of this anyOf, present when the payload

@@ -1,11 +1,8 @@
-// Module-level lint configuration (the documented config home for this module).
-// This file re-exports every generated submodule via globs; depending on the
-// spec, a given consumer may not use every re-exported symbol, so the
-// unconditional glob re-exports can read as unused imports.
-#![allow(unused_imports)]
-
+{{! A module with nothing public -- the crate-internal base_api -- is declared
+    but not re-exported: a glob that re-exports nothing is a rustc warning. }}
 {{#modules}}mod {{name}};
-pub use {{name}}::*;
+{{#reexport}}pub use {{name}}::*;
+{{/reexport}}
 {{/modules}}
 {{#hasOptions}}pub mod options;
 {{/hasOptions}}
