@@ -476,8 +476,15 @@ public class PetApiTest
             string method,
             Uri url,
             Dictionary<string, string> headers,
+            object? body
+        ) => SendRequestAsync(method, url, headers, body, noRedirect: false);
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
             object? body,
-            bool noRedirect = false
+            bool noRedirect
         )
         {
             RequestedUrls.Add(url);
@@ -500,7 +507,7 @@ public class PetApiTest
         }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             return Task.FromResult(new PetstoreClient.ApiHttpResponse(_statusCode, _body, new Dictionary<string, string>
             {
@@ -514,7 +521,7 @@ public class PetApiTest
         public Uri? CapturedUrl { get; private set; }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             CapturedUrl = url;
             return Task.FromResult(new PetstoreClient.ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}",
@@ -527,7 +534,7 @@ public class PetApiTest
         public Uri? CapturedUrl { get; private set; }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             CapturedUrl = url;
             // An empty JSON array satisfies the List<Pet> return type so the
@@ -543,7 +550,7 @@ public class PetApiTest
         public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             CapturedHeaders = new Dictionary<string, string>(headers);
             return Task.FromResult(new PetstoreClient.ApiHttpResponse(200, "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
@@ -782,7 +789,7 @@ public class PetApiTest
         public object? CapturedBody { get; private set; }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             CapturedBody = body;
             return Task.FromResult(new PetstoreClient.ApiHttpResponse(200, "",
@@ -797,7 +804,7 @@ public class PetApiTest
         public object? CapturedBody { get; private set; }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             CapturedHeaders = new Dictionary<string, string>(headers);
             CapturedBody = body;

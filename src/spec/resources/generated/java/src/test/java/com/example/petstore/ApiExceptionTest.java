@@ -67,25 +67,32 @@ class ApiExceptionTest {
   }
 
   @Test
-  void isAnUncheckedExceptionWithStatusInMessage() {
+  void isAnUncheckedExceptionWithStatusInItsStringForm() {
     // Unified hierarchy: ApiException extends the branded root
     // OpenAPIException, which extends RuntimeException — so the whole SDK
     // error tree is unchecked and a single catch on OpenAPIException covers
-    // every API/HTTP failure.
-    ApiException ex = new ApiException(500, "boom", null, null);
+    // every API/HTTP failure. getMessage() stays the detail message the
+    // exception was constructed with; the response context is rendered by
+    // the string conversion, one labelled field per line.
+    ApiException ex = new ApiException(500, "boom", Map.of("x-request-id", "abc"), "the body");
 
     assertInstanceOf(OpenAPIException.class, ex);
     assertInstanceOf(RuntimeException.class, ex);
-    assertTrue(ex.getMessage().contains("500"));
+    assertEquals("boom", ex.getMessage());
+    assertEquals(
+        "boom"
+            + "\nHTTP status code: 500"
+            + "\nResponse headers: {x-request-id=abc}"
+            + "\nResponse body: the body",
+        ex.toString());
   }
 
   @Test
-  void getTypedErrorBodyReturnsTheTypedErrorBody() {
-    com.example.petstore.models.Category body = new com.example.petstore.models.Category();
-    body.id = 42L;
-    body.name = "Dogs";
-    ApiException ex =
-        new ApiException(400, "bad request", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", body);
+  void getTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
+    // Built through fromResponse, the way a real response reaches a caller:
+    // the typed body must come out of the raw body, not out of whatever the
+    // generic parse happened to leave behind.
+    ApiException ex = ApiException.fromResponse(400, Map.of(), "{\"id\":42,\"name\":\"Dogs\"}");
 
     com.example.petstore.models.Category typed =
         ex.getTypedErrorBody(com.example.petstore.models.Category.class);
@@ -95,17 +102,23 @@ class ApiExceptionTest {
   }
 
   @Test
-  void getTypedErrorBodyReturnsNullWhenNoErrorBody() {
-    ApiException ex = new ApiException(500, "oops", Map.of(), null, null);
+  void getTypedErrorBodyReturnsNullWhenThereIsNoResponseBody() {
+    ApiException ex = ApiException.fromResponse(500, Map.of(), null);
 
     assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
   }
 
   @Test
-  void getTypedErrorBodyReturnsNullForMismatchedType() {
-    ApiException ex = new ApiException(422, "unprocessable", Map.of(), null, "not-a-category");
+  void getTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel() {
+    ApiException ex =
+        ApiException.fromResponse(
+            422, Map.of(), "{\"id\":1,\"name\":\"Cat\",\"extra\":\"drop-me\"}");
 
-    assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
+    com.example.petstore.models.Category typed =
+        ex.getTypedErrorBody(com.example.petstore.models.Category.class);
+    assertNotNull(typed);
+    assertEquals(1L, typed.id);
+    assertEquals("Cat", typed.name);
   }
 
   @Test
@@ -164,18 +177,21 @@ class ApiExceptionTest {
 
   @Test
   void fromResponseMapsEveryStatusToItsException() {
+    // 302 is below the client range and 600 above the server range: neither
+    // is a ClientException or a ServerException, both are the base type.
     Map<Integer, Class<? extends ApiException>> expected =
-        Map.of(
-            400, com.example.petstore.errors.BadRequestException.class,
-            401, com.example.petstore.errors.UnauthorizedException.class,
-            403, com.example.petstore.errors.ForbiddenException.class,
-            404, com.example.petstore.errors.NotFoundException.class,
-            409, com.example.petstore.errors.ConflictException.class,
-            422, com.example.petstore.errors.UnprocessableEntityException.class,
-            418, com.example.petstore.errors.ClientException.class,
-            500, com.example.petstore.errors.InternalServerErrorException.class,
-            503, com.example.petstore.errors.ServerException.class,
-            302, ApiException.class);
+        Map.ofEntries(
+            Map.entry(400, com.example.petstore.errors.BadRequestException.class),
+            Map.entry(401, com.example.petstore.errors.UnauthorizedException.class),
+            Map.entry(403, com.example.petstore.errors.ForbiddenException.class),
+            Map.entry(404, com.example.petstore.errors.NotFoundException.class),
+            Map.entry(409, com.example.petstore.errors.ConflictException.class),
+            Map.entry(422, com.example.petstore.errors.UnprocessableEntityException.class),
+            Map.entry(418, com.example.petstore.errors.ClientException.class),
+            Map.entry(500, com.example.petstore.errors.InternalServerErrorException.class),
+            Map.entry(503, com.example.petstore.errors.ServerException.class),
+            Map.entry(302, ApiException.class),
+            Map.entry(600, ApiException.class));
     for (Map.Entry<Integer, Class<? extends ApiException>> entry : expected.entrySet()) {
       ApiException ex =
           ApiException.fromResponse(

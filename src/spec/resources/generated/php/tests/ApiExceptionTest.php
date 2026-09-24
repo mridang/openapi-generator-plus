@@ -36,11 +36,19 @@ test('null headers and body mark transport-no-response', function (): void {
     expect($ex->getResponseBody())->toBeNull();
 });
 
-test('is an Exception subclass', function (): void {
-    $ex = new ApiException(500, 'boom');
+test('is an Exception subclass with status in its string form', function (): void {
+    // getMessage() stays the detail message the exception was constructed
+    // with; the response context is rendered by the string conversion, one
+    // labelled field per line.
+    $ex = new ApiException(500, 'boom', ['x-request-id' => 'abc'], 'the body');
 
     expect($ex)->toBeInstanceOf(Exception::class);
-    expect($ex->getMessage())->not->toBeEmpty();
+    expect($ex->getMessage())->toBe('boom');
+    expect((string) $ex)->toBe(
+        "boom\nHTTP status code: 500"
+        . "\nResponse headers: {\"x-request-id\":\"abc\"}"
+        . "\nResponse body: the body"
+    );
 });
 
 test('ApiException extends the SDK root OpenAPIException', function (): void {
@@ -174,7 +182,10 @@ test('fromResponse maps every status to its exception', function (int $status, s
     [418, \PetstoreClient\Errors\ClientException::class],
     [500, \PetstoreClient\Errors\InternalServerErrorException::class],
     [503, \PetstoreClient\Errors\ServerException::class],
+    // 302 is below the client range and 600 above the server range: neither
+    // is a ClientException or a ServerException, both are the base type.
     [302, ApiException::class],
+    [600, ApiException::class],
 ]);
 
 test('fromResponse leaves the error body null when the body is not JSON', function (): void {

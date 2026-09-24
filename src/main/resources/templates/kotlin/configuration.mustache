@@ -11,18 +11,16 @@ class Configuration private constructor(
     val defaultHeaders: Map<String, String>
 ) {
     companion object {
-        @Volatile
-        private var defaultInstance: Configuration? = null
-
+        /** Create a new builder for constructing [Configuration] instances. */
         fun builder(): Builder = Builder()
 
-        fun getDefault(): Configuration {
-            return defaultInstance ?: builder().build().also { defaultInstance = it }
-        }
-
-        fun setDefault(config: Configuration) {
-            defaultInstance = config
-        }
+        /**
+         * Return a [Configuration] with default values.
+         *
+         * A fresh instance every call: the SDK keeps no process-wide default a
+         * caller could swap out from under another caller.
+         */
+        fun defaultConfiguration(): Configuration = builder().build()
     }
 
     class Builder {

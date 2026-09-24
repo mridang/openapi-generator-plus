@@ -95,7 +95,7 @@ public class BaseApiTest
         public object? CapturedBody { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             CapturedUrl = url;
             CapturedHeaders = new Dictionary<string, string>(headers);
@@ -274,7 +274,7 @@ public class BaseApiTest
     private sealed class TextPlainApiClient : IApiClient
     {
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             return Task.FromResult(new ApiHttpResponse(200, "hello", new Dictionary<string, string>
             {
@@ -300,7 +300,7 @@ public class BaseApiTest
     private sealed class VendorJsonApiClient : IApiClient
     {
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             return Task.FromResult(new ApiHttpResponse(200, "{\"title\":\"Not Found\"}", new Dictionary<string, string>
             {
@@ -681,7 +681,7 @@ public class BaseApiTest
         public string Body { get; set; } = "";
 
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             return Task.FromResult(new ApiHttpResponse(200, Body, new Dictionary<string, string>
             {
@@ -882,14 +882,13 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyReturnsCastErrorBody()
+    public void GetTypedErrorBodyDeserializesRawBody()
     {
-        var category = new PetstoreClient.Models.Category { Id = 42L, Name = "Dogs" };
         var ex = new BadRequestException(
             "boom",
             new Dictionary<string, string>(),
             "{\"id\":42,\"name\":\"Dogs\"}",
-            category);
+            null);
         var typed = ex.GetTypedErrorBody<PetstoreClient.Models.Category>();
         Assert.NotNull(typed);
         Assert.Equal(42L, typed!.Id);
@@ -897,7 +896,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyReturnsNullWhenAbsent()
+    public void GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
     {
         var ex = new BadRequestException(
             "boom",

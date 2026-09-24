@@ -21,7 +21,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         public Uri? LastUrl { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             LastUrl = url;
             LastBody = body?.ToString();

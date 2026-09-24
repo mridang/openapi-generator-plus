@@ -12,7 +12,7 @@ namespace PetstoreClient;
 /// <summary>
 /// Interface for API HTTP transport.
 /// </summary>
-public interface IApiClient
+public interface IApiClient : IDisposable
 {
     /// <summary>
     /// Send an HTTP request and return the response.
@@ -21,19 +21,49 @@ public interface IApiClient
     /// <param name="url">Fully qualified URL</param>
     /// <param name="headers">HTTP headers</param>
     /// <param name="body">Request body (JSON string, byte[], Stream, Dictionary for multipart, or null)</param>
-    /// <param name="noRedirect">
-    /// When <c>true</c>, the transport must NOT follow 3xx redirects on this call
-    /// and must surface a 307/308 response as-is. Used by the OAuth2 token
-    /// exchange so that a malicious 307 from a token endpoint cannot silently
-    /// replay client credentials to an attacker-controlled host (Gap 3.2).
-    /// Default <c>false</c> preserves the existing redirect-following behaviour.
-    /// </param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body
+    );
+
+    /// <summary>
+    /// Send an HTTP request, optionally refusing to follow redirects.
+    ///
+    /// When <paramref name="noRedirect"/> is <c>true</c>, any 3xx response
+    /// (including 307/308) is returned to the caller as-is rather than being
+    /// replayed to the <c>Location</c> target. OAuth2 token/revoke/authorize
+    /// endpoint POSTs use this guard so a malicious or misconfigured server
+    /// cannot replay the credentialed body to an attacker-controlled URL
+    /// (Gap 3.2).
+    ///
+    /// The default implementation delegates to the four-argument overload;
+    /// transport implementations that own the redirect loop should implement
+    /// this method and honour the flag.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
     /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
     Task<ApiHttpResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
         object? body,
-        bool noRedirect = false
-    );
+        bool noRedirect
+    ) => SendRequestAsync(method, url, headers, body);
+
+    /// <summary>
+    /// Releases any resources held by this client (connection pool, sockets).
+    /// The default implementation is a no-op; implementations that own a
+    /// pooled HTTP client should dispose of it.
+    /// </summary>
+    void IDisposable.Dispose()
+    {
+        /* No-op by default. Implementations override to release resources. */
+    }
 }

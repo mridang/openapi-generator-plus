@@ -1652,12 +1652,9 @@ class BaseApiTest {
   class TypedErrorBodyTests {
 
     @Test
-    @DisplayName("getTypedErrorBody returns the error body cast to the requested type")
-    void returnsCastErrorBody() {
-      var category = new com.example.petstore.models.Category();
-      category.id = 42L;
-      category.name = "Dogs";
-      var ex = new BadRequestException("boom", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", category);
+    @DisplayName("getTypedErrorBody deserializes the raw body into the requested type")
+    void deserializesRawBody() {
+      var ex = new BadRequestException("boom", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", null);
       com.example.petstore.models.Category typed =
           ex.getTypedErrorBody(com.example.petstore.models.Category.class);
       assertNotNull(typed);
@@ -1666,8 +1663,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("getTypedErrorBody returns null when the error body is of a different type")
-    void returnsNullForMismatchedType() {
+    @DisplayName("getTypedErrorBody returns null when there is no response body")
+    void returnsNullWhenThereIsNoResponseBody() {
       var ex = new BadRequestException("boom", Map.of(), "", null);
       assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
     }

@@ -266,12 +266,23 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     /// <inheritdoc/>
+    public Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body
+    )
+    {
+        return SendRequestAsync(method, url, headers, body, noRedirect: false);
+    }
+
+    /// <inheritdoc/>
     public async Task<ApiHttpResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
         object? body,
-        bool noRedirect = false
+        bool noRedirect
     )
     {
         ArgumentNullException.ThrowIfNull(method);

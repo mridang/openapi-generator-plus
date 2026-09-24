@@ -1,4 +1,4 @@
-#  SDK
+# Swagger Petstore - OpenAPI 3.0 SDK
 
 Auto-generated PHP SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
@@ -81,7 +81,7 @@ follow from PSR-18 being a deliberately minimal, send-only contract:
 
 ## Caveats
 
-### Integer and decimal precision
+### Decimal / `format: number` precision
 
 Symfony's serializer (used internally for JSON deserialization)
 downgrades `format: int64` values through PHP `float` before assigning

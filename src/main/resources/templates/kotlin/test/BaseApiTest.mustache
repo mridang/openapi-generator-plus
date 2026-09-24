@@ -1072,21 +1072,20 @@ class BaseApiTest {
     inner class TypedErrorBodyTests {
 
         @Test
-        @DisplayName("getTypedErrorBody returns the error body cast to the requested type")
-        fun returnsCastErrorBody() {
-            val category = {{modelPackage}}.Category(id = 42L, name = "Dogs")
-            val ex = BadRequestException("boom", emptyMap(), "{\"id\":42,\"name\":\"Dogs\"}", category)
-            val typed = ex.getTypedErrorBody({{modelPackage}}.Category::class.java)
+        @DisplayName("getTypedErrorBody deserializes the raw body into the requested type")
+        fun deserializesRawBody() {
+            val ex = BadRequestException("boom", emptyMap(), "{\"id\":42,\"name\":\"Dogs\"}", null)
+            val typed = ex.getTypedErrorBody<{{modelPackage}}.Category>()
             assertNotNull(typed)
             assertEquals(42L, typed!!.id)
             assertEquals("Dogs", typed.name)
         }
 
         @Test
-        @DisplayName("getTypedErrorBody returns null when the error body is of a different type")
-        fun returnsNullForMismatchedType() {
+        @DisplayName("getTypedErrorBody returns null when there is no response body")
+        fun returnsNullWhenThereIsNoResponseBody() {
             val ex = BadRequestException("boom", emptyMap(), "", null)
-            assertNull(ex.getTypedErrorBody({{modelPackage}}.Category::class.java))
+            assertNull(ex.getTypedErrorBody<{{modelPackage}}.Category>())
         }
     }
 }

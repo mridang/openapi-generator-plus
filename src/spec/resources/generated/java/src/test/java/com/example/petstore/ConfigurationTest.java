@@ -16,12 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceAccessMode;
-import org.junit.jupiter.api.parallel.ResourceLock;
 
-@ResourceLock(value = "Configuration.default", mode = ResourceAccessMode.READ_WRITE)
 @SuppressWarnings({
   "checkstyle:SummaryJavadoc",
   "checkstyle:JavadocParagraph",
@@ -38,11 +34,6 @@ import org.junit.jupiter.api.parallel.ResourceLock;
   "checkstyle:ConstructorsDeclarationGrouping"
 })
 class ConfigurationTest {
-
-  @AfterEach
-  void resetDefault() {
-    Configuration.setDefault(Configuration.builder().build());
-  }
 
   @Test
   void defaultConstructorUsesSpecBaseUrl() {
@@ -172,29 +163,23 @@ class ConfigurationTest {
   }
 
   @Test
-  void getDefaultReturnsInstance() {
-    Configuration config = Configuration.getDefault();
+  void defaultConfigurationUsesSpecBaseUrl() {
+    Configuration config = Configuration.defaultConfiguration();
 
     assertNotNull(config);
     assertEquals("/api/v3", config.getBaseUrl());
+    assertTrue(config.getDefaultHeaders().isEmpty());
   }
 
   @Test
-  void getDefaultReturnsSameInstance() {
-    Configuration first = Configuration.getDefault();
-    Configuration second = Configuration.getDefault();
+  void defaultConfigurationIsStateless() {
+    // There is no settable process-wide default: every call hands back a
+    // fresh instance, so one caller cannot change what another gets.
+    Configuration first = Configuration.defaultConfiguration();
+    Configuration second = Configuration.defaultConfiguration();
 
-    assertSame(first, second);
-  }
-
-  @Test
-  void setDefaultChangesDefault() {
-    Configuration custom = Configuration.builder().baseUrl("https://custom.example.com").build();
-
-    Configuration.setDefault(custom);
-
-    assertSame(custom, Configuration.getDefault());
-    assertEquals("https://custom.example.com", Configuration.getDefault().getBaseUrl());
+    assertNotSame(first, second);
+    assertEquals(first.getBaseUrl(), second.getBaseUrl());
   }
 
   @Test

@@ -39,24 +39,36 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void IsAnExceptionWithStatusInToString()
+    public void IsAnExceptionWithStatusInItsStringForm()
     {
-        var ex = new ApiException(500, "boom");
+        // Message stays the detail message the exception was constructed with;
+        // the response context is rendered by the string conversion, one
+        // labelled field per line.
+        var ex = new ApiException(
+            500,
+            "boom",
+            new Dictionary<string, string> { { "x-request-id", "abc" } },
+            "the body"
+        );
 
         Assert.IsAssignableFrom<Exception>(ex);
-        Assert.Contains("500", ex.ToString());
+        Assert.Equal("boom", ex.Message);
+        Assert.Equal(
+            "boom\nHTTP status code: 500\nResponse headers: {x-request-id=abc}\nResponse body: the body",
+            ex.ToString()
+        );
     }
 
     [Fact]
-    public void GetTypedErrorBodyReturnsTheTypedErrorBody()
+    public void GetTypedErrorBodyDeserializesTheBodyIntoTheGivenClass()
     {
-        var body = new Category { Id = 42L, Name = "Dogs" };
-        var ex = new ApiException(
+        // Built through FromResponse, the way a real response reaches a caller:
+        // the typed body must come out of the raw body, not out of whatever the
+        // generic parse happened to leave behind.
+        var ex = ApiException.FromResponse(
             400,
-            "bad request",
             new Dictionary<string, string>(),
-            "{\"id\":42,\"name\":\"Dogs\"}",
-            body
+            "{\"id\":42,\"name\":\"Dogs\"}"
         );
 
         var typed = ex.GetTypedErrorBody<Category>();
@@ -66,25 +78,26 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyReturnsNullWhenNoErrorBody()
+    public void GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
     {
-        var ex = new ApiException(500, "oops", new Dictionary<string, string>(), null, null);
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);
 
         Assert.Null(ex.GetTypedErrorBody<Category>());
     }
 
     [Fact]
-    public void GetTypedErrorBodyReturnsNullForMismatchedType()
+    public void GetTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel()
     {
-        var ex = new ApiException(
+        var ex = ApiException.FromResponse(
             422,
-            "unprocessable",
             new Dictionary<string, string>(),
-            null,
-            "not-a-category"
+            "{\"id\":1,\"name\":\"Cat\",\"extra\":\"drop-me\"}"
         );
 
-        Assert.Null(ex.GetTypedErrorBody<Category>());
+        var typed = ex.GetTypedErrorBody<Category>();
+        Assert.NotNull(typed);
+        Assert.Equal(1L, typed!.Id);
+        Assert.Equal("Cat", typed.Name);
     }
 
     [Fact]
@@ -149,7 +162,10 @@ public class ApiExceptionTest
     [InlineData(418, typeof(ClientException))]
     [InlineData(500, typeof(InternalServerErrorException))]
     [InlineData(503, typeof(ServerException))]
+    // 302 is below the client range and 600 above the server range: neither is
+    // a ClientException or a ServerException, both are the base type.
     [InlineData(302, typeof(ApiException))]
+    [InlineData(600, typeof(ApiException))]
     public void FromResponseMapsEveryStatusToItsException(int status, Type expected)
     {
         var ex = ApiException.FromResponse(

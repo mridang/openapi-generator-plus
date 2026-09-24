@@ -19,6 +19,10 @@ class StoreMockApiClient implements ApiClient
     ) {
     }
 
+    public function close(): void
+    {
+    }
+
     /** @param array<string, string> $headers */
     public function sendRequest(
         string $method,

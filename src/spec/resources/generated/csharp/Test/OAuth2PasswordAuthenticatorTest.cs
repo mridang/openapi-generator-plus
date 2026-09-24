@@ -29,7 +29,7 @@ public class OAuth2PasswordAuthenticatorTest
         public Dictionary<string, string> LastHeaders { get; private set; } = new();
 
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             LastUrl = url;
             LastHeaders = headers;

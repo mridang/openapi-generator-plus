@@ -277,6 +277,10 @@ test('get external pet info uses per operation server url', function (): void {
             $this->transport = new \{{invokerPackage}}\DefaultApiClient();
         }
 
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,
@@ -389,6 +393,10 @@ function newBodyCapturingPetApi(): array
 
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
         public function __construct(private readonly \stdClass $captured)
+        {
+        }
+
+        public function close(): void
         {
         }
 
@@ -562,6 +570,10 @@ function newRawBodyCapturingPetApi(): array
 
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
         public function __construct(private readonly \stdClass $captured)
+        {
+        }
+
+        public function close(): void
         {
         }
 
@@ -766,6 +778,10 @@ function newHeaderCapturingPetApi(): array
 
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
         public function __construct(private readonly \stdClass $captured)
+        {
+        }
+
+        public function close(): void
         {
         }
 

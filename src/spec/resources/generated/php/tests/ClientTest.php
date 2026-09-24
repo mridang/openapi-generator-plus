@@ -87,6 +87,10 @@ test('injected api client is wired into every api group', function (): void {
     // API group sends through — this is the seam that lets a Psr18ApiClient (or
     // any bespoke transport) replace the bundled DefaultApiClient.
     $stub = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,

@@ -186,7 +186,9 @@ internal class ObjectSerializer(
 ) {
     // Primary entry point for callers: constructs the serializer with the
     // default Json configuration. Internal, so createDefaultJson() may stay
-    // private.
+    // private; @PublishedApi so a public inline function (ApiException's
+    // reified getTypedErrorBody) may construct one.
+    @PublishedApi
     internal constructor() : this(createDefaultJson())
 
     fun serialize(obj: Any?): String {
@@ -304,13 +306,21 @@ internal class ObjectSerializer(
      * Parse a raw JSON string into a [JsonElement] using the configured [Json]
      * instance. Exposed so callers (e.g. error-body parsing) do not need direct
      * access to the underlying kotlinx-serialization [Json].
+     *
+     * Refuses a payload nested deeper than [MAX_JSON_DEPTH] before parsing it.
      */
-    fun parseToJsonElement(jsonString: String): JsonElement =
-        try {
+    fun parseToJsonElement(jsonString: String): JsonElement {
+        val depth = jsonMaxDepth(jsonString)
+        if (depth > MAX_JSON_DEPTH) {
+            throw SerializationException(
+                "JSON nesting depth $depth exceeds limit $MAX_JSON_DEPTH")
+        }
+        return try {
             json.parseToJsonElement(jsonString)
         } catch (e: kotlinx.serialization.SerializationException) {
             throw SerializationException("Failed to parse JSON: ${e.message}", e)
         }
+    }
 
     @PublishedApi
     internal inline fun <reified T> deserialize(jsonString: String?): T? {
@@ -489,6 +499,45 @@ internal class ObjectSerializer(
     }
 
     companion object {
+        /**
+         * Maximum allowed JSON nesting depth. kotlinx-serialization's parser
+         * recurses through the JVM call stack and has no cap of its own, so a
+         * malicious 100k-deep `{"a":{"a":...}}` payload would overflow it.
+         * All twelve SDKs use the same cap.
+         */
+        internal const val MAX_JSON_DEPTH = 1000
+
+        /**
+         * Returns the maximum nesting depth of `{`/`[` containers in the JSON
+         * text, ignoring characters inside string literals. A cheap pre-flight
+         * scan used to refuse a deeply-nested payload before parsing it.
+         */
+        internal fun jsonMaxDepth(text: String): Int {
+            var depth = 0
+            var max = 0
+            var inString = false
+            var escaped = false
+            for (c in text) {
+                if (inString) {
+                    when {
+                        escaped -> escaped = false
+                        c == '\\' -> escaped = true
+                        c == '"' -> inString = false
+                    }
+                    continue
+                }
+                when (c) {
+                    '"' -> inString = true
+                    '{', '[' -> {
+                        depth++
+                        if (depth > max) max = depth
+                    }
+                    '}', ']' -> if (depth > 0) depth--
+                }
+            }
+            return max
+        }
+
         private object OffsetDateTimeSerializer : KSerializer<OffsetDateTime> {
             override val descriptor = PrimitiveSerialDescriptor("OffsetDateTime", PrimitiveKind.STRING)
             // Encode with ISO_OFFSET_DATE_TIME so sub-second precision survives

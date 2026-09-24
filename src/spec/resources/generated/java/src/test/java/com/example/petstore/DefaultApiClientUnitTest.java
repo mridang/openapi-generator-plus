@@ -851,7 +851,7 @@ class DefaultApiClientUnitTest {
         assertThrowsExactly(
             ApiException.class,
             () -> client.sendRequest("GET", baseUrl + "/redirect-bad-scheme", Map.of(), null));
-    assertTrue(ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("non-http"));
+    assertTrue(ex.toString().toLowerCase(java.util.Locale.ROOT).contains("non-http"));
     assertTrue(
         ex.getStatusCode() >= 300 && ex.getStatusCode() < 400,
         "a refused redirect must carry the 3xx status, was " + ex.getStatusCode());

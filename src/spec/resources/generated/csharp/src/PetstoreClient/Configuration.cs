@@ -28,8 +28,6 @@ namespace PetstoreClient;
 /// </summary>
 public sealed class Configuration
 {
-    private static Configuration? _default;
-
     /// <summary>
     /// Base URL for all API requests.
     /// Defaults to the first server URL from the OpenAPI specification.
@@ -67,18 +65,14 @@ public sealed class Configuration
     }
 
     /// <summary>
-    /// Return the default configuration instance.
-    /// If no default has been set, a new instance is created with the
-    /// spec-defined base URL and no default headers.
+    /// Return a <see cref="Configuration"/> with default values.
+    ///
+    /// A fresh instance every call: the SDK keeps no process-wide default a
+    /// caller could swap out from under another caller.
     /// </summary>
-    public static Configuration Default
+    public static Configuration DefaultConfiguration()
     {
-        get
-        {
-            _default ??= new Configuration();
-            return _default;
-        }
-        set => _default = value;
+        return Builder().Build();
     }
 }
 

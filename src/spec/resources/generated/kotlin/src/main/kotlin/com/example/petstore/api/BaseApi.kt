@@ -59,7 +59,7 @@ abstract class BaseApi {
     /**
      * Create an API instance with the default configuration and default transport.
      */
-    constructor() : this(Configuration.getDefault())
+    constructor() : this(Configuration.defaultConfiguration())
 
     /**
      * Create an API instance with the given configuration and default transport.

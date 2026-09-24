@@ -642,8 +642,8 @@ class DefaultApiClientTest {
                   client.sendRequest(
                       "GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null));
       assertTrue(
-          ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("redirect"),
-          "expected a redirect-exhaustion message: " + ex.getMessage());
+          ex.toString().toLowerCase(java.util.Locale.ROOT).contains("redirect"),
+          "expected a redirect-exhaustion message: " + ex);
     }
   }
 

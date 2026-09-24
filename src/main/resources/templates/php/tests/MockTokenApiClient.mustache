@@ -27,6 +27,10 @@ class MockTokenApiClient implements ApiClient
         $this->responses[] = $failure;
     }
 
+    public function close(): void
+    {
+    }
+
     /** @param array<string, string> $headers */
     public function sendRequest(
         string $method,

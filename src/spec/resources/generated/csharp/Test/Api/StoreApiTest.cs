@@ -126,7 +126,7 @@ public class StoreApiTest
         }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             return Task.FromResult(new PetstoreClient.ApiHttpResponse(_statusCode, _body, new Dictionary<string, string>
             {

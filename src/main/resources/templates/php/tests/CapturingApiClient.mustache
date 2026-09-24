@@ -14,6 +14,10 @@ class CapturingApiClient implements ApiClient
     public array $capturedHeaders = [];
     public mixed $capturedBody = null;
 
+    public function close(): void
+    {
+    }
+
     /** @param array<string, string> $headers */
     public function sendRequest(
         string $method,

@@ -7,19 +7,16 @@ namespace {{packageName}};
 
 /// <summary>
 /// Utility for injecting W3C Trace Context headers (<c>traceparent</c>, <c>tracestate</c>)
-/// into outgoing API requests when an active <see cref="Activity"/> exists.
+/// into outgoing API requests when OpenTelemetry is available.
 ///
 /// If no <see cref="Activity.Current"/> is present, this class silently no-ops.
 /// </summary>
-internal static class TraceContextUtil
+public static class TraceContextUtil
 {
     /// <summary>
-    /// Inject <c>traceparent</c> and optionally <c>tracestate</c> headers into
-    /// the given dictionary, derived from <see cref="Activity.Current"/>.
-    ///
-    /// If there is no current activity, the dictionary is not modified.
+    /// Inject the current OpenTelemetry trace context into the given headers dictionary.
     /// </summary>
-    /// <param name="headers">The mutable header dictionary to inject trace context into.</param>
+    /// <param name="headers">mutable dictionary of request headers</param>
     public static void InjectTraceContext(Dictionary<string, string> headers)
     {
         ArgumentNullException.ThrowIfNull(headers);

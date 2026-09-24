@@ -10,7 +10,8 @@
 package com.example.petstore.auth
 
 /**
- * Base implementation of Authenticator with sensible defaults.
+ * Abstract base class providing default implementations for optional
+ * [Authenticator] methods. Concrete authenticators should extend this class.
  */
 abstract class BaseAuthenticator : Authenticator {
     abstract override fun getHost(): String

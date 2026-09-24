@@ -9,18 +9,12 @@
 
 package com.example.petstore
 
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ConfigurationTest {
-    @AfterEach
-    fun resetDefault() {
-        Configuration.setDefault(Configuration.builder().build())
-    }
-
     @Nested
     @DisplayName("defaults")
     inner class Defaults {
@@ -229,35 +223,26 @@ class ConfigurationTest {
     }
 
     @Nested
-    @DisplayName("getDefault / setDefault")
-    inner class DefaultSingleton {
+    @DisplayName("defaultConfiguration")
+    inner class DefaultFactory {
         @Test
-        @DisplayName("getDefault returns an instance")
-        fun getDefaultReturnsInstance() {
-            val config = Configuration.getDefault()
+        @DisplayName("defaultConfiguration uses the spec base URL")
+        fun defaultConfigurationUsesSpecBaseUrl() {
+            val config = Configuration.defaultConfiguration()
             assertNotNull(config)
             assertEquals("/api/v3", config.baseUrl)
+            assertTrue(config.defaultHeaders.isEmpty())
         }
 
         @Test
-        @DisplayName("getDefault returns the same instance on repeated calls")
-        fun getDefaultReturnsSameInstance() {
-            val first = Configuration.getDefault()
-            val second = Configuration.getDefault()
-            assertSame(first, second)
-        }
-
-        @Test
-        @DisplayName("setDefault changes the default instance")
-        fun setDefaultChangesDefault() {
-            val custom =
-                Configuration
-                    .builder()
-                    .baseUrl("https://custom.example.com")
-                    .build()
-            Configuration.setDefault(custom)
-            assertSame(custom, Configuration.getDefault())
-            assertEquals("https://custom.example.com", Configuration.getDefault().baseUrl)
+        @DisplayName("defaultConfiguration is stateless")
+        fun defaultConfigurationIsStateless() {
+            // There is no settable process-wide default: every call hands back
+            // a fresh instance, so one caller cannot change what another gets.
+            val first = Configuration.defaultConfiguration()
+            val second = Configuration.defaultConfiguration()
+            assertNotSame(first, second)
+            assertEquals(first.baseUrl, second.baseUrl)
         }
     }
 

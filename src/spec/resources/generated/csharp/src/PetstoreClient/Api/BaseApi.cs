@@ -35,7 +35,7 @@ public abstract class BaseApi
     /// Create an API instance with the default configuration and default transport.
     /// </summary>
     protected BaseApi()
-        : this(Configuration.Default) { }
+        : this(Configuration.DefaultConfiguration()) { }
 
     /// <summary>
     /// Create an API instance with the given configuration and default transport.

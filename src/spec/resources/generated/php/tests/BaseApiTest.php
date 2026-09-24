@@ -619,6 +619,10 @@ test('api request uses resolved server url', function (): void {
 
 test('skips deserialization for non json content type', function (): void {
     $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
         /** @param array<string, string> $headers */
         public function sendRequest(
             string $method,
@@ -639,6 +643,10 @@ test('skips deserialization for non json content type', function (): void {
 
 test('deserializes vendor json mime types', function (): void {
     $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
         /** @param array<string, string> $headers */
         public function sendRequest(
             string $method,
@@ -751,6 +759,10 @@ test('octet stream response decoded as base 64 bytes', function (): void {
     $encoded = base64_encode($binaryData);
     $client = new class implements ApiClient {
         public string $body = '';
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,
@@ -774,6 +786,10 @@ test('image png response decoded as bytes', function (): void {
     $encoded = base64_encode($binaryData);
     $client = new class implements ApiClient {
         public string $body = '';
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,
@@ -799,6 +815,10 @@ test('binary response roundtrips nul and high bytes', function (): void {
     $encoded = base64_encode($binaryData);
     $client = new class implements ApiClient {
         public string $body = '';
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,
@@ -821,6 +841,10 @@ test('binary response roundtrips nul and high bytes', function (): void {
 
 test('empty binary body yields null', function (): void {
     $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,
@@ -840,6 +864,10 @@ test('empty binary body yields null', function (): void {
 
 test('json response parsed to object', function (): void {
     $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,
@@ -859,6 +887,10 @@ test('json response parsed to object', function (): void {
 
 test('text plain response returns string', function (): void {
     $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,
@@ -879,6 +911,10 @@ test('text plain response returns string', function (): void {
 
 test('empty body yields null', function (): void {
     $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
         public function sendRequest(
             string $method,
             string $url,

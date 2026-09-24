@@ -20,6 +20,14 @@ namespace PetstoreClient;
 /// </summary>
 internal class ObjectSerializer
 {
+    /// <summary>
+    /// Maximum allowed JSON nesting depth. A malicious 100k-deep
+    /// <c>{"a":{"a":...}}</c> payload must be refused rather than recurse
+    /// through the call stack, so the cap is pinned here rather than left to
+    /// the parser's default. All twelve SDKs use the same cap.
+    /// </summary>
+    internal const int MaxJsonDepth = 1000;
+
     private readonly JsonSerializerOptions _options;
 
     public ObjectSerializer()
@@ -295,6 +303,9 @@ internal class ObjectSerializer
     {
         JsonSerializerOptions options = new()
         {
+            /* Refuse a deeply-nested payload before it can recurse through the
+             * call stack. */
+            MaxDepth = MaxJsonDepth,
             PropertyNamingPolicy = null,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             WriteIndented = false,

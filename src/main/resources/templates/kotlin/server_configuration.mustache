@@ -5,12 +5,35 @@ package {{invokerPackage}}
 
 /**
  * Represents a single server entry from the OpenAPI specification.
+ *
+ * A server URL may contain template variables (e.g.
+ * `"https://{env}.api.example.com/v{version}"`). Use [getUrl] to resolve the
+ * URL with default variable values, or pass overrides to substitute specific
+ * variables.
+ *
+ * This class is immutable and thread-safe.
+ *
+ * @see ServerVariable
  */
 class ServerConfiguration(
+    /** The raw URL template before variable substitution. */
     val urlTemplate: String,
+    /** Human-readable description of this server, or null if not specified. */
     val description: String?,
+    /** The server variables and their definitions. */
     val variables: Map<String, ServerVariable>
 ) {
+    /**
+     * Resolve the URL template, substituting the given variable overrides.
+     *
+     * Variables not present in [overrides] use their default values. If a
+     * variable has an enum constraint, the override value is validated against
+     * the allowed values.
+     *
+     * @param overrides variable name to value overrides
+     * @return the fully resolved URL
+     * @throws IllegalArgumentException if an override value is not in the variable's enum
+     */
     fun getUrl(overrides: Map<String, String> = emptyMap()): String {
         var url = urlTemplate
         for ((varName, variable) in variables) {
@@ -28,10 +51,21 @@ class ServerConfiguration(
 }
 
 /**
- * Represents a server variable with a default value and optional enum constraint.
+ * Represents a server variable from the OpenAPI specification.
+ *
+ * Server variables define substitution parameters in server URL templates.
+ * Each variable has a default value and may optionally restrict values to
+ * an enumerated set.
+ *
+ * This class is immutable and thread-safe.
+ *
+ * @see ServerConfiguration
  */
 data class ServerVariable(
+    /** The default value used when no override is provided. */
     val defaultValue: String,
+    /** Human-readable description of the variable, or null if not specified. */
     val description: String?,
+    /** The allowed values; an empty list means any value is accepted. */
     val enumValues: List<String>
 )

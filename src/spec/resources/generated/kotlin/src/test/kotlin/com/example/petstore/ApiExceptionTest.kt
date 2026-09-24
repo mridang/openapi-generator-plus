@@ -53,18 +53,28 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun isAnExceptionWithStatusInMessage() {
+    fun isAnExceptionWithStatusInItsStringForm() {
+        // message stays the detail message the exception was constructed with;
+        // the response context is rendered by the string conversion, one
+        // labelled field per line.
         val ex =
             ApiException(
                 statusCode = 500,
                 message = "boom",
-                responseHeaders = null,
-                responseBody = null,
+                responseHeaders = mapOf("x-request-id" to "abc"),
+                responseBody = "the body",
             )
 
         assertTrue(ex is Exception)
         assertTrue(ex is OpenAPIException)
-        assertTrue(ex.message.contains("500"))
+        assertEquals("boom", ex.message)
+        assertEquals(
+            "boom" +
+                "\nHTTP status code: 500" +
+                "\nResponse headers: {x-request-id=abc}" +
+                "\nResponse body: the body",
+            ex.toString(),
+        )
     }
 
     @Test
@@ -115,51 +125,38 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun getTypedErrorBodyReturnsTheTypedErrorBody() {
-        val body =
-            com.example.petstore.models
-                .Category(id = 42L, name = "Dogs")
-        val ex =
-            ApiException(
-                statusCode = 400,
-                message = "bad request",
-                responseHeaders = emptyMap(),
-                responseBody = "{\"id\":42,\"name\":\"Dogs\"}",
-                errorBody = body,
-            )
+    fun getTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
+        // Built through fromResponse, the way a real response reaches a caller:
+        // the typed body must come out of the raw body, not out of whatever the
+        // generic parse happened to leave behind.
+        val ex = ApiException.fromResponse(400, emptyMap(), "{\"id\":42,\"name\":\"Dogs\"}")
 
-        val typed = ex.getTypedErrorBody(com.example.petstore.models.Category::class.java)
+        val typed = ex.getTypedErrorBody<com.example.petstore.models.Category>()
         assertNotNull(typed)
         assertEquals(42L, typed!!.id)
         assertEquals("Dogs", typed.name)
     }
 
     @Test
-    fun getTypedErrorBodyReturnsNullWhenNoErrorBody() {
-        val ex =
-            ApiException(
-                statusCode = 500,
-                message = "oops",
-                responseHeaders = emptyMap(),
-                responseBody = null,
-                errorBody = null,
-            )
+    fun getTypedErrorBodyReturnsNullWhenThereIsNoResponseBody() {
+        val ex = ApiException.fromResponse(500, emptyMap(), null)
 
-        assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category::class.java))
+        assertNull(ex.getTypedErrorBody<com.example.petstore.models.Category>())
     }
 
     @Test
-    fun getTypedErrorBodyReturnsNullForMismatchedType() {
+    fun getTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel() {
         val ex =
-            ApiException(
-                statusCode = 422,
-                message = "unprocessable",
-                responseHeaders = emptyMap(),
-                responseBody = null,
-                errorBody = "not-a-category",
+            ApiException.fromResponse(
+                422,
+                emptyMap(),
+                "{\"id\":1,\"name\":\"Cat\",\"extra\":\"drop-me\"}",
             )
 
-        assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category::class.java))
+        val typed = ex.getTypedErrorBody<com.example.petstore.models.Category>()
+        assertNotNull(typed)
+        assertEquals(1L, typed!!.id)
+        assertEquals("Cat", typed.name)
     }
 
     @Test
@@ -175,7 +172,11 @@ class ApiExceptionTest {
                 418 to com.example.petstore.errors.ClientException::class.java,
                 500 to com.example.petstore.errors.InternalServerErrorException::class.java,
                 503 to com.example.petstore.errors.ServerException::class.java,
+                // 302 is below the client range and 600 above the server range:
+                // neither is a ClientException or a ServerException, both are
+                // the base type.
                 302 to ApiException::class.java,
+                600 to ApiException::class.java,
             )
         for ((status, type) in expected) {
             val ex = ApiException.fromResponse(status, mapOf("x-request-id" to "abc"), "{\"code\":\"denied\"}")

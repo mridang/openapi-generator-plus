@@ -30,7 +30,7 @@ public class OpenIdConnectAuthenticatorTest
         public string? LastMethod { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             LastMethod = method;
             LastUrl = url;
@@ -42,7 +42,7 @@ public class OpenIdConnectAuthenticatorTest
     private sealed class ThrowingApiClient(Exception failure) : IApiClient
     {
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             return Task.FromException<ApiHttpResponse>(failure);
         }
@@ -287,7 +287,7 @@ public class OpenIdConnectAuthenticatorTest
         }
 
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             if (method == "GET")
             {

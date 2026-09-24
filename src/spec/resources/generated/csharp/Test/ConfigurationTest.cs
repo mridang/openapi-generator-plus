@@ -12,15 +12,8 @@ using Xunit;
 
 namespace Test;
 
-public class ConfigurationTest : IDisposable
+public class ConfigurationTest
 {
-    public void Dispose()
-    {
-        // Reset the default instance between tests to avoid leaking state
-        Configuration.Default = new Configuration();
-        GC.SuppressFinalize(this);
-    }
-
     [Fact]
     public void DefaultConstructorUsesSpecBaseUrl()
     {
@@ -208,34 +201,25 @@ public class ConfigurationTest : IDisposable
     }
 
     [Fact]
-    public void DefaultReturnsInstance()
+    public void DefaultConfigurationUsesSpecBaseUrl()
     {
-        var config = Configuration.Default;
+        var config = Configuration.DefaultConfiguration();
 
         Assert.IsType<Configuration>(config);
         Assert.Equal("/api/v3", config.BaseUrl);
+        Assert.Empty(config.DefaultHeaders);
     }
 
     [Fact]
-    public void DefaultReturnsSameInstance()
+    public void DefaultConfigurationIsStateless()
     {
-        var first = Configuration.Default;
-        var second = Configuration.Default;
+        // There is no settable process-wide default: every call hands back a
+        // fresh instance, so one caller cannot change what another gets.
+        var first = Configuration.DefaultConfiguration();
+        var second = Configuration.DefaultConfiguration();
 
-        Assert.Same(first, second);
-    }
-
-    [Fact]
-    public void SetDefaultChangesDefault()
-    {
-        var custom = Configuration.Builder()
-            .BaseUrl("https://custom.example.com")
-            .Build();
-
-        Configuration.Default = custom;
-
-        Assert.Same(custom, Configuration.Default);
-        Assert.Equal("https://custom.example.com", Configuration.Default.BaseUrl);
+        Assert.NotSame(first, second);
+        Assert.Equal(first.BaseUrl, second.BaseUrl);
     }
 
     [Fact]

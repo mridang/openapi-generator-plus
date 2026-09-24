@@ -31,7 +31,11 @@ public class OAuth2TokenManagerTest
         public int CallCount { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body) =>
+            SendRequestAsync(method, url, headers, body, noRedirect: false);
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect)
         {
             CallCount++;
             LastUrl = url;
@@ -203,7 +207,7 @@ public class OAuth2TokenManagerTest
         public int CallCount => _callCount;
 
         public async Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             System.Threading.Interlocked.Increment(ref _callCount);
             // Hold the "in flight" request long enough that all concurrent
@@ -456,7 +460,7 @@ public class OAuth2TokenManagerTest
     private sealed class ThrowingApiClient(Exception failure) : IApiClient
     {
         public Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             return Task.FromException<ApiHttpResponse>(failure);
         }
@@ -600,7 +604,7 @@ public class OAuth2TokenManagerTest
         public int CallCount => _callCount;
 
         public async Task<ApiHttpResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             int n = System.Threading.Interlocked.Increment(ref _callCount);
             // Hold the request in flight so concurrent callers pile up behind

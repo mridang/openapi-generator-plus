@@ -10,10 +10,16 @@
 package com.example.petstore
 
 /**
- * Utility for injecting W3C Trace Context headers into outgoing requests.
+ * Utility for injecting W3C Trace Context headers (traceparent, tracestate)
+ * into outgoing API requests when OpenTelemetry is available.
  *
- * Internal transport machinery; not part of the public API.
+ * If the OpenTelemetry API is not installed, this class silently no-ops.
  */
-internal expect object TraceContextUtil {
+expect object TraceContextUtil {
+    /**
+     * Inject the current OpenTelemetry trace context into the given headers map.
+     *
+     * @param headers mutable map of request headers
+     */
     fun injectTraceContext(headers: MutableMap<String, String>)
 }

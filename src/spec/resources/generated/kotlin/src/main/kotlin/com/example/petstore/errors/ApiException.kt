@@ -9,7 +9,7 @@
 
 package com.example.petstore.errors
 
-import kotlinx.serialization.json.Json
+import com.example.petstore.ObjectSerializer
 
 /**
  * Exception thrown when an API call fails.
@@ -82,8 +82,11 @@ open class ApiException : OpenAPIException {
                     null
                 } else {
                     try {
-                        Json.parseToJsonElement(responseBody)
-                    } catch (_: kotlinx.serialization.SerializationException) {
+                        // Route through ObjectSerializer so the nesting-depth
+                        // cap refuses a deeply-nested error payload before it
+                        // can recurse through the call stack.
+                        ObjectSerializer().parseToJsonElement(responseBody)
+                    } catch (_: SerializationException) {
                         null
                     }
                 }
@@ -102,12 +105,44 @@ open class ApiException : OpenAPIException {
         }
     }
 
-    fun <T> getTypedErrorBody(clazz: Class<T>): T? = if (clazz.isInstance(errorBody)) clazz.cast(errorBody) else null
+    /**
+     * Deserialize the raw response body into the given type.
+     *
+     * Useful when the API returns a structured error body that you want to
+     * access in a strongly-typed way. Returns null if the body is empty.
+     */
+    inline fun <reified T> getTypedErrorBody(): T? {
+        val body = responseBody
+        if (body.isNullOrEmpty()) {
+            return null
+        }
+        return ObjectSerializer().deserialize<T>(body)
+    }
 
-    override val message: String
-        get() =
-            "ApiException{statusCode=$statusCode, " +
-                "message='${super.message}', " +
-                "responseHeaders=$responseHeaders, " +
-                "responseBody='$responseBody'}"
+    /**
+     * Render the error as the message followed by whatever response context
+     * was captured, one labelled field per line.
+     *
+     * [message] is deliberately not overridden: it keeps returning the detail
+     * message the exception was constructed with.
+     */
+    override fun toString(): String {
+        val detail = message
+        val rendered =
+            StringBuilder(
+                if (detail.isNullOrEmpty()) "Error message: the server returns an error" else detail,
+            )
+        if (statusCode != 0) {
+            rendered.append("\nHTTP status code: ").append(statusCode)
+        }
+        val headers = responseHeaders
+        if (!headers.isNullOrEmpty()) {
+            rendered.append("\nResponse headers: ").append(headers)
+        }
+        val body = responseBody
+        if (!body.isNullOrEmpty()) {
+            rendered.append("\nResponse body: ").append(body)
+        }
+        return rendered.toString()
+    }
 }
