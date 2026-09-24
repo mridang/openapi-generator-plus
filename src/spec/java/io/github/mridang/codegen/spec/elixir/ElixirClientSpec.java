@@ -18,7 +18,7 @@ public class ElixirClientSpec extends AbstractClientSpec implements ElixirSpec {
             /* The report printed after this run is read from the host's golden
              * directory; clear the previous run's there, so a run that fails
              * before writing one does not print stale results. */
-            "rm -rf /app/.out/reports && mkdir -p .out/reports",
+            "find /app/.out/reports -mindepth 1 -delete 2>/dev/null; mkdir -p .out/reports",
             /* Not --warnings-as-errors: the suite has to call the operations
              * the spec marks deprecated, and Elixir emits a deprecation
              * warning at every such call site with no way to suppress one.

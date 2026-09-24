@@ -42,7 +42,7 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
                 /* The snapshot every spec restores is taken from the host's
                  * golden directory, which still holds the previous run's JUnit
                  * report; drop it so no later spec copies it back. */
-                "rm -rf .out/reports",
+                "find .out/reports -mindepth 1 -delete 2>/dev/null; true",
                 /* rust:slim omits curl + ca-certificates that the full image
                  * ships via buildpack-deps; the nextest download below needs
                  * both (curl for the fetch, CA certs for its TLS verify). */

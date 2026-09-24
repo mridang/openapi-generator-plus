@@ -36,7 +36,7 @@ public class RustClientSpec extends AbstractClientSpec implements RustSpec {
             /* The report printed after this run is read from the host's golden
              * directory; clear the previous run's there, so a run that fails
              * before writing one does not print stale results. */
-            "rm -rf /app/.out/reports && mkdir -p .out/reports",
+            "find /app/.out/reports -mindepth 1 -delete 2>/dev/null; mkdir -p .out/reports",
             /* --all-features compiles the `opentelemetry` feature in, so the
              * in-crate trace-context tests run against the OpenTelemetry SDK. */
             /* Compile ALL test binaries (lib in its `--cfg test` variant plus

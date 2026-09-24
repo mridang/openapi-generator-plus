@@ -37,7 +37,7 @@ extension OAuth2ServerError: LocalizedError {
       return "Token request failed with status \(statusCode): \(rawBody)"
     }
     if let description = description {
-      return "Token request failed with status \(statusCode): \(code ?? "") — \(description)"
+      return "Token request failed with status \(statusCode): \(code ?? "") -- \(description)"
     }
     return "Token request failed with status \(statusCode): \(code ?? "")"
   }

@@ -31,7 +31,7 @@ interface ElixirSpec extends LanguageSpec, DockerImageSpec {
      * directory, which still holds the previous run's JUnit report; drop it so
      * no later spec copies it back. */
     return List.of(
-        "rm -rf .out/reports",
+        "find .out/reports -mindepth 1 -delete 2>/dev/null; true",
         "mix local.hex --force && mix local.rebar --force",
         "mix deps.get");
   }

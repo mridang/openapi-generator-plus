@@ -95,7 +95,7 @@ public class OAuth2ServerException extends {{errorPrefix}}Exception {
         }
         if (description != null) {
             return "Token request failed with status " + statusCode + ": " + code
-                    + " — " + description;
+                    + " -- " + description;
         }
         return "Token request failed with status " + statusCode + ": " + code;
     }

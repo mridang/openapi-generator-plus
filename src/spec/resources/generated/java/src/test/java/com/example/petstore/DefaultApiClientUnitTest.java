@@ -676,14 +676,10 @@ class DefaultApiClientUnitTest {
         "byte[] part must carry Content-Disposition name=\"file\", got: " + part);
     assertTrue(
         part.contains("filename=\"file\""),
-        "byte[] part with no explicit filename must reuse the field name as filename=\"file\", got:"
-            + " "
-            + part);
+        "byte[] part must carry filename=\"file\", got: " + part);
     assertTrue(
         part.contains("Content-Type: application/octet-stream"),
-        "byte[] part named \"file\" (no extension) must emit Content-Type:"
-            + " application/octet-stream, got: "
-            + part);
+        "byte[] part must carry Content-Type: application/octet-stream, got: " + part);
   }
 
   static class MultipartModelPart {

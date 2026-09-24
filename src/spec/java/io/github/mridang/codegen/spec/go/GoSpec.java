@@ -35,7 +35,7 @@ interface GoSpec extends LanguageSpec, DockerImageSpec {
         /* The snapshot every spec restores is taken from the host's golden
          * directory, which still holds the previous run's JUnit report. Drop it,
          * or each later spec copies that stale report back over the fresh one. */
-        return List.of("rm -rf .out/reports", "go mod tidy");
+        return List.of("find .out/reports -mindepth 1 -delete 2>/dev/null; true", "go mod tidy");
     }
 
     @Override

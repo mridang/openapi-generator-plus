@@ -21,7 +21,7 @@ public class GoClientSpec extends AbstractClientSpec implements GoSpec {
             /* The report printed after this run is read from the host's golden
              * directory; clear the previous run's there, so a run that fails
              * before writing one does not print stale results. */
-            "rm -rf /app/.out/reports && mkdir -p .out/reports",
+            "find /app/.out/reports -mindepth 1 -delete 2>/dev/null; mkdir -p .out/reports",
             "go run gotest.tools/gotestsum@v1.13.0 --format=standard-quiet"
                 + " --junitfile .out/reports/junit.xml -- -parallel=8 ./..."
         };

@@ -20,7 +20,7 @@ namespace PetstoreClient.Errors;
 /// </summary>
 /* CA1032: only thrown from one site; extra constructors are unused. */
 /* CA1054/CA1056: error_uri in RFC 6749 §5.2 is a freeform URI string from
-   the OAuth2 server response — keep as `string` to round-trip verbatim
+   the OAuth2 server response -- keep as `string` to round-trip verbatim
    what the server sent without forcing System.Uri's stricter parsing. */
 /* IDE0290: primary-constructor form is awkward with the BuildMessage call. */
 /* CA1032/CA1054/CA1056/IDE0290 are silenced project-wide in .editorconfig. */
@@ -62,7 +62,7 @@ public sealed class OAuth2ServerException : OpenAPIException
         }
         if (description is not null)
         {
-            return $"Token request failed with status {statusCode}: {code} — {description}";
+            return $"Token request failed with status {statusCode}: {code} -- {description}";
         }
         return $"Token request failed with status {statusCode}: {code}";
     }

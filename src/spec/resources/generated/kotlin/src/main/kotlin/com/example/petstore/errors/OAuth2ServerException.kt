@@ -33,7 +33,7 @@ class OAuth2ServerException(
         ): String =
             when {
                 code == null -> "Token request failed with status $statusCode: $rawBody"
-                description != null -> "Token request failed with status $statusCode: $code — $description"
+                description != null -> "Token request failed with status $statusCode: $code -- $description"
                 else -> "Token request failed with status $statusCode: $code"
             }
     }
