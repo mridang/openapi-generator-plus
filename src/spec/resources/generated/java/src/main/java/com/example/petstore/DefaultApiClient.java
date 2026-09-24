@@ -72,7 +72,7 @@ import javax.net.ssl.X509ExtendedTrustManager;
  */
 @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
     value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
-    justification = "generated code")
+    justification = "the SDK's error contract is built on unchecked exceptions")
 public final class DefaultApiClient implements ApiClient {
 
   private static final ObjectMapper MULTIPART_MAPPER = ObjectSerializer.createDefaultObjectMapper();

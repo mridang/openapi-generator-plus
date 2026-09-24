@@ -66,3 +66,14 @@ dotnet_diagnostic.IL2026.severity = none
 # owns the parts added to it, and each decompression stream is disposed by the
 # using block on the following line.
 dotnet_diagnostic.CA2000.severity = none
+
+# A generated model must reference the members the OpenAPI document marks
+# deprecated — a deprecated property is still part of the model — and the
+# generated tests must still cover the deprecated operations the SDK exposes.
+# Both are intentional, not migration debt, so the obsolete-member warning is
+# named here for those two trees rather than inside the sources.
+[**/Models/*.cs]
+dotnet_diagnostic.CS0618.severity = none
+
+[Test/**.cs]
+dotnet_diagnostic.CS0618.severity = none
