@@ -42,6 +42,22 @@ make analyse
 `.swiftlint.yml` at the package root. Both files ship alongside the
 generated sources and can be customised in place.
 
+No generated source file disables a linter or a rule: `.swiftlint.yml`
+relaxes nothing, and every `swift-format` rule the generated code cannot
+satisfy is named in `.swift-format` — JSON carries no comments, so the
+reason for each is recorded here.
+
+| Rule | Why the generated code cannot satisfy it |
+|---|---|
+| `AlwaysUseLowerCamelCase` | Enum cases come verbatim from the OpenAPI document (`US`, `SANDBOX`, `V2`, and `NUMBER_<n>` for integer-backed enums) and are the identifiers the other SDKs expose for the same schema. |
+| `NoBlockComments` | Generated sources comment with `/* ... */` by convention across all twelve SDKs, and the generator's own spec fails the build on a `//` comment in a generated source. The two rules are mutually exclusive. |
+| `AllPublicDeclarationsHaveDocumentation` | A schema or operation without a `description` has no documentation to emit, and inventing one would put generator prose in the caller's API docs. |
+| `BeginDocumentationCommentWithOneLineSummary` | Doc comments are the document's own `description` text, reproduced unaltered; it is not the generator's to re-punctuate into a one-line summary. |
+| `ValidateDocumentationComments` | Same reason: a document's `description` does not list the operation's Swift parameters. |
+| `NeverForceUnwrap`, `NeverUseForceTry` | Test code asserts on values the fixture guarantees; a force-unwrap there is the assertion. |
+| `NoLeadingUnderscores` | An underscore-prefixed stored property is the backing store for a same-named computed property, which Swift has no other spelling for. |
+| `OmitExplicitReturns`, `UseEarlyExits`, `UseWhereClausesInForLoops`, `NoEmptyLinesOpeningClosingBraces`, `AlwaysUseLiteralForEmptyCollectionInit` | Body shape is emitted uniformly from one template that must cover every document shape, so it cannot be rewritten per call site. |
+
 ## Package
 
 - Name: `PetstoreClient`

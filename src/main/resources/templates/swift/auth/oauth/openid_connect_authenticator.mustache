@@ -121,8 +121,13 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
         }
 
         struct DiscoveryDocument: Decodable {
-            let authorization_endpoint: String
-            let token_endpoint: String
+            let authorizationEndpoint: String
+            let tokenEndpoint: String
+
+            enum CodingKeys: String, CodingKey {
+                case authorizationEndpoint = "authorization_endpoint"
+                case tokenEndpoint = "token_endpoint"
+            }
         }
 
         let discovery: DiscoveryDocument
@@ -133,8 +138,8 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
         }
         /* A document naming an empty endpoint is as incomplete as one that
          * omits it. */
-        guard !discovery.authorization_endpoint.trimmingCharacters(in: .whitespaces).isEmpty,
-              !discovery.token_endpoint.trimmingCharacters(in: .whitespaces).isEmpty
+        guard !discovery.authorizationEndpoint.trimmingCharacters(in: .whitespaces).isEmpty,
+              !discovery.tokenEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
         else {
             throw SerializationError(message: "OIDC discovery document names an empty endpoint")
         }
@@ -143,8 +148,8 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
             host: _host,
             clientID: clientID,
             clientSecret: clientSecret,
-            authorizationURL: discovery.authorization_endpoint,
-            tokenURL: discovery.token_endpoint,
+            authorizationURL: discovery.authorizationEndpoint,
+            tokenURL: discovery.tokenEndpoint,
             redirectURI: redirectURI,
             scopes: scopes
         )

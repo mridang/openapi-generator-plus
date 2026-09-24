@@ -259,8 +259,13 @@ public final class OAuth2TokenManager: @unchecked Sendable {
      * the parse does not fail when providers send it as a quoted string
      * (Salesforce, some Apigee deployments) or as a JSON float. */
     struct TokenResponse: Decodable {
-      let access_token: String?
-      let refresh_token: String?
+      let accessToken: String?
+      let refreshToken: String?
+
+      enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+      }
     }
 
     let parsed: TokenResponse
@@ -269,7 +274,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     } catch {
       throw OAuth2TokenError.invalidResponse("Token response is not a valid token JSON object")
     }
-    guard let accessTokenValue = parsed.access_token, !accessTokenValue.isEmpty else {
+    guard let accessTokenValue = parsed.accessToken, !accessTokenValue.isEmpty else {
       throw OAuth2TokenError.missingAccessToken(
         "Token response missing or empty access_token field"
       )
@@ -281,7 +286,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 
     lock.withLock {
       self.accessToken = accessTokenValue
-      if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
+      if let refreshToken = parsed.refreshToken, !refreshToken.isEmpty {
         self._refreshToken = refreshToken
       }
       if hasExpiresIn {

@@ -37,7 +37,44 @@ func setUpContainers() async throws {
   try await ContainerSetupGuard.shared.ensureReady()
 }
 
+/// Fails the run when a dependency the generated tests import is missing from
+/// `Package.swift`.
+///
+/// `.openapi-generator/DEV-DEPENDENCIES` is generator-owned; the manifest is
+/// not, because it carries the package's own metadata and every real client
+/// keep-lists it. Reading both here turns a drift between them into a message
+/// naming the file instead of an opaque build failure.
+private func checkDevDependencies() throws {
+  let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+  let listing = try String(
+    contentsOf: root.appendingPathComponent(".openapi-generator/DEV-DEPENDENCIES"),
+    encoding: .utf8
+  )
+  let manifest = try String(
+    contentsOf: root.appendingPathComponent("Package.swift"),
+    encoding: .utf8
+  )
+  for line in listing.split(separator: "\n") {
+    let entry = line.trimmingCharacters(in: .whitespaces)
+    if entry.isEmpty || entry.hasPrefix("#") {
+      continue
+    }
+    guard let name = entry.split(separator: " ").first.map(String.init) else {
+      continue
+    }
+    if !manifest.contains(name) {
+      fatalError(
+        "\(name) is required by the generated tests but is not declared in "
+          + "Package.swift; every entry in .openapi-generator/DEV-DEPENDENCIES "
+          + "must be declared there"
+      )
+    }
+  }
+}
+
 private func _setUpContainers() async throws {
+  try checkDevDependencies()
+
   let fixturesPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     .appendingPathComponent("Tests/Fixtures")
 
@@ -55,6 +92,15 @@ private func _setUpContainers() async throws {
       .path(squidConfPath),
       "/etc/squid/squid.conf"
     )
+    /* ubuntu/squid declares VOLUME /var/log/squid and /var/spool/squid, so
+     * every proxy container would otherwise leave two anonymous volumes
+     * behind. tmpfs mounts satisfy the VOLUME declarations without any
+     * volume being created. mode=1777 is required: a tmpfs inherits the
+     * mode of the directory it covers (0755 here) but is owned by root,
+     * and squid drops to the unprivileged `proxy` user before opening
+     * /var/log/squid/access.log. */
+  .withTmpfsMount("/var/log/squid", size: "rw,mode=1777")
+    .withTmpfsMount("/var/spool/squid", size: "rw,mode=1777")
     .withNetwork(network)
 
   try await squid.start()

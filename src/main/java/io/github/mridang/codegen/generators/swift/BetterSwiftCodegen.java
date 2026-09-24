@@ -349,6 +349,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec(
+                "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES"),
             new SupportingFileSpec("swiftlint_yml.mustache", "", ".swiftlint.yml"),
             new SupportingFileSpec("swift_format_json.mustache", "", ".swift-format")
         );
