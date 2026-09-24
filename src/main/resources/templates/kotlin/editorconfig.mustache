@@ -10,6 +10,13 @@ insert_final_newline = true
 
 [*.kt]
 ktlint_code_style = ktlint_official
+# The only three on-demand imports the generator emits. Ktor's request,
+# statement and http packages are extension-function DSLs meant to be imported
+# whole; JUnit's Assertions is a facade of static asserts; and the SDK's own
+# packages are imported whole by the generated tests, because which types exist
+# there is decided by the OpenAPI document, not by the template. Every other
+# wildcard import is still an error, and no generated file disables the rule.
+ij_kotlin_packages_to_use_import_on_demand = io.ktor.**,org.junit.jupiter.api.Assertions.**,{{invokerPackage}}.**
 
 [*.kts]
 ktlint_code_style = ktlint_official

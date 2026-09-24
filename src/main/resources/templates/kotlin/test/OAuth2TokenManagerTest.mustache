@@ -1,12 +1,12 @@
 {{>api_info}}
-@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
 
-package {{invokerPackage}}
+package {{invokerPackage}}.auth.oauth
 
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.ApiHttpResponse
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.OAuth2ServerException
 import {{invokerPackage}}.errors.OAuth2TokenException
-import {{invokerPackage}}.auth.oauth.OAuth2TokenManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope

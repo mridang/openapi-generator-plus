@@ -1,5 +1,4 @@
 {{>api_info}}
-@file:Suppress("detekt:all")
 
 package {{invokerPackage}}
 
@@ -38,36 +37,48 @@ private val TRUST_ALL_MANAGER =
         override fun checkClientTrusted(
             chain: Array<X509Certificate>,
             authType: String,
-        ) {}
+        ) {
+            // Accepts every certificate, which is the point of verifySsl=false.
+        }
 
         override fun checkClientTrusted(
             chain: Array<X509Certificate>,
             authType: String,
             socket: Socket?,
-        ) {}
+        ) {
+            // Accepts every certificate, which is the point of verifySsl=false.
+        }
 
         override fun checkClientTrusted(
             chain: Array<X509Certificate>,
             authType: String,
             engine: SSLEngine?,
-        ) {}
+        ) {
+            // Accepts every certificate, which is the point of verifySsl=false.
+        }
 
         override fun checkServerTrusted(
             chain: Array<X509Certificate>,
             authType: String,
-        ) {}
+        ) {
+            // Accepts every certificate, which is the point of verifySsl=false.
+        }
 
         override fun checkServerTrusted(
             chain: Array<X509Certificate>,
             authType: String,
             socket: Socket?,
-        ) {}
+        ) {
+            // Accepts every certificate, which is the point of verifySsl=false.
+        }
 
         override fun checkServerTrusted(
             chain: Array<X509Certificate>,
             authType: String,
             engine: SSLEngine?,
-        ) {}
+        ) {
+            // Accepts every certificate, which is the point of verifySsl=false.
+        }
 
         override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
     }

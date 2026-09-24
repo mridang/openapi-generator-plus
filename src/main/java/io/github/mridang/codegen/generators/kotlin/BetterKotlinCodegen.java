@@ -857,7 +857,36 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 modelMap.put("hasContentEqualsField", true);
             }
         }
+        dropSamePackageImports(result);
         return result;
+    }
+
+    /**
+     * Drops imports that name a type in the model's own package. A model that
+     * references a sibling schema gets {@code import <modelPackage>.Sibling},
+     * which Kotlin resolves without it; ktlint's {@code no-unused-imports}
+     * reports every one of them.
+     *
+     * @param models the post-processed models whose import list to prune
+     */
+    private void dropSamePackageImports(ModelsMap models) {
+        final String ownPackagePrefix = modelPackage() + ".";
+        final List<Map<String, String>> imports = models.getImports();
+        if (imports == null) {
+            return;
+        }
+        final List<Map<String, String>> kept = new ArrayList<>();
+        for (final Map<String, String> entry : imports) {
+            final String imported = entry.get("import");
+            final boolean samePackage =
+                    imported != null
+                            && imported.startsWith(ownPackagePrefix)
+                            && imported.indexOf('.', ownPackagePrefix.length()) < 0;
+            if (!samePackage) {
+                kept.add(entry);
+            }
+        }
+        models.setImports(kept);
     }
 
     /**

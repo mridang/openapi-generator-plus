@@ -1,5 +1,4 @@
 {{>api_info}}
-@file:Suppress("detekt:all")
 
 package {{invokerPackage}}
 
@@ -15,6 +14,11 @@ internal object ValueSerializer {
 
     private val serializer = ObjectSerializer()
 
+    {{! schemaType is part of the serializer signature every one of the twelve
+        SDKs shares (php reads it to pick date-only path formatting). Kotlin
+        does not need it, so the one parameter is named in a suppression on
+        this declaration rather than dropped from the shared shape. }}
+    @Suppress("UnusedParameter")
     @JvmStatic
     fun serialize(
         value: Any?,

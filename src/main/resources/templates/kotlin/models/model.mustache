@@ -1,13 +1,16 @@
 {{>api_info}}
 
-@file:Suppress("detekt:all", "ktlint:standard:value-parameter-comment", "ktlint:standard:no-consecutive-comments")
 @file:UseSerializers(Base64ByteArraySerializer::class)
 @file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 
 package {{modelPackage}}
 
-{{#imports}}
+{{! SerializationException is used by the oneOf/anyOf wrapper serializers.
+    It is emitted for every model and the formatter drops it again wherever it
+    is unused, which is also what keeps it from being repeated once per
+    import. }}
 import {{invokerPackage}}.errors.SerializationException
+{{#imports}}
 import {{import}}
 {{/imports}}
 import {{invokerPackage}}.Base64ByteArraySerializer
@@ -113,6 +116,49 @@ enum class {{classname}}(val value: String) {
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
+{{^discriminator}}
+{{! ktlint's no-consecutive-comments rejects a block comment that follows
+    a KDoc, so this implementation note goes above the class doc with a
+    blank line between the two. }}
+/*
+ * Non-discriminated oneOf wrapper. The default generated object serializer
+ * would expect a `{"actualInstance": ...}` envelope, but the wire payload is a
+ * bare variant — so deserialization silently dropped every key and left
+ * [actualInstance] null. The hand-written serializer below tries each declared
+ * variant in turn (first match wins) and emits the bare variant on serialize,
+ * matching the resolveOneOf contract used by the other SDKs.
+ *
+ * Variant serializers are resolved via the reified `serializer<T>()` so the
+ * union works for class variants AND primitive/collection variants (e.g.
+ * `ByteArray`, `List<ByteArray>`), which cannot use a `Type.serializer()`
+ * companion call or an `is Type` check on an erased generic.
+ */
+
+{{/discriminator}}
+{{#discriminator}}
+{{! ktlint's no-consecutive-comments rejects a block comment that follows
+    a KDoc, so this implementation note goes above the class doc with a
+    blank line between the two. }}
+/*
+ * Discriminated oneOf wrapper. The previous shape was an empty
+ * `abstract class {{classname}}` annotated with @JsonClassDiscriminator, but the
+ * variant schemas ({{#discriminator.mappedModels}}{{modelName}}{{^-last}}, {{/-last}}{{/discriminator.mappedModels}}) are emitted as
+ * independent data classes that neither extend this type nor register a
+ * @SerialName subtype. kotlinx-serialization would build a PolymorphicSerializer
+ * with ZERO registered subclasses, so every encode/decode of {{classname}} threw
+ * "not registered for polymorphic serialization" at runtime.
+ *
+ * Instead this is a wrapper holding the resolved variant in [actualInstance],
+ * with a hand-written serializer that dispatches on the
+ * `{{discriminator.propertyBaseName}}` discriminator property — mirroring the
+ * other SDKs (e.g. the Swift generator's discriminated-union enum, which
+ * switches on the discriminator and decodes the matching concrete type).
+ * [ObjectSerializer.serialize] unwraps
+ * [actualInstance] via reflection, so serialization of the bare variant works
+ * the same way it does for non-discriminated unions.
+ */
+
+{{/discriminator}}
 {{#isDeprecated}}
 /**
 {{#description}}
@@ -150,24 +196,6 @@ enum class {{classname}}(val value: String) {
 {{/description}}
 {{/isDeprecated}}
 {{#discriminator}}
-/*
- * Discriminated oneOf wrapper. The previous shape was an empty
- * `abstract class {{classname}}` annotated with @JsonClassDiscriminator, but the
- * variant schemas ({{#discriminator.mappedModels}}{{modelName}}{{^-last}}, {{/-last}}{{/discriminator.mappedModels}}) are emitted as
- * independent data classes that neither extend this type nor register a
- * @SerialName subtype. kotlinx-serialization would build a PolymorphicSerializer
- * with ZERO registered subclasses, so every encode/decode of {{classname}} threw
- * "not registered for polymorphic serialization" at runtime.
- *
- * Instead this is a wrapper holding the resolved variant in [actualInstance],
- * with a hand-written serializer that dispatches on the
- * `{{discriminator.propertyBaseName}}` discriminator property — mirroring the
- * other SDKs (e.g. the Swift generator's discriminated-union enum, which
- * switches on the discriminator and decodes the matching concrete type).
- * [ObjectSerializer.serialize] unwraps
- * [actualInstance] via reflection, so serialization of the bare variant works
- * the same way it does for non-discriminated unions.
- */
 @Serializable(with = {{classname}}.Serializer::class)
 class {{classname}}(
   @Contextual
@@ -231,19 +259,6 @@ class {{classname}}(
 }
 {{/discriminator}}
 {{^discriminator}}
-/*
- * Non-discriminated oneOf wrapper. The default generated object serializer
- * would expect a `{"actualInstance": ...}` envelope, but the wire payload is a
- * bare variant — so deserialization silently dropped every key and left
- * [actualInstance] null. The hand-written serializer below tries each declared
- * variant in turn (first match wins) and emits the bare variant on serialize,
- * matching the resolveOneOf contract used by the other SDKs.
- *
- * Variant serializers are resolved via the reified `serializer<T>()` so the
- * union works for class variants AND primitive/collection variants (e.g.
- * `ByteArray`, `List<ByteArray>`), which cannot use a `Type.serializer()`
- * companion call or an `is Type` check on an erased generic.
- */
 @Serializable(with = {{classname}}.Serializer::class)
 class {{classname}}(
   @Contextual
@@ -365,6 +380,27 @@ class {{classname}}(
 {{^oneOf}}
 {{#anyOf}}
 {{#-first}}
+{{! ktlint's no-consecutive-comments rejects a block comment that follows
+    a KDoc, so this implementation note goes above the class doc with a
+    blank line between the two. }}
+/*
+ * anyOf wrapper (lossless retain-all). A non-discriminated anyOf is documented
+ * as matching any one OR several of its declared variants at once, so a payload
+ * that satisfies more than one variant must retain ALL of them — dropping the
+ * extras and keeping only the first match loses data on re-encode.
+ *
+ * This wrapper holds EVERY variant that successfully decodes in [instances].
+ * On decode each declared variant is tried leniently (a variant matches when
+ * its own required fields are present; sibling keys it does not declare are
+ * ignored, NOT rejected) and every match is retained. On encode the JSON
+ * objects of all retained variants are MERGED into a single union object, so a
+ * co-satisfied payload round-trips losslessly with no silent field drop.
+ *
+ * [actualInstance] exposes the first retained variant for callers that treat
+ * the union as a single value (e.g. format:byte variants, which are mutually
+ * exclusive scalar/array shapes that cannot be merged).
+ */
+
 {{#isDeprecated}}
 /**
 {{#description}}
@@ -401,23 +437,6 @@ class {{classname}}(
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-/*
- * anyOf wrapper (lossless retain-all). A non-discriminated anyOf is documented
- * as matching any one OR several of its declared variants at once, so a payload
- * that satisfies more than one variant must retain ALL of them — dropping the
- * extras and keeping only the first match loses data on re-encode.
- *
- * This wrapper holds EVERY variant that successfully decodes in [instances].
- * On decode each declared variant is tried leniently (a variant matches when
- * its own required fields are present; sibling keys it does not declare are
- * ignored, NOT rejected) and every match is retained. On encode the JSON
- * objects of all retained variants are MERGED into a single union object, so a
- * co-satisfied payload round-trips losslessly with no silent field drop.
- *
- * [actualInstance] exposes the first retained variant for callers that treat
- * the union as a single value (e.g. format:byte variants, which are mutually
- * exclusive scalar/array shapes that cannot be merged).
- */
 @Serializable(with = {{classname}}.Serializer::class)
 class {{classname}}(
   @Contextual
@@ -610,54 +629,34 @@ class {{classname}}(
 @Serializable
 {{#parent}}open {{/parent}}data class {{classname}}(
 {{#vars}}
-  {{#deprecated}}
-  {{#description}}
+  {{! One KDoc per property. The description, the singular example, the plural
+      x-examples and the deprecation note all belong to the same comment: the
+      plural examples used to follow it as a second comment, which both put a
+      comment inside the value-parameter list and stacked two comments on one
+      declaration, and ktlint rejects each of those. }}
   /**
+  {{#description}}
    * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
-   *
-  {{#example}}
-   * Example: `{{{.}}}`
-   *
-  {{/example}}
-   * @deprecated This property is deprecated.
-   */
   {{/description}}
   {{^description}}
+   * The `{{name}}` property.
+  {{/description}}
   {{#example}}
-  /**
+   *
    * Example: `{{{.}}}`
+  {{/example}}
+  {{#vendorExtensions.pluralExamples}}
+   *
+   * Example "{{summary}}" — {{description}}; value: {{value}}
+  {{/vendorExtensions.pluralExamples}}
+  {{#deprecated}}
    *
    * @deprecated This property is deprecated.
+  {{/deprecated}}
    */
-  {{/example}}
-  {{^example}}
-  /** @deprecated This property is deprecated. */
-  {{/example}}
-  {{/description}}
+  {{#deprecated}}
   @Deprecated("This property is deprecated.")
   {{/deprecated}}
-  {{^deprecated}}
-  {{#description}}
-  {{#example}}
-  /**
-   * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
-   *
-   * Example: `{{{example}}}`
-   */
-  {{/example}}
-  {{^example}}
-  /** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
-  {{/example}}
-  {{/description}}
-  {{^description}}
-  {{#example}}
-  /** Example: `{{{.}}}` */
-  {{/example}}
-  {{/description}}
-  {{/deprecated}}
-  {{#vendorExtensions.pluralExamples}}
-  /* Example "{{summary}}" — {{description}}; value: {{value}} */
-  {{/vendorExtensions.pluralExamples}}
   @SerialName("{{baseName}}")
 {{^isEnum}}{{!
     Strict per-field serializers, keyed off the property's Kotlin type. The

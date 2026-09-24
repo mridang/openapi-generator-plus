@@ -1,5 +1,4 @@
 {{>api_info}}
-@file:Suppress("detekt:all", "ktlint:standard:backing-property-naming")
 
 package {{package}}
 
@@ -258,9 +257,9 @@ class {{classname}} : BaseApi {
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if (options != null) {
-            val _{{paramName}}Val = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
-            if (_{{paramName}}Val != null) {
-                queryParams["{{baseName}}"] = _{{paramName}}Val
+            val {{paramName}}Styled = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
+            if ({{paramName}}Styled != null) {
+                queryParams["{{baseName}}"] = {{paramName}}Styled
             }
         }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}

@@ -1,11 +1,11 @@
 {{>api_info}}
-@file:Suppress("detekt:all", "ktlint:standard:no-wildcard-imports")
 
-package {{invokerPackage}}
+package {{invokerPackage}}.auth.oauth
 
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.ApiHttpResponse
 import {{invokerPackage}}.errors.ApiException
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
-import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
