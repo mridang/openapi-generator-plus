@@ -12,14 +12,19 @@
 # directive rather than relaxing the ruleset.
 
 defmodule PetstoreClient.TraceContextUtil do
-  @moduledoc false
-  # Internal: injects W3C Trace Context headers (traceparent, tracestate) into
-  # outgoing API requests when OpenTelemetry is available. If the
-  # `:opentelemetry_api` application is not installed, returns the headers
-  # unchanged. Not part of the public API.
+  @moduledoc """
+  Utility for injecting W3C Trace Context headers (traceparent, tracestate)
+  into outgoing API requests when OpenTelemetry is available.
+
+  If the `:opentelemetry_api` application is not installed, this module
+  silently no-ops.
+  """
 
   @doc """
   Inject the current OpenTelemetry trace context into the given headers map.
+
+  Elixir data is immutable, so the updated map is returned instead of being
+  mutated in place as it is in the other SDKs.
 
   ## Parameters
 

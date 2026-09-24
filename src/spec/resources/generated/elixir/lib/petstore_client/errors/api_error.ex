@@ -94,7 +94,7 @@ defmodule PetstoreClient.Errors.ApiError do
   recognised status (`PetstoreClient.Errors.NotFoundError` for 404,
   `PetstoreClient.Errors.InternalServerError` for 500, ...),
   `PetstoreClient.Errors.ClientError` or `PetstoreClient.Errors.ServerError`
-  for any other 4xx or 5xx, and an `ApiError` for anything else. A JSON body
+  for any other 400-499 or 500-599, and an `ApiError` for anything else. A JSON body
   is also parsed into `error_body`. Every generated operation and the OpenID
   Connect discovery request build their HTTP errors here, so this is the one
   place the status-to-error mapping lives.
@@ -117,7 +117,9 @@ defmodule PetstoreClient.Errors.ApiError do
   defp exception_module(status_code) when status_code >= 400 and status_code < 500,
     do: ClientError
 
-  defp exception_module(status_code) when status_code >= 500, do: ServerError
+  defp exception_module(status_code) when status_code >= 500 and status_code < 600,
+    do: ServerError
+
   defp exception_module(_status_code), do: __MODULE__
 
   # F5: route through ObjectSerializer.parse_json so the @max_json_depth guard
@@ -132,7 +134,8 @@ defmodule PetstoreClient.Errors.ApiError do
   defp parse_error_body(_body), do: nil
 
   @doc """
-  Deserialize the response body into a typed error object.
+  Deserialize the raw response body into a typed error object. This is the one
+  accessor for spec-declared error schemas.
 
   ## Parameters
 
@@ -144,6 +147,9 @@ defmodule PetstoreClient.Errors.ApiError do
     The deserialized error body, or `nil` if the body is empty.
   """
   @spec typed_error_body(t(), String.t()) :: term()
+  def typed_error_body(%__MODULE__{response_body: body}, _type_name) when body in [nil, ""],
+    do: nil
+
   def typed_error_body(%__MODULE__{} = error, type_name) do
     PetstoreClient.ObjectSerializer.deserialize(error.response_body, type_name)
   end

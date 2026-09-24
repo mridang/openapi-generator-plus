@@ -181,7 +181,10 @@ defmodule PetstoreClient.ApiErrorTest do
             {418, PetstoreClient.Errors.ClientError},
             {500, PetstoreClient.Errors.InternalServerError},
             {503, PetstoreClient.Errors.ServerError},
-            {302, PetstoreClient.Errors.ApiError}
+            {302, PetstoreClient.Errors.ApiError},
+            # A status outside 400-599 is neither a ClientError nor a
+            # ServerError: the 5xx arm stops at 599, so 600 is an ApiError.
+            {600, PetstoreClient.Errors.ApiError}
           ] do
         err = PetstoreClient.Errors.ApiError.from_response(status, headers, ~s({"k":"v"}))
 
@@ -192,7 +195,7 @@ defmodule PetstoreClient.ApiErrorTest do
         assert err.error_body == %{"k" => "v"}
         assert PetstoreClient.Errors.ApiError.api_error?(err)
         assert PetstoreClient.Errors.ClientError.client_error?(err) == status in 400..499
-        assert PetstoreClient.Errors.ServerError.server_error?(err) == status >= 500
+        assert PetstoreClient.Errors.ServerError.server_error?(err) == status in 500..599
       end
     end
 

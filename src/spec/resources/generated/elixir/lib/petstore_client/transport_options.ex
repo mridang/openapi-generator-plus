@@ -14,7 +14,7 @@ defmodule PetstoreClient.TransportOptions do
   are independent of API-level concerns (base URL, authentication headers)
   which belong in `#{inspect(PetstoreClient.Configuration)}`.
 
-  ## Examples
+  This struct is immutable by convention. Use `new/1` to create instances:
 
       transport = PetstoreClient.TransportOptions.new(
         verify_ssl: false,

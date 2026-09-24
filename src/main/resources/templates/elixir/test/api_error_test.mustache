@@ -175,7 +175,10 @@ defmodule {{moduleName}}.ApiErrorTest do
             {418, {{moduleName}}.Errors.ClientError},
             {500, {{moduleName}}.Errors.InternalServerError},
             {503, {{moduleName}}.Errors.ServerError},
-            {302, {{moduleName}}.Errors.ApiError}
+            {302, {{moduleName}}.Errors.ApiError},
+            # A status outside 400-599 is neither a ClientError nor a
+            # ServerError: the 5xx arm stops at 599, so 600 is an ApiError.
+            {600, {{moduleName}}.Errors.ApiError}
           ] do
         err = {{moduleName}}.Errors.ApiError.from_response(status, headers, ~s({"k":"v"}))
 
@@ -186,7 +189,7 @@ defmodule {{moduleName}}.ApiErrorTest do
         assert err.error_body == %{"k" => "v"}
         assert {{moduleName}}.Errors.ApiError.api_error?(err)
         assert {{moduleName}}.Errors.ClientError.client_error?(err) == (status in 400..499)
-        assert {{moduleName}}.Errors.ServerError.server_error?(err) == (status >= 500)
+        assert {{moduleName}}.Errors.ServerError.server_error?(err) == (status in 500..599)
       end
     end
 
