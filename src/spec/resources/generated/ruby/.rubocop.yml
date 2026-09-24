@@ -54,6 +54,14 @@ Metrics/PerceivedComplexity:
 # same test is written the same way in all twelve SDKs. Inserting a blank line
 # before every assertion would make the Ruby suite the only one shaped that
 # way.
+# Reports nothing against the generated tests, which are spec-style `it` blocks
+# it cannot see into -- but a real client's hand-written suite uses `def test_x`,
+# where one behaviour is legitimately checked by several assertions (that a
+# failure carries the right type, status and cause is one fact, three asserts).
+# Removing this because the golden shows zero offences breaks those six clients.
+Minitest/MultipleAssertions:
+  Enabled: false
+
 Minitest/EmptyLineBeforeAssertionMethods:
   Enabled: false
 

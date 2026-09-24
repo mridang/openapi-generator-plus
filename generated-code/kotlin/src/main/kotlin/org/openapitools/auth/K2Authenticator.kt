@@ -1,4 +1,3 @@
-@file:Suppress("detekt:all")
 
 package org.openapitools.auth
 
